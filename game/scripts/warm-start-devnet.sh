@@ -17,10 +17,13 @@
 #  Использование:
 #    ./scripts/warm-start-devnet.sh
 #
-#  Переменные окружения (опционально):
+# Переменные окружения (опционально):
 #    ADMIN_KEYPAIR  путь к ключу деплоера   (по умолчанию ~/.config/solana/id.json)
 #    RPC_URL        RPC для деплоя и init-onchain (свой, например Helius;
 #                   по умолчанию публичный https://api.devnet.solana.com)
+#    BUFFER_KEYPAIR путь к ключу буфера неудачного деплоя (12 слов из его вывода
+#                   → solana-keygen recover -o файл) — продолжить деплой на том же
+#                   буфере, не тратя новые ~3.4 SOL
 #    PRESERVE_STATE 1 = после upgrade выполнить migrate-v2 (старые аккаунты → v2 layout)
 # ═══════════════════════════════════════════════════════════════════
 set -euo pipefail
@@ -62,9 +65,12 @@ done
 [ "$LAMPORTS" -ge "$NEED_LAMPORTS" ] || {
   echo "✖ Не набралось 4 SOL (сейчас $((LAMPORTS / 1000000000)).$((LAMPORTS % 1000000000 / 100000000)))."
   echo "  Devnet-faucet имеет дневной лимит — докинь SOL вручную ($ADMIN) или повтори позже."
-  echo "  Лайфхак: неудачные деплои оставляют 'буферы' с ~3.4 SOL. Вернуть их:"
-  echo "    solana-keygen recover -o ~/buffer1.json   (по одному слову вводить 12 слов из вывода деплоя)"
-  echo "    solana program close <адрес буфера из вывода> --keypair ~/buffer1.json"
+  echo "  Лайфхак: неудачные деплои оставляют 'буферы' с ~3.4 SOL. Варианты:"
+  echo "    (a) продолжить деплой на буфере (новые SOL не тратятся):"
+  echo "        solana-keygen recover -o ~/buffer1.json   (по одному вводить 12 слов из вывода деплоя)"
+  echo "        BUFFER_KEYPAIR=~/buffer1.json RPC_URL=<твой rpc> ./scripts/warm-start-devnet.sh"
+  echo "    (b) забрать лампорты себе:"
+  echo "        solana program close <адрес буфера из вывода> --keypair ~/buffer1.json"
   exit 1
 }
 LAMPORTS=$(solana balance --lamports "$ADMIN" --url devnet | awk '{print $1}')
@@ -90,11 +96,23 @@ fi
 # с одним --url (свой RPC, если задан).
 [ -f "$KEYPAIR_FILE" ] || solana-keygen new -o "$KEYPAIR_FILE" --no-bip39-passphrase
 DEPLOY_URL="${RPC_URL:-https://api.devnet.solana.com}"
+# Devnet под нагрузкой: без priority fee чанки записи в буфер часто не
+# успевают в блок ("N write transactions failed"). Флаги — если версия CLI их знает.
+DEPLOY_EXTRA=""
+solana program deploy --help 2>&1 | grep -q "with-compute-unit-price" && DEPLOY_EXTRA="$DEPLOY_EXTRA --with-compute-unit-price 10000"
+solana program deploy --help 2>&1 | grep -q "max-sign-attempts" && DEPLOY_EXTRA="$DEPLOY_EXTRA --max-sign-attempts 60"
+DEPLOY_BUFFER=""
+if [ -n "${BUFFER_KEYPAIR:-}" ]; then
+  DEPLOY_BUFFER="--buffer $BUFFER_KEYPAIR"
+  echo "    Продолжаем деплой на существующем буфере: $BUFFER_KEYPAIR (новые ~3.4 SOL не тратим)"
+fi
 echo "    Deploy via RPC: $DEPLOY_URL"
+# shellcheck disable=SC2086
 solana program deploy \
   --url "$DEPLOY_URL" \
   --keypair "$ADMIN_KEYPAIR" \
   --program-id "$KEYPAIR_FILE" \
+  $DEPLOY_EXTRA $DEPLOY_BUFFER \
   target/deploy/solana_potato.so
 PROGRAM_ID=$(solana address --keypair "$KEYPAIR_FILE")
 echo "    program id: $PROGRAM_ID"
