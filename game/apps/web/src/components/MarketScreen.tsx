@@ -9,13 +9,9 @@ import { useGame } from '../contexts/GameContext'
 import { fmtPotato, fmtSkr, MICRO, CANCEL_COOLDOWN_HOURS } from '../utils/constants'
 import { SupplyBay } from './ares/SupplyBay';
 import { HullPanel } from '../ui/HullPanel';
-import { useSolana } from '../contexts/SolanaContext'
-import { getAssociatedTokenAddressSync, createAssociatedTokenAccountIdempotentInstruction } from '@solana/spl-token'
-
 function MarketScreenInner() {
  const { orders, myOrders, stats, loading, actionLoading, createOrder, fillOrder, cancelOrder } = useMarketplace()
  const { stats: gameStats } = useGame()
- const { connection, publicKey, programId, config, sendIx } = useSolana()
 
 
  const [showCreate, setShowCreate] = useState(false)

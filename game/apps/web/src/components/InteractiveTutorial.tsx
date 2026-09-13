@@ -74,7 +74,6 @@ export default function InteractiveTutorial({ onComplete }: Props) {
 
  const step = TUTORIAL_STEPS[currentStep]
  const isLast = currentStep === TUTORIAL_STEPS.length - 1
- const progress = ((currentStep + 1) / TUTORIAL_STEPS.length) * 100
 
  const handleNext = () => {
   if (isLast) {

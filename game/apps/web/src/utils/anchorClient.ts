@@ -449,7 +449,7 @@ export async function ixBuyExportLicense(programId: PublicKey, params: {
 export async function ixMigrateConfig(programId: PublicKey, params: {
  config: PublicKey; authority: PublicKey;
 }): Promise<TransactionInstruction> {
- const data = await ixDiscriminator('migrate_config')
+ const data = Buffer.from(await ixDiscriminator('migrate_config'))
  return new TransactionInstruction({
   programId,
   data,
@@ -464,7 +464,7 @@ export async function ixMigrateConfig(programId: PublicKey, params: {
 export async function ixMigrateField(programId: PublicKey, params: {
  field: PublicKey; config: PublicKey; authority: PublicKey;
 }): Promise<TransactionInstruction> {
- const data = await ixDiscriminator('migrate_field')
+ const data = Buffer.from(await ixDiscriminator('migrate_field'))
  return new TransactionInstruction({
   programId,
   data,
@@ -480,7 +480,7 @@ export async function ixMigrateField(programId: PublicKey, params: {
 export async function ixMigrateEpoch(programId: PublicKey, params: {
  epoch: PublicKey; config: PublicKey; authority: PublicKey;
 }): Promise<TransactionInstruction> {
- const data = await ixDiscriminator('migrate_epoch')
+ const data = Buffer.from(await ixDiscriminator('migrate_epoch'))
  return new TransactionInstruction({
   programId,
   data,
@@ -579,7 +579,7 @@ export async function ixRegisterReferrer(programId: PublicKey, params: {
   const data = Buffer.alloc(DISCRIMINATOR_SIZE + 32);
   const disc = await ixDiscriminator('register_referrer');
   data.set(disc, 0);
-  data.write(referrer.toBuffer(), DISCRIMINATOR_SIZE);
+  data.set(referrer.toBytes(), DISCRIMINATOR_SIZE);
   
   return new TransactionInstruction({
     programId,
