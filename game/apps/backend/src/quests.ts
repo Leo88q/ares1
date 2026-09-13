@@ -22,8 +22,17 @@ const MICRO = 1_000_000n;
 
 const todayUtc = () => new Date().toISOString().slice(0, 10);
 
+/**
+ * Верификация подписки на канал работает только при заданном TELEGRAM_CHANNEL_ID.
+ * Без него квест честно скрывается из списка и отклоняется (а не выдаётся всем).
+ */
+export function isChannelVerificationEnabled(): boolean {
+  return env.telegramChannelId.length > 0;
+}
+
 /** Resolves a quest id to its reward, or null when unknown / not claimable today. */
 export function resolveQuestAmount(questId: string): bigint | null {
+  if (questId === "social_channel" && !isChannelVerificationEnabled()) return null;
   if (questId in FIXED_QUESTS) return FIXED_QUESTS[questId];
   const [kind, datePart] = questId.split(":");
   if (datePart !== todayUtc()) return null;
@@ -51,7 +60,7 @@ async function potatoBalanceMicro(owner: PublicKey, mint: PublicKey): Promise<bi
 }
 
 async function isChannelMember(telegramUserId: number): Promise<boolean> {
-  if (!env.telegramChannelId) return true; // verification disabled
+  if (!env.telegramChannelId) return false; // верификация отключена → безопасное «нет» (квест скрыт/отклоняется выше)
   const url = `https://api.telegram.org/bot${env.telegramBotToken}/getChatMember?chat_id=${encodeURIComponent(env.telegramChannelId)}&user_id=${telegramUserId}`;
   const res = await fetch(url);
   if (!res.ok) return false;

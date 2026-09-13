@@ -6,7 +6,6 @@ import { getReferralStats, getReferralConfig, buildReferralLink, ReferralStats, 
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 
-// TODO: заменить на реальный username бота из env
 const BOT_USERNAME = import.meta.env.VITE_BOT_USERNAME || 'solana_potato_bot'
 
 export function ReferralSection() {

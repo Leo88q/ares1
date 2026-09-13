@@ -16,7 +16,7 @@ const PRESALE_PRICE_SKR = 1053
  * Использует PotatoCard rare="gold" + GlowIcon + AnimatedNumber + PotatoButton glow="none"
  */
 export default function PresaleSection() {
- const { buyFieldPresale, purchasing } = useGame() as any
+ const { buyFieldPresale, purchasing } = useGame()
  const { connected, connection } = useSolana()
  const [sold, setSold] = useState(0)
  const [loading, setLoading] = useState(true)

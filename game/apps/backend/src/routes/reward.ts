@@ -4,7 +4,7 @@ import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { telegramAuthMiddleware } from "../telegramAuth.js";
 import { env } from "../env.js";
 import { alreadyClaimed, checkWalletBinding, claimedQuestIds, dailyTotalMicro, recordClaim } from "../rewardStore.js";
-import { FIXED_QUESTS, resolveQuestAmount, verifyQuest } from "../quests.js";
+import { FIXED_QUESTS, isChannelVerificationEnabled, resolveQuestAmount, verifyQuest } from "../quests.js";
 import { authorityKeypair, buildGrantRewardIx, configPda, connection, epochPda, fetchConfig, sendAdminTx } from "../solana.js";
 
 export const rewardRouter = Router();
@@ -15,7 +15,13 @@ rewardRouter.get("/status", telegramAuthMiddleware, (req, res) => {
 });
 
 rewardRouter.get("/quests", (_req, res) => {
-  res.json(Object.fromEntries(Object.entries(FIXED_QUESTS).map(([k, v]) => [k, v.toString()])));
+  const quests: Record<string, string> = {};
+  for (const [k, v] of Object.entries(FIXED_QUESTS)) {
+    // social_channel без TELEGRAM_CHANNEL_ID не верифицируется — не показываем его
+    if (k === "social_channel" && !isChannelVerificationEnabled()) continue;
+    quests[k] = v.toString();
+  }
+  res.json(quests);
 });
 
 // One claim at a time per user: prevents double-spend from parallel requests.
@@ -27,6 +33,9 @@ rewardRouter.post("/claim", telegramAuthMiddleware, async (req, res) => {
 
   if (typeof questId !== "string" || questId.length > 64) {
     return res.status(400).json({ error: "Invalid questId" });
+  }
+  if (questId === "social_channel" && !isChannelVerificationEnabled()) {
+    return res.status(400).json({ error: "Квест «подписка» недоступен: верификация канала не настроена (TELEGRAM_CHANNEL_ID)" });
   }
   const amount = resolveQuestAmount(questId);
   if (amount === null) return res.status(400).json({ error: "Unknown or expired questId" });

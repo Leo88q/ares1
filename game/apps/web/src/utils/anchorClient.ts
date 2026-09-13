@@ -421,6 +421,7 @@ export async function ixBuyFieldSkr(programId: PublicKey, params: {
 export async function ixBuyExportLicense(programId: PublicKey, params: {
  config: PublicKey; license: PublicKey; payer: PublicKey;
  skrMint: PublicKey; userSkrAta: PublicKey;
+ treasurySol: PublicKey; treasurySkrAta: PublicKey;
 }): Promise<TransactionInstruction> {
  const data = concatBytes(await ixDiscriminator('buy_export_license'))
  return new TransactionInstruction({
@@ -432,8 +433,11 @@ export async function ixBuyExportLicense(programId: PublicKey, params: {
    { pubkey: params.payer, isSigner: true, isWritable: true },
    { pubkey: params.skrMint, isSigner: false, isWritable: false },
    { pubkey: params.userSkrAta, isSigner: false, isWritable: true },
+   { pubkey: params.treasurySol, isSigner: false, isWritable: true },
+   { pubkey: params.treasurySkrAta, isSigner: false, isWritable: true },
    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+   { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   ],
  })
 }

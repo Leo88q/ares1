@@ -14,6 +14,10 @@ function rateLimit(perMinute: number) {
   return (req: Request, res: Response, next: NextFunction) => {
     const ip = req.ip || "unknown";
     const now = Date.now();
+    // Прунинг: без него Map растёт неограниченно на долгоживущем инстансе (AUDIT I5)
+    if (hits.size > 10_000) {
+      for (const [k, v] of hits) if (now - v.windowStart > 120_000) hits.delete(k);
+    }
     const entry = hits.get(ip);
     if (!entry || now - entry.windowStart > 60_000) {
       hits.set(ip, { count: 1, windowStart: now });
@@ -51,9 +55,15 @@ async function main() {
 
   const config = await fetchConfig();
   if (!config.authority.equals(authorityKeypair.publicKey)) {
-    console.warn(
-      `[startup] WARNING: keypair ${authorityKeypair.publicKey.toBase58()} is not GameConfig.authority (${config.authority.toBase58()}). grant_reward will fail.`,
+    // Fail-fast: с неверным ключом /claim падает у каждого пользователя (AUDIT I14)
+    console.error(
+      `[startup] FATAL: keypair ${authorityKeypair.publicKey.toBase58()} is not GameConfig.authority (${config.authority.toBase58()}). ` +
+      `Проверьте AUTHORITY_KEYPAIR_JSON. Бэкенд не запускается.`,
     );
+    process.exit(1);
+  }
+  if (!env.telegramChannelId) {
+    console.warn("[startup] WARNING: TELEGRAM_CHANNEL_ID не задан — квест «подписка на канал» скрыт и не выдаётся.");
   }
 
   startEpochRoller();

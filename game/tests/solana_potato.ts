@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program, BN } from "@coral-xyz/anchor";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from "@solana/web3.js";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   AuthorityType,
@@ -39,6 +39,7 @@ describe("solana_potato", () => {
   const marketStatsPda = pda(Buffer.from("market_stats"));
 
   let mint: PublicKey;
+  const presaleFieldIds: bigint[] = [];
   let adminAta: PublicKey;
   let treasuryAta: PublicKey;
   const player = Keypair.generate();
@@ -479,6 +480,315 @@ describe("solana_potato", () => {
       expect((await ataBalance(adminAta)) - sellerBefore).to.eq(100_000n); // 1 % refund
       expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
       expect(await connection.getAccountInfo(orderPk)).to.be.null;
+    });
+  });
+
+  describe("presale", () => {
+    const treasurySolPda = pda(Buffer.from("treasury_sol"));
+    const presalePda = pda(Buffer.from("presale"));
+    const buyerPresalePda = (buyer: PublicKey) => pda(Buffer.from("buyer_presale"), buyer.toBuffer());
+    const PRE_PRICE_LAMPORTS = 50_000_000n; // 0.05 SOL — дешевле, чем у игрока на airdrop
+
+    const buySol = async (buyer: Keypair, fieldId: bigint, authority: PublicKey) =>
+      program.methods.buyFieldSol(new BN(fieldId.toString()), 1).accountsPartial({
+        config: configPda, presaleState: presalePda, authority,
+        buyerPresale: buyerPresalePda(buyer.publicKey), field: fieldPda(fieldId),
+        buyer: buyer.publicKey, treasurySol: treasurySolPda, systemProgram: SystemProgram.programId,
+      }).signers([buyer]).rpc();
+
+    it("init_presale creates the state; re-init and bad price are rejected", async () => {
+      // vault для SOL-пресейла: 0-байт System-аккаунт (как в init-onchain)
+      const rent = await connection.getMinimumBalanceForRentExemption(0);
+      await connection.confirmTransaction(await connection.sendTransaction(
+        new Transaction().add(
+          SystemProgram.transfer({ fromPubkey: admin.publicKey, toPubkey: treasurySolPda, lamports: rent }),
+        ),
+        [admin],
+      ));
+
+      await program.methods.initPresale(new BN(10), new BN(PRE_PRICE_LAMPORTS.toString())).accountsPartial({
+        config: configPda, presaleState: presalePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+      }).rpc();
+      const st = await program.account.presaleState.fetch(presalePda);
+      expect(st.cap.toNumber()).to.eq(10);
+      expect(st.priceLamports.toString()).to.eq(PRE_PRICE_LAMPORTS.toString());
+
+      await expectFail(
+        program.methods.initPresale(new BN(10), new BN(PRE_PRICE_LAMPORTS.toString())).accountsPartial({
+          config: configPda, presaleState: presalePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+        }).rpc(),
+      );
+      await expectFail(
+        program.methods.updatePresalePrice(new BN(0)).accountsPartial({
+          config: configPda, presaleState: presalePda, authority: admin.publicKey,
+        }).rpc(),
+        "InvalidAmount",
+      );
+      await expectFail(
+        program.methods.updatePresalePrice(new BN(1)).accountsPartial({
+          config: configPda, presaleState: presalePda, authority: player.publicKey,
+        }).signers([player]).rpc(),
+        "ConstraintHasOne",
+      );
+      await program.methods.updatePresalePrice(new BN(75_000_000n.toString())).accountsPartial({
+        config: configPda, presaleState: presalePda, authority: admin.publicKey,
+      }).rpc();
+      await program.methods.updatePresalePrice(new BN(PRE_PRICE_LAMPORTS.toString())).accountsPartial({
+        config: configPda, presaleState: presalePda, authority: admin.publicKey,
+      }).rpc();
+    });
+
+    it("buy_field_sol moves SOL to the treasury and creates the field", async () => {
+      const fieldId = BigInt(Date.now()) + 1n;
+      const treasuryBefore = await connection.getBalance(treasurySolPda);
+      await buySol(player, fieldId, admin.publicKey);
+      presaleFieldIds.push(fieldId);
+
+      const field = await program.account.field.fetch(fieldPda(fieldId));
+      expect(field.owner.equals(player.publicKey)).to.be.true;
+      expect(field.fieldType).to.eq(1);
+      const st = await program.account.presaleState.fetch(presalePda);
+      expect(st.sold.toNumber()).to.eq(1);
+      const counter = await program.account.buyerPresaleCounter.fetch(buyerPresalePda(player.publicKey));
+      expect(counter.count).to.eq(1);
+      const treasuryAfter = await connection.getBalance(treasurySolPda);
+      expect(treasuryAfter - treasuryBefore).to.eq(Number(PRE_PRICE_LAMPORTS));
+    });
+
+    it("rejects an invalid field type", async () => {
+      await expectFail(
+        program.methods.buyFieldSol(new BN((BigInt(Date.now()) + 901n).toString()), 3).accountsPartial({
+          config: configPda, presaleState: presalePda, authority: admin.publicKey,
+          buyerPresale: buyerPresalePda(player.publicKey), field: fieldPda(BigInt(Date.now()) + 901n),
+          buyer: player.publicKey, treasurySol: treasurySolPda, systemProgram: SystemProgram.programId,
+        }).signers([player]).rpc(),
+        "InvalidFieldType",
+      );
+    });
+
+    it("enforces the 5-fields-per-wallet limit", async () => {
+      for (let i = 2; i <= 5; i++) {
+        const fieldId = BigInt(Date.now()) + BigInt(i * 10);
+        await buySol(player, fieldId, admin.publicKey);
+        presaleFieldIds.push(fieldId);
+      }
+      await expectFail(
+        buySol(player, BigInt(Date.now()) + 999n, admin.publicKey),
+        "PresaleWalletLimitReached",
+      );
+      const st = await program.account.presaleState.fetch(presalePda);
+      expect(st.sold.toNumber()).to.eq(5);
+    });
+
+    it("enforces the global cap", async () => {
+      const buyer2 = Keypair.generate();
+      await connection.confirmTransaction(await connection.requestAirdrop(buyer2.publicKey, 1 * LAMPORTS_PER_SOL));
+      for (let i = 1; i <= 5; i++) {
+        const fieldId = BigInt(Date.now()) + BigInt(100 + i * 10);
+        await buySol(buyer2, fieldId, admin.publicKey);
+      }
+      const buyer3 = Keypair.generate();
+      await connection.confirmTransaction(await connection.requestAirdrop(buyer3.publicKey, 1 * LAMPORTS_PER_SOL));
+      await expectFail(
+        buySol(buyer3, BigInt(Date.now()) + 8888n, admin.publicKey),
+        "PresaleCapReached",
+      );
+      const st = await program.account.presaleState.fetch(presalePda);
+      expect(st.sold.toNumber()).to.eq(10);
+    });
+
+    it("is blocked while paused (paused-чек идёт первым в обработчике)", async () => {
+      await program.methods.setPaused(true).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      const buyer4 = Keypair.generate();
+      await connection.confirmTransaction(await connection.requestAirdrop(buyer4.publicKey, 1 * LAMPORTS_PER_SOL));
+      // cap уже 10/10, но require!(paused) стоит раньше всех остальных проверок
+      await expectFail(
+        buySol(buyer4, BigInt(Date.now()) + 7777n, admin.publicKey),
+        "Paused",
+      );
+      await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+    });
+
+    it("SKR rail: wrong mint is rejected (SKR_MINT is a program constant)", async function () {
+      this.timeout(20_000);
+      // Полноценный happy-path buy_field_skr на localnet невозможен: программа
+      // проверяет skr_mint == SKR_MINT (константа, devnet-mint Fotom…), а его
+      // нельзя создать без ключа. Проверяем guard + аккаунт-валидацию.
+      const wrongSkrMint = await createMint(connection, admin, admin.publicKey, null, 6);
+      const buyerSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, player.publicKey, true)).address;
+      const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, treasurySolPda, true)).address;
+      const buybackSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, admin.publicKey, true)).address;
+      await expectFail(
+        program.methods.buyFieldSkr(new BN((BigInt(Date.now()) + 5555n).toString())).accountsPartial({
+          config: configPda, presaleState: presalePda, authority: admin.publicKey,
+          buyerPresale: buyerPresalePda(player.publicKey), field: fieldPda(BigInt(Date.now()) + 5555n),
+          buyer: player.publicKey, skrMint: wrongSkrMint, buyerSkrAta,
+          treasurySol: treasurySolPda, treasurySkrAta, buybackSkrAta,
+          tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        }).signers([player]).rpc(),
+        "ConstraintAddress",
+      );
+    });
+
+    it("migrate_presale_authority repairs the presale after an authority transfer", async () => {
+      const next = Keypair.generate();
+      await program.methods.proposeAuthority(next.publicKey).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      await program.methods.acceptAuthority().accountsPartial({ config: configPda, newAuthority: next.publicKey }).signers([next]).rpc();
+
+      // без миграции покупки падают: UI передаёт authority = config.authority (next)
+      const buyer5 = Keypair.generate();
+      await connection.confirmTransaction(await connection.requestAirdrop(buyer5.publicKey, 1 * LAMPORTS_PER_SOL));
+      const stBefore = (await program.account.presaleState.fetch(presalePda)).sold;
+      await expectFail(
+        buySol(buyer5, BigInt(Date.now()) + 4444n, next.publicKey),
+        "ConstraintHasOne",
+      );
+
+      await expectFail(
+        program.methods.migratePresaleAuthority().accountsPartial({
+          config: configPda, presaleState: presalePda, authority: admin.publicKey,
+        }).rpc(),
+        "ConstraintHasOne", // старый authority не может мигрировать
+      );
+
+      await program.methods.migratePresaleAuthority().accountsPartial({
+        config: configPda, presaleState: presalePda, authority: next.publicKey,
+      }).signers([next]).rpc();
+      const st = await program.account.presaleState.fetch(presalePda);
+      expect(st.authority.equals(next.publicKey)).to.be.true;
+
+      // cap исчерпан в этом тесте (10/10) — покупка не пройдёт по PresaleCapReached,
+      // а НЕ по ConstraintHasOne: этого достаточно, чтобы доказать, что has_one прошёл.
+      await expectFail(
+        buySol(buyer5, BigInt(Date.now()) + 4445n, next.publicKey),
+        "PresaleCapReached",
+      );
+      expect((await program.account.presaleState.fetch(presalePda)).sold.toNumber()).to.eq(stBefore.toNumber());
+
+      // возвращаем authority
+      await program.methods.proposeAuthority(admin.publicKey).accountsPartial({ config: configPda, authority: next.publicKey }).signers([next]).rpc();
+      await program.methods.acceptAuthority().accountsPartial({ config: configPda, newAuthority: admin.publicKey }).rpc();
+      await program.methods.migratePresaleAuthority().accountsPartial({ config: configPda, presaleState: presalePda, authority: admin.publicKey }).rpc();
+    });
+  });
+
+  describe("quest pool (claim_achievement)", () => {
+    const questTreasuryPda = pda(Buffer.from("quest_treasury"));
+    const questAta = getAssociatedTokenAddressSync(mint, questTreasuryPda, true);
+    const achvPda = (user: PublicKey) => pda(Buffer.from("achv"), user.toBuffer());
+    const POOL = 550_000_000n; // 550 🥔 — зеркало QUEST_REWARD_MICRO
+
+    const claim = async (user: Keypair, questId: number, fields: PublicKey[] = [], userPotatoAta: PublicKey = playerAta) =>
+      program.methods.claimAchievement(questId).accountsPartial({
+        config: configPda, achievements: achvPda(user.publicKey), user: user.publicKey,
+        questTreasury: questTreasuryPda, questAta, userPotatoAta,
+        potatoMint: mint, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+      }).remainingAccounts(fields).signers([user]).rpc();
+
+    before(async () => {
+      const rent = await connection.getMinimumBalanceForRentExemption(0);
+      await connection.confirmTransaction(await connection.sendTransaction(
+        new Transaction().add(SystemProgram.transfer({ fromPubkey: admin.publicKey, toPubkey: questTreasuryPda, lamports: rent })),
+        [admin],
+      ));
+      await getOrCreateAssociatedTokenAccount(connection, admin, mint, questTreasuryPda, true);
+      await program.methods.grantReward(new BN(POOL.toString())).accountsPartial({
+        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: questAta, tokenProgram: TOKEN_PROGRAM_ID,
+      }).rpc();
+      expect(await ataBalance(questAta)).to.eq(POOL);
+    });
+
+    it("funds the 550 🥔 pool and pays quest 0 (1 field) from it", async () => {
+      const playerAtaBefore = await ataBalance(playerAta);
+      await claim(player, 0, presaleFieldIds.slice(0, 1));
+      expect((await ataBalance(questAta))).to.eq(POOL - 50_000_000n);
+      expect((await ataBalance(playerAta)) - playerAtaBefore).to.eq(50_000_000n);
+      const achv = await program.account.achievements.fetch(achvPda(player.publicKey));
+      expect(achv.bitmap.toNumber() & 1).to.eq(1);
+    });
+
+    it("rejects a double claim", async () => {
+      await expectFail(claim(player, 0, presaleFieldIds.slice(0, 1)), "AlreadyClaimed");
+    });
+
+    it("rejects a user without the required fields (BadProof)", async () => {
+      const stranger = Keypair.generate();
+      await connection.confirmTransaction(await connection.requestAirdrop(stranger.publicKey, 1 * LAMPORTS_PER_SOL));
+      const strangerAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, stranger.publicKey)).address;
+      await expectFail(claim(stranger, 0, [], strangerAta), "BadProof");
+    });
+
+    it("pays balance-based quests (100 / 1000 🥔) for a clean user", async () => {
+      // playerAta уже содержит 🥔 из ранних сьютов — берём чистого пользователя
+      const saver = Keypair.generate();
+      await connection.confirmTransaction(await connection.requestAirdrop(saver.publicKey, 1 * LAMPORTS_PER_SOL));
+      const saverAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, saver.publicKey)).address;
+
+      await program.methods.grantReward(new BN("150000000")).accountsPartial({
+        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: saverAta, tokenProgram: TOKEN_PROGRAM_ID,
+      }).rpc();
+      // 150 🥔: quest 2 (нужно 1000) невалиден, quest 1 (нужно 100) валиден
+      await expectFail(claim(saver, 2, [], saverAta), "BadProof");
+      await claim(saver, 1, [], saverAta);
+      expect(await ataBalance(saverAta)).to.eq(200_000_000n); // 150 + 50 (награда)
+      expect(await ataBalance(questAta)).to.eq(POOL - 50_000_000n - 50_000_000n);
+
+      await program.methods.grantReward(new BN("900000000")).accountsPartial({
+        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: saverAta, tokenProgram: TOKEN_PROGRAM_ID,
+      }).rpc();
+      await claim(saver, 2, [], saverAta); // 1100 🥔 ≥ 1000
+      expect(await ataBalance(saverAta)).to.eq(1200_000_000n);
+      expect(await ataBalance(questAta)).to.eq(POOL - 50_000_000n - 50_000_000n - 100_000_000n);
+    });
+
+    it("pays quest 3 (5 fields) to the player", async () => {
+      const playerAtaBefore = await ataBalance(playerAta);
+      await claim(player, 3, presaleFieldIds.slice(0, 5));
+      expect((await ataBalance(playerAta)) - playerAtaBefore).to.eq(100_000_000n);
+      expect(await ataBalance(questAta)).to.eq(POOL - 50_000_000n - 50_000_000n - 100_000_000n - 100_000_000n);
+    });
+
+    it("rejects out-of-range quest ids and claims while paused", async () => {
+      await expectFail(claim(player, 6), "InvalidFieldType");
+      await program.methods.setPaused(true).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      await expectFail(claim(player, 4), "Paused"); // paused-чек раньше проверки баланса
+      await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+    });
+  });
+
+  describe("treasury withdrawals (SOL)", () => {
+    const treasurySolPda = pda(Buffer.from("treasury_sol"));
+
+    it("withdraw_treasury_sol pays the authority; non-authority is rejected", async () => {
+      const treasuryBefore = await connection.getBalance(treasurySolPda);
+      const adminBefore = await connection.getBalance(admin.publicKey);
+
+      await expectFail(
+        program.methods.withdrawTreasurySol(new BN("10000000")).accountsPartial({
+          config: configPda, treasurySol: treasurySolPda, authority: player.publicKey,
+        }).signers([player]).rpc(),
+        "ConstraintHasOne",
+      );
+
+      await program.methods.withdrawTreasurySol(new BN("10000000")).accountsPartial({
+        config: configPda, treasurySol: treasurySolPda, authority: admin.publicKey,
+      }).rpc();
+      const treasuryAfter = await connection.getBalance(treasurySolPda);
+      expect(treasuryBefore - treasuryAfter).to.eq(10_000_000);
+      // admin: +10_000 lamports минус сетевая комиссия (5 000, без priority fee на localnet)
+      const adminDelta = (await connection.getBalance(admin.publicKey)) - adminBefore;
+      expect(adminDelta).to.be.within(4_000, 10_000);
+    });
+
+    it("rejects withdrawing more than the vault holds", async () => {
+      await expectFail(
+        program.methods.withdrawTreasurySol(new BN((10 * LAMPORTS_PER_SOL).toString())).accountsPartial({
+          config: configPda, treasurySol: treasurySolPda, authority: admin.publicKey,
+        }).rpc(),
+        "InvalidAmount",
+      );
+      // withdraw_skr_treasury на localnet не проверяется: SKR_MINT — константа
+      // (devnet-mint Fotom…), создать его без ключа нельзя.
     });
   });
 

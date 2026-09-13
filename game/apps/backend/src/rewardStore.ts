@@ -129,6 +129,9 @@ export const REFERRAL_CONFIG = {
 /**
  * Регистрирует реферальную связь. Возвращает null при успехе или причину отказа.
  * Отклоняет само-реферал, повторную регистрацию и уже завершённые рефералы.
+ * Сибил-защита (AUDIT I9): реферер обязан быть известным игроком (его кошелёк
+ * уже привязан к какому-либо Telegram-аккаунту) — иначе приглашённый мог бы
+ * подменить реферера на свой же второй кошелёк и фармить бонус 30 🥔.
  */
 export function registerReferral(
   referrerWallet: string,
@@ -138,6 +141,10 @@ export function registerReferral(
 ): string | null {
   if (referrerWallet === invitedWallet) return "Само-реферал запрещён";
   if (referrerUserId === invitedUserId) return "Само-реферал запрещён";
+  const referrerBoundUser = store.walletUser[referrerWallet];
+  if (!referrerBoundUser || referrerBoundUser === String(invitedUserId)) {
+    return "Реферер не найден: поделитесь ссылкой только с игроками";
+  }
 
   const existing = store.referrals[invitedWallet];
   if (existing) {

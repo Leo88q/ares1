@@ -6,7 +6,7 @@ import { useSolana } from '../contexts/SolanaContext'
 import { useGame } from '../contexts/GameContext'
 import { isTelegram } from '../utils/telegram'
 import { fmtPotato, fmtSkr, EXPORT_LICENSE_PRICE_SKR_ATOMS } from '../utils/constants'
-import { pdas, decodeExportLicense, ixBuyExportLicense, TEST_SKR_MINT } from '../utils/anchorClient'
+import { pdas, decodeExportLicense, ixBuyExportLicense, treasurySolPda, treasurySkrAta, TEST_SKR_MINT } from '../utils/anchorClient'
 import { getAssociatedTokenAddress } from '@solana/spl-token'
 import { CabinBay } from './ares/CabinBay'
 import AudioSettings from './AudioSettings'
@@ -48,6 +48,7 @@ function ProfileScreenInner() {
    const ix = await ixBuyExportLicense(programId, {
     config: p.config(), license: p.exportLicense(publicKey), payer: publicKey,
     skrMint: TEST_SKR_MINT, userSkrAta,
+    treasurySol: treasurySolPda(programId), treasurySkrAta: treasurySkrAta(programId, TEST_SKR_MINT),
    })
    await sendIx([ix])
    setLicense({ expiresAt: Math.floor(Date.now() / 1000) + 30 * 86400, active: true })

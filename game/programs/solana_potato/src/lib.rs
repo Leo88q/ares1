@@ -1187,6 +1187,56 @@ pub mod solana_potato {
         Ok(())
     }
 
+    /// Authority-only: withdraw SOL accumulated in the `treasury_sol` PDA vault
+    /// (SOL presale proceeds). Without this instruction the vault is a dead end.
+    pub fn withdraw_treasury_sol(ctx: Context<WithdrawTreasurySol>, amount_lamports: u64) -> Result<()> {
+        require!(amount_lamports > 0, GameError::InvalidAmount);
+        let treasury = ctx.accounts.treasury_sol.to_account_info();
+        let current = treasury.lamports();
+        require!(amount_lamports <= current, GameError::InvalidAmount);
+        treasury.borrow_mut().lamports = current
+            .checked_sub(amount_lamports)
+            .ok_or(GameError::MathOverflow)?;
+        let authority = ctx.accounts.authority.to_account_info();
+        let new_balance = authority.lamports().checked_add(amount_lamports).ok_or(GameError::MathOverflow)?;
+        authority.borrow_mut().lamports = new_balance;
+        emit!(TreasurySolWithdrawn { destination: authority.key(), amount_lamports });
+        Ok(())
+    }
+
+    /// Authority-only: withdraw SKR from the treasury ATA (80 % of SKR presale
+    /// proceeds + export license payments) to the authority's own SKR ATA.
+    pub fn withdraw_skr_treasury(ctx: Context<WithdrawSkrTreasury>, amount_skr_atoms: u64) -> Result<()> {
+        require!(amount_skr_atoms > 0, GameError::InvalidAmount);
+        let (_, t_bump) = Pubkey::find_program_address(&[b"treasury_sol"], ctx.program_id);
+        let seeds: &[&[u8]] = &[b"treasury_sol", &[t_bump]];
+        let signer: &[&[&[u8]]] = &[seeds];
+        token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.treasury_skr_ata.to_account_info(),
+                    to: ctx.accounts.destination_ata.to_account_info(),
+                    authority: ctx.accounts.treasury_sol.to_account_info(),
+                },
+                signer,
+            ),
+            amount_skr_atoms,
+        )?;
+        emit!(TreasurySkrWithdrawn { destination: ctx.accounts.authority.key(), amount_skr_atoms });
+        Ok(())
+    }
+
+    /// After a two-step authority transfer the presale state still references
+    /// the OLD authority (fixed at `init_presale`), so all presale purchases
+    /// fail on `has_one = authority`. Call once, by the new authority.
+    pub fn migrate_presale_authority(ctx: Context<MigratePresaleAuthority>) -> Result<()> {
+        let presale = &mut ctx.accounts.presale_state;
+        presale.authority = ctx.accounts.authority.key();
+        emit!(PresaleAuthorityMigrated { authority: presale.authority });
+        Ok(())
+    }
+
     /// Emergency switch. Pausing blocks minting and new spends but never
     /// refunds (`cancel_order`, `close_expired_order`).
     pub fn set_paused(ctx: Context<SetPaused>, paused: bool) -> Result<()> {
@@ -2070,6 +2120,46 @@ pub struct WithdrawTreasury<'info> {
 }
 
 #[derive(Accounts)]
+pub struct WithdrawTreasurySol<'info> {
+    #[account(seeds = [b"config"], bump = config.bump, has_one = authority)]
+    pub config: Account<'info, GameConfig>,
+    /// CHECK: 0-byte System vault holding SOL presale proceeds
+    #[account(mut, seeds = [b"treasury_sol"], bump)]
+    pub treasury_sol: AccountInfo<'info>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawSkrTreasury<'info> {
+    #[account(seeds = [b"config"], bump = config.bump, has_one = authority)]
+    pub config: Account<'info, GameConfig>,
+    /// CHECK: treasury_sol PDA — владелец ATA казны (signer перевода)
+    #[account(seeds = [b"treasury_sol"], bump)]
+    pub treasury_sol: AccountInfo<'info>,
+    #[account(mut, associated_token::mint = skr_mint, associated_token::authority = treasury_sol)]
+    pub treasury_skr_ata: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(address = SKR_MINT)]
+    pub skr_mint: Account<'info, Mint>,
+    #[account(mut, init_if_needed, payer = authority, associated_token::mint = skr_mint, associated_token::authority = authority)]
+    pub destination_ata: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+}
+
+#[derive(Accounts)]
+pub struct MigratePresaleAuthority<'info> {
+    #[account(seeds = [b"config"], bump = config.bump, has_one = authority)]
+    pub config: Account<'info, GameConfig>,
+    #[account(mut, seeds = [b"presale"], bump = presale_state.bump)]
+    pub presale_state: Account<'info, PresaleState>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct SetPaused<'info> {
     #[account(mut, seeds = [b"config"], bump = config.bump, has_one = authority)]
     pub config: Account<'info, GameConfig>,
@@ -2372,6 +2462,23 @@ pub struct RewardGranted {
 pub struct TreasuryWithdrawn {
     pub destination: Pubkey,
     pub amount_micro: u64,
+}
+
+#[event]
+pub struct TreasurySolWithdrawn {
+    pub destination: Pubkey,
+    pub amount_lamports: u64,
+}
+
+#[event]
+pub struct TreasurySkrWithdrawn {
+    pub destination: Pubkey,
+    pub amount_skr_atoms: u64,
+}
+
+#[event]
+pub struct PresaleAuthorityMigrated {
+    pub authority: Pubkey,
 }
 
 #[event]
