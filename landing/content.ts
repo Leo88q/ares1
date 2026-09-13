@@ -50,7 +50,7 @@ export interface PresaleConfig {
 
 export const presale = {
   priceSkr: 1053,
-  sold: 47,
+  sold: 0, // реальное значение на devnet (PresaleState.sold); обновлять по факту волны
   supply: 500,
   endsAt: null,
   network: "devnet",
@@ -217,7 +217,7 @@ export const chainConfig = {
   potatoMint: null as string | null,
   maxSupply: 1_000_000_000,
   /** Program ID лендинга и игры — один и тот же контракт */
-  programId: "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha" as string,
+  programId: "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf" as string,
   /** SKR минт (devnet test) */
   skrMint: "HnKpKz5sSfMqRcPjwQZmKqGqHqZmKqGqHqZmKqGqHqZm" as string,
   /** Цена модуля в presale: 1053 SKR = 1053 * 1e6 atoms */
@@ -597,7 +597,7 @@ export const siteContent = {
     primaryHref: "#waitlist",
     secondaryCta: "◈ Читать whitepaper",
     secondaryHref: "#",
-    soldLabel: "47 / 500 модулей продано",
+    soldLabel: "0 / 500 модулей продано",
     progressLabel: "Модули первой волны",
     countdownLabel: "До конца волны:",
     countdownUnavailable: "Дата завершения волны пока не объявлена",

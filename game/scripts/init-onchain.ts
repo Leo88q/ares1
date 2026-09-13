@@ -12,7 +12,7 @@
  * Idempotent: every step is guarded by an account-existence check, safe to re-run.
  *
  *   ADMIN_KEYPAIR_PATH=~/.config/solana/id.json RPC_URL=https://api.devnet.solana.com \
- *   PROGRAM_ID=48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha npm run init-onchain
+ *   PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf npm run init-onchain
  */
 import fs from "node:fs";
 import crypto from "node:crypto";
@@ -28,7 +28,7 @@ import {
 } from "@solana/spl-token";
 
 const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
-const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID || "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha");
+const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID || "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf");
 const SKR_MINT = new PublicKey("Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o");
 const ADMIN_KEYPAIR_PATH = (process.env.ADMIN_KEYPAIR_PATH || `${process.env.HOME}/.config/solana/id.json`).replace(/^~/, process.env.HOME || "");
 

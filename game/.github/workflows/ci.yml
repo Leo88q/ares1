@@ -90,7 +90,7 @@ jobs:
         env:
           VITE_SOLANA_CLUSTER: devnet
           VITE_RPC_URL: https://api.devnet.solana.com
-          VITE_PROGRAM_ID: 48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha
+          VITE_PROGRAM_ID: DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf
           VITE_BACKEND_URL: ""
       - uses: actions/upload-artifact@v4
         with:

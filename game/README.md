@@ -61,12 +61,12 @@ python3 economy/simulate.py        # отчёт по экономике в markd
 ```bash
 bash scripts/deploy-devnet.sh      # anchor build + keys sync + deploy (upgrade authority — ваш кошелёк)
 ADMIN_KEYPAIR_PATH=~/.config/solana/id.json RPC_URL=https://api.devnet.solana.com \
-PROGRAM_ID=48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha yarn init-onchain
+PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf yarn init-onchain
 ```
 
 `init-onchain` создаёт mint (6 decimals, без freeze authority), передаёт mint authority PDA `config`, вызывает `initialize` + `init_epoch`. Скрипт идемпотентен. `initialize` отклонит mint с чужим authority, другим числом decimals или freeze authority.
 
-Текущий devnet: программа `48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha`, upgrade authority `HW4ekULcWHiVhDMfWpg8MwJwLqZHYskGMrue44WZ3vJ9` (`apps/backend/keys/admin-keypair.json`, не в git). **04.09.2026 программа обновлена на devnet** до этой версии (слот 493194605, program data расширен до 586 920 байт). Существующий GameConfig (`2W5LxvEfmPieNER9zJkZ9xVc4wzwJvWgga28ejiLS8QB`) и mint `947oRr646RH8ru7MESKfh4G4rDMK6wbJEFiXc3vLWV86` (authority = config PDA, freeze нет) совместимы — переинициализация не нужна.
+Текущий devnet: программа `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf` (развёрнута 14.09.2026 через `scripts/warm-start-devnet.sh`), upgrade authority `HW4ekULcWHiVhDMfWpg8MwJwLqZHYskGMrue44WZ3vJ9` (ключ вне git). Инициализация: GameConfig PDA `9FDhkBwmcNx3gh8hSgShpiAVXHW9cZBnv4t1xyHGU39q`, $POTATO mint `HFEL9rBqmYwYDsZNxuV2ZonfS7adbjENUc3CdgbaiYxv` (6 decimals, без freeze authority, authority = config PDA), пресейл cap 500 / 0.25 SOL / 1053 SKR. Старый devnet-стейт программы `48D2…` (GameConfig `2W5Lxv…`) не мигрирован и abandoned — инструмент `apps/web/migrate-devnet.mjs` относится только к нему.
 
 ### Фронтенд
 

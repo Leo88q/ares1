@@ -7,13 +7,13 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-solana_potato = "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha"
+solana_potato = "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf"
 
 [programs.localnet]
-solana_potato = "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha"
+solana_potato = "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf"
 
 [programs.mainnet]
-solana_potato = "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha"
+solana_potato = "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf"
 
 [registry]
 url = "https://api.apr.dev"

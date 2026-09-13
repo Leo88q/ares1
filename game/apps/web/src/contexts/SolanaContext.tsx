@@ -6,8 +6,11 @@ import { describeError } from '../utils/errors'
 import { withRetry } from '../utils/rpc'
 import { usePolling } from '../hooks/usePolling'
 
-const DEFAULT_PROGRAM_ID = "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha"
-const rawProgramId = import.meta.env.VITE_PROGRAM_ID || DEFAULT_PROGRAM_ID
+// Fail-fast: без VITE_PROGRAM_ID сборка не должна молча указывать на старый адрес.
+const rawProgramId = import.meta.env.VITE_PROGRAM_ID
+if (!rawProgramId) {
+ throw new Error('VITE_PROGRAM_ID не задан (см. apps/web/.env.example) — отказ от запуска вместо старого захардкоженного program id')
+}
 export const PROGRAM_ID = new PublicKey(rawProgramId)
 export const CLUSTER = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet'
 export const IS_MAINNET = CLUSTER === 'mainnet-beta'

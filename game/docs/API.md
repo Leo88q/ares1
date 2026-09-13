@@ -1,6 +1,6 @@
 # API Reference
 
-## On-chain program `48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha`
+## On-chain program `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf`
 
 Anchor 0.30.1 · IDL: `target/idl/solana_potato.json` (копия для клиента — `apps/web/src/idl.json`). Все суммы `*_micro` — в 10⁻⁶ 🥔.
 
