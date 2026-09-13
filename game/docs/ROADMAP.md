@@ -10,6 +10,7 @@
 - [x] Тесты: 13 unit (cargo) + интеграционные сценарии `anchor test`, CI на GitHub Actions — **O**
 - [x] Redeploy на devnet (04.09.2026, слот 493194605); существующий mint/GameConfig совместимы, `init-onchain` не потребовался — **O**
 - [ ] Подключить платный RPC (Helius/Triton) для фронта и бэкенда — **O**
+- [ ] Тест `buy_export_license`: 500 SKR уходит в ATA казны `treasury_sol` (а не burn) — проверка баланса казны до/после, отказ кошельку без 500 SKR, повторное продление лицензии; закрыть в `tests/solana_potato.ts` — **P**
 - [ ] Перевести authority на мультисиг (Squads) и включить таймлок на `withdraw_treasury` / `update_config` — **O/P**
 - [ ] Внешний аудит контракта (OtterSec / Sec3 / Neodyme), бюджет $15–30k — **O**
 
