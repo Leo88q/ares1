@@ -22,7 +22,8 @@ import {
 } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
-  createAssociatedTokenAccountIdempotent, createMint, getAssociatedTokenAddressSync,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  createMint,
   getAccount, setAuthority, AuthorityType,
 } from "@solana/spl-token";
 
@@ -72,6 +73,38 @@ async function ensurePdaVault(pk: PublicKey, label: string): Promise<void> {
   console.log(`Creating ${label} PDA vault (${(rent / LAMPORTS_PER_SOL).toFixed(6)} SOL rent)...`);
   const sig = await send(SystemProgram.transfer({ fromPubkey: admin.publicKey, toPubkey: pk, lamports: rent }));
   console.log(`${label} vault created, tx:`, sig);
+}
+
+/**
+ * ATA address for ANY owner (incl. PDAs). The spl-token helper
+ * getAssociatedTokenAddressSync throws TokenOwnerOffCurveError for off-curve
+ * owners, so we derive the PDA ourselves — the formula is identical.
+ */
+function ataOf(mintPk: PublicKey, owner: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintPk.toBuffer()],
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+  )[0];
+}
+
+/** Creates the ATA if missing (idempotent raw ATA-program instruction). */
+async function ensureAta(mintPk: PublicKey, owner: PublicKey): Promise<PublicKey> {
+  const ata = ataOf(mintPk, owner);
+  if (await accountExists(ata)) return ata;
+  const ix = new TransactionInstruction({
+    programId: ASSOCIATED_TOKEN_PROGRAM_ID,
+    keys: [
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: mintPk, isSigner: false, isWritable: false },
+      { pubkey: owner, isSigner: false, isWritable: false },
+      { pubkey: admin.publicKey, isSigner: true, isWritable: true },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    ],
+    data: Buffer.from([1]), // CreateIdempotent
+  });
+  const sig = await send(ix);
+  console.log(`ATA created ${ata.toBase58()} (owner ${owner.toBase58()}), tx:`, sig);
+  return ata;
 }
 
 async function main() {
@@ -157,9 +190,8 @@ async function main() {
   await ensurePdaVault(treasurySolPda, "treasury_sol");
   await ensurePdaVault(questTreasuryPda, "quest_treasury");
 
-  // ── Quest pool: ATA + grant_reward up to 550 🥔 ──
-  const questAta = getAssociatedTokenAddressSync(mint, questTreasuryPda, true);
-  await createAssociatedTokenAccountIdempotent(connection, admin, mint, questAta, true);
+  // ── Quest pool: ATA (owner = quest_treasury PDA) + grant_reward up to 550 🥔 ──
+  const questAta = await ensureAta(mint, questTreasuryPda);
   const questBal = (await getAccount(connection, questAta, "confirmed")).amount;
   if (questBal < QUEST_POOL_MICRO) {
     const grant = QUEST_POOL_MICRO - questBal;
@@ -184,10 +216,8 @@ async function main() {
 
   // ── SKR ATAs for the presale split (80 % treasury / 20 % buyback) ──
   if (skrMintInfo) {
-    const treasurySkrAta = getAssociatedTokenAddressSync(SKR_MINT, treasurySolPda, true);
-    const buybackSkrAta = getAssociatedTokenAddressSync(SKR_MINT, admin.publicKey, true);
-    await createAssociatedTokenAccountIdempotent(connection, admin, SKR_MINT, treasurySkrAta, true);
-    await createAssociatedTokenAccountIdempotent(connection, admin, SKR_MINT, buybackSkrAta, true);
+    const treasurySkrAta = await ensureAta(SKR_MINT, treasurySolPda);
+    const buybackSkrAta = await ensureAta(SKR_MINT, admin.publicKey);
     console.log("\nSKR ATAs ready:");
     console.log("  treasury:  ", treasurySkrAta.toBase58());
     console.log("  buyback:   ", buybackSkrAta.toBase58());
