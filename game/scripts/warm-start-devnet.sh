@@ -104,9 +104,21 @@ fi
 #      CLI сам пропускает, новые ~3.4 SOL не тратятся.
 [ -f "$KEYPAIR_FILE" ] || solana-keygen new -o "$KEYPAIR_FILE" --no-bip39-passphrase
 DEPLOY_URL="${RPC_URL:-https://api.devnet.solana.com}"
+# Флаги подбираем под версию CLI (v4.x переименовал --with-compute-unit-price
+# в --compute-unit-price; там же появился --use-rpc — шлём write-транзакции
+# через RPC, а не напрямую в TPU валидаторов: прямой TPU-путь из некоторых
+# сетевых локаций unreliable (буфер создавался через RPC, а все writes падали).
+SOL_DEPLOY_HELP="$(solana program deploy --help 2>&1)"
 DEPLOY_EXTRA=""
-solana program deploy --help 2>&1 | grep -q "with-compute-unit-price" && DEPLOY_EXTRA="$DEPLOY_EXTRA --with-compute-unit-price 10000"
-solana program deploy --help 2>&1 | grep -q "max-sign-attempts" && DEPLOY_EXTRA="$DEPLOY_EXTRA --max-sign-attempts 60"
+if printf '%s' "$SOL_DEPLOY_HELP" | grep -q "compute-unit-price"; then
+  if printf '%s' "$SOL_DEPLOY_HELP" | grep -q "with-compute-unit-price"; then
+    DEPLOY_EXTRA="$DEPLOY_EXTRA --with-compute-unit-price 100000"
+  else
+    DEPLOY_EXTRA="$DEPLOY_EXTRA --compute-unit-price 100000"
+  fi
+fi
+printf '%s' "$SOL_DEPLOY_HELP" | grep -q "max-sign-attempts" && DEPLOY_EXTRA="$DEPLOY_EXTRA --max-sign-attempts 60"
+printf '%s' "$SOL_DEPLOY_HELP" | grep -q "use-rpc" && DEPLOY_EXTRA="$DEPLOY_EXTRA --use-rpc"
 DEPLOY_BUFFER=""
 if [ -n "${BUFFER_KEYPAIR:-}" ]; then
   DEPLOY_BUFFER="--buffer $BUFFER_KEYPAIR"
