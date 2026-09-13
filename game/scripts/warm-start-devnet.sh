@@ -90,7 +90,12 @@ LAMPORTS=$(solana balance --lamports "$ADMIN" --url devnet | awk '{print $1}')
 echo "    balance: $((LAMPORTS / 1000000000)).$((LAMPORTS % 1000000000 / 100000000)) SOL"
 
 # ── 2) Build ──
-echo "==> 2/6 anchor build..."
+# Keypair программы должен существовать ДО сборки: `anchor keys sync`
+# прописывает program id в declare_id! в исходниках — иначе программа с новым
+# адресом не запустится (DeclaredProgramIdMismatch, error 4100).
+[ -f "$KEYPAIR_FILE" ] || solana-keygen new -o "$KEYPAIR_FILE" --no-bip39-passphrase
+echo "==> 2/6 anchor build (program id: $(solana address --keypair "$KEYPAIR_FILE"))..."
+anchor keys sync
 anchor build
 # держим закоммиченный IDL синхронным (errors.ts фронта читает его)
 cp target/idl/solana_potato.json apps/web/src/idl.json
@@ -115,7 +120,6 @@ fi
 #      восстанавливается без интерактива (--stdin), следующий проход
 #      продолжается на том же буфере (--buffer) — уже записанные чанки
 #      CLI сам пропускает, новые ~3.4 SOL не тратятся.
-[ -f "$KEYPAIR_FILE" ] || solana-keygen new -o "$KEYPAIR_FILE" --no-bip39-passphrase
 DEPLOY_URL="${RPC_URL:-https://api.devnet.solana.com}"
 # Флаги подбираем под версию CLI (v4.x переименовал --with-compute-unit-price
 # в --compute-unit-price; там же появился --use-rpc — шлём write-транзакции
