@@ -6,12 +6,6 @@ import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets'
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
-import {
- SolanaMobileWalletAdapter,
- createDefaultAddressSelector,
- createDefaultAuthorizationResultCache,
- createDefaultWalletNotFoundHandler,
-} from '@solana-mobile/wallet-adapter-mobile'
 import { clusterApiUrl } from '@solana/web3.js'
 import App from './App'
 import { SolanaProvider, CLUSTER } from './contexts/SolanaContext'
@@ -30,14 +24,26 @@ const endpoint = import.meta.env.VITE_RPC_URL || (CLUSTER === 'localnet' ? 'http
 const wallets = [
  new PhantomWalletAdapter(),
  new SolflareWalletAdapter(),
- new SolanaMobileWalletAdapter({
-  addressSelector: createDefaultAddressSelector(),
-  appIdentity: { name: 'Seeker Potato', uri: window.location.origin, icon: '/android-chrome-512x512.png' },
-  authorizationResultCache: createDefaultAuthorizationResultCache(),
-  cluster: network,
-  onWalletNotFound: createDefaultWalletNotFoundHandler(),
- }),
+
 ]
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+ state = { error: null as Error | null }
+ static getDerivedStateFromError(error: Error) { return { error } }
+ render() {
+  if (this.state.error) {
+   return (
+    <div style={{ padding: 20, color: '#fff', background: '#0a0a0f', minHeight: '100vh', fontFamily: 'monospace' }}>
+     <h1>💥 Игра упала</h1>
+     <p>{this.state.error.message}</p>
+     <pre style={{ fontSize: 11, opacity: 0.7 }}>{this.state.error.stack}</pre>
+     <button onClick={() => window.location.reload()}>Перезагрузить</button>
+    </div>
+   )
+  }
+  return this.props.children
+ }
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
  <React.StrictMode>
@@ -45,9 +51,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
    <ConnectionProvider endpoint={endpoint} config={{ commitment: 'confirmed' }}>
     <WalletProvider wallets={wallets} autoConnect>
      <WalletModalProvider>
-      <SolanaProvider>
-       <App />
-      </SolanaProvider>
+      <ErrorBoundary>
+       <SolanaProvider>
+        <App />
+       </SolanaProvider>
+      </ErrorBoundary>
      </WalletModalProvider>
     </WalletProvider>
    </ConnectionProvider>
