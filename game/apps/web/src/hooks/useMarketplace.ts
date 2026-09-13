@@ -44,6 +44,7 @@ export function useMarketplace() {
  const [stats, setStats] = useState<MarketStatsView>({ sellVolume24h: 0, buyVolume24h: 0, totalSolVolume: 0, totalTrades: 0 })
  const [loading, setLoading] = useState(true)
  const [actionLoading, setActionLoading] = useState<string | null>(null)
+ const [error, setError] = useState<string | null>(null)
 
  const loadOrders = useCallback(async () => {
   if (!ready) {
@@ -78,6 +79,7 @@ export function useMarketplace() {
      isOwn: publicKey ? d.seller.equals(publicKey) : false,
     }
    })
+   setError(null)
    setOrders(
     mapped
      .filter((o) => o.status === 'active')
@@ -92,6 +94,9 @@ export function useMarketplace() {
      totalTrades: Number(s.totalTrades),
     })
    }
+  } catch (err) {
+   setError(describeError(err))
+   throw err
   } finally {
    setLoading(false)
   }
@@ -239,5 +244,5 @@ export function useMarketplace() {
   [config, publicKey, programId, ensureAtaIx, sendIx, loadOrders, notifyError],
  )
 
- return { orders, myOrders, stats, loading, actionLoading, createOrder, fillOrder, cancelOrder, reload: loadOrders }
+ return { orders, myOrders, stats, loading, actionLoading, error, createOrder, fillOrder, cancelOrder, reload: loadOrders }
 }

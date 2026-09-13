@@ -20,11 +20,11 @@ input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   margin-top: -6px;
-  background: #10b981;
+  background: var(--pf-teal);
   height: 16px;
   width: 16px;
   border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 2px 8px rgba(18, 231, 196, 0.4);
 }
 
 input[type="range"]::-moz-range-track {
@@ -34,7 +34,7 @@ input[type="range"]::-moz-range-track {
 }
 
 input[type="range"]::-moz-range-thumb {
-  background: #10b981;
+  background: var(--pf-teal);
   border: none;
   height: 16px;
   width: 16px;

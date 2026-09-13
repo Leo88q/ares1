@@ -1,6 +1,6 @@
 import { ReactNode, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { TrendingUp, Plus, X,  Clock,  User,  Loader2 } from 'lucide-react'
+import { Plus, X, Clock, User, Loader2 } from 'lucide-react'
 import BigPurchaseEffect from './BigPurchaseEffect'
 import CreateOrderModal from './CreateOrderModal'
 import { haptics } from '../utils/haptic'
@@ -9,8 +9,9 @@ import { useGame } from '../contexts/GameContext'
 import { fmtPotato, fmtSkr, MICRO, CANCEL_COOLDOWN_HOURS } from '../utils/constants'
 import { SupplyBay } from './ares/SupplyBay';
 import { HullPanel } from '../ui/HullPanel';
+import { ErrorState, EmptyState as SharedEmptyState, LoadingState } from '../ui/states'
 function MarketScreenInner() {
- const { orders, myOrders, stats, loading, actionLoading, createOrder, fillOrder, cancelOrder } = useMarketplace()
+ const { orders, myOrders, stats, loading, actionLoading, error, createOrder, fillOrder, cancelOrder, reload } = useMarketplace()
  const { stats: gameStats } = useGame()
 
 
@@ -153,25 +154,31 @@ function MarketScreenInner() {
    )}
 
    {loading ? (
-    Array.from({ length: 3 }).map((_, i) => (
-     <div key={i} className="pf-card hull-skin shimmer" style={{ height: 120, borderRadius: 16, marginBottom: 12 }} aria-hidden="true" />
-    ))
-   ) : filteredOrders.length === 0 ? (
-    <EmptyState mine={filter === 'mine'} />
+    <LoadingState label="Загружаем рынок…" />
+   ) : error && filteredOrders.length === 0 ? (
+    <ErrorState message={error} onRetry={reload} />
    ) : (
     <>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-     {filteredOrders.map((order, i) => (
-      <OrderCard
-       key={order.publicKey.toString()}
-       order={order}
-       index={i}
-       busy={actionLoading === order.publicKey.toString()}
-       onBuy={() => handleBuy(order)}
-       onCancel={() => setCancelTarget(order)}
+     {error && <ErrorState inline message={error} onRetry={reload} />}
+     {filteredOrders.length === 0 ? (
+      <SharedEmptyState
+       title={filter === 'mine' ? 'У тебя нет активных ордеров' : 'Пока нет предложений'}
+       hint={filter === 'mine' ? 'Создай свой первый ордер на продажу' : 'Будь первым, кто выставит картофель на продажу!'}
       />
-     ))}
-    </div>
+     ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+       {filteredOrders.map((order, i) => (
+        <OrderCard
+         key={order.publicKey.toString()}
+         order={order}
+         index={i}
+         busy={actionLoading === order.publicKey.toString()}
+         onBuy={() => handleBuy(order)}
+         onCancel={() => setCancelTarget(order)}
+        />
+       ))}
+      </div>
+     )}
     </>
    )}
 
@@ -333,15 +340,6 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
  )
 }
 
-function EmptyState({ mine }: { mine: boolean }) {
- return (
-  <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-   <TrendingUp size={48} color="var(--pf-text-secondary)" style={{ marginBottom: 16, opacity: 0.5 }} aria-hidden="true" />
-   <h3 style={{ fontSize: 18, marginBottom: 8, color: 'white' }}>{mine ? 'У тебя нет активных ордеров' : 'Пока нет предложений'}</h3>
-   <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{mine ? 'Создай свой первый ордер на продажу' : 'Будь первым, кто выставит картофель на продажу!'}</p>
-  </div>
- )
-}
 
 export default function MarketScreen() {
  return (

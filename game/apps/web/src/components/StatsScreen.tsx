@@ -20,6 +20,8 @@ import { MissionLog } from './MissionLog'
 import { LiquidBar } from './ares/LiquidBar'
 import { ConsolePanel } from './ares/panels'
 import { TelemetryStrip } from './ares/TelemetryStrip'
+import { describeError } from '../utils/errors'
+import { ErrorState } from '../ui/states'
 
 interface LeaderRow {
  address: string
@@ -193,12 +195,14 @@ function ReferralSection() {
 }
 
 function StatsScreenInner() {
- const { connection, programId, publicKey, config, epoch, ready } = useSolana()
+ const { connection, programId, publicKey, config, epoch, ready, rpcError } = useSolana()
  const [data, setData] = useState<EconomyData | null>(null)
  const [leaders, setLeaders] = useState<LeaderRow[]>([])
+ const [loadError, setLoadError] = useState<string | null>(null)
 
  const load = useCallback(async () => {
   if (!config) return
+  try {
   // dataSlice keeps the leaderboard query cheap: only owner (32) + level (1) per field.
   const [mintInfo, fieldAccounts] = await Promise.all([
    withRetry(() => getMint(connection, config.potatoMint)),
@@ -251,11 +255,19 @@ function StatsScreenInner() {
    lunarPhase,
    taxBps,
   })
+  setLoadError(null)
+  } catch (err) {
+   setLoadError(describeError(err))
+   throw err
+  }
  }, [connection, programId, config, epoch, publicKey])
 
  usePolling(load, STATS_POLL_MS, ready)
 
  if (!data) {
+  if (loadError) {
+   return <ErrorState message={loadError} onRetry={() => void load()} />
+  }
   return (
    <div style={{ padding: 40, textAlign: 'center', color: 'var(--pf-text-secondary)' }} role="status">
     {ready ? 'Загрузка журнала…' : 'Ждём подключения к блокчейну…'}
@@ -267,6 +279,7 @@ function StatsScreenInner() {
   <div style={{ padding: 20, paddingBottom: 140 }}>
    <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>ЖУРНАЛ МИССИИ</h1>
    <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14, marginBottom: 20 }}>Задачи смены, нашивки и показатели экипажа</p>
+   {loadError && <ErrorState inline message={loadError} onRetry={() => void load()} />}
 
    <div style={{ marginBottom: 24 }}>
     <EconomySection data={data} />

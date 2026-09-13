@@ -6,9 +6,9 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-  background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
-  color: #ffffff;
+  font-family: var(--pf-font-ui);
+  background: var(--pf-bg-base);
+  color: var(--pf-text-primary);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -32,19 +32,19 @@ button:disabled {
 }
 
 .glass {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--pf-glass);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--pf-border-soft);
 }
 
 
 
 .shadow-glow {
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  box-shadow: var(--pf-glow-green);
 }
 
 .shadow-glow-gold {
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+  box-shadow: var(--pf-glow-gold);
 }
 
 @keyframes float {
@@ -84,39 +84,7 @@ button:disabled {
 /* ==========================================================================
    POTATO FARM — "Vice Potato" design tokens (M2 design system)
 ========================================================================== */
-:root {
-  --pf-bg-base: #0B0714;
-  --pf-bg-elevated: #150E22;
-  --pf-glass: rgba(20, 14, 30, 0.6);
-  --pf-glass-strong: rgba(20, 14, 30, 0.82);
-  --pf-border-soft: rgba(255, 255, 255, 0.08);
-  --pf-border-strong: rgba(255, 255, 255, 0.18);
-  --pf-orange: #FF7A1A;
-  --pf-pink: #FF2E93;
-  --pf-teal: #12E7C4;
-  --pf-purple: #B85CFF;
-  --pf-gold: #FFC94A;
-  --pf-green: #7CFF6B;
-  --pf-red: #FF3B3B;
-  --pf-grad-sunset: linear-gradient(135deg, #2D0B3D 0%, #6A1B5D 45%, #FF3E7F 100%);
-  --pf-grad-cta: linear-gradient(135deg, var(--pf-orange) 0%, var(--pf-pink) 100%);
-  --pf-grad-gold: linear-gradient(135deg, #FFE08A 0%, var(--pf-gold) 60%, #E8940A 100%);
-  --pf-grad-border: conic-gradient(from 180deg, var(--pf-pink), var(--pf-teal), var(--pf-purple), var(--pf-pink));
-  --pf-text-primary: #F5F0EA;
-  --pf-text-secondary: #9C93AE;
-  --pf-text-muted: #6B6380;
-  --pf-font-display: 'Anton', 'Archivo Black', sans-serif;
-  --pf-font-ui: 'Inter', sans-serif;
-  --pf-font-mono: 'JetBrains Mono', monospace;
-  --pf-radius-card: 18px;
-  --pf-radius-btn: 14px;
-  --pf-radius-pill: 999px;
-  --pf-glow-orange: 0 0 24px rgba(255, 122, 26, 0.45);
-  --pf-glow-pink: 0 0 24px rgba(184, 92, 255, 0.45);
-  --pf-glow-teal: 0 0 20px rgba(18, 231, 196, 0.4);
-  --pf-glow-gold: 0 0 20px rgba(255, 201, 74, 0.45);
-  --pf-glow-purple: 0 0 20px rgba(184, 92, 255, 0.4);
-}
+/* Токены вынесены в src/theme/tokens.css (Stage 4) — единый источник. */
 .pf-grain { position: fixed; inset: 0; z-index: 1; opacity: 0.05; pointer-events: none; mix-blend-mode: overlay; }
 .pf-content { position: relative; z-index: 2; }
 .pf-h1 { font-family: var(--pf-font-display); font-size: 28px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--pf-text-primary); margin: 0; }
@@ -144,15 +112,7 @@ button:disabled {
   font-family: var(--pf-font-ui);
 }
 
-:root {
-  --pf-glow-green: 0 0 22px rgba(124, 255, 107, 0.22);
-  --pf-grad-border-green: conic-gradient(from 180deg,
-    rgba(124, 255, 107, 0.75),
-    rgba(18, 231, 196, 0.55),
-    rgba(124, 255, 107, 0.18),
-    rgba(18, 231, 196, 0.75),
-    rgba(124, 255, 107, 0.75));
-}
+/* --pf-glow-green / --pf-grad-border-green — в theme/tokens.css */
 /* Зелёное неоновое кольцо как у пресейла — для всех обычных карточек */
 .pf-card:not(.pf-card--rare)::before,
 .glass:not(.pf-card--rare)::before {
