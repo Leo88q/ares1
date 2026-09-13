@@ -10,7 +10,7 @@ on:
 env:
   SOLANA_VERSION: stable
   ANCHOR_VERSION: 0.30.1
-  NODE_VERSION: 20
+  NODE_VERSION: 22
 
 # Least privilege: достаточно чтения контента + записи артефактов (upload-artifact).
 # Не требует "Read and write permissions" на уровне репозитория.
@@ -62,7 +62,14 @@ jobs:
           cache: yarn
           cache-dependency-path: game/yarn.lock
 
-      - run: yarn install --frozen-lockfile
+      - name: yarn install (frozen)
+        run: |
+          set -o pipefail
+          node --version; yarn --version
+          if ! yarn install --frozen-lockfile --network-timeout 100000 2>&1 | tee /tmp/yarn-install.log; then
+            echo "::error title=yarn-install-failed::$(tail -n 40 /tmp/yarn-install.log | tr '\n' ' | ' | head -c 6000)"
+            exit 1
+          fi
 
       - name: Unit tests (host)
         run: cargo test -p solana_potato --lib
@@ -99,7 +106,14 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: yarn
           cache-dependency-path: game/yarn.lock
-      - run: yarn install --frozen-lockfile
+      - name: yarn install (frozen)
+        run: |
+          set -o pipefail
+          node --version; yarn --version
+          if ! yarn install --frozen-lockfile --network-timeout 100000 2>&1 | tee /tmp/yarn-install.log; then
+            echo "::error title=yarn-install-failed::$(tail -n 40 /tmp/yarn-install.log | tr '\n' ' | ' | head -c 6000)"
+            exit 1
+          fi
       - run: yarn workspace web exec tsc --noEmit
       - run: yarn workspace web build
         env:
@@ -122,6 +136,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: yarn
           cache-dependency-path: game/yarn.lock
-      - run: yarn install --frozen-lockfile
+      - name: yarn install (frozen)
+        run: |
+          set -o pipefail
+          node --version; yarn --version
+          if ! yarn install --frozen-lockfile --network-timeout 100000 2>&1 | tee /tmp/yarn-install.log; then
+            echo "::error title=yarn-install-failed::$(tail -n 40 /tmp/yarn-install.log | tr '\n' ' | ' | head -c 6000)"
+            exit 1
+          fi
       - run: yarn workspace backend typecheck
       - run: yarn workspace bot build
