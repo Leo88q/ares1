@@ -32,10 +32,11 @@ KEYPAIR_FILE=target/deploy/solana_potato-keypair.json
 
 command -v anchor >/dev/null 2>&1 || { echo "✖ anchor не найден. Установка: cargo install --git https://github.com/coral-xyz/anchor avm && avm install 0.30.1 && avm use 0.30.1"; exit 1; }
 command -v solana >/dev/null 2>&1 || { echo "✖ solana CLI не найден. Установка: sh -c \"\$(curl -sSfL https://release.anza.xyz/stable/install)\""; exit 1; }
+command -v cargo  >/dev/null 2>&1 || { echo "✖ Rust (cargo) не найден — нужен для anchor build. Установка: https://rustup.rs"; echo "    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"; exit 1; }
 [ -f "$ADMIN_KEYPAIR" ] || { echo "✖ Ключ деплоера не найден: $ADMIN_KEYPAIR (создай: solana-keygen new)"; exit 1; }
 [ -f "$ADMIN_KEYPAIR" ] || exit 1
 
-ADMIN=$(solana address -keypair "$ADMIN_KEYPAIR")
+ADMIN=$(solana address --keypair "$ADMIN_KEYPAIR")
 export ADMIN_KEYPAIR_PATH="$ADMIN_KEYPAIR"
 
 echo "════════ ARES-1 warm start (devnet) ════════"
