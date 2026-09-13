@@ -46,10 +46,23 @@ export ADMIN_KEYPAIR_PATH="$ADMIN_KEYPAIR"
 echo "════════ ARES-1 warm start (devnet) ════════"
 echo "Deployer: $ADMIN"
 
+# ── 0) Пре-чек: программа уже задеплоена? (при пере-запуске — пропустим деплой) ──
+ALREADY_DEPLOYED=0
+PRE_ID=$(solana address --keypair "$KEYPAIR_FILE" 2>/dev/null || true)
+if [ -n "$PRE_ID" ] && solana program show "$PRE_ID" --url "$RPC_URL" 2>&1 | grep -q "Program Data Address"; then
+  ALREADY_DEPLOYED=1
+fi
+
 # ── 1) Funding ──
 # Deploy новой программы стоит ~3.45 SOL (rent за program data) + init ~0.1 + fee.
-NEED_LAMPORTS=4000000000
-echo "==> 1/6 Funding deployer (нужно ≥ 4 SOL)..."
+# Если программа уже на devnet — для init-onchain хватает ~0.6 SOL.
+if [ "$ALREADY_DEPLOYED" = "1" ] && [ -z "${FORCE_DEPLOY:-}" ]; then
+  NEED_LAMPORTS=600000000
+  echo "==> 1/6 Funding (программа уже задеплоена, нужно ≥ 0.6 SOL)..."
+else
+  NEED_LAMPORTS=4000000000
+  echo "==> 1/6 Funding deployer (нужно ≥ 4 SOL)..."
+fi
 LAMPORTS=$(solana balance --lamports "$ADMIN" --url devnet | awk '{print $1}')
 TRIES=0
 while [ "$LAMPORTS" -lt "$NEED_LAMPORTS" ] && [ "$TRIES" -lt 4 ]; do
@@ -63,7 +76,7 @@ while [ "$LAMPORTS" -lt "$NEED_LAMPORTS" ] && [ "$TRIES" -lt 4 ]; do
   fi
 done
 [ "$LAMPORTS" -ge "$NEED_LAMPORTS" ] || {
-  echo "✖ Не набралось 4 SOL (сейчас $((LAMPORTS / 1000000000)).$((LAMPORTS % 1000000000 / 100000000)))."
+  echo "✖ Не набралось $((NEED_LAMPORTS / 1000000000)).$((NEED_LAMPORTS % 1000000000 / 100000000)) SOL (сейчас $((LAMPORTS / 1000000000)).$((LAMPORTS % 1000000000 / 100000000)))."
   echo "  Devnet-faucet имеет дневной лимит — докинь SOL вручную ($ADMIN) или повтори позже."
   echo "  Лайфхак: неудачные деплои оставляют 'буферы' с ~3.4 SOL. Варианты:"
   echo "    (a) продолжить деплой на буфере (новые SOL не тратятся):"
@@ -148,7 +161,13 @@ echo "    Deploy via RPC: $DEPLOY_URL"
 ATTEMPT=0
 MAX_ATTEMPTS=3
 DEPLOYED=0
-while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
+# Программа уже на devnet (пере-запуск скрипта) — не тратим время на деплой.
+# Для принудительного (upgrade) — FORCE_DEPLOY=1.
+if [ -z "${FORCE_DEPLOY:-}" ] && [ "$ALREADY_DEPLOYED" = "1" ] && [ -n "$PRE_ID" ]; then
+  echo "    Программа уже задеплоена: $PRE_ID — пропускаю деплой (FORCE_DEPLOY=1 — принудительно)."
+  DEPLOYED=1
+fi
+while [ "$DEPLOYED" != "1" ] && [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
   ATTEMPT=$((ATTEMPT + 1))
   echo "==> Попытка деплоя $ATTEMPT/$MAX_ATTEMPTS..."
   best_effort_fund
@@ -200,6 +219,14 @@ echo "    patched Anchor.toml"
 
 # ── 5) Init on-chain ──
 echo "==> 5/6 init-onchain (idempotent)..."
+if [ ! -d node_modules ]; then
+  echo "    node_modules нет — ставлю зависимости (yarn install, ~2-5 мин)..."
+  if command -v yarn >/dev/null 2>&1; then
+    yarn install --frozen-lockfile || npm install
+  else
+    npm install
+  fi
+fi
 RPC_URL="$RPC_URL" PROGRAM_ID="$PROGRAM_ID" npm run init-onchain
 
 # ── 6) Summary ──
