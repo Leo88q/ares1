@@ -6,7 +6,9 @@ import { describeError } from '../utils/errors'
 import { withRetry } from '../utils/rpc'
 import { usePolling } from '../hooks/usePolling'
 
-export const PROGRAM_ID = new PublicKey(import.meta.env.VITE_PROGRAM_ID)
+const DEFAULT_PROGRAM_ID = "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha"
+const rawProgramId = import.meta.env.VITE_PROGRAM_ID || DEFAULT_PROGRAM_ID
+export const PROGRAM_ID = new PublicKey(rawProgramId)
 export const CLUSTER = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet'
 export const IS_MAINNET = CLUSTER === 'mainnet-beta'
 export const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '')
