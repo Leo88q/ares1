@@ -94,26 +94,70 @@ fi
 # своего cluster-маппинга (devnet → api.devnet.solana.com), а повторный --url
 # старый solana CLI (1.18) отклоняет. Делаем то же, что anchor, напрямую —
 # с одним --url (свой RPC, если задан).
+#
+# Devnet под нагрузкой: чанки записи в буфер часто не успевают в блок
+# ("N write transactions failed"). Поэтому:
+#   1) priority fee + ретраи (если версия CLI поддерживает);
+#   2) авт-ретраи деплоя: 12 слов нового буфера парсятся из вывода, ключ
+#      восстанавливается без интерактива (--stdin), следующий проход
+#      продолжается на том же буфере (--buffer) — уже записанные чанки
+#      CLI сам пропускает, новые ~3.4 SOL не тратятся.
 [ -f "$KEYPAIR_FILE" ] || solana-keygen new -o "$KEYPAIR_FILE" --no-bip39-passphrase
 DEPLOY_URL="${RPC_URL:-https://api.devnet.solana.com}"
-# Devnet под нагрузкой: без priority fee чанки записи в буфер часто не
-# успевают в блок ("N write transactions failed"). Флаги — если версия CLI их знает.
 DEPLOY_EXTRA=""
 solana program deploy --help 2>&1 | grep -q "with-compute-unit-price" && DEPLOY_EXTRA="$DEPLOY_EXTRA --with-compute-unit-price 10000"
 solana program deploy --help 2>&1 | grep -q "max-sign-attempts" && DEPLOY_EXTRA="$DEPLOY_EXTRA --max-sign-attempts 60"
 DEPLOY_BUFFER=""
 if [ -n "${BUFFER_KEYPAIR:-}" ]; then
   DEPLOY_BUFFER="--buffer $BUFFER_KEYPAIR"
-  echo "    Продолжаем деплой на существующем буфере: $BUFFER_KEYPAIR (новые ~3.4 SOL не тратим)"
+  echo "    Продолжаем деплой на существующем буфере: $BUFFER_KEYPAIR"
 fi
+
+deploy_once() {
+  # shellcheck disable=SC2086
+  solana program deploy \
+    --url "$DEPLOY_URL" \
+    --keypair "$ADMIN_KEYPAIR" \
+    --program-id "$KEYPAIR_FILE" \
+    $DEPLOY_EXTRA $DEPLOY_BUFFER \
+    target/deploy/solana_potato.so
+}
+
+best_effort_fund() {
+  local bal
+  bal=$(solana balance --lamports "$ADMIN" --url devnet 2>/dev/null | awk '{print $1}') || return 0
+  if [ -n "$bal" ] && [ "$bal" -lt 3500000000 ]; then
+    echo "    Баланс низкий ($((bal / 1000000000)).$((bal % 1000000000 / 100000000)) SOL) — пробую airdrop..."
+    solana airdrop 2 "$ADMIN" --url devnet >/dev/null 2>&1 || echo "    (airdrop не прошёл — лимит faucet'а; попробую всё равно)"
+  fi
+}
+
 echo "    Deploy via RPC: $DEPLOY_URL"
-# shellcheck disable=SC2086
-solana program deploy \
-  --url "$DEPLOY_URL" \
-  --keypair "$ADMIN_KEYPAIR" \
-  --program-id "$KEYPAIR_FILE" \
-  $DEPLOY_EXTRA $DEPLOY_BUFFER \
-  target/deploy/solana_potato.so
+ATTEMPT=0
+MAX_ATTEMPTS=3
+DEPLOYED=0
+while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
+  ATTEMPT=$((ATTEMPT + 1))
+  echo "==> Попытка деплоя $ATTEMPT/$MAX_ATTEMPTS..."
+  best_effort_fund
+  if DEPLOY_OUT=$(deploy_once 2>&1); then
+    DEPLOYED=1
+    break
+  fi
+  printf '%s\n' "$DEPLOY_OUT"
+  WORDS=$(printf '%s\n' "$DEPLOY_OUT" | grep -E '^[a-z]+( [a-z]+){11}$' | head -1) || true
+  BUFFER_FILE="target/deploy/.buffer-resume-$$.json"
+  if [ -n "$WORDS" ] && printf '%s\n' $WORDS | solana-keygen recover --stdin -o "$BUFFER_FILE" >/dev/null 2>&1; then
+    DEPLOY_BUFFER="--buffer $BUFFER_FILE"
+    echo "    Ключ буфера сохранён ($BUFFER_FILE) — следующая попытка продолжит с того же места."
+  else
+    echo "✖ Деплой не прошёл, продолжить не на чем (буфер не создан или ключ не восстановился)."
+    echo "  Через 1-2 часа (сеть свободнее) повтори команду заново."
+    break
+  fi
+  sleep 5
+done
+[ "$DEPLOYED" = "1" ] || exit 1
 PROGRAM_ID=$(solana address --keypair "$KEYPAIR_FILE")
 echo "    program id: $PROGRAM_ID"
 
