@@ -40,7 +40,7 @@ function ProfileScreenInner() {
  }, [publicKey, programId, connection])
 
  const buyLicense = async () => {
-  if (!publicKey || !programId || !config || buyingLicense) return
+  if (!publicKey || !programId || buyingLicense) return
   setBuyingLicense(true)
   try {
    const p = pdas(programId)

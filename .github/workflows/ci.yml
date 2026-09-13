@@ -114,7 +114,15 @@ jobs:
             echo "::error title=yarn-install-failed::$(tail -n 40 /tmp/yarn-install.log | tr '\n' ' | ' | head -c 6000)"
             exit 1
           fi
-      - run: yarn workspace web exec tsc --noEmit
+      - name: web typecheck
+        run: |
+          set -o pipefail
+          if ! yarn workspace web exec tsc --noEmit 2>&1 | tee /tmp/tsc-web.log; then
+            grep -E "^\S+\([0-9]+,[0-9]+\): error TS" /tmp/tsc-web.log \
+              | sed -E 's/^([^(:]+)\(([0-9]+),([0-9]+)\): (.*)$/::error file=\1,line=\2,col=\3::\4/' | head -40
+            echo "::error title=tsc-web-failed::$(grep -cE 'error TS' /tmp/tsc-web.log) ошибок; хвост: $(tail -n 10 /tmp/tsc-web.log | tr '\n' ' | ' | head -c 3000)"
+            exit 1
+          fi
       - run: yarn workspace web build
         env:
           VITE_SOLANA_CLUSTER: devnet
@@ -144,5 +152,13 @@ jobs:
             echo "::error title=yarn-install-failed::$(tail -n 40 /tmp/yarn-install.log | tr '\n' ' | ' | head -c 6000)"
             exit 1
           fi
-      - run: yarn workspace backend typecheck
+      - name: backend typecheck
+        run: |
+          set -o pipefail
+          if ! yarn workspace backend typecheck 2>&1 | tee /tmp/tsc-be.log; then
+            grep -E "^\S+\([0-9]+,[0-9]+\): error TS" /tmp/tsc-be.log \
+              | sed -E 's/^([^(:]+)\(([0-9]+),([0-9]+)\): (.*)$/::error file=\1,line=\2,col=\3::\4/' | head -40
+            echo "::error title=tsc-be-failed::$(grep -cE 'error TS' /tmp/tsc-be.log) ошибок; хвост: $(tail -n 10 /tmp/tsc-be.log | tr '\n' ' | ' | head -c 3000)"
+            exit 1
+          fi
       - run: yarn workspace bot build
