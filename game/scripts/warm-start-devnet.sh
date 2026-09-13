@@ -44,7 +44,7 @@ echo "Deployer: $ADMIN"
 
 # ── 1) Funding ──
 echo "==> 1/6 Funding deployer..."
-LAMPORTS=$(solana balance --lamports "$ADMIN" --url devnet)
+LAMPORTS=$(solana balance --lamports "$ADMIN" --url devnet | awk '{print $1}')
 if [ "$LAMPORTS" -lt 1000000000 ]; then
   for i in 1 2 3; do
     if solana airdrop 2 "$ADMIN" --url devnet >/dev/null 2>&1; then
@@ -56,7 +56,7 @@ if [ "$LAMPORTS" -lt 1000000000 ]; then
     sleep 30
   done
 fi
-LAMPORTS=$(solana balance --lamports "$ADMIN" --url devnet)
+LAMPORTS=$(solana balance --lamports "$ADMIN" --url devnet | awk '{print $1}')
 echo "    balance: $((LAMPORTS / 1000000000)).$((LAMPORTS % 1000000000 / 100000000)) SOL"
 
 # ── 2) Build ──
