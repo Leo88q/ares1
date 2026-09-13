@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Ручной запуск из вкладки Actions (полезно для проверки, пока нет событий на main)
+  workflow_dispatch:
 
 env:
   SOLANA_VERSION: stable
@@ -15,6 +17,11 @@ env:
 permissions:
   contents: read
   actions: write
+
+# Моноrepo: код, package.json и Anchor-проект лежат в game/
+defaults:
+  run:
+    working-directory: game
 
 jobs:
   program:
@@ -32,8 +39,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ~/.cargo/bin
-            target
-          key: ${{ runner.os }}-anchor-${{ env.ANCHOR_VERSION }}-${{ hashFiles('Cargo.lock') }}
+            game/target
+          key: ${{ runner.os }}-anchor-${{ env.ANCHOR_VERSION }}-${{ hashFiles('game/Cargo.lock') }}
 
       - name: Install Solana CLI
         run: |
@@ -67,9 +74,9 @@ jobs:
         with:
           name: program-build
           path: |
-            target/deploy/solana_potato.so
-            target/idl/solana_potato.json
-            target/types/solana_potato.ts
+            game/target/deploy/solana_potato.so
+            game/target/idl/solana_potato.json
+            game/target/types/solana_potato.ts
 
       - name: IDL is committed and up to date
         run: |
@@ -101,7 +108,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: web-dist
-          path: apps/web/dist
+          path: game/apps/web/dist
 
   backend:
     name: Backend + bot (typecheck)
