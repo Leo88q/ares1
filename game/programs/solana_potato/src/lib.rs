@@ -487,6 +487,8 @@ pub mod solana_potato {
             field: field.key(),
             field_type,
             sol_amount,
+            // SOL-пресейл — явный тир, ролла нет (0 = без дропа)
+            roll: 0,
         });
         emit!(FieldCreated { owner: field.owner, field: field.key(), field_type });
 
