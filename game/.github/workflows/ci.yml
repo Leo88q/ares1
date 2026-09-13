@@ -10,6 +10,12 @@ env:
   ANCHOR_VERSION: 0.30.1
   NODE_VERSION: 20
 
+# Least privilege: достаточно чтения контента + записи артефактов (upload-artifact).
+# Не требует "Read and write permissions" на уровне репозитория.
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   program:
     name: Anchor program (build + unit + integration tests)
