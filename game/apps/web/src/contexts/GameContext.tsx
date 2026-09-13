@@ -7,6 +7,7 @@ import {
  decodeField, pdas,
  ixCreateField, ixHarvest, ixRepairField, ixUpgradeField, ixPayTax, ixApplyFertilizer,
  ixBuyFieldSkr, TEST_SKR_MINT, treasurySkrAta, buybackSkrAta, presaleStatePda, buyerPresalePda, treasurySolPda,
+ potatoAta,
 } from '../utils/anchorClient'
 import {
  accumulatedMicro, fieldPriceMicro, fertilizerCostMicro, repairCostMicro, taxCostMicro, upgradeCostMicro, fmtPotato, MICRO,
@@ -16,7 +17,7 @@ import { randomU64, withRetry } from '../utils/rpc'
 import { getTelegramInitData } from '../utils/telegram'
 import { usePolling } from '../hooks/usePolling'
 
-const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1
+const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1 // 70: +mutation_type (v2)
 const FIELDS_POLL_MS = 20_000
 
 export interface Field {
@@ -54,7 +55,7 @@ export interface GameContextType {
  claimed: Record<string, boolean>
  harvest: (field: PublicKey) => Promise<boolean>
  purchaseField: (fieldType: number) => Promise<boolean>
- buyFieldPresale: (fieldType: number) => Promise<boolean>
+ buyFieldPresale: () => Promise<number | null>
  upgradeField: (field: PublicKey) => Promise<boolean>
  repairField: (field: PublicKey) => Promise<boolean>
  payTax: (field: PublicKey) => Promise<boolean>
@@ -148,7 +149,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const fields = useMemo<Field[]>(() => {
   if (!config) return []
   const cfg = { baseYieldMicroPerDay: Number(config.baseYieldMicroPerDay), globalMultiplierBps: config.globalMultiplierBps }
-  const currentEpoch = Math.floor(nowSec / (24 * 3600)) // примерный epoch_id
+  const currentEpoch = Number(config.epochId) // реальный epoch_id из GameConfig
   return rawFields.map((f) => ({
    ...f,
    accumulated: accumulatedMicro({ ...f, epochId: currentEpoch }, cfg, nowSec),
@@ -230,46 +231,67 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
 
  const buyFieldPresale = useCallback(
-  async (fieldType: number) => {
+  async (): Promise<number | null> => {
    if (!config || !publicKey || !ready) {
     notify('warning', 'Игра ещё загружается', 'Подожди пару секунд.')
-    return false
+    return null
    }
-   // 1053 SKR за растение + ~0.01 SKR rent на Field + BuyerPresaleCounter (guard только по SOL-gas)
-   const requiredSol = 0.02
-   if (solBalance < requiredSol) {
-    notify('warning', 'Недостаточно SKR', `Нужно минимум ${requiredSol} SKR (цена 0.25 + rent)`)
-    return false
+   // Проверяем баланс SKR (пресейл платится SKR, а не SOL)
+   const buyerSkrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, publicKey)
+   try {
+    const skrBal = await withRetry(() => connection.getTokenAccountBalance(buyerSkrAta))
+    const need = 1_053_000_000n // 1053 SKR
+    if (BigInt(skrBal.value.amount) < need) {
+     notify('warning', 'Недостаточно SKR', `Нужно 1053 SKR, у тебя ${(Number(BigInt(skrBal.value.amount)) / 1e6).toFixed(0)} SKR.`)
+     return null
+    }
+   } catch {
+    notify('error', 'SKR недоступны', 'Mint SKR не найден на этом кластере — пресейл за SKR сейчас отключён.')
+    return null
+   }
+   if (solBalance < 0.02) {
+    notify('warning', 'Недостаточно SOL', 'Нужно ~0.02 SOL на rent и комиссию сети.')
+    return null
    }
    setPurchasing(true)
    try {
-    return await runTx('Не удалось купить растение за SKR', async () => {
-     const fieldId = randomU64()
-     const { config: configPda, field } = pdas(programId)
-     const buyerSkrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, publicKey)
-     const ataIx = createAssociatedTokenAccountIdempotentInstruction(publicKey, buyerSkrAta, publicKey, TEST_SKR_MINT)
-     const ix = await ixBuyFieldSkr(programId, {
-      config: configPda(),
-      presaleState: presaleStatePda(programId),
-      authority: config.authority,
-      buyerPresale: buyerPresalePda(programId, publicKey),
-      field: field(fieldId),
-      buyer: publicKey,
-      treasurySol: treasurySolPda(programId),
-      skrMint: TEST_SKR_MINT,
-      buyerSkrAta,
-      treasurySkrAta: treasurySkrAta(programId, TEST_SKR_MINT),
-      buybackSkrAta: buybackSkrAta(config.authority, TEST_SKR_MINT),
-      fieldId,
-      fieldType,
-     })
-     return [ataIx, ix]
+    const fieldId = randomU64()
+    const { config: configPda, field } = pdas(programId)
+    const ataIx = createAssociatedTokenAccountIdempotentInstruction(publicKey, buyerSkrAta, publicKey, TEST_SKR_MINT)
+    const ix = await ixBuyFieldSkr(programId, {
+     config: configPda(),
+     presaleState: presaleStatePda(programId),
+     authority: config.authority,
+     buyerPresale: buyerPresalePda(programId, publicKey),
+     field: field(fieldId),
+     buyer: publicKey,
+     treasurySol: treasurySolPda(programId),
+     skrMint: TEST_SKR_MINT,
+     buyerSkrAta,
+     treasurySkrAta: treasurySkrAta(programId, TEST_SKR_MINT),
+     buybackSkrAta: buybackSkrAta(config.authority, TEST_SKR_MINT),
+     fieldId,
     })
+    await sendIx([ataIx, ix])
+    await refreshAll()
+    // Тир определяется on-chain — читаем реально созданное поле (field_type на offset 67)
+    try {
+     const info = await withRetry(() => connection.getAccountInfo(field(fieldId)))
+     if (info) {
+      const tier = info.data[67]
+      notify('success', 'Модуль получен', `On-chain дроп: ${['COMMON', 'RARE', 'EPIC'][tier] ?? 'COMMON'}`)
+      return tier
+     }
+    } catch { /* не критично: показываем без тира */ }
+    return null
+   } catch (err) {
+    notify('error', 'Не удалось купить растение за SKR', describeError(err))
+    return null
    } finally {
     setPurchasing(false)
    }
   },
-  [config, publicKey, ready, solBalance, runTx, programId, notify],
+  [config, publicKey, ready, solBalance, sendIx, refreshAll, programId, notify, connection],
  )
 
  const harvest = useCallback(
@@ -281,6 +303,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const ix = await ixHarvest(programId, {
      config: configPda(), epoch: epoch(config.epochId), field: fieldPk,
      potatoMint: config.potatoMint, userPotato, owner: publicKey,
+     treasuryPotato: potatoAta(configPda(), config.potatoMint),
     })
     return [...ixs, ix]
    })

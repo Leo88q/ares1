@@ -170,9 +170,3 @@ export const PRESALE_DROP: PresaleDropInfo[] = [
  { type: 1, label: 'RARE', chance: 25, color: '#B85CFF' },
  { type: 2, label: 'EPIC', chance: 5, color: '#FFC94A' },
 ]
-export function rollPresaleDrop(): number {
- const r = Math.random() * 100
- let acc = 0
- for (const d of PRESALE_DROP) { acc += d.chance; if (r < acc) return d.type }
- return 0
-}

@@ -68,7 +68,8 @@ export async function ixCreateField(programId: PublicKey, params: {
 }
 
 export async function ixHarvest(programId: PublicKey, params: {
- config: PublicKey; epoch: PublicKey; field: PublicKey; potatoMint: PublicKey; userPotato: PublicKey; owner: PublicKey
+ config: PublicKey; epoch: PublicKey; field: PublicKey; potatoMint: PublicKey; userPotato: PublicKey
+ owner: PublicKey; treasuryPotato: PublicKey
 }): Promise<TransactionInstruction> {
  const data = concatBytes(await ixDiscriminator('harvest'))
  const keys = [
@@ -77,8 +78,11 @@ export async function ixHarvest(programId: PublicKey, params: {
   { pubkey: params.field, isSigner: false, isWritable: true },
   { pubkey: params.potatoMint, isSigner: false, isWritable: true },
   { pubkey: params.userPotato, isSigner: false, isWritable: true },
-  { pubkey: params.owner, isSigner: true, isWritable: false },
+  { pubkey: params.treasuryPotato, isSigner: false, isWritable: true },
+  { pubkey: params.owner, isSigner: true, isWritable: true },
   { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
  ]
  return new TransactionInstruction({ programId, keys, data })
 }
@@ -136,8 +140,11 @@ export async function ixCreateSellOrder(programId: PublicKey, params: {
 
 export async function ixFillOrder(programId: PublicKey, params: {
  buyer: PublicKey; seller: PublicKey; config: PublicKey; potatoMint: PublicKey; marketStats: PublicKey
- order: PublicKey; escrow: PublicKey; buyerPotato: PublicKey; skrMint: PublicKey; buyerSkrAta: PublicKey; sellerSkrAta: PublicKey; treasuryPotato: PublicKey
+ order: PublicKey; escrow: PublicKey; buyerPotato: PublicKey; sellerPotato: PublicKey; treasuryPotato: PublicKey
+ /** remaining_accounts, fixed positions: [0] license PDA, [1] buyer referral PDA, [2] referrer's POTATO ATA */
  sellerLicense?: PublicKey | null
+ buyerReferral?: PublicKey | null
+ referrerPotato?: PublicKey | null
 }): Promise<TransactionInstruction> {
  const data = concatBytes(await ixDiscriminator('fill_order'))
  const keys = [
@@ -149,17 +156,18 @@ export async function ixFillOrder(programId: PublicKey, params: {
   { pubkey: params.order, isSigner: false, isWritable: true },
   { pubkey: params.escrow, isSigner: false, isWritable: true },
   { pubkey: params.buyerPotato, isSigner: false, isWritable: true },
-  { pubkey: params.skrMint, isSigner: false, isWritable: false },
-      { pubkey: params.buyerSkrAta, isSigner: false, isWritable: true },
-      { pubkey: params.sellerSkrAta, isSigner: false, isWritable: true },
-      { pubkey: params.treasuryPotato, isSigner: false, isWritable: true },
+  { pubkey: params.sellerPotato, isSigner: false, isWritable: true },
+  { pubkey: params.treasuryPotato, isSigner: false, isWritable: true },
   { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
  ]
- if (params.sellerLicense) {
-  keys.push({ pubkey: params.sellerLicense, isSigner: false, isWritable: false })
- }
+ // Позиции remaining_accounts зафиксированы программой: [0]=лицензия продавца
+ if (params.sellerLicense) keys.push({ pubkey: params.sellerLicense, isSigner: false, isWritable: false })
+ // [1]=реферальная PDA покупателя — передаём только вместе с [2]
+ if (params.buyerReferral) keys.push({ pubkey: params.buyerReferral, isSigner: false, isWritable: false })
+ // [2]=ATA реферера (получает 0.5 % из комиссии)
+ if (params.referrerPotato) keys.push({ pubkey: params.referrerPotato, isSigner: false, isWritable: true })
  return new TransactionInstruction({ programId, keys, data })
 }
 
@@ -385,9 +393,10 @@ export async function ixBuyFieldSkr(programId: PublicKey, params: {
   config: PublicKey; presaleState: PublicKey; authority: PublicKey; buyerPresale: PublicKey;
   field: PublicKey; buyer: PublicKey; treasurySol: PublicKey;
   skrMint: PublicKey; buyerSkrAta: PublicKey; treasurySkrAta: PublicKey; buybackSkrAta: PublicKey;
-  fieldId: bigint; fieldType: number;
+  fieldId: bigint;
 }): Promise<TransactionInstruction> {
-  const data = concatBytes(await ixDiscriminator('buy_field_skr'), u64LE(params.fieldId), u8(params.fieldType))
+  // Тир поля кидает программа (keccak(buyer ‖ sold ‖ slot)): аргумента типа нет.
+  const data = concatBytes(await ixDiscriminator('buy_field_skr'), u64LE(params.fieldId))
   return new TransactionInstruction({
     programId,
     data,

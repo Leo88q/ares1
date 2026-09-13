@@ -8,6 +8,7 @@ import {
   createMint,
   getAccount,
   getAssociatedTokenAddressSync,
+  getMint,
   getOrCreateAssociatedTokenAccount,
   setAuthority,
 } from "@solana/spl-token";
@@ -191,7 +192,9 @@ describe("solana_potato", () => {
     it("harvest too soon is rejected", async () => {
       await expectFail(
         program.methods.harvest().accountsPartial({
-          config: configPda, epoch: epochPda(0), field, potatoMint: mint, userPotato: adminAta, owner: admin.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+          config: configPda, epoch: epochPda(0), field, potatoMint: mint, userPotato: adminAta, owner: admin.publicKey,
+          treasuryPotato: treasuryAta, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         }).rpc(),
         "HarvestTooSoon",
       );
@@ -244,9 +247,12 @@ describe("solana_potato", () => {
       this.timeout(120_000);
       await new Promise((r) => setTimeout(r, 61_000));
       const before = await ataBalance(adminAta);
+      const treasuryBefore = await ataBalance(treasuryAta);
       const epochBefore = (await program.account.epoch.fetch(epochPda(0))).mintedMicro;
       await program.methods.harvest().accountsPartial({
-        config: configPda, epoch: epochPda(0), field, potatoMint: mint, userPotato: adminAta, owner: admin.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+        config: configPda, epoch: epochPda(0), field, potatoMint: mint, userPotato: adminAta, owner: admin.publicKey,
+        treasuryPotato: treasuryAta, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       }).rpc();
       const minted = (await ataBalance(adminAta)) - before;
       expect(minted > 0n, "should mint something").to.be.true;
@@ -255,7 +261,9 @@ describe("solana_potato", () => {
       const f = await program.account.field.fetch(field);
       expect(f.durability).to.eq(99);
       const epochAfter = (await program.account.epoch.fetch(epochPda(0))).mintedMicro;
-      expect(epochAfter.sub(epochBefore).toString()).to.eq(minted.toString());
+      // epoch.minted counts the player's yield PLUS the treasury tax share
+      const treasuryDelta = (await ataBalance(treasuryAta)) - treasuryBefore;
+      expect(epochAfter.sub(epochBefore).toString()).to.eq(minted + treasuryDelta);
     });
 
     it("repair restores durability", async () => {
@@ -276,11 +284,22 @@ describe("solana_potato", () => {
     });
 
     it("rejects orders whose SOL total rounds to nothing", async () => {
+      // 10 POTATO at 0.00005 SOL each -> 0.5 SOL… wait: 10_000_000 * 50_000 / 1e6 = 500_000
+      // lamports < 1_000_000 minimum total.
       const id = BigInt(Date.now() + 99);
       await expectFail(
-        program.methods.createSellOrder(new BN(id.toString()), new BN(100_000), new BN(1))
+        program.methods.createSellOrder(new BN(id.toString()), new BN(10_000_000), new BN(50_000))
           .accountsPartial(createOrderAccounts(id, admin.publicKey, adminAta)).rpc(),
         "OrderTotalTooSmall",
+      );
+    });
+
+    it("rejects orders below the 10 POTATO minimum", async () => {
+      const id = BigInt(Date.now() + 98);
+      await expectFail(
+        program.methods.createSellOrder(new BN(id.toString()), new BN(1_000_000), new BN(1_000_000))
+          .accountsPartial(createOrderAccounts(id, admin.publicKey, adminAta)).rpc(),
+        "OrderTooSmall",
       );
     });
 
@@ -291,10 +310,10 @@ describe("solana_potato", () => {
       // 10 POTATO at 0.001 SOL each
       await program.methods.createSellOrder(new BN(orderId.toString()), new BN(10_000_000), new BN(1_000_000))
         .accountsPartial(createOrderAccounts(orderId, admin.publicKey, adminAta)).rpc();
-      expect(before - (await ataBalance(adminAta))).to.eq(10_300_000n); // 3 % fee tier
-      expect(await ataBalance(escrow)).to.eq(10_300_000n);
+      expect(before - (await ataBalance(adminAta))).to.eq(10_900_000n); // 9 % fee tier
+      expect(await ataBalance(escrow)).to.eq(10_900_000n);
       const o = await program.account.marketOrder.fetch(order);
-      expect(o.feeMicro.toNumber()).to.eq(300_000);
+      expect(o.feeMicro.toNumber()).to.eq(900_000);
       expect(o.expiresAt.toNumber() - o.createdAt.toNumber()).to.eq(86_400);
     });
 
@@ -302,7 +321,7 @@ describe("solana_potato", () => {
       await expectFail(
         program.methods.fillOrder().accountsPartial({
           buyer: admin.publicKey, seller: admin.publicKey, config: configPda, potatoMint: mint, marketStats: marketStatsPda,
-          order, escrow, buyerPotato: adminAta, treasuryPotato: treasuryAta,
+          order, escrow, buyerPotato: adminAta, sellerPotato: adminAta, treasuryPotato: treasuryAta,
           tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
         }).rpc(),
         "SelfTradeBlocked",
@@ -321,14 +340,15 @@ describe("solana_potato", () => {
     it("fill_order pays SOL to seller, tokens to buyer, splits the fee and closes the order", async () => {
       const sellerSolBefore = await connection.getBalance(admin.publicKey);
       const buyerBefore = await ataBalance(playerAta);
+      const treasuryBefore = await ataBalance(treasuryAta);
       await program.methods.fillOrder().accountsPartial({
         buyer: player.publicKey, seller: admin.publicKey, config: configPda, potatoMint: mint, marketStats: marketStatsPda,
-        order, escrow, buyerPotato: playerAta, treasuryPotato: treasuryAta,
+        order, escrow, buyerPotato: playerAta, sellerPotato: adminAta, treasuryPotato: treasuryAta,
         tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
       }).signers([player]).rpc();
 
       expect((await ataBalance(playerAta)) - buyerBefore).to.eq(10_000_000n);
-      expect(await ataBalance(treasuryAta)).to.eq(120_000n); // 40 % of the 0.3 fee
+      expect((await ataBalance(treasuryAta)) - treasuryBefore).to.eq(360_000n); // 40 % of the 900 k fee
       const sellerSolAfter = await connection.getBalance(admin.publicKey);
       // 10 POTATO × 0.001 SOL = 0.01 SOL, plus escrow + order rent refunds
       expect(sellerSolAfter - sellerSolBefore).to.be.greaterThan(10_000_000);
@@ -343,21 +363,122 @@ describe("solana_potato", () => {
 
     it("cancel_order refunds and starts the cooldown", async () => {
       const id = BigInt(Date.now() + 200);
-      await program.methods.createSellOrder(new BN(id.toString()), new BN(1_000_000), new BN(1_000_000))
+      await program.methods.createSellOrder(new BN(id.toString()), new BN(10_000_000), new BN(1_000_000))
         .accountsPartial(createOrderAccounts(id, player.publicKey, playerAta)).signers([player]).rpc();
       const before = await ataBalance(playerAta);
       await program.methods.cancelOrder().accountsPartial({
         seller: player.publicKey, sellerProfile: sellerProfilePda(player.publicKey), order: orderPda(id), escrow: escrowPda(orderPda(id)),
         sellerPotato: playerAta, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
       }).signers([player]).rpc();
-      expect((await ataBalance(playerAta)) - before).to.eq(1_030_000n);
+      expect((await ataBalance(playerAta)) - before).to.eq(10_900_000n); // 10 + 9 % fee
 
       const id2 = BigInt(Date.now() + 201);
       await expectFail(
-        program.methods.createSellOrder(new BN(id2.toString()), new BN(1_000_000), new BN(1_000_000))
+        program.methods.createSellOrder(new BN(id2.toString()), new BN(10_000_000), new BN(1_000_000))
           .accountsPartial(createOrderAccounts(id2, player.publicKey, playerAta)).signers([player]).rpc(),
         "CancelCooldown",
       );
+    });
+  });
+
+  describe("referrals", () => {
+    const referrer = Keypair.generate();
+    let referrerAta: PublicKey;
+    const playerReferralPda = pda(Buffer.from("referral"), player.publicKey.toBuffer());
+
+    it("register_referrer burns 5 POTATO and stores the link once", async () => {
+      referrerAta = (await getOrCreateAssociatedTokenAccount(connection, player, mint, referrer.publicKey)).address;
+      const before = await ataBalance(playerAta);
+      await program.methods.registerReferrer(referrer.publicKey).accountsPartial({
+        referral: playerReferralPda, config: configPda, potatoMint: mint, userPotato: playerAta,
+        owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+      }).signers([player]).rpc();
+      expect(before - (await ataBalance(playerAta))).to.eq(5_000_000n);
+      const r = await program.account.referral.fetch(playerReferralPda);
+      expect(r.owner.equals(player.publicKey)).to.be.true;
+      expect(r.referrer.equals(referrer.publicKey)).to.be.true;
+    });
+
+    it("rejects self-referral and re-registration", async () => {
+      const selfPda = pda(Buffer.from("referral"), admin.publicKey.toBuffer());
+      await expectFail(
+        program.methods.registerReferrer(admin.publicKey).accountsPartial({
+          referral: selfPda, config: configPda, potatoMint: mint, userPotato: adminAta,
+          owner: admin.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        }).rpc(),
+        "Unauthorized",
+      );
+      await expectFail(
+        program.methods.registerReferrer(referrer.publicKey).accountsPartial({
+          referral: playerReferralPda, config: configPda, potatoMint: mint, userPotato: playerAta,
+          owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        }).signers([player]).rpc(),
+      );
+    });
+
+    it("fill_order pays the 0.5 % referral reward to the referrer from escrow, minting nothing", async () => {
+      const id = BigInt(Date.now() + 300);
+      await program.methods.createSellOrder(new BN(id.toString()), new BN(10_000_000), new BN(1_000_000))
+        .accountsPartial(createOrderAccounts(id, admin.publicKey, adminAta)).rpc();
+      const orderPk = orderPda(id);
+      const escrowPk = escrowPda(orderPk);
+
+      const supplyBefore = (await getMint(connection, mint)).supply;
+      const refBefore = await ataBalance(referrerAta);
+      const sellerBefore = await ataBalance(adminAta);
+      const buyerBefore = await ataBalance(playerAta);
+      const treasuryBefore = await ataBalance(treasuryAta);
+
+      const sellerLicensePda = pda(Buffer.from("license"), admin.publicKey.toBuffer());
+      await program.methods.fillOrder().accountsPartial({
+        buyer: player.publicKey, seller: admin.publicKey, config: configPda, potatoMint: mint, marketStats: marketStatsPda,
+        order: orderPk, escrow: escrowPk, buyerPotato: playerAta, sellerPotato: adminAta, treasuryPotato: treasuryAta,
+        tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+      }).signers([player]).rpc([
+        { pubkey: sellerLicensePda, isSigner: false, isWritable: false },
+        { pubkey: playerReferralPda, isSigner: false, isWritable: false },
+        { pubkey: referrerAta, isSigner: false, isWritable: true },
+      ]);
+
+      // buyer gets the amount, referrer the 0.5 % (50 k), seller the 1 % refund (100 k)
+      expect((await ataBalance(playerAta)) - buyerBefore).to.eq(10_000_000n);
+      expect((await ataBalance(referrerAta)) - refBefore).to.eq(50_000n);
+      expect((await ataBalance(adminAta)) - sellerBefore).to.eq(100_000n);
+      // 9 % fee = 900 k; after 1 % refund the net fee is 800 k -> 320 k treasury, 430 k burn
+      expect((await ataBalance(treasuryAta)) - treasuryBefore).to.eq(320_000n);
+      // no fresh supply: the reward came out of the escrowed fee
+      const supplyAfter = (await getMint(connection, mint)).supply;
+      expect(supplyAfter).to.eq(supplyBefore);
+      expect(await connection.getAccountInfo(orderPk)).to.be.null;
+      expect(await connection.getAccountInfo(escrowPk)).to.be.null;
+    });
+
+    it("fill_order burns the reward when the referrer ATA is not provided", async () => {
+      const id = BigInt(Date.now() + 301);
+      await program.methods.createSellOrder(new BN(id.toString()), new BN(10_000_000), new BN(1_000_000))
+        .accountsPartial(createOrderAccounts(id, admin.publicKey, adminAta)).rpc();
+      const orderPk = orderPda(id);
+      const escrowPk = escrowPda(orderPk);
+
+      const supplyBefore = (await getMint(connection, mint)).supply;
+      const refBefore = await ataBalance(referrerAta);
+      const sellerBefore = await ataBalance(adminAta);
+      // license + buyer referral PDA are passed, but NO referrer ATA
+      // -> the 0.5 % reward is burned instead of paid; the 1 % refund still goes to the seller
+      const sellerLicensePda = pda(Buffer.from("license"), admin.publicKey.toBuffer());
+      await program.methods.fillOrder().accountsPartial({
+        buyer: player.publicKey, seller: admin.publicKey, config: configPda, potatoMint: mint, marketStats: marketStatsPda,
+        order: orderPk, escrow: escrowPk, buyerPotato: playerAta, sellerPotato: adminAta, treasuryPotato: treasuryAta,
+        tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+      }).signers([player]).rpc([
+        { pubkey: sellerLicensePda, isSigner: false, isWritable: false },
+        { pubkey: playerReferralPda, isSigner: false, isWritable: false },
+      ]);
+
+      expect((await ataBalance(referrerAta)) - refBefore).to.eq(0n);
+      expect((await ataBalance(adminAta)) - sellerBefore).to.eq(100_000n); // 1 % refund
+      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
+      expect(await connection.getAccountInfo(orderPk)).to.be.null;
     });
   });
 

@@ -239,7 +239,7 @@ pub mod solana_potato {
 
     /// Buys a new field of `field_type` (0 = Грядка, 1 = Луг, 2 = Поле) by
     /// burning its price. `field_id` is a client-chosen nonce for the PDA.
-    pub fn create_field(ctx: Context<CreateField>, _field_id: u64, field_type: u8) -> Result<()> {
+    pub fn create_field(ctx: Context<CreateField>, field_id: u64, field_type: u8) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(field_type < FIELD_TYPE_COUNT, GameError::InvalidFieldType);
 
@@ -288,6 +288,7 @@ pub mod solana_potato {
 
     /// Обновляет цену пресейла (только authority).已售-поля не затрагивает.
     pub fn claim_achievement(ctx: Context<ClaimAchievement>, quest_id: u8) -> Result<()> {
+        require!(!ctx.accounts.config.paused, GameError::Paused);
         require!((quest_id as usize) < QUEST_REWARD_MICRO.len(), GameError::InvalidFieldType);
         let achievements = &mut ctx.accounts.achievements;
         let bit = 1u64 << quest_id;
@@ -329,13 +330,14 @@ pub mod solana_potato {
         Ok(())
     }
 
-    /// Покупка поля за SOL во время пресейла.
-    /// SOL переводится в treasury_sol PDA. Лимит: 5 полей на кошелёк, cap по PresaleState.
-    pub fn buy_field_skr(ctx: Context<BuyFieldSkr>, _field_id: u64, field_type: u8) -> Result<()> {
+    /// Покупка поля за SKR во время пресейла.
+    /// Тир поля (0/1/2) определяется on-chain: keccak(buyer ‖ sold ‖ slot) % 100
+    /// → COMMON 70 % / RARE 25 % / EPIC 5 %. Клиентский выбор тира не принимается —
+    /// это закрывает обход, при котором покупатель всегда забирал EPIC за цену дропа.
+    /// `sold` и `slot` покупатель не контролирует в момент подписания (конкурентные
+    /// покупки сдвигают `sold`, слот включения в блок неизвестен заранее).
+    pub fn buy_field_skr(ctx: Context<BuyFieldSkr>, field_id: u64) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
-        require!(field_type < FIELD_TYPE_COUNT, GameError::InvalidFieldType);
-        require!(ctx.accounts.presale_state.price_lamports > 0, GameError::PresaleNotActive);
-
         let presale = &mut ctx.accounts.presale_state;
         require!(presale.sold < presale.cap, GameError::PresaleCapReached);
 
@@ -343,12 +345,31 @@ pub mod solana_potato {
         require!(buyer_presale.count < 5, GameError::PresaleWalletLimitReached);
 
         require!(ctx.accounts.skr_mint.key() == SKR_MINT, GameError::InvalidMint);
+        // PresaleState.price_lamports — цена SOL-пресейла (buy_field_sol);
+        // цена SKR-пресейла зафиксирована константой 1053 SKR (PRESALE_PRICE_SKR_ATOMS).
+        require!(presale.cap > 0, GameError::PresaleNotActive);
 
-        let total = presale.price_lamports;
+        // ── On-chain drop roll ──
+        let slot = Clock::get()?.slot;
+        let roll_hash = anchor_lang::solana_program::keccak::hashv(&[
+            ctx.accounts.buyer.key().as_ref(),
+            &presale.sold.to_le_bytes(),
+            &slot.to_le_bytes(),
+        ]);
+        let roll = u32::from_le_bytes([roll_hash.0[0], roll_hash.0[1], roll_hash.0[2], roll_hash.0[3]]) % 100;
+        let field_type: u8 = if roll < 70 {
+            0
+        } else if roll < 95 {
+            1
+        } else {
+            2
+        };
+
+        let total = PRESALE_PRICE_SKR_ATOMS; // 1053 SKR за модуль
         let treasury_amount = total.checked_mul(80).ok_or(GameError::MathOverflow)? / 100;
         let buyback_amount = total.checked_sub(treasury_amount).ok_or(GameError::MathOverflow)?;
 
-        // 80% SKR -> ATA казны
+        // 80 % SKR -> ATA казны
         token::transfer(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -361,7 +382,7 @@ pub mod solana_potato {
             treasury_amount,
         )?;
 
-        // 20% SKR -> ATA buyback
+        // 20 % SKR -> ATA buyback
         token::transfer(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -403,13 +424,14 @@ pub mod solana_potato {
             field: field.key(),
             field_type,
             sol_amount: total,
+            roll: roll as u8,
         });
         emit!(FieldCreated { owner: field.owner, field: field.key(), field_type });
 
         Ok(())
     }
 
-    pub fn buy_field_sol(ctx: Context<BuyFieldSol>, _field_id: u64, field_type: u8) -> Result<()> {
+    pub fn buy_field_sol(ctx: Context<BuyFieldSol>, field_id: u64, field_type: u8) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(field_type < FIELD_TYPE_COUNT, GameError::InvalidFieldType);
         require!(ctx.accounts.presale_state.price_lamports > 0, GameError::PresaleNotActive);
@@ -757,7 +779,7 @@ pub mod solana_potato {
     /// (lamports per whole $POTATO). Amount + fee move into an escrow PDA.
     pub fn create_sell_order(
         ctx: Context<CreateSellOrder>,
-        _order_id: u64,
+        order_id: u64,
         amount_micro: u64,
         price_lamports_per_potato: u64,
     ) -> Result<()> {
@@ -818,6 +840,21 @@ pub mod solana_potato {
 
     /// Buys an active order: SOL goes to the seller, $POTATO to the buyer, the
     /// fee is split between burn and treasury, escrow and order are closed.
+    ///
+    /// Fee accounting. The escrow holds exactly `amount + fee_listed` and must
+    /// drain to zero, so every rupee of the fee has an explicit destination:
+    /// * seller with an export license: −3 % of the amount off the fee,
+    ///   the difference is refunded to the seller (the fee payer);
+    /// * buyer with a registered referrer: −1 % off the fee (refunded to the
+    ///   seller) and +0.5 % paid to the referrer **from the fee itself** —
+    ///   no fresh supply is minted, so the reward is always cap-safe;
+    /// * the net fee is split 60 % burn / 40 % treasury.
+    ///
+    /// `remaining_accounts` (fixed positions):
+    /// * [0] seller export-license PDA (always passed; may not exist);
+    /// * [1] buyer's referral PDA (only when the buyer has a referrer);
+    /// * [2] referrer's $POTATO ATA (only together with [1]).
+    /// If the referrer's ATA is missing/invalid the reward is burned instead.
     pub fn fill_order<'info>(ctx: Context<'_, '_, '_, 'info, FillOrder<'info>>) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
         let now = Clock::get()?.unix_timestamp;
@@ -829,10 +866,11 @@ pub mod solana_potato {
         let order_key = order.key();
         let escrow_bump = order.escrow_bump;
         let amount_micro = order.amount_micro;
-        let mut fee_micro = order.fee_micro;
+        let fee_listed = order.fee_micro;
         let total_lamports = order_total_lamports(amount_micro, order.price_lamports_per_potato)?;
 
-        // Проверка лицензии продавца через remaining_accounts (опционально)
+        // ── Скидка за экспортную лицензию продавца (−3 % от суммы) ──
+        let mut license_discount: u64 = 0;
         if let Some(lic_acc) = ctx.remaining_accounts.first() {
             let (expected, _) = Pubkey::find_program_address(
                 &[b"license", ctx.accounts.seller.key().as_ref()],
@@ -842,56 +880,51 @@ pub mod solana_potato {
                 let data = lic_acc.try_borrow_data()?;
                 if let Ok(lic) = ExportLicense::try_deserialize(&mut &data[..]) {
                     if lic.expires_at > now {
-                        // Скидка 3% от суммы сделки
-                        let discount = (amount_micro as u128 * 300 / 10_000) as u64;
-                        fee_micro = fee_micro.saturating_sub(discount.min(fee_micro));
+                        license_discount = ((amount_micro as u128 * 300 / 10_000) as u64).min(fee_listed);
                     }
                 }
             }
         }
 
-        // ── Базовое разделение комиссии (60% burn / 40% treasury) ──
-        let fee_to_burn_base = ((fee_micro as u128) * (FEE_BURN_PERCENT as u128) / 100) as u64;
-        let fee_to_treasury = fee_micro.saturating_sub(fee_to_burn_base);
-
-        // ── Рефералка (п.8): discount + reward вычитаются из burn-доли ──
-        // remaining_accounts: [0]=seller_license, [1]=buyer_referral, [2]=referrer_potato
+        // ── Рефералка покупателя: −1 % комиссии + 0.5 % рефереру ──
+        let mut referrer_key = Pubkey::default();
         let mut referral_discount: u64 = 0;
-        let mut referrer_reward: u64 = 0;
-        
-        if ctx.remaining_accounts.len() >= 3 {
-            let referral_acc = &ctx.remaining_accounts[1];
+        if let Some(ref_acc) = ctx.remaining_accounts.get(1) {
             let (expected_ref, _) = Pubkey::find_program_address(
                 &[b"referral", ctx.accounts.buyer.key().as_ref()],
                 ctx.program_id,
             );
-            if referral_acc.key() == expected_ref && !referral_acc.data_is_empty() {
-                let data = referral_acc.try_borrow_data()?;
+            if ref_acc.key() == expected_ref && !ref_acc.data_is_empty() {
+                let data = ref_acc.try_borrow_data()?;
                 if let Ok(referral) = Referral::try_deserialize(&mut &data[..]) {
-                    if referral.referrer != Pubkey::default()
-                        && referral.referrer != ctx.accounts.seller.key()
-                        && referral.referrer != ctx.accounts.buyer.key()
+                    let referrer = referral.referrer;
+                    if referrer != Pubkey::default()
+                        && referrer != ctx.accounts.seller.key()
+                        && referrer != ctx.accounts.buyer.key()
                     {
-                        let disc = (amount_micro as u128 * 100 / 10_000) as u64;  // 1%
-                        let rew = (amount_micro as u128 * 50 / 10_000) as u64;    // 0.5%
-                        let total_ref = disc.saturating_add(rew);
-                        // Clamp: сумма не превышает burn-долю
-                        let actual_ref = total_ref.min(fee_to_burn_base);
-                        if actual_ref > 0 {
-                            // Сохраняем пропорции 2:1 (discount:reward)
-                            referrer_reward = (actual_ref as u128 * 50 / 150) as u64;
-                            referral_discount = actual_ref.saturating_sub(referrer_reward);
-                        }
+                        referrer_key = referrer;
+                        referral_discount = (amount_micro as u128 * 100 / 10_000) as u64;
                     }
                 }
             }
         }
 
-        let fee_to_burn = fee_to_burn_base
-            .saturating_sub(referral_discount)
-            .saturating_sub(referrer_reward);
+        // ── Итоговая комиссия: скидки уменьшают её, разница — refund продавцу ──
+        let total_discounts = license_discount
+            .saturating_add(referral_discount)
+            .min(fee_listed);
+        let fee_net = fee_listed.saturating_sub(total_discounts);
+        let fee_to_treasury = ((fee_net as u128) * (100u128 - FEE_BURN_PERCENT as u128) / 100) as u64;
+        let fee_to_burn_base = fee_net.saturating_sub(fee_to_treasury);
+        let referrer_reward = if referrer_key != Pubkey::default() {
+            // 0.5 % от суммы, не больше burn-доли
+            ((amount_micro as u128 * 50 / 10_000) as u64).min(fee_to_burn_base)
+        } else {
+            0
+        };
+        let mut fee_to_burn = fee_to_burn_base.saturating_sub(referrer_reward);
 
-        // ── Effects ──
+        // ── Effects (CEI) ──
         ctx.accounts.order.status = OrderStatus::Filled;
         ctx.accounts.config.total_burned_micro =
             ctx.accounts.config.total_burned_micro.saturating_add(fee_to_burn);
@@ -921,35 +954,37 @@ pub mod solana_potato {
         let token_program = ctx.accounts.token_program.to_account_info();
         let escrow = ctx.accounts.escrow.to_account_info();
 
-        // ── Минт награды рефереру (если есть) ──
-        // Reward минтится через config PDA (mint authority), НЕ из escrow.
-        if referrer_reward > 0 && ctx.remaining_accounts.len() >= 3 {
-            // Проверка что referrer_potato действительно принадлежит referrer
-            let ref_data = ctx.remaining_accounts[2].try_borrow_data()?;
-            if ref_data.len() >= 64 {
-                let stored_owner = Pubkey::new_from_array(ref_data[32..64].try_into().unwrap());
-                let ref_referral_data = ctx.remaining_accounts[1].try_borrow_data()?;
-                let referral_owner = Pubkey::new_from_array(ref_referral_data[8..40].try_into().unwrap());
-                
-                if stored_owner == referral_owner {
-                    drop(ref_data);
-                    drop(ref_referral_data);
-                    let cfg_bump = ctx.accounts.config.bump;
-                    let cfg_seeds: &[&[u8]] = &[b"config", &[cfg_bump]];
-                    let cfg_signer: &[&[&[u8]]] = &[cfg_seeds];
-                    token::mint_to(
-                        CpiContext::new_with_signer(
-                            token_program.clone(),
-                            MintTo {
-                                mint: ctx.accounts.potato_mint.to_account_info(),
-                                to: ctx.remaining_accounts[2].to_account_info(),
-                                authority: ctx.accounts.config.to_account_info(),
-                            },
-                            cfg_signer,
-                        ),
-                        referrer_reward,
-                    )?;
+        // Награда рефереру — переводом из escrow (часть комиссии), НЕ минтом.
+        // ATA реферера валидируется по байтам: mint (0..32) и owner (32..64).
+        let mut reward_claimed = false;
+        if referrer_reward > 0 {
+            if let Some(ata_acc) = ctx.remaining_accounts.get(2) {
+                let data = ata_acc.try_borrow_data()?;
+                if data.len() >= 64 {
+                    let ata_mint = Pubkey::new_from_array(data[0..32].try_into().unwrap());
+                    let ata_owner = Pubkey::new_from_array(data[32..64].try_into().unwrap());
+                    let valid = ata_mint == ctx.accounts.potato_mint.key() && ata_owner == referrer_key;
+                    drop(data);
+                    if valid {
+                        token::transfer(
+                            CpiContext::new_with_signer(
+                                token_program.clone(),
+                                Transfer {
+                                    from: escrow.clone(),
+                                    to: ata_acc.to_account_info(),
+                                    authority: escrow.clone(),
+                                },
+                                signer,
+                            ),
+                            referrer_reward,
+                        )?;
+                        reward_claimed = true;
+                    }
                 }
+            }
+            if !reward_claimed {
+                // ATA не передан/неверный — доля сгорает, баланс escrow сходится.
+                fee_to_burn = fee_to_burn.saturating_add(referrer_reward);
             }
         }
 
@@ -981,6 +1016,20 @@ pub mod solana_potato {
                 fee_to_treasury,
             )?;
         }
+        if total_discounts > 0 {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    token_program.clone(),
+                    Transfer {
+                        from: escrow.clone(),
+                        to: ctx.accounts.seller_potato.to_account_info(),
+                        authority: escrow.clone(),
+                    },
+                    signer,
+                ),
+                total_discounts,
+            )?;
+        }
         token::transfer(
             CpiContext::new_with_signer(
                 token_program.clone(),
@@ -1009,6 +1058,13 @@ pub mod solana_potato {
             amount_micro,
             total_lamports,
         });
+        if reward_claimed {
+            emit!(ReferralRewardPaid {
+                buyer: ctx.accounts.buyer.key(),
+                referrer: referrer_key,
+                reward_micro: referrer_reward,
+            });
+        }
         Ok(())
     }
 
@@ -1186,6 +1242,103 @@ pub mod solana_potato {
         });
         Ok(())
     }
+    // ───────────────────────── Migration (devnet → v2) ───────────────────────────
+    
+    /// Миграция GameConfig: realloc 156 → 164 байт (добавляет last_total_burned_micro).
+    pub fn migrate_config(ctx: Context<MigrateConfig>) -> Result<()> {
+        let info = ctx.accounts.config.to_account_info();
+        require_keys_eq!(*info.owner, *ctx.program_id, GameError::Unauthorized);
+        // Читаем authority напрямую из data (offset 8, первый pubkey)
+        let data = info.try_borrow_data()?;
+        require!(data.len() >= 40, GameError::Unauthorized);
+        let stored_authority = Pubkey::new_from_array(data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
+        drop(data);
+        require_keys_eq!(stored_authority, ctx.accounts.authority.key(), GameError::Unauthorized);
+        // realloc (zero_init=false → новые байты = 0)
+        info.realloc(8 + GameConfig::INIT_SPACE, false)?;
+        Ok(())
+    }
+
+    /// Миграция Field: realloc 69 → 70 байт (добавляет mutation_type).
+    pub fn migrate_field(ctx: Context<MigrateField>) -> Result<()> {
+        let info = ctx.accounts.field.to_account_info();
+        require_keys_eq!(*info.owner, *ctx.program_id, GameError::Unauthorized);
+        // Читаем authority из config (offset 8)
+        let cfg_info = ctx.accounts.config.to_account_info();
+        require_keys_eq!(*cfg_info.owner, *ctx.program_id, GameError::Unauthorized);
+        let cfg_data = cfg_info.try_borrow_data()?;
+        require!(cfg_data.len() >= 40, GameError::Unauthorized);
+        let stored_authority = Pubkey::new_from_array(cfg_data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
+        drop(cfg_data);
+        require_keys_eq!(stored_authority, ctx.accounts.authority.key(), GameError::Unauthorized);
+        // realloc
+        info.realloc(8 + Field::INIT_SPACE, false)?;
+        // Явно обнуляем последний байт (mutation_type = 0)
+        let mut data = info.try_borrow_mut_data()?;
+        let new_len = 8 + Field::INIT_SPACE;
+        if data.len() >= new_len {
+            data[new_len - 1] = 0;
+        }
+        Ok(())
+    }
+
+    /// Миграция Epoch: realloc 41 → 49 байт (добавляет burned_micro).
+    pub fn migrate_epoch(ctx: Context<MigrateEpoch>) -> Result<()> {
+        let info = ctx.accounts.epoch.to_account_info();
+        require_keys_eq!(*info.owner, *ctx.program_id, GameError::Unauthorized);
+        // Читаем authority из config (offset 8)
+        let cfg_info = ctx.accounts.config.to_account_info();
+        require_keys_eq!(*cfg_info.owner, *ctx.program_id, GameError::Unauthorized);
+        let cfg_data = cfg_info.try_borrow_data()?;
+        require!(cfg_data.len() >= 40, GameError::Unauthorized);
+        let stored_authority = Pubkey::new_from_array(cfg_data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
+        drop(cfg_data);
+        require_keys_eq!(stored_authority, ctx.accounts.authority.key(), GameError::Unauthorized);
+        // realloc
+        info.realloc(8 + Epoch::INIT_SPACE, false)?;
+        // Явно обнуляем последние 8 байт (burned_micro = 0)
+        let mut data = info.try_borrow_mut_data()?;
+        let new_len = 8 + Epoch::INIT_SPACE;
+        if data.len() >= new_len {
+            for i in (new_len - 8)..new_len {
+                data[i] = 0;
+            }
+        }
+        Ok(())
+    }
+
+    // ───────────────────────── Реферальная программа (п.8) ───────────────────────────
+    
+    /// Регистрация реферера: одноразовый burn 5 POTATO, запись `referrer` в PDA Referral.
+    /// PDA Referral создаётся один раз на кошелёк.
+    pub fn register_referrer(ctx: Context<RegisterReferrer>, referrer: Pubkey) -> Result<()> {
+        require!(referrer != ctx.accounts.owner.key(), GameError::Unauthorized);
+        require!(referrer != Pubkey::default(), GameError::Unauthorized);
+        
+        // Burn 5 POTATO (антиспам)
+        token::burn(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Burn {
+                    mint: ctx.accounts.potato_mint.to_account_info(),
+                    from: ctx.accounts.user_potato.to_account_info(),
+                    authority: ctx.accounts.owner.to_account_info(),
+                },
+            ),
+            5_000_000, // 5 POTATO
+        )?;
+        
+        ctx.accounts.referral.owner = ctx.accounts.owner.key();
+        ctx.accounts.referral.referrer = referrer;
+        ctx.accounts.referral.bump = ctx.bumps.referral;
+        
+        emit!(ReferrerRegistered {
+            owner: ctx.accounts.owner.key(),
+            referrer,
+        });
+        Ok(())
+    }
+
 }
 
 // ────────────────────────── Pure helpers ─────────────────────────
@@ -1383,102 +1536,6 @@ pub struct MigrateEpoch<'info> {
 }
 
 
-    // ───────────────────────── Migration (devnet → v2) ───────────────────────────
-    
-    /// Миграция GameConfig: realloc 156 → 164 байт (добавляет last_total_burned_micro).
-    pub fn migrate_config(ctx: Context<MigrateConfig>) -> Result<()> {
-        let info = ctx.accounts.config.to_account_info();
-        require_keys_eq!(*info.owner, *ctx.program_id, GameError::Unauthorized);
-        // Читаем authority напрямую из data (offset 8, первый pubkey)
-        let data = info.try_borrow_data()?;
-        require!(data.len() >= 40, GameError::Unauthorized);
-        let stored_authority = Pubkey::new_from_array(data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
-        drop(data);
-        require_keys_eq!(stored_authority, ctx.accounts.authority.key(), GameError::Unauthorized);
-        // realloc (zero_init=false → новые байты = 0)
-        info.realloc(8 + GameConfig::INIT_SPACE, false)?;
-        Ok(())
-    }
-
-    /// Миграция Field: realloc 69 → 70 байт (добавляет mutation_type).
-    pub fn migrate_field(ctx: Context<MigrateField>) -> Result<()> {
-        let info = ctx.accounts.field.to_account_info();
-        require_keys_eq!(*info.owner, *ctx.program_id, GameError::Unauthorized);
-        // Читаем authority из config (offset 8)
-        let cfg_info = ctx.accounts.config.to_account_info();
-        require_keys_eq!(*cfg_info.owner, *ctx.program_id, GameError::Unauthorized);
-        let cfg_data = cfg_info.try_borrow_data()?;
-        require!(cfg_data.len() >= 40, GameError::Unauthorized);
-        let stored_authority = Pubkey::new_from_array(cfg_data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
-        drop(cfg_data);
-        require_keys_eq!(stored_authority, ctx.accounts.authority.key(), GameError::Unauthorized);
-        // realloc
-        info.realloc(8 + Field::INIT_SPACE, false)?;
-        // Явно обнуляем последний байт (mutation_type = 0)
-        let mut data = info.try_borrow_mut_data()?;
-        let new_len = 8 + Field::INIT_SPACE;
-        if data.len() >= new_len {
-            data[new_len - 1] = 0;
-        }
-        Ok(())
-    }
-
-    /// Миграция Epoch: realloc 41 → 49 байт (добавляет burned_micro).
-    pub fn migrate_epoch(ctx: Context<MigrateEpoch>) -> Result<()> {
-        let info = ctx.accounts.epoch.to_account_info();
-        require_keys_eq!(*info.owner, *ctx.program_id, GameError::Unauthorized);
-        // Читаем authority из config (offset 8)
-        let cfg_info = ctx.accounts.config.to_account_info();
-        require_keys_eq!(*cfg_info.owner, *ctx.program_id, GameError::Unauthorized);
-        let cfg_data = cfg_info.try_borrow_data()?;
-        require!(cfg_data.len() >= 40, GameError::Unauthorized);
-        let stored_authority = Pubkey::new_from_array(cfg_data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
-        drop(cfg_data);
-        require_keys_eq!(stored_authority, ctx.accounts.authority.key(), GameError::Unauthorized);
-        // realloc
-        info.realloc(8 + Epoch::INIT_SPACE, false)?;
-        // Явно обнуляем последние 8 байт (burned_micro = 0)
-        let mut data = info.try_borrow_mut_data()?;
-        let new_len = 8 + Epoch::INIT_SPACE;
-        if data.len() >= new_len {
-            for i in (new_len - 8)..new_len {
-                data[i] = 0;
-            }
-        }
-        Ok(())
-    }
-
-    // ───────────────────────── Реферальная программа (п.8) ───────────────────────────
-    
-    /// Регистрация реферера: одноразовый burn 5 POTATO, запись `referrer` в PDA Referral.
-    /// PDA Referral создаётся один раз на кошелёк.
-    pub fn register_referrer(ctx: Context<RegisterReferrer>, referrer: Pubkey) -> Result<()> {
-        require!(referrer != ctx.accounts.owner.key(), GameError::Unauthorized);
-        require!(referrer != Pubkey::default(), GameError::Unauthorized);
-        
-        // Burn 5 POTATO (антиспам)
-        token::burn(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                Burn {
-                    mint: ctx.accounts.potato_mint.to_account_info(),
-                    from: ctx.accounts.user_potato.to_account_info(),
-                    authority: ctx.accounts.owner.to_account_info(),
-                },
-            ),
-            5_000_000, // 5 POTATO
-        )?;
-        
-        ctx.accounts.referral.owner = ctx.accounts.owner.key();
-        ctx.accounts.referral.referrer = referrer;
-        ctx.accounts.referral.bump = ctx.bumps.referral;
-        
-        emit!(ReferrerRegistered {
-            owner: ctx.accounts.owner.key(),
-            referrer,
-        });
-        Ok(())
-    }
 
 // ───────────────────────── CPI helpers ───────────────────────────
 
@@ -1759,6 +1816,9 @@ pub struct FillOrder<'info> {
     pub escrow: Account<'info, TokenAccount>,
     #[account(mut, token::mint = potato_mint, token::authority = buyer)]
     pub buyer_potato: Account<'info, TokenAccount>,
+    /// Получает refund скидок с комиссии (лицензия продавца / рефералка покупателя).
+    #[account(mut, token::mint = potato_mint, token::authority = seller)]
+    pub seller_potato: Account<'info, TokenAccount>,
     #[account(
         init_if_needed,
         payer = buyer,
@@ -2173,7 +2233,17 @@ pub struct PresalePurchase {
     pub buyer: Pubkey,
     pub field: Pubkey,
     pub field_type: u8,
+    /// SKR atoms paid (6 decimals).
     pub sol_amount: u64,
+    /// On-chain drop roll, 0-99: <70 COMMON, <95 RARE, else EPIC.
+    pub roll: u8,
+}
+
+#[event]
+pub struct ReferralRewardPaid {
+    pub buyer: Pubkey,
+    pub referrer: Pubkey,
+    pub reward_micro: u64,
 }
 
 /// Export license: снижает комиссию рынка на 3% на 30 дней. PDA seeds: [b"license", owner].
@@ -2336,7 +2406,7 @@ pub enum GameError {
     InvalidFieldType, // 6007
     #[msg("Invalid amount")]
     InvalidAmount, // 6008
-    #[msg("Order is too small: minimum is 0.1 POTATO")]
+    #[msg("Order is too small: minimum is 10 POTATO")]
     OrderTooSmall, // 6009
     #[msg("Invalid price")]
     InvalidPrice, // 6010

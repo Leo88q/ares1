@@ -17,7 +17,7 @@ export const FIXED_QUESTS: Record<string, bigint> = {
 const DAILY_CHECKIN_MICRO = 5_000_000n;
 const AD_BONUS_MICRO = 25_000_000n;
 
-const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1;
+const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1; // 70: +mutation_type (v2)
 const MICRO = 1_000_000n;
 
 const todayUtc = () => new Date().toISOString().slice(0, 10);

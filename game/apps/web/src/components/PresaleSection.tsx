@@ -1,4 +1,4 @@
-import { PRESALE_DROP, rollPresaleDrop } from '../utils/constants'
+import { PRESALE_DROP } from '../utils/constants'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { TrendingUp  } from 'lucide-react'
@@ -63,11 +63,12 @@ export default function PresaleSection() {
  const [lastDrop, setLastDrop] = useState<number | null>(null)
 
  const handleBuy = async () => {
-  const drop = rollPresaleDrop()
   sounds.buy()
   haptics.purchaseField()
-  const ok = await buyFieldPresale?.(drop)
-  if (ok) setLastDrop(drop)
+  // Тир кидает сама программа (keccak(buyer ‖ sold ‖ slot)); результат
+  // читаем из on-chain состояния созданного поля.
+  const tier = await buyFieldPresale?.()
+  if (tier !== null && tier !== undefined) setLastDrop(tier)
  }
 
  return (
