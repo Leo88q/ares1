@@ -76,15 +76,20 @@ echo "    idl synced → apps/web/src/idl.json"
 
 # ── 3) Deploy ──
 echo "==> 3/6 Deploying to devnet..."
-# Если задан свой RPC (Helius/Triton) — деплой тоже идёт через него:
-# публичный api.devnet.solana.com часто не успевает до блокхеш-ТТЛ.
-solana config set --url "${RPC_URL:-devnet}" --keypair "$ADMIN_KEYPAIR" >/dev/null
+# anchor 0.30 жёстко прокидывает solana CLI свой URL (cluster→URL),
+# поэтому свой RPC передаём pass-through'ом после "--" (последний --url побеждает).
+if [ "$RPC_URL" != "https://api.devnet.solana.com" ]; then
+  echo "    Deploy via custom RPC: $RPC_URL"
+  anchor deploy --provider.cluster devnet -- --url "$RPC_URL"
+else
+  echo "    Deploy via public devnet RPC (если 'Blockhash expired' — задай свой RPC, см. шапку скрипта)"
+  anchor deploy --provider.cluster devnet
+fi
 UPGRADE=0
 if [ -f "$KEYPAIR_FILE" ]; then
   UPGRADE=1
   echo "    keystore найден: если программа уже была задеплоена этим ключом — будет upgrade (состояние сохранится, migrate-v2 при PRESERVE_STATE=1); иначе — новый program id"
 fi
-anchor deploy --provider.cluster devnet
 PROGRAM_ID=$(solana address --keypair "$KEYPAIR_FILE")
 echo "    program id: $PROGRAM_ID"
 
