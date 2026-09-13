@@ -43,19 +43,26 @@ echo "════════ ARES-1 warm start (devnet) ═══════�
 echo "Deployer: $ADMIN"
 
 # ── 1) Funding ──
-echo "==> 1/6 Funding deployer..."
+# Deploy новой программы стоит ~3.45 SOL (rent за program data) + init ~0.1 + fee.
+NEED_LAMPORTS=4000000000
+echo "==> 1/6 Funding deployer (нужно ≥ 4 SOL)..."
 LAMPORTS=$(solana balance --lamports "$ADMIN" --url devnet | awk '{print $1}')
-if [ "$LAMPORTS" -lt 1000000000 ]; then
-  for i in 1 2 3; do
-    if solana airdrop 2 "$ADMIN" --url devnet >/dev/null 2>&1; then
-      echo "    airdrop ok (+2 SOL)"
-      break
-    fi
-    echo "    airdrop failed (rate limit?), retry $i/3 через 30s..."
-    [ "$i" = 3 ] && { echo "✖ Airdrop недоступен — положи SOL вручную и повтори."; exit 1; }
+TRIES=0
+while [ "$LAMPORTS" -lt "$NEED_LAMPORTS" ] && [ "$TRIES" -lt 4 ]; do
+  TRIES=$((TRIES + 1))
+  if solana airdrop 2 "$ADMIN" --url devnet >/dev/null 2>&1; then
+    LAMPORTS=$(solana balance --lamports "$ADMIN" --url devnet | awk '{print $1}')
+    echo "    airdrop ok, balance: $((LAMPORTS / 1000000000)).$((LAMPORTS % 1000000000 / 100000000)) SOL"
+  else
+    echo "    airdrop не прошёл (лимит faucet?), retry $TRIES/4 через 30s..."
     sleep 30
-  done
-fi
+  fi
+done
+[ "$LAMPORTS" -ge "$NEED_LAMPORTS" ] || {
+  echo "✖ Не набралось 4 SOL (сейчас $((LAMPORTS / 1000000000)).$((LAMPORTS % 1000000000 / 100000000)))."
+  echo "  Devnet-faucet имеет дневной лимит — докинь SOL вручную ($ADMIN) или повтори позже."
+  exit 1
+}
 LAMPORTS=$(solana balance --lamports "$ADMIN" --url devnet | awk '{print $1}')
 echo "    balance: $((LAMPORTS / 1000000000)).$((LAMPORTS % 1000000000 / 100000000)) SOL"
 
@@ -72,7 +79,7 @@ solana config set --url devnet --keypair "$ADMIN_KEYPAIR" >/dev/null
 UPGRADE=0
 if [ -f "$KEYPAIR_FILE" ]; then
   UPGRADE=1
-  echo "    keystore найден → UPGRADE существующей программы"
+  echo "    keystore найден: если программа уже была задеплоена этим ключом — будет upgrade (состояние сохранится, migrate-v2 при PRESERVE_STATE=1); иначе — новый program id"
 fi
 anchor deploy --provider.cluster devnet
 PROGRAM_ID=$(solana address --keypair "$KEYPAIR_FILE")
