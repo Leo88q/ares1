@@ -72,10 +72,21 @@ jobs:
           fi
 
       - name: Unit tests (host)
-        run: cargo test -p solana_potato --lib
+        run: |
+          set -o pipefail
+          if ! cargo test -p solana_potato --lib 2>&1 | tee /tmp/cargo-test.log; then
+            grep -E "^test .* FAILED|^failures:$|panicked at|^error\[" /tmp/cargo-test.log | head -20 | sed 's/^/::error file=programs\/solana_potato\/src\/lib.rs::/'
+            echo "::error title=cargo-test-failed::$(grep -E '^error(\[|:)' /tmp/cargo-test.log | head -8 | tr '\n' ' | ' | head -c 5000)"
+            exit 1
+          fi
 
       - name: anchor build
-        run: anchor build
+        run: |
+          set -o pipefail
+          if ! anchor build 2>&1 | tee /tmp/anchor-build.log; then
+            echo "::error title=anchor-build-failed::$(grep -E '^error|panicked' /tmp/anchor-build.log | head -15 | tr '\n' ' | ' | head -c 5000)"
+            exit 1
+          fi
 
       - name: Upload build artifacts (.so + IDL)
         uses: actions/upload-artifact@v4
