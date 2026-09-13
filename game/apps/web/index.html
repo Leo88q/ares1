@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Solana Potato — фарм-игра на Solana</title>
+    <meta name="description" content="Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL." />
+    <meta name="theme-color" content="#0a0a0f" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="application-name" content="Solana Potato" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Potato" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Solana Potato — фарм-игра на Solana" />
+    <meta property="og:description" content="Выращивай картофель on-chain, собирай $POTATO и торгуй за SOL прямо в Telegram." />
+    <meta property="og:image" content="/android-chrome-512x512.png" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Solana Potato" />
+    <meta name="twitter:description" content="On-chain фарм-игра на Solana с P2P-маркетплейсом." />
+    <meta name="twitter:image" content="/android-chrome-512x512.png" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
+    <link rel="apple-touch-icon" href="/android-chrome-192x192.png" />
+    <link rel="preconnect" href="https://api.devnet.solana.com" crossorigin />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+      html { background: #0a0a0f; }
+      #root:empty::before {
+        content: '';
+        display: flex; align-items: center; justify-content: center;
+        height: 100vh; font-size: 64px; color: #fff;
+        animation: potato-pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes potato-pulse { 0%, 100% { opacity: .4; transform: scale(.95); } 50% { opacity: 1; transform: scale(1.05); } }
+    </style>
+  </head>
+  <body>
+    <noscript>Для игры нужен включённый JavaScript.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

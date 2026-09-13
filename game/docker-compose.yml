@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./apps/backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./apps/backend/.env
+    volumes:
+      - ./apps/backend/keys:/app/keys:ro
+      - backend-data:/app/data
+
+  bot:
+    build: ./apps/bot
+    restart: unless-stopped
+    env_file:
+      - ./apps/bot/.env
+    depends_on:
+      - backend
+
+volumes:
+  backend-data:

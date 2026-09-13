@@ -1,0 +1,10 @@
+target/
+node_modules/
+.vite/
+dist/
+*.log
+.DS_Store
+.env
+apps/backend/keys/
+test-ledger/
+.anchor/

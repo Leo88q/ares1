@@ -1,0 +1,3105 @@
+{
+  "address": "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha",
+  "metadata": {
+    "name": "solana_potato",
+    "version": "0.2.0",
+    "spec": "0.1.0",
+    "description": "Solana Potato game program"
+  },
+  "instructions": [
+    {
+      "name": "accept_authority",
+      "docs": [
+        "Step 2: the proposed key signs to take over."
+      ],
+      "discriminator": [
+        107,
+        86,
+        198,
+        91,
+        33,
+        12,
+        107,
+        160
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_authority",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "apply_fertilizer",
+      "docs": [
+        "Applies fertilizer for 24h (stackable up to `MAX_FERTILIZER_PREPAY`)."
+      ],
+      "discriminator": [
+        251,
+        59,
+        24,
+        165,
+        189,
+        54,
+        11,
+        74
+      ],
+      "accounts": [
+        {
+          "name": "field",
+          "writable": true
+        },
+        {
+          "name": "potato_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "user_potato",
+          "writable": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "field"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "buy_field_sol",
+      "docs": [
+        "Покупка поля за SOL во время пресейла.",
+        "SOL переводится в treasury_sol PDA. Лимит: 5 полей на кошелёк, cap по PresaleState."
+      ],
+      "discriminator": [
+        79,
+        250,
+        7,
+        76,
+        250,
+        36,
+        140,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "presale_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  97,
+                  108,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "relations": [
+            "presale_state"
+          ]
+        },
+        {
+          "name": "buyer_presale",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  121,
+                  101,
+                  114,
+                  95,
+                  112,
+                  114,
+                  101,
+                  115,
+                  97,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "buyer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "field",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "field_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "treasury_sol",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_field_id",
+          "type": "u64"
+        },
+        {
+          "name": "field_type",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "cancel_order",
+      "docs": [
+        "Seller cancels their own active order; amount + fee are refunded and a",
+        "3h listing cooldown starts. Works even while the game is paused."
+      ],
+      "discriminator": [
+        95,
+        129,
+        237,
+        240,
+        8,
+        49,
+        223,
+        132
+      ],
+      "accounts": [
+        {
+          "name": "seller",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "order"
+          ]
+        },
+        {
+          "name": "seller_profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  108,
+                  108,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "seller"
+              }
+            ]
+          }
+        },
+        {
+          "name": "order",
+          "writable": true
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "seller_potato",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_expired_order",
+      "docs": [
+        "Permissionless crank: refunds an expired order to its seller."
+      ],
+      "discriminator": [
+        205,
+        27,
+        199,
+        110,
+        149,
+        40,
+        220,
+        44
+      ],
+      "accounts": [
+        {
+          "name": "order",
+          "writable": true
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "seller_potato",
+          "writable": true
+        },
+        {
+          "name": "seller",
+          "writable": true,
+          "relations": [
+            "order"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_field",
+      "docs": [
+        "Buys a new field of `field_type` (0 = Грядка, 1 = Луг, 2 = Поле) by",
+        "burning its price. `field_id` is a client-chosen nonce for the PDA."
+      ],
+      "discriminator": [
+        237,
+        199,
+        252,
+        46,
+        43,
+        54,
+        21,
+        189
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "field",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "field_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "potato_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "user_potato",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "_field_id",
+          "type": "u64"
+        },
+        {
+          "name": "field_type",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "create_sell_order",
+      "docs": [
+        "Lists `amount_micro` $POTATO for sale at `price_lamports_per_potato`",
+        "(lamports per whole $POTATO). Amount + fee move into an escrow PDA."
+      ],
+      "discriminator": [
+        53,
+        52,
+        255,
+        44,
+        191,
+        74,
+        171,
+        225
+      ],
+      "accounts": [
+        {
+          "name": "seller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "seller_profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  108,
+                  108,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "seller"
+              }
+            ]
+          }
+        },
+        {
+          "name": "order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "order_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "market_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "seller_potato",
+          "writable": true
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "potato_mint",
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_order_id",
+          "type": "u64"
+        },
+        {
+          "name": "amount_micro",
+          "type": "u64"
+        },
+        {
+          "name": "price_lamports_per_potato",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "fill_order",
+      "docs": [
+        "Buys an active order: SOL goes to the seller, $POTATO to the buyer, the",
+        "fee is split between burn and treasury, escrow and order are closed."
+      ],
+      "discriminator": [
+        232,
+        122,
+        115,
+        25,
+        199,
+        143,
+        136,
+        162
+      ],
+      "accounts": [
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "seller",
+          "writable": true,
+          "relations": [
+            "order"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "potato_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "market_stats",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "order",
+          "writable": true
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyer_potato",
+          "writable": true
+        },
+        {
+          "name": "treasury_potato",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "config"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "potato_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "grant_reward",
+      "docs": [
+        "Authority-only (backend) reward mint, counted against the epoch cap."
+      ],
+      "discriminator": [
+        202,
+        133,
+        123,
+        208,
+        124,
+        131,
+        147,
+        235
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.epoch_id",
+                "account": "GameConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "potato_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "user_potato",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount_micro",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "harvest",
+      "docs": [
+        "Mints the yield accrued since the last harvest to the owner's token",
+        "account, bounded by the epoch cap and the max supply. If the cap allows",
+        "only a partial payout, the unpaid remainder keeps accruing."
+      ],
+      "discriminator": [
+        228,
+        241,
+        31,
+        182,
+        53,
+        169,
+        59,
+        199
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.epoch_id",
+                "account": "GameConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "field",
+          "writable": true
+        },
+        {
+          "name": "potato_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "user_potato",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "field"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_epoch",
+      "docs": [
+        "Bootstraps the epoch account for the current `config.epoch_id`.",
+        "Only needed once after `initialize`; later epochs are created by `roll_epoch`."
+      ],
+      "discriminator": [
+        78,
+        81,
+        66,
+        76,
+        217,
+        113,
+        189,
+        109
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.epoch_id",
+                "account": "GameConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_presale",
+      "docs": [
+        "Создаёт синглтон пресейла. Только authority.",
+        "cap — общий тираж полей (500), price_lamports — цена за поле (0.25 SOL = 250_000_000)."
+      ],
+      "discriminator": [
+        172,
+        248,
+        47,
+        226,
+        223,
+        52,
+        94,
+        217
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "presale_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  97,
+                  108,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "cap",
+          "type": "u32"
+        },
+        {
+          "name": "price_lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize",
+      "docs": [
+        "Creates the singleton `GameConfig`. The $POTATO mint must already have",
+        "the config PDA as its mint authority, 6 decimals and no freeze authority."
+      ],
+      "discriminator": [
+        175,
+        175,
+        109,
+        31,
+        13,
+        152,
+        155,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "potato_mint"
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "pay_tax",
+      "docs": [
+        "Extends tax coverage by one period (prepaid up to `MAX_TAX_PREPAY`)."
+      ],
+      "discriminator": [
+        51,
+        5,
+        236,
+        118,
+        42,
+        113,
+        61,
+        53
+      ],
+      "accounts": [
+        {
+          "name": "field",
+          "writable": true
+        },
+        {
+          "name": "potato_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "user_potato",
+          "writable": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "field"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "propose_authority",
+      "docs": [
+        "Step 1 of the two-step authority transfer."
+      ],
+      "discriminator": [
+        20,
+        148,
+        236,
+        198,
+        76,
+        119,
+        99,
+        142
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "repair_field",
+      "docs": [
+        "Restores durability to 100 for a burn."
+      ],
+      "discriminator": [
+        33,
+        255,
+        124,
+        190,
+        249,
+        44,
+        118,
+        18
+      ],
+      "accounts": [
+        {
+          "name": "field",
+          "writable": true
+        },
+        {
+          "name": "potato_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "user_potato",
+          "writable": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "field"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "roll_epoch",
+      "docs": [
+        "Permissionless: anyone may roll to the next epoch once the current one is",
+        "over. Without this the mint cap would be frozen forever after day one."
+      ],
+      "discriminator": [
+        17,
+        54,
+        176,
+        59,
+        34,
+        11,
+        253,
+        90
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "current_epoch",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.epoch_id",
+                "account": "GameConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "next_epoch",
+          "writable": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_paused",
+      "docs": [
+        "Emergency switch. Pausing blocks minting and new spends but never",
+        "refunds (`cancel_order`, `close_expired_order`)."
+      ],
+      "discriminator": [
+        91,
+        60,
+        125,
+        192,
+        176,
+        225,
+        166,
+        218
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "paused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "update_config",
+      "docs": [
+        "Tunes emission parameters within hard-coded ceilings. A new mint cap",
+        "takes effect from the next epoch."
+      ],
+      "discriminator": [
+        29,
+        158,
+        252,
+        191,
+        10,
+        83,
+        219,
+        99
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "daily_mint_cap_micro",
+          "type": {
+            "option": "u64"
+          }
+        },
+        {
+          "name": "base_yield_micro_per_day",
+          "type": {
+            "option": "u64"
+          }
+        },
+        {
+          "name": "global_multiplier_bps",
+          "type": {
+            "option": "u16"
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_presale_price",
+      "docs": [
+        "Обновляет цену пресейла (только authority).已售-поля не затрагивает."
+      ],
+      "discriminator": [
+        140,
+        169,
+        214,
+        239,
+        57,
+        34,
+        66,
+        153
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "presale_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  97,
+                  108,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config",
+            "presale_state"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "price_lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "upgrade_field",
+      "docs": [
+        "Raises the field level by one for a burn of `BASE_UPGRADE × level × type`."
+      ],
+      "discriminator": [
+        94,
+        68,
+        2,
+        119,
+        6,
+        43,
+        1,
+        151
+      ],
+      "accounts": [
+        {
+          "name": "field",
+          "writable": true
+        },
+        {
+          "name": "potato_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "user_potato",
+          "writable": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "field"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdraw_treasury",
+      "docs": [
+        "Authority-only withdrawal from the treasury ATA."
+      ],
+      "discriminator": [
+        40,
+        63,
+        122,
+        158,
+        144,
+        216,
+        83,
+        96
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "potato_mint",
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "treasury_potato",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "config"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "potato_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount_micro",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "BuyerPresaleCounter",
+      "discriminator": [
+        205,
+        173,
+        174,
+        132,
+        37,
+        175,
+        92,
+        254
+      ]
+    },
+    {
+      "name": "Epoch",
+      "discriminator": [
+        93,
+        83,
+        120,
+        89,
+        151,
+        138,
+        152,
+        108
+      ]
+    },
+    {
+      "name": "Field",
+      "discriminator": [
+        76,
+        250,
+        89,
+        145,
+        233,
+        45,
+        38,
+        85
+      ]
+    },
+    {
+      "name": "GameConfig",
+      "discriminator": [
+        45,
+        146,
+        146,
+        33,
+        170,
+        69,
+        96,
+        133
+      ]
+    },
+    {
+      "name": "MarketOrder",
+      "discriminator": [
+        115,
+        56,
+        232,
+        54,
+        30,
+        175,
+        160,
+        202
+      ]
+    },
+    {
+      "name": "MarketStats",
+      "discriminator": [
+        240,
+        45,
+        182,
+        233,
+        92,
+        118,
+        209,
+        83
+      ]
+    },
+    {
+      "name": "PresaleState",
+      "discriminator": [
+        32,
+        18,
+        85,
+        188,
+        213,
+        180,
+        10,
+        241
+      ]
+    },
+    {
+      "name": "SellerProfile",
+      "discriminator": [
+        96,
+        227,
+        91,
+        129,
+        3,
+        158,
+        255,
+        21
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "AuthorityAccepted",
+      "discriminator": [
+        166,
+        192,
+        219,
+        188,
+        41,
+        209,
+        195,
+        26
+      ]
+    },
+    {
+      "name": "AuthorityProposed",
+      "discriminator": [
+        244,
+        117,
+        94,
+        112,
+        53,
+        151,
+        35,
+        89
+      ]
+    },
+    {
+      "name": "ConfigUpdated",
+      "discriminator": [
+        40,
+        241,
+        230,
+        122,
+        11,
+        19,
+        198,
+        194
+      ]
+    },
+    {
+      "name": "EpochRolled",
+      "discriminator": [
+        185,
+        99,
+        207,
+        231,
+        204,
+        221,
+        121,
+        223
+      ]
+    },
+    {
+      "name": "FertilizerApplied",
+      "discriminator": [
+        155,
+        131,
+        105,
+        205,
+        52,
+        157,
+        255,
+        160
+      ]
+    },
+    {
+      "name": "FieldCreated",
+      "discriminator": [
+        113,
+        96,
+        145,
+        12,
+        225,
+        179,
+        244,
+        15
+      ]
+    },
+    {
+      "name": "FieldRepaired",
+      "discriminator": [
+        236,
+        45,
+        151,
+        176,
+        171,
+        106,
+        232,
+        115
+      ]
+    },
+    {
+      "name": "FieldUpgraded",
+      "discriminator": [
+        64,
+        229,
+        233,
+        12,
+        73,
+        232,
+        135,
+        220
+      ]
+    },
+    {
+      "name": "Harvested",
+      "discriminator": [
+        249,
+        229,
+        78,
+        151,
+        106,
+        185,
+        149,
+        11
+      ]
+    },
+    {
+      "name": "OrderCancelled",
+      "discriminator": [
+        108,
+        56,
+        128,
+        68,
+        168,
+        113,
+        168,
+        239
+      ]
+    },
+    {
+      "name": "OrderCreated",
+      "discriminator": [
+        224,
+        1,
+        229,
+        63,
+        254,
+        60,
+        190,
+        159
+      ]
+    },
+    {
+      "name": "OrderExpiredEvent",
+      "discriminator": [
+        150,
+        3,
+        200,
+        97,
+        178,
+        224,
+        156,
+        9
+      ]
+    },
+    {
+      "name": "OrderFilled",
+      "discriminator": [
+        120,
+        124,
+        109,
+        66,
+        249,
+        116,
+        174,
+        30
+      ]
+    },
+    {
+      "name": "PausedToggled",
+      "discriminator": [
+        77,
+        42,
+        45,
+        184,
+        47,
+        55,
+        187,
+        17
+      ]
+    },
+    {
+      "name": "PresalePurchase",
+      "discriminator": [
+        26,
+        146,
+        49,
+        21,
+        233,
+        142,
+        20,
+        204
+      ]
+    },
+    {
+      "name": "RewardGranted",
+      "discriminator": [
+        114,
+        199,
+        215,
+        169,
+        224,
+        19,
+        56,
+        70
+      ]
+    },
+    {
+      "name": "TaxPaid",
+      "discriminator": [
+        4,
+        134,
+        57,
+        255,
+        63,
+        46,
+        212,
+        238
+      ]
+    },
+    {
+      "name": "TreasuryWithdrawn",
+      "discriminator": [
+        143,
+        181,
+        157,
+        169,
+        87,
+        155,
+        170,
+        46
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Paused",
+      "msg": "Game is paused"
+    },
+    {
+      "code": 6001,
+      "name": "FieldInactive",
+      "msg": "Field is not active"
+    },
+    {
+      "code": 6002,
+      "name": "NothingToHarvest",
+      "msg": "Nothing to harvest"
+    },
+    {
+      "code": 6003,
+      "name": "HarvestTooSoon",
+      "msg": "Harvest too soon: wait at least 60 seconds between harvests"
+    },
+    {
+      "code": 6004,
+      "name": "MaxLevelReached",
+      "msg": "Max level reached"
+    },
+    {
+      "code": 6005,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidAuthority",
+      "msg": "Invalid authority"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidFieldType",
+      "msg": "Invalid field type: expected 0, 1 or 2"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidAmount",
+      "msg": "Invalid amount"
+    },
+    {
+      "code": 6009,
+      "name": "OrderTooSmall",
+      "msg": "Order is too small: minimum is 0.1 POTATO"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidPrice",
+      "msg": "Invalid price"
+    },
+    {
+      "code": 6011,
+      "name": "OrderNotActive",
+      "msg": "Order is not active"
+    },
+    {
+      "code": 6012,
+      "name": "OrderExpired",
+      "msg": "Order has expired"
+    },
+    {
+      "code": 6013,
+      "name": "OrderNotExpired",
+      "msg": "Order has not expired yet"
+    },
+    {
+      "code": 6014,
+      "name": "SelfTradeBlocked",
+      "msg": "Self-trade is blocked"
+    },
+    {
+      "code": 6015,
+      "name": "CancelCooldown",
+      "msg": "Cooldown: you can create orders only 3 hours after a cancel"
+    },
+    {
+      "code": 6016,
+      "name": "RewardTooLarge",
+      "msg": "Reward too large (max 1000 POTATO)"
+    },
+    {
+      "code": 6017,
+      "name": "EpochCapExceeded",
+      "msg": "Epoch mint cap exceeded — try again next epoch"
+    },
+    {
+      "code": 6018,
+      "name": "CapTooHigh",
+      "msg": "Daily cap cannot be raised above 250K POTATO"
+    },
+    {
+      "code": 6019,
+      "name": "MultiplierTooHigh",
+      "msg": "Global multiplier too high (max 2.0x)"
+    },
+    {
+      "code": 6020,
+      "name": "EpochNotOver",
+      "msg": "Epoch has not ended yet"
+    },
+    {
+      "code": 6021,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6022,
+      "name": "InvalidMint",
+      "msg": "Token account mint does not match the game mint"
+    },
+    {
+      "code": 6023,
+      "name": "InvalidMintAuthority",
+      "msg": "Mint authority must be the config PDA"
+    },
+    {
+      "code": 6024,
+      "name": "InvalidMintDecimals",
+      "msg": "Mint must have 6 decimals"
+    },
+    {
+      "code": 6025,
+      "name": "MintHasFreezeAuthority",
+      "msg": "Mint must not have a freeze authority"
+    },
+    {
+      "code": 6026,
+      "name": "OrderTotalTooSmall",
+      "msg": "Order total is below the minimum of 10 000 lamports"
+    },
+    {
+      "code": 6027,
+      "name": "PrepayLimitReached",
+      "msg": "Prepay limit reached: tax up to 28 days, fertilizer up to 7 days ahead"
+    },
+    {
+      "code": 6028,
+      "name": "NothingToRepair",
+      "msg": "Field durability is already at maximum"
+    },
+    {
+      "code": 6029,
+      "name": "MaxSupplyReached",
+      "msg": "Max supply reached"
+    },
+    {
+      "code": 6030,
+      "name": "PresaleCapReached",
+      "msg": "Presale cap reached: all fields sold"
+    },
+    {
+      "code": 6031,
+      "name": "PresaleWalletLimitReached",
+      "msg": "Wallet presale limit reached: max 5 fields per wallet"
+    },
+    {
+      "code": 6032,
+      "name": "PresaleNotActive",
+      "msg": "Presale is not active"
+    }
+  ],
+  "types": [
+    {
+      "name": "AuthorityAccepted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "previous",
+            "type": "pubkey"
+          },
+          {
+            "name": "current",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuthorityProposed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pending_authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuyerPresaleCounter",
+      "docs": [
+        "Счётчик купленных полей на кошелёк. PDA seeds: `[\"buyer_presale\", buyer_pubkey]`"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "count",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConfigUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "daily_mint_cap_micro",
+            "type": "u64"
+          },
+          {
+            "name": "base_yield_micro_per_day",
+            "type": "u64"
+          },
+          {
+            "name": "global_multiplier_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Epoch",
+      "docs": [
+        "One 24h emission window. PDA seeds: `[\"epoch\", id.to_le_bytes()]`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "id",
+            "type": "u64"
+          },
+          {
+            "name": "mint_cap_micro",
+            "type": "u64"
+          },
+          {
+            "name": "minted_micro",
+            "type": "u64"
+          },
+          {
+            "name": "start_time",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EpochRolled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "start_time",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FertilizerApplied",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "active_until",
+            "type": "i64"
+          },
+          {
+            "name": "cost_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Field",
+      "docs": [
+        "A player's field. PDA seeds: `[\"field\", field_id.to_le_bytes()]`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "level",
+            "type": "u8"
+          },
+          {
+            "name": "durability",
+            "type": "u8"
+          },
+          {
+            "name": "last_harvest",
+            "type": "i64"
+          },
+          {
+            "name": "tax_paid_until",
+            "type": "i64"
+          },
+          {
+            "name": "fertilizer_until",
+            "type": "i64"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "field_type",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FieldCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "field_type",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FieldRepaired",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "cost_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FieldUpgraded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_level",
+            "type": "u8"
+          },
+          {
+            "name": "cost_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GameConfig",
+      "docs": [
+        "Singleton game configuration and the mint authority of $POTATO.",
+        "PDA seeds: `[\"config\"]`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "pending_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "potato_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "max_supply_micro",
+            "type": "u64"
+          },
+          {
+            "name": "daily_mint_cap_micro",
+            "type": "u64"
+          },
+          {
+            "name": "base_yield_micro_per_day",
+            "type": "u64"
+          },
+          {
+            "name": "global_multiplier_bps",
+            "type": "u16"
+          },
+          {
+            "name": "field_count",
+            "type": "u64"
+          },
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "total_burned_micro",
+            "type": "u64"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Harvested",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketOrder",
+      "docs": [
+        "A sell order. PDA seeds: `[\"order\", order_id.to_le_bytes()]`; its escrow",
+        "token account is `[\"escrow\", order_pubkey]`. Closed on fill/cancel/expiry."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "price_lamports_per_potato",
+            "type": "u64"
+          },
+          {
+            "name": "fee_micro",
+            "type": "u64"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "OrderStatus"
+              }
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "escrow_bump",
+            "type": "u8"
+          },
+          {
+            "name": "order_bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketStats",
+      "docs": [
+        "Global marketplace counters. PDA seeds: `[\"market_stats\"]`.",
+        "The `_24h` counters reset when a trade lands on a new UTC day."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "sell_volume_24h_micro",
+            "type": "u64"
+          },
+          {
+            "name": "buy_volume_24h_micro",
+            "type": "u64"
+          },
+          {
+            "name": "total_sol_volume",
+            "type": "u64"
+          },
+          {
+            "name": "total_trades",
+            "type": "u64"
+          },
+          {
+            "name": "last_update",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderCancelled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "price_lamports_per_potato",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderExpiredEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderFilled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "total_lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Filled"
+          },
+          {
+            "name": "Cancelled"
+          },
+          {
+            "name": "Expired"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PausedToggled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "paused",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PresalePurchase",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "field_type",
+            "type": "u8"
+          },
+          {
+            "name": "sol_amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PresaleState",
+      "docs": [
+        "Состояние пресейла полей за SOL. PDA seeds: `[\"presale\"]`"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "sold",
+            "type": "u32"
+          },
+          {
+            "name": "cap",
+            "type": "u32"
+          },
+          {
+            "name": "price_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardGranted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recipient",
+            "docs": [
+              "Wallet that owns the receiving token account."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SellerProfile",
+      "docs": [
+        "Per-seller anti-spam state. PDA seeds: `[\"seller\", seller_pubkey]`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "last_cancel_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TaxPaid",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "paid_until",
+            "type": "i64"
+          },
+          {
+            "name": "cost_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TreasuryWithdrawn",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}

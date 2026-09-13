@@ -1,0 +1,502 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+  color: #ffffff;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+
+
+.shadow-glow {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.shadow-glow-gold {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* ==========================================================================
+   POTATO FARM — "Vice Potato" design tokens (M2 design system)
+========================================================================== */
+:root {
+  --pf-bg-base: #0B0714;
+  --pf-bg-elevated: #150E22;
+  --pf-glass: rgba(20, 14, 30, 0.6);
+  --pf-glass-strong: rgba(20, 14, 30, 0.82);
+  --pf-border-soft: rgba(255, 255, 255, 0.08);
+  --pf-border-strong: rgba(255, 255, 255, 0.18);
+  --pf-orange: #FF7A1A;
+  --pf-pink: #FF2E93;
+  --pf-teal: #12E7C4;
+  --pf-purple: #B85CFF;
+  --pf-gold: #FFC94A;
+  --pf-green: #7CFF6B;
+  --pf-red: #FF3B3B;
+  --pf-grad-sunset: linear-gradient(135deg, #2D0B3D 0%, #6A1B5D 45%, #FF3E7F 100%);
+  --pf-grad-cta: linear-gradient(135deg, var(--pf-orange) 0%, var(--pf-pink) 100%);
+  --pf-grad-gold: linear-gradient(135deg, #FFE08A 0%, var(--pf-gold) 60%, #E8940A 100%);
+  --pf-grad-border: conic-gradient(from 180deg, var(--pf-pink), var(--pf-teal), var(--pf-purple), var(--pf-pink));
+  --pf-text-primary: #F5F0EA;
+  --pf-text-secondary: #9C93AE;
+  --pf-text-muted: #6B6380;
+  --pf-font-display: 'Anton', 'Archivo Black', sans-serif;
+  --pf-font-ui: 'Inter', sans-serif;
+  --pf-font-mono: 'JetBrains Mono', monospace;
+  --pf-radius-card: 18px;
+  --pf-radius-btn: 14px;
+  --pf-radius-pill: 999px;
+  --pf-glow-orange: 0 0 24px rgba(255, 122, 26, 0.45);
+  --pf-glow-pink: 0 0 24px rgba(184, 92, 255, 0.45);
+  --pf-glow-teal: 0 0 20px rgba(18, 231, 196, 0.4);
+  --pf-glow-gold: 0 0 20px rgba(255, 201, 74, 0.45);
+  --pf-glow-purple: 0 0 20px rgba(184, 92, 255, 0.4);
+}
+.pf-grain { position: fixed; inset: 0; z-index: 1; opacity: 0.05; pointer-events: none; mix-blend-mode: overlay; }
+.pf-content { position: relative; z-index: 2; }
+.pf-h1 { font-family: var(--pf-font-display); font-size: 28px; letter-spacing: 0.02em; text-transform: uppercase; color: var(--pf-text-primary); margin: 0; }
+.pf-h2 { font-family: var(--pf-font-display); font-size: 20px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--pf-text-primary); margin: 0; }
+.pf-subtitle { font-family: var(--pf-font-ui); font-weight: 500; font-size: 14px; color: var(--pf-text-secondary); margin: 0; }
+.pf-mono { font-family: var(--pf-font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
+.pf-card { position: relative; background-color: rgba(22, 17, 13, 0.28); background-image: var(--ares-rust-panel); background-repeat: no-repeat; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: var(--pf-radius-card); padding: 20px; border: 1px solid rgba(160, 82, 40, 0.65); box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 10px 26px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,214,170,0.07), inset 0 0 18px rgba(0,0,0,0.55); }
+.pf-card--rare { border: none; background-image: var(--ares-rust-panel); background-repeat: no-repeat; }
+.pf-card--rare::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; background: var(--pf-grad-border); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; opacity: 0.8; }
+.pf-caps { text-transform: uppercase; letter-spacing: 0.08em; }
+.pf-flex-center { display: flex; align-items: center; justify-content: center; }
+/* FIX: в оригинальном гайде были лишние скобки — здесь исправлено */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+.pf-app-bg {
+  position: relative;
+  min-height: 100vh;
+  color: var(--pf-text-primary);
+  font-family: var(--pf-font-ui);
+}
+
+:root {
+  --pf-glow-green: 0 0 22px rgba(124, 255, 107, 0.22);
+  --pf-grad-border-green: conic-gradient(from 180deg,
+    rgba(124, 255, 107, 0.75),
+    rgba(18, 231, 196, 0.55),
+    rgba(124, 255, 107, 0.18),
+    rgba(18, 231, 196, 0.75),
+    rgba(124, 255, 107, 0.75));
+}
+/* Зелёное неоновое кольцо как у пресейла — для всех обычных карточек */
+.pf-card:not(.pf-card--rare)::before,
+.glass:not(.pf-card--rare)::before {
+  display: none;
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--pf-grad-border-green);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.9;
+}
+.glass { position: relative; border-color: transparent; box-shadow: var(--pf-glow-green); }
+
+
+/* === ARES-1 tokens === */
+:root {
+  --ares-rust: #C1440E;
+  --ares-rust-dark: #8A2E08;
+  --ares-dust: #FFB347;
+  --ares-sky: #D9A06B;
+  --ares-blueset: #6B93D6;
+  --ares-space: #050308;
+  --ares-grow-pink: #FF2E93;
+  --ares-grow-violet: #B85CFF;
+  --ares-bio-green: #7CFF6B;
+  --ares-bio-cyan: #12E7C4;
+  --ares-hud-amber: #FFB347;
+  --ares-hud-orange: #FF7A1A;
+  --ares-metal-dark: #2A2D34;
+  --ares-metal-light: #4A4F5A;
+  --ares-glass: rgba(180, 220, 255, 0.10);
+  --ares-font-stencil: 'Anton', sans-serif;
+  --ares-font-mono: 'JetBrains Mono', monospace;
+}
+
+.ares-stencil {
+  font-family: var(--ares-font-stencil);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ares-mono {
+  font-family: var(--ares-font-mono);
+}
+
+.ares-glass-panel {
+  background: var(--ares-glass);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(180, 220, 255, 0.18);
+}
+
+.ares-metal-edge {
+  border: 1px solid rgba(160, 82, 40, 0.65);
+  background:
+    radial-gradient(ellipse 50px 18px at 15% 10%, rgba(193,68,14,0.18), transparent 70%),
+    radial-gradient(ellipse 44px 16px at 85% 90%, rgba(138,46,8,0.22), transparent 70%),
+    linear-gradient(180deg, rgba(58, 42, 30, 0.38), rgba(34, 24, 18, 0.38) 55%, rgba(26, 18, 12, 0.42));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-anim,
+  .ares-anim * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root {
+  --ares-rivets:
+    radial-gradient(circle at 10px 10px, #9AA0AC 0, #9AA0AC 1.6px, #4A4F5A 2.4px, #1E2126 3.2px, rgba(0,0,0,0) 3.6px),
+    radial-gradient(circle at calc(100% - 10px) 10px, #9AA0AC 0, #9AA0AC 1.6px, #4A4F5A 2.4px, #1E2126 3.2px, rgba(0,0,0,0) 3.6px),
+    radial-gradient(circle at 10px calc(100% - 10px), #9AA0AC 0, #9AA0AC 1.6px, #4A4F5A 2.4px, #1E2126 3.2px, rgba(0,0,0,0) 3.6px),
+    radial-gradient(circle at calc(100% - 10px) calc(100% - 10px), #9AA0AC 0, #9AA0AC 1.6px, #4A4F5A 2.4px, #1E2126 3.2px, rgba(0,0,0,0) 3.6px);
+}
+
+:root {
+  --ares-rivets-rust:
+    radial-gradient(circle at 10px 10px, #D08A54 0, #D08A54 1.4px, #8A4A22 2.3px, #3A1D0E 3.2px, rgba(0,0,0,0) 3.6px),
+    radial-gradient(circle at calc(100% - 10px) 10px, #D08A54 0, #D08A54 1.4px, #8A4A22 2.3px, #3A1D0E 3.2px, rgba(0,0,0,0) 3.6px),
+    radial-gradient(circle at 10px calc(100% - 10px), #D08A54 0, #D08A54 1.4px, #8A4A22 2.3px, #3A1D0E 3.2px, rgba(0,0,0,0) 3.6px),
+    radial-gradient(circle at calc(100% - 10px) calc(100% - 10px), #D08A54 0, #D08A54 1.4px, #8A4A22 2.3px, #3A1D0E 3.2px, rgba(0,0,0,0) 3.6px);
+  --ares-rust-panel:
+    var(--ares-rivets-rust),
+    radial-gradient(ellipse 64px 22px at 12% 6%, rgba(193,68,14,0.15), transparent 70%),
+    radial-gradient(ellipse 40px 16px at 90% 10%, rgba(138,46,8,0.20), transparent 70%),
+    radial-gradient(ellipse 72px 24px at 80% 94%, rgba(193,68,14,0.13), transparent 70%),
+    radial-gradient(ellipse 34px 14px at 18% 90%, rgba(138,46,8,0.18), transparent 70%),
+    linear-gradient(180deg, rgba(255,214,170,0.05), rgba(0,0,0,0.10) 30%, rgba(0,0,0,0.28));
+}
+
+/* MARS GLOW PASS: green/teal glow retired, station runs on rust + grow-light magenta */
+:root {
+  --pf-teal: #FFB347;                                   /* hardware amber instead of teal */
+  --pf-green: #FF7A1A;                                  /* bio orange instead of green */
+  --pf-glow-green: 0 0 22px rgba(255, 122, 26, 0.35);   /* rust glow */
+  --ares-bio-green: #FF2E93;                            /* plants under grow-lights: magenta */
+  --ares-bio-cyan: #B85CFF;                             /* nutrient violet */
+  --pf-grad-border: conic-gradient(from 180deg, #FFC94A, #FF2E93, #B85CFF, #FF7A1A, #FFC94A);
+  --pf-grad-border-green: conic-gradient(from 180deg, #FFC94A, #FF2E93, #B85CFF, #FF7A1A, #FFC94A);
+}
+
+/* THICK STENCIL PASS: Anton reads thin/narrow - fatten via stroke + wider tracking */
+.pf-h1, .pf-h2, .ares-stencil {
+  -webkit-text-stroke: 0.6px currentColor;
+  letter-spacing: 0.14em;
+}
+.ares-mono { letter-spacing: 0.06em; }
+
+/* MASSIVE RUST PASS: широкие огранённые ржавые рамки с царапинами и глубокой коррозией */
+:root {
+  --ares-rivets-rust:
+    radial-gradient(circle at 14px 14px, #E6A26A 0, #D08A54 1.8px, #8A4A22 3px, #3A1D0E 4px, rgba(0,0,0,0) 4.6px),
+    radial-gradient(circle at calc(100% - 14px) 14px, #E6A26A 0, #D08A54 1.8px, #8A4A22 3px, #3A1D0E 4px, rgba(0,0,0,0) 4.6px),
+    radial-gradient(circle at 14px calc(100% - 14px), #E6A26A 0, #D08A54 1.8px, #8A4A22 3px, #3A1D0E 4px, rgba(0,0,0,0) 4.6px),
+    radial-gradient(circle at calc(100% - 14px) calc(100% - 14px), #E6A26A 0, #D08A54 1.8px, #8A4A22 3px, #3A1D0E 4px, rgba(0,0,0,0) 4.6px);
+  --ares-rust-panel:
+    var(--ares-rivets-rust),
+    radial-gradient(ellipse 88px 28px at 14% 8%, rgba(193,68,14,0.28), transparent 70%),
+    radial-gradient(ellipse 64px 22px at 88% 12%, rgba(138,46,8,0.32), transparent 70%),
+    radial-gradient(ellipse 96px 30px at 82% 92%, rgba(193,68,14,0.24), transparent 70%),
+    radial-gradient(ellipse 58px 20px at 22% 88%, rgba(138,46,8,0.28), transparent 70%),
+    radial-gradient(ellipse 40px 14px at 50% 50%, rgba(255,140,80,0.10), transparent 70%),
+    linear-gradient(118deg, transparent 0%, transparent 48%, rgba(255,200,160,0.05) 48.5%, transparent 49%, transparent 100%),
+    linear-gradient(62deg, transparent 0%, transparent 72%, rgba(0,0,0,0.35) 72.4%, transparent 72.8%, transparent 100%),
+    linear-gradient(180deg, rgba(255,214,170,0.10), rgba(0,0,0,0.15) 30%, rgba(0,0,0,0.45));
+}
+
+.pf-card {
+  border-width: 2px;
+  border-style: solid;
+  border-color: #2A1508 #8A4A22 #8A4A22 #2A1508;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.7),
+    0 12px 28px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,214,170,0.14),
+    inset 0 -1px 0 rgba(0,0,0,0.45),
+    inset 0 0 24px rgba(0,0,0,0.65);
+}
+
+.ares-metal-edge {
+  border-width: 2px;
+  border-style: solid;
+  border-color: #2A1508 #8A4A22 #8A4A22 #2A1508;
+  background:
+    radial-gradient(ellipse 70px 24px at 15% 10%, rgba(193,68,14,0.28), transparent 70%),
+    radial-gradient(ellipse 56px 20px at 85% 90%, rgba(138,46,8,0.32), transparent 70%),
+    linear-gradient(118deg, transparent 0%, transparent 48%, rgba(255,200,160,0.05) 48.5%, transparent 49%, transparent 100%),
+    linear-gradient(62deg, transparent 0%, transparent 72%, rgba(0,0,0,0.35) 72.4%, transparent 72.8%, transparent 100%),
+    linear-gradient(180deg, rgba(58, 42, 30, 0.38), rgba(34, 24, 18, 0.38) 55%, rgba(26, 18, 12, 0.42));
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,214,170,0.12),
+    inset 0 -1px 0 rgba(0,0,0,0.4);
+}
+
+/* HABITAT BACKDROP: вертикальный интерьер купола за всеми панелями */
+.ares-habitat-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: url('/ares/habitat-bg.png') center top / 100% 100% no-repeat;
+  opacity: 1;
+  filter: saturate(1) brightness(0.95);
+  pointer-events: none;
+}
+.ares-habitat-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(5,3,8,0) 0%, rgba(5,3,8,0.15) 45%, rgba(5,3,8,0.45) 100%);
+}
+
+/* COLONY TEXT PASS: white/Inter retired - parchment body, dust secondary, stencil headings */
+:root {
+  --pf-text-primary: #F2E8DA;
+  --pf-text-secondary: rgba(255, 179, 71, 0.85);
+  --pf-text-muted: rgba(255, 179, 71, 0.55);
+  --ares-parchment: #F2E8DA;
+}
+h1, h2, h3 {
+  font-family: var(--ares-font-stencil);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ares-hud-amber, #FFB347);
+  -webkit-text-stroke: 0.5px currentColor;
+}
+
+/* BRAND TYPE PASS: все заголовки и подзаголовки в фирменном стиле колонии */
+.pf-h1, .pf-h2 {
+  font-family: var(--ares-font-stencil);
+  color: var(--ares-hud-amber, #FFB347);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  -webkit-text-stroke: 0.6px currentColor;
+  text-shadow: 0 0 14px rgba(255, 179, 71, 0.35);
+}
+.pf-subtitle {
+  font-family: var(--ares-font-mono);
+  color: rgba(255, 179, 71, 0.75);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+/* LIQUID PROGRESS: розовая вода с поднимающимися пузырьками, как в колбе */
+body { color: var(--pf-text-primary); }
+.ares-liquid-bar {
+  position: relative;
+  height: 14px;
+  borderRadius: 7px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(160, 82, 40, 0.5);
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+.ares-liquid-fill {
+  position: relative;
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(232, 106, 60, 0.92) 0%, rgba(193, 68, 14, 0.88) 45%, rgba(122, 32, 8, 0.92) 100%);
+  box-shadow: 0 0 12px rgba(193, 68, 14, 0.55);
+  transition: width 0.5s;
+}
+.ares-liquid-fill::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(255,196,150,0.8), rgba(255,196,150,0.3) 35%, rgba(255,196,150,0.65) 70%, rgba(255,196,150,0.35));
+}
+
+
+/* ACTION GRADIENT: единый цвет действия = кнопка "Собрать" */
+:root {
+  --ares-action: linear-gradient(135deg, #FFC94A 0%, #FFB347 55%, #E8940A 100%);
+}
+.ares-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(232, 106, 60, 0.25);
+  border-top-color: #E86A3C;
+  animation: ares-spin 0.9s linear infinite;
+}
+@keyframes ares-spin { to { transform: rotate(360deg); } }
+
+/* PRESALE GRADIENT TEXT: заголовки и цифры переливаются градиентом действия */
+.ares-presale .ares-stencil,
+.ares-presale .ares-mono:not(.lcd-readout),
+.ares-presale .pf-mono:not(.lcd-readout) {
+  background: var(--ares-action);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* PRESALE FRAME: рамка окна в розовом конце градиента действия */
+.ares-presale {
+  border-color: rgba(184, 92, 255, 0.5) !important;
+  box-shadow: 0 0 22px -6px rgba(184, 92, 255, 0.35), inset 0 1px 0 rgba(255, 214, 170, 0.08) !important;
+}
+
+/* ══ ЕДИНЫЙ Источник Правды: цвет действия во всей игре ══
+   Меняешь здесь — меняется ВСЕ: кнопки, бейджи, пресейл, снабжение. */
+:root {
+  --ares-btn-bg: linear-gradient(135deg, #FF7A1A 0%, #FF2E93 100%);
+  --ares-btn-text: #FFFFFF;
+  --ares-btn-text-shadow: 0 1px 3px rgba(42, 21, 8, 0.65);
+  --ares-btn-glow: 0 0 18px -4px rgba(255, 46, 147, 0.55);
+}
+
+.gradient-gold,
+.gradient-pink,
+.gradient-primary,
+.gradient-violet,
+.btn-action {
+  background: var(--ares-btn-bg) !important;
+  color: var(--ares-btn-text) !important;
+  text-shadow: var(--ares-btn-text-shadow) !important;
+  box-shadow: var(--ares-btn-glow);
+}
+
+/* статус-точки во всей игре — янтарные, никаких розовых квадратов */
+.status-dot {
+  background: var(--ares-hud-amber, #FFB347) !important;
+  box-shadow: 0 0 8px rgba(255, 179, 71, 0.55);
+}
+
+/* РОЗОВАЯ ГРАДИЕНТНАЯ РАМКА ПРЕСЕЙЛА — как в классическом образе */
+.ares-presale.hull-skin {
+  box-shadow: 0 0 26px -6px rgba(255, 46, 147, 0.55), inset 0 0 22px -10px rgba(255, 46, 147, 0.35) !important;
+}
+
+.ares-presale::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  clip-path: inherit;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(135deg, #FF2E93 0%, #B85CFF 40%, #FF2E93 75%, #FF7A1A 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* розовых квадратов в пресейле больше нет никогда */
+.ares-presale [style*="ares-grow-pink"],
+.ares-presale [style*="pf-pink"],
+.ares-presale [style*="FF2E93"],
+.ares-presale [style*="ff2e93"] {
+  display: none !important;
+}
+
+/* ══ LCD-КОРПУС ПРИБОРА: углублённый дисплей с фасками ══
+   Цифры остаются сплошными янтарными — читается идеально. */
+.lcd-readout {
+  display: inline-block;
+  padding: 6px 14px;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px);
+  background: linear-gradient(180deg, #0B0E14 0%, #121722 60%, #0B0E14 100%);
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.85),
+    inset 0 -1px 0 rgba(255, 214, 170, 0.1);
+  filter: drop-shadow(0 0 6px rgba(255, 179, 71, 0.22));
+  color: var(--ares-hud-amber, #FFB347) !important;
+  -webkit-text-fill-color: currentColor !important;
+  background-clip: border-box !important;
+  -webkit-background-clip: border-box !important;
+}
+
+/* Лёгкое свечение ОДНИМ слоем на все цифры и моно-подписи */
+.ares-mono,
+.pf-mono {
+  text-shadow: 0 0 8px rgba(255, 179, 71, 0.35);
+}

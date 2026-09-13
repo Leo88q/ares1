@@ -1,0 +1,40 @@
+{
+  "name": "solana-potato",
+  "version": "0.2.0",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "apps/bot",
+    "apps/backend"
+  ],
+  "scripts": {
+    "build:web": "yarn workspace web build",
+    "build:bot": "yarn workspace bot build",
+    "build:backend": "yarn workspace backend build",
+    "dev:web": "yarn workspace web dev",
+    "dev:bot": "yarn workspace bot dev",
+    "dev:backend": "yarn workspace backend dev",
+    "init-onchain": "tsx scripts/init-onchain.ts",
+    "test": "anchor test",
+    "test:unit": "cargo test -p solana_potato --lib",
+    "typecheck": "yarn workspace web exec tsc --noEmit && yarn workspace backend typecheck",
+    "simulate": "python3 economy/simulate.py"
+  },
+  "devDependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
+    "@solana/spl-token": "^0.4.8",
+    "@solana/web3.js": "^1.95.3",
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.14.10",
+    "chai": "^4.3.10",
+    "mocha": "^12.0.0",
+    "ts-mocha": "^10.0.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4"
+  },
+  "overrides": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0"
+  }
+}

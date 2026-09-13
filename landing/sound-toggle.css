@@ -1,0 +1,77 @@
+.sound-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(181, 149, 197, 0.35);
+  border-radius: 7px;
+  background: #17101f;
+  color: #cfbadb;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.sound-toggle[aria-pressed="true"] {
+  border-color: rgba(124, 255, 107, 0.45);
+  color: #b9f3aa;
+  background: #132017;
+}
+
+.sound-toggle[aria-disabled="true"] {
+  color: #b1a2bd;
+  cursor: not-allowed;
+}
+
+.sound-toggle:focus-visible {
+  outline: 3px solid #7cff6b;
+  outline-offset: 4px;
+}
+
+/* Keep four header controls usable at 375px. */
+@media (max-width: 639px) {
+  .header-inner {
+    gap: 8px;
+  }
+
+  .header-actions {
+    gap: 6px;
+  }
+
+  .header .brand {
+    gap: 6px;
+  }
+
+  .header .brand > svg {
+    width: 26px;
+    height: 31px;
+  }
+
+  .header .brand strong {
+    font-size: 15px;
+  }
+
+  .header .brand small {
+    font-size: 7px;
+    letter-spacing: 0.07em;
+  }
+
+  .header .morph-button--header {
+    --morph-padding-inline: 9px;
+    --morph-font-size: 10px;
+  }
+}
+
+@media (max-width: 359px) {
+  .header .brand > svg {
+    display: none;
+  }
+
+  .header .brand strong {
+    font-size: 14px;
+  }
+}

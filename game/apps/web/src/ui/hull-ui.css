@@ -1,0 +1,542 @@
+/* ── Hull-панели игры: материал вместо стекла ── */
+
+.hull-panel {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.hull-panel-content {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.ares-hull-frame {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+  user-select: none;
+}
+
+.ares-hull-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Карточка поля: контент без внутренних отступов рамки */
+.field-hull .hull-panel-content {
+  overflow: hidden;
+}
+
+/* Балансы в шапке */
+.hud-balance {
+  color: var(--ares-hud-amber, #FFB347);
+  font-family: var(--ares-font-mono, "JetBrains Mono", monospace);
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 10px rgba(255, 179, 71, 0.4);
+}
+
+/* Нижняя навигация в hull-корпусе */
+.hull-nav-wrap {
+  position: fixed;
+  bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 456px;
+  z-index: 50;
+}
+
+.hull-nav {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 6px 6px;
+}
+
+.hull-nav .hull-panel-content {
+  display: flex;
+  width: 100%;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.hull-nav-button {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 48px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #8C7B98;
+  font-family: var(--ares-font-mono, "JetBrains Mono", monospace);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.hull-nav-button[aria-current="page"] {
+  color: #E6B589;
+}
+
+.hull-nav-button:focus-visible {
+  outline: 2px solid #7CFF6B;
+  outline-offset: 3px;
+}
+
+/* ── Микроанимации: барабаны и искры ── */
+
+.micro-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  padding: 0;
+  margin: -1px;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.rolling-number {
+  position: relative;
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rolling-number-visual {
+  display: inline-flex;
+  align-items: baseline;
+  line-height: inherit;
+}
+
+.rolling-digit {
+  position: relative;
+  display: inline-grid;
+  width: 1ch;
+  height: 1.25em;
+  overflow: hidden;
+  vertical-align: bottom;
+  line-height: 1.25;
+}
+
+.rolling-digit-value {
+  display: block;
+  grid-area: 1 / 1;
+  width: 100%;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.rolling-separator {
+  display: inline-block;
+  line-height: 1.25;
+  white-space: pre;
+}
+
+.spark-progress {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  height: var(--spark-height, 5px);
+  isolation: isolate;
+}
+
+.spark-progress-track {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #342639;
+  transform-origin: center;
+}
+
+.spark-progress-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  transform-origin: left;
+}
+
+.spark-progress-head {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  pointer-events: none;
+}
+
+.spark-progress-particle {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  display: block;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.spark-complete-burst {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.micro-icon,
+.micro-icon-inner {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  transform-origin: center;
+}
+
+.micro-icon svg {
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ares-hull-frame,
+  .ares-hull-frame * {
+    animation: none !important;
+  }
+
+  .spark-progress-particle,
+  .spark-complete-burst {
+    display: none !important;
+  }
+}
+
+/* ── УНИВЕРСАЛЬНАЯ HULL-РАМКА: силуэт рисует SVG-каркас ── */
+
+.hull-skin {
+  position: relative;
+  isolation: isolate;
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  clip-path: none !important;
+}
+
+.hull-frame-mount {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.hull-frame-mount svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transition: filter 0.25s ease;
+}
+
+/* engaged-состояние как на сайте: каркас «оживает» при hover/focus */
+.hull-skin:hover .hull-frame-mount svg,
+.hull-skin:focus-within .hull-frame-mount svg {
+  filter: brightness(1.3) saturate(1.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hull-frame-mount svg {
+    transition: none;
+  }
+}
+
+/* ── Бегущий свет по канту: постоянно, на всех каркасах ── */
+
+.hull-trace--outer {
+  opacity: 0.5;
+  animation: hull-trace-fwd 7s linear infinite;
+}
+
+.hull-trace--inner {
+  opacity: 0.45;
+  animation: hull-trace-rev 11s linear infinite;
+}
+
+@keyframes hull-trace-fwd {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -1000; }
+}
+
+@keyframes hull-trace-rev {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 1000; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hull-trace--outer,
+  .hull-trace--inner {
+    animation: none;
+    opacity: 0.15;
+  }
+}
+
+/* ── Мини-гидромодули в панели покупки ── */
+.mini-hydro-row {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 14px;
+  margin: 12px 0 4px;
+}
+
+.mini-hydro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Фото-капсулы: одна картинка, три кропа по третям кадра */
+.mini-hydro-img {
+  width: 132px;
+  aspect-ratio: 0.74;
+  background-image: url('/ares/modules.png');
+  background-size: 300% 100%;
+  background-repeat: no-repeat;
+  border-radius: 6px;
+  transition: transform 0.3s ease, filter 0.3s ease;
+  /* фон фото растворяется в фоне панели */
+  mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(ellipse 72% 68% at 50% 50%, #000 58%, transparent 96%);
+  mask-image: radial-gradient(ellipse 72% 68% at 50% 50%, #000 58%, transparent 96%);
+}
+
+.mini-hydro--common .mini-hydro-img {
+  background-position: 0% 0;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 16px rgba(187, 212, 232, 0.22));
+}
+
+.mini-hydro--rare .mini-hydro-img {
+  background-position: 50% 0;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 16px rgba(196, 108, 255, 0.28));
+}
+
+.mini-hydro--epic .mini-hydro-img {
+  background-position: 100% 0;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 16px rgba(255, 210, 120, 0.28));
+}
+
+.mini-hydro:hover .mini-hydro-img {
+  transform: translateY(-3px) scale(1.02);
+}
+
+.mini-hydro-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+}
+
+/* ── Экран загрузки: астронавт + индикатор ── */
+.astronaut-loader {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 0 4px;
+}
+
+.astronaut-loader-shadow {
+  position: absolute;
+  bottom: 64px;
+  left: 50%;
+  width: 150px;
+  height: 18px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.55), transparent 70%);
+  filter: blur(2px);
+}
+
+.astronaut-loader-bar {
+  position: relative;
+  width: min(320px, 78vw);
+  height: 8px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #10141e;
+  box-shadow:
+    inset 0 0 0 1px #56515a,
+    inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.astronaut-loader-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ed8a45 0%, #ff2e93 55%, #7cff6b 100%);
+  box-shadow: 0 0 12px rgba(184, 92, 255, 0.45);
+  transition: width 0.35s ease;
+}
+
+.astronaut-loader-meta {
+  display: flex;
+  width: min(320px, 78vw);
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.astronaut-loader-meta > span {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: rgba(255, 179, 71, 0.8);
+}
+
+.astronaut-loader-meta > strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ares-hud-amber, #ffb347);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Фильтры биржи: сетка и кнопки ── */
+.market-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 560px) {
+  .market-filter-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.market-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.market-filter-field > span {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  color: rgba(255, 179, 71, 0.65);
+}
+
+.market-filter-field > input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 179, 71, 0.28);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--pf-text, #f3e8dc);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.market-filter-field > input:focus {
+  outline: none;
+  border-color: var(--ares-hud-amber, #ffb347);
+  box-shadow: 0 0 0 1px rgba(255, 179, 71, 0.35), 0 0 14px -4px rgba(255, 179, 71, 0.5);
+}
+
+.market-filter-field > input::placeholder {
+  color: rgba(255, 179, 71, 0.35);
+}
+
+.market-filter-apply {
+  padding: 9px 18px;
+  border: 1px solid rgba(255, 179, 71, 0.6);
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(255, 179, 71, 0.22), rgba(193, 68, 14, 0.28));
+  color: var(--ares-hud-amber, #ffb347);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: filter 0.2s ease, transform 0.15s ease;
+}
+
+.market-filter-apply:hover {
+  filter: brightness(1.25);
+}
+
+.market-filter-apply:active {
+  transform: scale(0.97);
+}
+
+.market-filter-reset {
+  padding: 9px 18px;
+  border: 1px solid rgba(219, 191, 233, 0.28);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(224, 205, 233, 0.8);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.market-filter-reset:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.market-filter-reset:active {
+  transform: scale(0.97);
+}
+
+/* ── Табы биржи в hull-стиле ── */
+.market-tab {
+  transition: color 0.2s ease;
+}
+
+.market-tab--active {
+  text-shadow: 0 0 12px rgba(255, 179, 71, 0.55);
+}
+
+.market-tab:not(.market-tab--active):hover {
+  color: rgba(255, 207, 137, 0.85) !important;
+}
+
+/* ── Табы биржи: фаски через clip-path + ::before ── */
+.market-tab {
+  position: relative;
+  isolation: isolate;
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
+  background: rgba(255, 179, 71, 0.32);
+}
+
+.market-tab::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 1px;
+  clip-path: polygon(11px 0, calc(100% - 11px) 0, 100% 11px, 100% calc(100% - 11px), calc(100% - 11px) 100%, 11px 100%, 0 calc(100% - 11px), 0 11px);
+  background: linear-gradient(180deg, #141821, #0D1017);
+}
+
+.market-tab--active {
+  background: linear-gradient(135deg, rgba(255, 179, 71, 0.85), rgba(255, 46, 147, 0.55));
+}
+
+.market-tab--active::before {
+  background: linear-gradient(180deg, rgba(255, 179, 71, 0.14), rgba(13, 16, 23, 0.95));
+}

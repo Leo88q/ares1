@@ -1,0 +1,325 @@
+.prize-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  padding: 0;
+  margin: -1px;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.prize-stage {
+  position: fixed;
+  z-index: 130;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  pointer-events: none;
+  color: #f6f1ed;
+  contain: layout paint;
+}
+
+.prize-backdrop {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse at 50% 43%,
+      rgba(46, 15, 45, 0.76),
+      rgba(5, 3, 8, 0.88) 65%
+    );
+}
+
+.prize-canvas {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.prize-origin {
+  position: absolute;
+  z-index: 2;
+  top: 43%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.prize-seal {
+  position: absolute;
+  top: -120px;
+  left: -120px;
+  width: 240px;
+  height: 240px;
+  transform-origin: center;
+}
+
+.prize-seal > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.prize-seal-symbol {
+  position: absolute;
+  inset: 70px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 179, 71, 0.65);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 25%, #ffe5a5, #ffb347 42%, #c1440e);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 0 30px rgba(255, 179, 71, 0.2);
+  color: #61280f;
+  font: 700 55px/1 "JetBrains Mono", monospace;
+}
+
+.prize-seal-label {
+  position: absolute;
+  bottom: 33px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  color: #ffce92;
+  font: 10px/1.5 "JetBrains Mono", monospace;
+  letter-spacing: 0.24em;
+}
+
+.prize-flash {
+  position: absolute;
+  top: -100px;
+  left: -100px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 219, 239, 0.65) 12%,
+    rgba(184, 92, 255, 0.42) 37%,
+    rgba(184, 92, 255, 0) 70%
+  );
+  transform-origin: center;
+}
+
+.prize-shockwave {
+  position: absolute;
+  top: -600px;
+  left: -600px;
+  display: block;
+  width: 1200px;
+  height: 1200px;
+  max-width: none;
+  overflow: visible;
+}
+
+.prize-result {
+  position: absolute;
+  z-index: 4;
+  top: 57%;
+  right: 20px;
+  left: 20px;
+  width: min(540px, calc(100% - 40px));
+  margin-inline: auto;
+  text-align: center;
+  text-shadow: 0 2px 14px rgba(5, 3, 8, 0.85);
+  pointer-events: none;
+}
+
+.prize-result-eyebrow {
+  margin: 0 0 12px;
+  color: #ffb347;
+  font: 9px/1.7 "JetBrains Mono", monospace;
+  letter-spacing: 0.16em;
+}
+
+.prize-result-title {
+  margin: 0;
+  color: #fff3fa;
+  font-family: "Oswald", "Inter", system-ui, sans-serif;
+  font-size: clamp(23px, 4vw, 38px);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.07em;
+  overflow-wrap: anywhere;
+}
+
+.prize-result-amount {
+  margin: 16px 0 0;
+  color: #ffcf89;
+  font: 600 clamp(26px, 5vw, 48px)/1.25 "JetBrains Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.prize-result-message {
+  max-width: 460px;
+  margin: 13px auto 0;
+  color: #dccde4;
+  font: 13px/1.85 "Inter", system-ui, sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.prize-skip {
+  position: absolute;
+  z-index: 5;
+  right: 20px;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  min-width: 44px;
+  min-height: 44px;
+  padding: 11px 16px;
+  border: 1px solid rgba(219, 191, 233, 0.35);
+  border-radius: 7px;
+  background: #170d21;
+  color: #e0cde9;
+  font: 11px/1.6 "JetBrains Mono", monospace;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.prize-skip:hover {
+  background: #291132;
+}
+
+.prize-skip:focus-visible,
+.prize-static-close:focus-visible {
+  outline: 3px solid #7cff6b;
+  outline-offset: 4px;
+}
+
+.prize-static {
+  position: fixed;
+  z-index: 130;
+  top: max(95px, env(safe-area-inset-top));
+  right: 16px;
+  left: 16px;
+  pointer-events: none;
+}
+
+.prize-static-card {
+  display: flex;
+  width: min(100%, 540px);
+  align-items: flex-start;
+  gap: 13px;
+  margin-inline: auto;
+  padding: 20px;
+  border: 1px solid rgba(124, 255, 107, 0.4);
+  border-radius: 12px;
+  background: #130e1c;
+  color: #f6f1ed;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.35);
+}
+
+.prize-static-card > div:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.prize-static-mark {
+  display: grid;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(124, 255, 107, 0.1);
+  color: #7cff6b;
+  font: 20px/1 system-ui, sans-serif;
+}
+
+.prize-static-card .prize-result-title {
+  font-size: 20px;
+}
+
+.prize-static-card .prize-result-message {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.prize-static-amount {
+  margin: 9px 0 0;
+  color: #ffcf89;
+  font: 500 22px/1.4 "JetBrains Mono", monospace;
+  overflow-wrap: anywhere;
+}
+
+.prize-static-close {
+  display: grid;
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -6px -8px 0 0;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #decee8;
+  font: 25px/1 system-ui, sans-serif;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+@media (max-height: 550px) {
+  .prize-result {
+    top: 54%;
+  }
+
+  .prize-result-eyebrow {
+    margin-bottom: 5px;
+    font-size: 8px;
+  }
+
+  .prize-result-title {
+    font-size: 23px;
+  }
+
+  .prize-result-amount {
+    margin-top: 7px;
+    font-size: 28px;
+  }
+
+  .prize-result-message {
+    margin-top: 7px;
+    font-size: 11px;
+  }
+
+  .prize-seal {
+    top: -90px;
+    left: -90px;
+    width: 180px;
+    height: 180px;
+  }
+
+  .prize-seal-symbol {
+    inset: 53px;
+    font-size: 40px;
+  }
+
+  .prize-seal-label {
+    bottom: 25px;
+    font-size: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prize-stage {
+    display: none;
+  }
+
+  .prize-static,
+  .prize-static * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

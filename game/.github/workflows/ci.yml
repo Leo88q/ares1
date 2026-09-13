@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  SOLANA_VERSION: stable
+  ANCHOR_VERSION: 0.30.1
+  NODE_VERSION: 20
+
+jobs:
+  program:
+    name: Anchor program (build + unit + integration tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin
+            target
+          key: ${{ runner.os }}-anchor-${{ env.ANCHOR_VERSION }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install Anchor
+        run: |
+          if ! command -v anchor >/dev/null || [ "$(anchor --version | awk '{print $2}')" != "$ANCHOR_VERSION" ]; then
+            cargo install --git https://github.com/coral-xyz/anchor avm --force
+            avm install "$ANCHOR_VERSION"
+            avm use "$ANCHOR_VERSION"
+          fi
+          anchor --version
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile
+
+      - name: Unit tests (host)
+        run: cargo test -p solana_potato --lib
+
+      - name: anchor build
+        run: anchor build
+
+      - name: IDL is committed and up to date
+        run: |
+          cp target/idl/solana_potato.json apps/web/src/idl.json
+          git diff --exit-code -- apps/web/src/idl.json || (echo "::error::apps/web/src/idl.json is stale — run anchor build and commit it" && exit 1)
+
+      - name: anchor test (local validator)
+        run: |
+          solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
+          anchor test --skip-build
+
+  web:
+    name: Web (typecheck + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: yarn workspace web exec tsc --noEmit
+      - run: yarn workspace web build
+        env:
+          VITE_SOLANA_CLUSTER: devnet
+          VITE_RPC_URL: https://api.devnet.solana.com
+          VITE_PROGRAM_ID: 48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha
+          VITE_BACKEND_URL: ""
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: apps/web/dist
+
+  backend:
+    name: Backend + bot (typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: yarn workspace backend typecheck
+      - run: yarn workspace bot build

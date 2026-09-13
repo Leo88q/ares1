@@ -1,0 +1,17 @@
+{
+  "name": "Solana Potato",
+  "short_name": "Potato",
+  "scope": "/",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0a0a0f",
+  "background_color": "#0a0a0f",
+  "description": "Фарм-игра на Solana: выращивай картофель, собирай $POTATO и торгуй на встроенном маркетплейсе.",
+  "icons": [
+    { "src": "/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
