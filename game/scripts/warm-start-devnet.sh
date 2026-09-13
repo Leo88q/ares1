@@ -19,7 +19,8 @@
 #
 #  Переменные окружения (опционально):
 #    ADMIN_KEYPAIR  путь к ключу деплоера   (по умолчанию ~/.config/solana/id.json)
-#    RPC_URL        RPC для init-onchain    (по умолчанию https://api.devnet.solana.com)
+#    RPC_URL        RPC для деплоя и init-onchain (свой, например Helius;
+#                   по умолчанию публичный https://api.devnet.solana.com)
 #    PRESERVE_STATE 1 = после upgrade выполнить migrate-v2 (старые аккаунты → v2 layout)
 # ═══════════════════════════════════════════════════════════════════
 set -euo pipefail
@@ -75,7 +76,9 @@ echo "    idl synced → apps/web/src/idl.json"
 
 # ── 3) Deploy ──
 echo "==> 3/6 Deploying to devnet..."
-solana config set --url devnet --keypair "$ADMIN_KEYPAIR" >/dev/null
+# Если задан свой RPC (Helius/Triton) — деплой тоже идёт через него:
+# публичный api.devnet.solana.com часто не успевает до блокхеш-ТТЛ.
+solana config set --url "${RPC_URL:-devnet}" --keypair "$ADMIN_KEYPAIR" >/dev/null
 UPGRADE=0
 if [ -f "$KEYPAIR_FILE" ]; then
   UPGRADE=1
