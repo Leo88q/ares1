@@ -61,6 +61,9 @@ echo "    balance: $((LAMPORTS / 1000000000)).$((LAMPORTS % 1000000000 / 1000000
 # ── 2) Build ──
 echo "==> 2/6 anchor build..."
 anchor build
+# держим закоммиченный IDL синхронным (errors.ts фронта читает его)
+cp target/idl/solana_potato.json apps/web/src/idl.json
+echo "    idl synced → apps/web/src/idl.json"
 
 # ── 3) Deploy ──
 echo "==> 3/6 Deploying to devnet..."
