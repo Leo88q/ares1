@@ -60,6 +60,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: yarn
+          cache-dependency-path: game/yarn.lock
 
       - run: yarn install --frozen-lockfile
 
@@ -97,6 +98,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: yarn
+          cache-dependency-path: game/yarn.lock
       - run: yarn install --frozen-lockfile
       - run: yarn workspace web exec tsc --noEmit
       - run: yarn workspace web build
@@ -119,6 +121,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: yarn
+          cache-dependency-path: game/yarn.lock
       - run: yarn install --frozen-lockfile
       - run: yarn workspace backend typecheck
       - run: yarn workspace bot build
