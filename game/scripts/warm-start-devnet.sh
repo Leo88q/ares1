@@ -115,3 +115,8 @@ echo "Backend:     RPC_URL=$RPC_URL PROGRAM_ID=$PROGRAM_ID AUTHORITY_KEYPAIR_JSO
 echo "Frontend:    VITE_PROGRAM_ID=$PROGRAM_ID VITE_RPC_URL=$RPC_URL yarn dev:web"
 echo ""
 echo "Проверка: открой игру с кошельком — баланс GameConfig, presale и quest-казна должны быть видны."
+echo ""
+echo "⚠ ПЕРЕД МЕДЖЕМ PR закоммить патченые файлы, иначе Cloudflare Pages"
+echo "  соберёт прод-фронт под СТАРЫМ program id:"
+echo "    git add apps/web/.env.production apps/web/.env.example Anchor.toml apps/web/src/idl.json"
+echo "    git commit -m 'chore: program id $(echo $PROGRAM_ID | cut -c1-8)…' && git push"
