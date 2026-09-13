@@ -741,20 +741,22 @@ pub mod solana_potato {
         Ok(())
     }
 
-    /// Покупка лицензии экспорта: 500 SKR сжигается, лицензия на 30 дней.
-    /// Снижает комиссию рынка на 3% (300 bps) для продавца с активной лицензией.
+    /// Покупка лицензии экспорта: 500 SKR уходят в казну проекта
+    /// (ATA PDA `treasury_sol` — та же казна, что и 80 % SKR-пресейла),
+    /// лицензия на 30 дней. Снижает комиссию рынка на 3% (300 bps)
+    /// для продавца с активной лицензией.
     pub fn buy_export_license(ctx: Context<BuyExportLicense>) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
         let now = Clock::get()?.unix_timestamp;
         let thirty_days = 30i64 * 86400;
 
-        // Сжигаем 500 SKR с кошелька игрока
-        token::burn(
+        // 500 SKR с кошелька игрока — в казну
+        token::transfer(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
-                Burn {
-                    mint: ctx.accounts.skr_mint.to_account_info(),
+                Transfer {
                     from: ctx.accounts.user_skr_ata.to_account_info(),
+                    to: ctx.accounts.treasury_skr_ata.to_account_info(),
                     authority: ctx.accounts.payer.to_account_info(),
                 },
             ),
@@ -1740,8 +1742,20 @@ pub struct BuyExportLicense<'info> {
         associated_token::authority = payer,
     )]
     pub user_skr_ata: Account<'info, TokenAccount>,
+    /// CHECK: treasury_sol PDA — владелец ATA казны
+    #[account(mut, seeds = [b"treasury_sol"], bump)]
+    pub treasury_sol: AccountInfo<'info>,
+    #[account(
+        mut,
+        init_if_needed,
+        payer = payer,
+        associated_token::mint = skr_mint,
+        associated_token::authority = treasury_sol,
+    )]
+    pub treasury_skr_ata: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 #[derive(Accounts)]
