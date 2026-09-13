@@ -206,7 +206,7 @@ export const tokenCycle = {
 
 export const playConfig = {
   /** Dev: localhost:5175 · Prod: заменить на боевой домен игры */
-  url: "http://localhost:5175",
+  url: "https://ares1-play.pages.dev",
   label: "НАЧАТЬ ИГРАТЬ",
   labelShort: "ИГРАТЬ",
 } as const;
