@@ -28,7 +28,9 @@ use anchor_lang::solana_program::program_option::COption;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Burn, CloseAccount, Mint, MintTo, Token, TokenAccount, Transfer};
 
-declare_id!("48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha");
+// Должен совпадать с аккаунтом программы на кластере (Anchor.toml, keypair,
+// web-клиент) — иначе AnchorError 4100 DeclaredProgramIdMismatch.
+declare_id!("DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf");
 
 // ───────────────────────────── Units ─────────────────────────────
 
