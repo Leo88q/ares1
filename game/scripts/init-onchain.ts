@@ -25,6 +25,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   createMint,
   getAccount, setAuthority, AuthorityType,
+  getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 
 const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
@@ -76,17 +77,12 @@ async function ensurePdaVault(pk: PublicKey, label: string): Promise<void> {
 }
 
 /**
- * ATA address for ANY owner (incl. PDAs). The spl-token helper
- * getAssociatedTokenAddressSync throws TokenOwnerOffCurveError for off-curve
- * owners, so we derive the PDA ourselves — the formula is identical.
+ * ATA address for ANY owner (incl. PDAs). Uses the SDK derivation —
+ * guaranteed bit-identical to the ATA program's own derivation.
+ * (allowOwnerOffCurve=true → PDA owners are fine, no exception.)
  */
 function ataOf(mintPk: PublicKey, owner: PublicKey): PublicKey {
-  // Канонический порядок сидов ATA: [MINT, OWNER, TOKEN_PROGRAM]
-  // (как в getAssociatedTokenAddressSync / associated_token constraint)
-  return PublicKey.findProgramAddressSync(
-    [mintPk.toBuffer(), owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer()],
-    ASSOCIATED_TOKEN_PROGRAM_ID,
-  )[0];
+  return getAssociatedTokenAddressSync(mintPk, owner, true);
 }
 
 /** Creates the ATA if missing (idempotent raw ATA-program instruction). */
