@@ -274,7 +274,7 @@ describe("solana_potato", () => {
       const epochAfter = (await program.account.epoch.fetch(epochPda(0))).mintedMicro;
       // epoch.minted counts the player's yield PLUS the treasury tax share
       const treasuryDelta = (await ataBalance(treasuryAta)) - treasuryBefore;
-      expect(epochAfter.sub(epochBefore).toString()).to.eq(minted + treasuryDelta);
+      expect(epochAfter.sub(epochBefore).toString()).to.eq((minted + treasuryDelta).toString());
     });
 
     it("repair restores durability", async () => {
@@ -439,11 +439,11 @@ describe("solana_potato", () => {
         buyer: player.publicKey, seller: admin.publicKey, config: configPda, potatoMint: mint, marketStats: marketStatsPda,
         order: orderPk, escrow: escrowPk, buyerPotato: playerAta, sellerPotato: adminAta, treasuryPotato: treasuryAta,
         tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-      }).signers([player]).rpc([
+      }).signers([player]).remainingAccounts([
         { pubkey: sellerLicensePda, isSigner: false, isWritable: false },
         { pubkey: playerReferralPda, isSigner: false, isWritable: false },
         { pubkey: referrerAta, isSigner: false, isWritable: true },
-      ]);
+      ]).rpc();
 
       // buyer gets the amount, referrer the 0.5 % (50 k), seller the 1 % refund (100 k)
       expect((await ataBalance(playerAta)) - buyerBefore).to.eq(10_000_000n);
@@ -475,10 +475,10 @@ describe("solana_potato", () => {
         buyer: player.publicKey, seller: admin.publicKey, config: configPda, potatoMint: mint, marketStats: marketStatsPda,
         order: orderPk, escrow: escrowPk, buyerPotato: playerAta, sellerPotato: adminAta, treasuryPotato: treasuryAta,
         tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-      }).signers([player]).rpc([
+      }).signers([player]).remainingAccounts([
         { pubkey: sellerLicensePda, isSigner: false, isWritable: false },
         { pubkey: playerReferralPda, isSigner: false, isWritable: false },
-      ]);
+      ]).rpc();
 
       expect((await ataBalance(referrerAta)) - refBefore).to.eq(0n);
       expect((await ataBalance(adminAta)) - sellerBefore).to.eq(100_000n); // 1 % refund
@@ -705,7 +705,8 @@ describe("solana_potato", () => {
         config: configPda, achievements: achvPda(user.publicKey), user: user.publicKey,
         questTreasury: questTreasuryPda, questAta: questAta(), userPotatoAta,
         potatoMint: mint, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-      }).remainingAccounts(fields).signers([user]).rpc();
+      }).remainingAccounts(fields.map((pubkey) => ({ pubkey, isSigner: false, isWritable: false })))
+        .signers([user]).rpc();
 
     before(async () => {
       const rent = await connection.getMinimumBalanceForRentExemption(0);
@@ -788,12 +789,14 @@ describe("solana_potato", () => {
       await expectFail(
         program.methods.withdrawTreasurySol(new BN("10000000")).accountsPartial({
           config: configPda, treasurySol: treasurySolPda, authority: player.publicKey,
+          systemProgram: SystemProgram.programId,
         }).signers([player]).rpc(),
         "ConstraintHasOne",
       );
 
       await program.methods.withdrawTreasurySol(new BN("10000000")).accountsPartial({
         config: configPda, treasurySol: treasurySolPda, authority: admin.publicKey,
+        systemProgram: SystemProgram.programId,
       }).rpc();
       const treasuryAfter = await connection.getBalance(treasurySolPda);
       expect(treasuryBefore - treasuryAfter).to.eq(10_000_000);
@@ -806,6 +809,7 @@ describe("solana_potato", () => {
       await expectFail(
         program.methods.withdrawTreasurySol(new BN((10 * LAMPORTS_PER_SOL).toString())).accountsPartial({
           config: configPda, treasurySol: treasurySolPda, authority: admin.publicKey,
+          systemProgram: SystemProgram.programId,
         }).rpc(),
         "InvalidAmount",
       );

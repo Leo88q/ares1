@@ -1193,17 +1193,25 @@ pub mod solana_potato {
     /// (SOL presale proceeds). Without this instruction the vault is a dead end.
     pub fn withdraw_treasury_sol(ctx: Context<WithdrawTreasurySol>, amount_lamports: u64) -> Result<()> {
         require!(amount_lamports > 0, GameError::InvalidAmount);
-        let treasury = ctx.accounts.treasury_sol.to_account_info();
-        let current = treasury.lamports();
+        let current = ctx.accounts.treasury_sol.lamports();
         require!(amount_lamports <= current, GameError::InvalidAmount);
-        // solana-program 1.18: lamports = pub Rc<RefCell<&'a mut u64>>
-        **treasury.lamports.borrow_mut() = current
-            .checked_sub(amount_lamports)
-            .ok_or(GameError::MathOverflow)?;
-        let authority = ctx.accounts.authority.to_account_info();
-        let new_balance = authority.lamports().checked_add(amount_lamports).ok_or(GameError::MathOverflow)?;
-        **authority.lamports.borrow_mut() = new_balance;
-        emit!(TreasurySolWithdrawn { destination: authority.key(), amount_lamports });
+        // PDA-казна — 0-байтовый системный аккаунт (data owner = System Program):
+        // прямой write lamports рантайм запрещает ("spent from the balance of
+        // an account it does not own") — переводим через System Program CPI.
+        let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
+            &ctx.accounts.treasury_sol.key(),
+            &ctx.accounts.authority.key(),
+            amount_lamports,
+        );
+        anchor_lang::solana_program::program::invoke(
+            &transfer_ix,
+            &[
+                ctx.accounts.treasury_sol.to_account_info(),
+                ctx.accounts.authority.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+        )?;
+        emit!(TreasurySolWithdrawn { destination: ctx.accounts.authority.key(), amount_lamports });
         Ok(())
     }
 
@@ -2131,6 +2139,7 @@ pub struct WithdrawTreasurySol<'info> {
     pub treasury_sol: AccountInfo<'info>,
     #[account(mut)]
     pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
