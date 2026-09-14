@@ -68,11 +68,21 @@ jobs:
 
       - name: Install Solana CLI
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)"
+          # Версионный URL может требовать префикс v (release.anza.xyz/v4.2.2/install)
+          # — пробуем оба варианта и явно проверяем результат.
+          echo "Requesting release.anza.xyz/${SOLANA_VERSION}/install"
+          if ! curl -fsSL "https://release.anza.xyz/${SOLANA_VERSION}/install" -o /tmp/solana-install.sh; then
+            echo "::warning::Versioned URL (no v-prefix) failed — retrying with v-prefix"
+            curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
+          fi
+          [ -s /tmp/solana-install.sh ] || { echo "::error::solana install script empty (URL 404?)"; exit 1; }
+          sh /tmp/solana-install.sh
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-          solana --version
-          anchor --version 2>/dev/null || echo "anchor not installed yet"
+          solana --version || { echo "::error::solana binary missing after install"; exit 1; }
+          # Диагностика SBF-тулчейна (с ним компилируется anchor build):
+          rustup toolchain list 2>/dev/null || true
+          rustup run sbf rustc --version 2>/dev/null || echo "sbf toolchain not installed yet"
 
       - name: Install Anchor
         run: |
