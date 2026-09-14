@@ -126,10 +126,11 @@ async function main() {
 
   const existing = await connection.getAccountInfo(configPda);
   if (existing) {
-    // GameConfig layout: disc(8) authority(32) pending(32) mint(32) maxSupply(8) cap(8)
-    // yield(8) globalMult(2) fieldCount(8) epochId(8) ...
+    // GameConfig layout (borsh, no padding): disc(8) authority(32) pending(32) mint(32)
+    // maxSupply(8) dailyCap(8) baseYield(8) globalMult(u16) fieldCount(8) epochId(8) ...
+    // epoch_id = 8 + 96 + 24 + 2 + 8 = 138 (offset 130 — это field_count!)
     mint = new PublicKey(existing.data.subarray(8 + 64, 8 + 96));
-    epochId = existing.data.readBigUInt64LE(8 + 96 + 24 + 2);
+    epochId = existing.data.readBigUInt64LE(8 + 96 + 24 + 2 + 8);
     console.log(`\nGameConfig already exists (epochId=${epochId}) — skipping mint/config/epoch steps.`);
   } else {
     const balance = await connection.getBalance(admin.publicKey);
@@ -167,6 +168,55 @@ async function main() {
     console.log("tx:        ", sig);
     epochId = 0n;
   }
+
+  // ── Миграции аккаунтов: старый билд (156/41 B) → новый лейаут (164/49 B) — идемпотентно ──
+  // 32-ix билд добавил last_total_burned_micro (config) и burned_micro (epoch).
+  // Старые аккаунты меньше на 8 B → borsh-декодинг в новой программе падает,
+  // web-клиент читает вне буфера ("offset out of range"). migrate_config /
+  // migrate_epoch делают realloc (новые байты = 0). Anchor realloc берёт ренту
+  // из аккаунта программы → при необходимости доливаем программе 0.001 SOL.
+  const NEW_CONFIG_SIZE = 164; // disc(8) + GameConfig (7×u64, u16, bool, u8)
+  const NEW_EPOCH_SIZE = 49;   // disc(8) + Epoch (5×u64, u8, burned u64)
+
+  async function migrateIfNeeded(
+    account: PublicKey,
+    wantSize: number,
+    ixDisc: string,
+    extraKeys: { pubkey: PublicKey; isSigner: boolean; isWritable: boolean }[],
+  ): Promise<void> {
+    const info = await connection.getAccountInfo(account);
+    if (!info) { console.log(`migrate: ${account.toBase58()} не найден — пропускаю`); return; }
+    if (info.data.length >= wantSize) {
+      console.log(`migrate: ${account.toBase58()} уже ${info.data.length}B ≥ ${wantSize}B — ок`);
+      return;
+    }
+    const tx = new Transaction();
+    const progLamports = (await connection.getAccountInfo(PROGRAM_ID))?.lamports ?? 0;
+    if (progLamports < 0.0015e9) {
+      tx.add(SystemProgram.transfer({ fromPubkey: admin.publicKey, toPubkey: PROGRAM_ID, lamports: 0.001e9 }));
+      console.log(`Баланс программы ${progLamports} lamports — доливаю 0.001 SOL под ренту realloc`);
+    }
+    tx.add(new TransactionInstruction({
+      programId: PROGRAM_ID,
+      keys: [
+        { pubkey: account, isSigner: false, isWritable: true },
+        ...extraKeys,
+        { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      ],
+      data: disc(ixDisc),
+    }));
+    const sig = await sendAndConfirmTransaction(connection, tx, [admin]);
+    console.log(`${ixDisc} ${account.toBase58()}: ${info.data.length}B → ${wantSize}B, tx:`, sig);
+  }
+
+  await migrateIfNeeded(configPda, NEW_CONFIG_SIZE, "migrate_config", []);
+  await migrateIfNeeded(
+    epochPdaOf(epochId),
+    NEW_EPOCH_SIZE,
+    "migrate_epoch",
+    [{ pubkey: configPda, isSigner: false, isWritable: false }],
+  );
 
   // ── Presale (idempotent): cap 500, SOL price 0.25 SOL ──
   if (await accountExists(presalePda)) {
