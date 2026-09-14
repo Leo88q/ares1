@@ -29,7 +29,8 @@ jobs:
   program:
     name: Anchor program (build + unit + integration tests)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # 60: холодная сборка (cache-miss) = avm + все зависимости + program + validator
+    timeout-minutes: 60
     env:
       PR_URL: ${{ github.event.pull_request.comments_url }}
     steps:
