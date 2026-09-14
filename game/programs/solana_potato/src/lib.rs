@@ -1194,12 +1194,13 @@ pub mod solana_potato {
         let treasury = ctx.accounts.treasury_sol.to_account_info();
         let current = treasury.lamports();
         require!(amount_lamports <= current, GameError::InvalidAmount);
-        *treasury.lamports_mut() = current
+        // solana-program 1.18: lamports = pub Rc<RefCell<&'a mut u64>>
+        *treasury.lamports.borrow_mut() = current
             .checked_sub(amount_lamports)
             .ok_or(GameError::MathOverflow)?;
         let authority = ctx.accounts.authority.to_account_info();
         let new_balance = authority.lamports().checked_add(amount_lamports).ok_or(GameError::MathOverflow)?;
-        *authority.lamports_mut() = new_balance;
+        *authority.lamports.borrow_mut() = new_balance;
         emit!(TreasurySolWithdrawn { destination: authority.key(), amount_lamports });
         Ok(())
     }

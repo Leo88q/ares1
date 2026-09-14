@@ -96,8 +96,10 @@ jobs:
           if ! cargo test -p solana_potato --lib 2>&1 | tee /tmp/cargo-test.log; then
             # ВАЖНО: шаг выполняется с `bash -e` — любая команда, возвращающая
             # ненулевой код, роняет весь скрипт. Все grep/tee ниже — через `|| true`.
+            # rustc красит вывод ANSI-кодами: строки ошибок начинаются с \x1b
+            sed -e 's/\x1b\[[0-9;]*m//g' /tmp/cargo-test.log > /tmp/cargo-test-plain.log 2>/dev/null || cp /tmp/cargo-test.log /tmp/cargo-test-plain.log
             LOGSIZE=$(wc -c < /tmp/cargo-test.log 2>/dev/null || echo missing)
-            ERRCOUNT=$(grep -c '^error' /tmp/cargo-test.log 2>/dev/null || true)
+            ERRCOUNT=$(grep -c '^error' /tmp/cargo-test-plain.log 2>/dev/null || true)
             echo "DIAG cargo-failed: log=${LOGSIZE}B error_lines=${ERRCOUNT:-0} PR_URL=${PR_URL:-EMPTY}"
             echo "::error::cargo-test-failed log=${LOGSIZE}B error_lines=${ERRCOUNT:-0}"
             # Зеркало полного лога в step summary (вкладка Summary у ран)
@@ -134,7 +136,7 @@ jobs:
             fi
             # Построчные аннотации (best effort; не должны ронять скрипт)
             {
-              grep -E "^error|^test .* FAILED|panicked at|^  --> " /tmp/cargo-test.log \
+              grep -E "^error|^test .* FAILED|panicked at|^  --> " /tmp/cargo-test-plain.log \
                 | head -15 | sed 's/::/:/g' \
                 | while IFS= read -r line; do
                     [ -z "$line" ] && continue
@@ -169,12 +171,13 @@ jobs:
         run: |
           set -o pipefail
           if ! anchor build 2>&1 | tee /tmp/anchor-build.log; then
+            sed -e 's/\x1b\[[0-9;]*m//g' /tmp/anchor-build.log > /tmp/anchor-build-plain.log 2>/dev/null || cp /tmp/anchor-build.log /tmp/anchor-build-plain.log
             LOGSIZE=$(wc -c < /tmp/anchor-build.log 2>/dev/null || echo missing)
-            ERRCOUNT=$(grep -c '^error' /tmp/anchor-build.log 2>/dev/null || true)
+            ERRCOUNT=$(grep -c '^error' /tmp/anchor-build-plain.log 2>/dev/null || true)
             echo "DIAG anchor-build-failed: log=${LOGSIZE}B error_lines=${ERRCOUNT:-0}"
             echo "::error::anchor-build-failed log=${LOGSIZE}B error_lines=${ERRCOUNT:-0}"
             {
-              grep -E "^error|panicked|^  --> " /tmp/anchor-build.log \
+              grep -E "^error|panicked|^  --> " /tmp/anchor-build-plain.log \
                 | head -15 | sed 's/::/:/g' \
                 | while IFS= read -r line; do
                     [ -z "$line" ] && continue
