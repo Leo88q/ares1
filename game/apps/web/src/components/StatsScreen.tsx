@@ -69,6 +69,9 @@ function ConsoleStatRow({ icon, label, value, pct, color }: { icon: ReactNode; l
 function EconomySection({ data }: { data: EconomyData }) {
  const pct = (a: number, b: number) => (b > 0 ? (a / b) * 100 : 0)
  const fmt = (v: number) => v.toLocaleString('ru-RU', { maximumFractionDigits: 0 })
+ // Крупные числа без «250000000K»: 250_000 -> 250K, 750_000 -> 750K, 1e9 -> 1000M
+ const fmtBig = (v: number) =>
+   v >= 1e6 ? `${(v / 1e6).toFixed(v >= 1e7 ? 0 : 1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K` : v.toFixed(0)
  return (
   <ConsolePanel title="ЭКОНОМИКА КОЛОНИИ" tone="amber">
    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -76,20 +79,20 @@ function EconomySection({ data }: { data: EconomyData }) {
      readings={[
       { label: 'SUPPLY', value: `${fmt(data.currentSupply)} POTATO` },
       { label: 'BURNED', value: `${fmt(data.burned)} POTATO` },
-      { label: 'EPOCH', value: `${data.mintedToday.toFixed(0)}/${(data.elasticCap / 1000).toFixed(0)}K` },
+      { label: 'EPOCH', value: `${data.mintedToday.toFixed(0)}/${fmtBig(data.dailyCap)}` },
       { label: 'FIELDS', value: String(data.fieldCount) },
       { label: 'CREW', value: String(data.players) },
       { label: 'LUNAR', value: `x${data.lunarMultiplier.toFixed(2)}` },
       { label: 'TAX', value: `${(data.taxBps / 100).toFixed(2)}%` },
-      { label: 'CAP', value: `${(data.elasticCap / 1000).toFixed(0)}K` },
+      { label: 'CAP', value: fmtBig(data.elasticCap) },
      ]}
     />
     <ConsoleStatRow icon={<Gauge size={16} />} label="ТЕКУЩИЙ SUPPLY" value={`${fmt(data.currentSupply)} POTATO`} pct={pct(data.currentSupply, data.maxSupply)} color="var(--ares-hud-amber, #FFB347)" />
     <ConsoleStatRow icon={<Flame size={16} />} label="ВСЕГО СОЖЖЕНО" value={`${fmt(data.burned)} POTATO`} pct={pct(data.burned, data.currentSupply + data.burned)} color="var(--ares-rust, #C1440E)" />
-    <ConsoleStatRow icon={<TrendingUp size={16} />} label="СМАЙНЕНО ЗА ЭПОХУ" value={`${data.mintedToday.toFixed(0)} / ${(data.elasticCap / 1000).toFixed(0)}K POTATO`} pct={pct(data.mintedToday, data.elasticCap)} color="var(--ares-blueset, #6B93D6)" />
+    <ConsoleStatRow icon={<TrendingUp size={16} />} label="СМАЙНЕНО ЗА ЭПОХУ" value={`${data.mintedToday.toFixed(0)} / ${fmtBig(data.dailyCap)} POTATO`} pct={pct(data.mintedToday, data.dailyCap)} color="var(--ares-blueset, #6B93D6)" />
     <ConsoleStatRow icon={<Moon size={16} />} label={`ЛУННЫЙ ЦИКЛ: ${data.lunarPhase}`} value={`x${data.lunarMultiplier.toFixed(2)}`} pct={data.lunarMultiplier * 100 - 85} color="#E0D8C0" />
     <ConsoleStatRow icon={<Percent size={16} />} label="НАЛОГ НА ХАРВЕСТ" value={`${(data.taxBps / 100).toFixed(2)}%`} pct={(data.taxBps - 200) / 8} color="var(--ares-rust, #C1440E)" />
-    <ConsoleStatRow icon={<Shield size={16} />} label="ЭЛАСТИЧНЫЙ КАП" value={`${(data.elasticCap / 1000).toFixed(0)}K POTATO`} pct={(data.elasticCap - 250_000) / 5} color="var(--ares-blueset, #6B93D6)" />
+    <ConsoleStatRow icon={<Shield size={16} />} label="ЭЛАСТИЧНЫЙ КАП" value={`${fmtBig(data.elasticCap)} POTATO`} pct={pct(data.elasticCap - 250_000, 750_000 - 250_000)} color="var(--ares-blueset, #6B93D6)" />
     <ConsoleStatRow icon={<Landmark size={16} />} label="ВСЕГО ДЕЛЯНОК" value={data.fieldCount.toString()} color="var(--ares-grow-violet, #B85CFF)" />
     <ConsoleStatRow icon={<Trophy size={16} />} label="ЭКИПАЖ С ДЕЛЯНКАМИ" value={data.players.toString()} color="#FFC94A" />
     <ConsoleStatRow icon={<Coins size={16} />} label="МАКС. SUPPLY" value={`${(data.maxSupply / 1e6).toFixed(0)}M POTATO`} color="var(--ares-hud-amber, #FFB347)" />
@@ -121,7 +124,7 @@ function ReferralSection() {
     <div className="ares-mono" style={{ fontSize: 11, color: 'rgba(255,179,71,0.85)', lineHeight: 1.6 }}>
      <div style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
       <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true">✓</span>
-      <span>Стоимость регистрации: 5 POTATO (burn)</span>
+      <span>Стоимость регистрации: 5 POTATO (burn) — платит приглашённый, разово</span>
      </div>
      <div style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
       <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true">✓</span>
@@ -138,9 +141,10 @@ function ReferralSection() {
     </div>
 
     <div className="ares-mono" style={{ fontSize: 10, color: 'rgba(242,232,218,0.6)', lineHeight: 1.55 }}>
-     Регистрация: открыл игру по ссылке друга с ?ref= — и готово,
-     регистрация прошла автоматически (on-chain, одноразово).
-     Свою ссылку, чтобы приглашать, — в «Кабине» (ВЫЗОВ ПОСЕЛЕНЦЕВ).
+     Как это работает: приглашённый открывает игру по ссылке с ?ref= —
+     автоматически регистрируется за реферером (on-chain, одноразово),
+     5 🥔 списываются с его баланса. Приглашающий платит ничего —
+     его ссылка в «Кабине» (ВЫЗОВ ПОСЕЛЕНЦЕВ).
     </div>
    </div>
   </ConsolePanel>
