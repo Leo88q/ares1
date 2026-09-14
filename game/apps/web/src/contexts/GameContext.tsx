@@ -52,7 +52,7 @@ export interface GameContextType {
  solBalance: number
  loading: boolean
  purchasing: boolean
- /** Quest ids already claimed by this wallet (dev — из localStorage). */
+ /** Quest ids already claimed by this wallet (on-chain, bitmap PDA "achv"). */
  claimed: Record<string, boolean>
  harvest: (field: PublicKey) => Promise<boolean>
  purchaseField: (fieldType: number) => Promise<boolean>

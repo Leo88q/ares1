@@ -17,6 +17,8 @@ env:
 permissions:
   contents: read
   actions: write
+  # issues:write — только для PR-комментария-зеркала логов при сбое (sandbox не видит run-логи)
+  issues: write
 
 # Моноrepo: код, package.json и Anchor-проект лежат в game/
 defaults:
@@ -28,6 +30,8 @@ jobs:
     name: Anchor program (build + unit + integration tests)
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      PR_URL: ${{ github.event.pull_request.comments_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -75,9 +79,26 @@ jobs:
         run: |
           set -o pipefail
           if ! cargo test -p solana_potato --lib 2>&1 | tee /tmp/cargo-test.log; then
-            ERRS=$(grep -E "^error|^test .* FAILED|panicked at" /tmp/cargo-test.log | head -12 | tr '\n' ' | ' | sed 's/::/:/g' | head -c 4000)
-            TAIL=$(tail -n 25 /tmp/cargo-test.log | tr '\n' ' | ' | sed 's/::/:/g' | head -c 3000)
-            echo "::error title=cargo-test-failed::${ERRS:-ошибок не найдено} :: tail :: ${TAIL}"
+            # Построчные file-аннотации (длинный payload в title-аннотации GitHub молча бросает)
+            grep -E "^error|^test .* FAILED|panicked at|^  --> " /tmp/cargo-test.log \
+              | head -15 | sed 's/::/:/g' \
+              | while IFS= read -r line; do
+                  [ -z "$line" ] && continue
+                  echo "::error file=game/programs/solana_potato::cargo: ${line:0:400}"
+                done
+            # Зеркало хвоста лога в PR-комментарий (sandbox не видит run-логи/артефакты)
+            if [ -n "$PR_URL" ]; then
+              {
+                echo "### :x: cargo test failed (run $GITHUB_RUN_ID)"
+                echo '```'
+                tail -n 60 /tmp/cargo-test.log
+                echo '```'
+              } > /tmp/pr-comment.md
+              curl -sS -o /tmp/pr-comment-resp.json -w "PR comment: %{http_code}\n" -X POST "$PR_URL" \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                --data-binary @/tmp/pr-comment.md || echo "PR comment failed (non-fatal)"
+            fi
             exit 1
           fi
 
@@ -85,9 +106,24 @@ jobs:
         run: |
           set -o pipefail
           if ! anchor build 2>&1 | tee /tmp/anchor-build.log; then
-            ERRS=$(grep -E "^error|panicked" /tmp/anchor-build.log | head -12 | tr '\n' ' | ' | sed 's/::/:/g' | head -c 4000)
-            TAIL=$(tail -n 25 /tmp/anchor-build.log | tr '\n' ' | ' | sed 's/::/:/g' | head -c 3000)
-            echo "::error title=anchor-build-failed::${ERRS:-ошибок не найдено} :: tail :: ${TAIL}"
+            grep -E "^error|panicked|^  --> " /tmp/anchor-build.log \
+              | head -15 | sed 's/::/:/g' \
+              | while IFS= read -r line; do
+                  [ -z "$line" ] && continue
+                  echo "::error file=game/programs/solana_potato::anchor build: ${line:0:400}"
+                done
+            if [ -n "$PR_URL" ]; then
+              {
+                echo "### :x: anchor build failed (run $GITHUB_RUN_ID)"
+                echo '```'
+                tail -n 60 /tmp/anchor-build.log
+                echo '```'
+              } > /tmp/pr-comment.md
+              curl -sS -o /tmp/pr-comment-resp.json -w "PR comment: %{http_code}\n" -X POST "$PR_URL" \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                --data-binary @/tmp/pr-comment.md || echo "PR comment failed (non-fatal)"
+            fi
             exit 1
           fi
 
