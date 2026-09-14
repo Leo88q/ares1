@@ -1197,14 +1197,21 @@ pub mod solana_potato {
         require!(amount_lamports <= current, GameError::InvalidAmount);
         // PDA-казна — 0-байтовый системный аккаунт (data owner = System Program):
         // прямой write lamports рантайм запрещает ("spent from the balance of
-        // an account it does not own") — переводим через System Program CPI.
+        // an account it does not own") — переводим через System Program CPI,
+        // подписанный seeds PDA (new_with_signer) — без этого `from` не
+        // считается подписантом и CPI отклоняется. Тот же паттерн, что в
+        // withdraw_treasury (POTATO), где он проходит тесты.
+        let bump = ctx.bumps.treasury_sol;
+        let seeds: &[&[u8]] = &[b"treasury_sol", &[bump]];
+        let signer: &[&[&[u8]]] = &[seeds];
         let cpi_accounts = anchor_lang::system_program::Transfer {
             from: ctx.accounts.treasury_sol.to_account_info(),
             to: ctx.accounts.authority.to_account_info(),
         };
-        let cpi_context = CpiContext::new(
+        let cpi_context = CpiContext::new_with_signer(
             ctx.accounts.system_program.to_account_info(),
             cpi_accounts,
+            signer,
         );
         anchor_lang::system_program::transfer(cpi_context, amount_lamports)?;
         emit!(TreasurySolWithdrawn { destination: ctx.accounts.authority.key(), amount_lamports });
