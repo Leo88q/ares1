@@ -247,7 +247,33 @@ jobs:
       - name: anchor test (local validator)
         run: |
           solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
-          anchor test --skip-build
+          set +e
+          anchor test --skip-build 2>&1 | tee /tmp/anchor-test.log
+          EXIT=${PIPESTATUS[0]}
+          if [ "$EXIT" != "0" ]; then
+            echo "DIAG anchor-test-failed: exit=${EXIT} log=$(wc -c < /tmp/anchor-test.log)B"
+            echo "::error title=anchor-test-failed::exit=${EXIT} | $(tail -n 45 /tmp/anchor-test.log | tr '\n' ' | ' | head -c 6000)"
+            exit "$EXIT"
+          fi
+
+      # Лог anchor test — в ветку ci-diag-log (sandbox не видит run-логи/артефакты;
+      # аннотации дробятся, а это единственный читаемый канал с полным логом).
+      - name: Push anchor test log to ci-diag-log branch
+        if: failure()
+        run: |
+          set +e
+          [ -f /tmp/anchor-test.log ] || exit 0
+          git config user.name "ci-diag"
+          git config user.email "ci-diag@users.noreply.github.com"
+          git checkout --orphan ci-diag-log 2>/dev/null || git checkout -B ci-diag-log
+          git rm -rf --cached . >/dev/null 2>&1
+          mkdir -p .ci-diag
+          cp /tmp/anchor-test.log .ci-diag/anchor-test.txt
+          git add .ci-diag
+          git commit -m "ci diag logs anchor-test (run $GITHUB_RUN_ID, $GITHUB_SHA)" >/dev/null 2>&1 || {
+            git commit --allow-empty -m "ci diag logs anchor-test (run $GITHUB_RUN_ID, $GITHUB_SHA)" >/dev/null 2>&1
+          }
+          git push -f origin ci-diag-log 2>&1 | tail -2 || echo "diag push failed"
 
       # Лог-артефакт на каждый прогон: sandbox не видит run-логи,
       # а аннотации могут теряться (GH дробит payload по '::').
