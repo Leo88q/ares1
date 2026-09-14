@@ -55,7 +55,7 @@ describe("solana_potato", () => {
       if (errorName) {
         const msg = err instanceof Error ? err.message : String(err);
         const code = (err as { error?: { errorCode?: { code?: string } } }).error?.errorCode?.code;
-        expect(code ?? msg, `expected ${errorName}`).to.satisfy((v: string) => v.includes(errorName));
+        expect(code ?? msg, `expected ${errorName}, got: ${code ?? msg}`).to.satisfy((v: string) => v.includes(errorName));
       }
       return;
     }
@@ -64,6 +64,12 @@ describe("solana_potato", () => {
 
   const fieldSpendAccounts = (field: PublicKey, owner: PublicKey, userPotato: PublicKey) => ({
     field, potatoMint: mint, userPotato, config: configPda, owner, tokenProgram: TOKEN_PROGRAM_ID,
+  });
+
+  const createOrderAccounts = (id: bigint, seller: PublicKey, sellerPotato: PublicKey) => ({
+    seller, config: configPda, sellerProfile: sellerProfilePda(seller), order: orderPda(id), marketStats: marketStatsPda,
+    sellerPotato, escrow: escrowPda(orderPda(id)), potatoMint: mint,
+    tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId, rent: SYSVAR_RENT_PUBKEY,
   });
 
   before(async () => {
@@ -103,6 +109,9 @@ describe("solana_potato", () => {
       adminAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, admin.publicKey)).address;
       playerAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, player.publicKey)).address;
       treasuryAta = getAssociatedTokenAddressSync(mint, configPda, true);
+      // Казна-ATA должна существовать до первого harvest/fill_order
+      // (программа требует инициализированный аккаунт, а не init_if_needed)
+      await getOrCreateAssociatedTokenAccount(connection, admin, mint, configPda, true);
     });
 
     it("cannot be initialized twice", async () => {
@@ -168,9 +177,10 @@ describe("solana_potato", () => {
     });
 
     it("rejects an invalid field type", async () => {
+      const id = BigInt(Date.now()) + 1n;
       await expectFail(
-        program.methods.createField(new BN(Date.now() + 1), 3).accountsPartial({
-          config: configPda, field: fieldPda(BigInt(Date.now() + 1)), owner: admin.publicKey, potatoMint: mint, userPotato: adminAta,
+        program.methods.createField(new BN(id.toString()), 3).accountsPartial({
+          config: configPda, field: fieldPda(id), owner: admin.publicKey, potatoMint: mint, userPotato: adminAta,
           systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID,
         }).rpc(),
         "InvalidFieldType",
@@ -277,12 +287,6 @@ describe("solana_potato", () => {
     const orderId = BigInt(Date.now() + 100);
     let order: PublicKey;
     let escrow: PublicKey;
-
-    const createOrderAccounts = (id: bigint, seller: PublicKey, sellerPotato: PublicKey) => ({
-      seller, config: configPda, sellerProfile: sellerProfilePda(seller), order: orderPda(id), marketStats: marketStatsPda,
-      sellerPotato, escrow: escrowPda(orderPda(id)), potatoMint: mint,
-      tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId, rent: SYSVAR_RENT_PUBKEY,
-    });
 
     it("rejects orders whose SOL total rounds to nothing", async () => {
       // 10 POTATO at 0.00005 SOL each -> 0.5 SOL… wait: 10_000_000 * 50_000 / 1e6 = 500_000
@@ -510,7 +514,7 @@ describe("solana_potato", () => {
         config: configPda, presaleState: presalePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
       }).rpc();
       const st = await program.account.presaleState.fetch(presalePda);
-      expect(st.cap.toNumber()).to.eq(10);
+      expect(st.cap).to.eq(10);
       expect(st.priceLamports.toString()).to.eq(PRE_PRICE_LAMPORTS.toString());
 
       await expectFail(
@@ -548,7 +552,7 @@ describe("solana_potato", () => {
       expect(field.owner.equals(player.publicKey)).to.be.true;
       expect(field.fieldType).to.eq(1);
       const st = await program.account.presaleState.fetch(presalePda);
-      expect(st.sold.toNumber()).to.eq(1);
+      expect(st.sold).to.eq(1);
       const counter = await program.account.buyerPresaleCounter.fetch(buyerPresalePda(player.publicKey));
       expect(counter.count).to.eq(1);
       const treasuryAfter = await connection.getBalance(treasurySolPda);
@@ -556,10 +560,11 @@ describe("solana_potato", () => {
     });
 
     it("rejects an invalid field type", async () => {
+      const id = BigInt(Date.now()) + 901n;
       await expectFail(
-        program.methods.buyFieldSol(new BN((BigInt(Date.now()) + 901n).toString()), 3).accountsPartial({
+        program.methods.buyFieldSol(new BN(id.toString()), 3).accountsPartial({
           config: configPda, presaleState: presalePda, authority: admin.publicKey,
-          buyerPresale: buyerPresalePda(player.publicKey), field: fieldPda(BigInt(Date.now()) + 901n),
+          buyerPresale: buyerPresalePda(player.publicKey), field: fieldPda(id),
           buyer: player.publicKey, treasurySol: treasurySolPda, systemProgram: SystemProgram.programId,
         }).signers([player]).rpc(),
         "InvalidFieldType",
@@ -577,7 +582,7 @@ describe("solana_potato", () => {
         "PresaleWalletLimitReached",
       );
       const st = await program.account.presaleState.fetch(presalePda);
-      expect(st.sold.toNumber()).to.eq(5);
+      expect(st.sold).to.eq(5);
     });
 
     it("enforces the global cap", async () => {
@@ -594,7 +599,7 @@ describe("solana_potato", () => {
         "PresaleCapReached",
       );
       const st = await program.account.presaleState.fetch(presalePda);
-      expect(st.sold.toNumber()).to.eq(10);
+      expect(st.sold).to.eq(10);
     });
 
     it("is blocked while paused (paused-чек идёт первым в обработчике)", async () => {
@@ -618,10 +623,11 @@ describe("solana_potato", () => {
       const buyerSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, player.publicKey, true)).address;
       const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, treasurySolPda, true)).address;
       const buybackSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, admin.publicKey, true)).address;
+      const id = BigInt(Date.now()) + 5555n;
       await expectFail(
-        program.methods.buyFieldSkr(new BN((BigInt(Date.now()) + 5555n).toString())).accountsPartial({
+        program.methods.buyFieldSkr(new BN(id.toString())).accountsPartial({
           config: configPda, presaleState: presalePda, authority: admin.publicKey,
-          buyerPresale: buyerPresalePda(player.publicKey), field: fieldPda(BigInt(Date.now()) + 5555n),
+          buyerPresale: buyerPresalePda(player.publicKey), field: fieldPda(id),
           buyer: player.publicKey, skrMint: wrongSkrMint, buyerSkrAta,
           treasurySol: treasurySolPda, treasurySkrAta, buybackSkrAta,
           tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
@@ -632,43 +638,58 @@ describe("solana_potato", () => {
 
     it("migrate_presale_authority repairs the presale after an authority transfer", async () => {
       const next = Keypair.generate();
-      await program.methods.proposeAuthority(next.publicKey).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
-      await program.methods.acceptAuthority().accountsPartial({ config: configPda, newAuthority: next.publicKey }).signers([next]).rpc();
+      try {
+        await program.methods.proposeAuthority(next.publicKey).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+        await program.methods.acceptAuthority().accountsPartial({ config: configPda, newAuthority: next.publicKey }).signers([next]).rpc();
 
-      // без миграции покупки падают: UI передаёт authority = config.authority (next)
-      const buyer5 = Keypair.generate();
-      await connection.confirmTransaction(await connection.requestAirdrop(buyer5.publicKey, 1 * LAMPORTS_PER_SOL));
-      const stBefore = (await program.account.presaleState.fetch(presalePda)).sold;
-      await expectFail(
-        buySol(buyer5, BigInt(Date.now()) + 4444n, next.publicKey),
-        "ConstraintHasOne",
-      );
+        // без миграции покупки падают: UI передаёт authority = config.authority (next)
+        const buyer5 = Keypair.generate();
+        await connection.confirmTransaction(await connection.requestAirdrop(buyer5.publicKey, 1 * LAMPORTS_PER_SOL));
+        const stBefore = (await program.account.presaleState.fetch(presalePda)).sold;
+        await expectFail(
+          buySol(buyer5, BigInt(Date.now()) + 4444n, next.publicKey),
+          "ConstraintHasOne",
+        );
 
-      await expectFail(
-        program.methods.migratePresaleAuthority().accountsPartial({
-          config: configPda, presaleState: presalePda, authority: admin.publicKey,
-        }).rpc(),
-        "ConstraintHasOne", // старый authority не может мигрировать
-      );
+        await expectFail(
+          program.methods.migratePresaleAuthority().accountsPartial({
+            config: configPda, presaleState: presalePda, authority: admin.publicKey,
+          }).rpc(),
+          "ConstraintHasOne", // старый authority не может мигрировать
+        );
 
-      await program.methods.migratePresaleAuthority().accountsPartial({
-        config: configPda, presaleState: presalePda, authority: next.publicKey,
-      }).signers([next]).rpc();
-      const st = await program.account.presaleState.fetch(presalePda);
-      expect(st.authority.equals(next.publicKey)).to.be.true;
+        await program.methods.migratePresaleAuthority().accountsPartial({
+          config: configPda, presaleState: presalePda, authority: next.publicKey,
+        }).signers([next]).rpc();
+        const st = await program.account.presaleState.fetch(presalePda);
+        expect(st.authority.equals(next.publicKey)).to.be.true;
 
-      // cap исчерпан в этом тесте (10/10) — покупка не пройдёт по PresaleCapReached,
-      // а НЕ по ConstraintHasOne: этого достаточно, чтобы доказать, что has_one прошёл.
-      await expectFail(
-        buySol(buyer5, BigInt(Date.now()) + 4445n, next.publicKey),
-        "PresaleCapReached",
-      );
-      expect((await program.account.presaleState.fetch(presalePda)).sold.toNumber()).to.eq(stBefore.toNumber());
-
-      // возвращаем authority
-      await program.methods.proposeAuthority(admin.publicKey).accountsPartial({ config: configPda, authority: next.publicKey }).signers([next]).rpc();
-      await program.methods.acceptAuthority().accountsPartial({ config: configPda, newAuthority: admin.publicKey }).rpc();
-      await program.methods.migratePresaleAuthority().accountsPartial({ config: configPda, presaleState: presalePda, authority: admin.publicKey }).rpc();
+        // cap исчерпан в этом тесте (10/10) — покупка не пройдёт по PresaleCapReached,
+        // а НЕ по ConstraintHasOne: этого достаточно, чтобы доказать, что has_one прошёл.
+        await expectFail(
+          buySol(buyer5, BigInt(Date.now()) + 4445n, next.publicKey),
+          "PresaleCapReached",
+        );
+        expect((await program.account.presaleState.fetch(presalePda)).sold).to.eq(stBefore);
+      } finally {
+        // Возвращаем authority admin'у ЛЮБЫМ ЦЕНОМ: если тест выше упал до явного
+        // restore, каскад ConstraintHasOne сломал бы все последующие сьюиты
+        // (quest, treasury, admin).
+        const cfg = await program.account.gameConfig.fetch(configPda);
+        if (!cfg.authority.equals(admin.publicKey)) {
+          if (cfg.pendingAuthority.equals(PublicKey.default)) {
+            await program.methods.proposeAuthority(admin.publicKey).accountsPartial({
+              config: configPda, authority: next.publicKey,
+            }).signers([next]).rpc();
+          }
+          await program.methods.acceptAuthority().accountsPartial({
+            config: configPda, newAuthority: admin.publicKey,
+          }).rpc();
+          await program.methods.migratePresaleAuthority().accountsPartial({
+            config: configPda, presaleState: presalePda, authority: admin.publicKey,
+          }).rpc();
+        }
+      }
     });
   });
 
@@ -834,6 +855,10 @@ describe("solana_potato", () => {
     });
 
     it("withdraw_treasury only for the authority", async () => {
+      // Финансируем казну: grant_reward минтит в treasury ATA (владелец митта — config PDA)
+      await program.methods.grantReward(new BN(500_000)).accountsPartial({
+        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: treasuryAta, tokenProgram: TOKEN_PROGRAM_ID,
+      }).rpc();
       await expectFail(
         program.methods.withdrawTreasury(new BN(1)).accountsPartial({
           config: configPda, potatoMint: mint, treasuryPotato: treasuryAta, destination: playerAta, authority: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
