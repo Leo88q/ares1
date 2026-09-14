@@ -451,9 +451,11 @@ describe("solana_potato", () => {
       expect((await ataBalance(adminAta)) - sellerBefore).to.eq(100_000n);
       // 9 % fee = 900 k; after 1 % refund the net fee is 800 k -> 320 k treasury, 430 k burn
       expect((await ataBalance(treasuryAta)) - treasuryBefore).to.eq(320_000n);
-      // no fresh supply: the reward came out of the escrowed fee
+      // Supply drops ONLY by the burned fee: 900k - 100k refund = 800k net
+      // -> 320k treasury (40%) + 480k burn base - 50k referral reward = 430k burned.
+      // The 50k reward itself is a transfer out of escrow, not a fresh mint.
       const supplyAfter = (await getMint(connection, mint)).supply;
-      expect(supplyAfter).to.eq(supplyBefore);
+      expect(supplyAfter).to.eq(supplyBefore - 430_000n);
       expect(await connection.getAccountInfo(orderPk)).to.be.null;
       expect(await connection.getAccountInfo(escrowPk)).to.be.null;
     });
@@ -482,7 +484,8 @@ describe("solana_potato", () => {
 
       expect((await ataBalance(referrerAta)) - refBefore).to.eq(0n);
       expect((await ataBalance(adminAta)) - sellerBefore).to.eq(100_000n); // 1 % refund
-      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
+      // No referrer ATA -> the 50k reward joins the burn: 800k net - 320k treasury = 480k burned
+      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore - 480_000n);
       expect(await connection.getAccountInfo(orderPk)).to.be.null;
     });
   });
@@ -700,13 +703,16 @@ describe("solana_potato", () => {
     const achvPda = (user: PublicKey) => pda(Buffer.from("achv"), user.toBuffer());
     const POOL = 550_000_000n; // 550 🥔 — зеркало QUEST_REWARD_MICRO
 
-    const claim = async (user: Keypair, questId: number, fields: PublicKey[] = [], userPotatoAta: PublicKey = playerAta) =>
-      program.methods.claimAchievement(questId).accountsPartial({
+    const claim = async (user: Keypair, questId: number, fields: bigint[] = [], userPotatoAta: PublicKey = playerAta) => {
+      // fields — bigint-идентификаторы полей -> PDA ["field", id] (remaining-аккаунты proofs)
+      const fieldPdas = fields.map((id) => fieldPda(id));
+      return program.methods.claimAchievement(questId).accountsPartial({
         config: configPda, achievements: achvPda(user.publicKey), user: user.publicKey,
         questTreasury: questTreasuryPda, questAta: questAta(), userPotatoAta,
         potatoMint: mint, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-      }).remainingAccounts(fields.map((pubkey) => ({ pubkey, isSigner: false, isWritable: false })))
+      }).remainingAccounts(fieldPdas.map((pubkey) => ({ pubkey, isSigner: false, isWritable: false })))
         .signers([user]).rpc();
+    };
 
     before(async () => {
       const rent = await connection.getMinimumBalanceForRentExemption(0);

@@ -1198,19 +1198,15 @@ pub mod solana_potato {
         // PDA-казна — 0-байтовый системный аккаунт (data owner = System Program):
         // прямой write lamports рантайм запрещает ("spent from the balance of
         // an account it does not own") — переводим через System Program CPI.
-        let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
-            &ctx.accounts.treasury_sol.key(),
-            &ctx.accounts.authority.key(),
-            amount_lamports,
+        let cpi_accounts = anchor_lang::system_program::Transfer {
+            from: ctx.accounts.treasury_sol.to_account_info(),
+            to: ctx.accounts.authority.to_account_info(),
+        };
+        let cpi_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            cpi_accounts,
         );
-        anchor_lang::solana_program::program::invoke(
-            &transfer_ix,
-            &[
-                ctx.accounts.treasury_sol.to_account_info(),
-                ctx.accounts.authority.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-            ],
-        )?;
+        anchor_lang::system_program::transfer(cpi_context, amount_lamports)?;
         emit!(TreasurySolWithdrawn { destination: ctx.accounts.authority.key(), amount_lamports });
         Ok(())
     }
