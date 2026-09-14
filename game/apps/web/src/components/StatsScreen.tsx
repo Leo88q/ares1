@@ -195,7 +195,7 @@ function ReferralSection() {
 }
 
 function StatsScreenInner() {
- const { connection, programId, publicKey, config, epoch, ready, rpcError } = useSolana()
+ const { connection, programId, publicKey, config, epoch, ready } = useSolana()
  const [data, setData] = useState<EconomyData | null>(null)
  const [leaders, setLeaders] = useState<LeaderRow[]>([])
  const [loadError, setLoadError] = useState<string | null>(null)
