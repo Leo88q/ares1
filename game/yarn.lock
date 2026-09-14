@@ -3626,13 +3626,6 @@ borsh@^0.7.0:
     bs58 "^4.0.0"
     text-encoding-utf-8 "^1.0.2"
 
-"bot@file:/Users/zlata/solana-potato/apps/bot":
-  version "0.1.0"
-  resolved "file:apps/bot"
-  dependencies:
-    dotenv "^16.4.5"
-    grammy "^1.25.1"
-
 bowser@^2.11.0:
   version "2.14.1"
   resolved "https://registry.npmjs.org/bowser/-/bowser-2.14.1.tgz"

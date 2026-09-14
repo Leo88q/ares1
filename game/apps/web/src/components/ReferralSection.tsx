@@ -1,47 +1,23 @@
-import { useState, useEffect } from 'react'
-import { Copy, Check, Users, Gift } from 'lucide-react'
+import { useState } from 'react'
+import { Copy, Check, Users, Gift, Share2 } from 'lucide-react'
 import { useSolana } from '../contexts/SolanaContext'
 import { useToast } from './Toast'
-import { getReferralStats, getReferralConfig, buildReferralLink, ReferralStats, ReferralConfig } from '../utils/referral'
+import { buildRefLink } from '../utils/referral'
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 
-const BOT_USERNAME = import.meta.env.VITE_BOT_USERNAME || 'solana_potato_bot'
-
+/**
+ * Рефералка — on-chain (PDA Referral, instruction register_referrer / fill_order).
+ * Экономика в программе: приглашённый получает −1 % комиссии за сделки,
+ * рефереру — 0.5 % от суммы сделки (не больше burn-доли комиссии).
+ * Без Telegram и backend: идентичность — кошелёк, ссылка — ?ref=<wallet>.
+ */
 export function ReferralSection() {
  const { publicKey } = useSolana()
  const { show } = useToast()
- const [stats, setStats] = useState<ReferralStats | null>(null)
- const [config, setConfig] = useState<ReferralConfig | null>(null)
  const [copied, setCopied] = useState(false)
- const [loading, setLoading] = useState(true)
 
- useEffect(() => {
-  if (!publicKey) return
-
-  async function load() {
-   setLoading(true)
-   const [s, c] = await Promise.all([
-    getReferralStats(publicKey!.toBase58()),
-    getReferralConfig(),
-   ])
-   setStats(s)
-   setConfig(c)
-   setLoading(false)
-  }
-
-  load()
-  // Обновляем статистику каждые 30 секунд
-  const interval = setInterval(load, 30_000)
-  return () => clearInterval(interval)
- }, [publicKey])
-
- if (loading) return null
-
- const referralLink = publicKey ? buildReferralLink(BOT_USERNAME, publicKey.toBase58()) : ''
- const referrerReward = config ? Number(config.referrerRewardMicro) / 1_000_000 : 20
- const invitedReward = config ? Number(config.invitedRewardMicro) / 1_000_000 : 10
- const totalEarned = stats ? Number(stats.totalEarnedMicro) / 1_000_000 : 0
+ const referralLink = publicKey ? buildRefLink(publicKey.toBase58()) : ''
 
  const handleCopy = async () => {
   if (!publicKey) return
@@ -52,18 +28,27 @@ export function ReferralSection() {
    haptics.tap()
    show({ type: 'success', title: 'Ссылка скопирована!', message: 'Отправь другу' })
    setTimeout(() => setCopied(false), 2000)
-  } catch (err) {
+  } catch {
    show({ type: 'error', title: 'Ошибка', message: 'Не удалось скопировать' })
   }
  }
 
- const handleShare = () => {
+ const handleShare = async () => {
   if (!publicKey) return
-  const text = `Играю в Solana Potato! Присоединяйся и получи ${invitedReward} POTATO бонус при старте.`
-  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(text)}`
-  window.open(shareUrl, '_blank')
-  sounds.click()
-  haptics.buttonPress()
+  const text = 'Играю в Solana Potato — выращиваю картофель на Solana. Присоединяйся!'
+  try {
+   if (navigator.share) {
+    await navigator.share({ title: 'Solana Potato', text, url: referralLink })
+   } else {
+    await navigator.clipboard.writeText(referralLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+   }
+   sounds.click()
+   haptics.buttonPress()
+  } catch {
+   /* пользователь отменил share — не ошибка */
+  }
  }
 
  return (
@@ -86,18 +71,34 @@ export function ReferralSection() {
      <Gift size={32} color="var(--pf-gold)" />
      <div>
       <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--pf-text-primary)' }}>
-       Вызови поселенца — получи паёк!
+       Вызови поселенца — дели комиссию!
       </div>
       <div style={{ fontSize: 13, color: 'var(--pf-text-secondary)', marginTop: 4 }}>
-       {referrerReward} POTATO тебе + {invitedReward} POTATO новобранцу после первой жатвы
+       Приглашённому −1 % комиссии за сделки, тебе — 0.5 % от суммы каждой его сделки (on-chain)
       </div>
      </div>
     </div>
 
     {!publicKey && (
      <p style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 12 }}>
-       Подключи кошелёк, чтобы получить свою реферальную ссылку.
+      Подключи кошелёк, чтобы получить свою реферальную ссылку.
      </p>
+    )}
+
+    {publicKey && (
+     <div style={{
+      marginBottom: 12,
+      padding: '10px 12px',
+      borderRadius: 10,
+      background: 'rgba(0,0,0,0.25)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      fontFamily: 'monospace',
+      fontSize: 11,
+      color: 'var(--pf-text-secondary)',
+      wordBreak: 'break-all',
+     }}>
+      {referralLink}
+     </div>
     )}
 
     {/* Кнопки */}
@@ -122,7 +123,7 @@ export function ReferralSection() {
       }}
      >
       {copied ? <Check size={16} /> : <Copy size={16} />}
-      {copied ? 'Скопировано!' : 'Скопировать код вызова'}
+      {copied ? 'Скопировано!' : 'Скопировать ссылку'}
      </button>
 
      <button
@@ -137,61 +138,16 @@ export function ReferralSection() {
        fontWeight: 600,
        cursor: 'pointer',
        transition: 'all 0.2s',
+       display: 'flex',
+       alignItems: 'center',
+       gap: 8,
       }}
      >
-      Передать по каналу
+      <Share2 size={16} />
+      Поделиться
      </button>
     </div>
    </div>
-
-   {/* Статистика */}
-   {stats && (
-    <div className="pf-card hull-skin" style={{
-     padding: 16,
-     borderRadius: 12,
-     background: 'rgba(255,255,255,0.03)',
-    }}>
-     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-      <div style={{ textAlign: 'center' }}>
-       <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--pf-teal)' }}>
-        {stats.completed}
-       </div>
-       <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', marginTop: 4 }}>
-        Вызвано
-       </div>
-      </div>
-
-      <div style={{ textAlign: 'center' }}>
-       <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--ares-grow-violet, #B85CFF)' }}>
-        {stats.pending}
-       </div>
-       <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', marginTop: 4 }}>
-        В шлюзе
-       </div>
-      </div>
-
-      <div style={{ textAlign: 'center' }}>
-       <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--pf-gold)' }}>
-        {totalEarned.toFixed(1)}
-       </div>
-       <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', marginTop: 4 }}>
-        Добыто POTATO
-       </div>
-      </div>
-     </div>
-
-     <div style={{
-      marginTop: 12,
-      paddingTop: 12,
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      fontSize: 11,
-      color: 'var(--pf-text-muted)',
-      textAlign: 'center',
-     }}>
-      Лимит: {stats.today}/{stats.dailyCap} поселенцев за сол
-     </div>
-    </div>
-   )}
   </div>
  )
 }

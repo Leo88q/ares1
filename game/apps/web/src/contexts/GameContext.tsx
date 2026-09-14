@@ -1,20 +1,21 @@
-import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { PublicKey, SystemProgram, TransactionInstruction } from '@solana/web3.js'
 import { createAssociatedTokenAccountIdempotentInstruction, createAssociatedTokenAccountInstruction, createTransferInstruction, unpackAccount, getAssociatedTokenAddressSync } from '@solana/spl-token'
-import { useSolana, BACKEND_URL, IS_MAINNET } from './SolanaContext'
+import { useSolana, IS_MAINNET } from './SolanaContext'
 import { useToast } from '../components/Toast'
-import {
+ import {
  decodeField, pdas,
  ixCreateField, ixHarvest, ixRepairField, ixUpgradeField, ixPayTax, ixApplyFertilizer,
  ixBuyFieldSkr, TEST_SKR_MINT, treasurySkrAta, buybackSkrAta, presaleStatePda, buyerPresalePda, treasurySolPda,
  potatoAta,
+ achievementsPda, questTreasuryPda, decodeAchievementsBitmap, ixClaimAchievement, QUEST_REWARDS_MICRO,
 } from '../utils/anchorClient'
 import {
  accumulatedMicro, fieldPriceMicro, fertilizerCostMicro, repairCostMicro, taxCostMicro, upgradeCostMicro, fmtPotato, MICRO,
 } from '../utils/constants'
 import { describeError } from '../utils/errors'
 import { randomU64, withRetry } from '../utils/rpc'
-import { getTelegramInitData } from '../utils/telegram'
+
 import { usePolling } from '../hooks/usePolling'
 
 const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1 // 70: +mutation_type (v2)
@@ -51,7 +52,7 @@ export interface GameContextType {
  solBalance: number
  loading: boolean
  purchasing: boolean
- /** Quest ids already claimed by this Telegram user (from the backend). */
+ /** Quest ids already claimed by this wallet (dev — из localStorage). */
  claimed: Record<string, boolean>
  harvest: (field: PublicKey) => Promise<boolean>
  purchaseField: (fieldType: number) => Promise<boolean>
@@ -77,12 +78,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
  const [rawFields, setRawFields] = useState<RawField[]>([])
  const [potatoBalance, setPotatoBalance] = useState(0)
- const devBalanceOffset = useRef(0)
  const [ataExists, setAtaExists] = useState(false)
  const [solBalance, setSolBalance] = useState(0)
  const [loading, setLoading] = useState(true)
  const [purchasing, setPurchasing] = useState(false)
- const [claimed, setClaimed] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('dev_claimed') || '{}') } catch { return {} } })
+ const [claimed, setClaimed] = useState<Record<string, boolean>>({})
  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000))
 
  // Local 1s ticker so "accumulated" grows smoothly between RPC polls.
@@ -115,10 +115,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
    setSolBalance((walletInfo?.lamports ?? 0) / 1e9)
    if (ataInfo) {
     setAtaExists(true)
-    setPotatoBalance(Number(unpackAccount(ata, ataInfo).amount) + devBalanceOffset.current)
+    setPotatoBalance(Number(unpackAccount(ata, ataInfo).amount))
    } else {
     setAtaExists(false)
-    setPotatoBalance(0 + devBalanceOffset.current)
+    setPotatoBalance(0)
    }
    setRawFields(
     accounts
@@ -347,69 +347,59 @@ export function GameProvider({ children }: { children: ReactNode }) {
   [fieldSpend],
  )
 
- // ── Backend quests ──
- const backendHeaders = useCallback((): HeadersInit | null => {
-  const initData = getTelegramInitData()
-  if (!initData || !BACKEND_URL) return null
-  return { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': initData }
- }, [])
+ // ── Quests (on-chain) ──
+ // Шесть нашивок верифицируются в программе (claim_achievement) и выдаются
+ // из квест-казны PDA (550 POTATO, заправлена init-onchain). Идентичность — кошелёк.
+ const QUEST_ID_BY_ACH: Record<string, number> = { a1: 0, a2: 1, a3: 2, a4: 3, a5: 4, a6: 5 }
 
  const loadClaimed = useCallback(async () => {
-  const headers = backendHeaders()
-  if (!headers) return
+  if (!ready || !publicKey) return
   try {
-   const res = await fetch(`${BACKEND_URL}/api/reward/status`, { headers })
-   if (res.ok) {
-    const json = (await res.json()) as { claimed: string[] }
-    setClaimed(Object.fromEntries(json.claimed.map((id) => [id, true])))
+   const pda = achievementsPda(publicKey, programId)
+   const info = await withRetry(() => connection.getAccountInfo(pda))
+   const bitmap = info ? decodeAchievementsBitmap(info.data) : 0
+   const next: Record<string, boolean> = {}
+   for (const [id, qid] of Object.entries(QUEST_ID_BY_ACH)) {
+    next[id] = Boolean(bitmap & (1 << qid))
    }
+   setClaimed(next)
   } catch {
-   /* backend offline — quests simply stay unclaimed in the UI */
+   /* RPC-сбой — оставляем предыдущий bitmap */
   }
- }, [backendHeaders])
+ }, [ready, publicKey, connection, programId])
 
  useEffect(() => {
   void loadClaimed()
  }, [loadClaimed, publicKey])
 
  const claimReward = useCallback(
-  async (questId: string, rewardMicro?: number): Promise<boolean> => {
-   if (!publicKey) return false
-   const headers = backendHeaders()
-   if (!headers) {
-    if (import.meta.env.DEV) {
-     const key = 'dev_claimed'
-     const store: Record<string, boolean> = JSON.parse(localStorage.getItem(key) || '{}')
-     if (store[questId]) {
-      notify('warning', 'Уже собрано', 'Эта награда уже получена в dev-режиме.')
-      return false
-     }
-     store[questId] = true
-     localStorage.setItem(key, JSON.stringify(store))
-     setClaimed((c) => ({ ...c, [questId]: true }))
-     const amount = rewardMicro ?? 0
-     if (amount > 0) {
-      devBalanceOffset.current += amount
-      setPotatoBalance((prev) => prev + amount)
-     }
-     notify('success', 'Награда получена (dev)', amount > 0 ? `+${fmtPotato(amount, 0)} POTATO начислено` : 'Состояние UI обновлено.')
-     return true
-    }
-    notify('error', 'Задачи смены доступны только в Telegram', 'Открой мини-приложение через бота, чтобы получать награды.')
-    return false
-   }
+  async (questId: string, _rewardMicro?: number): Promise<boolean> => {
+   const qid = QUEST_ID_BY_ACH[questId]
+   if (qid === undefined || !publicKey || !ready || !config) return false
    try {
-    const res = await fetch(`${BACKEND_URL}/api/reward/claim`, {
-     method: 'POST', headers,
-     body: JSON.stringify({ questId, walletAddress: publicKey.toBase58() }),
-    })
-    const json = (await res.json().catch(() => ({}))) as { error?: string; amountMicro?: string }
-    if (!res.ok) {
-     notify('error', 'Награда не выдана', json.error ?? res.statusText)
-     return false
-    }
+    const userAta = getAssociatedTokenAddressSync(config.potatoMint, publicKey, true)
+    const questTreasury = questTreasuryPda(programId)
+    const questAta = getAssociatedTokenAddressSync(config.potatoMint, questTreasury, true)
+    const ix = await ixClaimAchievement(
+     programId,
+     {
+      config: pdas(programId).config(),
+      achievements: achievementsPda(publicKey, programId),
+      user: publicKey,
+      questTreasury,
+      questAta,
+      userAta,
+      potatoMint: config.potatoMint,
+     },
+     qid,
+     fields.map((f) => f.publicKey),
+    )
+    const userAtaExists = (await connection.getAccountInfo(userAta)) !== null
+    const ataIx = userAtaExists ? [] : [createAssociatedTokenAccountInstruction(publicKey, userAta, publicKey, config.potatoMint)]
+    await sendIx([...ataIx, ix])
+    const amount = QUEST_REWARDS_MICRO[qid]
     setClaimed((c) => ({ ...c, [questId]: true }))
-    notify('success', 'Награда получена', `+${fmtPotato(Number(json.amountMicro ?? 0), 0)} POTATO`)
+    notify('success', 'Награда получена', `+${fmtPotato(amount, 0)} POTATO (on-chain)`)
     await loadFields()
     return true
    } catch (err) {
@@ -417,7 +407,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return false
    }
   },
-  [publicKey, backendHeaders, notify, loadFields],
+  [publicKey, ready, config, connection, programId, sendIx, fields, notify, loadFields],
  )
 
  // ── Wallet helpers ──

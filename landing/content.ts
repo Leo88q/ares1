@@ -35,7 +35,7 @@ export interface ModuleTier {
 }
 
 export interface SocialLink {
-  readonly id: "telegram" | "x" | "discord";
+  readonly id: "x" | "discord";
   readonly label: string;
   readonly href: string;
 }
@@ -362,7 +362,6 @@ export const faq = [
 ] as const satisfies readonly FaqItem[];
 
 export const socialLinks = [
-  { id: "telegram", label: "Telegram", href: "#" },
   { id: "x", label: "X", href: "#" },
   { id: "discord", label: "Discord", href: "#" },
 ] as const satisfies readonly SocialLink[];
@@ -686,12 +685,9 @@ export const siteContent = {
   waitlist: {
     title: "СТАНЬ КОЛОНИСТОМ ПЕРВЫМ",
     subtitle:
-      "Оставь контакт — получишь ранний доступ к следующей волне пресейла и 100 $POTATO на старте.",
+      "Оставь email — получишь ранний доступ к следующей волне пресейла.",
     emailLabel: "Электронная почта",
-    telegramLabel: "Телеграм",
     emailPlaceholder: "колонист@ares1.mars",
-    telegramPlaceholder: "@tuber9_fan",
-    telegramHint: "Можно вставить имя с @ — уберём символ автоматически.",
     idle: "⚡ Занять место в шлюзе",
     loading: "⏳ Сканируем биометрию...",
     success:
@@ -702,8 +698,6 @@ export const siteContent = {
       "Демонстрационная форма: данные не отправляются и не сохраняются после закрытия страницы.",
     emailError:
       "Некорректный email. Марсианская почта должна быть земной.",
-    telegramError:
-      "Юзернейм без @, только латиница и цифры, 5+ символов",
     submitError:
       "Не удалось завершить проверку. Попробуй ещё раз.",
     retryLabel: "Попробовать снова",

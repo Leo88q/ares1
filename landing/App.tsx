@@ -81,7 +81,7 @@ import {
 } from "./hooks";
 
 const easeOut = [0.22, 1, 0.36, 1] as const;
-const emptyFieldErrors: FieldErrors = { email: "", telegram: "" };
+const emptyFieldErrors: FieldErrors = { email: "" };
 
 type Notify = (message: string) => void;
 
@@ -124,7 +124,6 @@ interface ActionProps extends ChildrenProps {
 
 interface FieldErrors {
   readonly email: string;
-  readonly telegram: string;
 }
 
 interface WaitlistResponse {
@@ -1892,7 +1891,6 @@ export function Waitlist(): JSX.Element {
   const { award } = useGamification();
   const { play } = useSounds();
   const emailRef = useRef<HTMLInputElement>(null);
-  const telegramRef = useRef<HTMLInputElement>(null);
   const controller = useRef<AbortController | null>(null);
   const lock = useRef(false);
   const mounted = useRef(true);
@@ -1902,7 +1900,6 @@ export function Waitlist(): JSX.Element {
   const demo = endpoint.length === 0;
 
   const [email, setEmail] = useState("");
-  const [telegram, setTelegram] = useState("");
   const [errors, setErrors] = useState<FieldErrors>(emptyFieldErrors);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [submitError, setSubmitError] = useState("");
@@ -1931,37 +1928,28 @@ export function Waitlist(): JSX.Element {
     }
 
     const normalizedEmail = email.trim();
-    const normalizedTelegram = telegram.trim().replace(/^@/, "");
-
     const nextErrors: FieldErrors = {
       email:
         normalizedEmail.length <= 254 &&
         /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalizedEmail)
           ? ""
           : siteContent.waitlist.emailError,
-      telegram:
-        /^[a-zA-Z0-9]{5,32}$/.test(normalizedTelegram)
-          ? ""
-          : siteContent.waitlist.telegramError,
     };
 
     setErrors(nextErrors);
     setSubmitError("");
 
-    if (nextErrors.email || nextErrors.telegram) {
+    if (nextErrors.email) {
       play("ui.error", 0.3);
 
       if (nextErrors.email) {
         emailRef.current?.focus();
-      } else {
-        telegramRef.current?.focus();
       }
 
       return;
     }
 
     setEmail(normalizedEmail);
-    setTelegram(normalizedTelegram);
     setStatus("loading");
     lock.current = true;
 
@@ -1991,7 +1979,6 @@ export function Waitlist(): JSX.Element {
           credentials: "omit",
           body: JSON.stringify({
             email: normalizedEmail,
-            telegram: normalizedTelegram,
             source: "ares-1-landing",
           }),
           signal: abort.signal,
@@ -2027,7 +2014,6 @@ export function Waitlist(): JSX.Element {
       }
 
       setEmail("");
-      setTelegram("");
       celebrate();
     } catch {
       if (mounted.current) {
@@ -2144,44 +2130,7 @@ export function Waitlist(): JSX.Element {
               )}
             </div>
 
-            <div className="form-field">
-              <label htmlFor="waitlist-telegram">{siteContent.waitlist.telegramLabel}</label>
-              <input
-                ref={telegramRef}
-                id="waitlist-telegram"
-                name="telegram"
-                type="text"
-                autoComplete="off"
-                autoCapitalize="none"
-                spellCheck={false}
-                maxLength={33}
-                required
-                value={telegram}
-                disabled={status === "loading"}
-                placeholder={siteContent.waitlist.telegramPlaceholder}
-                aria-invalid={Boolean(errors.telegram)}
-                aria-describedby={
-                  errors.telegram
-                    ? "telegram-hint telegram-error"
-                    : "telegram-hint"
-                }
-                onChange={(event) => {
-                  setTelegram(event.target.value);
-                  setErrors((current) => ({ ...current, telegram: "" }));
-                  if (status === "success") setStatus("idle");
-                }}
-              />
-              <p id="telegram-hint" className="field-hint">
-                {siteContent.waitlist.telegramHint}
-              </p>
-              {errors.telegram && (
-                <p id="telegram-error" className="field-error" role="alert">
-                  {errors.telegram}
-                </p>
-              )}
-            </div>
-
-            <Action
+                        <Action
               type="submit"
               loading={status === "loading"}
               success={status === "success"}

@@ -595,3 +595,66 @@ export async function ixRegisterReferrer(programId: PublicKey, params: {
     ],
   });
 }
+
+// ───────────────────────────────────────────────────────────────
+// Квесты/достижения on-chain (claim_achievement) — идентичность: кошелёк
+// ───────────────────────────────────────────────────────────────
+
+export const QUEST_REWARDS_MICRO = [50_000_000, 50_000_000, 100_000_000, 100_000_000, 200_000_000, 50_000_000] as const
+
+/** PDA ["achv", user] — bitmap выданных наград (одноразовые, u64). */
+export function achievementsPda(user: PublicKey, programId: PublicKey): PublicKey {
+ return PublicKey.findProgramAddressSync([Buffer.from('achv'), user.toBuffer()], programId)[0]
+}
+
+/** PDA ["quest_treasury"] — владеет пулом наград квестов (550 POTATO, заправлен init-onchain). */
+export function questTreasuryPda(programId: PublicKey): PublicKey {
+ return PublicKey.findProgramAddressSync([Buffer.from('quest_treasury')], programId)[0]
+}
+
+/** Bitmap выданных квестов из данных PDA Achievements (8 disc + u64 bitmap). */
+export function decodeAchievementsBitmap(data: Buffer): number {
+ if (data.length < 16) return 0
+ return Number(data.readBigUInt64LE(8))
+}
+
+/**
+ * claim_achievement(quest_id) — верификация прогресса в программе:
+ *  0: ≥1 поле · 1: ≥100 🥔 · 2: ≥1000 🥔 · 3: ≥5 полей · 4: ≥10 000 🥔 · 5: ≥6 полей, ≥3-го уровня одно.
+ * Поля игрока передаются в remaining_accounts (proof by ownership).
+ */
+export async function ixClaimAchievement(programId: PublicKey, params: {
+ config: PublicKey;
+ achievements: PublicKey;
+ user: PublicKey;
+ questTreasury: PublicKey;
+ questAta: PublicKey;
+ userAta: PublicKey;
+ potatoMint: PublicKey;
+}, questId: number, fieldPkas: PublicKey[]): Promise<TransactionInstruction> {
+ // Порядок ключей = полей ClaimAchievement в программе:
+ // config, achievements, user(signer), quest_treasury, quest_ata,
+ // user_potato_ata, potato_mint, token_program, system_program, [remaining: поля]
+ const DISCRIMINATOR_SIZE = 8;
+ const data = Buffer.alloc(DISCRIMINATOR_SIZE + 1);
+ const disc = await ixDiscriminator('claim_achievement');
+ data.set(disc, 0);
+ data.writeUInt8(questId, DISCRIMINATOR_SIZE);
+
+ return new TransactionInstruction({
+  programId,
+  data,
+  keys: [
+   { pubkey: params.config, isSigner: false, isWritable: true },
+   { pubkey: params.achievements, isSigner: false, isWritable: true },
+   { pubkey: params.user, isSigner: true, isWritable: true },
+   { pubkey: params.questTreasury, isSigner: false, isWritable: false },
+   { pubkey: params.questAta, isSigner: false, isWritable: true },
+   { pubkey: params.userAta, isSigner: false, isWritable: true },
+   { pubkey: params.potatoMint, isSigner: false, isWritable: false },
+   { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+   { pubkey: SystemProgram.programId, isSigner: false, isWritable: true },
+   ...fieldPkas.map((pk) => ({ pubkey: pk, isSigner: false, isWritable: false })),
+  ],
+ });
+}

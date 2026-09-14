@@ -2,9 +2,9 @@ import { CheckCircle, XCircle, Trophy } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import WalletManagement from './WalletManagement'
 import { ReferralSection } from './ReferralSection'
-import { useSolana } from '../contexts/SolanaContext'
+import { useSolana, CLUSTER } from '../contexts/SolanaContext'
 import { useGame } from '../contexts/GameContext'
-import { isTelegram } from '../utils/telegram'
+
 import { fmtPotato, fmtSkr, EXPORT_LICENSE_PRICE_SKR_ATOMS } from '../utils/constants'
 import { pdas, decodeExportLicense, ixBuyExportLicense, treasurySolPda, treasurySkrAta, TEST_SKR_MINT } from '../utils/anchorClient'
 import { getAssociatedTokenAddress } from '@solana/spl-token'
@@ -152,8 +152,7 @@ function ProfileScreenInner() {
     <div style={{ padding: 20 }}>
     <h3 className="ares-mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'rgba(255,179,71,0.85)', marginBottom: 12 }}>ДИАГНОСТИКА СКАФАНДРА</h3>
     <StatusRow label="Кошелёк" ok={connected} value={publicKey ? `${publicKey.toString().slice(0, 4)}…${publicKey.toString().slice(-4)}` : 'Не подключён'} />
-    <StatusRow label="Блокчейн" ok={ready} value={ready ? 'Подключён' : 'Загрузка…'} />
-    <StatusRow label="Telegram" ok={isTelegram()} value={isTelegram() ? 'Mini App' : 'Браузер'} />
+    <StatusRow label="Блокчейн" ok={ready} value={ready ? `Подключён (${CLUSTER})` : 'Загрузка…'} />
     </div>
    </HullPanel>
   </div>

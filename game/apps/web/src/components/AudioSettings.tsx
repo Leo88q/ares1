@@ -87,7 +87,7 @@ export default function AudioSettings() {
         </label>
        )}
        <SettingRow icon={soundsOn ? <Volume2 size={18} color="var(--ares-hud-amber, #FFB347)" /> : <VolumeX size={18} color="var(--ares-hud-amber, #FFB347)" />} title="Звуковые эффекты" subtitle="Сбор урожая, покупки, достижения" on={soundsOn} color="var(--ares-hud-amber, #FFB347)" onToggle={toggleSfx} />
-       <SettingRow icon={<Vibrate size={18} color="#FF2E93" />} title="Вибрация" subtitle="Тактильный отклик (Telegram / мобильные)" on={hapticOn} color="#FF2E93" onToggle={toggleHaptic} />
+       <SettingRow icon={<Vibrate size={18} color="#FF2E93" />} title="Вибрация" subtitle="Тактильный отклик (Web Vibration API)" on={hapticOn} color="#FF2E93" onToggle={toggleHaptic} />
        <SettingRow
         icon={<Bell size={18} color="var(--pf-gold)" />} title="Уведомления" color="var(--pf-gold)"
         subtitle={permissionGranted ? 'Урожай готов, истекает налог, низкая прочность' : 'Браузер попросит разрешение'}

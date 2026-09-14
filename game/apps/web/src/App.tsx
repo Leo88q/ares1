@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import InteractiveTutorial from './components/InteractiveTutorial'
 import BackgroundScene from './components/BackgroundScene'
@@ -7,7 +7,7 @@ import PageTransition from './components/PageTransition'
 import ErrorBoundary from './components/ErrorBoundary'
 import { ToastProvider } from './components/Toast'
 import { GameProvider } from './contexts/GameContext'
-import { initTelegram } from './utils/telegram'
+
 import { useReferralRegistration } from './hooks/useReferralRegistration'
 import { AresBottomNav } from './components/ares/AresBottomNav'
 import type { AresTab } from './components/ares/AresBottomNav'
@@ -28,10 +28,6 @@ export default function App() {
  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('potato_tutorial_done'))
  const [booted, setBooted] = useState(() => localStorage.getItem('potato_landed') === '1')
  useReferralRegistration()
-
- useEffect(() => {
-  initTelegram()
- }, [])
 
  return (
   <div className="pf-app-bg">

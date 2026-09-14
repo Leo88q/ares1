@@ -4,15 +4,12 @@
   "private": true,
   "workspaces": [
     "apps/web",
-    "apps/bot",
     "apps/backend"
   ],
   "scripts": {
     "build:web": "yarn workspace web build",
-    "build:bot": "yarn workspace bot build",
     "build:backend": "yarn workspace backend build",
     "dev:web": "yarn workspace web dev",
-    "dev:bot": "yarn workspace bot dev",
     "dev:backend": "yarn workspace backend dev",
     "init-onchain": "tsx scripts/init-onchain.ts",
     "migrate-v2": "tsx scripts/migrate-v2.ts",

@@ -1,6 +1,23 @@
 # AUDIT — текущее состояние репозитория (Этап 1 «Мастер-промта: довести игру до продакшена»)
 
 **Дата:** 14.09.2026 · **Объём:** `programs/solana_potato` (Anchor 0.30.1, Agave 4.2.2), `apps/web` (React/Vite, Telegram Mini App), `apps/backend` (Express), `apps/bot` (grammY), `landing/`, скрипты деплоя, CI.
+
+> **⚠ Изменение после этого аудита (14.09.2026, продуктивное решение):**
+> Telegram удалён полностью (Mini App, кран наград, бот, initData, рефералка
+> через бота) — продукт целится в **Solana dApp Store**, идентичность = кошелёк.
+> Последствия для документов:
+> - `apps/bot/` удалён (workspaces, CI, README).
+> - `apps/backend` урезан: больше нет крана наград (`/api/reward/*`) и
+>   рефералки (`/api/referral/*`) — остались `/health`, `/api/config` и
+>   on-chain epoch-roller. Найдения **I7, I12, I13** (и всё, что связано с
+>   `TELEGRAM_CHANNEL_ID`, `VITE_BOT_USERNAME`, `getChatMember`, initData)
+>   **не актуальны** — код удалён.
+> - Квесты/нашивки теперь on-chain: `claim_achievement` (идентичность —
+>   кошелёк, пул 550 🥔). Рефералка on-chain: `register_referrer`/`fill_order`.
+> - Экономика пересчитана без TG-крана — см. `ECONOMY-AUDIT-2026-09-14.md §9`
+>   (finding E1 недействителен).
+> Ниже — состояние **на момент аудита** (историческая справка); строки,
+> описывающие TG-компоненты, отражают тот срез, а не текущий.
 **Живое состояние:** devnet-программа `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf` (config, эпоха, пресейл cap 500 / 0.25 SOL / 1053 SKR, казны, SKR-рельса активна). Предыстория закрытых дефектов: `docs/AUDIT-2026-09-13.md` (C1–C9, H1–H4 закрыты) и гит-лог.
 
 Критичность: **blocker** — без этого «продакшн» невозможен; **important** — нужно закрыть до mainnet, но devnet-игра работает; **nice-to-have** — гигиена.

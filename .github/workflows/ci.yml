@@ -75,8 +75,9 @@ jobs:
         run: |
           set -o pipefail
           if ! cargo test -p solana_potato --lib 2>&1 | tee /tmp/cargo-test.log; then
-            grep -E "^test .* FAILED|^failures:$|panicked at|^error\[" /tmp/cargo-test.log | head -20 | sed 's/^/::error file=programs\/solana_potato\/src\/lib.rs::/'
-            echo "::error title=cargo-test-failed::$(grep -E '^error(\[|:)' /tmp/cargo-test.log | head -8 | tr '\n' ' | ' | head -c 5000)"
+            ERRS=$(grep -E "^error|^test .* FAILED|panicked at" /tmp/cargo-test.log | head -12 | tr '\n' ' | ' | head -c 4000)
+            TAIL=$(tail -n 25 /tmp/cargo-test.log | tr '\n' ' | ' | head -c 3000)
+            echo "::error title=cargo-test-failed::${ERRS:-ошибок не найдено} :: tail :: ${TAIL}"
             exit 1
           fi
 
@@ -84,7 +85,9 @@ jobs:
         run: |
           set -o pipefail
           if ! anchor build 2>&1 | tee /tmp/anchor-build.log; then
-            echo "::error title=anchor-build-failed::$(grep -E '^error|panicked' /tmp/anchor-build.log | head -15 | tr '\n' ' | ' | head -c 5000)"
+            ERRS=$(grep -E "^error|panicked" /tmp/anchor-build.log | head -12 | tr '\n' ' | ' | head -c 4000)
+            TAIL=$(tail -n 25 /tmp/anchor-build.log | tr '\n' ' | ' | head -c 3000)
+            echo "::error title=anchor-build-failed::${ERRS:-ошибок не найдено} :: tail :: ${TAIL}"
             exit 1
           fi
 
@@ -146,7 +149,7 @@ jobs:
           path: game/apps/web/dist
 
   backend:
-    name: Backend + bot (typecheck)
+    name: Backend (typecheck)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -172,4 +175,3 @@ jobs:
             echo "::error title=tsc-be-failed::$(grep -cE 'error TS' /tmp/tsc-be.log) ошибок; хвост: $(tail -n 10 /tmp/tsc-be.log | tr '\n' ' | ' | head -c 3000)"
             exit 1
           fi
-      - run: yarn workspace bot build

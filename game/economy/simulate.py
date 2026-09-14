@@ -14,7 +14,8 @@ Solana Potato — 12-месячная симуляция экономики (п�
 * стоки (total_burned в lib.rs): покупка поля 100/250/500, налог-поддержка
   6/нед × (L+1)/2 × type, ремонт 15 × max(1, L//3) × type, апгрейд 100×L×type,
   комиссия рынка 9/10/11/12% (60% → burn)
-* квесты: разовый пул 550 🥔; TG-кран: 10% активных × 500/день (ограничен капом)
+* квесты: разовый пул 550 🥔 (on-chain claim_achievement; TG-кран удалён
+  продуктовым решением 14.09.2026 — дApp Store, минт только harvest + квесты)
 * max supply 1 000 000 000 🥔
 
 Упрощения (задокументированы):
@@ -26,7 +27,7 @@ Solana Potato — 12-месячная симуляция экономики (п�
   P' = P · clamp(1 + κ·(D−S)/S, ±20%/день), κ=0.5;
   D = только закупки новичков (вход + топливо на 30 дней upkeep) — единственный
   источник НОВОГО SOL; внутренние сделки игрок→игрок цену не поддерживают;
-  S = продажи за день (включая крановые 🥔). Это не oracle-модель — ориентир,
+  S = продажи за день. Это не oracle-модель — ориентир,
   не прогноз; модельный пол 1e-8 — числовой, не ценовой.
 * сценарии — steady state: 10 / 1 000 / 100 000 активных, churn 15%/год.
 
@@ -50,8 +51,6 @@ TAX_BASE_BPS, TAX_GROWTH_BPS = 200, 800   # 2% + 8%·ratio², потолок 10%
 TAX_CAP_BPS = 1000
 FEE_BURN_SHARE = 0.60                    # 60% комиссии рынка → burn
 QUEST_POOL_ONE_TIME = 550.0
-TG_DAILY_CLAIM = 500.0                   # 🥔/день на игрока
-TG_ACTIVE_SHARE = 0.10                   # допущение: 10% активных забирают
 DURABILITY_FLOOR = 20.0
 DURABILITY_DRAIN = 4.0                    # /день
 DURABILITY_REPAIR_AT = 25.0
@@ -133,7 +132,7 @@ def simulate(n_players: int, months: int = 12) -> dict:
     cap = CAP_MIN
     price = PRICE_POTATO_INIT
     price_min, price_max = price, price
-    mint_total = burn_total = tg_total = 0.0
+    mint_total = burn_total = 0.0
     fee_burn_total = tax_burn_total = sold_total = treasury_total = 0.0
     entry_burn_total = 0.0
     cap_hits = 0
@@ -158,14 +157,13 @@ def simulate(n_players: int, months: int = 12) -> dict:
         day_mint_all = 0.0                          # ВСЕ минты эпохи (для U)
         day_upkeep_pp_sum = 0.0                     # upkeep дня (для demand-модели)
 
-        # ── пропуск 1: спрос дня (выплаты + TG), без распределения капа ──
+        # ── пропуск 1: спрос дня (выплаты harvest), без распределения капа ──
         for c in cohorts:
             gross_pp = c.gross_per_player(day)
             c._tb = harvest_tax_bps(supply)
             c._net_pp = gross_pp * (1 - c._tb)
             c._tax_pp = gross_pp * c._tb
         harvest_demand = sum(c._net_pp * c.count for c in cohorts)
-        tg_demand = n * TG_ACTIVE_SHARE * TG_DAILY_CLAIM
 
         # квесты (разово) первыми, из капа
         q = 0.0
@@ -177,22 +175,13 @@ def simulate(n_players: int, months: int = 12) -> dict:
             quest_granted = True
         cap_share = cap - q
         # распределение капа: если спрос < капа — все получают полностью;
-        # иначе пропорционально спросу (допущение о порядке транзакций;
-        # "TG первым" = наихудший случай для игроков, "TG последним" = лучший)
-        total_demand = harvest_demand + tg_demand
-        if total_demand <= 0:
-            harvest_scale, tg = 1.0, 0.0
-        elif cap_share >= total_demand:
-            harvest_scale, tg = 1.0, min(tg_demand, MAX_SUPPLY - supply)
+        # иначе пропорционально спросу (допущение о порядке транзакций)
+        if harvest_demand <= 0:
+            harvest_scale = 1.0
+        elif cap_share >= harvest_demand:
+            harvest_scale = 1.0
         else:
-            ratio = cap_share / total_demand
-            harvest_scale = ratio
-            tg = min(tg_demand * ratio, MAX_SUPPLY - supply)
-        supply += tg
-        day_mint_all += tg
-        mint_total += tg
-        tg_total += tg
-        day_sold += tg                               # крановые 🥔 продаются (чистый кран)
+            harvest_scale = cap_share / harvest_demand
 
         # ── пропуск 2: выплаты по капу ──
         for c in cohorts:
@@ -305,7 +294,7 @@ def simulate(n_players: int, months: int = 12) -> dict:
         "totals": {
             "mint": mint_total, "burn": burn_total, "fee_burn": fee_burn_total,
             "tax_burn": tax_burn_total, "entry_burn": entry_burn_total,
-            "tg_mint": tg_total, "sold": sold_total,
+            "sold": sold_total,
             "treasury": treasury_total, "cap_hits": cap_hits,
         },
     }
@@ -320,7 +309,6 @@ def cross_scale() -> list:
         rows.append({
             "n": n,
             "burn_mint": t["burn"] / max(1e-9, t["mint"]),
-            "tg_share": t["tg_mint"] / max(1e-9, t["mint"]) * 100,
             "cap_hits": t["cap_hits"],
             "supply_m": r["final_supply"] / 1e6,
             "price_end": r["price_end"],
@@ -336,14 +324,13 @@ def report() -> str:
     lines += [
         "## Пересчёт по масштабам (12 месяцев, steady state)",
         "",
-        "| Игроки | Burn/Mint | TG-кран, % минтов | Кап эпохи | Supply через год, M🥔 | Цена через год |",
-        "|---|---|---|---|---|---|",
+        "| Игроки | Burn/Mint | Кап эпохи | Supply через год, M🥔 | Цена через год |",
+        "|---|---|---|---|---|",
     ]
     for row in cross_scale():
         lines.append(
             f"| {row['n']:,} | {row['burn_mint']:.2f} "
             f"({'дефляция' if row['burn_mint'] > 1 else 'инфляция'}) "
-            f"| {row['tg_share']:.0f}% "
             f"| {'**режет**' if row['cap_hits'] else 'нет'} "
             f"| {row['supply_m']:,.2f} | {max(row['price_end'], PRICE_FLOOR_REPORT):.1e} |")
     lines += ["", "---", ""]
@@ -360,7 +347,6 @@ def report() -> str:
             lines.append(
                 f"| {m['month']} | {m['mint']:,.0f} | {m['burn']:,.0f} | {m['burn_mint']:.2f} "
                 f"| {m['supply'] / 1e6:,.3f} | {m['sold']:,.0f} | {m['cap']:,.0f} | {m['price']:.2e} |")
-        tg_share = t["tg_mint"] / max(1e-9, t["mint"])
         tax_at_end = min(0.10, 0.02 + 0.08 * (r["final_supply"] / MAX_SUPPLY) ** 2)
         lines += [
             "",
@@ -370,10 +356,10 @@ def report() -> str:
             f"- За год: mint {t['mint'] / 1e6:.2f} M, burn {t['burn'] / 1e6:.2f} M "
             f"→ **burn/mint = {t['burn'] / max(1e-9, t['mint']):.2f}** "
             f"({'дефляция' if t['burn'] > t['mint'] else 'инфляция'})",
-            f"  (TG-кран {t['tg_mint'] / 1e6:.2f} M = {tg_share * 100:.0f}% всех минтов; "
-            f"налог→burn {t['tax_burn'] / 1e6:.2f} M; комиссия→burn {t['fee_burn'] / 1e6:.2f} M; "
+            f"  (налог→burn {t['tax_burn'] / 1e6:.2f} M; комиссия→burn {t['fee_burn'] / 1e6:.2f} M; "
             f"вход-поля {t['entry_burn'] / 1e6:.2f} M; "
-            f"upkeep/апгрейд {(t['burn'] - t['tax_burn'] - t['fee_burn'] - t['entry_burn']) / 1e6:.2f} M)",
+            f"upkeep/апгрейд {(t['burn'] - t['tax_burn'] - t['fee_burn'] - t['entry_burn']) / 1e6:.2f} M; "
+            f"квесты — разовые {QUEST_POOL_ONE_TIME:.0f} 🥔, день 0, из капа эпохи)",
             f"- Казна 🥔: {t['treasury'] / 1e6:.2f} M за год "
             f"≈ {t['treasury'] * PRICE_POTATO_INIT:.0f} SOL по стартовой цене 1e-4",
             f"- Цена (модель клиринга): 1.00e-04 → **{max(r['price_end'], PRICE_FLOOR_REPORT):.1e}** SOL/🥔 "

@@ -1,8 +1,8 @@
 # 🥔 Solana Potato
 
-On-chain фарм-игра на Solana с реальной экономикой: поля, урожай $POTATO, P2P-маркетплейс за SOL, Telegram Mini App.
+On-chain фарм-игра на Solana с реальной экономикой: поля, урожай $POTATO, P2P-маркетплейс за SOL, PWA-дApp для Solana dApp Store.
 
-Монорепо: Anchor-программа · React/Vite Mini App · Express-бэкенд наград · Telegram-бот · релиз в Solana dApp Store.
+Монорепо: Anchor-программа · React/Vite dApp (PWA) · Express-бэкенд эпох и конфига · релиз в Solana dApp Store.
 
 > Это игра, а не инвестиционный продукт. Перед mainnet обязателен внешний аудит (см. [docs/AUDIT.md](docs/AUDIT.md)).
 
@@ -10,9 +10,8 @@ On-chain фарм-игра на Solana с реальной экономикой:
 
 ```
 programs/solana_potato/     Anchor 0.30.1 программа (Rust) — 19 инструкций, 6 типов аккаунтов
-apps/web/                   Telegram Mini App / PWA (React 18 + Vite 5 + wallet-adapter)
-apps/backend/               Сервис наград и эпох: держит authority-ключ, проверяет Telegram initData
-apps/bot/                   Telegram-бот (grammy): открывает Mini App, принимает referral payload
+apps/web/                   PWA / dApp (React 18 + Vite 5 + wallet-adapter) — целим в Solana dApp Store
+apps/backend/               Сервис эпох и конфига: держит authority-ключ, роллит эпохи, отдаёт on-chain config
 tests/                      Интеграционные тесты anchor test (ts-mocha)
 scripts/                    deploy-local/devnet/mainnet, init-onchain, build-apk
 economy/                    simulate.py — годовая симуляция экономики; model.csv — старая ручная модель
@@ -28,7 +27,7 @@ libs/                       sentinel, solana-tx-guard — отдельные р�
 * **Поля** трёх типов (100 / 250 / 500 🥔) накапливают урожай до 48 часов; налог раз в 7 дней, износ, удобрения, 50 уровней. Все траты **сжигаются**.
 * **Маркетплейс**: escrow-ордера 🥔 за SOL, TTL 24 ч, комиссия 3–12 % (60 % сжигается, 40 % в казну), запрет self-trade, кулдаун 3 ч после отмены.
 * **Эпохи** по 24 ч ротируются кем угодно (`roll_epoch`), бэкенд делает это кроном.
-* **Награды** выдаёт только сервер от имени authority после HMAC-проверки Telegram `initData` и on-chain верификации прогресса.
+* **Награды** за квесты — он-чейн пул (550 POTATO в GameConfig); путь выдачи (claim) включается в следующем релизе. Рефералка — on-chain (−1 % комиссии приглашённому, +0.5 % рефереру за каждую сделку; идентичность — кошелёк).
 
 Формулы, баланс и результаты симуляции — в [docs/ECONOMY.md](docs/ECONOMY.md).
 
@@ -40,7 +39,7 @@ libs/                       sentinel, solana-tx-guard — отдельные р�
 | Solana CLI (Agave) | **4.2.x** (platform-tools ≥ v1.5) | `Cargo.lock` v4; 1.18.x не соберёт |
 | Anchor | **0.30.1** через avm | `Anchor.toml [toolchain]` пинит `solana_version = "4.2.2"` — иначе avm подменит тулчейн на 1.18 |
 | Rust nightly для IDL | `nightly-2025-03-01` | Anchor 0.30.1 строит IDL каналом `nightly`; nightly новее апреля 2025 не имеет `proc_macro::SourceFile`. Установите датированный nightly и слинкуйте его как `nightly` (`ln -sfn ~/.rustup/toolchains/nightly-2025-03-01-* ~/.rustup/toolchains/nightly-<host>`). `proc-macro2` запинен в `Cargo.lock` на 1.0.94 по той же причине |
-| Node | 20+ и yarn 1.22 (corepack) | workspaces: web, bot, backend |
+| Node | 20+ и yarn 1.22 (corepack) | workspaces: web, backend |
 | Python | 3.10+ | только для `economy/simulate.py` |
 
 ## Быстрый старт
@@ -81,7 +80,7 @@ yarn build                              # dist/ → любой статичес�
 ### Бэкенд
 
 ```bash
-cd apps/backend && cp .env.example .env   # RPC_URL, PROGRAM_ID, AUTHORITY_KEYPAIR_JSON, TELEGRAM_BOT_TOKEN, CORS_ORIGIN
+cd apps/backend && cp .env.example .env   # RPC_URL, PROGRAM_ID, AUTHORITY_KEYPAIR_JSON, CORS_ORIGIN
 mkdir -p keys && cp <admin-keypair.json> keys/
 yarn build && yarn start                  # или docker compose up -d backend
 curl localhost:8080/health
@@ -89,20 +88,13 @@ curl localhost:8080/health
 
 Эндпоинты и правила — [docs/API.md](docs/API.md).
 
-### Бот
-
-```bash
-cd apps/bot && cp .env.example .env       # TELEGRAM_BOT_TOKEN, WEB_APP_URL
-yarn build && yarn start
-```
-
 ### Solana dApp Store
 
 [docs/dapp-store-release.md](docs/dapp-store-release.md) — PWA → TWA через Bubblewrap и сабмит на publish.solanamobile.com.
 
 ## CI
 
-`.github/workflows/ci.yml`: `cargo test` → `anchor build` → проверка, что `apps/web/src/idl.json` совпадает с IDL сборки → `anchor test`; отдельно `tsc` + `vite build` для web и `tsc` для backend/bot.
+`.github/workflows/ci.yml`: `cargo test` → `anchor build` → проверка, что `apps/web/src/idl.json` совпадает с IDL сборки → `anchor test`; отдельно `tsc` + `vite build` для web и `tsc` для backend.
 
 ## Безопасность — коротко
 
@@ -119,7 +111,7 @@ yarn build && yarn start
 | `anchor build` (Agave 4.2.2, platform-tools v1.54, Anchor 0.30.1) | ок: `.so` 489 400 байт, без предупреждений о стеке; IDL совпадает со старым по всем 19 инструкциям (добавлены только события и ошибки 6022–6029) |
 | `anchor test` (локальный валидатор 4.2.2) | **28 passing** (1 мин) |
 | Compute units (макс. по логам валидатора) | fill_order 80 172 · create_sell_order 42 748 · create_field 15 966 · harvest 13 361 · остальные < 22 000 |
-| `tsc --noEmit` web / backend / bot | 0 ошибок |
+| `tsc --noEmit` web / backend | 0 ошибок |
 | `vite build` | ок, ~290 KB gzip, 4 lazy-экрана + 5 vendor-чанков |
 | `python3 economy/simulate.py` | ок |
 | Redeploy devnet (`solana program extend` + `deploy`) | ок, слот 493194605, tx `29V5xNzs3MqQHjJS7tGyfFCz5cPaeLNmQMgWuGZPeHzXHD63cj5WoTaeeuG7WpWJ4Vyeeubg4MxmHsas5jMPGaCj` |

@@ -1,11 +1,8 @@
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { env } from "./env.js";
-import { rewardRouter } from "./routes/reward.js";
-import { referralRouter } from "./routes/referral.js";
 import { configRouter } from "./routes/config.js";
 import { startEpochRoller } from "./epochRoller.js";
-import { startReferralChecker } from "./referralChecker.js";
 import { authorityKeypair, connection, fetchConfig, programId } from "./solana.js";
 
 /** Minimal fixed-window rate limiter per IP (no extra dependency). */
@@ -44,9 +41,7 @@ async function main() {
       res.status(503).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
     }
   });
-  app.use("/api/config", configRouter);
-  app.use("/api/reward", rateLimit(env.rateLimitPerMinute), rewardRouter);
-  app.use("/api/referral", rateLimit(env.rateLimitPerMinute), referralRouter);
+  app.use("/api/config", rateLimit(env.rateLimitPerMinute), configRouter);
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     console.error("[http] unhandled error:", err);
@@ -55,19 +50,15 @@ async function main() {
 
   const config = await fetchConfig();
   if (!config.authority.equals(authorityKeypair.publicKey)) {
-    // Fail-fast: с неверным ключом /claim падает у каждого пользователя (AUDIT I14)
+    // Fail-fast: с неверным ключом epoch-roller не сможет роллить эпохи (AUDIT I14)
     console.error(
       `[startup] FATAL: keypair ${authorityKeypair.publicKey.toBase58()} is not GameConfig.authority (${config.authority.toBase58()}). ` +
       `Проверьте AUTHORITY_KEYPAIR_JSON. Бэкенд не запускается.`,
     );
     process.exit(1);
   }
-  if (!env.telegramChannelId) {
-    console.warn("[startup] WARNING: TELEGRAM_CHANNEL_ID не задан — квест «подписка на канал» скрыт и не выдаётся.");
-  }
 
   startEpochRoller();
-  startReferralChecker();
   app.listen(env.port, () => {
     console.log(`[startup] Solana Potato backend on :${env.port}`);
     console.log(`[startup] program=${programId.toBase58()} rpc=${env.rpcUrl}`);
