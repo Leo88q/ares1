@@ -19,7 +19,9 @@ solana_potato = "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+# anchor deploy/deploy-family commands target devnet (our working cluster).
+# anchor test starts its own localnet validator regardless of this value.
+cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
