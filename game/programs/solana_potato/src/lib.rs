@@ -1194,12 +1194,12 @@ pub mod solana_potato {
         let treasury = ctx.accounts.treasury_sol.to_account_info();
         let current = treasury.lamports();
         require!(amount_lamports <= current, GameError::InvalidAmount);
-        treasury.borrow_mut().lamports = current
+        *treasury.lamports_mut() = current
             .checked_sub(amount_lamports)
             .ok_or(GameError::MathOverflow)?;
         let authority = ctx.accounts.authority.to_account_info();
         let new_balance = authority.lamports().checked_add(amount_lamports).ok_or(GameError::MathOverflow)?;
-        authority.borrow_mut().lamports = new_balance;
+        *authority.lamports_mut() = new_balance;
         emit!(TreasurySolWithdrawn { destination: authority.key(), amount_lamports });
         Ok(())
     }
@@ -1795,8 +1795,8 @@ pub struct BuyExportLicense<'info> {
     /// CHECK: treasury_sol PDA — владелец ATA казны
     #[account(mut, seeds = [b"treasury_sol"], bump)]
     pub treasury_sol: AccountInfo<'info>,
+    // init-аккаунт имплицитно mut (в anchor 0.30 явный `mut` с init запрещён)
     #[account(
-        mut,
         init_if_needed,
         payer = payer,
         associated_token::mint = skr_mint,
@@ -2143,8 +2143,11 @@ pub struct WithdrawSkrTreasury<'info> {
     pub authority: Signer<'info>,
     #[account(address = SKR_MINT)]
     pub skr_mint: Account<'info, Mint>,
-    #[account(mut, init_if_needed, payer = authority, associated_token::mint = skr_mint, associated_token::authority = authority)]
+    // init-аккаунт имплицитно mut (в anchor 0.30 явный `mut` с init запрещён);
+    // init_if_needed + associated_token требует system_program в контексте
+    #[account(init_if_needed, payer = authority, associated_token::mint = skr_mint, associated_token::authority = authority)]
     pub destination_ata: Account<'info, TokenAccount>,
+    pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
 }

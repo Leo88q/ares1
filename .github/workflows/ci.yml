@@ -79,25 +79,35 @@ jobs:
         run: |
           set -o pipefail
           if ! cargo test -p solana_potato --lib 2>&1 | tee /tmp/cargo-test.log; then
-            # Построчные file-аннотации (длинный payload в title-аннотации GitHub молча бросает)
+            # Построчные аннотации: file= должен указывать на РЕАЛЬНЫЙ файл
+            # (GitHub молча бросает аннотацию, если file= — директория)
             grep -E "^error|^test .* FAILED|panicked at|^  --> " /tmp/cargo-test.log \
               | head -15 | sed 's/::/:/g' \
               | while IFS= read -r line; do
                   [ -z "$line" ] && continue
-                  echo "::error file=game/programs/solana_potato::cargo: ${line:0:400}"
+                  echo "::error file=game/programs/solana_potato/src/lib.rs::cargo: ${line:0:400}"
                 done
-            # Зеркало хвоста лога в PR-комментарий (sandbox не видит run-логи/артефакты)
+            # Зеркало в PR-комментарий: ПЕРВЫЕ ошибки (макро-ошибки derive лежат
+            # в начале лога) + хвост (sandbox не видит run-логи/артефакты)
             if [ -n "$PR_URL" ]; then
               {
                 echo "### :x: cargo test failed (run $GITHUB_RUN_ID)"
+                echo "**Первые ошибки:**"
                 echo '```'
-                tail -n 60 /tmp/cargo-test.log
+                grep -E "^error|^  --> " /tmp/cargo-test.log | head -20
+                echo '```'
+                echo "**Хвост лога:**"
+                echo '```'
+                tail -n 40 /tmp/cargo-test.log
                 echo '```'
               } > /tmp/pr-comment.md
               curl -sS -o /tmp/pr-comment-resp.json -w "PR comment: %{http_code}\n" -X POST "$PR_URL" \
                 -H "Authorization: Bearer $GITHUB_TOKEN" \
                 -H "Accept: application/vnd.github+json" \
-                --data-binary @/tmp/pr-comment.md || echo "PR comment failed (non-fatal)"
+                --data-binary @/tmp/pr-comment.md || {
+                echo "PR comment failed (non-fatal)"
+                cat /tmp/pr-comment-resp.json 2>/dev/null
+              }
             fi
             exit 1
           fi
@@ -110,19 +120,27 @@ jobs:
               | head -15 | sed 's/::/:/g' \
               | while IFS= read -r line; do
                   [ -z "$line" ] && continue
-                  echo "::error file=game/programs/solana_potato::anchor build: ${line:0:400}"
+                  echo "::error file=game/programs/solana_potato/src/lib.rs::anchor build: ${line:0:400}"
                 done
             if [ -n "$PR_URL" ]; then
               {
                 echo "### :x: anchor build failed (run $GITHUB_RUN_ID)"
+                echo "**Первые ошибки:**"
                 echo '```'
-                tail -n 60 /tmp/anchor-build.log
+                grep -E "^error|^  --> " /tmp/anchor-build.log | head -20
+                echo '```'
+                echo "**Хвост лога:**"
+                echo '```'
+                tail -n 40 /tmp/anchor-build.log
                 echo '```'
               } > /tmp/pr-comment.md
               curl -sS -o /tmp/pr-comment-resp.json -w "PR comment: %{http_code}\n" -X POST "$PR_URL" \
                 -H "Authorization: Bearer $GITHUB_TOKEN" \
                 -H "Accept: application/vnd.github+json" \
-                --data-binary @/tmp/pr-comment.md || echo "PR comment failed (non-fatal)"
+                --data-binary @/tmp/pr-comment.md || {
+                echo "PR comment failed (non-fatal)"
+                cat /tmp/pr-comment-resp.json 2>/dev/null
+              }
             fi
             exit 1
           fi
