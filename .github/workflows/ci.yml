@@ -38,7 +38,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      # Запинчено под рабочую версию (rustc 1.97.1) — свежий stable ломает
+      # proc-macro2 в anchor build (Span::source_file удалён из proc_macro).
+      - uses: dtolnay/rust-toolchain@1.97.1
 
       # Кэш разбит на два: actions/cache молча не сохраняет запись >10 ГБ,
       # и один общий кэш (registry+git+bin+target) мог целиком пропускаться.
