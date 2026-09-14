@@ -70,8 +70,9 @@ jobs:
         run: |
           sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
-          anchor --version 2>/dev/null || true
+          anchor --version 2>/dev/null || echo "anchor not installed yet"
 
       - name: Install Anchor
         run: |
