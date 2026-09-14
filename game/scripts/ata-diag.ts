@@ -18,9 +18,21 @@ function fpa(seeds: PublicKey[], program: PublicKey): PublicKey {
 
 async function main() {
   const res = await conn.getParsedTokenAccountsByOwner(admin.publicKey, { program: "spl-token" });
-  if (!res.value.length) throw new Error("у кошелька нет token-аккаунтов");
-  const ta = res.value[0];
-  const info = ta.account.data.parsed.info;
+  console.log("Token-аккаунтов владельца:", res.value.length);
+  let ta: any;
+  for (const acc of res.value) {
+    const info = (acc.account.data as any).parsed?.info;
+    if (info?.mint && info?.owner && info?.tokenAmount) {
+      ta = acc;
+      break;
+    }
+  }
+  if (!ta) {
+    console.error("Подходящий аккаунт не найден. Первый аккаунт (сыро):");
+    console.error(JSON.stringify(res.value[0]?.account.data, null, 2)?.slice(0, 800));
+    throw new Error("нет parse-able token-аккаунта");
+  }
+  const info = (ta.account.data as any).parsed.info;
   const mint = new PublicKey(info.mint);
   const owner = new PublicKey(info.owner);
   const realAta = ta.pubkey;
