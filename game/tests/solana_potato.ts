@@ -674,14 +674,15 @@ describe("solana_potato", () => {
 
   describe("quest pool (claim_achievement)", () => {
     const questTreasuryPda = pda(Buffer.from("quest_treasury"));
-    const questAta = getAssociatedTokenAddressSync(mint, questTreasuryPda, true);
+    // Лениво: mint задаётся во внешнем before() — на момент загрузки файла undefined
+    const questAta = () => getAssociatedTokenAddressSync(mint, questTreasuryPda, true);
     const achvPda = (user: PublicKey) => pda(Buffer.from("achv"), user.toBuffer());
     const POOL = 550_000_000n; // 550 🥔 — зеркало QUEST_REWARD_MICRO
 
     const claim = async (user: Keypair, questId: number, fields: PublicKey[] = [], userPotatoAta: PublicKey = playerAta) =>
       program.methods.claimAchievement(questId).accountsPartial({
         config: configPda, achievements: achvPda(user.publicKey), user: user.publicKey,
-        questTreasury: questTreasuryPda, questAta, userPotatoAta,
+        questTreasury: questTreasuryPda, questAta: questAta(), userPotatoAta,
         potatoMint: mint, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
       }).remainingAccounts(fields).signers([user]).rpc();
 
@@ -693,15 +694,15 @@ describe("solana_potato", () => {
       ));
       await getOrCreateAssociatedTokenAccount(connection, admin, mint, questTreasuryPda, true);
       await program.methods.grantReward(new BN(POOL.toString())).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: questAta, tokenProgram: TOKEN_PROGRAM_ID,
+        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: questAta(), tokenProgram: TOKEN_PROGRAM_ID,
       }).rpc();
-      expect(await ataBalance(questAta)).to.eq(POOL);
+      expect(await ataBalance(questAta())).to.eq(POOL);
     });
 
     it("funds the 550 🥔 pool and pays quest 0 (1 field) from it", async () => {
       const playerAtaBefore = await ataBalance(playerAta);
       await claim(player, 0, presaleFieldIds.slice(0, 1));
-      expect((await ataBalance(questAta))).to.eq(POOL - 50_000_000n);
+      expect((await ataBalance(questAta()))).to.eq(POOL - 50_000_000n);
       expect((await ataBalance(playerAta)) - playerAtaBefore).to.eq(50_000_000n);
       const achv = await program.account.achievements.fetch(achvPda(player.publicKey));
       expect(achv.bitmap.toNumber() & 1).to.eq(1);
@@ -731,21 +732,21 @@ describe("solana_potato", () => {
       await expectFail(claim(saver, 2, [], saverAta), "BadProof");
       await claim(saver, 1, [], saverAta);
       expect(await ataBalance(saverAta)).to.eq(200_000_000n); // 150 + 50 (награда)
-      expect(await ataBalance(questAta)).to.eq(POOL - 50_000_000n - 50_000_000n);
+      expect(await ataBalance(questAta())).to.eq(POOL - 50_000_000n - 50_000_000n);
 
       await program.methods.grantReward(new BN("900000000")).accountsPartial({
         config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: saverAta, tokenProgram: TOKEN_PROGRAM_ID,
       }).rpc();
       await claim(saver, 2, [], saverAta); // 1100 🥔 ≥ 1000
       expect(await ataBalance(saverAta)).to.eq(1200_000_000n);
-      expect(await ataBalance(questAta)).to.eq(POOL - 50_000_000n - 50_000_000n - 100_000_000n);
+      expect(await ataBalance(questAta())).to.eq(POOL - 50_000_000n - 50_000_000n - 100_000_000n);
     });
 
     it("pays quest 3 (5 fields) to the player", async () => {
       const playerAtaBefore = await ataBalance(playerAta);
       await claim(player, 3, presaleFieldIds.slice(0, 5));
       expect((await ataBalance(playerAta)) - playerAtaBefore).to.eq(100_000_000n);
-      expect(await ataBalance(questAta)).to.eq(POOL - 50_000_000n - 50_000_000n - 100_000_000n - 100_000_000n);
+      expect(await ataBalance(questAta())).to.eq(POOL - 50_000_000n - 50_000_000n - 100_000_000n - 100_000_000n);
     });
 
     it("rejects out-of-range quest ids and claims while paused", async () => {
