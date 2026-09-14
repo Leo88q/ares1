@@ -806,9 +806,10 @@ describe("solana_potato", () => {
       }).rpc();
       const treasuryAfter = await connection.getBalance(treasurySolPda);
       expect(treasuryBefore - treasuryAfter).to.eq(10_000_000);
-      // admin: +10_000 lamports минус сетевая комиссия (5 000, без priority fee на localnet)
+      // admin: +10_000_000 lamports минус сетевая комиссия (5 000, без priority
+      // fee на localnet) => 9_995_000 +- пара lamports (факт: 9_995_008)
       const adminDelta = (await connection.getBalance(admin.publicKey)) - adminBefore;
-      expect(adminDelta).to.be.within(4_000, 10_000);
+      expect(adminDelta).to.be.within(9_990_000, 10_000_000);
     });
 
     it("rejects withdrawing more than the vault holds", async () => {
