@@ -37,14 +37,26 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      # Кэш разбит на два: actions/cache молча не сохраняет запись >10 ГБ,
+      # и один общий кэш (registry+git+bin+target) мог целиком пропускаться.
       - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             ~/.cargo/bin
-            game/target
-          key: ${{ runner.os }}-anchor-${{ env.ANCHOR_VERSION }}-${{ hashFiles('game/Cargo.lock') }}
+          key: ${{ runner.os }}-anchor-deps-${{ env.ANCHOR_VERSION }}-${{ hashFiles('game/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-anchor-${{ env.ANCHOR_VERSION }}-${{ hashFiles('game/Cargo.lock') }}
+            ${{ runner.os }}-anchor-${{ env.ANCHOR_VERSION }}-
+
+      - uses: actions/cache@v4
+        with:
+          path: game/target
+          key: ${{ runner.os }}-anchor-target-${{ env.ANCHOR_VERSION }}-${{ hashFiles('game/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-anchor-${{ env.ANCHOR_VERSION }}-${{ hashFiles('game/Cargo.lock') }}
+            ${{ runner.os }}-anchor-${{ env.ANCHOR_VERSION }}-
 
       - name: Install Solana CLI
         run: |
@@ -85,25 +97,37 @@ jobs:
             ERRCOUNT=$(grep -c '^error' /tmp/cargo-test.log 2>/dev/null || true)
             echo "DIAG cargo-failed: log=${LOGSIZE}B error_lines=${ERRCOUNT:-0} PR_URL=${PR_URL:-EMPTY}"
             echo "::error::cargo-test-failed log=${LOGSIZE}B error_lines=${ERRCOUNT:-0}"
-            # Полный лог в PR-комментарий ДО построчных grep (sandbox не видит run-логи)
-            if [ -n "$PR_URL" ]; then
+            # Зеркало полного лога в step summary (вкладка Summary у ран)
+            if [ -n "$GITHUB_STEP_SUMMARY" ]; then
               {
-                echo "### :x: cargo test failed (run $GITHUB_RUN_ID) — полный лог"
+                echo "## :x: cargo test failed — полный лог"
                 echo '```'
                 head -c 30000 /tmp/cargo-test.log
                 echo '```'
-              } > /tmp/pr-comment.md
-              curl -sS -o /tmp/pr-comment-resp.json -w "PR comment: %{http_code}\n" -X POST "$PR_URL" \
-                -H "Authorization: Bearer $GITHUB_TOKEN" \
-                -H "Accept: application/vnd.github+json" \
-                --data-binary @/tmp/pr-comment.md || {
-                echo "PR comment curl failed; trying gh fallback"
-                cat /tmp/pr-comment-resp.json 2>/dev/null || true
-                gh api -X POST "$GITHUB_API_URL/repositories/Leo88q/ares1/issues/1/comments" \
-                  -F body=@/tmp/pr-comment.md || echo "gh fallback failed too"
-              }
-            else
-              echo "DIAG: PR_URL is empty — cannot post PR comment"
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
+            # Полный лог в PR-комментарий (gh первично, curl — фолбэк)
+            {
+              echo "### :x: cargo test failed (run $GITHUB_RUN_ID) — полный лог"
+              echo '```'
+              head -c 30000 /tmp/cargo-test.log
+              echo '```'
+            } > /tmp/pr-comment.md
+            if ! gh api -X POST "repos/Leo88q/ares1/issues/1/comments" \
+                -F body=@/tmp/pr-comment.md > /tmp/pr-comment-resp.json 2>&1; then
+              echo "PR comment gh failed; trying curl"
+              cat /tmp/pr-comment-resp.json 2>/dev/null || true
+              if [ -n "$PR_URL" ]; then
+                curl -sS -o /tmp/pr-comment-resp2.json -w "PR comment: %{http_code}\n" -X POST "$PR_URL" \
+                  -H "Authorization: Bearer $GITHUB_TOKEN" \
+                  -H "Accept: application/vnd.github+json" \
+                  --data-binary @/tmp/pr-comment.md || {
+                  echo "PR comment curl failed too"
+                  cat /tmp/pr-comment-resp2.json 2>/dev/null || true
+                }
+              else
+                echo "DIAG: PR_URL is empty — curl fallback impossible"
+              fi
             fi
             # Построчные аннотации (best effort; не должны ронять скрипт)
             {
@@ -133,22 +157,30 @@ jobs:
                     echo "::error file=game/programs/solana_potato/src/lib.rs::anchor build: ${line:0:400}"
                   done
             } || true
-            if [ -n "$PR_URL" ]; then
+            if [ -n "$GITHUB_STEP_SUMMARY" ]; then
               {
-                echo "### :x: anchor build failed (run $GITHUB_RUN_ID) — полный лог"
+                echo "## :x: anchor build failed — полный лог"
                 echo '```'
                 head -c 30000 /tmp/anchor-build.log
                 echo '```'
-              } > /tmp/pr-comment.md
-              curl -sS -o /tmp/pr-comment-resp.json -w "PR comment: %{http_code}\n" -X POST "$PR_URL" \
-                -H "Authorization: Bearer $GITHUB_TOKEN" \
-                -H "Accept: application/vnd.github+json" \
-                --data-binary @/tmp/pr-comment.md || {
-                echo "PR comment curl failed; trying gh fallback"
-                cat /tmp/pr-comment-resp.json 2>/dev/null
-                gh api -X POST "$GITHUB_API_URL/repositories/Leo88q/ares1/issues/1/comments" \
-                  -F body=@/tmp/pr-comment.md || echo "gh fallback failed too"
-              }
+              } >> "$GITHUB_STEP_SUMMARY"
+            fi
+            {
+              echo "### :x: anchor build failed (run $GITHUB_RUN_ID) — полный лог"
+              echo '```'
+              head -c 30000 /tmp/anchor-build.log
+              echo '```'
+            } > /tmp/pr-comment.md
+            if ! gh api -X POST "repos/Leo88q/ares1/issues/1/comments" \
+                -F body=@/tmp/pr-comment.md > /tmp/pr-comment-resp.json 2>&1; then
+              echo "PR comment gh failed; trying curl"
+              cat /tmp/pr-comment-resp.json 2>/dev/null || true
+              if [ -n "$PR_URL" ]; then
+                curl -sS -o /tmp/pr-comment-resp2.json -w "PR comment: %{http_code}\n" -X POST "$PR_URL" \
+                  -H "Authorization: Bearer $GITHUB_TOKEN" \
+                  -H "Accept: application/vnd.github+json" \
+                  --data-binary @/tmp/pr-comment.md || echo "PR comment curl failed too"
+              fi
             fi
             exit 1
           fi
