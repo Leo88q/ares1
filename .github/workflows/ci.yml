@@ -75,8 +75,8 @@ jobs:
         run: |
           set -o pipefail
           if ! cargo test -p solana_potato --lib 2>&1 | tee /tmp/cargo-test.log; then
-            ERRS=$(grep -E "^error|^test .* FAILED|panicked at" /tmp/cargo-test.log | head -12 | tr '\n' ' | ' | head -c 4000)
-            TAIL=$(tail -n 25 /tmp/cargo-test.log | tr '\n' ' | ' | head -c 3000)
+            ERRS=$(grep -E "^error|^test .* FAILED|panicked at" /tmp/cargo-test.log | head -12 | tr '\n' ' | ' | sed 's/::/:/g' | head -c 4000)
+            TAIL=$(tail -n 25 /tmp/cargo-test.log | tr '\n' ' | ' | sed 's/::/:/g' | head -c 3000)
             echo "::error title=cargo-test-failed::${ERRS:-ошибок не найдено} :: tail :: ${TAIL}"
             exit 1
           fi
@@ -85,8 +85,8 @@ jobs:
         run: |
           set -o pipefail
           if ! anchor build 2>&1 | tee /tmp/anchor-build.log; then
-            ERRS=$(grep -E "^error|panicked" /tmp/anchor-build.log | head -12 | tr '\n' ' | ' | head -c 4000)
-            TAIL=$(tail -n 25 /tmp/anchor-build.log | tr '\n' ' | ' | head -c 3000)
+            ERRS=$(grep -E "^error|panicked" /tmp/anchor-build.log | head -12 | tr '\n' ' | ' | sed 's/::/:/g' | head -c 4000)
+            TAIL=$(tail -n 25 /tmp/anchor-build.log | tr '\n' ' | ' | sed 's/::/:/g' | head -c 3000)
             echo "::error title=anchor-build-failed::${ERRS:-ошибок не найдено} :: tail :: ${TAIL}"
             exit 1
           fi
@@ -109,6 +109,19 @@ jobs:
         run: |
           solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
           anchor test --skip-build
+
+      # Лог-артефакт на каждый прогон: sandbox не видит run-логи,
+      # а аннотации могут теряться (GH дробит payload по '::').
+      - name: Upload job logs (diagnostics)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: program-job-logs-${{ github.run_id }}
+          path: |
+            /tmp/cargo-test.log
+            /tmp/anchor-build.log
+            /tmp/yarn-install.log
+          if-no-files-found: ignore
 
   web:
     name: Web (typecheck + build)
