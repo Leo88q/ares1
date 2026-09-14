@@ -545,8 +545,10 @@ export function getElasticCap(
   prevBurned: number,
   lastCap: number,
   lastMinted: number,
-  baseCap: number = 250_000_000_000, // 250k
-  maxCap: number = 750_000_000_000  // 750k
+  // Целые POTATO (те же юниты, что у prevBurned/lastCap/lastMinted) —
+  // зеркало on-chain roll_epoch: [250k, 750k] POTATO за эпоху.
+  baseCap: number = 250_000, // 250k POTATO
+  maxCap: number = 750_000 // 750k POTATO
 ): number {
   // Ось 1: burn-бонус
   const burnBonus = prevBurned / 2;

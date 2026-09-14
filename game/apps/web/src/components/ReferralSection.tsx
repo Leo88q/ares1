@@ -76,6 +76,10 @@ export function ReferralSection() {
       <div style={{ fontSize: 13, color: 'var(--pf-text-secondary)', marginTop: 4 }}>
        Приглашённому −1 % комиссии за сделки, тебе — 0.5 % от суммы каждой его сделки (on-chain)
       </div>
+      <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', marginTop: 6, opacity: 0.8 }}>
+       Ссылка бесплатна. Когда новый игрок откроет её, он зарегистрируется за тебя
+       автоматически — разовый антиспам-взнос 5 🥔 списывается с баланса приглашённого.
+      </div>
      </div>
     </div>
 

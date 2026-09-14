@@ -12,6 +12,7 @@
     "dev:web": "yarn workspace web dev",
     "dev:backend": "yarn workspace backend dev",
     "init-onchain": "tsx scripts/init-onchain.ts",
+    "grant-skr": "tsx scripts/grant-skr.ts",
     "migrate-v2": "tsx scripts/migrate-v2.ts",
     "test": "anchor test",
     "test:unit": "cargo test -p solana_potato --lib",
