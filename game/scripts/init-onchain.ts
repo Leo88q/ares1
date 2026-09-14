@@ -81,8 +81,10 @@ async function ensurePdaVault(pk: PublicKey, label: string): Promise<void> {
  * owners, so we derive the PDA ourselves — the formula is identical.
  */
 function ataOf(mintPk: PublicKey, owner: PublicKey): PublicKey {
+  // Канонический порядок сидов ATA: [MINT, OWNER, TOKEN_PROGRAM]
+  // (как в getAssociatedTokenAddressSync / associated_token constraint)
   return PublicKey.findProgramAddressSync(
-    [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintPk.toBuffer()],
+    [mintPk.toBuffer(), owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer()],
     ASSOCIATED_TOKEN_PROGRAM_ID,
   )[0];
 }
