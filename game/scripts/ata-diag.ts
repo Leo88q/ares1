@@ -18,7 +18,9 @@ function fpa(seeds: PublicKey[], program: PublicKey): PublicKey {
 
 async function main() {
   console.log("ata-diag v2 (robust) — запущен");
-  const res = await conn.getParsedTokenAccountsByOwner(admin.publicKey, { program: "spl-token" });
+  const res = await conn.getParsedTokenAccountsByOwner(admin.publicKey, {
+    programId: TOKEN_PROGRAM_ID, // web3.js v1.x: поле programId, НЕ program
+  });
   console.log("Token-аккаунтов владельца:", res.value.length);
   let ta: any;
   for (const acc of res.value) {
