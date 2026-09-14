@@ -378,10 +378,13 @@ body { color: var(--pf-text-primary); }
   -webkit-text-fill-color: transparent;
 }
 
-/* PRESALE FRAME: рамка окна в розовом конце градиента действия */
-.ares-presale {
-  border-color: rgba(184, 92, 255, 0.5) !important;
-  box-shadow: 0 0 22px -6px rgba(184, 92, 255, 0.35), inset 0 1px 0 rgba(255, 214, 170, 0.08) !important;
+/* PRESALE FRAME: единая общая hull-рамка, как у всех остальных карточек
+   (тёмная SVG-каркас). Отдельная розовая рамка/квадрат убраны — акцент
+   действия остаётся только на CTA-кнопке (--ares-btn-bg). */
+.ares-presale,
+.ares-presale.hull-skin {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 /* ══ ЕДИНЫЙ Источник Правды: цвет действия во всей игре ══
@@ -408,26 +411,6 @@ body { color: var(--pf-text-primary); }
 .status-dot {
   background: var(--ares-hud-amber, #FFB347) !important;
   box-shadow: 0 0 8px rgba(255, 179, 71, 0.55);
-}
-
-/* РОЗОВАЯ ГРАДИЕНТНАЯ РАМКА ПРЕСЕЙЛА — как в классическом образе */
-.ares-presale.hull-skin {
-  box-shadow: 0 0 26px -6px rgba(255, 46, 147, 0.55), inset 0 0 22px -10px rgba(255, 46, 147, 0.35) !important;
-}
-
-.ares-presale::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  clip-path: inherit;
-  border-radius: inherit;
-  padding: 2px;
-  background: linear-gradient(135deg, #FF2E93 0%, #B85CFF 40%, #FF2E93 75%, #FF7A1A 100%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
 }
 
 /* розовых квадратов в пресейле больше нет никогда */
