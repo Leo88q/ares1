@@ -79,36 +79,41 @@ jobs:
         run: |
           set -o pipefail
           if ! cargo test -p solana_potato --lib 2>&1 | tee /tmp/cargo-test.log; then
-            # Построчные аннотации: file= должен указывать на РЕАЛЬНЫЙ файл
-            # (GitHub молча бросает аннотацию, если file= — директория)
-            grep -E "^error|^test .* FAILED|panicked at|^  --> " /tmp/cargo-test.log \
-              | head -15 | sed 's/::/:/g' \
-              | while IFS= read -r line; do
-                  [ -z "$line" ] && continue
-                  echo "::error file=game/programs/solana_potato/src/lib.rs::cargo: ${line:0:400}"
-                done
-            # Зеркало в PR-комментарий: ПЕРВЫЕ ошибки (макро-ошибки derive лежат
-            # в начале лога) + хвост (sandbox не видит run-логи/артефакты)
+            # ВАЖНО: шаг выполняется с `bash -e` — любая команда, возвращающая
+            # ненулевой код, роняет весь скрипт. Все grep/tee ниже — через `|| true`.
+            LOGSIZE=$(wc -c < /tmp/cargo-test.log 2>/dev/null || echo missing)
+            ERRCOUNT=$(grep -c '^error' /tmp/cargo-test.log 2>/dev/null || true)
+            echo "DIAG cargo-failed: log=${LOGSIZE}B error_lines=${ERRCOUNT:-0} PR_URL=${PR_URL:-EMPTY}"
+            echo "::error::cargo-test-failed log=${LOGSIZE}B error_lines=${ERRCOUNT:-0}"
+            # Полный лог в PR-комментарий ДО построчных grep (sandbox не видит run-логи)
             if [ -n "$PR_URL" ]; then
               {
-                echo "### :x: cargo test failed (run $GITHUB_RUN_ID)"
-                echo "**Первые ошибки:**"
+                echo "### :x: cargo test failed (run $GITHUB_RUN_ID) — полный лог"
                 echo '```'
-                grep -E "^error|^  --> " /tmp/cargo-test.log | head -20
-                echo '```'
-                echo "**Хвост лога:**"
-                echo '```'
-                tail -n 40 /tmp/cargo-test.log
+                head -c 30000 /tmp/cargo-test.log
                 echo '```'
               } > /tmp/pr-comment.md
               curl -sS -o /tmp/pr-comment-resp.json -w "PR comment: %{http_code}\n" -X POST "$PR_URL" \
                 -H "Authorization: Bearer $GITHUB_TOKEN" \
                 -H "Accept: application/vnd.github+json" \
                 --data-binary @/tmp/pr-comment.md || {
-                echo "PR comment failed (non-fatal)"
-                cat /tmp/pr-comment-resp.json 2>/dev/null
+                echo "PR comment curl failed; trying gh fallback"
+                cat /tmp/pr-comment-resp.json 2>/dev/null || true
+                gh api -X POST "$GITHUB_API_URL/repositories/Leo88q/ares1/issues/1/comments" \
+                  -F body=@/tmp/pr-comment.md || echo "gh fallback failed too"
               }
+            else
+              echo "DIAG: PR_URL is empty — cannot post PR comment"
             fi
+            # Построчные аннотации (best effort; не должны ронять скрипт)
+            {
+              grep -E "^error|^test .* FAILED|panicked at|^  --> " /tmp/cargo-test.log \
+                | head -15 | sed 's/::/:/g' \
+                | while IFS= read -r line; do
+                    [ -z "$line" ] && continue
+                    echo "::error file=game/programs/solana_potato/src/lib.rs::cargo: ${line:0:400}"
+                  done
+            } || true
             exit 1
           fi
 
@@ -116,30 +121,33 @@ jobs:
         run: |
           set -o pipefail
           if ! anchor build 2>&1 | tee /tmp/anchor-build.log; then
-            grep -E "^error|panicked|^  --> " /tmp/anchor-build.log \
-              | head -15 | sed 's/::/:/g' \
-              | while IFS= read -r line; do
-                  [ -z "$line" ] && continue
-                  echo "::error file=game/programs/solana_potato/src/lib.rs::anchor build: ${line:0:400}"
-                done
+            LOGSIZE=$(wc -c < /tmp/anchor-build.log 2>/dev/null || echo missing)
+            ERRCOUNT=$(grep -c '^error' /tmp/anchor-build.log 2>/dev/null || true)
+            echo "DIAG anchor-build-failed: log=${LOGSIZE}B error_lines=${ERRCOUNT:-0}"
+            echo "::error::anchor-build-failed log=${LOGSIZE}B error_lines=${ERRCOUNT:-0}"
+            {
+              grep -E "^error|panicked|^  --> " /tmp/anchor-build.log \
+                | head -15 | sed 's/::/:/g' \
+                | while IFS= read -r line; do
+                    [ -z "$line" ] && continue
+                    echo "::error file=game/programs/solana_potato/src/lib.rs::anchor build: ${line:0:400}"
+                  done
+            } || true
             if [ -n "$PR_URL" ]; then
               {
-                echo "### :x: anchor build failed (run $GITHUB_RUN_ID)"
-                echo "**Первые ошибки:**"
+                echo "### :x: anchor build failed (run $GITHUB_RUN_ID) — полный лог"
                 echo '```'
-                grep -E "^error|^  --> " /tmp/anchor-build.log | head -20
-                echo '```'
-                echo "**Хвост лога:**"
-                echo '```'
-                tail -n 40 /tmp/anchor-build.log
+                head -c 30000 /tmp/anchor-build.log
                 echo '```'
               } > /tmp/pr-comment.md
               curl -sS -o /tmp/pr-comment-resp.json -w "PR comment: %{http_code}\n" -X POST "$PR_URL" \
                 -H "Authorization: Bearer $GITHUB_TOKEN" \
                 -H "Accept: application/vnd.github+json" \
                 --data-binary @/tmp/pr-comment.md || {
-                echo "PR comment failed (non-fatal)"
+                echo "PR comment curl failed; trying gh fallback"
                 cat /tmp/pr-comment-resp.json 2>/dev/null
+                gh api -X POST "$GITHUB_API_URL/repositories/Leo88q/ares1/issues/1/comments" \
+                  -F body=@/tmp/pr-comment.md || echo "gh fallback failed too"
               }
             fi
             exit 1
