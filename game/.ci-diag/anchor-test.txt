@@ -1,0 +1,84 @@
+
+Found a 'test' script in the Anchor.toml. Running it as a test suite!
+
+Running test suite: "/home/runner/work/ares1/ares1/game/Anchor.toml"
+
+yarn run v1.22.22
+$ /home/runner/work/ares1/ares1/game/node_modules/.bin/ts-mocha -p ./tsconfig.json -t 1000000 'tests/**/*.ts'
+
+
+  solana_potato
+    initialize
+      [32m✔[39m rejects a mint whose authority is not the config PDA (536ms)
+      [32m✔[39m creates GameConfig and epoch 0 (3015ms)
+      [32m✔[39m cannot be initialized twice
+    grant_reward
+      [32m✔[39m authority can mint a bounded reward (860ms)
+      [32m✔[39m rejects rewards above 1000 POTATO
+      [32m✔[39m rejects a non-authority signer
+    fields
+      [32m✔[39m create_field burns the type price and registers the field (417ms)
+      [32m✔[39m rejects an invalid field type
+      [32m✔[39m rejects paying with a foreign mint (858ms)
+      [32m✔[39m harvest too soon is rejected
+      [32m✔[39m only the owner can act on a field
+      [32m✔[39m repair is rejected at full durability
+      [32m✔[39m upgrade burns 100 × level and raises the level (405ms)
+      [32m✔[39m tax can be prepaid up to 28 days, not more (1311ms)
+      [32m✔[39m fertilizer stacks up to 7 days (3002ms)
+      [32m✔[39m harvest mints yield after the interval and wears the field (61310ms)
+      [32m✔[39m repair restores durability (434ms)
+    marketplace
+      [32m✔[39m rejects orders whose SOL total rounds to nothing
+      [32m✔[39m rejects orders below the 10 POTATO minimum
+      [32m✔[39m create_sell_order escrows amount + fee (414ms)
+      [32m✔[39m self-trade is blocked
+      [32m✔[39m close_expired_order is rejected before expiry
+      [32m✔[39m fill_order pays SOL to seller, tokens to buyer, splits the fee and closes the order (429ms)
+      [32m✔[39m cancel_order refunds and starts the cooldown (885ms)
+    referrals
+      [32m✔[39m register_referrer burns 5 POTATO and stores the link once (861ms)
+      [32m✔[39m rejects self-referral and re-registration
+      [32m✔[39m fill_order pays the 0.5 % referral reward to the referrer from escrow, minting nothing (863ms)
+      [32m✔[39m fill_order burns the reward when the referrer ATA is not provided (881ms)
+    presale
+      [32m✔[39m init_presale creates the state; re-init and bad price are rejected (1718ms)
+      [32m✔[39m buy_field_sol moves SOL to the treasury and creates the field (448ms)
+      [32m✔[39m rejects an invalid field type
+      [32m✔[39m enforces the 5-fields-per-wallet limit (1777ms)
+      [32m✔[39m enforces the global cap (3029ms)
+      [32m✔[39m is blocked while paused (paused-чек идёт первым в обработчике) (1277ms)
+      [32m✔[39m SKR rail: wrong mint is rejected (SKR_MINT is a program constant) (1741ms)
+      [32m✔[39m migrate_presale_authority repairs the presale after an authority transfer (3020ms)
+    quest pool (claim_achievement)
+      [32m✔[39m funds the 550 🥔 pool and pays quest 0 (1 field) from it (464ms)
+      [32m✔[39m rejects a double claim
+      [32m✔[39m rejects a user without the required fields (BadProof) (860ms)
+      [32m✔[39m pays balance-based quests (100 / 1000 🥔) for a clean user (2607ms)
+      [32m✔[39m pays quest 3 (5 fields) to the player (443ms)
+      [32m✔[39m rejects out-of-range quest ids and claims while paused (882ms)
+    treasury withdrawals (SOL)
+      1) withdraw_treasury_sol pays the authority; non-authority is rejected
+      [32m✔[39m rejects withdrawing more than the vault holds
+    admin
+      [32m✔[39m roll_epoch is rejected before 24h
+      [32m✔[39m pause blocks spends and can be lifted (882ms)
+      [32m✔[39m update_config enforces ceilings (432ms)
+      [32m✔[39m withdraw_treasury only for the authority (871ms)
+      [32m✔[39m two-step authority transfer (1726ms)
+
+
+  48 passing (2m)
+  1 failing
+
+  1) solana_potato
+       treasury withdrawals (SOL)
+         withdraw_treasury_sol pays the authority; non-authority is rejected:
+     AssertionError: expected 9995008 to be within 4000..10000
+      at Context.<anonymous> (tests/solana_potato.ts:811:32)
+      at processTicksAndRejections (node:internal/process/task_queues:103:5)
+
+
+
+error Command failed with exit code 1.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
