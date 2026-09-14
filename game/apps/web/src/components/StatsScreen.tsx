@@ -2,13 +2,12 @@ import { useCallback, useState } from 'react'
 import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { PublicKey } from '@solana/web3.js'
-import { Flame, Coins, TrendingUp, Gauge, Trophy, Landmark, Moon, Percent, Shield, UserPlus } from 'lucide-react'
+import { Flame, Coins, TrendingUp, Gauge, Trophy, Landmark, Moon, Percent, Shield } from 'lucide-react'
 import { getMint } from '@solana/spl-token'
 import { useSolana } from '../contexts/SolanaContext'
 import { usePolling } from '../hooks/usePolling'
 import { withRetry } from '../utils/rpc'
 import { MICRO } from '../utils/constants'
-import { useReferral } from '../hooks/useReferral'
 import {
   getLunarMultiplier,
   getLunarPhase,
@@ -116,15 +115,6 @@ function EconomySection({ data }: { data: EconomyData }) {
 }
 
 function ReferralSection() {
- const { registerReferrer, loading } = useReferral()
- const [referrer, setReferrer] = useState('')
-
- const handleRegister = async () => {
-  if (!referrer.trim()) return
-  await registerReferrer(referrer.trim())
-  setReferrer('')
- }
-
  return (
   <ConsolePanel title="РЕФЕРАЛЬНАЯ ПРОГРАММА" tone="amber">
    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -147,47 +137,10 @@ function ReferralSection() {
      </div>
     </div>
 
-    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-     <input
-      type="text"
-      value={referrer}
-      onChange={(e) => setReferrer(e.target.value)}
-      placeholder="Публичный ключ реферера"
-      className="ares-mono"
-      disabled={loading}
-      style={{
-       flex: 1,
-       padding: '10px 12px',
-       borderRadius: 6,
-       border: '1px solid rgba(160,82,40,0.35)',
-       background: 'rgba(0,0,0,0.32)',
-       color: 'var(--ares-parchment, #F2E8DA)',
-       fontSize: 12,
-       fontFamily: 'monospace',
-      }}
-     />
-     <button
-      onClick={handleRegister}
-      disabled={loading || !referrer.trim()}
-      className="ares-mono"
-      style={{
-       padding: '10px 16px',
-       borderRadius: 6,
-       border: '1px solid var(--ares-hud-amber, #FFB347)',
-       background: loading ? 'rgba(255,179,71,0.1)' : 'rgba(255,179,71,0.15)',
-       color: 'var(--ares-hud-amber, #FFB347)',
-       fontSize: 12,
-       fontWeight: 700,
-       cursor: loading ? 'not-allowed' : 'pointer',
-       display: 'flex',
-       alignItems: 'center',
-       gap: 6,
-       transition: 'all 0.15s',
-      }}
-     >
-      <UserPlus size={14} />
-      {loading ? 'РЕГИСТРАЦИЯ...' : 'ЗАРЕГИСТРИРОВАТЬ'}
-     </button>
+    <div className="ares-mono" style={{ fontSize: 10, color: 'rgba(242,232,218,0.6)', lineHeight: 1.55 }}>
+     Регистрация: открыл игру по ссылке друга с ?ref= — и готово,
+     регистрация прошла автоматически (on-chain, одноразово).
+     Свою ссылку, чтобы приглашать, — в «Кабине» (ВЫЗОВ ПОСЕЛЕНЦЕВ).
     </div>
    </div>
   </ConsolePanel>

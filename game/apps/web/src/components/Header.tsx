@@ -8,10 +8,9 @@ import { MICRO } from '../utils/constants'
 
 interface Props {
  stats: GameStats
- solBalance?: number
 }
 
-export default function Header({ stats, solBalance = 0 }: Props) {
+export default function Header({ stats }: Props) {
  const { setVisible } = useWalletModal()
  const { connected, publicKey } = useWallet()
 
@@ -31,8 +30,8 @@ export default function Header({ stats, solBalance = 0 }: Props) {
       </div>
       <div>
         <div className="ares-mono" style={{ fontSize: 9, letterSpacing: '0.16em', color: 'rgba(255,179,71,0.75)', marginBottom: 3, textAlign: 'center' }}>SKR</div>
-        <motion.div whileHover={{ scale: 1.03 }} className="pf-card hull-skin" style={{ padding: '10px 22px', borderRadius: 12, minWidth: 176, display: 'flex', justifyContent: 'center', border: '1px solid rgba(160, 82, 40, 0.65)' }} aria-label="Баланс SOL">
-          <RollingNumber value={solBalance} decimals={3} className="hud-balance" />
+        <motion.div whileHover={{ scale: 1.03 }} className="pf-card hull-skin" style={{ padding: '10px 22px', borderRadius: 12, minWidth: 176, display: 'flex', justifyContent: 'center', border: '1px solid rgba(160, 82, 40, 0.65)' }} aria-label="Баланс SKR">
+          <RollingNumber value={stats.skrBalance} decimals={3} className="hud-balance" />
         </motion.div>
       </div>
     </div>

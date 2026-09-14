@@ -14,14 +14,14 @@ import { Tuber9 } from './ares/mascot'
 import { FieldGestureLayer } from './ares/FieldGestureLayer'
 
 export default function MainScreen() {
- const { fields, stats, solBalance, loading, purchasing, harvest, purchaseField, upgradeField, repairField, payTax, applyFertilizer } = useGame()
+ const { fields, stats, loading, purchasing, harvest, purchaseField, upgradeField, repairField, payTax, applyFertilizer } = useGame()
  const { ready, rpcError, connected } = useSolana()
 
  return (
   <AgroBay>
    <div style={{ padding: 20, paddingBottom: 140, position: 'relative' }}>
     <div style={{ position: 'relative' }}>
-     <Header stats={stats} solBalance={solBalance} />
+     <Header stats={stats} />
      <div style={{ position: 'fixed', bottom: 96, right: 12, zIndex: 40 }}>
       <Tuber9 mood="happy" size={64} onEasterEgg={() => console.log('Пасхалка!')} />
      </div>

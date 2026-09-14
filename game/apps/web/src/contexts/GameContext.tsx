@@ -44,6 +44,8 @@ export interface GameStats {
  experience: number
  /** Wallet balance in micro POTATO. */
  potatoBalance: number
+ /** Wallet SKR balance (in SKR units; mint has 6 decimals). */
+ skrBalance: number
 }
 
 export interface GameContextType {
@@ -78,6 +80,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
  const [rawFields, setRawFields] = useState<RawField[]>([])
  const [potatoBalance, setPotatoBalance] = useState(0)
+ const [skrBalance, setSkrBalance] = useState(0)
  const [ataExists, setAtaExists] = useState(false)
  const [solBalance, setSolBalance] = useState(0)
  const [loading, setLoading] = useState(true)
@@ -103,15 +106,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }
   try {
    const ata = getAssociatedTokenAddressSync(config.potatoMint, publicKey, false)
+   // Та же SKR-ATA, что и в проверке presale-покупки (buyFieldPresale)
+   const skrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, publicKey, false)
    const [accounts, infos] = await Promise.all([
     withRetry(() =>
      connection.getProgramAccounts(programId, {
       filters: [{ dataSize: FIELD_ACCOUNT_SIZE }, { memcmp: { offset: 8, bytes: publicKey.toBase58() } }],
      }),
     ),
-    withRetry(() => connection.getMultipleAccountsInfo([publicKey, ata])),
+    withRetry(() => connection.getMultipleAccountsInfo([publicKey, ata, skrAta])),
    ])
-   const [walletInfo, ataInfo] = infos
+   const [walletInfo, ataInfo, skrInfo] = infos
    setSolBalance((walletInfo?.lamports ?? 0) / 1e9)
    if (ataInfo) {
     setAtaExists(true)
@@ -120,6 +125,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setAtaExists(false)
     setPotatoBalance(0)
    }
+   // SKR в единицах SKR (6 децималов) — реальный on-chain баланс токена
+   setSkrBalance(skrInfo ? Number(unpackAccount(skrAta, skrInfo).amount) / 1e6 : 0)
    setRawFields(
     accounts
      .map(({ pubkey, account }) => {
@@ -163,8 +170,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
    playerLevel: Math.floor(fields.length / 3) + 1,
    experience: fields.length * 100 + potatoBalance / MICRO,
    potatoBalance,
+   skrBalance,
   }),
-  [fields, potatoBalance],
+  [fields, potatoBalance, skrBalance],
  )
 
  const refreshAll = useCallback(async () => {
