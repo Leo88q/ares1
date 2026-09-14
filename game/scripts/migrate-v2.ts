@@ -20,7 +20,10 @@ import {
 } from "@solana/web3.js";
 
 const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
-const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID || "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha");
+// Дефолт — живой devnet-адрес программы. (48D2uN… — устаревший declare_id
+// из старых сборок; с ним PDA выводятся под чужим адресом и скрипт молча
+// «ничего не находит».)
+const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID || "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf");
 const ADMIN_KEYPAIR_PATH = (process.env.ADMIN_KEYPAIR_PATH || `${process.env.HOME}/.config/solana/id.json`).replace(/^~/, process.env.HOME || "");
 
 const CONFIG_V1 = 156, CONFIG_V2 = 164;
@@ -55,6 +58,13 @@ async function main() {
   if (!cfgInfo) {
     console.log("GameConfig not found — nothing to migrate (fresh deploy?).");
     return;
+  }
+  // Anchor AccountInfo::realloc берёт ренту под новые байты из аккаунта самой
+  // программы (обычно 0 lamports) → докладываем 0.001 SOL перед миграцией.
+  const progLamports = (await connection.getAccountInfo(PROGRAM_ID))?.lamports ?? 0;
+  if (progLamports < 0.0015e9) {
+    const sig = await send(SystemProgram.transfer({ fromPubkey: admin.publicKey, toPubkey: PROGRAM_ID, lamports: 0.001e9 }));
+    console.log(`Program lamports top-up 0.001 SOL (had ${progLamports}), tx:`, sig);
   }
   if (cfgInfo.data.length === CONFIG_V1) {
     console.log("Migrating GameConfig 156 → 164 ...");
