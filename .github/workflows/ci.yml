@@ -8,7 +8,10 @@ on:
   workflow_dispatch:
 
 env:
-  SOLANA_VERSION: stable
+  # Запинчено под рабочую локальную версию (solana-cli 4.2.2, client:Agave):
+  # "stable" даёт новый SBF-nightly toolchain, где удалён proc_macro::SourceFile,
+  # а anchor 0.30.1 (anchor-syn) его ещё вызывает → E0599 в cargo build-sbf.
+  SOLANA_VERSION: "4.2.2"
   ANCHOR_VERSION: 0.30.1
   NODE_VERSION: 22
 
@@ -67,6 +70,8 @@ jobs:
         run: |
           sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+          solana --version
+          anchor --version 2>/dev/null || true
 
       - name: Install Anchor
         run: |
