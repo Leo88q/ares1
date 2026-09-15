@@ -414,6 +414,7 @@ const en: Record<string, string> = {
   ' Удобрение ×1.5 ({h}ч)': ' Fertilizer ×1.5 ({h}h)',
   'Solana Potato — фарм-игра на Solana': 'Solana Potato — farm game on Solana',
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — on-chain farm game. Buy fields, collect $POTATO every second and trade on the built-in P2P marketplace for SOL.',
+  'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Track: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
 };
 
 export default en;

@@ -1,8 +1,54 @@
+// Кастомные SFX ARES-1: пререндеренные сэмплы (public/sfx/*.wav) —
+// «марсианская колония / гидропоника / ретро-HUD» вместо стандартных бипов.
+// API прежнего модуля сохранён: sounds.<имя>() / toggleSounds / isSoundEnabled.
 let ctx: AudioContext | null = null
+let masterGain: GainNode | null = null
 let enabled = true
+const cache = new Map<string, AudioBuffer>()
+const pending = new Map<string, Promise<AudioBuffer | null>>()
 
-const getCtx = () => {
- if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)()
+const SFX: Record<string, string> = {
+ harvest: '/sfx/harvest.wav',
+ buyField: '/sfx/buyfield.wav',
+ buy: '/sfx/buy.wav',
+ repair: '/sfx/repair.wav',
+ upgrade: '/sfx/upgrade.wav',
+ payTax: '/sfx/paytax.wav',
+ fertilizer: '/sfx/fertilizer.wav',
+ achievement: '/sfx/achievement.wav',
+ click: '/sfx/click.wav',
+ error: '/sfx/error.wav',
+ success: '/sfx/success.wav',
+ walletConnect: '/sfx/walletconnect.wav',
+ navigate: '/sfx/navigate.wav',
+ reward: '/sfx/reward.wav',
+}
+
+// Громкость каждого сэмпла (сэмплы нормированы до 0.5 пика — сюда можно давить громче).
+const VOLUME: Record<string, number> = {
+ harvest: 0.9,
+ buyField: 0.85,
+ buy: 0.8,
+ repair: 0.8,
+ upgrade: 0.85,
+ payTax: 0.75,
+ fertilizer: 0.8,
+ achievement: 0.8,
+ click: 0.5,
+ error: 0.8,
+ success: 0.85,
+ walletConnect: 0.8,
+ navigate: 0.55,
+ reward: 0.85,
+}
+
+const getCtx = (): AudioContext => {
+ if (!ctx) {
+  ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+  masterGain = ctx.createGain()
+  masterGain.gain.value = 1
+  masterGain.connect(ctx.destination)
+ }
  return ctx
 }
 
@@ -13,146 +59,78 @@ export const toggleSounds = () => {
 
 export const isSoundEnabled = () => enabled
 
-function play(freq: number, duration: number, type: OscillatorType = 'sine', volume = 0.15, delay = 0) {
- if (!enabled) return
- try {
-  const ac = getCtx()
-  const osc = ac.createOscillator()
-  const gain = ac.createGain()
-  osc.type = type
-  osc.frequency.value = freq
-  gain.gain.setValueAtTime(0, ac.currentTime + delay)
-  gain.gain.linearRampToValueAtTime(volume, ac.currentTime + delay + 0.01)
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + delay + duration)
-  osc.connect(gain)
-  gain.connect(ac.destination)
-  osc.start(ac.currentTime + delay)
-  osc.stop(ac.currentTime + delay + duration)
- } catch {}
+const load = async (name: string): Promise<AudioBuffer | null> => {
+ const key = SFX[name]
+ if (!key) return null
+ const hit = cache.get(key)
+ if (hit) return hit
+ const inFlight = pending.get(key)
+ if (inFlight) return inFlight
+ const p = (async () => {
+  try {
+   const ac = getCtx()
+   const res = await fetch(key)
+   if (!res.ok) throw new Error(`http ${res.status}`)
+   const buf = await ac.decodeAudioData(await res.arrayBuffer())
+   cache.set(key, buf)
+   return buf
+  } catch {
+   return null
+  } finally {
+   pending.delete(key)
+  }
+ })()
+ pending.set(key, p)
+ return p
 }
 
-function playNoise(duration: number, volume = 0.05, delay = 0) {
+const play = (name: string, volumeScale = 1) => {
  if (!enabled) return
- try {
-  const ac = getCtx()
-  const bufferSize = ac.sampleRate * duration
-  const buffer = ac.createBuffer(1, bufferSize, ac.sampleRate)
-  const data = buffer.getChannelData(0)
-  for (let i = 0; i < bufferSize; i++) {
-   data[i] = (Math.random() - 0.5) * 2
+ void load(name).then((buffer) => {
+  if (!buffer) return
+  try {
+   const ac = getCtx()
+   if (ac.state === 'suspended') void ac.resume()
+   const src = ac.createBufferSource()
+   src.buffer = buffer
+   const gain = ac.createGain()
+   gain.gain.value = (VOLUME[name] ?? 0.8) * volumeScale
+   src.connect(gain)
+   gain.connect(masterGain!)
+   src.start()
+  } catch {
+   // аудио недоступно — молча пропускаем
   }
-  const source = ac.createBufferSource()
-  source.buffer = buffer
-  const gain = ac.createGain()
-  gain.gain.setValueAtTime(0, ac.currentTime + delay)
-  gain.gain.linearRampToValueAtTime(volume, ac.currentTime + delay + 0.01)
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + delay + duration)
-  const filter = ac.createBiquadFilter()
-  filter.type = 'highpass'
-  filter.frequency.value = 1000
-  source.connect(filter)
-  filter.connect(gain)
-  gain.connect(ac.destination)
-  source.start(ac.currentTime + delay)
- } catch {}
+ })
 }
 
 export const sounds = {
- // Сбор урожая - восходящая мелодия
- harvest: () => {
-  play(523, 0.12, 'sine', 0.2, 0)   // C5
-  play(659, 0.12, 'sine', 0.2, 0.08)  // E5
-  play(784, 0.15, 'sine', 0.2, 0.16)  // G5
-  play(1047, 0.25, 'triangle', 0.15, 0.24) // C6 (финальная нота)
- },
-
- // Покупка поля - приятный аккорд
- buyField: () => {
-  play(440, 0.15, 'triangle', 0.15, 0) // A4
-  play(554, 0.15, 'triangle', 0.12, 0.1) // C#5
-  play(659, 0.2, 'triangle', 0.15, 0.2) // E5
- },
-
- // Покупка ордера - монетка
- buy: () => {
-  play(988, 0.08, 'square', 0.1, 0)
-  play(1319, 0.15, 'square', 0.1, 0.06)
- },
-
- // Техремонт - звук молотка
- repair: () => {
-  playNoise(0.08, 0.15, 0)
-  play(220, 0.1, 'sawtooth', 0.1, 0)
-  playNoise(0.08, 0.12, 0.2)
-  play(330, 0.1, 'sawtooth', 0.08, 0.2)
- },
-
- // Улучшение - магический звук
- upgrade: () => {
-  play(392, 0.1, 'sine', 0.15, 0)  // G4
-  play(523, 0.1, 'sine', 0.15, 0.08) // C5
-  play(659, 0.1, 'sine', 0.15, 0.16) // E5
-  play(784, 0.1, 'sine', 0.15, 0.24) // G5
-  play(1047, 0.3, 'sine', 0.2, 0.32) // C6
- },
-
- // Пошлина - короткий звон монет
- payTax: () => {
-  play(1318, 0.1, 'triangle', 0.12, 0)
-  play(1568, 0.1, 'triangle', 0.12, 0.08)
-  play(1760, 0.15, 'triangle', 0.15, 0.16)
- },
-
- // Удобрение - капельки
- fertilizer: () => {
-  play(880, 0.08, 'sine', 0.1, 0)
-  play(1108, 0.08, 'sine', 0.1, 0.1)
-  play(1396, 0.08, 'sine', 0.1, 0.2)
-  play(1760, 0.12, 'sine', 0.12, 0.3)
- },
-
- // Достижение - фанфары
- achievement: () => {
-  play(523, 0.15, 'sawtooth', 0.12, 0)
-  play(659, 0.15, 'sawtooth', 0.12, 0.12)
-  play(784, 0.15, 'sawtooth', 0.12, 0.24)
-  play(1047, 0.4, 'sawtooth', 0.18, 0.36)
-  playNoise(0.1, 0.05, 0.36)
- },
-
- // Клик - короткий тактильный
- click: () => {
-  play(800, 0.04, 'square', 0.06, 0)
- },
-
- // Ошибка - мягкий buzz
- error: () => {
-  play(196, 0.15, 'sawtooth', 0.1, 0)
-  play(185, 0.15, 'sawtooth', 0.1, 0.1)
- },
-
- // Успех - ding
- success: () => {
-  play(1318, 0.12, 'sine', 0.15, 0)
-  play(1568, 0.2, 'sine', 0.15, 0.1)
- },
-
- // Подключение кошелька
- walletConnect: () => {
-  play(523, 0.1, 'triangle', 0.12, 0)
-  play(659, 0.1, 'triangle', 0.12, 0.08)
-  play(784, 0.2, 'triangle', 0.15, 0.16)
- },
-
- // Переход между экранами
- navigate: () => {
-  play(600, 0.05, 'sine', 0.08, 0)
- },
-
- // Получение награды
- reward: () => {
-  play(659, 0.1, 'triangle', 0.12, 0)
-  play(784, 0.1, 'triangle', 0.12, 0.08)
-  play(1047, 0.25, 'triangle', 0.15, 0.16)
- },
+ // Сбор урожая — «бульк» картошки + восходящий планк + шкворч
+ harvest: () => play('harvest'),
+ // Покупка поля — механический «клёц-шип» + колокол
+ buyField: () => play('buyField'),
+ // Покупка ордера — монетка с металлическим кольцом
+ buy: () => play('buy'),
+ // Техремонт — два удара молотка
+ repair: () => play('repair'),
+ // Улучшение — «пайер-ап» свип + шиммер
+ upgrade: () => play('upgrade'),
+ // Пошлина — кассовый клик-бзз
+ payTax: () => play('payTax'),
+ // Удобрение — булькающие капли
+ fertilizer: () => play('fertilizer'),
+ // Достижение — ретро-фанфары
+ achievement: () => play('achievement'),
+ // Клик — мягкий механический тик
+ click: () => play('click'),
+ // Ошибка — низкий «буз-донк»
+ error: () => play('error'),
+ // Успех — яркий «динг»
+ success: () => play('success'),
+ // Подключение кошелька — «линк» + восходящий чим
+ walletConnect: () => play('walletConnect'),
+ // Переход между экранами — тихий «вух»
+ navigate: () => play('navigate'),
+ // Получение награды — «подарок»-арпедж
+ reward: () => play('reward'),
 }
