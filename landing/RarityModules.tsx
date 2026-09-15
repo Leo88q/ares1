@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { t } from "./i18n";
 import { moduleTiers } from "./content";
 import "./living-engineering.css";
 
@@ -32,9 +33,10 @@ export function RarityModules(): JSX.Element {
             className={`hydro-module-photo hydro-module-photo--${tier.id}`}
             style={{ "--photo-pos": PHOTO_POS[tier.id] } as CSSProperties}
             role="img"
-            aria-label={`Гидропонный модуль ${tier.label}: ${
-              index === 0 ? "росток" : index === 1 ? "каскад" : "гелиос"
-            }`}
+            aria-label={t("Гидропонный модуль {label}: {stage}", {
+              label: tier.label,
+              stage: index === 0 ? t("росток") : index === 1 ? t("каскад") : t("гелиос"),
+            })}
           />
 
           <div className="hydro-module-data">
@@ -43,10 +45,10 @@ export function RarityModules(): JSX.Element {
                 {tier.chancePercent}
                 <small>%</small>
               </strong>
-              <span>шанс выпадения</span>
+              <span>{t("шанс выпадения")}</span>
             </div>
             <div>
-              <span>Игровой урожай</span>
+              <span>{t("Игровой урожай")}</span>
               <b>{tier.gameYieldPercent}%</b>
             </div>
           </div>

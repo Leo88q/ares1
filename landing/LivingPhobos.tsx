@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { t } from "./i18n";
 import { motion } from "framer-motion";
 import { useLivingScene } from "./useLivingScene";
 import "./dome-habitat.css";
@@ -146,8 +147,8 @@ export function LivingPhobos(): JSX.Element {
 
         <div className="living-phobos-caption">
           <span className="living-phobos-dot" />
-          ФОБОС
-          <small>СПУТНИК МАРСА</small>
+          {t("ФОБОС")}
+          <small>{t("СПУТНИК МАРСА")}</small>
         </div>
       </motion.div>
     </div>

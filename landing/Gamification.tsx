@@ -280,7 +280,7 @@ function rewardFor(action: XpAction): RewardDefinition | null {
 
       return {
         amount: 1,
-        label: "Механика изучена",
+        label: t("Механика изучена"),
         key: `feature:${action.id}`,
         colonistRank: false,
       };
@@ -289,7 +289,7 @@ function rewardFor(action: XpAction): RewardDefinition | null {
     case "waitlist":
       return {
         amount: 100,
-        label: "Заявка принята · ранг колониста",
+        label: t("Заявка принята · ранг колониста"),
         key: "waitlist:confirmed",
         colonistRank: true,
       };
