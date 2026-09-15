@@ -117,39 +117,7 @@ function EconomySection({ data }: { data: EconomyData }) {
  )
 }
 
-function ReferralSection() {
- return (
-  <ConsolePanel title="РЕФЕРАЛЬНАЯ ПРОГРАММА" tone="amber">
-   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-    <div className="ares-mono" style={{ fontSize: 11, color: 'rgba(255,179,71,0.85)', lineHeight: 1.6 }}>
-     <div style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
-      <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true">✓</span>
-      <span>Стоимость регистрации: 5 POTATO (burn) — платит приглашённый, разово</span>
-     </div>
-     <div style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
-      <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true">✓</span>
-      <span>Скидка покупателю: 1% от комиссии маркета</span>
-     </div>
-     <div style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
-      <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true">✓</span>
-      <span>Награда рефереру: 0.5% от комиссии маркета</span>
-     </div>
-     <div style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
-      <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true">✓</span>
-      <span>Автоскидка применяется в каждой покупке на маркете</span>
-     </div>
-    </div>
-
-    <div className="ares-mono" style={{ fontSize: 10, color: 'rgba(242,232,218,0.6)', lineHeight: 1.55 }}>
-     Как это работает: приглашённый открывает игру по ссылке с ?ref= —
-     автоматически регистрируется за реферером (on-chain, одноразово),
-     5 🥔 списываются с его баланса. Приглашающий платит ничего —
-     его ссылка в «Кабине» (ВЫЗОВ ПОСЕЛЕНЦЕВ).
-    </div>
-   </div>
-  </ConsolePanel>
- )
-}
+// Реферальная программа — весь UI теперь в Каюте (components/ReferralSection.tsx).
 
 function StatsScreenInner() {
  const { connection, programId, publicKey, config, epoch, ready } = useSolana()
@@ -240,10 +208,6 @@ function StatsScreenInner() {
 
    <div style={{ marginBottom: 24 }}>
     <EconomySection data={data} />
-   </div>
-
-   <div style={{ marginBottom: 24 }}>
-    <ReferralSection />
    </div>
 
    <MissionLog />
