@@ -1470,7 +1470,7 @@ pub fn durability_mult_bps(durability: u8) -> u128 {
     DURABILITY_FLOOR_BPS + (durability.min(MAX_DURABILITY) as u128) * DURABILITY_SLOPE_BPS_PER_POINT
 }
 
-/// Marketplace fee tier by order size (progressive: 3 % → 12 %).
+/// Marketplace fee tier by order size (progressive: 9 % → 12 %).
 pub fn calculate_fee_bps(amount_micro: u64) -> u16 {
     // Прогрессивная комиссия 9% – 12% (от объёма ордера)
     if amount_micro < 1_000_000_000 {
