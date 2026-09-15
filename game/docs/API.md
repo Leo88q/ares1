@@ -96,6 +96,6 @@ Rate limit: `RATE_LIMIT_PER_MINUTE` req/мин/IP (по умолчанию 30).
 | web | `VITE_RPC_URL` | для localnet / prod | RPC endpoint (публичный devnet отдаёт 429) |
 | web | `VITE_PROGRAM_ID` | да | адрес программы |
 | web | `VITE_BACKEND_URL` | нет | без него бэкенд-запросы не идут (квесты on-chain, он не нужен) |
-| backend | `RPC_URL`, `PROGRAM_ID`, `AUTHORITY_KEYPAIR_JSON` | да | см. `.env.example` |
+| backend | `RPC_URL`, `PROGRAM_ID`, `PAYER_KEYPAIR_JSON` (выделенный low-privilege кошелёк, **не** authority — AUDIT B4) | да | см. `.env.example` |
 | backend | `CORS_ORIGIN`, `EPOCH_ROLL_CRON`, `RATE_LIMIT_PER_MINUTE`, `PORT` | нет | |
 | scripts | `ADMIN_KEYPAIR_PATH`, `RPC_URL`, `PROGRAM_ID` | для `init-onchain` | |

@@ -16,8 +16,9 @@ import { anchorDiscriminator, u64LE, decodeGameConfig, decodeEpoch, GameConfig, 
 export const programId = new PublicKey(env.programId);
 export const connection = new Connection(env.rpcUrl, "confirmed");
 
-export const authorityKeypair = (() => {
-  const raw = JSON.parse(fs.readFileSync(env.authorityKeypairJson, "utf-8"));
+/** Low-privilege payer key for roll_epoch (AUDIT B4: НЕ authority-ключ). */
+export const payerKeypair = (() => {
+  const raw = JSON.parse(fs.readFileSync(env.payerKeypairJson, "utf-8"));
   return Keypair.fromSecretKey(Uint8Array.from(raw));
 })();
 
@@ -101,9 +102,9 @@ export function userPotatoAta(owner: PublicKey, potatoMint: PublicKey): PublicKe
   return getAssociatedTokenAddressSync(potatoMint, owner, false);
 }
 
-export async function sendAdminTx(instructions: TransactionInstruction[]): Promise<string> {
+export async function sendPayerTx(instructions: TransactionInstruction[]): Promise<string> {
   const tx = new Transaction().add(...instructions);
-  return sendAndConfirmTransaction(connection, tx, [authorityKeypair], { commitment: "confirmed" });
+  return sendAndConfirmTransaction(connection, tx, [payerKeypair], { commitment: "confirmed" });
 }
 
 export { SYSVAR_RENT_PUBKEY, ASSOCIATED_TOKEN_PROGRAM_ID };

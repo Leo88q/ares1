@@ -46,6 +46,7 @@ import {
 import { LiquidPanelBorder } from "./LiquidPanel";
 import type { LiquidPanelVariant } from "./LiquidPanel";
 import { MorphButton } from "./MorphButton";
+import { InterstellarSection } from "./InterstellarBridge";
 import {
   DomeHabitatInterior,
   DomeHabitatHardware,
@@ -2296,6 +2297,7 @@ export default function App(): JSX.Element {
         <Mechanics />
         <Mascot />
         <Tokenomics />
+        <InterstellarSection />
         <Roadmap />
         <LiveStats notify={notify} />
         <FAQ />

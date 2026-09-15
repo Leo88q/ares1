@@ -80,7 +80,7 @@ yarn build                              # dist/ → любой статичес�
 ### Бэкенд
 
 ```bash
-cd apps/backend && cp .env.example .env   # RPC_URL, PROGRAM_ID, AUTHORITY_KEYPAIR_JSON, CORS_ORIGIN
+cd apps/backend && cp .env.example .env   # RPC_URL, PROGRAM_ID, PAYER_KEYPAIR_JSON (не authority!), CORS_ORIGIN
 mkdir -p keys && cp <admin-keypair.json> keys/
 yarn build && yarn start                  # или docker compose up -d backend
 curl localhost:8080/health
