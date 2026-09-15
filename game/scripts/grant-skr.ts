@@ -21,7 +21,7 @@ import {
   getMint,
   getAssociatedTokenAddressSync,
   createAssociatedTokenAccountIdempotentInstruction,
-  mintTo,
+  createMintToInstruction,
 } from "@solana/spl-token";
 
 const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
@@ -80,7 +80,9 @@ async function main() {
       // ATA принадлежит получателю, ренту платит admin (получатель может не иметь SOL).
       tx.add(createAssociatedTokenAccountIdempotentInstruction(admin.publicKey, ata, g.wallet, SKR_MINT));
     }
-    tx.add(mintTo(SKR_MINT, ata, admin, g.amountMicro));
+    // createMintToInstruction — чистый конструктор ix (authority = PublicKey),
+    // подпись admin уже в signers транзакции ниже. Обходит getSigners из mintTo().
+    tx.add(createMintToInstruction(SKR_MINT, ata, admin.publicKey, g.amountMicro));
     const sig = await sendAndConfirmTransaction(connection, tx, [admin]);
     console.log(`✔ ${g.wallet.toBase58()}: +${g.amountMicro / MICRO} SKR → ${ata.toBase58()}\n  sig: ${sig}`);
   }
