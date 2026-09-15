@@ -415,6 +415,7 @@ const ptBR: Record<string, string> = {
   'Solana Potato — фарм-игра на Solana': 'Solana Potato — jogo de fazenda na Solana',
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — jogo de fazenda on-chain. Compre campos, colete $POTATO a cada segundo e negocie no marketplace P2P integrado por SOL.',
   'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Faixa: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
+  'Кошелёк не вернул подпись транзакции. Отключите кошелёк в настройках игры и подключите заново.': 'A carteira não retornou a assinatura da transação. Desconecte a carteira nas configurações do jogo e conecte novamente.',
 };
 
 export default ptBR;

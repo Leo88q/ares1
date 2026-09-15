@@ -69,18 +69,31 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
 
  const sendIx = useCallback(
   async (ixs: TransactionInstruction[]): Promise<string> => {
-   if (!wallet.publicKey || !wallet.sendTransaction) throw new Error(t('Кошелёк не подключён.'))
+   if (!wallet.publicKey || !wallet.signTransaction || !wallet.sendTransaction) throw new Error(t('Кошелёк не подключён.'))
+   const MISSING_SIG = t('Кошелёк не вернул подпись транзакции. Отключите кошелёк в настройках игры и подключите заново.')
    try {
     const tx = new Transaction().add(...ixs)
     const { blockhash, lastValidBlockHeight } = await withRetry(() => connection.getLatestBlockhash('confirmed'))
     tx.recentBlockhash = blockhash
     tx.feePayer = wallet.publicKey
-    const sig = await wallet.sendTransaction(tx, connection)
+    // Явная подпись кошельком + локальная проверка, что ВСЕ required-сигнатуры
+    // на месте: Phantom mobile при восстановленной сессии иногда возвращает
+    // транзакцию с null-подписью, и без проверки ошибка улетала бы в сеть
+    // («Signature verification failed. Missing signature for public key …»).
+    const signed = (await wallet.signTransaction(tx)) as Transaction
+    const required = signed.compileMessage().header.numRequiredSignatures
+    const provided = signed.signatures.filter((s) => s.signature !== null).length
+    if (provided < required) throw new Error(MISSING_SIG)
+    const raw = signed.serialize() // requireAllSignatures: true — финальная страховка
+    const sig = await connection.sendRawTransaction(raw, { skipPreflight: false, maxRetries: 3 })
     const res = await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed')
     if (res.value.err) throw new Error(t('Транзакция отклонена сетью: {err}', { err: JSON.stringify(res.value.err) }))
     return sig
    } catch (err) {
-    throw new Error(describeError(err))
+    const msg = describeError(err)
+    // RPC-вариант того же сбоя: подпись не доехала до сети.
+    if (/Signature verification failed|Missing signature/i.test(msg)) throw new Error(MISSING_SIG)
+    throw new Error(msg)
    }
   },
   [wallet, connection],

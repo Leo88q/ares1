@@ -415,6 +415,7 @@ const en: Record<string, string> = {
   'Solana Potato — фарм-игра на Solana': 'Solana Potato — farm game on Solana',
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — on-chain farm game. Buy fields, collect $POTATO every second and trade on the built-in P2P marketplace for SOL.',
   'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Track: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
+  'Кошелёк не вернул подпись транзакции. Отключите кошелёк в настройках игры и подключите заново.': 'The wallet did not return a transaction signature. Disconnect the wallet in the game settings and reconnect it.',
 };
 
 export default en;

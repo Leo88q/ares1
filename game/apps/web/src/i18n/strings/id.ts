@@ -415,6 +415,7 @@ const id: Record<string, string> = {
   'Solana Potato — фарм-игра на Solana': 'Solana Potato — game pertanian di Solana',
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — game pertanian on-chain. Beli bedeng, kumpulkan $POTATO setiap detik dan berdagang di marketplace P2P bawaan dengan SOL.',
   'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Lagu: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
+  'Кошелёк не вернул подпись транзакции. Отключите кошелёк в настройках игры и подключите заново.': 'Dompet tidak mengembalikan tanda tangan transaksi. Putuskan dompet di pengaturan permainan lalu hubungkan ulang.',
 };
 
 export default id;
