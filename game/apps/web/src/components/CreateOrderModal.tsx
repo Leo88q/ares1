@@ -3,7 +3,6 @@ import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ShoppingCart, Info } from 'lucide-react'
-import { PublicKey } from '@solana/web3.js'
 import Button from './Button'
 import { MICRO, MIN_ORDER_AMOUNT_POTATO, feeBps } from '../utils/constants'
 import { pdas, decodeExportLicense } from '../utils/anchorClient'
