@@ -25,6 +25,14 @@ export function u64LE(value: bigint): Uint8Array {
  return b
 }
 
+/** 8 случайных байт как u64 — nonce PDA для полей/ордеров (как в игре). */
+export function randomU64(): bigint {
+  const bytes = new Uint8Array(8)
+  crypto.getRandomValues(bytes)
+  bytes[7] &= 0x7f
+  return new DataView(bytes.buffer).getBigUint64(0, true)
+}
+
 export function u8(value: number): Uint8Array {
  return new Uint8Array([value])
 }
@@ -385,9 +393,10 @@ export async function ixBuyFieldSkr(programId: PublicKey, params: {
   config: PublicKey; presaleState: PublicKey; authority: PublicKey; buyerPresale: PublicKey;
   field: PublicKey; buyer: PublicKey; treasurySol: PublicKey;
   skrMint: PublicKey; buyerSkrAta: PublicKey; treasurySkrAta: PublicKey; buybackSkrAta: PublicKey;
-  fieldId: bigint; fieldType: number;
+  fieldId: bigint;
 }): Promise<TransactionInstruction> {
-  const data = concatBytes(await ixDiscriminator('buy_field_skr'), u64LE(params.fieldId), u8(params.fieldType))
+  // Тир кидает сама программа: keccak(buyer ‖ sold ‖ slot) — клиенту field_type не передаётся
+  const data = concatBytes(await ixDiscriminator('buy_field_skr'), u64LE(params.fieldId))
   return new TransactionInstruction({
     programId,
     data,
@@ -436,7 +445,7 @@ export async function ixBuyExportLicense(programId: PublicKey, params: {
 export async function ixMigrateConfig(programId: PublicKey, params: {
  config: PublicKey; authority: PublicKey;
 }): Promise<TransactionInstruction> {
- const data = await ixDiscriminator('migrate_config')
+ const data = Buffer.from(await ixDiscriminator('migrate_config'))
  return new TransactionInstruction({
   programId,
   data,
@@ -451,7 +460,7 @@ export async function ixMigrateConfig(programId: PublicKey, params: {
 export async function ixMigrateField(programId: PublicKey, params: {
  field: PublicKey; config: PublicKey; authority: PublicKey;
 }): Promise<TransactionInstruction> {
- const data = await ixDiscriminator('migrate_field')
+ const data = Buffer.from(await ixDiscriminator('migrate_field'))
  return new TransactionInstruction({
   programId,
   data,
@@ -467,7 +476,7 @@ export async function ixMigrateField(programId: PublicKey, params: {
 export async function ixMigrateEpoch(programId: PublicKey, params: {
  epoch: PublicKey; config: PublicKey; authority: PublicKey;
 }): Promise<TransactionInstruction> {
- const data = await ixDiscriminator('migrate_epoch')
+ const data = Buffer.from(await ixDiscriminator('migrate_epoch'))
  return new TransactionInstruction({
   programId,
   data,
@@ -496,7 +505,7 @@ export const LUNAR_TABLE: number[] = [
 
 export function getLunarMultiplier(epochId: number): number {
   const idx = epochId % 28;
-  return LUNAR_TABLE[idx] / 10000;
+  return (LUNAR_TABLE[idx] ?? 10000) / 10000;
 }
 
 export function getLunarPhase(epochId: number): string {
@@ -566,7 +575,7 @@ export async function ixRegisterReferrer(programId: PublicKey, params: {
   const data = Buffer.alloc(DISCRIMINATOR_SIZE + 32);
   const disc = await ixDiscriminator('register_referrer');
   data.set(disc, 0);
-  data.write(referrer.toBuffer(), DISCRIMINATOR_SIZE);
+  data.set(referrer.toBuffer(), DISCRIMINATOR_SIZE);
   
   return new TransactionInstruction({
     programId,

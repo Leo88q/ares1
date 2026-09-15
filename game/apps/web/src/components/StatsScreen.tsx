@@ -46,7 +46,10 @@ interface EconomyData {
  taxBps: number
 }
 
-const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1
+// 8 (disc) + 32 (owner) + 1 (level) + 1 (durability) + 8 (last_harvest)
+// + 8 (tax_paid_until) + 8 (fertilizer_until) + 1 (is_active) + 1 (field_type)
+// + 1 (bump) + 1 (reserved) = 70 — после migrate_field realloc
+const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1
 const STATS_POLL_MS = 30_000
 
 /** Консольная строка-прибор: моно-лейбл, янтарное значение, светящийся бар */
