@@ -402,6 +402,18 @@ const id: Record<string, string> = {
   '🌖 Убывающая луна': '🌗 Bulan surut',
   '🌗 Последняя четверть': '🌘 Kuartal terakhir',
   '🌘 Новолуние (дно)': '🌑 Bulan baru (dasar)',
+  'МОДУЛЬ': 'MODUL',
+  'ИЗОЛЯЦИЯ': 'ISOLASI',
+  'Закрыть подтверждение': 'Tutup konfirmasi',
+  'Загрузка колонии': 'Memuat koloni',
+  'АГРОНОМ-1': 'AGRONOM-1',
+  'ГОТОВ': 'SIAP',
+  'ДОМ. 225 МЛН КМ. ШЛЁМ КАРТОШКУ.': 'RUMAH. 225 JUTA KM. PAKAI HELM KENTANG.',
+  'Язык': 'Bahasa',
+  'Сумма {sym}': 'Jumlah {sym}',
+  ' Удобрение ×1.5 ({h}ч)': ' Pupuk ×1.5 ({h}j)',
+  'Solana Potato — фарм-игра на Solana': 'Solana Potato — game pertanian di Solana',
+  'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — game pertanian on-chain. Beli bedeng, kumpulkan $POTATO setiap detik dan berdagang di marketplace P2P bawaan dengan SOL.',
 };
 
 export default id;

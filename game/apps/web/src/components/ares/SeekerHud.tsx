@@ -115,7 +115,7 @@ export const SolHud = memo(function SolHud({
    <HudCell
     icon={<IconCrate size={14} accent={accent} />}
     label="RATION"
-    value={rationLabel}
+    value={t(rationLabel)}
     accent={accent}
     breathing={breathing}
    />

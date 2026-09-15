@@ -402,6 +402,18 @@ const ptBR: Record<string, string> = {
   '🌖 Убывающая луна': '🌖 Lua minguante',
   '🌗 Последняя четверть': '🌗 Quarto minguante',
   '🌘 Новолуние (дно)': '🌘 Lua nova (fundo)',
+  'МОДУЛЬ': 'MÓDULO',
+  'ИЗОЛЯЦИЯ': 'ISOLAMENTO',
+  'Закрыть подтверждение': 'Fechar confirmação',
+  'Загрузка колонии': 'Carregando colônia',
+  'АГРОНОМ-1': 'AGRÔNOMO-1',
+  'ГОТОВ': 'PRONTO',
+  'ДОМ. 225 МЛН КМ. ШЛЁМ КАРТОШКУ.': 'LAR. 225 MI KM. USE O CAPACETE DE BATATA.',
+  'Язык': 'Idioma',
+  'Сумма {sym}': 'Valor {sym}',
+  ' Удобрение ×1.5 ({h}ч)': ' Adubo ×1,5 ({h}h)',
+  'Solana Potato — фарм-игра на Solana': 'Solana Potato — jogo de fazenda na Solana',
+  'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — jogo de fazenda on-chain. Compre campos, colete $POTATO a cada segundo e negocie no marketplace P2P integrado por SOL.',
 };
 
 export default ptBR;

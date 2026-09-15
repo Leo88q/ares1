@@ -402,6 +402,18 @@ const es419: Record<string, string> = {
   '🌖 Убывающая луна': '🌖 Luna menguante',
   '🌗 Последняя четверть': '🌗 Cuarto menguante',
   '🌘 Новолуние (дно)': '🌘 Luna nueva (mínimo)',
+  'МОДУЛЬ': 'MÓDULO',
+  'ИЗОЛЯЦИЯ': 'Aislamiento',
+  'Закрыть подтверждение': 'Cerrar confirmación',
+  'Загрузка колонии': 'Cargando colonia',
+  'АГРОНОМ-1': 'AGRÓNOMO-1',
+  'ГОТОВ': 'LISTO',
+  'ДОМ. 225 МЛН КМ. ШЛЁМ КАРТОШКУ.': 'CASA. 225M KM. PÓNETE EL CASCO DE PAPA.',
+  'Язык': 'Idioma',
+  'Сумма {sym}': 'Monto {sym}',
+  ' Удобрение ×1.5 ({h}ч)': ' Fertilizante ×1,5 ({h}h)',
+  'Solana Potato — фарм-игра на Solana': 'Solana Potato — juego de granja en Solana',
+  'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — juego de granja on-chain. Compra parcelas, recoge $POTATO cada segundo y comercia en el marketplace P2P integrado por SOL.',
 };
 
 export default es419;

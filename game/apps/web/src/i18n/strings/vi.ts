@@ -402,6 +402,18 @@ const vi: Record<string, string> = {
   '🌖 Убывающая луна': '🌖 Trăng già',
   '🌗 Последняя четверть': '🌗 Hạ tuần trăng',
   '🌘 Новолуние (дно)': '🌘 Trăng mới (đáy)',
+  'МОДУЛЬ': 'MODULE',
+  'ИЗОЛЯЦИЯ': 'CÁCH LY',
+  'Закрыть подтверждение': 'Đóng xác nhận',
+  'Загрузка колонии': 'Đang tải khu định cư',
+  'АГРОНОМ-1': 'AGRONOM-1',
+  'ГОТОВ': 'SẴN SÀNG',
+  'ДОМ. 225 МЛН КМ. ШЛЁМ КАРТОШКУ.': 'NHA. 225 TRI M. ĐEO MŨ KHOAI TÂY.',
+  'Язык': 'Ngôn ngữ',
+  'Сумма {sym}': 'Số tiền {sym}',
+  ' Удобрение ×1.5 ({h}ч)': ' Phân ×1.5 ({h}g)',
+  'Solana Potato — фарм-игра на Solana': 'Solana Potato — game nông trại trên Solana',
+  'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — game nông trại on-chain. Mua mảnh đất, thu $POTATO mỗi giây và giao dịch trên sàn P2P tích hợp lấy SOL.',
 };
 
 export default vi;

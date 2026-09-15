@@ -196,7 +196,7 @@ export default function WalletManagement() {
            <div style={{ fontSize: 13, color: 'var(--pf-gold)', marginBottom: 10, fontWeight: 600 }}>{t('Передача')} {currency.name}</div>
            <input type="text" value={recipient} onChange={(e) => setRecipient(e.target.value.trim())} placeholder={t("Адрес получателя")} aria-label={t("Адрес получателя")} autoComplete="off" spellCheck={false}
             style={{ ...inputStyle, fontFamily: 'monospace' }} />
-           <input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t(`Сумма ${currency.symbol}`)} aria-label={t("Сумма")} step={currency.min} min={currency.min}
+           <input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t('Сумма {sym}', { sym: currency.symbol })} aria-label={t("Сумма")} step={currency.min} min={currency.min}
             style={inputStyle} />
            <p style={{ fontSize: 11, color: 'var(--pf-red)', marginBottom: 10 }}>{t('Проверь адрес дважды — транзакцию в блокчейне нельзя отменить.')}</p>
            <motion.button whileTap={{ scale: 0.95 }} onClick={handleWithdraw} disabled={loading || !amount || !recipient}

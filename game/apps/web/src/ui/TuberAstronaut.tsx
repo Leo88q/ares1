@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { motion } from 'framer-motion';
+import { t } from '../i18n';
 import { usePrefersReducedMotion } from '../components/ares/effects';
 import { RollingNumber } from './RollingNumber';
 
@@ -89,11 +90,11 @@ export function AstronautLoader({ progress, label }: { progress: number; label?:
   <div className="astronaut-loader">
    <div className="astronaut-loader-shadow" aria-hidden="true" />
    <TuberAstronaut size={210} jumping />
-   <div className="astronaut-loader-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={label ?? 'Загрузка колонии'}>
+   <div className="astronaut-loader-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={label ?? t('Загрузка колонии')}>
     <div className="astronaut-loader-fill" style={{ width: `${pct}%` }} />
    </div>
    <div className="astronaut-loader-meta">
-    <span>{label ?? 'РАСПАКОВКА ГИДРОПОНИКИ'}</span>
+    <span>{label ?? t('РАСПАКОВКА ГИДРОПОНИКИ')}</span>
     <strong>
      <RollingNumber value={pct} minimumDigits={2} />%
     </strong>

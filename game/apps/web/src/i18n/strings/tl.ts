@@ -402,6 +402,18 @@ const tl: Record<string, string> = {
   '🌖 Убывающая луна': '🌖 Bumababang buwan',
   '🌗 Последняя четверть': '🌗 Huling quarter',
   '🌘 Новолуние (дно)': '🌘 Bagong buwan (lowest)',
+  'МОДУЛЬ': 'MODULE',
+  'ИЗОЛЯЦИЯ': 'KUKUHIM',
+  'Закрыть подтверждение': 'Isara ang kumpirmasyon',
+  'Загрузка колонии': 'Naglo-load ang kolonya',
+  'АГРОНОМ-1': 'AGRONOMO-1',
+  'ГОТОВ': 'HANDA',
+  'ДОМ. 225 МЛН КМ. ШЛЁМ КАРТОШКУ.': 'BAHAN. 225M KM. ISTAS SA HELMET NG PATATAS.',
+  'Язык': 'Wika',
+  'Сумма {sym}': 'Halaga {sym}',
+  ' Удобрение ×1.5 ({h}ч)': ' Pataba ×1.5 ({h}h)',
+  'Solana Potato — фарм-игра на Solana': 'Solana Potato — laro ng farm sa Solana',
+  'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — on-chain na laro ng farm. Bumili ng taniman, kumolekta ng $POTATO tuwing segundo, at magtrade sa built-in na P2P marketplace para sa SOL.',
 };
 
 export default tl;

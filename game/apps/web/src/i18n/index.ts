@@ -102,9 +102,12 @@ function subscribe(l: () => void): () => void {
  * Фолбэк: текущий язык -> английский -> сам ключ.
  */
 export function t(key: string, vars?: Record<string, string | number>): string {
-  const table = current === "ru" ? {} : (dicts[current] || {});
-  const en = dicts.en || {};
-  let s = table[key] ?? en[key] ?? key;
+  // ru = канонический язык UI: ключ — это уже русский текст, словарь не нужен.
+  // (иначе ru-пользователи видели бы английский фолбэк для каждого ключа).
+  let s =
+    current === "ru"
+      ? key
+      : (dicts[current] || {})[key] ?? (dicts.en || {})[key] ?? key;
   if (vars) {
     for (const [k, v] of Object.entries(vars)) {
       s = s.split(`{${k}}`).join(String(v));
