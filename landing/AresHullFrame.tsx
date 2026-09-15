@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import {
   useEffect,
   useId,
@@ -794,7 +795,7 @@ export function AresHullFrame({
               fontSize="6.5"
               letterSpacing="1.3"
             >
-              {skin.plate}
+              {t(skin.plate)}
             </text>
           </g>
         )}

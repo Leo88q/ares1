@@ -494,8 +494,8 @@ export function PrizeRevealShow({
   trigger,
   amount,
   onComplete,
-  title = "НАГРАДА ПОЛУЧЕНА",
-  message = "Груз доставлен в твою колонию.",
+  title = t("НАГРАДА ПОЛУЧЕНА"),
+  message = t("Груз доставлен в твою колонию."),
   unit = "$POTATO",
   haptics = true,
 }: PrizeRevealShowProps): JSX.Element | null {

@@ -5,6 +5,7 @@ import {
   useState,
 } from "react";
 import type { RefObject } from "react";
+import { t } from "./i18n";
 import { motion } from "framer-motion";
 import { usePrefersReducedMotion } from "./hooks";
 import "./dome-habitat.css";
@@ -219,7 +220,7 @@ function HydroponicBed({
 }: BedProps): JSX.Element {
   const id = useId().replace(/:/g, "");
   const stage = index % 3;
-  const stages = ["РОСТОК", "ЛИСТВА", "КЛУБНИ"] as const;
+  const stages = [t("РОСТОК"), t("ЛИСТВА"), t("КЛУБНИ")] as const;
   const accent = selected ? "#7CFF6B" : "#FF64BB";
 
   return (
@@ -448,8 +449,7 @@ export function DomeHabitatInterior(): JSX.Element {
           fontSize="7"
           fontFamily="'JetBrains Mono', monospace"
           letterSpacing="1.1"
-        >
-          АГРООТСЕК / ARES-1
+        > {t("АГРООТСЕК / ARES-1")}
         </text>
         {Array.from({ length: 6 }, (_, index) => (
           <rect

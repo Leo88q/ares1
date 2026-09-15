@@ -1483,7 +1483,7 @@ function Mascot(): JSX.Element {
               {gameConfig.quests.featured.map((quest) => (
                 <span key={quest.title}>
                   <Check size={14} aria-hidden="true" />
-                  {quest.title}
+                  {t(quest.title)}
                   <b>+{quest.rewardPotato} $POTATO</b>
                 </span>
               ))}
@@ -1903,7 +1903,7 @@ function PacksSection(): JSX.Element {
       const { config: configPda, field } = pdas(programId);
 
       const cfgInfo = await connection.getAccountInfo(configPda());
-      if (!cfgInfo) throw new Error("GameConfig PDA не найден — devnet не отвечает.");
+      if (!cfgInfo) throw new Error(t("GameConfig PDA не найден — devnet не отвечает."));
       const cfg = decodeConfig(Buffer.from(cfgInfo.data));
 
       const fieldId = randomU64();
@@ -1936,7 +1936,7 @@ function PacksSection(): JSX.Element {
       tx.recentBlockhash = blockhash.blockhash;
 
       const signed = await window.solana?.signTransaction(tx);
-      if (!signed) throw new Error("Кошелёк не вернул подписанную транзакцию.");
+      if (!signed) throw new Error(t("Кошелёк не вернул подписанную транзакцию."));
 
       const signature = await connection.sendRawTransaction(signed.serialize());
       const confirmation = await connection.confirmTransaction(
@@ -1948,7 +1948,7 @@ function PacksSection(): JSX.Element {
         "confirmed",
       );
       if (confirmation.value.err) {
-        throw new Error("Программа отклонила транзакцию: " + String(confirmation.value.err));
+        throw new Error(t("Программа отклонила транзакцию: ") + String(confirmation.value.err));
       }
 
       // Читаем реальный тир из созданного поля: field_type на offset 67
@@ -2277,8 +2277,24 @@ function Toast({
 }
 
 export default function App(): JSX.Element {
+  const { lang } = useI18n();
   const [notice, setNotice] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
+
+  // SEO-теги следуют за языком (title, description, og:*, twitter:*, html lang).
+  useEffect(() => {
+    document.title = SC.seo.title;
+    const setMeta = (selector: string, value: string): void => {
+      document.head.querySelector(selector)?.setAttribute("content", value);
+    };
+    setMeta('meta[name="description"]', SC.seo.description);
+    setMeta('meta[property="og:title"]', SC.seo.ogTitle);
+    setMeta('meta[property="og:description"]', SC.seo.ogDescription);
+    setMeta('meta[property="og:image:alt"]', SC.seo.ogImageAlt);
+    setMeta('meta[name="twitter:title"]', SC.seo.title);
+    setMeta('meta[name="twitter:description"]', SC.seo.description);
+    document.documentElement.lang = lang === "es-419" ? "es" : lang;
+  }, [lang]);
 
   const notify = useCallback((message: string): void => {
     if (timer.current !== null) {
