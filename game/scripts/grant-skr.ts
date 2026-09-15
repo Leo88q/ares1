@@ -80,7 +80,7 @@ async function main() {
       // ATA принадлежит получателю, ренту платит admin (получатель может не иметь SOL).
       tx.add(createAssociatedTokenAccountIdempotentInstruction(admin.publicKey, ata, g.wallet, SKR_MINT));
     }
-    tx.add(mintTo(SKR_MINT, ata, admin.publicKey, g.amountMicro));
+    tx.add(mintTo(SKR_MINT, ata, admin, g.amountMicro));
     const sig = await sendAndConfirmTransaction(connection, tx, [admin]);
     console.log(`✔ ${g.wallet.toBase58()}: +${g.amountMicro / MICRO} SKR → ${ata.toBase58()}\n  sig: ${sig}`);
   }
