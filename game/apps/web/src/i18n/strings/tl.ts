@@ -415,6 +415,7 @@ const tl: Record<string, string> = {
   'Solana Potato — фарм-игра на Solana': 'Solana Potato — laro ng farm sa Solana',
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — on-chain na laro ng farm. Bumili ng taniman, kumolekta ng $POTATO tuwing segundo, at magtrade sa built-in na P2P marketplace para sa SOL.',
   'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Tunog: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
+  'Кошелёк не вернул подпись транзакции. Отключите кошелёк в настройках игры и подключите заново.': 'Hindi ibinalik ng wallet ang signature ng transaksyon. I-disconnect ang wallet sa settings ng laro at ikonekta ulit.',
 };
 
 export default tl;

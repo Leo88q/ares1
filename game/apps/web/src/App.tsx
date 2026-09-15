@@ -8,6 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { ToastProvider } from './components/Toast'
 import { GameProvider } from './contexts/GameContext'
 import { t, useI18n } from './i18n'
+import { ambientMusic } from './utils/ambientMusic'
 
 import { useReferralRegistration } from './hooks/useReferralRegistration'
 import { AresBottomNav } from './components/ares/AresBottomNav'
@@ -30,6 +31,12 @@ export default function App() {
  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('potato_tutorial_done'))
  const [booted, setBooted] = useState(() => localStorage.getItem('potato_landed') === '1')
  useReferralRegistration()
+
+ // Фоновая музыка глобальная: запускается один раз на всю игру,
+ // независимо от того, на каком экране пользователь находится.
+ useEffect(() => {
+  ambientMusic.init()
+ }, [])
 
  // SEO-теги следуют за языком (title, description, html lang).
  useEffect(() => {

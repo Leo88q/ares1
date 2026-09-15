@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react'
+import { ReactNode, useState } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
@@ -14,23 +14,15 @@ export default function AudioSettings() {
  const [isOpen, setIsOpen] = useState(false)
  const [hapticOn, setHapticOn] = useState(isHapticEnabled())
  const [soundsOn, setSoundsOn] = useState(isSoundEnabled())
- const [musicOn, setMusicOn] = useState(() => localStorage.getItem('potato_music') === 'on')
- const [musicVolume, setMusicVolume] = useState(() => parseFloat(localStorage.getItem('potato_music_volume') || '0.15'))
+ const [musicOn, setMusicOn] = useState(() => ambientMusic.getOn())
+ const [musicVolume, setMusicVolume] = useState(() => ambientMusic.getVolume())
 
- useEffect(() => {
-  if (musicOn) {
-   ambientMusic.start()
-   ambientMusic.setVolume(musicVolume)
-  } else {
-   ambientMusic.stop()
-  }
-  return () => ambientMusic.stop()
- }, [musicOn, musicVolume])
-
+ // Музыка глобальная: жизненный цикл в ambientMusic (init в App),
+ // здесь только настройки. При уходе с «Каюты» трек не останавливается.
  const toggleMusic = () => {
   const next = !musicOn
   setMusicOn(next)
-  localStorage.setItem('potato_music', next ? 'on' : 'off')
+  ambientMusic.setOn(next)
  }
 
  const toggleSfx = () => {
@@ -45,7 +37,7 @@ export default function AudioSettings() {
 
  const changeVolume = (v: number) => {
   setMusicVolume(v)
-  localStorage.setItem('potato_music_volume', v.toString())
+  ambientMusic.setVolume(v)
  }
 
  return (
