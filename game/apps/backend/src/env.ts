@@ -10,9 +10,11 @@ export const env = {
   port: parseInt(process.env.PORT || "8080", 10),
   rpcUrl: required("RPC_URL"),
   programId: required("PROGRAM_ID"),
-  /** Path to the JSON keypair of `GameConfig.authority`. Never ship it to a client.
-   *  Нужен epoch-roller-у (roll_epoch) — on-chain, без Telegram. */
-  authorityKeypairJson: required("AUTHORITY_KEYPAIR_JSON"),
+  /** Path to the JSON keypair of a DEDICATED low-privilege wallet (NOT the
+   *  program authority!). roll_epoch принимает любого signera как payer —
+   *  ключу нужны только lamports на rent/fee нового epoch-аккаунта (~0.0013 SOL
+   *  в эпоху). 0.1–0.2 SOL хватит на годы. AUDIT B4. */
+  payerKeypairJson: required("PAYER_KEYPAIR_JSON"),
   corsOrigin: process.env.CORS_ORIGIN || "*",
   epochRollCron: process.env.EPOCH_ROLL_CRON || "*/10 * * * *",
   /** Requests per minute per IP on /api/*. */

@@ -1,13 +1,13 @@
 import cron from "node-cron";
 import { env } from "./env.js";
 import {
-  authorityKeypair,
+  payerKeypair,
   buildRollEpochIx,
   configPda,
   epochPda,
   fetchConfig,
   fetchEpoch,
-  sendAdminTx,
+  sendPayerTx,
 } from "./solana.js";
 
 const EPOCH_DURATION_SECONDS = 86_400;
@@ -26,9 +26,9 @@ export async function tryRollEpoch(): Promise<string | null> {
     config: configPda(),
     currentEpoch: epochPda(config.epochId),
     nextEpoch: epochPda(nextId),
-    payer: authorityKeypair.publicKey,
+    payer: payerKeypair.publicKey,
   });
-  return sendAdminTx([ix]);
+  return sendPayerTx([ix]);
 }
 
 export function startEpochRoller() {

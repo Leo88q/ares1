@@ -283,7 +283,7 @@ async function main() {
   console.log("CONFIG_PDA:     ", configPda.toBase58());
   console.log("TREASURY_SOL:   ", treasurySolPda.toBase58());
   console.log("QUEST_TREASURY: ", questTreasuryPda.toBase58());
-  console.log(`\nBackend:      AUTHORITY_KEYPAIR_JSON=${ADMIN_KEYPAIR_PATH}`);
+  console.log(`\nBackend:      PAYER_KEYPAIR_JSON=<выделенный low-privilege кошелёк с ~0.1 SOL; НЕ ${ADMIN_KEYPAIR_PATH} — AUDIT B4>`);
   console.log(`Frontend:     VITE_PROGRAM_ID=${PROGRAM_ID.toBase58()}  VITE_RPC_URL=${RPC_URL}`);
 }
 

@@ -3,7 +3,7 @@ import cors from "cors";
 import { env } from "./env.js";
 import { configRouter } from "./routes/config.js";
 import { startEpochRoller } from "./epochRoller.js";
-import { authorityKeypair, connection, fetchConfig, programId } from "./solana.js";
+import { connection, fetchConfig, payerKeypair, programId } from "./solana.js";
 
 /** Minimal fixed-window rate limiter per IP (no extra dependency). */
 function rateLimit(perMinute: number) {
@@ -49,11 +49,12 @@ async function main() {
   });
 
   const config = await fetchConfig();
-  if (!config.authority.equals(authorityKeypair.publicKey)) {
-    // Fail-fast: с неверным ключом epoch-roller не сможет роллить эпохи (AUDIT I14)
+  // Fail-fast: payer без баланса роллить эпохи не сможет (rent + fee ~0.01 SOL/эпоху с запасом)
+  const payerBal = await connection.getBalance(payerKeypair.publicKey);
+  if (payerBal < 10_000_000) {
     console.error(
-      `[startup] FATAL: keypair ${authorityKeypair.publicKey.toBase58()} is not GameConfig.authority (${config.authority.toBase58()}). ` +
-      `Проверьте AUTHORITY_KEYPAIR_JSON. Бэкенд не запускается.`,
+      `[startup] FATAL: PAYER_KEYPAIR_JSON (${payerKeypair.publicKey.toBase58()}) ` +
+      `баланс ${(payerBal / 1e9).toFixed(4)} SOL < 0.01 — нечем платить rent/fee за epoch. Бэкенд не запускается.`,
     );
     process.exit(1);
   }
@@ -62,7 +63,7 @@ async function main() {
   app.listen(env.port, () => {
     console.log(`[startup] Solana Potato backend on :${env.port}`);
     console.log(`[startup] program=${programId.toBase58()} rpc=${env.rpcUrl}`);
-    console.log(`[startup] authority=${authorityKeypair.publicKey.toBase58()} epoch=${config.epochId}`);
+    console.log(`[startup] epoch-payer=${payerKeypair.publicKey.toBase58()} epoch=${config.epochId}`);
   });
 }
 
