@@ -6,17 +6,13 @@ import {
   useState,
 } from "react";
 import type {
-
-  FormEvent,
   MouseEvent as ReactMouseEvent,
   ReactNode,
 } from "react";
 import {
   AnimatePresence,
-  animate,
   motion,
   useAnimationControls,
-  useMotionValue,
   useReducedMotion,
   useScroll,
   useSpring,
@@ -28,12 +24,28 @@ import {
   ChevronDown,
   Menu,
   X, Play} from "lucide-react";
+import { PublicKey, Transaction } from "@solana/web3.js";
+import {
+  createAssociatedTokenAccountIdempotentInstruction,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
 import { useLandingWallet } from "./hooks/useLandingWallet";
-import { PrizeRevealShow } from "./PrizeRevealShow";
+import { useLiveChain } from "./hooks/useLiveChain";
+import {
+  TEST_SKR_MINT,
+  buybackSkrAta,
+  buyerPresalePda,
+  decodeConfig,
+  ixBuyFieldSkr,
+  pdas,
+  presaleStatePda,
+  randomU64,
+  treasurySkrAta,
+  treasurySolPda,
+} from "./utils/anchorClient";
 import { LiquidPanelBorder } from "./LiquidPanel";
 import type { LiquidPanelVariant } from "./LiquidPanel";
 import { MorphButton } from "./MorphButton";
-import { InterstellarSection } from "./InterstellarBridge";
 import {
   DomeHabitatInterior,
   DomeHabitatHardware,
@@ -60,28 +72,23 @@ import {
   assets,
   faq,
   features,
-  formatNumber,
   gameConfig,
 
   presale,
   roadmap,
   siteContent,
-  socialLinks,
-  testimonials,
   tokenCycle,
   chainConfig,
   playConfig,
 } from "./content";
 import type { FeatureIconName } from "./content";
 import {
-  useCountUp,
   useMousePosition,
   usePrefersReducedMotion,
   useTypewriter,
 } from "./hooks";
 
 const easeOut = [0.22, 1, 0.36, 1] as const;
-const emptyFieldErrors: FieldErrors = { email: "" };
 
 type Notify = (message: string) => void;
 
@@ -111,6 +118,8 @@ interface SectionHeadingProps {
 
 interface ActionProps extends ChildrenProps {
   readonly href?: string;
+  readonly target?: string;
+  readonly rel?: string;
   readonly onClick?: () => void;
   readonly variant?: "primary" | "secondary";
   readonly type?: "button" | "submit";
@@ -121,23 +130,6 @@ interface ActionProps extends ChildrenProps {
 }
 
 // Click effects are owned by MorphButton.
-
-interface FieldErrors {
-  readonly email: string;
-}
-
-interface WaitlistResponse {
-  readonly ok: true;
-}
-
-function isWaitlistResponse(value: unknown): value is WaitlistResponse {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "ok" in value &&
-    value.ok === true
-  );
-}
 
 function Mark({ className = "" }: { readonly className?: string }): JSX.Element {
   return (
@@ -345,6 +337,8 @@ function SectionHeading({
 function Action({
   children,
   href,
+  target,
+  rel,
   onClick,
   variant = "primary",
   type = "button",
@@ -359,6 +353,8 @@ function Action({
     return (
       <MorphButton
         href={href}
+        target={target}
+        rel={rel}
         variant={variant}
         disabled={disabled}
         loading={loading}
@@ -380,11 +376,10 @@ function Action({
       disabled={disabled}
       loading={loading}
       success={success}
-      magnetic={true}
-      fullWidth={fullWidth}
-      className={className}
-      loadingLabel={siteContent.waitlist.loading}
-      onClick={() => onClick?.()}
+        magnetic={true}
+        fullWidth={fullWidth}
+        className={className}
+        onClick={() => onClick?.()}
     >
       {children}
     </MorphButton>
@@ -977,9 +972,11 @@ function Countdown(): JSX.Element {
   );
 }
 
-function Hero({ notify }: { readonly notify: Notify }): JSX.Element {
+function Hero(): JSX.Element {
   const ref = useRef<HTMLElement>(null);
   const title = useTypewriter({ text: siteContent.hero.title });
+  const live = useLiveChain();
+  const sold = live.online ? live.sold : 0;
 
   return (
     <section ref={ref} id="hero" className="hero" aria-labelledby="hero-title">
@@ -1020,10 +1017,14 @@ function Hero({ notify }: { readonly notify: Notify }): JSX.Element {
               <Play size={18} aria-hidden="true" />
               {playConfig.label}
             </a>
-            <Action href="#waitlist">{siteContent.hero.primaryCta}</Action>
+            <Action href={siteContent.hero.primaryHref}>
+              {siteContent.hero.primaryCta}
+            </Action>
             <Action
               variant="secondary"
-              onClick={() => notify(siteContent.accessibility.externalUnavailable)}
+              href={siteContent.hero.secondaryHref}
+              target="_blank"
+              rel="noopener noreferrer"
             >
               {siteContent.hero.secondaryCta}
               <ArrowUpRight size={16} aria-hidden="true" />
@@ -1032,27 +1033,33 @@ function Hero({ notify }: { readonly notify: Notify }): JSX.Element {
 
           <Reveal className="presale-panel" delay={0.35} panel="accent">
             <div className="presale-top">
-              <span>ПЕРВАЯ ВОЛНА</span>
+              <span>ПЕРВАЯ ВОЛНА · LIVE</span>
               <span>
                 <strong>
-                  <RollingNumber value={presale.sold} />
+                  <RollingNumber value={sold} />
                 </strong>
                 {" / "}
-                <RollingNumber value={presale.supply} />
+                <RollingNumber value={live.online ? live.cap : presale.supply} />
               </span>
             </div>
 
             <SparkProgress
-              value={presale.sold}
-              max={presale.supply}
+              value={sold}
+              max={live.online ? live.cap : presale.supply}
               label={siteContent.hero.progressLabel}
-              valueText={siteContent.hero.soldLabel}
+              valueText={
+                live.online
+                  ? `${sold} / ${live.online ? live.cap : presale.supply} модулей продано`
+                  : "подключение к devnet…"
+              }
               color="#FF2E93"
             />
 
             <div className="presale-bottom">
-              <span>модулей продано</span>
-              <strong>1 053 SKR / модуль</strong>
+              <span>
+                {live.online ? "данные с devnet-цепи" : "ожидание ответа RPC"}
+              </span>
+              <strong>0.25 SOL · 1 053 SKR / модуль</strong>
             </div>
             <Countdown />
           </Reveal>
@@ -1072,7 +1079,7 @@ function Hero({ notify }: { readonly notify: Notify }): JSX.Element {
         <div className="hero-bottom">
           <p>
             <span className="status-dot" />
-            SEEKER DEVNET
+            SOLANA DEVNET
           </p>
           <span>ИСХОДНИКИ ОТКРЫТЫ · ПРОГРАММА ОБНОВЛЯЕТСЯ</span>
           <a href="#problem" aria-label="Узнать о колонии">
@@ -1637,106 +1644,58 @@ function Roadmap(): JSX.Element {
   );
 }
 
-function Marquee(): JSX.Element {
-  const reduced = usePrefersReducedMotion();
-  const firstGroup = useRef<HTMLDivElement>(null);
-  const x = useMotionValue(0);
-  const animation = useRef<ReturnType<typeof animate> | null>(null);
-  const [width, setWidth] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [hidden, setHidden] = useState(false);
+function LiveStats({ notify }: { readonly notify: Notify }): JSX.Element {
+  const live = useLiveChain();
+  const stats = siteContent.social.stats;
 
-  useEffect(() => {
-    const element = firstGroup.current;
+  const value = (
+    number: bigint | number | null,
+    decimals = 0,
+  ): string => {
+    if (number === null) return "—";
+    const v = Number(number);
+    if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(2)}B`;
+    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
+    if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
+    return v.toLocaleString("ru-RU", { maximumFractionDigits: decimals });
+  };
 
-    if (!element) {
-      return;
-    }
-
-    const observer = new ResizeObserver(() => {
-      setWidth(element.getBoundingClientRect().width);
-    });
-
-    observer.observe(element);
-    setWidth(element.getBoundingClientRect().width);
-
-    function onVisibility(): void {
-      setHidden(document.hidden);
-    }
-
-    onVisibility();
-    document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      observer.disconnect();
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (reduced || width === 0) {
-      x.set(0);
-      return;
-    }
-
-    x.set(0);
-    const control = animate(x, -width, {
-      duration: width / 50,
-      ease: "linear",
-      repeat: Infinity,
-      repeatType: "loop",
-    });
-
-    animation.current = control;
-
-    return () => {
-      control.stop();
-      animation.current = null;
-    };
-  }, [reduced, width, x]);
-
-  useEffect(() => {
-    if (paused || hidden) {
-      animation.current?.pause();
-    } else {
-      animation.current?.play();
-    }
-  }, [paused, hidden, width, reduced]);
-
-  const cards = testimonials.map((item) => (
-    <figure key={item.handle} className="testimonial">
-      <div className="testimonial-avatar" aria-hidden="true">
-        {item.handle.slice(1, 3).toUpperCase()}
-      </div>
-      <figcaption>{item.handle}</figcaption>
-      <blockquote>«{item.quote}»</blockquote>
-    </figure>
-  ));
-
-  return (
-    <div
-      className={`marquee ${reduced ? "marquee--static" : ""}`}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-    >
-      <motion.div className="marquee-track" style={{ x }} data-marquee-track>
-        <div ref={firstGroup} className="marquee-group">
-          {cards}
-        </div>
-        {!reduced && (
-          <div className="marquee-group" aria-hidden="true">
-            {cards}
-          </div>
-        )}
-      </motion.div>
-    </div>
-  );
-}
-
-function Social({ notify }: { readonly notify: Notify }): JSX.Element {
-  const counter = useCountUp<HTMLSpanElement>({
-    target: siteContent.social.colonistsCount,
-  });
+  const tiles: { key: string; label: string; figure: string; sub?: string }[] = [
+    {
+      key: "sold",
+      label: stats.sold,
+      figure: `${live.online ? live.sold : "—"} / ${live.online ? live.cap : presale.supply}`,
+    },
+    {
+      key: "fields",
+      label: stats.fields,
+      figure: live.online ? value(live.fieldCount) : "—",
+    },
+    {
+      key: "players",
+      label: stats.players,
+      figure: live.players === null ? "—" : value(live.players),
+    },
+    {
+      key: "burned",
+      label: stats.burned,
+      figure: live.online ? value(live.burnedMicro / 1_000_000n) : "—",
+    },
+    {
+      key: "supply",
+      label: stats.supply,
+      figure: live.supplyMicro === null ? "—" : value(live.supplyMicro / 1_000_000n),
+      sub: "потолок 1B · premine нет",
+    },
+    {
+      key: "treasury",
+      label: stats.treasury,
+      figure:
+        live.treasuryLamports === null
+          ? "—"
+          : (Number(live.treasuryLamports) / 1e9).toFixed(3),
+    },
+  ];
 
   return (
     <Section id="social" className="social-section" speed={1.5}>
@@ -1744,51 +1703,46 @@ function Social({ notify }: { readonly notify: Notify }): JSX.Element {
         id="social-title"
         eyebrow="06 / СИГНАЛ С МАРСА"
         title={siteContent.social.title}
+        text={siteContent.social.subtitle}
       />
 
-      <Reveal className="colonist-counter">
-        <div className="colonist-avatars" aria-hidden="true">
-          {["А", "М", "Т", "К", "+"].map((letter, index) => (
-            <span key={index}>{letter}</span>
-          ))}
-        </div>
-        <p>
-          <span className="sr-only">{siteContent.social.counterText}</span>
-          <span ref={counter.ref} className="colonist-number" aria-hidden="true">
-            {formatNumber(counter.value)}
-          </span>
-          <span className="colonist-label" aria-hidden="true">
-            {siteContent.social.counterSuffix}
-          </span>
-          <span className="colonist-data-status">
-            Демонстрационный счётчик · не live-статистика
-          </span>
+      {!live.online && (
+        <p className="live-offline-note">
+          <span className="status-dot status-dot--amber" />
+          {siteContent.social.offline}
         </p>
-      </Reveal>
+      )}
 
-      <Marquee />
+      <div className="live-stats-grid">
+        {tiles.map((tile, index) => (
+          <Reveal key={tile.key} delay={index * 0.05} className="live-stat panel" panel="default">
+            <div className="live-stat-figure">{tile.figure}</div>
+            <div className="live-stat-label">{tile.label}</div>
+            {tile.sub && <div className="live-stat-sub">{tile.sub}</div>}
+          </Reveal>
+        ))}
+      </div>
 
       <div className="social-bottom">
-        <p className="section-footnote">{siteContent.social.demoNotice}</p>
-        <nav aria-label={siteContent.social.linksLabel} className="social-links">
-          {socialLinks.map((link) => (
-            <MorphButton
-              key={link.id}
-              type="button"
-              variant="secondary"
-              className="morph-button--social"
-              onClick={() => notify(siteContent.accessibility.externalUnavailable)}
-            >
-              {link.label}
-              <ArrowUpRight size={15} aria-hidden="true" />
-            </MorphButton>
-          ))}
-        </nav>
+        <p className="section-footnote">
+          {live.online
+            ? `Обновлено ${new Date(live.updatedAt).toLocaleTimeString("ru-RU")} · источник: общий devnet RPC Solana`
+            : "Секция читает getAccountInfo / getProgramAccounts напрямую из публичного RPC."}
+        </p>
+        <a
+          className="small-code"
+          href="https://explorer.solana.com/address/DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf?cluster=devnet"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => notify("Проверка цифр — в Solana Explorer. Программа DUUBi…Eadf.")}
+        >
+          DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf
+          <ArrowUpRight size={12} aria-hidden="true" />
+        </a>
       </div>
     </Section>
   );
 }
-
 function FAQ(): JSX.Element {
   const { award } = useGamification();
   const [active, setActive] = useState<number | null>(0);
@@ -1887,299 +1841,108 @@ function FAQ(): JSX.Element {
   );
 }
 
-export function Waitlist(): JSX.Element {
-  const { award } = useGamification();
-  const { play } = useSounds();
-  const emailRef = useRef<HTMLInputElement>(null);
-  const controller = useRef<AbortController | null>(null);
-  const lock = useRef(false);
-  const mounted = useRef(true);
 
-  const endpointValue: unknown = import.meta.env.VITE_WAITLIST_ENDPOINT;
-  const endpoint = typeof endpointValue === "string" ? endpointValue.trim() : "";
-  const demo = endpoint.length === 0;
-
-  const [email, setEmail] = useState("");
-  const [errors, setErrors] = useState<FieldErrors>(emptyFieldErrors);
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [submitError, setSubmitError] = useState("");
-  const [prizeVisible, setPrizeVisible] = useState(false);
-
-  useEffect(() => {
-    mounted.current = true;
-
-    return () => {
-      mounted.current = false;
-      controller.current?.abort();
-    };
-  }, []);
-
-  function celebrate(): void {
-    if (mounted.current) {
-      setPrizeVisible(true);
-    }
+function describeTxError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/user rejected|User rejected/i.test(msg)) {
+    return "Транзакция отменена в кошельке.";
   }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-
-    if (lock.current) {
-      return;
-    }
-
-    const normalizedEmail = email.trim();
-    const nextErrors: FieldErrors = {
-      email:
-        normalizedEmail.length <= 254 &&
-        /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalizedEmail)
-          ? ""
-          : siteContent.waitlist.emailError,
-    };
-
-    setErrors(nextErrors);
-    setSubmitError("");
-
-    if (nextErrors.email) {
-      play("ui.error", 0.3);
-
-      if (nextErrors.email) {
-        emailRef.current?.focus();
-      }
-
-      return;
-    }
-
-    setEmail(normalizedEmail);
-    setStatus("loading");
-    lock.current = true;
-
-    let timeout: number | undefined;
-
-    try {
-      if (!demo) {
-        const url = new URL(endpoint, window.location.origin);
-
-        if (
-          !["https:", "http:"].includes(url.protocol) ||
-          (window.location.protocol === "https:" && url.protocol !== "https:")
-        ) {
-          throw new Error("Invalid endpoint protocol.");
-        }
-
-        const abort = new AbortController();
-        controller.current = abort;
-        timeout = window.setTimeout(() => abort.abort(), 12000);
-
-        const response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          credentials: "omit",
-          body: JSON.stringify({
-            email: normalizedEmail,
-            source: "ares-1-landing",
-          }),
-          signal: abort.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error("Waitlist request failed.");
-        }
-
-        const result: unknown = await response.json();
-
-        if (!isWaitlistResponse(result)) {
-          throw new Error("Unexpected waitlist response.");
-        }
-      }
-
-      if (!mounted.current) {
-        return;
-      }
-
-      setStatus("success");
-      play("ui.success", 0.45);
-
-      if (!demo) {
-        const submit = document.querySelector<HTMLElement>(
-          "#waitlist [data-morph-control][type='submit']",
-        );
-
-        award(
-          { kind: "waitlist" },
-          submit ? elementXpOrigin(submit) : undefined,
-        );
-      }
-
-      setEmail("");
-      celebrate();
-    } catch {
-      if (mounted.current) {
-        setStatus("error");
-        play("ui.error", 0.3);
-        setSubmitError(
-          "Не удалось отправить заявку. Проверь соединение и попробуй ещё раз.",
-        );
-      }
-    } finally {
-      if (timeout !== undefined) {
-        window.clearTimeout(timeout);
-      }
-
-      controller.current = null;
-      lock.current = false;
-    }
+  if (/presalecapreached|PresaleCapReached/i.test(msg)) {
+    return "Волна распродана: cap 500 модулей достигнут.";
   }
-
-  return (
-    <Section id="waitlist" className="waitlist-section" speed={0.7}>
-      <PrizeRevealShow
-        trigger={prizeVisible}
-        amount={0}
-        title={demo ? "ПРОВЕРКА ПРОЙДЕНА" : "ЗАЯВКА ПРИНЯТА"}
-        message={
-          demo
-            ? "Демонстрационный пропуск готов. Заявка не отправлена, токены не начислены."
-            : "Ты в списке ожидания ARES-1. Следующая остановка — Марс."
-        }
-        onComplete={() => setPrizeVisible(false)}
-      />
-      <Reveal className="waitlist-panel panel" panel="accent">
-        <div className="waitlist-copy">
-          <p className="eyebrow">
-            <span className="status-dot" />
-            08 / СЛЕДУЮЩАЯ ВОЛНА
-          </p>
-          <h2 id="waitlist-title">{siteContent.waitlist.title}</h2>
-          <p>{siteContent.waitlist.subtitle}</p>
-          <p className="waitlist-payment-note">{siteContent.hero.presaleNotice}</p>
-
-          <div className="boarding-pass" aria-hidden="true">
-            <Mark />
-            <div>
-              <span>ЗЕМЛЯ → МАРС</span>
-              <strong>ARES-1</strong>
-              <small>ПОСАДОЧНЫЙ ПРОПУСК</small>
-            </div>
-            <div className="barcode" />
-          </div>
-        </div>
-
-        <div className="waitlist-form-area">
-          <p className={`form-mode ${demo ? "" : "form-mode--live"}`}>
-            <span className="status-dot status-dot--amber" />
-            {demo ? "ДЕМОРЕЖИМ · БЕЗ ОТПРАВКИ" : "ЗАЯВКА НА РАННИЙ ДОСТУП"}
-          </p>
-
-          <div className="form-status" role="status" aria-live="polite" aria-atomic="true">
-            {status === "success" && (
-              <div className="success-message">
-                <motion.span
-                  className="success-icon"
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{
-                    opacity: 1,
-                    scale: [0, 1.3, 1],
-                  }}
-                  transition={{ duration: 0.45 }}
-                >
-                  <Check size={22} aria-hidden="true" />
-                </motion.span>
-                <p>
-                  {demo
-                    ? siteContent.waitlist.demoSuccess
-                    : "✓ Заявка принята. Ты в списке ожидания ARES-1."}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <form
-            noValidate
-            onSubmit={(event) => void handleSubmit(event)}
-            aria-busy={status === "loading"}
-          >
-            <div className="form-field">
-              <label htmlFor="waitlist-email">{siteContent.waitlist.emailLabel}</label>
-              <input
-                ref={emailRef}
-                id="waitlist-email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                inputMode="email"
-                maxLength={254}
-                required
-                value={email}
-                disabled={status === "loading"}
-                placeholder={siteContent.waitlist.emailPlaceholder}
-                aria-invalid={Boolean(errors.email)}
-                aria-describedby={errors.email ? "email-error" : undefined}
-                onChange={(event) => {
-                  setEmail(event.target.value);
-                  setErrors((current) => ({ ...current, email: "" }));
-                  if (status === "success") setStatus("idle");
-                }}
-              />
-              {errors.email && (
-                <p id="email-error" className="field-error" role="alert">
-                  {errors.email}
-                </p>
-              )}
-            </div>
-
-                        <Action
-              type="submit"
-              loading={status === "loading"}
-              success={status === "success"}
-              className="form-submit"
-            >
-              {siteContent.waitlist.idle}
-            </Action>
-
-            {submitError && (
-              <p className="field-error submit-error" role="alert">
-                {submitError}
-              </p>
-            )}
-
-            <p className="form-privacy">
-              {demo
-                ? siteContent.waitlist.demoNotice
-                : "Нажимая кнопку, ты отправляешь email и имя в Телеграме оператору проекта для связи по заявке. Не вводи пароли и ключи кошелька."}
-            </p>
-          </form>
-        </div>
-      </Reveal>
-    </Section>
-  );
+  if (/presalewalletlimitreached|PresaleWalletLimitReached/i.test(msg)) {
+    return "Лимит: один кошелёк может купить не больше 5 модулей в пресейле.";
+  }
+  if (/insufficient funds|INSUFFICIENT_FUNDS|blockhash/i.test(msg)) {
+    return "Недостаточно SOL для комиссии/rent или blockhash протух — попробуй ещё раз.";
+  }
+  return `Не удалось отправить транзакцию: ${msg}`;
 }
 
-
 function PacksSection(): JSX.Element {
-  const { connected, publicKey, balanceSkr, connect, connecting } = useLandingWallet();
+  const { connected, publicKey, balanceSkr, connect, connecting, connection } =
+    useLandingWallet();
+  const live = useLiveChain();
   const [purchasing, setPurchasing] = useState(false);
   const [success, setSuccess] = useState<{ tx: string; tier: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const price = chainConfig.presalePriceSkrAtoms;
   const balanceOk = balanceSkr >= price;
+  const soldOut = live.online && live.sold >= live.cap;
 
   const buyPack = async () => {
-    if (!connected || !publicKey || purchasing) return;
+    if (!connected || !publicKey || purchasing || soldOut) return;
     setPurchasing(true);
     setError(null);
     try {
-      // TODO Фаза 2: реальная транзакция ixBuyFieldSkr после деплоя контракта.
-      // Тир роллится контрактом — человек не выбирает редкость.
-      await new Promise((r) => setTimeout(r, 1500));
-      const roll = Math.random() * 100;
-      const tier = roll < 70 ? 0 : roll < 95 ? 1 : 2;
-      setSuccess({ tx: "simulated_" + Date.now(), tier });
+      // Реальная devnet-транзакция (как в игре): buy_field_skr,
+      // тир кидает сама программа: keccak(buyer ‖ sold ‖ slot).
+      const programId = new PublicKey(chainConfig.programId);
+      const { config: configPda, field } = pdas(programId);
+
+      const cfgInfo = await connection.getAccountInfo(configPda());
+      if (!cfgInfo) throw new Error("GameConfig PDA не найден — devnet не отвечает.");
+      const cfg = decodeConfig(Buffer.from(cfgInfo.data));
+
+      const fieldId = randomU64();
+      const buyerSkrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, publicKey);
+
+      const ataIx = createAssociatedTokenAccountIdempotentInstruction(
+        publicKey,
+        buyerSkrAta,
+        publicKey,
+        TEST_SKR_MINT,
+      );
+      const buyIx = await ixBuyFieldSkr(programId, {
+        config: configPda(),
+        presaleState: presaleStatePda(programId),
+        authority: cfg.authority,
+        buyerPresale: buyerPresalePda(programId, publicKey),
+        field: field(fieldId),
+        buyer: publicKey,
+        treasurySol: treasurySolPda(programId),
+        skrMint: TEST_SKR_MINT,
+        buyerSkrAta,
+        treasurySkrAta: treasurySkrAta(programId, TEST_SKR_MINT),
+        buybackSkrAta: buybackSkrAta(cfg.authority, TEST_SKR_MINT),
+        fieldId,
+      });
+
+      const tx = new Transaction().add(ataIx, buyIx);
+      tx.feePayer = publicKey;
+      const blockhash = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash.blockhash;
+
+      const signed = await window.solana?.signTransaction(tx);
+      if (!signed) throw new Error("Кошелёк не вернул подписанную транзакцию.");
+
+      const signature = await connection.sendRawTransaction(signed.serialize());
+      const confirmation = await connection.confirmTransaction(
+        {
+          signature,
+          blockhash: blockhash.blockhash,
+          lastValidBlockHeight: blockhash.lastValidBlockHeight,
+        },
+        "confirmed",
+      );
+      if (confirmation.value.err) {
+        throw new Error("Программа отклонила транзакцию: " + String(confirmation.value.err));
+      }
+
+      // Читаем реальный тир из созданного поля: field_type на offset 67
+      let tier = 0;
+      try {
+        const fieldInfo = await connection.getAccountInfo(field(fieldId));
+        const onchainTier = fieldInfo?.data[67];
+        if (typeof onchainTier === "number") tier = onchainTier;
+      } catch {
+        /* тир не критичен: показываем COMMON-фолбэк */
+      }
+
+      setSuccess({ tx: signature, tier });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Ошибка транзакции");
+      setError(describeTxError(err));
     } finally {
       setPurchasing(false);
     }
@@ -2198,12 +1961,15 @@ function PacksSection(): JSX.Element {
           </p>
           <h2 id="packs-title">Купи модуль колонии</h2>
           <p>
-            1053 SKR — и гидропонная кассета твоя. Редкость выпадает случайно
-            после транзакции: COMMON 70% · RARE 25% · EPIC 5%.
+            {live.online
+              ? `${live.sold} / ${live.cap} модулей продано — данные live с devnet.`
+              : "Счётчик читается с devnet (общий RPC)."}{" "}
+            1053 SKR — и гидропонная кассета твоя. Редкость кидает сама
+            программа: COMMON 70% · RARE 25% · EPIC 5% (keccak(buyer ‖ sold ‖ slot)).
           </p>
           <p className="waitlist-payment-note">
-            Модуль записывается на твой кошелёк прямо в контракте — игра
-            подхватит его автоматически. Без заявок, без посредников.
+            Реальная devnet-транзакция: модуль записывается на твой кошелёк
+            прямо в контракте, игра подхватит его автоматически.
           </p>
 
           <div className="boarding-pass" aria-hidden="true">
@@ -2238,11 +2004,14 @@ function PacksSection(): JSX.Element {
               <button
                 className="pack-buy-main"
                 onClick={() => { void buyPack(); }}
-                disabled={purchasing || !balanceOk}
+                disabled={purchasing || !balanceOk || soldOut}
               >
-                ⚡ {purchasing ? "Отправка транзакции…" : "Купить модуль · 1053 SKR"}
+                ⚡ {purchasing ? "Отправка транзакции…" : soldOut ? "Волна распродана" : "Купить модуль · 1053 SKR"}
               </button>
-              {!balanceOk && (
+              {soldOut && (
+                <p className="pack-note">Все {live.cap} модулей первой волны проданы.</p>
+              )}
+              {!balanceOk && !soldOut && (
                 <p className="pack-note">Недостаточно SKR для покупки модуля.</p>
               )}
             </>
@@ -2264,7 +2033,7 @@ function PacksSection(): JSX.Element {
           {error && <p className="pack-note pack-note--error">{error}</p>}
 
           <p className="pack-note">
-            До деплоя контракта покупка симулируется: транзакция не отправляется.
+            devnet: SKR и SOL тестовые и не имеют реальной стоимости.
           </p>
         </div>
       </Reveal>
@@ -2357,7 +2126,7 @@ function SuccessModal({ tx, tier, onClose }: { tx: string; tier: number; onClose
   );
 }
 
-function Footer({ notify }: { readonly notify: Notify }): JSX.Element {
+function Footer(): JSX.Element {
   return (
     <footer className="footer">
       <div className="container">
@@ -2374,11 +2143,12 @@ function Footer({ notify }: { readonly notify: Notify }): JSX.Element {
             {siteContent.footer.links.map((link) => (
               <MorphButton
                 key={link.label}
-                type="button"
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
                 variant="ghost"
                 className="morph-button--footer"
                 magnetic={false}
-                onClick={() => notify(siteContent.accessibility.externalUnavailable)}
               >
                 {link.label}
                 <ArrowUpRight size={14} aria-hidden="true" />
@@ -2389,20 +2159,6 @@ function Footer({ notify }: { readonly notify: Notify }): JSX.Element {
 
         <div className="footer-middle">
           <p>{siteContent.footer.copyright}</p>
-          <nav aria-label={siteContent.social.linksLabel} className="footer-socials">
-            {socialLinks.map((link) => (
-              <MorphButton
-                key={link.id}
-                type="button"
-                variant="ghost"
-                className="morph-button--footer"
-                magnetic={false}
-                onClick={() => notify(siteContent.accessibility.externalUnavailable)}
-              >
-                {link.label}
-              </MorphButton>
-            ))}
-          </nav>
         </div>
 
         <p className="disclaimer">{siteContent.footer.disclaimer}</p>
@@ -2535,18 +2291,17 @@ export default function App(): JSX.Element {
       <Ambient />
       <Header notify={notify} />
       <main id="main-content" tabIndex={-1}>
-        <Hero notify={notify} />
+        <Hero />
         <Problem />
         <Mechanics />
         <Mascot />
         <Tokenomics />
-        <InterstellarSection />
         <Roadmap />
-        <Social notify={notify} />
+        <LiveStats notify={notify} />
         <FAQ />
         <PacksSection />
       </main>
-      <Footer notify={notify} />
+      <Footer />
       <Overlays />
       <Cursor />
       <Toast message={notice} close={closeNotice} />
