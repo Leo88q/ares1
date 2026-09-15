@@ -1,8 +1,11 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ShoppingCart, Info } from 'lucide-react'
+import { PublicKey } from '@solana/web3.js'
 import Button from './Button'
 import { MICRO, MIN_ORDER_AMOUNT_POTATO, feeBps } from '../utils/constants'
+import { pdas, decodeExportLicense } from '../utils/anchorClient'
+import { useSolana } from '../contexts/SolanaContext'
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 import { useToast } from './Toast'
@@ -34,9 +37,39 @@ const inputStyle: CSSProperties = {
  */
 export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro }: Props) {
  const { show } = useToast()
+ const { connection, programId, publicKey } = useSolana()
  const [amount, setAmount] = useState('100')
  const [price, setPrice] = useState('0.05')
  const [busy, setBusy] = useState(false)
+ const [hasLicense, setHasLicense] = useState(false)
+
+ // Экспортная лицензия продавца (= текущий пользователь): скидка 3 %
+ // от суммы списывается с комиссии при покупках — подсказываем это здесь.
+ useEffect(() => {
+  if (!open || !publicKey || !programId || !connection) {
+   setHasLicense(false)
+   return
+  }
+  let cancelled = false
+  void (async () => {
+   try {
+    const licPda = pdas(programId).exportLicense(publicKey)
+    const acc = await connection.getAccountInfo(licPda)
+    if (cancelled) return
+    if (acc && acc.data.length > 0) {
+     const lic = decodeExportLicense(acc.data as Buffer)
+     setHasLicense(Number(lic.expiresAt) > Math.floor(Date.now() / 1000))
+    } else {
+     setHasLicense(false)
+    }
+   } catch {
+    if (!cancelled) setHasLicense(false)
+   }
+  })()
+  return () => {
+   cancelled = true
+  }
+ }, [open, publicKey, programId, connection])
 
  const amountNum = parseFloat(amount) || 0
  const priceNum = parseFloat(price) || 0
@@ -186,6 +219,12 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
          <span className="pf-subtitle">Таможенный сбор ({bps} bps)</span>
          <span className="pf-mono" style={{ color: 'var(--pf-text-secondary)' }}>−{feeAmount.toFixed(2)} POTATO</span>
         </div>
+        {hasLicense && (
+         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+          <span className="pf-subtitle" style={{ color: 'var(--pf-green)' }}>С твоей лицензией (−3 % от суммы)</span>
+          <span className="pf-mono" style={{ color: 'var(--pf-green)' }}>≈ {Math.max(0, bps - 300) / 100}% факт.</span>
+         </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
          <span className="pf-subtitle">Спишется</span>
          <span className="pf-mono" style={{ color: 'var(--pf-gold)' }}>{totalPotato.toFixed(2)} POTATO</span>
