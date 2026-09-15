@@ -76,11 +76,22 @@ export function ReferralSection() {
       <div style={{ fontSize: 13, color: 'var(--pf-text-secondary)', marginTop: 4 }}>
        Приглашённому −1 % комиссии за сделки, тебе — 0.5 % от суммы каждой его сделки (on-chain)
       </div>
-      <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', marginTop: 6, opacity: 0.8 }}>
-       Ссылка бесплатна. Когда новый игрок откроет её, он зарегистрируется за тебя
-       автоматически — разовый антиспам-взнос 5 🥔 списывается с баланса приглашённого.
-      </div>
      </div>
+    </div>
+
+    {/* Правила: кто и что платит (раньше было отдельным блоком в «Журнале») */}
+    <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)' }}>
+     {[
+      'Ссылка бесплатна — приглашающий платит ничего',
+      'Приглашённый открывает ссылку с ?ref= — регистрируется автоматически (on-chain, одноразово)',
+      'Антиспам: 5 🥔 сгорает с баланса приглашённого, разово',
+      'Скидка приглашённому: −1 % на покупках маркета, в каждой',
+      'Твоя награда: 0.5 % от комиссии маркета по его сделкам',
+     ].map((t, i) => (
+      <div key={i} style={{ display: 'flex', gap: 6, padding: '2px 0', fontSize: 11, color: 'var(--pf-text-secondary)', lineHeight: 1.5 }}>
+       <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true">✓</span> {t}
+      </div>
+     ))}
     </div>
 
     {!publicKey && (
