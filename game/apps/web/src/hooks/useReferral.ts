@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { t } from '../i18n'
+
 import { PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync, createAssociatedTokenAccountIdempotentInstruction } from '@solana/spl-token';
 import { useSolana } from '../contexts/SolanaContext';
@@ -17,7 +19,7 @@ export function useReferral() {
 
   const registerReferrer = async (referrerPubkey: string) => {
     if (!publicKey || !connected || !ready || !programId || !config) {
-      show({ type: 'warning', title: 'Подключите кошелёк' });
+      show({ type: 'warning', title: t('Подключите кошелёк') });
       return;
     }
 
@@ -26,7 +28,7 @@ export function useReferral() {
       const referrer = new PublicKey(referrerPubkey);
 
       if (referrer.equals(publicKey)) {
-        show({ type: 'warning', title: 'Нельзя пригласить самого себя' });
+        show({ type: 'warning', title: t('Нельзя пригласить самого себя') });
         return;
       }
 
@@ -55,10 +57,10 @@ export function useReferral() {
       );
 
       await sendIx([ataIx, ix]);
-      show({ type: 'success', title: 'Реферер зарегистрирован!', message: `Пригласил: ${referrerPubkey.slice(0, 8)}...` });
+      show({ type: 'success', title: t('Реферер зарегистрирован!'), message: t('Пригласил: {ref}', { ref: referrerPubkey.slice(0, 8) + '...' }) });
     } catch (error: unknown) {
       console.error('Register referrer error:', error);
-      show({ type: 'error', title: 'Ошибка регистрации реферера', message: describeError(error) });
+      show({ type: 'error', title: t('Ошибка регистрации реферера'), message: describeError(error) });
     } finally {
       setLoading(false);
     }

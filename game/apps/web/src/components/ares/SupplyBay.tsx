@@ -1,4 +1,6 @@
 import { memo } from 'react';
+import { t } from '../../i18n'
+
 import type { ReactNode } from 'react';
 import { useSeekerPhase } from '../../theme/ares';
 import { DomeFrame } from './DomeFrame';
@@ -16,7 +18,7 @@ export const SupplyBay = memo(function SupplyBay({ children, o2Percent, h2oPerce
  return (
   <DomeFrame
    phase={phase}
-   label="СНАБЖЕНИЕ"
+   label={t("СНАБЖЕНИЕ")}
    hud={<SolHud o2Percent={o2Percent} h2oPercent={h2oPercent} rationLabel={rationLabel} />}
   >
    {children}

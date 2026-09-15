@@ -1,4 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
+import { t } from '../../i18n'
+
 import type { KeyboardEvent, PointerEvent, ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -109,7 +111,7 @@ export const FieldGestureLayer = memo(function FieldGestureLayer({
   <div
    role="button"
    tabIndex={0}
-   aria-label={canHarvest ? 'Жатва' : 'Осмотреть поле'}
+   aria-label={canHarvest ? t('Жатва') : t('Осмотреть поле')}
    onPointerDown={handlePointerDown}
    onPointerUp={handlePointerUp}
    onPointerLeave={handlePointerUp}

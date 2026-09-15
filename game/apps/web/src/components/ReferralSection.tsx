@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { t } from '../i18n'
+
 import { Copy, Check, Users, Gift, Share2 } from 'lucide-react'
 import { useSolana } from '../contexts/SolanaContext'
 import { useToast } from './Toast'
@@ -26,16 +28,16 @@ export function ReferralSection() {
    setCopied(true)
    sounds.success()
    haptics.tap()
-   show({ type: 'success', title: 'Ссылка скопирована!', message: 'Отправь другу' })
+   show({ type: 'success', title: t('Ссылка скопирована!'), message: t('Отправь другу') })
    setTimeout(() => setCopied(false), 2000)
   } catch {
-   show({ type: 'error', title: 'Ошибка', message: 'Не удалось скопировать' })
+   show({ type: 'error', title: t('Ошибка'), message: t('Не удалось скопировать') })
   }
  }
 
  const handleShare = async () => {
   if (!publicKey) return
-  const text = 'Играю в Solana Potato — выращиваю картофель на Solana. Присоединяйся!'
+  const text = t('Играю в Solana Potato — выращиваю картофель на Solana. Присоединяйся!')
   try {
    if (navigator.share) {
     await navigator.share({ title: 'Solana Potato', text, url: referralLink })
@@ -56,7 +58,7 @@ export function ReferralSection() {
    {/* Заголовок секции */}
    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
     <Users size={20} color="var(--pf-teal)" />
-    <h2 className="ares-stencil" style={{ fontSize: 16, margin: 0, color: 'var(--ares-hud-amber, #FFB347)', textShadow: '0 0 10px rgba(255,179,71,0.35)' }}>ВЫЗОВ ПОСЕЛЕНЦЕВ</h2>
+    <h2 className="ares-stencil" style={{ fontSize: 16, margin: 0, color: 'var(--ares-hud-amber, #FFB347)', textShadow: '0 0 10px rgba(255,179,71,0.35)' }}>{t("ВЫЗОВ ПОСЕЛЕНЦЕВ")}</h2>
    </div>
 
    {/* Карточка с описанием */}
@@ -71,10 +73,10 @@ export function ReferralSection() {
      <Gift size={32} color="var(--pf-gold)" />
      <div>
       <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--pf-text-primary)' }}>
-       Вызови поселенца — дели комиссию!
+       {t('Вызови поселенца — дели комиссию!')}
       </div>
       <div style={{ fontSize: 13, color: 'var(--pf-text-secondary)', marginTop: 4 }}>
-       Приглашённому −1 % комиссии за сделки, тебе — 0.5 % от суммы каждой его сделки (on-chain)
+       {t('Приглашённому −1 % комиссии за сделки, тебе — 0.5 % от суммы каждой его сделки (on-chain)')}
       </div>
      </div>
     </div>
@@ -82,11 +84,11 @@ export function ReferralSection() {
     {/* Правила: кто и что платит (раньше было отдельным блоком в «Журнале») */}
     <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)' }}>
      {[
-      'Ссылка бесплатна — приглашающий платит ничего',
-      'Приглашённый открывает ссылку с ?ref= — регистрируется автоматически (on-chain, одноразово)',
-      'Антиспам: 5 🥔 сгорает с баланса приглашённого, разово',
-      'Скидка приглашённому: −1 % на покупках маркета, в каждой',
-      'Твоя награда: 0.5 % от комиссии маркета по его сделкам',
+      t('Ссылка бесплатна — приглашающий платит ничего'),
+      t('Приглашённый открывает ссылку с ?ref= — регистрируется автоматически (on-chain, одноразово)'),
+      t('Антиспам: 5 🥔 сгорает с баланса приглашённого, разово'),
+      t('Скидка приглашённому: −1 % на покупках маркета, в каждой'),
+      t('Твоя награда: 0.5 % от комиссии маркета по его сделкам'),
      ].map((t, i) => (
       <div key={i} style={{ display: 'flex', gap: 6, padding: '2px 0', fontSize: 11, color: 'var(--pf-text-secondary)', lineHeight: 1.5 }}>
        <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true">✓</span> {t}
@@ -96,7 +98,7 @@ export function ReferralSection() {
 
     {!publicKey && (
      <p style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 12 }}>
-      Подключи кошелёк, чтобы получить свою реферальную ссылку.
+      {t('Подключи кошелёк, чтобы получить свою реферальную ссылку.')}
      </p>
     )}
 
@@ -138,7 +140,7 @@ export function ReferralSection() {
       }}
      >
       {copied ? <Check size={16} /> : <Copy size={16} />}
-      {copied ? 'Скопировано!' : 'Скопировать ссылку'}
+      {copied ? t('Скопировано!') : t('Скопировать ссылку')}
      </button>
 
      <button
@@ -159,7 +161,7 @@ export function ReferralSection() {
       }}
      >
       <Share2 size={16} />
-      Поделиться
+      {t('Поделиться')}
      </button>
     </div>
    </div>

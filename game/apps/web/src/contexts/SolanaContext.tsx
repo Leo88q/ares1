@@ -1,4 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, ReactNode } from 'react'
+import { t } from '../i18n'
+
 import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { decodeConfig, decodeEpoch, DecodedConfig, DecodedEpoch, pdas } from '../utils/anchorClient'
@@ -49,7 +51,7 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
    if (!info) {
     setConfig(null)
     setEpoch(null)
-    setRpcError('GameConfig не найден: программа не инициализирована на этом кластере.')
+    setRpcError(t('GameConfig не найден: программа не инициализирована на этом кластере.'))
     return
    }
    const cfg = decodeConfig(info.data)
@@ -67,7 +69,7 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
 
  const sendIx = useCallback(
   async (ixs: TransactionInstruction[]): Promise<string> => {
-   if (!wallet.publicKey || !wallet.sendTransaction) throw new Error('Кошелёк не подключён.')
+   if (!wallet.publicKey || !wallet.sendTransaction) throw new Error(t('Кошелёк не подключён.'))
    try {
     const tx = new Transaction().add(...ixs)
     const { blockhash, lastValidBlockHeight } = await withRetry(() => connection.getLatestBlockhash('confirmed'))
@@ -75,7 +77,7 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
     tx.feePayer = wallet.publicKey
     const sig = await wallet.sendTransaction(tx, connection)
     const res = await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed')
-    if (res.value.err) throw new Error(`Транзакция отклонена сетью: ${JSON.stringify(res.value.err)}`)
+    if (res.value.err) throw new Error(t('Транзакция отклонена сетью: {err}', { err: JSON.stringify(res.value.err) }))
     return sig
    } catch (err) {
     throw new Error(describeError(err))

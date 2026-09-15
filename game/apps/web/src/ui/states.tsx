@@ -1,4 +1,6 @@
 import { ReactNode } from 'react'
+import { t as tr } from '../i18n'
+
 import { AlertTriangle, Inbox, RefreshCw, type LucideIcon } from 'lucide-react'
 import { t } from '../theme/tokens'
 
@@ -32,7 +34,7 @@ interface LoadingStateProps {
 }
 
 /** Скелетоны вместо спиннера для списков. */
-export function LoadingState({ label = 'Загрузка…', rows = 3, compact = false }: LoadingStateProps) {
+export function LoadingState({ label = undefined, rows = 3, compact = false }: LoadingStateProps) {
   return (
     <div aria-busy="true" aria-live="polite">
       {Array.from({ length: rows }).map((_, i) => (
@@ -47,7 +49,7 @@ export function LoadingState({ label = 'Загрузка…', rows = 3, compact 
         />
       ))}
       <p style={{ textAlign: 'center', color: t.color.textSecondary, fontSize: 'var(--pf-text-md)', marginTop: 8 }}>
-        {label}
+        {label ?? tr('Загрузка…')}
       </p>
     </div>
   )
@@ -61,18 +63,18 @@ interface ErrorStateProps {
   inline?: boolean
 }
 
-export function ErrorState({ title = 'Не удалось загрузить', message, onRetry, inline = false }: ErrorStateProps) {
+export function ErrorState({ title = undefined, message, onRetry, inline = false }: ErrorStateProps) {
   const body = (
     <>
       <AlertTriangle size={inline ? 18 : 40} color={t.color.danger} style={{ marginBottom: inline ? 0 : 12, flexShrink: 0 }} aria-hidden="true" />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <h3 style={{ fontSize: inline ? 14 : 18, color: t.color.textPrimary, margin: inline ? 0 : '0 0 4px' }}>{title}</h3>
+        <h3 style={{ fontSize: inline ? 14 : 18, color: t.color.textPrimary, margin: inline ? 0 : '0 0 4px' }}>{title ?? tr('Не удалось загрузить')}</h3>
         <p style={{ color: t.color.textSecondary, fontSize: 'var(--pf-text-md)', margin: 0, wordBreak: 'break-word' }}>{message}</p>
       </div>
       {onRetry && (
         <button
           onClick={onRetry}
-          aria-label="Повторить загрузку"
+          aria-label={tr('Повторить загрузку')}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             background: 'transparent', border: `1px solid ${t.color.borderStrong}`,
@@ -82,7 +84,7 @@ export function ErrorState({ title = 'Не удалось загрузить', m
           }}
         >
           <RefreshCw size={16} aria-hidden="true" />
-          Повторить
+          {tr('Повторить')}
         </button>
       )}
     </>
@@ -117,7 +119,7 @@ export function EmptyState({ icon: Icon = Inbox, title, hint, action }: EmptySta
   return (
     <div style={{ padding: '60px 20px', textAlign: 'center' }}>
       <Icon size={48} color={t.color.textSecondary} style={{ marginBottom: 16, opacity: 0.5 }} aria-hidden="true" />
-      <h3 style={{ fontSize: 18, marginBottom: 8, color: t.color.textPrimary }}>{title}</h3>
+      <h3 style={{ fontSize: 18, marginBottom: 8, color: t.color.textPrimary }}>{title ?? tr('Не удалось загрузить')}</h3>
       {hint && <p style={{ color: t.color.textSecondary, fontSize: 'var(--pf-text-md)' }}>{hint}</p>}
       {action && <div style={{ marginTop: 16 }}>{action}</div>}
     </div>

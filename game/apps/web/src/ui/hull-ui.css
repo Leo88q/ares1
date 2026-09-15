@@ -300,8 +300,9 @@
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  gap: 14px;
+  gap: 10px;
   margin: 12px 0 4px;
+  width: 100%;
 }
 
 .mini-hydro {
@@ -309,11 +310,17 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  /* Адаптив: на узких экранах капсулы сжимаются, не вылезая за карточку */
+  flex: 1 1 0;
+  max-width: 148px;
+  min-width: 0;
 }
 
 /* Фото-капсулы: одна картинка, три кропа по третям кадра */
 .mini-hydro-img {
-  width: 132px;
+  width: 100%;
+  max-width: 132px;
+  margin-inline: auto;
   aspect-ratio: 0.74;
   background-image: url('/ares/modules.png');
   background-size: 300% 100%;

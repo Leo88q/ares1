@@ -1,4 +1,16 @@
 
+import * as i18nCore from "./i18n/index";
+
+const LOCALES: Record<string, string> = {
+  en: "en-US",
+  ru: "ru-RU",
+  "pt-BR": "pt-BR",
+  "es-419": "es-MX",
+  vi: "vi-VN",
+  id: "id-ID",
+  tl: "fil-PH",
+};
+
 export interface RoadmapMilestone {
   readonly period: string;
   readonly title: string;
@@ -674,8 +686,14 @@ export const siteContent = {
   },
 } as const;
 
-export const numberFormatter = new Intl.NumberFormat("ru-RU");
-
 export function formatNumber(value: number): string {
-  return numberFormatter.format(value);
+  let locale = "ru-RU";
+  try {
+    // Ленивый импорт, чтобы не создавать цикл content ↔ i18n на уровне модулей.
+    const mod = i18nCore;
+    locale = LOCALES[mod.getLang()] ?? "ru-RU";
+  } catch {
+    /* i18n ещё не инициализирован */
+  }
+  return new Intl.NumberFormat(locale).format(value);
 }

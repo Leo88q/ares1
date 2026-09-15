@@ -68,6 +68,8 @@ import {
   SparkProgress,
 } from "./MicroMotion";
 import { SoundToggle } from "./SoundToggle";
+import { t, useI18n, tr } from "./i18n";
+import { LangSwitcher } from "./i18n/LangSwitcher";
 import { useSounds } from "./useSounds";
 import {
   assets,
@@ -131,6 +133,13 @@ interface ActionProps extends ChildrenProps {
 }
 
 // Click effects are owned by MorphButton.
+
+const SC = tr(siteContent);
+const TC = tr(tokenCycle);
+const FEATURES = tr(features);
+const ROADMAP = tr(roadmap);
+const FAQ_ITEMS = tr(faq);
+const PC = tr(playConfig);
 
 function Mark({ className = "" }: { readonly className?: string }): JSX.Element {
   return (
@@ -466,12 +475,13 @@ function Cursor(): JSX.Element | null {
 
 function WalletButton(): JSX.Element {
   const { connected, publicKey, balanceSkr, connect, disconnect, connecting } = useLandingWallet();
+  useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
 
   if (connecting) {
     return (
       <button className="morph-button morph-button--header" disabled>
-        <span className="wallet-full">Подключение…</span>
+        <span className="wallet-full">{t("Подключение…")}</span>
         <span className="wallet-short">⬡ …</span>
       </button>
     );
@@ -480,8 +490,8 @@ function WalletButton(): JSX.Element {
   if (!connected || !publicKey) {
     return (
       <button onClick={() => { void connect(); }} className="morph-button morph-button--header">
-        <span className="wallet-full">Подключить кошелёк</span>
-        <span className="wallet-short">⬡ Кошелёк</span>
+        <span className="wallet-full">{t("Подключить кошелёк")}</span>
+        <span className="wallet-short">⬡ {t("Кошелёк")}</span>
       </button>
     );
   }
@@ -528,7 +538,7 @@ function WalletButton(): JSX.Element {
               fontSize: 12,
             }}
           >
-            Отключить
+            {t("Отключить")}
           </button>
         </div>
       )}
@@ -538,6 +548,7 @@ function WalletButton(): JSX.Element {
 
 function Header({ notify }: { readonly notify: Notify }): JSX.Element {
   const [scrolled, setScrolled] = useState(false);
+  useI18n();
   const [open, setOpen] = useState(false);
   const reduced = useReducedMotion() ?? false;
   void notify;
@@ -552,16 +563,16 @@ function Header({ notify }: { readonly notify: Notify }): JSX.Element {
   return (
     <header className={`header ${scrolled || open ? "header--scrolled" : ""}`}>
       <div className="container header-inner">
-        <a href="#hero" className="brand" aria-label={siteContent.header.homeLabel}>
+        <a href="#hero" className="brand" aria-label={SC.header.homeLabel}>
           <Mark />
           <span className="brand-text">ARES-1</span>
         </a>
 
         <nav
           className="desktop-nav"
-          aria-label={siteContent.header.navigationLabel}
+          aria-label={SC.header.navigationLabel}
         >
-          {siteContent.header.navigation.map((link) => (
+          {SC.header.navigation.map((link) => (
             <AnimatedTextLink key={link.href} href={link.href}>
               {link.label}
               <MotionIcon>
@@ -574,14 +585,15 @@ function Header({ notify }: { readonly notify: Notify }): JSX.Element {
         <div className="header-actions">
           <a
             className="header-play"
-            href={playConfig.url}
+            href={PC.url}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={playConfig.label}
+            aria-label={PC.label}
           >
             <Play size={14} aria-hidden="true" />
-            <span className="header-play-full">{playConfig.labelShort}</span>
+            <span className="header-play-full">{PC.labelShort}</span>
           </a>
+          <LangSwitcher />
           <SoundToggle />
           <span className="network-label">
             <span className="status-dot" />
@@ -592,7 +604,7 @@ function Header({ notify }: { readonly notify: Notify }): JSX.Element {
             className="menu-toggle"
             onClick={() => setOpen(!open)}
             aria-expanded={open}
-            aria-label={open ? siteContent.header.closeMenu : siteContent.header.openMenu}
+            aria-label={open ? SC.header.closeMenu : SC.header.openMenu}
             aria-controls={open ? "mobile-navigation" : undefined}
           >
             {open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
@@ -606,14 +618,14 @@ function Header({ notify }: { readonly notify: Notify }): JSX.Element {
             key="mobile-navigation"
             id="mobile-navigation"
             className="mobile-nav"
-            aria-label={siteContent.header.navigationLabel}
+            aria-label={SC.header.navigationLabel}
             initial={{ height: reduced ? "auto" : 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: reduced ? "auto" : 0, opacity: 0 }}
             transition={{ duration: reduced ? 0.15 : 0.25 }}
           >
             <div className="container mobile-nav-inner">
-              {siteContent.header.navigation.map((link) => (
+              {SC.header.navigation.map((link) => (
                 <AnimatedTextLink
                   key={link.href}
                   href={link.href}
@@ -639,6 +651,7 @@ function MarsScene({
 }: {
   readonly target: React.RefObject<HTMLElement>;
 }): JSX.Element {
+  useI18n();
   const reduced = usePrefersReducedMotion();
   const id = useId().replace(/:/g, "");
   const { scrollYProgress } = useScroll({
@@ -827,8 +840,8 @@ function MarsScene({
 
         <div className="dome-callout">
           <span className="status-dot" />
-          КУПОЛ ARES-1
-          <small>6 КАССЕТ · ВИЗУАЛИЗАЦИЯ МОДУЛЯ</small>
+          {t("КУПОЛ ARES-1")}
+          <small>{t("6 КАССЕТ · ВИЗУАЛИЗАЦИЯ МОДУЛЯ")}</small>
         </div>
       </motion.div>
 
@@ -907,6 +920,7 @@ function FlipValue({
 
 function Countdown(): JSX.Element {
   const configuredEnd: string | null = presale.endsAt;
+  useI18n();
   const end = configuredEnd === null ? NaN : Date.parse(configuredEnd);
   const [now, setNow] = useState(() => Date.now());
 
@@ -940,25 +954,25 @@ function Countdown(): JSX.Element {
     return (
       <p className="countdown-note">
         <span className="status-dot status-dot--amber" />
-        {siteContent.hero.countdownUnavailable}
+        {SC.hero.countdownUnavailable}
       </p>
     );
   }
 
   const seconds = Math.max(0, Math.floor((end - now) / 1000));
   const units = [
-    { value: Math.floor(seconds / 86400), label: "дни" },
-    { value: Math.floor((seconds % 86400) / 3600), label: "часы" },
-    { value: Math.floor((seconds % 3600) / 60), label: "минуты" },
-    { value: seconds % 60, label: "секунды" },
+    { value: Math.floor(seconds / 86400), label: t("дни") },
+    { value: Math.floor((seconds % 86400) / 3600), label: t("часы") },
+    { value: Math.floor((seconds % 3600) / 60), label: t("минуты") },
+    { value: seconds % 60, label: t("секунды") },
   ];
 
   return (
     <div className="countdown">
       <p>
         {seconds === 0
-          ? siteContent.hero.countdownEnded
-          : siteContent.hero.countdownLabel}
+          ? SC.hero.countdownEnded
+          : SC.hero.countdownLabel}
       </p>
       <div className="flip-timer" role="timer" aria-live="off">
         {units.map((unit) => (
@@ -975,7 +989,8 @@ function Countdown(): JSX.Element {
 
 function Hero(): JSX.Element {
   const ref = useRef<HTMLElement>(null);
-  const title = useTypewriter({ text: siteContent.hero.title });
+  useI18n();
+  const title = useTypewriter({ text: SC.hero.title });
   const live = useLiveChain();
   const sold = live.online ? live.sold : 0;
 
@@ -988,15 +1003,15 @@ function Hero(): JSX.Element {
           <Reveal>
             <div className="hero-badge">
               <span className="status-dot" />
-              ПЕРВАЯ КАРТОФЕЛЬНАЯ КОЛОНИЯ
+              {t("ПЕРВАЯ КАРТОФЕЛЬНАЯ КОЛОНИЯ")}
               <span className="badge-code">2031</span>
             </div>
           </Reveal>
 
           <h1 id="hero-title" className="hero-title">
-            <span className="sr-only">{siteContent.hero.title}</span>
+            <span className="sr-only">{SC.hero.title}</span>
             <span className="typewriter-reserve" aria-hidden="true">
-              {siteContent.hero.title}
+              {SC.hero.title}
             </span>
             <span className="typewriter-visible" aria-hidden="true">
               {title.displayedText}
@@ -1005,36 +1020,36 @@ function Hero(): JSX.Element {
           </h1>
 
           <Reveal delay={0.15}>
-            <p className="hero-description">{siteContent.hero.subtitle}</p>
+            <p className="hero-description">{SC.hero.subtitle}</p>
           </Reveal>
 
           <Reveal className="hero-actions" delay={0.25}>
             <a
               className="cta-play"
-              href={playConfig.url}
+              href={PC.url}
               target="_blank"
               rel="noopener noreferrer"
             >
               <Play size={18} aria-hidden="true" />
-              {playConfig.label}
+              {PC.label}
             </a>
-            <Action href={siteContent.hero.primaryHref}>
-              {siteContent.hero.primaryCta}
+            <Action href={SC.hero.primaryHref}>
+              {SC.hero.primaryCta}
             </Action>
             <Action
               variant="secondary"
-              href={siteContent.hero.secondaryHref}
+              href={SC.hero.secondaryHref}
               target="_blank"
               rel="noopener noreferrer"
             >
-              {siteContent.hero.secondaryCta}
+              {SC.hero.secondaryCta}
               <ArrowUpRight size={16} aria-hidden="true" />
             </Action>
           </Reveal>
 
           <Reveal className="presale-panel" delay={0.35} panel="accent">
             <div className="presale-top">
-              <span>ПЕРВАЯ ВОЛНА · LIVE</span>
+              <span>{t("ПЕРВАЯ ВОЛНА · LIVE")}</span>
               <span>
                 <strong>
                   <RollingNumber value={sold} />
@@ -1047,34 +1062,33 @@ function Hero(): JSX.Element {
             <SparkProgress
               value={sold}
               max={live.online ? live.cap : presale.supply}
-              label={siteContent.hero.progressLabel}
+              label={SC.hero.progressLabel}
               valueText={
                 live.online
-                  ? `${sold} / ${live.online ? live.cap : presale.supply} модулей продано`
-                  : "подключение к devnet…"
+                  ? t("{n} модулей продано", { n: `${sold} / ${live.online ? live.cap : presale.supply}` })
+                  : t("подключение к devnet…")
               }
               color="#FF2E93"
             />
 
             <div className="presale-bottom">
               <span>
-                {live.online ? "данные с devnet-цепи" : "ожидание ответа RPC"}
+                {live.online ? t("данные с devnet-цепи") : t("ожидание ответа RPC")}
               </span>
-              <strong>0.25 SOL · 1 053 SKR / модуль</strong>
+              <strong>{t("0.25 SOL · 1 053 SKR / модуль")}</strong>
             </div>
             <Countdown />
           </Reveal>
 
           <p className="hero-habitat-note">
-            Внутри купола — шесть гидропонных кассет:
-            ростки, листва и клубни. Дрон показывает цикл осмотра.
-            Сцена иллюстративная, не телеметрия твоей фермы.
+            {t("Внутри купола — шесть гидропонных кассет: ростки, листва и клубни. Дрон показывает цикл осмотра.")}
+            {t("Сцена иллюстративная, не телеметрия твоей фермы.")}
           </p>
         </div>
 
         <div className="hero-side-label" aria-hidden="true">
-          ДОЛИНА МАРИНЕРА
-          <span>14° Ю. Ш. · МАРС</span>
+          {t("ДОЛИНА МАРИНЕРА")}
+          <span>{t("14° Ю. Ш. · МАРС")}</span>
         </div>
 
         <div className="hero-bottom">
@@ -1082,8 +1096,8 @@ function Hero(): JSX.Element {
             <span className="status-dot" />
             SOLANA DEVNET
           </p>
-          <span>ИСХОДНИКИ ОТКРЫТЫ · ПРОГРАММА ОБНОВЛЯЕТСЯ</span>
-          <a href="#problem" aria-label="Узнать о колонии">
+          <span>{t("ИСХОДНИКИ ОТКРЫТЫ · ПРОГРАММА ОБНОВЛЯЕТСЯ")}</span>
+          <a href="#problem" aria-label={t("Узнать о колонии")}>
             <ChevronDown size={18} aria-hidden="true" />
           </a>
         </div>
@@ -1091,14 +1105,14 @@ function Hero(): JSX.Element {
     </section>
   );
 }
-
 function Problem(): JSX.Element {
+  useI18n();
   return (
     <Section id="problem" className="problem-section" speed={0.3}>
       <SectionHeading
         id="problem-title"
-        eyebrow="01 / ДРУГИЕ ПРАВИЛА"
-        title={siteContent.problem.title}
+        eyebrow={t("01 / ДРУГИЕ ПРАВИЛА")}
+        title={SC.problem.title}
       />
 
       <div className="problem-grid">
@@ -1108,11 +1122,11 @@ function Problem(): JSX.Element {
           runningLight={false}
         >
           <div className="panel-topline">
-            <span className="panel-label">{siteContent.problem.before.title}</span>
-            <span className="small-code">ЗЕМЛЯ / ОФЧЕЙН</span>
+            <span className="panel-label">{SC.problem.before.title}</span>
+            <span className="small-code">{t("ЗЕМЛЯ / ОФЧЕЙН")}</span>
           </div>
           <ul>
-            {siteContent.problem.before.items.map((item) => (
+            {SC.problem.before.items.map((item) => (
               <li key={item}>
                 <X size={19} aria-hidden="true" />
                 <span>{item}</span>
@@ -1127,11 +1141,11 @@ function Problem(): JSX.Element {
           panel="accent"
         >
           <div className="panel-topline">
-            <span className="panel-label">{siteContent.problem.after.title}</span>
+            <span className="panel-label">{SC.problem.after.title}</span>
             <Mark className="mini-mark" />
           </div>
           <ul>
-            {siteContent.problem.after.items.map((item) => (
+            {SC.problem.after.items.map((item) => (
               <li key={item}>
                 <Check size={19} aria-hidden="true" />
                 <span>{item}</span>
@@ -1143,8 +1157,8 @@ function Problem(): JSX.Element {
 
       <Reveal>
         <p className="section-footnote">
-          Сейчас колония работает в devnet. Открытый код позволяет изучить
-          правила, но не исключает обновлений программы и рисков тестовой сети.
+          {t("Сейчас колония работает в devnet. Открытый код позволяет изучить правила,")}
+          {t("но не исключает обновлений программы и рисков тестовой сети.")}
         </p>
       </Reveal>
     </Section>
@@ -1211,19 +1225,19 @@ function TiltCard({ children, xpKey }: TiltCardProps): JSX.Element {
     </motion.article>
   );
 }
-
 function Mechanics(): JSX.Element {
+  useI18n();
   return (
     <Section id="mechanics" speed={0.8}>
       <SectionHeading
         id="mechanics-title"
-        eyebrow="02 / ЖИЗНЬ ПОД КУПОЛОМ"
-        title={siteContent.mechanics.title}
-        text="Один модуль. Свой ритм. Целая колония возможностей."
+        eyebrow={t("02 / ЖИЗНЬ ПОД КУПОЛОМ")}
+        title={SC.mechanics.title}
+        text={t("Один модуль. Свой ритм. Целая колония возможностей.")}
       />
 
       <div className="feature-grid">
-        {features.map((feature, index) => (
+        {FEATURES.map((feature, index) => (
           <Reveal key={feature.id} delay={index * 0.08}>
             <TiltCard xpKey={feature.id}>
               <div className="feature-top">
@@ -1243,28 +1257,28 @@ function Mechanics(): JSX.Element {
 
       <Reveal className="colony-manual">
         <div>
-          <span className="small-code">СИСТЕМНОЕ ВРЕМЯ</span>
-          <p>05–08 рассвет · 08–17 день · 17–20 синий закат · 20–05 ночь</p>
+          <span className="small-code">{t("СИСТЕМНОЕ ВРЕМЯ")}</span>
+          <p>{t("05–08 рассвет · 08–17 день · 17–20 синий закат · 20–05 ночь")}</p>
         </div>
         <div>
-          <span className="small-code">ОБСЛУЖИВАНИЕ МОДУЛЯ</span>
-          <p>Ремонт · удобрения ×1,5 на 24 ч · налог раз в 7 дней · уровни</p>
+          <span className="small-code">{t("ОБСЛУЖИВАНИЕ МОДУЛЯ")}</span>
+          <p>{t("Ремонт · удобрения ×1,5 на 24 ч · налог раз в 7 дней · уровни")}</p>
         </div>
         <div>
-          <span className="small-code">БИРЖА И ДОСТИЖЕНИЯ</span>
-          <p>Ордер от 10 POTATO и 1 SKR · 6 ончейн-квестов без бэкенда</p>
+          <span className="small-code">{t("БИРЖА И ДОСТИЖЕНИЯ")}</span>
+          <p>{t("Ордер от 10 POTATO и 1 SKR · 6 ончейн-квестов без бэкенда")}</p>
         </div>
       </Reveal>
 
       <Reveal className="tier-panel panel" panel="accent">
         <div className="tier-intro">
-          <p className="eyebrow">ЛОТЕРЕЯ МОДУЛЕЙ</p>
-          <h3>ОДНА ЦЕНА.<br />ТРИ ХАРАКТЕРА.</h3>
-          <p>1 053 SKR за модуль. Тир определяется случайно.</p>
+          <p className="eyebrow">{t("ЛОТЕРЕЯ МОДУЛЕЙ")}</p>
+          <h3>{t("ОДНА ЦЕНА.")}<br />{t("ТРИ ХАРАКТЕРА.")}</h3>
+          <p>{t("1 053 SKR за модуль. Тир определяется случайно.")}</p>
         </div>
         <RarityModules />
         <p className="tier-disclaimer">
-          Проценты урожая — игровые характеристики, не финансовая доходность.
+          {t("Проценты урожая — игровые характеристики, не финансовая доходность.")}
         </p>
       </Reveal>
     </Section>
@@ -1341,6 +1355,7 @@ function TuberArt(): JSX.Element {
 
 function Mascot(): JSX.Element {
   const { award } = useGamification();
+  useI18n();
   const { play } = useSounds();
   const reduced = usePrefersReducedMotion();
   const controls = useAnimationControls();
@@ -1411,7 +1426,7 @@ function Mascot(): JSX.Element {
         <Reveal className="mascot-visual">
           <div className="mascot-orbit mascot-orbit--one" aria-hidden="true" />
           <div className="mascot-orbit mascot-orbit--two" aria-hidden="true" />
-          <span className="mascot-coordinate" aria-hidden="true">МОДУЛЬ №7</span>
+          <span className="mascot-coordinate" aria-hidden="true">{t("МОДУЛЬ №7")}</span>
           <div className="mascot-shadow" aria-hidden="true" />
 
           <button
@@ -1420,7 +1435,7 @@ function Mascot(): JSX.Element {
             onClick={(event) => {
               void jump(elementXpOrigin(event.currentTarget));
             }}
-            aria-label={siteContent.mascot.buttonLabel}
+            aria-label={SC.mascot.buttonLabel}
           >
             <motion.span
               className="mascot-body"
@@ -1444,7 +1459,7 @@ function Mascot(): JSX.Element {
           </button>
 
           <div className="mascot-counter" aria-live="polite" aria-atomic="true">
-            <span>{siteContent.mascot.counterLabel}</span>
+            <span>{SC.mascot.counterLabel}</span>
             <strong>
               <RollingNumber value={jumps} minimumDigits={3} />
             </strong>
@@ -1454,15 +1469,15 @@ function Mascot(): JSX.Element {
         <div className="mascot-copy">
           <SectionHeading
             id="mascot-title"
-            eyebrow="03 / ЭКИПАЖ ARES-1"
-            title={siteContent.mascot.title}
+            eyebrow={t("03 / ЭКИПАЖ ARES-1")}
+            title={SC.mascot.title}
           />
           <Reveal>
-            <p className="body-copy">{siteContent.mascot.text}</p>
+            <p className="body-copy">{SC.mascot.text}</p>
             <div className="mascot-quote">
               <span aria-hidden="true">“</span>
-              <p>Гравитация ниже.<br />Планы — выше.</p>
-              <small>ТЮБЕР-9 · ГЛАВНЫЙ АГРОНОМ</small>
+              <p>{t("Гравитация ниже.")}<br />{t("Планы — выше.")}</p>
+              <small>{t("ТЮБЕР-9 · ГЛАВНЫЙ АГРОНОМ")}</small>
             </div>
             <div className="quest-chips">
               {gameConfig.quests.featured.map((quest) => (
@@ -1482,6 +1497,7 @@ function Mascot(): JSX.Element {
 
 function Tokenomics(): JSX.Element {
   const [supply, setSupply] = useState<number | null>(null);
+  useI18n();
 
   useEffect(() => {
     let alive = true;
@@ -1519,9 +1535,9 @@ function Tokenomics(): JSX.Element {
     <Section id="tokenomics" speed={0.5}>
       <SectionHeading
         id="tokenomics-title"
-        eyebrow="04 / ТОПЛИВО КОЛОНИИ"
-        title={tokenCycle.manifesto}
-        text={tokenCycle.manifestoSub}
+        eyebrow={t("04 / ТОПЛИВО КОЛОНИИ")}
+        title={TC.manifesto}
+        text={TC.manifestoSub}
       />
 
       <div className="tokenomics-grid">
@@ -1530,14 +1546,14 @@ function Tokenomics(): JSX.Element {
           {chainConfig.potatoMint && (
             <div className="token-live">
               {supply === null ? (
-                <span className="small-code">ПОДКЛЮЧЕНИЕ К ЦЕПИ…</span>
+                <span className="small-code">{t("ПОДКЛЮЧЕНИЕ К ЦЕПИ…")}</span>
               ) : (
                 <>
                   <span className="token-live-value">
                     <RollingNumber value={Math.round(supply)} /> POTATO
                   </span>
                   <span className="small-code">
-                    В ОБРАЩЕНИИ · {supplyPct?.toFixed(2)}% ПОТОЛКА
+                    {t("В ОБРАЩЕНИИ · {pct}% ПОТОЛКА", { pct: (supplyPct ?? 0).toFixed(2) })}
                   </span>
                 </>
               )}
@@ -1547,11 +1563,11 @@ function Tokenomics(): JSX.Element {
 
         <Reveal className="cycle-panel panel" panel="default">
           <div className="panel-topline">
-            <span className="panel-label">ЦИКЛ ТОКЕНА</span>
+            <span className="panel-label">{t("ЦИКЛ ТОКЕНА")}</span>
             <span className="small-code">MINT → FLOW → BURN</span>
           </div>
           <div className="cycle-columns">
-            {[tokenCycle.birth, tokenCycle.flow, tokenCycle.death].map((col) => (
+            {[TC.birth, TC.flow, TC.death].map((col) => (
               <div key={col.title} className="cycle-column">
                 <div className="cycle-column-title">{col.title}</div>
                 <ul>
@@ -1568,16 +1584,16 @@ function Tokenomics(): JSX.Element {
       <Reveal className="deflation-panel">
         <div className="burn-symbol" aria-hidden="true">60<span>%</span></div>
         <div>
-          <p className="eyebrow">КОМИССИИ СЖИГАЕТСЯ</p>
-          <p>{siteContent.tokenomics.deflation}</p>
+          <p className="eyebrow">{t("КОМИССИИ СЖИГАЕТСЯ")}</p>
+          <p>{SC.tokenomics.deflation}</p>
         </div>
-        <span className="burn-tag">МЕНЬШЕ ТОКЕНОВ<br />НЕ ОБЕЩАНИЕ РОСТА ЦЕНЫ</span>
+        <span className="burn-tag">{t("МЕНЬШЕ ТОКЕНОВ")}<br />{t("НЕ ОБЕЩАНИЕ РОСТА ЦЕНЫ")}</span>
       </Reveal>
 
       <Reveal className="interstellar-reserve-note">
-        <p>{tokenCycle.teamNote}</p>
-        <p>{tokenCycle.treasuryNote}</p>
-        <p>{tokenCycle.capNote}</p>
+        <p>{TC.teamNote}</p>
+        <p>{TC.treasuryNote}</p>
+        <p>{TC.capNote}</p>
       </Reveal>
     </Section>
   );
@@ -1585,18 +1601,19 @@ function Tokenomics(): JSX.Element {
 
 function Roadmap(): JSX.Element {
   const reduced = usePrefersReducedMotion();
+  useI18n();
 
   return (
     <Section id="roadmap" speed={0.9}>
       <SectionHeading
         id="roadmap-title"
-        eyebrow="05 / ПЛАН ЭКСПЕДИЦИИ"
-        title={siteContent.roadmap.title}
-        text="От первого ростка до собственной марсианской экономики."
+        eyebrow={t("05 / ПЛАН ЭКСПЕДИЦИИ")}
+        title={SC.roadmap.title}
+        text={t("От первого ростка до собственной марсианской экономики.")}
       />
 
       <ol className="roadmap">
-        {roadmap.map((milestone, index) => (
+        {ROADMAP.map((milestone, index) => (
           <li key={milestone.period} className={milestone.done ? "roadmap-done" : ""}>
             <Reveal delay={index * 0.08}>
               <div className="roadmap-marker">
@@ -1626,8 +1643,8 @@ function Roadmap(): JSX.Element {
                   <span>{milestone.period}</span>
                   <small>
                     {milestone.done
-                      ? siteContent.roadmap.completedLabel
-                      : siteContent.roadmap.plannedLabel}
+                      ? SC.roadmap.completedLabel
+                      : SC.roadmap.plannedLabel}
                   </small>
                 </div>
                 <h3>{milestone.title}</h3>
@@ -1639,7 +1656,7 @@ function Roadmap(): JSX.Element {
       </ol>
 
       <p className="section-footnote">
-        План и статусы приведены из концепции проекта. Сроки будущих этапов могут измениться.
+        {t("План и статусы приведены из концепции проекта. Сроки будущих этапов могут измениться.")}
       </p>
     </Section>
   );
@@ -1647,7 +1664,8 @@ function Roadmap(): JSX.Element {
 
 function LiveStats({ notify }: { readonly notify: Notify }): JSX.Element {
   const live = useLiveChain();
-  const stats = siteContent.social.stats;
+  useI18n();
+  const stats = SC.social.stats;
 
   const value = (
     number: bigint | number | null,
@@ -1686,7 +1704,7 @@ function LiveStats({ notify }: { readonly notify: Notify }): JSX.Element {
       key: "supply",
       label: stats.supply,
       figure: live.supplyMicro === null ? "—" : value(live.supplyMicro / 1_000_000n),
-      sub: "потолок 1B · premine нет",
+      sub: t("потолок 1B · premine нет"),
     },
     {
       key: "treasury",
@@ -1702,15 +1720,15 @@ function LiveStats({ notify }: { readonly notify: Notify }): JSX.Element {
     <Section id="social" className="social-section" speed={1.5}>
       <SectionHeading
         id="social-title"
-        eyebrow="06 / СИГНАЛ С МАРСА"
-        title={siteContent.social.title}
-        text={siteContent.social.subtitle}
+        eyebrow={t("06 / СИГНАЛ С МАРСА")}
+        title={SC.social.title}
+        text={SC.social.subtitle}
       />
 
       {!live.online && (
         <p className="live-offline-note">
           <span className="status-dot status-dot--amber" />
-          {siteContent.social.offline}
+          {SC.social.offline}
         </p>
       )}
 
@@ -1727,15 +1745,15 @@ function LiveStats({ notify }: { readonly notify: Notify }): JSX.Element {
       <div className="social-bottom">
         <p className="section-footnote">
           {live.online
-            ? `Обновлено ${new Date(live.updatedAt).toLocaleTimeString("ru-RU")} · источник: общий devnet RPC Solana`
-            : "Секция читает getAccountInfo / getProgramAccounts напрямую из публичного RPC."}
+            ? t("Обновлено {time} · источник: общий devnet RPC Solana", { time: new Date(live.updatedAt).toLocaleTimeString() })
+            : t("Секция читает getAccountInfo / getProgramAccounts напрямую из публичного RPC.")}
         </p>
         <a
           className="small-code"
           href="https://explorer.solana.com/address/DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf?cluster=devnet"
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() => notify("Проверка цифр — в Solana Explorer. Программа DUUBi…Eadf.")}
+          onClick={() => notify(t("Проверка цифр — в Solana Explorer. Программа DUUBi…Eadf."))}
         >
           DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf
           <ArrowUpRight size={12} aria-hidden="true" />
@@ -1746,6 +1764,7 @@ function LiveStats({ notify }: { readonly notify: Notify }): JSX.Element {
 }
 function FAQ(): JSX.Element {
   const { award } = useGamification();
+  useI18n();
   const [active, setActive] = useState<number | null>(0);
   const reduced = usePrefersReducedMotion();
 
@@ -1754,13 +1773,13 @@ function FAQ(): JSX.Element {
       <div className="faq-layout">
         <SectionHeading
           id="faq-title"
-          eyebrow="07 / ЦЕНТР СВЯЗИ"
-          title={siteContent.faq.title}
-          text="Всё, что стоит знать до посадки на Марс."
+          eyebrow={t("07 / ЦЕНТР СВЯЗИ")}
+          title={SC.faq.title}
+          text={t("Всё, что стоит знать до посадки на Марс.")}
         />
 
         <div className="faq-list">
-          {faq.map((item, index) => {
+          {FAQ_ITEMS.map((item, index) => {
             const open = active === index;
             const triggerId = `faq-trigger-${index}`;
             const panelId = `faq-panel-${index}`;
@@ -1846,21 +1865,22 @@ function FAQ(): JSX.Element {
 function describeTxError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   if (/user rejected|User rejected/i.test(msg)) {
-    return "Транзакция отменена в кошельке.";
+    return t("Транзакция отменена в кошельке.");
   }
   if (/presalecapreached|PresaleCapReached/i.test(msg)) {
-    return "Волна распродана: cap 500 модулей достигнут.";
+    return t("Волна распродана: cap 500 модулей достигнут.");
   }
   if (/presalewalletlimitreached|PresaleWalletLimitReached/i.test(msg)) {
-    return "Лимит: один кошелёк может купить не больше 5 модулей в пресейле.";
+    return t("Лимит: один кошелёк может купить не больше 5 модулей в пресейле.");
   }
   if (/insufficient funds|INSUFFICIENT_FUNDS|blockhash/i.test(msg)) {
-    return "Недостаточно SOL для комиссии/rent или blockhash протух — попробуй ещё раз.";
+    return t("Недостаточно SOL для комиссии/rent или blockhash протух — попробуй ещё раз.");
   }
-  return `Не удалось отправить транзакцию: ${msg}`;
+  return t("Не удалось отправить транзакцию: {msg}", { msg });
 }
 
 function PacksSection(): JSX.Element {
+  useI18n();
   const { connected, publicKey, balanceSkr, connect, connecting, connection } =
     useLandingWallet();
   const live = useLiveChain();
@@ -1958,27 +1978,27 @@ function PacksSection(): JSX.Element {
         <div className="waitlist-copy">
           <p className="eyebrow">
             <span className="status-dot" />
-            08 / ПРЕСЕЙЛ МОДУЛЕЙ
+            {t("08 / ПРЕСЕЙЛ МОДУЛЕЙ")}
           </p>
-          <h2 id="packs-title">Купи модуль колонии</h2>
+          <h2 id="packs-title">{t("Купи модуль колонии")}</h2>
           <p>
             {live.online
-              ? `${live.sold} / ${live.cap} модулей продано — данные live с devnet.`
-              : "Счётчик читается с devnet (общий RPC)."}{" "}
-            1053 SKR — и гидропонная кассета твоя. Редкость кидает сама
-            программа: COMMON 70% · RARE 25% · EPIC 5% (keccak(buyer ‖ sold ‖ slot)).
+              ? t("{n} модулей продано — данные live с devnet.", { n: `${live.sold} / ${live.cap}` })
+              : t("Счётчик читается с devnet (общий RPC).")}{" "}
+            {t("1053 SKR — и гидропонная кассета твоя. Редкость кидает сама программа: COMMON 70% · RARE 25% · EPIC 5%.")}
+            <span className="pack-note" aria-hidden="true">keccak(buyer ‖ sold ‖ slot)</span>
           </p>
           <p className="waitlist-payment-note">
-            Реальная devnet-транзакция: модуль записывается на твой кошелёк
-            прямо в контракте, игра подхватит его автоматически.
+            {t("Реальная devnet-транзакция: модуль записывается на твой кошелёк прямо в контракте,")}
+            {t("игра подхватит его автоматически.")}
           </p>
 
           <div className="boarding-pass" aria-hidden="true">
             <Mark />
             <div>
-              <span>ЗЕМЛЯ → МАРС</span>
+              <span>{t("ЗЕМЛЯ → МАРС")}</span>
               <strong>ARES-1</strong>
-              <small>ГИДРОПОННЫЙ МОДУЛЬ</small>
+              <small>{t("ГИДРОПОННЫЙ МОДУЛЬ")}</small>
             </div>
             <div className="barcode" />
           </div>
@@ -1987,17 +2007,17 @@ function PacksSection(): JSX.Element {
         <div className="waitlist-form-area">
           <p className={`form-mode ${connected ? "form-mode--live" : ""}`}>
             <span className={`status-dot ${connected ? "" : "status-dot--amber"}`} />
-            {connected ? "КОШЕЛЁК ПОДКЛЮЧЁН · DEVNET" : "КОШЕЛЁК НЕ ПОДКЛЮЧЁН"}
+            {connected ? t("КОШЕЛЁК ПОДКЛЮЧЁН · DEVNET") : t("КОШЕЛЁК НЕ ПОДКЛЮЧЁН")}
           </p>
 
           {connected ? (
             <>
               <div className="pack-wallet-line">
-                <span>адрес</span>
+                <span>{t("адрес")}</span>
                 <strong>{addr.slice(0, 4)}…{addr.slice(-4)}</strong>
               </div>
               <div className="pack-wallet-line">
-                <span>баланс SKR</span>
+                <span>{t("баланс SKR")}</span>
                 <strong style={{ color: balanceOk ? "#35e0c0" : "#ff5470" }}>
                   {balance} SKR
                 </strong>
@@ -2007,13 +2027,13 @@ function PacksSection(): JSX.Element {
                 onClick={() => { void buyPack(); }}
                 disabled={purchasing || !balanceOk || soldOut}
               >
-                ⚡ {purchasing ? "Отправка транзакции…" : soldOut ? "Волна распродана" : "Купить модуль · 1053 SKR"}
+                ⚡ {purchasing ? t("Отправка транзакции…") : soldOut ? t("Волна распродана") : t("Купить модуль · 1053 SKR")}
               </button>
               {soldOut && (
-                <p className="pack-note">Все {live.cap} модулей первой волны проданы.</p>
+                <p className="pack-note">{t("Все {n} модулей первой волны проданы.", { n: live.cap })}</p>
               )}
               {!balanceOk && !soldOut && (
-                <p className="pack-note">Недостаточно SKR для покупки модуля.</p>
+                <p className="pack-note">{t("Недостаточно SKR для покупки модуля.")}</p>
               )}
             </>
           ) : (
@@ -2023,10 +2043,10 @@ function PacksSection(): JSX.Element {
                 onClick={() => { void connect(); }}
                 disabled={connecting}
               >
-                {connecting ? "Подключение…" : "⚡ Подключить кошелёк"}
+                {connecting ? t("Подключение…") : "⚡ " + t("Подключить кошелёк")}
               </button>
               <p className="pack-note">
-                Phantom или Solflare. После подключения кнопка покупки станет активной.
+                {t("Phantom или Solflare. После подключения кнопка покупки станет активной.")}
               </p>
             </>
           )}
@@ -2034,7 +2054,7 @@ function PacksSection(): JSX.Element {
           {error && <p className="pack-note pack-note--error">{error}</p>}
 
           <p className="pack-note">
-            devnet: SKR и SOL тестовые и не имеют реальной стоимости.
+            {t("devnet: SKR и SOL тестовые и не имеют реальной стоимости.")}
           </p>
         </div>
       </Reveal>
@@ -2048,6 +2068,7 @@ function PacksSection(): JSX.Element {
 
 function SuccessModal({ tx, tier, onClose }: { tx: string; tier: number; onClose: () => void }): JSX.Element {
   const TIERS = ["COMMON", "RARE", "EPIC"];
+  useI18n();
   const COLORS = ["#9AA0AC", "#B85CFF", "#FFC94A"];
 
   return (
@@ -2086,11 +2107,11 @@ function SuccessModal({ tx, tier, onClose }: { tx: string; tier: number; onClose
         >
           <div style={{ fontSize: 44, marginBottom: 14 }} aria-hidden="true">🥔</div>
           <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 10, color: COLORS[tier], letterSpacing: "0.06em" }}>
-            {TIERS[tier]} · МОДУЛЬ КУПЛЕН
+            {TIERS[tier]} · {t("МОДУЛЬ КУПЛЕН")}
           </h2>
           <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 18, color: "var(--pf-text-secondary, #b8b8c8)" }}>
-            Модуль ждёт вас в игре: он уже записан на твой кошелёк в контракте.
-            Заходи под тем же кошельком — делянка на месте.
+            {t("Модуль ждёт вас в игре: он уже записан на твой кошелёк в контракте.")}
+            {t("Заходи под тем же кошельком — делянка на месте.")}
           </p>
           <a
             href={`https://explorer.solana.com/tx/${tx}?cluster=devnet`}
@@ -2108,17 +2129,17 @@ function SuccessModal({ tx, tier, onClose }: { tx: string; tier: number; onClose
               fontFamily: '"JetBrains Mono", ui-monospace, monospace',
             }}
           >
-            транзакция в эксплорере ↗
+            {t("транзакция в эксплорере")} ↗
           </a>
           <div>
             <a
-              href={playConfig.url}
+              href={PC.url}
               target="_blank"
               rel="noopener noreferrer"
               className="cta-play"
             >
               <Play size={18} aria-hidden="true" />
-              ИГРАТЬ
+              {t("ИГРАТЬ")}
             </a>
           </div>
         </motion.div>
@@ -2126,22 +2147,22 @@ function SuccessModal({ tx, tier, onClose }: { tx: string; tier: number; onClose
     </AnimatePresence>
   );
 }
-
 function Footer(): JSX.Element {
+  useI18n();
   return (
     <footer className="footer">
       <div className="container">
         <div className="footer-top">
-          <a href="#hero" className="brand" aria-label={siteContent.header.homeLabel}>
+          <a href="#hero" className="brand" aria-label={SC.header.homeLabel}>
             <Mark />
             <span>
               <strong>POTATO</strong>
-              <small>КОЛОНИЯ · ARES-1</small>
+              <small>{t("КОЛОНИЯ · ARES-1")}</small>
             </span>
           </a>
 
-          <nav aria-label={siteContent.footer.navigationLabel} className="footer-links">
-            {siteContent.footer.links.map((link) => (
+          <nav aria-label={SC.footer.navigationLabel} className="footer-links">
+            {SC.footer.links.map((link) => (
               <MorphButton
                 key={link.label}
                 href={link.href}
@@ -2159,13 +2180,13 @@ function Footer(): JSX.Element {
         </div>
 
         <div className="footer-middle">
-          <p>{siteContent.footer.copyright}</p>
+          <p>{SC.footer.copyright}</p>
         </div>
 
-        <p className="disclaimer">{siteContent.footer.disclaimer}</p>
+        <p className="disclaimer">{SC.footer.disclaimer}</p>
         <div className="footer-bottom">
-          <span>СДЕЛАНО ДЛЯ НИЗКОЙ ГРАВИТАЦИИ</span>
-          <AnimatedTextLink href="#hero">НАВЕРХ ↑</AnimatedTextLink>
+          <span>{t("СДЕЛАНО ДЛЯ НИЗКОЙ ГРАВИТАЦИИ")}</span>
+          <AnimatedTextLink href="#hero">{t("НАВЕРХ")} ↑</AnimatedTextLink>
         </div>
       </div>
     </footer>
@@ -2241,7 +2262,7 @@ function Toast({
             <button
               type="button"
               className="icon-button"
-              aria-label={siteContent.accessibility.closeNotification}
+              aria-label={SC.accessibility.closeNotification}
               onClick={close}
             >
               <MotionIcon>
@@ -2287,7 +2308,7 @@ export default function App(): JSX.Element {
   return (
     <>
       <a href="#main-content" className="skip-link">
-        {siteContent.accessibility.skipToContent}
+        {SC.accessibility.skipToContent}
       </a>
       <Ambient />
       <Header notify={notify} />

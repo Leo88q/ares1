@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { t } from '../i18n'
+
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, ArrowDownLeft, ArrowUpRight, Copy, Check, Wallet } from 'lucide-react'
 import { PublicKey } from '@solana/web3.js'
@@ -43,7 +45,7 @@ export default function WalletManagement() {
 
  const handleDeposit = async () => {
   if (!publicKey) {
-   show({ type: 'warning', title: 'Подключи кошелёк' })
+   show({ type: 'warning', title: t('Подключи кошелёк') })
    return
   }
   sounds.click()
@@ -52,31 +54,31 @@ export default function WalletManagement() {
    setLoading(true)
    const ok = await airdropSol()
    setLoading(false)
-   if (ok) show({ type: 'success', title: 'SOL получен', message: `+1 SOL (${CLUSTER} airdrop)` })
+   if (ok) show({ type: 'success', title: t('SOL получен'), message: t('+1 SOL ({cluster} airdrop)', { cluster: CLUSTER }) })
   } else {
    void navigator.clipboard.writeText(publicKey.toString())
-   show({ type: 'info', title: 'Адрес скопирован', message: `Отправь ${currency.name} на этот адрес с биржи или другого кошелька.` })
+   show({ type: 'info', title: t('Адрес скопирован'), message: t('Отправь {cur} на этот адрес с биржи или другого кошелька.', { cur: currency.name }) })
   }
  }
 
  const handleWithdraw = async () => {
   if (!publicKey) {
-   show({ type: 'warning', title: 'Подключи кошелёк' })
+   show({ type: 'warning', title: t('Подключи кошелёк') })
    return
   }
   const amountNum = parseFloat(amount)
   if (!amountNum || amountNum < currency.min) {
-   show({ type: 'warning', title: `Минимум ${currency.min} ${currency.symbol}` })
+   show({ type: 'warning', title: t('Минимум {min} {sym}', { min: currency.min, sym: currency.symbol }) })
    return
   }
   try {
    new PublicKey(recipient)
   } catch {
-   show({ type: 'error', title: 'Неверный адрес получателя' })
+   show({ type: 'error', title: t('Неверный адрес получателя') })
    return
   }
   if (recipient === publicKey.toString()) {
-   show({ type: 'warning', title: 'Это твой собственный адрес' })
+   show({ type: 'warning', title: t('Это твой собственный адрес') })
    return
   }
   sounds.click()
@@ -85,7 +87,7 @@ export default function WalletManagement() {
   const ok = selected === 'SOL' ? await sendSol(recipient, amountNum) : await sendPotato(recipient, amountNum)
   setLoading(false)
   if (ok) {
-   show({ type: 'success', title: `${currency.name} отправлен`, message: `${amountNum} ${currency.symbol} → ${recipient.slice(0, 8)}…` })
+   show({ type: 'success', title: t('{cur} отправлен', { cur: currency.name }), message: `${amountNum} ${currency.symbol} → ${recipient.slice(0, 8)}…` })
    setAmount('')
    setRecipient('')
    setAction(null)
@@ -120,8 +122,8 @@ export default function WalletManagement() {
       <Wallet size={20} color="white" />
      </div>
      <div style={{ textAlign: 'left' }}>
-      <div className="ares-stencil" style={{ fontSize: 13, color: 'var(--ares-hud-amber, #FFB347)' }}>УПРАВЛЕНИЕ КОШЕЛЬКОМ</div>
-      <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)' }}>Приём и передача топлива и пайка</div>
+      <div className="ares-stencil" style={{ fontSize: 13, color: 'var(--ares-hud-amber, #FFB347)' }}>{t('УПРАВЛЕНИЕ КОШЕЛЬКОМ')}</div>
+      <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)' }}>{t('Приём и передача топлива и пайка')}</div>
      </div>
     </div>
     {isOpen ? <ChevronUp size={20} color="var(--pf-text-secondary)" /> : <ChevronDown size={20} color="var(--pf-text-secondary)" />}
@@ -132,12 +134,12 @@ export default function WalletManagement() {
      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} style={{ overflow: 'hidden' }}>
       <div style={{ padding: 16, marginTop: 8 }} className="pf-card hull-skin">
        <div style={{ padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.03)', marginBottom: 16 }}>
-        <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', marginBottom: 6 }}>Твой адрес для получения:</div>
+        <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', marginBottom: 6 }}>{t('Твой адрес для получения')}:</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
          <code style={{ flex: 1, fontSize: 11, color: 'var(--ares-parchment, #F2E8DA)', fontFamily: 'var(--ares-font-mono, monospace)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {publicKey?.toString() || 'Не подключён'}
+          {publicKey?.toString() || t('Не подключён')}
          </code>
-         <motion.button whileTap={{ scale: 0.9 }} onClick={copyAddress} aria-label="Скопировать адрес"
+         <motion.button whileTap={{ scale: 0.9 }} onClick={copyAddress} aria-label={t("Скопировать адрес")}
           style={{ padding: '6px 10px', borderRadius: 6, background: copied ? 'var(--pf-teal)' : 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center' }}>
           {copied ? <Check size={12} color="white" /> : <Copy size={12} color="var(--pf-text-secondary)" />}
          </motion.button>
@@ -145,7 +147,7 @@ export default function WalletManagement() {
        </div>
 
        <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8 }}>Валюта · баланс {balanceLabel}</div>
+        <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8 }}>{t('Валюта')} · {t('баланс')} {balanceLabel}</div>
         <div role="radiogroup" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
          {CURRENCIES.map((c) => {
           const active = selected === c.id
@@ -162,25 +164,25 @@ export default function WalletManagement() {
        </div>
 
        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <ActionToggle active={action === 'deposit'} color="var(--pf-teal)" onClick={() => setAction(action === 'deposit' ? null : 'deposit')} icon={<ArrowDownLeft size={16} />} label="Принять" />
-        <ActionToggle active={action === 'withdraw'} color="var(--pf-gold)" onClick={() => setAction(action === 'withdraw' ? null : 'withdraw')} icon={<ArrowUpRight size={16} />} label="Передать" />
+        <ActionToggle active={action === 'deposit'} color="var(--pf-teal)" onClick={() => setAction(action === 'deposit' ? null : 'deposit')} icon={<ArrowDownLeft size={16} />} label={t("Принять")} />
+        <ActionToggle active={action === 'withdraw'} color="var(--pf-gold)" onClick={() => setAction(action === 'withdraw' ? null : 'withdraw')} icon={<ArrowUpRight size={16} />} label={t("Передать")} />
        </div>
 
        <AnimatePresence>
         {action === 'deposit' && (
          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden' }}>
           <div style={{ padding: 14, borderRadius: 12, background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(193, 68, 14, 0.12)' }}>
-           <div style={{ fontSize: 13, color: 'var(--pf-teal)', marginBottom: 8, fontWeight: 600 }}>Приём {currency.name}</div>
+           <div style={{ fontSize: 13, color: 'var(--pf-teal)', marginBottom: 8, fontWeight: 600 }}>{t('Приём')} {currency.name}</div>
            <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
             {selected === 'SOL' && !IS_MAINNET
-             ? ` Тестовая сеть (${CLUSTER}): получи 1 SOL из крана или отправь SOL на адрес выше.`
+             ? t(' Тестовая сеть ({cluster}): получи 1 SOL из крана или отправь SOL на адрес выше.', { cluster: CLUSTER })
              : selected === 'SOL'
-              ? 'Отправь SOL с биржи или другого кошелька на адрес выше.'
-              : `$POTATO можно купить на вкладке «Рынок» за SOL или получить переводом на адрес выше${config ? ` (mint ${config.potatoMint.toString().slice(0, 6)}…)` : ''}.`}
+              ? t('Отправь SOL с биржи или другого кошелька на адрес выше.')
+              : `${t('$POTATO можно купить на вкладке «Рынок» за SOL или получить переводом на адрес выше')}${config ? t(' (mint {mint}…)', { mint: config.potatoMint.toString().slice(0, 6) }) : ''}.`}
            </div>
            <motion.button whileTap={{ scale: 0.95 }} onClick={handleDeposit} disabled={loading}
             style={{ width: '100%', padding: 12, borderRadius: 10, background: 'var(--pf-teal)', color: 'white', fontSize: 13, fontWeight: 700, opacity: loading ? 0.7 : 1 }}>
-            {loading ? ' Пополнение…' : selected === 'SOL' && !IS_MAINNET ? ' Получить 1 SOL (airdrop)' : ' Скопировать адрес'}
+            {loading ? t(' Пополнение…') : selected === 'SOL' && !IS_MAINNET ? t(' Получить 1 SOL (airdrop)') : t(' Скопировать адрес')}
            </motion.button>
           </div>
          </motion.div>
@@ -191,15 +193,15 @@ export default function WalletManagement() {
         {action === 'withdraw' && (
          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden' }}>
           <div style={{ padding: 14, borderRadius: 12, background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-           <div style={{ fontSize: 13, color: 'var(--pf-gold)', marginBottom: 10, fontWeight: 600 }}>Передача {currency.name}</div>
-           <input type="text" value={recipient} onChange={(e) => setRecipient(e.target.value.trim())} placeholder="Адрес получателя" aria-label="Адрес получателя" autoComplete="off" spellCheck={false}
+           <div style={{ fontSize: 13, color: 'var(--pf-gold)', marginBottom: 10, fontWeight: 600 }}>{t('Передача')} {currency.name}</div>
+           <input type="text" value={recipient} onChange={(e) => setRecipient(e.target.value.trim())} placeholder={t("Адрес получателя")} aria-label={t("Адрес получателя")} autoComplete="off" spellCheck={false}
             style={{ ...inputStyle, fontFamily: 'monospace' }} />
-           <input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`Сумма ${currency.symbol}`} aria-label="Сумма" step={currency.min} min={currency.min}
+           <input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t(`Сумма ${currency.symbol}`)} aria-label={t("Сумма")} step={currency.min} min={currency.min}
             style={inputStyle} />
-           <p style={{ fontSize: 11, color: 'var(--pf-red)', marginBottom: 10 }}>Проверь адрес дважды — транзакцию в блокчейне нельзя отменить.</p>
+           <p style={{ fontSize: 11, color: 'var(--pf-red)', marginBottom: 10 }}>{t('Проверь адрес дважды — транзакцию в блокчейне нельзя отменить.')}</p>
            <motion.button whileTap={{ scale: 0.95 }} onClick={handleWithdraw} disabled={loading || !amount || !recipient}
             style={{ width: '100%', padding: 12, borderRadius: 10, background: !amount || !recipient ? 'rgba(255,255,255,0.1)' : 'var(--pf-gold)', color: 'white', fontSize: 13, fontWeight: 700, opacity: loading ? 0.7 : 1 }}>
-            {loading ? ' Отправка…' : `Передать ${amount || '0'} ${currency.symbol}`}
+            {loading ? t(' Отправка…') : t('Передать {amount} {sym}', { amount: amount || '0', sym: currency.symbol })}
            </motion.button>
           </div>
          </motion.div>

@@ -1,4 +1,6 @@
 import { memo, useMemo } from 'react';
+import { t } from '../../i18n'
+
 import { ConsolePanel, StencilPlate } from './panels';
 
 export interface IdCardProps {
@@ -101,7 +103,7 @@ export const IdCard = memo(function IdCard({
      </span>
      {level !== undefined ? (
       <span className="ares-mono" style={{ fontSize: 10, color: 'var(--ares-hud-amber, #FFB347)' }}>
-       УРОВЕНЬ {level}
+       {t('УРОВЕНЬ {n}', { n: level })}
       </span>
      ) : null}
     </div>
