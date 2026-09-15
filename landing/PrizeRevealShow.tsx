@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { t } from "./i18n";
 import { createPortal } from "react-dom";
 import { motion, useMotionValue, useTransform } from "framer-motion";
 import { usePrefersReducedMotion } from "./hooks";
@@ -343,16 +344,16 @@ function PrizeScene({
             ✓
           </div>
           <div>
-            <p className="prize-result-title">{title}</p>
+            <p className="prize-result-title">{t(title)}</p>
             {amountLabel && (
               <p className="prize-static-amount">{amountLabel}</p>
             )}
-            <p className="prize-result-message">{message}</p>
+            <p className="prize-result-message">{t(message)}</p>
           </div>
           <button
             type="button"
             className="prize-static-close"
-            aria-label="Закрыть подтверждение"
+            aria-label={t("Закрыть подтверждение")}
             onClick={onComplete}
           >
             ×
@@ -470,12 +471,12 @@ function PrizeScene({
           scale: resultScale,
         }}
       >
-        <p className="prize-result-eyebrow">СИГНАЛ КОЛОНИИ ПРИНЯТ</p>
-        <h2 className="prize-result-title">{title}</h2>
+        <p className="prize-result-eyebrow">{t("СИГНАЛ КОЛОНИИ ПРИНЯТ")}</p>
+        <h2 className="prize-result-title">{t(title)}</h2>
         {amountLabel && (
           <p className="prize-result-amount">{amountLabel}</p>
         )}
-        <p className="prize-result-message">{message}</p>
+        <p className="prize-result-message">{t(message)}</p>
       </motion.div>
 
       <button
@@ -483,7 +484,7 @@ function PrizeScene({
         className="prize-skip"
         onClick={onComplete}
       >
-        Пропустить анимацию
+        {t("Пропустить анимацию")}
       </button>
     </motion.div>
   );

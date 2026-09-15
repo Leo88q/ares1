@@ -1,4 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
+import { t } from '../i18n'
+
 import { useGame } from '../contexts/GameContext'
 import { requestNotificationPermission, checkFieldNotifications, showNotification } from '../utils/notifications'
 
@@ -50,8 +52,8 @@ export function useNotifications() {
 
  const testNotification = () =>
   showNotification({
-   title: ' Уведомления работают!',
-   body: 'Ты получишь сигнал, когда урожай готов или истекает налог.',
+   title: t(' Уведомления работают!'),
+   body: t('Ты получишь сигнал, когда урожай готов или истекает налог.'),
    tag: 'test',
   })
 

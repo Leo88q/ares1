@@ -10,6 +10,7 @@ import {
 import { soundSources } from "./soundSources";
 import { usePrefersReducedMotion, useSmoothScroll } from "./hooks";
 import "./index.css";
+import "./i18n/dicts";
 
 
 configureSoundSources(soundSources);

@@ -1,4 +1,6 @@
 import { memo } from 'react';
+import { t } from '../../i18n'
+
 import { ConsolePanel, StencilPlate } from './panels';
 import { IconEarth } from './icons';
 
@@ -20,11 +22,11 @@ export const SettlerCallSection = memo(function SettlerCallSection({
  onInvite,
 }: SettlerCallSectionProps): JSX.Element {
  return (
-  <ConsolePanel title="ВЫЗВАТЬ ПОСЕЛЕНЦА" tone="amber">
+  <ConsolePanel title={t('ВЫЗВАТЬ ПОСЕЛЕНЦА')} tone="amber">
    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
      <span className="ares-mono" style={{ fontSize: 11, color: 'rgba(255,179,71,0.85)' }}>
-      КОД: {referralCode}
+      {t('КОД: {code}', { code: referralCode })}
      </span>
      <button
       type="button"
@@ -69,7 +71,7 @@ export const SettlerCallSection = memo(function SettlerCallSection({
      </div>
     ) : (
      <span className="ares-mono" style={{ fontSize: 10, color: 'rgba(255,179,71,0.5)' }}>
-      ЭКИПАЖ ПУСТ
+      {t('ЭКИПАЖ ПУСТ')}
      </span>
     )}
    </div>

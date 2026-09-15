@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { t } from '../i18n'
+
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle } from 'lucide-react'
 import { PrizeRevealShow } from '../ui/PrizeRevealShow'
@@ -27,12 +29,12 @@ interface Achievement {
 function getAchievements(stats: GameStats): Achievement[] {
  const potato = stats.potatoBalance / MICRO
  return [
-  { id: 'a1', title: 'Первый росток', desc: 'Создай первое поле', progress: Math.min(stats.totalFields, 1), target: 1, reward: 50 },
-  { id: 'a2', title: 'Первый урожай', desc: 'Накопи 100 POTATO', progress: Math.min(potato, 100), target: 100, reward: 50 },
-  { id: 'a3', title: 'Тысячник', desc: 'Накопи 1 000 POTATO', progress: Math.min(potato, 1000), target: 1000, reward: 100 },
-  { id: 'a4', title: 'Фермер-магнат', desc: 'Владей 5 полями', progress: Math.min(stats.totalFields, 5), target: 5, reward: 100 },
-  { id: 'a5', title: 'Картофельный барон', desc: 'Накопи 10 000 POTATO', progress: Math.min(potato, 10000), target: 10000, reward: 200 },
-  { id: 'a6', title: 'Ветеран', desc: 'Владей 6 полями, хотя бы одно 3-го уровня', progress: Math.min(stats.totalFields, 6), target: 6, reward: 50 },
+  { id: 'a1', title: t('Первый росток'), desc: t('Создай первое поле'), progress: Math.min(stats.totalFields, 1), target: 1, reward: 50 },
+  { id: 'a2', title: t('Первый урожай'), desc: t('Накопи 100 POTATO'), progress: Math.min(potato, 100), target: 100, reward: 50 },
+  { id: 'a3', title: t('Тысячник'), desc: t('Накопи 1 000 POTATO'), progress: Math.min(potato, 1000), target: 1000, reward: 100 },
+  { id: 'a4', title: t('Фермер-магнат'), desc: t('Владей 5 полями'), progress: Math.min(stats.totalFields, 5), target: 5, reward: 100 },
+  { id: 'a5', title: t('Картофельный барон'), desc: t('Накопи 10 000 POTATO'), progress: Math.min(potato, 10000), target: 10000, reward: 200 },
+  { id: 'a6', title: t('Ветеран'), desc: t('Владей 6 полями, хотя бы одно 3-го уровня'), progress: Math.min(stats.totalFields, 6), target: 6, reward: 50 },
  ]
 }
 
@@ -71,18 +73,18 @@ export function MissionLog() {
    <PrizeRevealShow
     trigger={showConfetti}
     amount={lastRewardMicro / 1000000}
-    title="НАГРАДА ПОЛУЧЕНА"
-    message="Груз доставлен в твою колонию."
+    title={t("НАГРАДА ПОЛУЧЕНА")}
+    message={t("Груз доставлен в твою колонию.")}
     unit="POTATO"
     haptics={true}
     onComplete={() => setShowConfetti(false)}
    />
 
-   <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Нашивки экипажа</h2>
+   <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>{t("Нашивки экипажа")}</h2>
    <p style={{ fontSize: 11, color: 'var(--pf-text-muted)', marginBottom: 16 }}>
     {questsAvailable
-     ? 'Условия проверяются on-chain в программе, награды — из квест-казны (пул 550 POTATO). Одноразово.'
-     : 'Подключи кошелёк, чтобы получать награды.'}
+     ? t('Условия проверяются on-chain в программе, награды — из квест-казны (пул 550 POTATO). Одноразово.')
+     : t('Подключи кошелёк, чтобы получать награды.') }
    </p>
    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
     {achievements.map((ach, i) => {
@@ -103,7 +105,7 @@ export function MissionLog() {
         </div>
         <div style={{ textAlign: 'right' }}>
          {isClaimed ? (
-          <CheckCircle size={22} color="var(--pf-teal)" aria-label="Получено" />
+          <CheckCircle size={22} color="var(--pf-teal)" aria-label={t("Получено")} />
          ) : done ? (
           <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleClaim(ach.id)} disabled={claiming === ach.id || !questsAvailable}
            style={{ padding: '8px 12px', borderRadius: 10, background: 'linear-gradient(135deg, var(--pf-gold), var(--pf-orange))', color: 'white', fontSize: 11, fontWeight: 700 }}>
@@ -122,14 +124,14 @@ export function MissionLog() {
    <AnimatePresence>
     {earlyAch && (
      <Overlay onClose={() => setEarlyAch(null)}>
-      <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Ещё рано получать награду</h3>
+      <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{t('Ещё рано получать награду')}</h3>
       <div style={{ padding: 14, borderRadius: 14, background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', marginBottom: 16 }}>
-       <p style={{ fontSize: 13, color: 'var(--pf-gold)', lineHeight: 1.5 }}>{earlyAch.desc}. Приходи, когда индикатор заполнится.</p>
+       <p style={{ fontSize: 13, color: 'var(--pf-gold)', lineHeight: 1.5 }}>{t('Приходи, когда индикатор заполнится.', { desc: earlyAch.desc })}</p>
        <div style={{ marginTop: 10 }}><LiquidBar value={(earlyAch.progress / earlyAch.target) * 100} /></div>
        <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', marginTop: 6 }}>{formatProgress(earlyAch.progress)} / {formatProgress(earlyAch.target)}</div>
       </div>
       <button onClick={() => setEarlyAch(null)} style={{ width: '100%', padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
-       Понятно
+       {t('Понятно')}
       </button>
      </Overlay>
     )}

@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
+import { t } from '../i18n'
+
 import { PublicKey } from '@solana/web3.js'
 import { createAssociatedTokenAccountInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { useSolana } from '../contexts/SolanaContext'
@@ -138,11 +140,11 @@ export function useMarketplace() {
      orderId, amountMicro, priceLamports,
     })
     await sendIx([...ixs, ix])
-    show({ type: 'success', title: 'Ордер опубликован', message: 'Он будет активен 24 часа.' })
+    show({ type: 'success', title: t('Ордер опубликован'), message: t('Он будет активен 24 часа.') })
     await loadOrders()
     return true
    } catch (err) {
-    notifyError('Не удалось создать ордер', err)
+    notifyError(t('Не удалось создать ордер'), err)
     return false
    } finally {
     setActionLoading(null)
@@ -160,8 +162,8 @@ export function useMarketplace() {
     // ~0.003 SOL covers the fee plus a possible ATA rent for the buyer/treasury.
     if (solBal < order.totalLamports + 3_000_000) {
      show({
-      type: 'warning', title: 'Недостаточно SOL',
-      message: `Нужно ${(order.totalLamports / 1e6).toFixed(4)} SOL + комиссия, у тебя ${(solBal / 1e6).toFixed(4)} SOL.`,
+      type: 'warning', title: t('Недостаточно SOL'),
+      message: t('Нужно {need} SOL + комиссия, у тебя {have} SOL.', { need: (order.totalLamports / 1e6).toFixed(4), have: (solBal / 1e6).toFixed(4) }),
      })
      return false
     }
@@ -208,11 +210,11 @@ export function useMarketplace() {
      sellerLicense, buyerReferral, referrerPotato,
     })
     await sendIx([...ixs, ix])
-    show({ type: 'success', title: 'Покупка выполнена', message: `+${(order.amountMicro / MICRO).toFixed(2)} POTATO` })
+    show({ type: 'success', title: t('Покупка выполнена'), message: t('+{amount} POTATO', { amount: (order.amountMicro / MICRO).toFixed(2) }) })
     await Promise.all([loadOrders(), refreshConfig()])
     return true
    } catch (err) {
-    notifyError('Не удалось купить', err)
+    notifyError(t('Не удалось купить'), err)
     return false
    } finally {
     setActionLoading(null)
@@ -235,7 +237,7 @@ export function useMarketplace() {
     await loadOrders()
     return true
    } catch (err) {
-    notifyError('Не удалось отменить ордер', err)
+    notifyError(t('Не удалось отменить ордер'), err)
     return false
    } finally {
     setActionLoading(null)

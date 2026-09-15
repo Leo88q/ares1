@@ -1,4 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { t } from '../../i18n'
+
 import { AnimatePresence, motion } from 'framer-motion';
 import { StarField, usePrefersReducedMotion } from './effects';
 import { AstronautLoader } from '../../ui/TuberAstronaut';
@@ -194,7 +196,7 @@ export const LandingSequence = memo(function LandingSequence({
       pointerEvents: 'none',
      }}
     >
-     <AstronautLoader progress={loadPct} label="РАСПАКОВКА ГИДРОПОНИКИ" />
+     <AstronautLoader progress={loadPct} label={t("РАСПАКОВКА ГИДРОПОНИКИ")} />
     </div>
    ) : null}
 

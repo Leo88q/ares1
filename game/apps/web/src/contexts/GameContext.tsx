@@ -1,4 +1,6 @@
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { t } from '../i18n'
+
 import { PublicKey, SystemProgram, TransactionInstruction } from '@solana/web3.js'
 import { createAssociatedTokenAccountIdempotentInstruction, createAssociatedTokenAccountInstruction, createTransferInstruction, unpackAccount, getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { useSolana, IS_MAINNET } from './SolanaContext'
@@ -181,7 +183,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
  /** ATA of the connected wallet plus a create-instruction when it does not exist yet. */
  const ownAta = useCallback((): { address: PublicKey; ixs: TransactionInstruction[] } => {
-  if (!publicKey || !config) throw new Error('Кошелёк не подключён.')
+  if (!publicKey || !config) throw new Error(t('Кошелёк не подключён.'))
   const address = getAssociatedTokenAddressSync(config.potatoMint, publicKey, false)
   const ixs = ataExists ? [] : [createAssociatedTokenAccountInstruction(publicKey, address, publicKey, config.potatoMint)]
   return { address, ixs }
@@ -190,7 +192,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const requireBalance = useCallback(
   (costMicro: number): boolean => {
    if (potatoBalance >= costMicro) return true
-   notify('warning', 'Недостаточно $POTATO', `Нужно ${fmtPotato(costMicro, 0)} POTATO, а у тебя ${fmtPotato(potatoBalance)} POTATO.`)
+   notify('warning', t('Недостаточно $POTATO'), t('Нужно {need} POTATO, а у тебя {have} POTATO.', { need: fmtPotato(costMicro, 0), have: fmtPotato(potatoBalance) }))
    return false
   },
   [potatoBalance, notify],
@@ -214,13 +216,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const purchaseField = useCallback(
   async (fieldType: number) => {
    if (!config || !publicKey || !ready) {
-    notify('warning', 'Игра ещё загружается', 'Подожди пару секунд.')
+    notify('warning', t('Игра ещё загружается'), t('Подожди пару секунд.'))
     return false
    }
    if (!requireBalance(fieldPriceMicro(fieldType))) return false
    setPurchasing(true)
    try {
-    return await runTx('Не удалось купить поле', async () => {
+    return await runTx(t('Не удалось купить поле'), async () => {
      const { address: userPotato, ixs } = ownAta()
      const fieldId = randomU64()
      const { config: configPda, field } = pdas(programId)
@@ -241,7 +243,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const buyFieldPresale = useCallback(
   async (): Promise<number | null> => {
    if (!config || !publicKey || !ready) {
-    notify('warning', 'Игра ещё загружается', 'Подожди пару секунд.')
+    notify('warning', t('Игра ещё загружается'), t('Подожди пару секунд.'))
     return null
    }
    // Проверяем баланс SKR (пресейл платится SKR, а не SOL)
@@ -250,15 +252,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const skrBal = await withRetry(() => connection.getTokenAccountBalance(buyerSkrAta))
     const need = 1_053_000_000n // 1053 SKR
     if (BigInt(skrBal.value.amount) < need) {
-     notify('warning', 'Недостаточно SKR', `Нужно 1053 SKR, у тебя ${(Number(BigInt(skrBal.value.amount)) / 1e6).toFixed(0)} SKR.`)
+     notify('warning', t('Недостаточно SKR'), t('Нужно 1053 SKR, у тебя {have} SKR.', { have: (Number(BigInt(skrBal.value.amount)) / 1e6).toFixed(0) }))
      return null
     }
    } catch {
-    notify('error', 'SKR недоступны', 'Mint SKR не найден на этом кластере — пресейл за SKR сейчас отключён.')
+    notify('error', t('SKR недоступны'), t('Mint SKR не найден на этом кластере — пресейл за SKR сейчас отключён.'))
     return null
    }
    if (solBalance < 0.02) {
-    notify('warning', 'Недостаточно SOL', 'Нужно ~0.02 SOL на rent и комиссию сети.')
+    notify('warning', t('Недостаточно SOL'), t('Нужно ~0.02 SOL на rent и комиссию сети.'))
     return null
    }
    setPurchasing(true)
@@ -287,13 +289,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
      const info = await withRetry(() => connection.getAccountInfo(field(fieldId)))
      if (info) {
       const tier = info.data[67]
-      notify('success', 'Модуль получен', `On-chain дроп: ${['COMMON', 'RARE', 'EPIC'][tier] ?? 'COMMON'}`)
+      notify('success', t('Модуль получен'), t('On-chain дроп: {tier}', { tier: ['COMMON', 'RARE', 'EPIC'][tier] ?? 'COMMON' }))
       return tier
      }
     } catch { /* не критично: показываем без тира */ }
     return null
    } catch (err) {
-    notify('error', 'Не удалось купить растение за SKR', describeError(err))
+    notify('error', t('Не удалось купить растение за SKR'), describeError(err))
     return null
    } finally {
     setPurchasing(false)
@@ -305,7 +307,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const harvest = useCallback(
   async (fieldPk: PublicKey) => {
    if (!config || !publicKey) return false
-   return runTx('Не удалось собрать урожай', async () => {
+   return runTx(t('Не удалось собрать урожай'), async () => {
     const { address: userPotato, ixs } = ownAta()
     const { config: configPda, epoch } = pdas(programId)
     const ix = await ixHarvest(programId, {
@@ -339,19 +341,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
  )
 
  const upgradeField = useMemo(
-  () => fieldSpend(ixUpgradeField, (f) => upgradeCostMicro(f.level, f.fieldType), 'Не удалось улучшить поле'),
+  () => fieldSpend(ixUpgradeField, (f) => upgradeCostMicro(f.level, f.fieldType), t('Не удалось улучшить поле')),
   [fieldSpend],
  )
  const repairField = useMemo(
-  () => fieldSpend(ixRepairField, (f) => repairCostMicro(f.fieldType), 'Не удалось отремонтировать поле'),
+  () => fieldSpend(ixRepairField, (f) => repairCostMicro(f.fieldType), t('Не удалось отремонтировать поле')),
   [fieldSpend],
  )
  const payTax = useMemo(
-  () => fieldSpend(ixPayTax, (f) => taxCostMicro(f.fieldType), 'Не удалось оплатить налог'),
+  () => fieldSpend(ixPayTax, (f) => taxCostMicro(f.fieldType), t('Не удалось оплатить налог')),
   [fieldSpend],
  )
  const applyFertilizer = useMemo(
-  () => fieldSpend(ixApplyFertilizer, (f) => fertilizerCostMicro(f.fieldType), 'Не удалось удобрить поле'),
+  () => fieldSpend(ixApplyFertilizer, (f) => fertilizerCostMicro(f.fieldType), t('Не удалось удобрить поле')),
   [fieldSpend],
  )
 
@@ -407,11 +409,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
     await sendIx([...ataIx, ix])
     const amount = QUEST_REWARDS_MICRO[qid]
     setClaimed((c) => ({ ...c, [questId]: true }))
-    notify('success', 'Награда получена', `+${fmtPotato(amount, 0)} POTATO (on-chain)`)
+    notify('success', t('Награда получена'), t('+{amount} POTATO (on-chain)', { amount: fmtPotato(amount, 0) }))
     await loadFields()
     return true
    } catch (err) {
-    notify('error', 'Награда не выдана', describeError(err))
+    notify('error', t('Награда не выдана'), describeError(err))
     return false
    }
   },
@@ -428,7 +430,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
    await loadFields()
    return true
   } catch (err) {
-   notify('error', 'Airdrop недоступен', describeError(err))
+   notify('error', t('Airdrop недоступен'), describeError(err))
    return false
   }
  }, [publicKey, connection, loadFields, notify])
@@ -443,10 +445,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
    try {
     toPub = new PublicKey(to)
    } catch {
-    notify('error', 'Неверный адрес получателя')
+    notify('error', t('Неверный адрес получателя'))
     return false
    }
-   return runTx('Не удалось отправить $POTATO', async () => {
+   return runTx(t('Не удалось отправить $POTATO'), async () => {
     const { address: fromAta, ixs } = ownAta()
     const toAta = getAssociatedTokenAddressSync(config.potatoMint, toPub, true)
     const toInfo = await withRetry(() => connection.getAccountInfo(toAta))
@@ -464,12 +466,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
    try {
     toPub = new PublicKey(to)
    } catch {
-    notify('error', 'Неверный адрес получателя')
+    notify('error', t('Неверный адрес получателя'))
     return false
    }
    const lamports = Math.floor(amount * 1e9)
    if (lamports <= 0) return false
-   return runTx('Не удалось отправить SKR', async () => [
+   return runTx(t('Не удалось отправить SKR'), async () => [
     SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: toPub, lamports }),
    ])
   },

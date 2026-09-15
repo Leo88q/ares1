@@ -1,4 +1,6 @@
 import { memo } from 'react';
+import { t } from '../../i18n'
+
 import { haptics } from '../../utils/haptic';
 import { AresHullFrame } from '../../ui/AresHullFrame';
 import { MotionIcon } from '../../ui/MotionIcon';
@@ -17,10 +19,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
- { id: 'main', label: 'АГРО' },
- { id: 'market', label: 'СНАБ' },
- { id: 'stats', label: 'ЖУРНАЛ' },
- { id: 'profile', label: 'КАЮТА' },
+ { id: 'main', label: t('АГРО') },
+ { id: 'market', label: t('СНАБ') },
+ { id: 'stats', label: t('ЖУРНАЛ') },
+ { id: 'profile', label: t('КАЮТА') },
 ];
 
 function renderIcon(tab: AresTab, active: boolean): JSX.Element {
@@ -45,7 +47,7 @@ export const AresBottomNav = memo(function AresBottomNav({
 }: AresBottomNavProps): JSX.Element {
  return (
   <div className="hull-nav-wrap">
-   <nav className="hull-panel hull-nav" aria-label="Разделы колонии">
+   <nav className="hull-panel hull-nav" aria-label={t("Разделы колонии")}>
     <AresHullFrame variant="default" runningLight />
     <div className="hull-panel-content">
      {NAV_ITEMS.map((item) => {

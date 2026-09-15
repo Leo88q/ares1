@@ -1,4 +1,5 @@
 import { BubblingFlask } from './BubblingFlask'
+import { t } from '../../i18n'
 
 interface AlchemyLoadingProps {
  message?: string
@@ -8,7 +9,7 @@ interface AlchemyLoadingProps {
 
 /** Загрузочный экран с бурлящей колбой — для ожидания транзакций и данных. */
 export function AlchemyLoading({
- message = 'Варим зелье...',
+ message = undefined,
  color = '#450001',
  glowColor = '#C1440E',
 }: AlchemyLoadingProps) {
@@ -31,7 +32,7 @@ export function AlchemyLoading({
      animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
     }}
    >
-    {message}
+    {message ?? t('Варим зельье...')}
    </div>
   </div>
  )
