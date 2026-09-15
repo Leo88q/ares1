@@ -563,7 +563,7 @@ function PlanetCard({
 }): JSX.Element {
   const reducedMotion = usePrefersReducedMotion();
   const id = useId().replace(/:/g, "");
-  const copy = interstellarContent[planet];
+  const copy = SC[planet];
 
   return (
     <div
