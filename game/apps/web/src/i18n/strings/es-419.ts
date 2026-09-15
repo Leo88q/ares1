@@ -414,6 +414,7 @@ const es419: Record<string, string> = {
   ' Удобрение ×1.5 ({h}ч)': ' Fertilizante ×1,5 ({h}h)',
   'Solana Potato — фарм-игра на Solana': 'Solana Potato — juego de granja en Solana',
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — juego de granja on-chain. Compra parcelas, recoge $POTATO cada segundo y comercia en el marketplace P2P integrado por SOL.',
+  'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Tema: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
 };
 
 export default es419;

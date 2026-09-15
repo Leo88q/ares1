@@ -414,6 +414,7 @@ const ptBR: Record<string, string> = {
   ' Удобрение ×1.5 ({h}ч)': ' Adubo ×1,5 ({h}h)',
   'Solana Potato — фарм-игра на Solana': 'Solana Potato — jogo de fazenda na Solana',
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — jogo de fazenda on-chain. Compre campos, colete $POTATO a cada segundo e negocie no marketplace P2P integrado por SOL.',
+  'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Faixa: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
 };
 
 export default ptBR;

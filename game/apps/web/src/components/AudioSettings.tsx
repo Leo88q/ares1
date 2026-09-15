@@ -81,7 +81,7 @@ export default function AudioSettings() {
         </button>
        </div>
 
-       <SettingRow icon={<Music size={18} color="var(--pf-teal)" />} title={t("Фоновая музыка")} subtitle={t("Генеративный ambient через WebAudio")} on={musicOn} color="var(--pf-teal)" onToggle={toggleMusic} />
+       <SettingRow icon={<Music size={18} color="var(--pf-teal)" />} title={t("Фоновая музыка")} subtitle={t("Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0")} on={musicOn} color="var(--pf-teal)" onToggle={toggleMusic} />
        {musicOn && (
         <label style={{ display: 'block', margin: '-8px 0 20px 28px' }}>
          <span style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8, display: 'block' }}> {t("Громкость")}: {Math.round(musicVolume * 100)}%</span>

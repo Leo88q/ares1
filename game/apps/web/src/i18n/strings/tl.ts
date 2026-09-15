@@ -414,6 +414,7 @@ const tl: Record<string, string> = {
   ' Удобрение ×1.5 ({h}ч)': ' Pataba ×1.5 ({h}h)',
   'Solana Potato — фарм-игра на Solana': 'Solana Potato — laro ng farm sa Solana',
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — on-chain na laro ng farm. Bumili ng taniman, kumolekta ng $POTATO tuwing segundo, at magtrade sa built-in na P2P marketplace para sa SOL.',
+  'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Tunog: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
 };
 
 export default tl;

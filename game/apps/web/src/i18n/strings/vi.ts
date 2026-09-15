@@ -414,6 +414,7 @@ const vi: Record<string, string> = {
   ' Удобрение ×1.5 ({h}ч)': ' Phân ×1.5 ({h}g)',
   'Solana Potato — фарм-игра на Solana': 'Solana Potato — game nông trại trên Solana',
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — game nông trại on-chain. Mua mảnh đất, thu $POTATO mỗi giây và giao dịch trên sàn P2P tích hợp lấy SOL.',
+  'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Nhạc: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
 };
 
 export default vi;
