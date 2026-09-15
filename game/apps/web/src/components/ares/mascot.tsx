@@ -214,7 +214,7 @@ export const HomeBeacon = memo(function HomeBeacon({
        color: 'var(--ares-blueset, #6B93D6)',
       }}
      >
-      {HOME_TOOLTIP_TEXT}
+      {t(HOME_TOOLTIP_TEXT)}
      </motion.span>
     ) : null}
    </AnimatePresence>

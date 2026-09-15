@@ -5,7 +5,7 @@ import { Globe, Check } from 'lucide-react'
 import { LANGS, useI18n } from '../i18n'
 
 export default function LangSwitcher({ compact = false }: { compact?: boolean }) {
- const { lang, setLang } = useI18n()
+ const { lang, setLang, t } = useI18n()
  const [open, setOpen] = useState(false)
  const ref = useRef<HTMLDivElement>(null)
 
@@ -31,7 +31,7 @@ export default function LangSwitcher({ compact = false }: { compact?: boolean })
   <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
    <button
     onClick={() => setOpen((v) => !v)}
-    aria-label={lang === 'ru' ? 'Язык' : 'Language'}
+    aria-label={t('Язык')}
     aria-expanded={open}
     className="pf-card hull-skin"
     style={{

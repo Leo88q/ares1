@@ -97,7 +97,7 @@ export const IdCard = memo(function IdCard({
    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
     <PixelAvatar seed={walletAddress} />
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-     <StencilPlate tone="magenta">{role}</StencilPlate>
+     <StencilPlate tone="magenta">{t(role)}</StencilPlate>
      <span className="ares-mono" style={{ fontSize: 11, color: 'rgba(255,179,71,0.85)' }}>
       {truncateAddress(walletAddress)}
      </span>

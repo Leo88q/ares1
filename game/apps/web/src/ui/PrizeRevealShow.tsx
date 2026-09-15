@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { t } from "../i18n";
 import { motion, useMotionValue, useTransform } from "framer-motion";
 import { usePrefersReducedMotion } from "../components/ares/effects";
 import { createPrizeCanvas } from "./prizeCanvas";
@@ -352,7 +353,7 @@ function PrizeScene({
           <button
             type="button"
             className="prize-static-close"
-            aria-label="Закрыть подтверждение"
+            aria-label={t("Закрыть подтверждение")}
             onClick={onComplete}
           >
             ×
@@ -493,8 +494,8 @@ export function PrizeRevealShow({
   trigger,
   amount,
   onComplete,
-  title = "НАГРАДА ПОЛУЧЕНА",
-  message = "Груз доставлен в твою колонию.",
+  title = t("НАГРАДА ПОЛУЧЕНА"),
+  message = t("Груз доставлен в твою колонию."),
   unit = "$POTATO",
   haptics = true,
 }: PrizeRevealShowProps): JSX.Element | null {
