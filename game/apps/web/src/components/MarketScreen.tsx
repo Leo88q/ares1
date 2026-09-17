@@ -1,6 +1,8 @@
 import { ReactNode, useState, useMemo } from 'react'
+import { t } from '../i18n'
+
 import { motion, AnimatePresence } from 'framer-motion'
-import { TrendingUp, Plus, X,  Clock,  User,  Loader2 } from 'lucide-react'
+import { Plus, X, Clock, User, Loader2 } from 'lucide-react'
 import BigPurchaseEffect from './BigPurchaseEffect'
 import CreateOrderModal from './CreateOrderModal'
 import { haptics } from '../utils/haptic'
@@ -9,13 +11,10 @@ import { useGame } from '../contexts/GameContext'
 import { fmtPotato, fmtSkr, MICRO, CANCEL_COOLDOWN_HOURS } from '../utils/constants'
 import { SupplyBay } from './ares/SupplyBay';
 import { HullPanel } from '../ui/HullPanel';
-import { useSolana } from '../contexts/SolanaContext'
-import { getAssociatedTokenAddressSync, createAssociatedTokenAccountIdempotentInstruction } from '@solana/spl-token'
-
+import { ErrorState, EmptyState as SharedEmptyState, LoadingState } from '../ui/states'
 function MarketScreenInner() {
- const { orders, myOrders, stats, loading, actionLoading, createOrder, fillOrder, cancelOrder } = useMarketplace()
+ const { orders, myOrders, stats, loading, actionLoading, error, createOrder, fillOrder, cancelOrder, reload } = useMarketplace()
  const { stats: gameStats } = useGame()
- const { connection, publicKey, programId, config, sendIx } = useSolana()
 
 
  const [showCreate, setShowCreate] = useState(false)
@@ -59,8 +58,8 @@ function MarketScreenInner() {
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
      <div>
-      <h1 style={{ fontSize: 28, fontWeight: 700 }}>СНАБЖЕНИЕ</h1>
-      <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>Приём и отгрузка грузов колонии</p>
+      <h1 style={{ fontSize: 28, fontWeight: 700 }}>{t("СНАБЖЕНИЕ")}</h1>
+      <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{t("Приём и отгрузка грузов колонии")}</p>
      </div>
     </div>
     <motion.button
@@ -69,15 +68,15 @@ function MarketScreenInner() {
      className="gradient-gold"
      style={{ padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
     >
-     <Plus size={18} aria-hidden="true" /> Отгрузить
+     <Plus size={18} aria-hidden="true" /> {t('Отгрузить')}
     </motion.button>
    </div>
 
    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
-    <StatCard label="Грузооборот за сол" value={`${stats.sellVolume24h.toFixed(0)} POTATO`} />
-    <StatCard label="Оборот рынка" value={`${stats.totalSolVolume.toFixed(2)} SKR`} />
-    <StatCard label="Всего операций" value={stats.totalTrades.toString()} />
-    <StatCard label="Активных ордеров" value={orders.length.toString()} />
+    <StatCard label={t("Грузооборот за сол")} value={`${stats.sellVolume24h.toFixed(0)} POTATO`} />
+    <StatCard label={t("Оборот рынка")} value={`${stats.totalSolVolume.toFixed(2)} SKR`} />
+    <StatCard label={t("Всего операций")} value={stats.totalTrades.toString()} />
+    <StatCard label={t("Активных ордеров")} value={orders.length.toString()} />
    </div>
 
    <div role="tablist" style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -92,7 +91,7 @@ function MarketScreenInner() {
         className={`ares-stencil market-tab${active ? ' market-tab--active' : ''}`}
         style={{ flex: 1, padding: '13px 10px', background: 'transparent', border: 'none', color: active ? 'var(--ares-hud-amber, #FFB347)' : 'rgba(255,179,71,0.6)', fontSize: 12, letterSpacing: '0.12em', cursor: 'pointer' }}
       >
-       {f === 'all' ? 'Все грузы' : `Мои ордера (${myOrders.length})`}
+       {f === 'all' ? t('Все грузы') : t('Мои ордера ({count})', { count: myOrders.length })}
       </button>
      )
     })}
@@ -102,24 +101,24 @@ function MarketScreenInner() {
     <HullPanel style={{ marginBottom: 12 }}>
      <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-       <span className="ares-mono" style={{ fontSize: 10, color: 'var(--pf-text-muted)', letterSpacing: '0.14em' }}>ФИЛЬТРЫ БИРЖИ</span>
-       <span className="ares-mono" style={{ fontSize: 9, color: 'var(--ares-hud-amber, #FFB347)', letterSpacing: '0.08em' }}>МИН. ОРДЕР: 10 POTATO · СУММА ОТ 1 SKR</span>
+       <span className="ares-mono" style={{ fontSize: 10, color: 'var(--pf-text-muted)', letterSpacing: '0.14em' }}>{t("ФИЛЬТРЫ БИРЖИ")}</span>
+       <span className="ares-mono" style={{ fontSize: 9, color: 'var(--ares-hud-amber, #FFB347)', letterSpacing: '0.08em' }}>{t("МИН. ОРДЕР: 10 POTATO · СУММА ОТ 1 SKR")}</span>
       </div>
       <div className="market-filter-grid">
        <label className="market-filter-field">
-        <span>ЦЕНА ОТ, SKR</span>
+        <span>{t('ЦЕНА ОТ, SKR')}</span>
         <input inputMode="decimal" placeholder="0.00" value={dPriceMin} onChange={e => setDPriceMin(e.target.value)} />
        </label>
        <label className="market-filter-field">
-        <span>ЦЕНА ДО, SKR</span>
+        <span>{t('ЦЕНА ДО, SKR')}</span>
         <input inputMode="decimal" placeholder="∞" value={dPriceMax} onChange={e => setDPriceMax(e.target.value)} />
        </label>
        <label className="market-filter-field">
-        <span>ОБЪЁМ ОТ, POTATO</span>
+        <span>{t('ОБЪЁМ ОТ, POTATO')}</span>
         <input inputMode="decimal" placeholder="0" value={dAmtMin} onChange={e => setDAmtMin(e.target.value)} />
        </label>
        <label className="market-filter-field">
-        <span>ОБЪЁМ ДО, POTATO</span>
+        <span>{t('ОБЪЁМ ДО, POTATO')}</span>
         <input inputMode="decimal" placeholder="∞" value={dAmtMax} onChange={e => setDAmtMax(e.target.value)} />
        </label>
       </div>
@@ -134,7 +133,7 @@ function MarketScreenInner() {
          setFAmtMax(dAmtMax)
         }}
        >
-        ПРИМЕНИТЬ
+        {t('ПРИМЕНИТЬ')}
        </button>
        <button
         type="button"
@@ -144,11 +143,11 @@ function MarketScreenInner() {
          setFPriceMin(''); setFPriceMax(''); setFAmtMin(''); setFAmtMax('')
         }}
        >
-        СБРОСИТЬ
+        {t('СБРОСИТЬ')}
        </button>
        {[fPriceMin, fPriceMax, fAmtMin, fAmtMax].filter(Boolean).length > 0 && (
         <span className="ares-mono" style={{ fontSize: 9, color: 'var(--ares-bio-cyan, #12E7C4)', letterSpacing: '0.1em' }}>
-         АКТИВНО ФИЛЬТРОВ: {[fPriceMin, fPriceMax, fAmtMin, fAmtMax].filter(Boolean).length}
+         {t('АКТИВНО ФИЛЬТРОВ')}: {[fPriceMin, fPriceMax, fAmtMin, fAmtMax].filter(Boolean).length}
         </span>
        )}
       </div>
@@ -157,25 +156,31 @@ function MarketScreenInner() {
    )}
 
    {loading ? (
-    Array.from({ length: 3 }).map((_, i) => (
-     <div key={i} className="pf-card hull-skin shimmer" style={{ height: 120, borderRadius: 16, marginBottom: 12 }} aria-hidden="true" />
-    ))
-   ) : filteredOrders.length === 0 ? (
-    <EmptyState mine={filter === 'mine'} />
+    <LoadingState label={t("Загружаем рынок…")} />
+   ) : error && filteredOrders.length === 0 ? (
+    <ErrorState message={error} onRetry={reload} />
    ) : (
     <>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-     {filteredOrders.map((order, i) => (
-      <OrderCard
-       key={order.publicKey.toString()}
-       order={order}
-       index={i}
-       busy={actionLoading === order.publicKey.toString()}
-       onBuy={() => handleBuy(order)}
-       onCancel={() => setCancelTarget(order)}
+     {error && <ErrorState inline message={error} onRetry={reload} />}
+     {filteredOrders.length === 0 ? (
+      <SharedEmptyState
+       title={filter === 'mine' ? t('У тебя нет активных ордеров') : t('Пока нет предложений')}
+       hint={filter === 'mine' ? t('Создай свой первый ордер на продажу') : t('Будь первым, кто выставит картофель на продажу!')}
       />
-     ))}
-    </div>
+     ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+       {filteredOrders.map((order, i) => (
+        <OrderCard
+         key={order.publicKey.toString()}
+         order={order}
+         index={i}
+         busy={actionLoading === order.publicKey.toString()}
+         onBuy={() => handleBuy(order)}
+         onCancel={() => setCancelTarget(order)}
+        />
+       ))}
+      </div>
+     )}
     </>
    )}
 
@@ -190,15 +195,15 @@ function MarketScreenInner() {
 
    <AnimatePresence>
     {cancelTarget && (
-     <Modal onClose={() => setCancelTarget(null)} title="Отозвать ордер?">
+     <Modal onClose={() => setCancelTarget(null)} title={t("Отозвать ордер?")}>
       <div style={{ padding: 14, borderRadius: 14, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', marginBottom: 20 }}>
        <p style={{ fontSize: 13, color: 'var(--pf-red)', lineHeight: 1.5 }}>
-        Груз вернётся на склад сразу, но новые ордера — только через <b>{CANCEL_COOLDOWN_HOURS} часа</b>.
+        {t('Груз вернётся на склад сразу, но новые ордера — только через')} <b>{t('{hours} часа', { hours: CANCEL_COOLDOWN_HOURS })}</b>.
        </p>
       </div>
       <div style={{ display: 'flex', gap: 10 }}>
        <button onClick={() => setCancelTarget(null)} style={{ flex: 1, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
-        Оставить
+        {t('Оставить')}
        </button>
        <motion.button
         whileTap={{ scale: 0.95 }}
@@ -209,7 +214,7 @@ function MarketScreenInner() {
         }}
         style={{ flex: 1, padding: 12, borderRadius: 12, background: 'var(--pf-red)', color: 'white', fontSize: 14, fontWeight: 700 }}
        >
-        Отменить
+        {t('Отменить')}
        </motion.button>
       </div>
      </Modal>
@@ -218,14 +223,14 @@ function MarketScreenInner() {
 
    <AnimatePresence>
     {cancelInfo && (
-     <Modal onClose={() => setCancelInfo(false)} title="Ордер отменён" emoji="">
+     <Modal onClose={() => setCancelInfo(false)} title={t("Ордер отменён")} emoji="">
       <div style={{ padding: 14, borderRadius: 14, background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
        <p style={{ fontSize: 13, color: 'var(--pf-gold)', lineHeight: 1.5 }}>
-        Токены возвращены на баланс. Новый ордер можно выставить через <b>{CANCEL_COOLDOWN_HOURS} часа</b> — так мы защищаем рынок от спама.
+        {t('Токены возвращены на баланс. Новый ордер можно выставить через')} <b>{t('{hours} часа', { hours: CANCEL_COOLDOWN_HOURS })}</b>{t(' — так мы защищаем рынок от спама.')}
        </p>
       </div>
       <button onClick={() => setCancelInfo(false)} style={{ marginTop: 20, width: '100%', padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
-       Понятно
+       {t('Понятно')}
       </button>
      </Modal>
     )}
@@ -304,48 +309,39 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
      </div>
      <div>
       <div className="ares-mono" style={{ fontSize: 15, fontWeight: 700, textAlign: 'center', color: 'transparent', background: 'var(--ares-action)', WebkitBackgroundClip: 'text', backgroundClip: 'text' }}>{fmtPotato(order.amountMicro)} POTATO</div>
-      <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>{order.isOwn ? 'Твой ордер' : `${seller.slice(0, 6)}…${seller.slice(-4)}`}</div>
+      <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>{order.isOwn ? t('Твой ордер') : `${seller.slice(0, 6)}…${seller.slice(-4)}`}</div>
      </div>
     </div>
     <div style={{ textAlign: 'right' }}>
      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--pf-teal)' }}>{fmtSkr(order.priceLamportsPerPotato, 4)} SKR</div>
-     <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>за 1 POTATO</div>
+     <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>{t("за 1 POTATO")}</div>
     </div>
    </div>
    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: 12, fontSize: 12 }}>
-    <span style={{ color: 'var(--pf-text-secondary)' }}>Итого к оплате:</span>
+    <span style={{ color: 'var(--pf-text-secondary)' }}>{t('Итого к оплате')}:</span>
     <span style={{ fontWeight: 700, color: 'white' }}>{fmtSkr(order.totalLamports, 4)} SKR</span>
    </div>
    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, fontSize: 11 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--pf-text-secondary)' }}>
-     <Clock size={12} aria-hidden="true" /> {hoursLeft} ч осталось
+     <Clock size={12} aria-hidden="true" /> {t('{h} ч осталось', { h: hoursLeft })}
     </div>
-    <div style={{ color: 'var(--pf-gold)' }}>Комиссия продавца: {((order.feeMicro / order.amountMicro) * 100).toFixed(1)}%</div>
+    <div style={{ color: 'var(--pf-gold)' }}>{t('Комиссия продавца')}: {((order.feeMicro / order.amountMicro) * 100).toFixed(1)}%</div>
    </div>
    {order.isOwn ? (
     <motion.button whileTap={{ scale: 0.95 }} onClick={onCancel} disabled={busy}
      style={{ width: '100%', padding: 12, borderRadius: 10, background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--pf-red)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-     {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <X size={16} />} Отменить ордер
+     {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <X size={16} />} {t('Отменить ордер')}
     </motion.button>
    ) : (
     <motion.button whileTap={{ scale: 0.95 }} onClick={onBuy} disabled={busy} className="gradient-primary"
      style={{ width: '100%', padding: 12, borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-     {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null } Купить за {fmtSkr(order.totalLamports, 4)} SKR
+     {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null  } {t('Купить за {price} SKR', { price: fmtSkr(order.totalLamports, 4) })}
     </motion.button>
    )}
   </motion.div>
  )
 }
 
-function EmptyState({ mine }: { mine: boolean }) {
- return (
-  <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-   <TrendingUp size={48} color="var(--pf-text-secondary)" style={{ marginBottom: 16, opacity: 0.5 }} aria-hidden="true" />
-   <h3 style={{ fontSize: 18, marginBottom: 8, color: 'white' }}>{mine ? 'У тебя нет активных ордеров' : 'Пока нет предложений'}</h3>
-   <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{mine ? 'Создай свой первый ордер на продажу' : 'Будь первым, кто выставит картофель на продажу!'}</p>
-  </div>
- )
-}
 
 export default function MarketScreen() {
  return (

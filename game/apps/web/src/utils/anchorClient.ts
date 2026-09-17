@@ -1,4 +1,5 @@
 import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction } from '@solana/web3.js'
+import { t } from '../i18n'
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
 
 export const TEST_SKR_MINT = new PublicKey('Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o')
@@ -68,7 +69,8 @@ export async function ixCreateField(programId: PublicKey, params: {
 }
 
 export async function ixHarvest(programId: PublicKey, params: {
- config: PublicKey; epoch: PublicKey; field: PublicKey; potatoMint: PublicKey; userPotato: PublicKey; owner: PublicKey
+ config: PublicKey; epoch: PublicKey; field: PublicKey; potatoMint: PublicKey; userPotato: PublicKey
+ owner: PublicKey; treasuryPotato: PublicKey
 }): Promise<TransactionInstruction> {
  const data = concatBytes(await ixDiscriminator('harvest'))
  const keys = [
@@ -77,8 +79,11 @@ export async function ixHarvest(programId: PublicKey, params: {
   { pubkey: params.field, isSigner: false, isWritable: true },
   { pubkey: params.potatoMint, isSigner: false, isWritable: true },
   { pubkey: params.userPotato, isSigner: false, isWritable: true },
-  { pubkey: params.owner, isSigner: true, isWritable: false },
+  { pubkey: params.treasuryPotato, isSigner: false, isWritable: true },
+  { pubkey: params.owner, isSigner: true, isWritable: true },
   { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
  ]
  return new TransactionInstruction({ programId, keys, data })
 }
@@ -136,8 +141,11 @@ export async function ixCreateSellOrder(programId: PublicKey, params: {
 
 export async function ixFillOrder(programId: PublicKey, params: {
  buyer: PublicKey; seller: PublicKey; config: PublicKey; potatoMint: PublicKey; marketStats: PublicKey
- order: PublicKey; escrow: PublicKey; buyerPotato: PublicKey; skrMint: PublicKey; buyerSkrAta: PublicKey; sellerSkrAta: PublicKey; treasuryPotato: PublicKey
+ order: PublicKey; escrow: PublicKey; buyerPotato: PublicKey; sellerPotato: PublicKey; treasuryPotato: PublicKey
+ /** remaining_accounts, fixed positions: [0] license PDA, [1] buyer referral PDA, [2] referrer's POTATO ATA */
  sellerLicense?: PublicKey | null
+ buyerReferral?: PublicKey | null
+ referrerPotato?: PublicKey | null
 }): Promise<TransactionInstruction> {
  const data = concatBytes(await ixDiscriminator('fill_order'))
  const keys = [
@@ -149,17 +157,18 @@ export async function ixFillOrder(programId: PublicKey, params: {
   { pubkey: params.order, isSigner: false, isWritable: true },
   { pubkey: params.escrow, isSigner: false, isWritable: true },
   { pubkey: params.buyerPotato, isSigner: false, isWritable: true },
-  { pubkey: params.skrMint, isSigner: false, isWritable: false },
-      { pubkey: params.buyerSkrAta, isSigner: false, isWritable: true },
-      { pubkey: params.sellerSkrAta, isSigner: false, isWritable: true },
-      { pubkey: params.treasuryPotato, isSigner: false, isWritable: true },
+  { pubkey: params.sellerPotato, isSigner: false, isWritable: true },
+  { pubkey: params.treasuryPotato, isSigner: false, isWritable: true },
   { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
  ]
- if (params.sellerLicense) {
-  keys.push({ pubkey: params.sellerLicense, isSigner: false, isWritable: false })
- }
+ // Позиции remaining_accounts зафиксированы программой: [0]=лицензия продавца
+ if (params.sellerLicense) keys.push({ pubkey: params.sellerLicense, isSigner: false, isWritable: false })
+ // [1]=реферальная PDA покупателя — передаём только вместе с [2]
+ if (params.buyerReferral) keys.push({ pubkey: params.buyerReferral, isSigner: false, isWritable: false })
+ // [2]=ATA реферера (получает 0.5 % из комиссии)
+ if (params.referrerPotato) keys.push({ pubkey: params.referrerPotato, isSigner: false, isWritable: true })
  return new TransactionInstruction({ programId, keys, data })
 }
 
@@ -385,9 +394,10 @@ export async function ixBuyFieldSkr(programId: PublicKey, params: {
   config: PublicKey; presaleState: PublicKey; authority: PublicKey; buyerPresale: PublicKey;
   field: PublicKey; buyer: PublicKey; treasurySol: PublicKey;
   skrMint: PublicKey; buyerSkrAta: PublicKey; treasurySkrAta: PublicKey; buybackSkrAta: PublicKey;
-  fieldId: bigint; fieldType: number;
+  fieldId: bigint;
 }): Promise<TransactionInstruction> {
-  const data = concatBytes(await ixDiscriminator('buy_field_skr'), u64LE(params.fieldId), u8(params.fieldType))
+  // Тир поля кидает программа (keccak(buyer ‖ sold ‖ slot)): аргумента типа нет.
+  const data = concatBytes(await ixDiscriminator('buy_field_skr'), u64LE(params.fieldId))
   return new TransactionInstruction({
     programId,
     data,
@@ -412,6 +422,7 @@ export async function ixBuyFieldSkr(programId: PublicKey, params: {
 export async function ixBuyExportLicense(programId: PublicKey, params: {
  config: PublicKey; license: PublicKey; payer: PublicKey;
  skrMint: PublicKey; userSkrAta: PublicKey;
+ treasurySol: PublicKey; treasurySkrAta: PublicKey;
 }): Promise<TransactionInstruction> {
  const data = concatBytes(await ixDiscriminator('buy_export_license'))
  return new TransactionInstruction({
@@ -423,8 +434,11 @@ export async function ixBuyExportLicense(programId: PublicKey, params: {
    { pubkey: params.payer, isSigner: true, isWritable: true },
    { pubkey: params.skrMint, isSigner: false, isWritable: false },
    { pubkey: params.userSkrAta, isSigner: false, isWritable: true },
+   { pubkey: params.treasurySol, isSigner: false, isWritable: true },
+   { pubkey: params.treasurySkrAta, isSigner: false, isWritable: true },
    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+   { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   ],
  })
 }
@@ -436,7 +450,7 @@ export async function ixBuyExportLicense(programId: PublicKey, params: {
 export async function ixMigrateConfig(programId: PublicKey, params: {
  config: PublicKey; authority: PublicKey;
 }): Promise<TransactionInstruction> {
- const data = await ixDiscriminator('migrate_config')
+ const data = Buffer.from(await ixDiscriminator('migrate_config'))
  return new TransactionInstruction({
   programId,
   data,
@@ -451,7 +465,7 @@ export async function ixMigrateConfig(programId: PublicKey, params: {
 export async function ixMigrateField(programId: PublicKey, params: {
  field: PublicKey; config: PublicKey; authority: PublicKey;
 }): Promise<TransactionInstruction> {
- const data = await ixDiscriminator('migrate_field')
+ const data = Buffer.from(await ixDiscriminator('migrate_field'))
  return new TransactionInstruction({
   programId,
   data,
@@ -467,7 +481,7 @@ export async function ixMigrateField(programId: PublicKey, params: {
 export async function ixMigrateEpoch(programId: PublicKey, params: {
  epoch: PublicKey; config: PublicKey; authority: PublicKey;
 }): Promise<TransactionInstruction> {
- const data = await ixDiscriminator('migrate_epoch')
+ const data = Buffer.from(await ixDiscriminator('migrate_epoch'))
  return new TransactionInstruction({
   programId,
   data,
@@ -501,13 +515,13 @@ export function getLunarMultiplier(epochId: number): number {
 
 export function getLunarPhase(epochId: number): string {
   const day = epochId % 28;
-  if (day <= 3) return '🌒 Растущая луна';
-  if (day <= 7) return '🌓 Первая четверть';
-  if (day <= 10) return '🌔 Прибывающая луна';
-  if (day <= 14) return '🌕 Полнолуние (пик)';
-  if (day <= 17) return '🌖 Убывающая луна';
-  if (day <= 21) return '🌗 Последняя четверть';
-  return '🌘 Новолуние (дно)';
+  if (day <= 3) return t('🌒 Растущая луна');
+  if (day <= 7) return t('🌓 Первая четверть');
+  if (day <= 10) return t('🌔 Прибывающая луна');
+  if (day <= 14) return t('🌕 Полнолуние (пик)');
+  if (day <= 17) return t('🌖 Убывающая луна');
+  if (day <= 21) return t('🌗 Последняя четверть');
+  return t('🌘 Новолуние (дно)');
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -532,8 +546,10 @@ export function getElasticCap(
   prevBurned: number,
   lastCap: number,
   lastMinted: number,
-  baseCap: number = 250_000_000_000, // 250k
-  maxCap: number = 750_000_000_000  // 750k
+  // Целые POTATO (те же юниты, что у prevBurned/lastCap/lastMinted) —
+  // зеркало on-chain roll_epoch: [250k, 750k] POTATO за эпоху.
+  baseCap: number = 250_000, // 250k POTATO
+  maxCap: number = 750_000 // 750k POTATO
 ): number {
   // Ось 1: burn-бонус
   const burnBonus = prevBurned / 2;
@@ -566,7 +582,7 @@ export async function ixRegisterReferrer(programId: PublicKey, params: {
   const data = Buffer.alloc(DISCRIMINATOR_SIZE + 32);
   const disc = await ixDiscriminator('register_referrer');
   data.set(disc, 0);
-  data.write(referrer.toBuffer(), DISCRIMINATOR_SIZE);
+  data.set(referrer.toBytes(), DISCRIMINATOR_SIZE);
   
   return new TransactionInstruction({
     programId,
@@ -581,4 +597,67 @@ export async function ixRegisterReferrer(programId: PublicKey, params: {
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
   });
+}
+
+// ───────────────────────────────────────────────────────────────
+// Квесты/достижения on-chain (claim_achievement) — идентичность: кошелёк
+// ───────────────────────────────────────────────────────────────
+
+export const QUEST_REWARDS_MICRO = [50_000_000, 50_000_000, 100_000_000, 100_000_000, 200_000_000, 50_000_000] as const
+
+/** PDA ["achv", user] — bitmap выданных наград (одноразовые, u64). */
+export function achievementsPda(user: PublicKey, programId: PublicKey): PublicKey {
+ return PublicKey.findProgramAddressSync([Buffer.from('achv'), user.toBuffer()], programId)[0]
+}
+
+/** PDA ["quest_treasury"] — владеет пулом наград квестов (550 POTATO, заправлен init-onchain). */
+export function questTreasuryPda(programId: PublicKey): PublicKey {
+ return PublicKey.findProgramAddressSync([Buffer.from('quest_treasury')], programId)[0]
+}
+
+/** Bitmap выданных квестов из данных PDA Achievements (8 disc + u64 bitmap). */
+export function decodeAchievementsBitmap(data: Buffer): number {
+ if (data.length < 16) return 0
+ return Number(data.readBigUInt64LE(8))
+}
+
+/**
+ * claim_achievement(quest_id) — верификация прогресса в программе:
+ *  0: ≥1 поле · 1: ≥100 🥔 · 2: ≥1000 🥔 · 3: ≥5 полей · 4: ≥10 000 🥔 · 5: ≥6 полей, ≥3-го уровня одно.
+ * Поля игрока передаются в remaining_accounts (proof by ownership).
+ */
+export async function ixClaimAchievement(programId: PublicKey, params: {
+ config: PublicKey;
+ achievements: PublicKey;
+ user: PublicKey;
+ questTreasury: PublicKey;
+ questAta: PublicKey;
+ userAta: PublicKey;
+ potatoMint: PublicKey;
+}, questId: number, fieldPkas: PublicKey[]): Promise<TransactionInstruction> {
+ // Порядок ключей = полей ClaimAchievement в программе:
+ // config, achievements, user(signer), quest_treasury, quest_ata,
+ // user_potato_ata, potato_mint, token_program, system_program, [remaining: поля]
+ const DISCRIMINATOR_SIZE = 8;
+ const data = Buffer.alloc(DISCRIMINATOR_SIZE + 1);
+ const disc = await ixDiscriminator('claim_achievement');
+ data.set(disc, 0);
+ data.writeUInt8(questId, DISCRIMINATOR_SIZE);
+
+ return new TransactionInstruction({
+  programId,
+  data,
+  keys: [
+   { pubkey: params.config, isSigner: false, isWritable: true },
+   { pubkey: params.achievements, isSigner: false, isWritable: true },
+   { pubkey: params.user, isSigner: true, isWritable: true },
+   { pubkey: params.questTreasury, isSigner: false, isWritable: false },
+   { pubkey: params.questAta, isSigner: false, isWritable: true },
+   { pubkey: params.userAta, isSigner: false, isWritable: true },
+   { pubkey: params.potatoMint, isSigner: false, isWritable: false },
+   { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+   { pubkey: SystemProgram.programId, isSigner: false, isWritable: true },
+   ...fieldPkas.map((pk) => ({ pubkey: pk, isSigner: false, isWritable: false })),
+  ],
+ });
 }

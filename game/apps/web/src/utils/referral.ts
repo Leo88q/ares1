@@ -1,98 +1,49 @@
 /**
- * Утилиты для реферальной программы.
- * Backend endpoints: /api/referral/register, /stats, /config
+ * Реферальная ссылка — ?ref=<wallet> (dApp Store / любой браузер).
+ * Регистрация происходит on-chain (register_referrer), без Telegram и backend.
  */
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
+export const REF_LINK_STORAGE_KEY = 'ares_ref_link'
 
-export interface ReferralConfig {
- referrerRewardMicro: string;
- invitedRewardMicro: string;
- dailyCap: number;
- ttlDays: number;
+const REF_PARAM = 'ref'
+
+/** Ссылка на игру с реферал-кодом (wallet-адрес реферера). */
+export function buildRefLink(referrer: string, base = window.location.origin + window.location.pathname): string {
+ const url = new URL(base)
+ url.searchParams.set(REF_PARAM, referrer)
+ return url.toString()
 }
 
-export interface ReferralStats {
- completed: number;
- pending: number;
- today: number;
- dailyCap: number;
- totalEarnedMicro: string;
-}
-
-/**
- * Извлекает wallet реферера из Telegram start_param.
- * Payload приходит в формате "ref_<base58wallet>" (до 64 символов).
- */
-export function parseReferrerFromStartParam(startParam: string | null): string | null {
- if (!startParam) return null;
- if (!startParam.startsWith("ref_")) return null;
- const wallet = startParam.slice(4);
- // base58: 32-44 символа, только допустимые символы
- if (wallet.length < 32 || wallet.length > 44) return null;
- if (!/^[1-9A-HJ-NP-Za-km-z]+$/.test(wallet)) return null;
- return wallet;
-}
-
-/**
- * Регистрирует реферальную связь на бэкенде.
- * Вызывается один раз при первом запуске Mini App, если есть referrer.
- */
-export async function registerReferral(params: {
- referrerWallet: string;
- invitedWallet: string;
- initData: string;
-}): Promise<{ ok: boolean; error?: string; rewards?: { referrerMicro: string; invitedMicro: string } }> {
- if (!BACKEND_URL) return { ok: false, error: "Backend URL не настроен" };
+/** Реферал-код из ?ref= (если пользователь пришёл по ссылке) или null. */
+export function getRefFromUrl(): string | null {
  try {
-  const res = await fetch(`${BACKEND_URL}/api/referral/register`, {
-   method: "POST",
-   headers: {
-    "Content-Type": "application/json",
-    "X-Telegram-Init-Data": params.initData,
-   },
-   body: JSON.stringify({
-    referrerWallet: params.referrerWallet,
-    invitedWallet: params.invitedWallet,
-   }),
-  });
-  const data = await res.json();
-  if (!res.ok) return { ok: false, error: data.error || `HTTP ${res.status}` };
-  return { ok: true, rewards: data.rewards };
- } catch (err) {
-  return { ok: false, error: err instanceof Error ? err.message : "Network error" };
- }
-}
-
-/** Получает статистику рефералов для кошелька (публичный endpoint). */
-export async function getReferralStats(wallet: string): Promise<ReferralStats | null> {
- if (!BACKEND_URL) return null;
- try {
-  const res = await fetch(`${BACKEND_URL}/api/referral/stats?wallet=${encodeURIComponent(wallet)}`);
-  if (!res.ok) return null;
-  return await res.json();
+  const ref = new URLSearchParams(window.location.search).get(REF_PARAM)
+  return ref ? ref : null
  } catch {
-  return null;
+  return null
  }
 }
 
-/** Получает публичные параметры реферальной программы. */
-export async function getReferralConfig(): Promise<ReferralConfig | null> {
- if (!BACKEND_URL) return null;
+export function saveRefLink(refLink: string): void {
  try {
-  const res = await fetch(`${BACKEND_URL}/api/referral/config`);
-  if (!res.ok) return null;
-  return await res.json();
+  localStorage.setItem(REF_LINK_STORAGE_KEY, refLink)
  } catch {
-  return null;
+  /* ignore */
  }
 }
 
-/**
- * Формирует реферальную ссылку для шаринга.
- * Ссылка ведёт в Telegram-бота с payload "ref_<wallet>".
- */
-export function buildReferralLink(botUsername: string, myWallet: string): string {
- const payload = `ref_${myWallet}`;
- return `https://t.me/${botUsername}?start=${payload}`;
+export function getSavedRefLink(): string | null {
+ try {
+  return localStorage.getItem(REF_LINK_STORAGE_KEY)
+ } catch {
+  return null
+ }
+}
+
+export function clearRefLink(): void {
+ try {
+  localStorage.removeItem(REF_LINK_STORAGE_KEY)
+ } catch {
+  /* ignore */
+ }
 }

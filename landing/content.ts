@@ -1,8 +1,15 @@
-export interface TokenAllocation {
-  readonly label: string;
-  readonly percent: number;
-  readonly highlight?: boolean;
-}
+
+import * as i18nCore from "./i18n/index";
+
+const LOCALES: Record<string, string> = {
+  en: "en-US",
+  ru: "ru-RU",
+  "pt-BR": "pt-BR",
+  "es-419": "es-MX",
+  vi: "vi-VN",
+  id: "id-ID",
+  tl: "fil-PH",
+};
 
 export interface RoadmapMilestone {
   readonly period: string;
@@ -34,14 +41,9 @@ export interface ModuleTier {
   readonly gameYieldPercent: number;
 }
 
-export interface SocialLink {
-  readonly id: "telegram" | "x" | "discord";
-  readonly label: string;
-  readonly href: string;
-}
-
 export interface PresaleConfig {
   readonly priceSkr: number;
+  readonly priceSol: string;
   readonly sold: number;
   readonly supply: number;
   readonly endsAt: string | null;
@@ -50,7 +52,8 @@ export interface PresaleConfig {
 
 export const presale = {
   priceSkr: 1053,
-  sold: 47,
+  priceSol: "0.25",
+  sold: 0, // fallback; live-значение читается с PresaleState.sold (App.tsx)
   supply: 500,
   endsAt: null,
   network: "devnet",
@@ -90,14 +93,6 @@ export const features = [
       "Каждую секунду твой модуль генерирует $POTATO. Копи до 48 часов, забирай одним харвестом. Чем выше уровень — тем быстрее капает.",
   },
   {
-    id: "day-night",
-    label: "ДЕНЬ/НОЧЬ",
-    icon: "sun-phobos",
-    title: "СОЛНЦЕ МАРСА",
-    description:
-      "Реальный цикл дня и ночи по твоим часам. Днём урожай +40%, ночью — тишина и звёзды. Лови «золотой час» на рассвете.",
-  },
-  {
     id: "marketplace",
     label: "СНАБЖЕНИЕ (РЫНОК)",
     icon: "scales",
@@ -111,7 +106,7 @@ export const features = [
     icon: "helmets",
     title: "ПРИВЕДИ СОСЕДА",
     description:
-      "Регистрация реферера стоит 5 POTATO (burn). Получай 0.5% от каждой сделки приглашённого на бирже. Ему — скидка 1% на комиссию.",
+      "Ссылка бесплатна. Новый игрок открывает её — регистрируется ончейн автоматически: с его баланса разово сгорает 5 POTATO (антиспам). Тебе — 0.5% от суммы его сделок на бирже, ему — −1% от суммы из комиссии.",
   },
   {
     id: "lunar-cycle",
@@ -143,7 +138,7 @@ export const features = [
     icon: "sprout",
     title: "ЗОЛОТО И КРЕМНИЙ",
     description:
-      "Случайные мутации при покупке модуля. Golden (+25% к урожаю) и Silicon (половина скорости деградации). Редкие экземпляры ценятся на бирже.",
+      "При улучшении поля 5% шанс мутации: Golden Sprout (3%) — +25% к урожаю навсегда, Silicon Skin (2%) — износ прочности в 2 раза медленнее.",
   },
   {
     id: "export-license",
@@ -151,18 +146,20 @@ export const features = [
     icon: "scales",
     title: "СВОБОДА ТОРГОВЛИ",
     description:
-      "Купи лицензию на 30 дней за 500 SKR и получи скидку 3% на комиссию биржи. Для активных трейдеров — обязательный инструмент.",
+      "500 SKR за 30 дней, продлевается. Пока лицензия активна, −3% от суммы ордера вычитается из комиссии маркета при каждой твоей продаже.",
+  },
+  {
+    id: "quests",
+    label: "КВЕСТЫ КОЛОНИИ",
+    icon: "helmets",
+    title: "НАШИВКИ ЭКИПАЖА",
+    description:
+      "6 ончейн-квестов (первое поле, первый урожай, 1 000 POTATO и другие). Одноразовый пул 550 POTATO: награды минтит сервер в пределах капа эпохи, клиент только заявляет.",
   },
 ] as const satisfies readonly ColonyFeature[];
 
-export const tokenAllocation = [
-  { label: "Пресейл колонистам", percent: 30, highlight: true },
-  { label: "Награды за квесты", percent: 20 },
-  { label: "Межигровая ликвидность · Age of Farming", percent: 20 },
-  { label: "Команда (вестинг 24 мес)", percent: 15 },
-  { label: "Маркетинг и партнёрства", percent: 10 },
-  { label: "Резервный фонд", percent: 5 },
-] as const satisfies readonly TokenAllocation[];
+// Аллокаций нет: 100% $POTATO эмитуется в игре (harvest / квесты),
+// premine и «доля команды» отсутствуют — см. tokenCycle.
 
 // ── Модель Фазы 1: майнинг принадлежит игрокам, аллокации нет ──
 export const tokenCycle = {
@@ -175,7 +172,7 @@ export const tokenCycle = {
       "Харвест: эластичный кап эпохи 250–750K POTATO",
       "Лунный цикл: множитель эмиссии 0.85×–1.15×",
       "Квесты: награды минтит только сервер, не клиент",
-      "Реферал: 0.5% комиссии минтится рефереру",
+      "Реферал: 0.5% от суммы сделки платится рефереру из эскроу ордера (без свежего минта)",
     ],
   },
   flow: {
@@ -189,10 +186,10 @@ export const tokenCycle = {
   death: {
     title: "СМЕРТЬ · BURN",
     items: [
-      "60% комиссии рынка (9–12% от объёма)",
-      "Налог на харвест: 2–10% по мере роста supply",
+      "60% комиссии рынка (комиссия 9–12% от объёма ордера)",
+      "Налог на харвест 2–10%: половина сгорает, половина — в казну",
       "Ремонт, улучшения, удобрения",
-      "Регистрация реферера: 5 POTATO",
+      "Регистрация приглашённого по реферальной ссылке: 5 POTATO",
       "Рецепты и ритуалы Age of Farming",
     ],
   },
@@ -213,16 +210,18 @@ export const playConfig = {
 
 export const chainConfig = {
   rpcUrl: "https://api.devnet.solana.com",
-  /** Заполнить адресом минта $POTATO из devnet-конфига программы */
-  potatoMint: null as string | null,
+  /** Монт $POTATO (devnet) — из devnet-конфига программы */
+  potatoMint: "HFEL9rBqmYwYDsZNxuV2ZonfS7adbjENUc3CdgbaiYxv" as string,
   maxSupply: 1_000_000_000,
-  /** Program ID лендинга и игры — один и тот же контракт */
-  programId: "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha" as string,
-  /** SKR минт (devnet test) */
-  skrMint: "HnKpKz5sSfMqRcPjwQZmKqGqHqZmKqGqHqZmKqGqHqZm" as string,
-  /** Цена модуля в presale: 1053 SKR = 1053 * 1e6 atoms */
+  /** Program ID лендинга и игры — один и тот же контракт (devnet) */
+  programId: "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf" as string,
+  /** Монт SKR (devnet) */
+  skrMint: "Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o" as string,
+  /** Цена модуля в presale: 1053 SKR = 1053 * 1e6 atoms · 0.25 SOL = 250_000_000 lamports */
   presalePriceSkrAtoms: 1_053_000_000n as bigint,
+  presalePriceSolLamports: 250_000_000n as bigint,
 } as const;
+
 
 export interface AofSink {
   readonly id: string;
@@ -303,28 +302,28 @@ export const roadmap = [
     title: "ЗАПУСК ПРЕСЕЙЛА",
     done: true,
     description:
-      "500 модулей первой волны, ончейн на Seeker devnet, интеграция SKR-платежей, маркетплейс.",
+      "500 модулей первой волны, ончейн на Solana devnet: платежи SOL/SKR, маркетплейс, рефералка, экспортные лицензии.",
   },
   {
     period: "Q2 2026",
     title: "ПОЛНАЯ ЭКОНОМИКА",
-    done: false,
+    done: true,
     description:
-      "6 ончейн-квестов, система удобрений, налоги, прокачка до уровня 10.",
+      "6 ончейн-квестов (пул 550 POTATO), удобрения, растущий налог, мутации Golden/Silicon, прокачка поля до 50 уровня. Всё работает на devnet.",
   },
   {
     period: "Q3 2026",
     title: "ГРУЗ С ЗЕМЛИ",
     done: false,
     description:
-      "Сезонные события, турниры колонистов, штормы (эпизодические события с риском потерь). Мутации Golden/Silicon уже реализованы в Фазе 1.",
+      "Сезонные события, турниры колонистов, штормы (эпизодические события с риском потерь).",
   },
   {
     period: "Q4 2026",
     title: "MAINNET ARES-1",
     done: false,
     description:
-      "Переход на mainnet Seeker, листинг $POTATO на DEX, мобильное приложение, партнёрства.",
+      "Переход на mainnet Solana, листинг $POTATO на DEX, мобильное приложение, партнёрства.",
   },
 ] as const satisfies readonly RoadmapMilestone[];
 
@@ -332,17 +331,27 @@ export const faq = [
   {
     question: "Что такое ARES-1?",
     answer:
-      "Первая ончейн-колония на Марсе в экосистеме Seeker. Ты покупаешь гидропонный модуль, растишь картофель под куполом, получаешь $POTATO и торгуешь с другими колонистами. Игровые механики работают в блокчейне, исходники открыты. Сейчас проект работает в devnet, программа может обновляться.",
+      "Первая ончейн-колония на Марсе: Solana (devnet), экосистема Seeker. Ты покупаешь гидропонный модуль, растишь картофель под куполом, получаешь $POTATO и торгуешь с другими колонистами. Игровые механики работают в блокчейне, исходники открыты. Сейчас проект работает в devnet, программа может обновляться.",
+  },
+  {
+    question: "Что нужно, чтобы начать играть?",
+    answer:
+      "Кошелёк Phantom и игра по адресу ares1-play.pages.dev. Проект сейчас в devnet — тестовой сети Solana: SOL и SKR там тестовые и не имеют реальной стоимости. Модуль покупается в игре или прямо на этом сайте (реальная devnet-транзакция).",
   },
   {
     question: "Зачем покупать модуль в пресейле?",
     answer:
-      "Первая волна — 500 модулей по цене 1 053 SKR. Пресейл даёт случайный тир: 70% шанс получить COMMON, 25% — RARE, 5% — EPIC. Игровой показатель урожая EPIC — 210%, в 6 раз больше COMMON. Это характеристика модуля, а не финансовая доходность.",
+      "Первая волна — 500 модулей по 0.25 SOL или 1 053 SKR. Тип модуля роллится ончейн случайно: 70% — COMMON (урожай 35%), 25% — RARE (100%), 5% — EPIC (210%). Это игровая характеристика модуля, а не финансовая доходность.",
   },
   {
     question: "Что такое SKR и $POTATO?",
     answer:
-      "SKR — внутренняя валюта экосистемы Seeker, ей ты платишь за модули и ордера. $POTATO — игровой токен колонии, который ты выращиваешь в модуле. Это не инвестиция, это топливо игровой экономики.",
+      "SKR — платёжный токен платформы, им оплачиваются модули (альтернатива SOL) и экспортные лицензии. $POTATO — игровой токен колонии, который ты выращиваешь в модуле. Сейчас оба токена в devnet. Это не инвестиция, это топливо игровой экономики.",
+  },
+  {
+    question: "Где исходники и как проверить цифры?",
+    answer:
+      "Проект open source: github.com/Leo88q/ares1. Вся экономика — в программе (constants: комиссия 9–12%, капы 250K–750K, налог 2–10%, мутации 5%). Все цифры на этом сайте совпадают с кодом и живым состоянием devnet-цепи.",
   },
   {
     question: "Что если я перестану играть?",
@@ -352,7 +361,7 @@ export const faq = [
   {
     question: "Как работает дефляция?",
     answer:
-      "С каждой сделки на маркетплейсе 60% комиссии сжигается безвозвратно, а 40% уходит в казну колонии. Дополнительно сгорают налог на харвест, ремонт, улучшения, удобрения, экспортные лицензии и регистрация рефереров. Сжигание уменьшает предложение $POTATO. Это механика игры, а не гарантия роста цены: стоимость зависит не только от количества токенов.",
+      "С каждой сделки на маркетплейсе 60% комиссии сжигается безвозвратно, а 40% уходит в казну колонии (PDA программы). Дополнительно сгорают: половина налога на харвест, ремонт, улучшения, удобрения и разовая регистрация приглашённого (5 POTATO). Экспортные лицензии платятся в SKR, $POTATO они не сжигают. Сжигание уменьшает предложение $POTATO. Это механика игры, а не гарантия роста цены: стоимость зависит не только от количества токенов.",
   },
   {
     question: "Это финансовый инструмент?",
@@ -361,34 +370,7 @@ export const faq = [
   },
 ] as const satisfies readonly FaqItem[];
 
-export const socialLinks = [
-  { id: "telegram", label: "Telegram", href: "#" },
-  { id: "x", label: "X", href: "#" },
-  { id: "discord", label: "Discord", href: "#" },
-] as const satisfies readonly SocialLink[];
-
-export const testimonials = [
-  {
-    handle: "@astro_farm",
-    quote: "первый EPIC-модуль, это законно вообще?",
-  },
-  {
-    handle: "@martian_potato",
-    quote: "собрал 400 POTATO за неделю, торгую на бирже",
-  },
-  {
-    handle: "@seeker_daily",
-    quote: "ARES-1 — самый честный ончейн-проект квартала",
-  },
-  {
-    handle: "@hydro_queen",
-    quote: "Редкий RARE выпал с третьего модуля, удача!",
-  },
-  {
-    handle: "@tuber9_fan",
-    quote: "ТЮБЕР-9 — мой новый маскот, прыгает мило",
-  },
-] as const;
+export const GITHUB_REPO_URL = "https://github.com/Leo88q/ares1";
 
 export const assets = {
   marsFar: "/mars-far.webp",
@@ -416,19 +398,12 @@ export const gameConfig = {
   totalTokenSupply: 1_000_000_000,
   harvest: {
     capacityHours: 48,
-    daylightBonusPercent: 40,
   },
-  dayCycle: [
-    { id: "dawn", label: "Рассвет", startHour: 5, endHour: 8 },
-    { id: "day", label: "День", startHour: 8, endHour: 17 },
-    { id: "sunset", label: "Синий закат", startHour: 17, endHour: 20 },
-    { id: "night", label: "Ночь", startHour: 20, endHour: 5 },
-  ],
   marketplace: {
     minimumOrderPotato: 10,
     minimumPaymentSkr: 1,
-    treasuryFeeSharePercent: 80,
-    burnedFeeSharePercent: 20,
+    treasuryFeeSharePercent: 40,
+    burnedFeeSharePercent: 60,
   },
   quests: {
     count: 6,
@@ -444,13 +419,13 @@ export const gameConfig = {
     durabilityRepair: true,
     fertilizerMultiplier: 1.5,
     fertilizerDurationHours: 24,
-    taxIntervalDays: 7,
-    maximumPlannedLevel: 10,
+    fertilizerPrepayMaxDays: 7,
+    maximumLevel: 50,
   },
   referrals: {
-    firstModuleRewardPercent: 10,
-    marketplaceRewardPercent: 5,
-    rewardCurrency: "$POTATO",
+    inviteeBurnPotato: 5,
+    referrerRewardPercentOfAmount: 0.5,
+    inviteeFeeDiscountPercentOfAmount: 1,
   },
 } as const;
 
@@ -587,20 +562,20 @@ export const siteContent = {
     navigationLabel: "Основная навигация",
     homeLabel: "POTATO · ARES-1 — на главную",
     walletNotice:
-      "Подключение кошелька появится после интеграции с Seeker.",
+      "Phantom: подключение читает твой баланс SKR (devnet) и позволяет купить модуль прямо с сайта.",
   },
   hero: {
     title: "ВЫРАСТИ ПЕРВУЮ КАРТОШКУ НА МАРСЕ",
     subtitle:
-      "ARES-1 — первая ончейн-колония на Seeker. Купи гидропонный модуль за 1 053 SKR, расти $POTATO под куполом и торгуй с колонистами. Всего 500 модулей в первой волне.",
-    primaryCta: "⚡ Войти в пресейл",
-    primaryHref: "#waitlist",
-    secondaryCta: "◈ Читать whitepaper",
-    secondaryHref: "#",
-    soldLabel: "47 / 500 модулей продано",
+      "ARES-1 — ончейн-колония на Solana (devnet). Купи гидропонный модуль за 0.25 SOL или 1 053 SKR, расти $POTATO под куполом и торгуй с колонистами. Всего 500 модулей в первой волне — цена и счётчик ниже живые, читаются с devnet.",
+    primaryCta: "⚡ Купить модуль",
+    primaryHref: "#packs",
+    secondaryCta: "◈ Открыть игру",
+    secondaryHref: "https://ares1-play.pages.dev",
+    soldLabel: "0 / 500 модулей продано",
     progressLabel: "Модули первой волны",
-    countdownLabel: "До конца волны:",
-    countdownUnavailable: "Дата завершения волны пока не объявлена",
+    countdownLabel: "Статус волны:",
+    countdownUnavailable: "Идёт до распродажи всех 500 модулей",
     countdownEnded: "Волна завершена",
     countdownUnits: {
       days: "дни",
@@ -614,10 +589,10 @@ export const siteContent = {
       location: "ДОЛИНА МАРИНЕРА",
       year: "2031",
       network: "ТЕСТОВАЯ СЕТЬ · DEVNET",
-      price: "1 053 SKR / МОДУЛЬ",
+      price: "0.25 SOL · 1 053 SKR / МОДУЛЬ",
     },
     presaleNotice:
-      "На этой странице нет оплаты. Форма ниже — запись на следующую волну пресейла.",
+      "Покупка модуля — реальная devnet-транзакция (0.25 SOL или 1 053 SKR). В devnet SOL и SKR — тестовые монеты, реальной стоимости не имеют.",
   },
   story: {
     text:
@@ -636,7 +611,7 @@ export const siteContent = {
     after: {
       title: "СТАЛО",
       items: [
-        "100% ончейн на Seeker: программа открыта, код читается",
+        "100% ончейн на Solana: программа открыта (GitHub), код читается",
         "Урожай считает блокчейн, а не человек",
         "Дефляция через сжигание: 60% комиссии каждой сделки уменьшает предложение $POTATO",
       ],
@@ -657,12 +632,9 @@ export const siteContent = {
   tokenomics: {
     title: "ЭКОНОМИКА $POTATO",
     subtitle:
-      "Утилитарный токен колонии. Общее предложение: 1 000 000 000",
+      "Утилитарный токен колонии. Потолок supply: 1 000 000 000 — premine нет, весь токен эмитуется игроками",
     deflation:
-      "Механика дефляции: 60% комиссии с маркетплейса сжигается навсегда, 40% уходит в казну колонии. Дополнительно сжигаются: налог на харвест, ремонт модулей, улучшения, удобрения, экспортные лицензии, регистрация рефереров. Каждая транзакция уменьшает предложение $POTATO, но не гарантирует рост его стоимости.",
-    distributionLabel: "Распределение предложения $POTATO",
-    allocationColumn: "Назначение",
-    percentColumn: "Доля",
+      "Механика дефляции: 60% комиссии с маркетплейса сжигается навсегда, 40% уходит в казну колонии (PDA программы). Дополнительно сгорают: половина налога на харвест, ремонт модулей, улучшения, удобрения и регистрация приглашённых. Экспортные лицензии оплачиваются в SKR. Каждая транзакция уменьшает предложение $POTATO, но не гарантирует рост его стоимости.",
   },
   roadmap: {
     title: "ПУТЬ КОЛОНИИ",
@@ -670,51 +642,29 @@ export const siteContent = {
     plannedLabel: "Запланировано",
   },
   social: {
-    title: "КОЛОНИЯ РАСТЁТ",
-    colonistsCount: 12847,
-    counterSuffix: "колонистов уже на Марсе",
-    counterText: "12 847 колонистов уже на Марсе",
-    linksLabel: "Сообщества колонии",
-    testimonialsLabel: "Отзывы колонистов",
-    demoNotice:
-      "Демонстрационные данные: счётчик и отзывы из концепции лендинга, не проверенная статистика.",
-    contentVerified: false,
+    title: "ТЕЛЕМЕТРИЯ КОЛОНИИ · LIVE",
+    subtitle:
+      "Все цифры ниже читаются напрямую с devnet-цепи Solana (общий RPC, обновление каждые 60 секунд). Никаких накрученных счётчиков.",
+    stats: {
+      sold: "модулей продано",
+      fields: "активных полей",
+      players: "игроков с полями",
+      burned: "POTATO сожжено",
+      supply: "текущий supply $POTATO",
+      treasury: "SOL в казне колонии",
+    },
+    liveTag: "LIVE",
+    offline: "Сеть devnet недоступна прямо сейчас — показаны данные из кэша. Проверь консоль / RPC.",
   },
   faq: {
     title: "ОТВЕТЫ КОЛОНИИ",
   },
-  waitlist: {
-    title: "СТАНЬ КОЛОНИСТОМ ПЕРВЫМ",
-    subtitle:
-      "Оставь контакт — получишь ранний доступ к следующей волне пресейла и 100 $POTATO на старте.",
-    emailLabel: "Электронная почта",
-    telegramLabel: "Телеграм",
-    emailPlaceholder: "колонист@ares1.mars",
-    telegramPlaceholder: "@tuber9_fan",
-    telegramHint: "Можно вставить имя с @ — уберём символ автоматически.",
-    idle: "⚡ Занять место в шлюзе",
-    loading: "⏳ Сканируем биометрию...",
-    success:
-      "✓ Добро пожаловать в ARES-1! Проверь почту — там твой пропуск.",
-    demoSuccess:
-      "✓ Контакт проверен. Это деморежим: заявка не отправлена, письмо и токены не начислены.",
-    demoNotice:
-      "Демонстрационная форма: данные не отправляются и не сохраняются после закрытия страницы.",
-    emailError:
-      "Некорректный email. Марсианская почта должна быть земной.",
-    telegramError:
-      "Юзернейм без @, только латиница и цифры, 5+ символов",
-    submitError:
-      "Не удалось завершить проверку. Попробуй ещё раз.",
-    retryLabel: "Попробовать снова",
-    mode: "demo",
-  },
   footer: {
-    copyright: "© 2026 ARES-1 Colony · Построено на Seeker",
+    copyright: "© 2026 ARES-1 Colony · Построено на Solana (devnet)",
     links: [
-      { label: "Whitepaper", href: "#" },
-      { label: "GitHub", href: "#" },
-      { label: "Контакты", href: "#" },
+      { label: "Исходный код", href: GITHUB_REPO_URL },
+      { label: "Игра", href: playConfig.url },
+      { label: "Devnet-программа", href: "https://explorer.solana.com/address/DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf?cluster=devnet" },
     ],
     navigationLabel: "Информация о проекте",
     disclaimer:
@@ -728,7 +678,7 @@ export const siteContent = {
   seo: {
     title: "Potato Farm: ARES-1 — картофельная колония на Марсе",
     description:
-      "ARES-1 — первая ончейн-колония на Seeker. Выращивай картофель под марсианским куполом, собирай $POTATO и торгуй с колонистами за SKR.",
+      "ARES-1 — ончейн-колония на Solana (devnet). Выращивай картофель под марсианским куполом, собирай $POTATO и торгуй с колонистами. Платежи 0.25 SOL / 1 053 SKR.",
     ogTitle: "ВЫРАСТИ ПЕРВУЮ КАРТОШКУ НА МАРСЕ",
     ogDescription:
       "500 гидропонных модулей первой волны. Марсианская колония ARES-1, игровая экономика $POTATO и платежи в SKR. Сейчас в devnet.",
@@ -736,8 +686,14 @@ export const siteContent = {
   },
 } as const;
 
-export const numberFormatter = new Intl.NumberFormat("ru-RU");
-
 export function formatNumber(value: number): string {
-  return numberFormatter.format(value);
+  let locale = "ru-RU";
+  try {
+    // Ленивый импорт, чтобы не создавать цикл content ↔ i18n на уровне модулей.
+    const mod = i18nCore;
+    locale = LOCALES[mod.getLang()] ?? "ru-RU";
+  } catch {
+    /* i18n ещё не инициализирован */
+  }
+  return new Intl.NumberFormat(locale).format(value);
 }

@@ -3,6 +3,7 @@
  * Keep the two files in sync — the unit test in tests/constants.test.ts
  * cross-checks a few reference values against the program's IDL build.
  */
+import { t } from '../i18n'
 
 export const MICRO = 1_000_000
 export const BPS = 10_000
@@ -58,7 +59,8 @@ const MUTATIONS: MutationInfo[] = [
 ]
 
 export function mutationInfo(type: number): MutationInfo {
- return MUTATIONS[Math.min(Math.max(type, 0), 2)]
+ const m = MUTATIONS[Math.min(Math.max(type, 0), MUTATIONS.length - 1)]
+ return { ...m, name: t(m.name), effect: t(m.effect) }
 }
 
 /** Reference prices for field type 1 (“Луг”), in micro POTATO. */
@@ -170,9 +172,3 @@ export const PRESALE_DROP: PresaleDropInfo[] = [
  { type: 1, label: 'RARE', chance: 25, color: '#B85CFF' },
  { type: 2, label: 'EPIC', chance: 5, color: '#FFC94A' },
 ]
-export function rollPresaleDrop(): number {
- const r = Math.random() * 100
- let acc = 0
- for (const d of PRESALE_DROP) { acc += d.chance; if (r < acc) return d.type }
- return 0
-}

@@ -1,4 +1,6 @@
 import { memo } from 'react';
+import { t } from '../../i18n'
+
 import { motion } from 'framer-motion';
 import { ConsolePanel } from './panels';
 import { IconWrench } from './icons';
@@ -73,7 +75,7 @@ export const ShiftTasksList = memo(function ShiftTasksList({
  onComplete,
 }: ShiftTasksListProps): JSX.Element {
  return (
-  <ConsolePanel title="ЗАДАЧИ СМЕНЫ" tone="neutral">
+  <ConsolePanel title={t("ЗАДАЧИ СМЕНЫ")} tone="neutral">
    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
     {tasks.map((task) => (
      <ShiftTaskRow key={task.id} task={task} onComplete={onComplete} />

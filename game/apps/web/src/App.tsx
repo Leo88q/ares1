@@ -7,7 +7,9 @@ import PageTransition from './components/PageTransition'
 import ErrorBoundary from './components/ErrorBoundary'
 import { ToastProvider } from './components/Toast'
 import { GameProvider } from './contexts/GameContext'
-import { initTelegram } from './utils/telegram'
+import { t, useI18n } from './i18n'
+import { ambientMusic } from './utils/ambientMusic'
+
 import { useReferralRegistration } from './hooks/useReferralRegistration'
 import { AresBottomNav } from './components/ares/AresBottomNav'
 import type { AresTab } from './components/ares/AresBottomNav'
@@ -25,13 +27,26 @@ const ProfileScreen = lazy(() => import('./components/ProfileScreen'))
 type Screen = 'farm' | 'market' | 'stats' | 'profile'
 
 export default function App() {
+ const { lang } = useI18n()
  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('potato_tutorial_done'))
  const [booted, setBooted] = useState(() => localStorage.getItem('potato_landed') === '1')
  useReferralRegistration()
 
+ // Фоновая музыка глобальная: запускается один раз на всю игру,
+ // независимо от того, на каком экране пользователь находится.
  useEffect(() => {
-  initTelegram()
+  ambientMusic.init()
  }, [])
+
+ // SEO-теги следуют за языком (title, description, html lang).
+ useEffect(() => {
+  document.title = t('Solana Potato — фарм-игра на Solana')
+  document.querySelector('meta[name="description"]')?.setAttribute(
+   'content',
+   t('Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.'),
+  )
+  document.documentElement.lang = lang === 'es-419' ? 'es' : lang
+ }, [lang])
 
  return (
   <div className="pf-app-bg">

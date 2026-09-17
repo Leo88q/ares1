@@ -1,14 +1,15 @@
 import { useCallback, useState } from 'react'
+import { t, plural } from '../i18n'
+
 import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { PublicKey } from '@solana/web3.js'
-import { Flame, Coins, TrendingUp, Gauge, Trophy, Landmark, Moon, Percent, Shield, UserPlus } from 'lucide-react'
+import { Flame, Coins, TrendingUp, Gauge, Trophy, Landmark, Moon, Percent, Shield } from 'lucide-react'
 import { getMint } from '@solana/spl-token'
 import { useSolana } from '../contexts/SolanaContext'
 import { usePolling } from '../hooks/usePolling'
 import { withRetry } from '../utils/rpc'
 import { MICRO } from '../utils/constants'
-import { useReferral } from '../hooks/useReferral'
 import {
   getLunarMultiplier,
   getLunarPhase,
@@ -20,6 +21,8 @@ import { MissionLog } from './MissionLog'
 import { LiquidBar } from './ares/LiquidBar'
 import { ConsolePanel } from './ares/panels'
 import { TelemetryStrip } from './ares/TelemetryStrip'
+import { describeError } from '../utils/errors'
+import { ErrorState } from '../ui/states'
 
 interface LeaderRow {
  address: string
@@ -45,7 +48,10 @@ interface EconomyData {
  taxBps: number
 }
 
-const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1
+// 8 (disc) + 32 (owner) + 1 (level) + 1 (durability) + 8 (last_harvest)
+// + 8 (tax_paid_until) + 8 (fertilizer_until) + 1 (is_active) + 1 (field_type)
+// + 1 (bump) + 1 (reserved) = 70 — после migrate_field realloc
+const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1
 const STATS_POLL_MS = 30_000
 
 /** Консольная строка-прибор: моно-лейбл, янтарное значение, светящийся бар */
@@ -68,40 +74,43 @@ function ConsoleStatRow({ icon, label, value, pct, color }: { icon: ReactNode; l
 function EconomySection({ data }: { data: EconomyData }) {
  const pct = (a: number, b: number) => (b > 0 ? (a / b) * 100 : 0)
  const fmt = (v: number) => v.toLocaleString('ru-RU', { maximumFractionDigits: 0 })
+ // Крупные числа без «250000000K»: 250_000 -> 250K, 750_000 -> 750K, 1e9 -> 1000M
+ const fmtBig = (v: number) =>
+   v >= 1e6 ? `${(v / 1e6).toFixed(v >= 1e7 ? 0 : 1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K` : v.toFixed(0)
  return (
-  <ConsolePanel title="ЭКОНОМИКА КОЛОНИИ" tone="amber">
+  <ConsolePanel title={t("ЭКОНОМИКА КОЛОНИИ")} tone="amber">
    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
     <TelemetryStrip
      readings={[
       { label: 'SUPPLY', value: `${fmt(data.currentSupply)} POTATO` },
       { label: 'BURNED', value: `${fmt(data.burned)} POTATO` },
-      { label: 'EPOCH', value: `${data.mintedToday.toFixed(0)}/${(data.elasticCap / 1000).toFixed(0)}K` },
+      { label: 'EPOCH', value: `${data.mintedToday.toFixed(0)}/${fmtBig(data.dailyCap)}` },
       { label: 'FIELDS', value: String(data.fieldCount) },
       { label: 'CREW', value: String(data.players) },
       { label: 'LUNAR', value: `x${data.lunarMultiplier.toFixed(2)}` },
       { label: 'TAX', value: `${(data.taxBps / 100).toFixed(2)}%` },
-      { label: 'CAP', value: `${(data.elasticCap / 1000).toFixed(0)}K` },
+      { label: 'CAP', value: fmtBig(data.elasticCap) },
      ]}
     />
-    <ConsoleStatRow icon={<Gauge size={16} />} label="ТЕКУЩИЙ SUPPLY" value={`${fmt(data.currentSupply)} POTATO`} pct={pct(data.currentSupply, data.maxSupply)} color="var(--ares-hud-amber, #FFB347)" />
-    <ConsoleStatRow icon={<Flame size={16} />} label="ВСЕГО СОЖЖЕНО" value={`${fmt(data.burned)} POTATO`} pct={pct(data.burned, data.currentSupply + data.burned)} color="var(--ares-rust, #C1440E)" />
-    <ConsoleStatRow icon={<TrendingUp size={16} />} label="СМАЙНЕНО ЗА ЭПОХУ" value={`${data.mintedToday.toFixed(0)} / ${(data.elasticCap / 1000).toFixed(0)}K POTATO`} pct={pct(data.mintedToday, data.elasticCap)} color="var(--ares-blueset, #6B93D6)" />
-    <ConsoleStatRow icon={<Moon size={16} />} label={`ЛУННЫЙ ЦИКЛ: ${data.lunarPhase}`} value={`x${data.lunarMultiplier.toFixed(2)}`} pct={data.lunarMultiplier * 100 - 85} color="#E0D8C0" />
-    <ConsoleStatRow icon={<Percent size={16} />} label="НАЛОГ НА ХАРВЕСТ" value={`${(data.taxBps / 100).toFixed(2)}%`} pct={(data.taxBps - 200) / 8} color="var(--ares-rust, #C1440E)" />
-    <ConsoleStatRow icon={<Shield size={16} />} label="ЭЛАСТИЧНЫЙ КАП" value={`${(data.elasticCap / 1000).toFixed(0)}K POTATO`} pct={(data.elasticCap - 250_000) / 5} color="var(--ares-blueset, #6B93D6)" />
-    <ConsoleStatRow icon={<Landmark size={16} />} label="ВСЕГО ДЕЛЯНОК" value={data.fieldCount.toString()} color="var(--ares-grow-violet, #B85CFF)" />
-    <ConsoleStatRow icon={<Trophy size={16} />} label="ЭКИПАЖ С ДЕЛЯНКАМИ" value={data.players.toString()} color="#FFC94A" />
-    <ConsoleStatRow icon={<Coins size={16} />} label="МАКС. SUPPLY" value={`${(data.maxSupply / 1e6).toFixed(0)}M POTATO`} color="var(--ares-hud-amber, #FFB347)" />
+    <ConsoleStatRow icon={<Gauge size={16} />} label={t("ТЕКУЩИЙ SUPPLY")} value={`${fmt(data.currentSupply)} POTATO`} pct={pct(data.currentSupply, data.maxSupply)} color="var(--ares-hud-amber, #FFB347)" />
+    <ConsoleStatRow icon={<Flame size={16} />} label={t("ВСЕГО СОЖЖЕНО")} value={`${fmt(data.burned)} POTATO`} pct={pct(data.burned, data.currentSupply + data.burned)} color="var(--ares-rust, #C1440E)" />
+    <ConsoleStatRow icon={<TrendingUp size={16} />} label={t("СМАЙНЕНО ЗА ЭПОХУ")} value={`${data.mintedToday.toFixed(0)} / ${fmtBig(data.dailyCap)} POTATO`} pct={pct(data.mintedToday, data.dailyCap)} color="var(--ares-blueset, #6B93D6)" />
+    <ConsoleStatRow icon={<Moon size={16} />} label={t("ЛУННЫЙ ЦИКЛ: {phase}", { phase: data.lunarPhase })} value={`x${data.lunarMultiplier.toFixed(2)}`} pct={data.lunarMultiplier * 100 - 85} color="#E0D8C0" />
+    <ConsoleStatRow icon={<Percent size={16} />} label={t("НАЛОГ НА ХАРВЕСТ")} value={`${(data.taxBps / 100).toFixed(2)}%`} pct={(data.taxBps - 200) / 8} color="var(--ares-rust, #C1440E)" />
+    <ConsoleStatRow icon={<Shield size={16} />} label={t("ЭЛАСТИЧНЫЙ КАП")} value={`${fmtBig(data.elasticCap)} POTATO`} pct={pct(data.elasticCap - 250_000, 750_000 - 250_000)} color="var(--ares-blueset, #6B93D6)" />
+    <ConsoleStatRow icon={<Landmark size={16} />} label={t("ВСЕГО ДЕЛЯНОК")} value={data.fieldCount.toString()} color="var(--ares-grow-violet, #B85CFF)" />
+    <ConsoleStatRow icon={<Trophy size={16} />} label={t("ЭКИПАЖ С ДЕЛЯНКАМИ")} value={data.players.toString()} color="#FFC94A" />
+    <ConsoleStatRow icon={<Coins size={16} />} label={t("МАКС. SUPPLY")} value={`${(data.maxSupply / 1e6).toFixed(0)}M POTATO`} color="var(--ares-hud-amber, #FFB347)" />
 
     <div style={{ marginTop: 4, padding: '10px 12px', borderRadius: 8, background: 'rgba(193,68,14,0.08)', border: '1px solid rgba(193,68,14,0.35)' }}>
-     <div className="ares-stencil" style={{ fontSize: 11, color: 'var(--ares-rust, #C1440E)', marginBottom: 8 }}>ЗАЩИТА ЭКОНОМИКИ</div>
+     <div className="ares-stencil" style={{ fontSize: 11, color: 'var(--ares-rust, #C1440E)', marginBottom: 8 }}>{t("ЗАЩИТА ЭКОНОМИКИ")}</div>
      {[
-      'Эмиссия только через harvest и награды: лимит эпохи + максимальный supply',
-      'Эпоха ротируется раз в 24 ч кем угодно (roll_epoch) — лимит не «замерзает»',
-      'Все траты (налог, ремонт, улучшение, удобрения, покупка полей) сжигаются',
-      'Комиссия рынка: 60% сжигается, 40% — в казну на PDA программы',
-      'Escrow-ордера, запрет self-trade, кулдаун 3 ч после отмены',
-      'Награды выдаёт только сервер от имени authority, не из клиента',
+      t('Эмиссия только через harvest и награды: лимит эпохи + максимальный supply'),
+      t('Эпоха ротируется раз в 24 ч кем угодно (roll_epoch) — лимит не «замерзает»'),
+      t('Все траты (налог, ремонт, улучшение, удобрения, покупка полей) сжигаются'),
+      t('Комиссия рынка: 60% сжигается, 40% — в казну на PDA программы'),
+      t('Escrow-ордера, запрет self-trade, кулдаун 3 ч после отмены'),
+      t('Награды выдаёт только сервер от имени authority, не из клиента'),
      ].map((t, i) => (
       <div key={i} className="ares-mono" style={{ fontSize: 10, color: 'rgba(255,179,71,0.8)', padding: '3px 0', display: 'flex', gap: 6, lineHeight: 1.5 }}>
        <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true">✓</span> {t}
@@ -113,92 +122,17 @@ function EconomySection({ data }: { data: EconomyData }) {
  )
 }
 
-function ReferralSection() {
- const { registerReferrer, loading } = useReferral()
- const [referrer, setReferrer] = useState('')
-
- const handleRegister = async () => {
-  if (!referrer.trim()) return
-  await registerReferrer(referrer.trim())
-  setReferrer('')
- }
-
- return (
-  <ConsolePanel title="РЕФЕРАЛЬНАЯ ПРОГРАММА" tone="amber">
-   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-    <div className="ares-mono" style={{ fontSize: 11, color: 'rgba(255,179,71,0.85)', lineHeight: 1.6 }}>
-     <div style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
-      <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true">✓</span>
-      <span>Стоимость регистрации: 5 POTATO (burn)</span>
-     </div>
-     <div style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
-      <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true">✓</span>
-      <span>Скидка покупателю: 1% от комиссии маркета</span>
-     </div>
-     <div style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
-      <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true">✓</span>
-      <span>Награда рефереру: 0.5% от комиссии маркета</span>
-     </div>
-     <div style={{ display: 'flex', gap: 8, padding: '3px 0' }}>
-      <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true">✓</span>
-      <span>Автоскидка применяется в каждой покупке на маркете</span>
-     </div>
-    </div>
-
-    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-     <input
-      type="text"
-      value={referrer}
-      onChange={(e) => setReferrer(e.target.value)}
-      placeholder="Публичный ключ реферера"
-      className="ares-mono"
-      disabled={loading}
-      style={{
-       flex: 1,
-       padding: '10px 12px',
-       borderRadius: 6,
-       border: '1px solid rgba(160,82,40,0.35)',
-       background: 'rgba(0,0,0,0.32)',
-       color: 'var(--ares-parchment, #F2E8DA)',
-       fontSize: 12,
-       fontFamily: 'monospace',
-      }}
-     />
-     <button
-      onClick={handleRegister}
-      disabled={loading || !referrer.trim()}
-      className="ares-mono"
-      style={{
-       padding: '10px 16px',
-       borderRadius: 6,
-       border: '1px solid var(--ares-hud-amber, #FFB347)',
-       background: loading ? 'rgba(255,179,71,0.1)' : 'rgba(255,179,71,0.15)',
-       color: 'var(--ares-hud-amber, #FFB347)',
-       fontSize: 12,
-       fontWeight: 700,
-       cursor: loading ? 'not-allowed' : 'pointer',
-       display: 'flex',
-       alignItems: 'center',
-       gap: 6,
-       transition: 'all 0.15s',
-      }}
-     >
-      <UserPlus size={14} />
-      {loading ? 'РЕГИСТРАЦИЯ...' : 'ЗАРЕГИСТРИРОВАТЬ'}
-     </button>
-    </div>
-   </div>
-  </ConsolePanel>
- )
-}
+// Реферальная программа — весь UI теперь в Каюте (components/ReferralSection.tsx).
 
 function StatsScreenInner() {
  const { connection, programId, publicKey, config, epoch, ready } = useSolana()
  const [data, setData] = useState<EconomyData | null>(null)
  const [leaders, setLeaders] = useState<LeaderRow[]>([])
+ const [loadError, setLoadError] = useState<string | null>(null)
 
  const load = useCallback(async () => {
   if (!config) return
+  try {
   // dataSlice keeps the leaderboard query cheap: only owner (32) + level (1) per field.
   const [mintInfo, fieldAccounts] = await Promise.all([
    withRetry(() => getMint(connection, config.potatoMint)),
@@ -251,36 +185,41 @@ function StatsScreenInner() {
    lunarPhase,
    taxBps,
   })
+  setLoadError(null)
+  } catch (err) {
+   setLoadError(describeError(err))
+   throw err
+  }
  }, [connection, programId, config, epoch, publicKey])
 
  usePolling(load, STATS_POLL_MS, ready)
 
  if (!data) {
+  if (loadError) {
+   return <ErrorState message={loadError} onRetry={() => void load()} />
+  }
   return (
    <div style={{ padding: 40, textAlign: 'center', color: 'var(--pf-text-secondary)' }} role="status">
-    {ready ? 'Загрузка журнала…' : 'Ждём подключения к блокчейну…'}
+    {ready ? t('Загрузка журнала…') : t('Ждём подключения к блокчейну…')}
    </div>
   )
  }
 
  return (
   <div style={{ padding: 20, paddingBottom: 140 }}>
-   <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>ЖУРНАЛ МИССИИ</h1>
-   <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14, marginBottom: 20 }}>Задачи смены, нашивки и показатели экипажа</p>
+   <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{t("ЖУРНАЛ МИССИИ")}</h1>
+   <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14, marginBottom: 20 }}>{t("Задачи смены, нашивки и показатели экипажа")}</p>
+   {loadError && <ErrorState inline message={loadError} onRetry={() => void load()} />}
 
    <div style={{ marginBottom: 24 }}>
     <EconomySection data={data} />
    </div>
 
-   <div style={{ marginBottom: 24 }}>
-    <ReferralSection />
-   </div>
-
    <MissionLog />
 
-   <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Доска почёта</h2>
+   <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t("Доска почёта")}</h2>
    {leaders.length === 0 ? (
-    <p style={{ color: 'var(--pf-text-secondary)', textAlign: 'center', padding: 30 }}>Пока нет игроков</p>
+    <p style={{ color: 'var(--pf-text-secondary)', textAlign: 'center', padding: 30 }}>{t("Пока нет игроков")}</p>
    ) : (
     <ol style={{ display: 'flex', flexDirection: 'column', gap: 10, listStyle: 'none' }}>
      {leaders.map((row, i) => (
@@ -289,9 +228,9 @@ function StatsScreenInner() {
        <div style={{ width: 28, fontSize: 16, fontWeight: 800, color: i === 0 ? 'var(--pf-gold)' : i === 1 ? 'var(--pf-text-secondary)' : i === 2 ? '#b45309' : 'var(--pf-text-muted)' }}>{i + 1}</div>
        <div style={{ flex: 1 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: row.isMe ? 'var(--ares-hud-amber, #FFB347)' : 'var(--ares-parchment, #F2E8DA)' }}>
-         {row.address.slice(0, 6)}…{row.address.slice(-4)} {row.isMe && '(ты)'}
+         {row.address.slice(0, 6)}…{row.address.slice(-4)} {row.isMe && t('(ты)')}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>{row.fields} полей · суммарный ур. {row.totalLevel}</div>
+        <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>{plural(row.fields, { one: t('поле'), few: t('поля'), many: t('полей') })} · {t('суммарный ур.')} {row.totalLevel}</div>
        </div>
        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--pf-gold)' }}>{row.score} </div>
       </motion.li>

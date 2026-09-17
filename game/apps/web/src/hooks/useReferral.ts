@@ -1,20 +1,25 @@
 import { useState } from 'react';
+import { t } from '../i18n'
+
 import { PublicKey } from '@solana/web3.js';
-import { getAssociatedTokenAddress } from '@solana/spl-token';
+import { getAssociatedTokenAddressSync, createAssociatedTokenAccountIdempotentInstruction } from '@solana/spl-token';
 import { useSolana } from '../contexts/SolanaContext';
-import { useGame } from '../contexts/GameContext';
+import { useToast } from '../components/Toast';
+import { describeError } from '../utils/errors';
 import { ixRegisterReferrer, pdas } from '../utils/anchorClient';
 
-const POTATO_MINT = '48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha';
-
+/**
+ * Регистрация реферера on-chain (PDA ["referral", owner], одноразово, burn 5 POTATO).
+ * Mint берём из GameConfig, а не хардкод: программа и токен — разные адреса.
+ */
 export function useReferral() {
-  const { publicKey, sendIx, programId, connected, ready } = useSolana();
-  const { notify } = useGame();
+  const { publicKey, sendIx, programId, connected, ready, config } = useSolana();
+  const { show } = useToast();
   const [loading, setLoading] = useState(false);
 
   const registerReferrer = async (referrerPubkey: string) => {
-    if (!publicKey || !connected || !ready || !programId) {
-      notify('warning', 'Подключите кошелёк');
+    if (!publicKey || !connected || !ready || !programId || !config) {
+      show({ type: 'warning', title: t('Подключите кошелёк') });
       return;
     }
 
@@ -23,7 +28,7 @@ export function useReferral() {
       const referrer = new PublicKey(referrerPubkey);
 
       if (referrer.equals(publicKey)) {
-        notify('warning', 'Нельзя пригласить самого себя');
+        show({ type: 'warning', title: t('Нельзя пригласить самого себя') });
         return;
       }
 
@@ -32,30 +37,30 @@ export function useReferral() {
         programId,
       );
 
-      const { config } = pdas(programId);
-      const userPotato = await getAssociatedTokenAddress(
-        new PublicKey(POTATO_MINT),
-        publicKey,
+      const { config: configPda } = pdas(programId);
+      const userPotato = getAssociatedTokenAddressSync(config.potatoMint, publicKey, false);
+      // ATA должна существовать до burn — создаём идемпотентно
+      const ataIx = createAssociatedTokenAccountIdempotentInstruction(
+        publicKey, userPotato, publicKey, config.potatoMint,
       );
 
       const ix = await ixRegisterReferrer(
         programId,
         {
           referral,
-          config,
-          potatoMint: new PublicKey(POTATO_MINT),
+          config: configPda(),
+          potatoMint: config.potatoMint,
           userPotato,
           owner: publicKey,
         },
         referrer,
       );
 
-      await sendIx([ix]);
-
-      notify('success', 'Реферер зарегистрирован!', `Пригласил: ${referrerPubkey.slice(0, 8)}...`);
-    } catch (error: any) {
+      await sendIx([ataIx, ix]);
+      show({ type: 'success', title: t('Реферер зарегистрирован!'), message: t('Пригласил: {ref}', { ref: referrerPubkey.slice(0, 8) + '...' }) });
+    } catch (error: unknown) {
       console.error('Register referrer error:', error);
-      notify('error', 'Ошибка регистрации реферера', error.message || 'Попробуйте снова');
+      show({ type: 'error', title: t('Ошибка регистрации реферера'), message: describeError(error) });
     } finally {
       setLoading(false);
     }

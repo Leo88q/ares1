@@ -1,3 +1,4 @@
+import { t, useI18n } from "./i18n";
 import {
   useEffect,
   useRef,
@@ -265,8 +266,8 @@ function LevelUpPresentation(): JSX.Element | null {
       key={`level-${current.id}`}
       trigger={true}
       amount={0}
-      title={`НОВЫЙ УРОВЕНЬ · ${current.level}`}
-      message="Колония замечает твоё участие. Продолжай исследовать ARES-1."
+      title={t("НОВЫЙ УРОВЕНЬ · {n}", { n: current.level })}
+      message={t("Колония замечает твоё участие. Продолжай исследовать ARES-1.")}
       onComplete={() => {
         removeLevel(current.id);
         setActiveId(null);
@@ -277,6 +278,7 @@ function LevelUpPresentation(): JSX.Element | null {
 
 export function GamificationHud(): JSX.Element {
   const reducedMotion = usePrefersReducedMotion();
+  useI18n();
   const {
     xp,
     level,
@@ -298,7 +300,7 @@ export function GamificationHud(): JSX.Element {
 
       <aside
         className="xp-hud"
-        aria-label="Прогресс исследования колонии"
+        aria-label={t("Прогресс исследования колонии")}
       >
         <div ref={destinationRef} className="xp-hud-main">
           <button
@@ -313,7 +315,7 @@ export function GamificationHud(): JSX.Element {
             </span>
 
             <span className="xp-hud-summary">
-              <span>УРОВЕНЬ {level}</span>
+              <span>{t("УРОВЕНЬ {n}", { n: level })}</span>
               <strong>
                 <RollingNumber value={xp} /> XP
               </strong>
@@ -327,11 +329,11 @@ export function GamificationHud(): JSX.Element {
           <SparkProgress
             value={progress * 100}
             max={100}
-            label="Прогресс до следующего уровня"
+            label={t("Прогресс до следующего уровня")}
             valueText={
               nextThreshold === null
-                ? "Достигнут максимальный уровень"
-                : `${xp} из ${nextThreshold} XP`
+                ? t("Достигнут максимальный уровень")
+                : t("{a} из {b} XP", { a: xp, b: nextThreshold })
             }
             color="#7CFF6B"
           />
@@ -356,28 +358,28 @@ export function GamificationHud(): JSX.Element {
                 <div className="xp-hud-details-inner">
                   <dl>
                     <div>
-                      <dt>До следующего уровня</dt>
+                      <dt>{t("До следующего уровня")}</dt>
                       <dd>
                         {nextThreshold === null
-                          ? "Максимум"
+                          ? t("Максимум")
                           : `${numberFormatter.format(nextThreshold - xp)} XP`}
                       </dd>
                     </div>
                     <div>
-                      <dt>Дней подряд в сессии</dt>
+                      <dt>{t("Дней подряд в сессии")}</dt>
                       <dd>{streak}</dd>
                     </div>
                     <div>
-                      <dt>Ранг колониста</dt>
-                      <dd>{colonistRank ? "1 · Пропуск получен" : "Исследователь"}</dd>
+                      <dt>{t("Ранг колониста")}</dt>
+                      <dd>{colonistRank ? t("1 · Пропуск получен") : t("Исследователь")}</dd>
                     </div>
                   </dl>
 
                   <p className="xp-last-reward">{lastReward}</p>
 
                   <p className="xp-hud-note">
-                    XP — прогресс этого лендинга, не токены.
-                    Сохраняется в текущей браузерной сессии.
+                    {t("XP — прогресс этого лендинга, не токены.")}
+                    {t("Сохраняется в текущей браузерной сессии.")}
                   </p>
                 </div>
               </motion.div>

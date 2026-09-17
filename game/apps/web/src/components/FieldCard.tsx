@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { t } from '../i18n'
+
 import { motion, AnimatePresence } from 'framer-motion'
 import { PublicKey } from '@solana/web3.js'
 import { Wrench, ArrowUp, Droplet, Receipt, ChevronDown } from 'lucide-react'
@@ -79,7 +81,7 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
     <button
      onClick={() => setShowActions(!showActions)}
      aria-expanded={showActions}
-     aria-label={`${type.name}, уровень ${field.level}. ${showActions ? 'Скрыть' : 'Показать'} действия`}
+     aria-label={t('{name}, уровень {level}. {action} действия', { name: type.name, level: field.level, action: showActions ? t('Скрыть') : t('Показать') })}
      style={{ width: '100%', background: 'none', textAlign: 'left', color: 'inherit', padding: 0 }}
     >
      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -87,7 +89,7 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
        <span style={{ fontSize: 32 }} aria-hidden="true">{type.emoji}</span>
        <div>
         <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)' }}>{type.name}</div>
-        <div style={{ fontSize: 11, color: 'var(--pf-text-muted)' }}>×{(type.yieldBps / 10_000).toFixed(2)} урожай</div>
+        <div style={{ fontSize: 11, color: 'var(--pf-text-muted)' }}>×{(type.yieldBps / 10_000).toFixed(2)} {t('урожай')}</div>
         {field.mutationType > 0 && (
          <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 5,
@@ -106,7 +108,7 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
        <span style={{ background: 'rgba(193, 68, 14, 0.12)', color: 'var(--pf-teal)', padding: '4px 12px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
-        Ур. {field.level}
+        {t('Ур. {n}', { n: field.level })}
        </span>
        <motion.div animate={{ rotate: showActions ? 180 : 0 }} transition={{ duration: 0.3 }}>
         <ChevronDown size={16} color="var(--pf-text-secondary)" />
@@ -116,14 +118,14 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
     </button>
 
     <div style={{ marginBottom: 12 }}>
-     <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 4 }}>Накоплено</div>
+     <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 4 }}>{t('Накоплено')}</div>
      <div style={{ fontSize: 22, fontWeight: 700, color: taxExpired ? 'var(--pf-red)' : 'var(--pf-gold)' }} aria-live="polite">
       {fmtPotato(field.accumulated, 3)} POTATO
      </div>
     </div>
 
     <ProgressBar
-     label="Целостность"
+     label={t("Целостность")}
      value={field.durability}
      max={MAX_DURABILITY}
      color={field.durability > 50 ? 'var(--pf-teal)' : field.durability > 25 ? 'var(--pf-gold)' : 'var(--pf-red)'}
@@ -136,12 +138,12 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
       color: taxExpired ? 'var(--pf-red)' : taxDaysLeft <= 2 ? 'var(--pf-gold)' : 'var(--pf-teal)',
      }}
     >
-     {taxExpired ? ' Пошлина просрочен! Урожай −50%' : ` Пошлина оплачен: ${taxDaysLeft} дн.`}
+     {taxExpired ? t(' Пошлина просрочен! Урожай −50%') : t(' Пошлина оплачен: {d} дн.', { d: taxDaysLeft })}
     </div>
 
     {fertActive && (
      <div style={{ marginTop: 8 }}>
-      <ProgressBar label={` Удобрение ×1.5 (${fertHoursLeft}ч)`} value={Math.min(fertHoursLeft, FERTILIZER_HOURS)} max={FERTILIZER_HOURS} color="#22c55e" />
+      <ProgressBar label={t(` Удобрение ×1.5 ({h}ч)`, { h: fertHoursLeft })} value={Math.min(fertHoursLeft, FERTILIZER_HOURS)} max={FERTILIZER_HOURS} color="#22c55e" />
      </div>
     )}
 
@@ -153,7 +155,7 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
      className={canHarvest ? 'gradient-gold shadow-glow-gold' : ''}
      style={{ width: '100%', padding: 12, borderRadius: 12, fontSize: 14, fontWeight: 600, marginTop: 12, background: canHarvest ? undefined : 'rgba(255,255,255,0.1)' }}
     >
-     {harvesting ? ' Сбор…' : canHarvest ? 'POTATO Жатва' : ' Растёт…'}
+     {harvesting ? t(' Сбор…') : canHarvest ? t('POTATO Жатва') : t(' Растёт…')}
     </motion.button>
 
     <AnimatePresence>
@@ -166,22 +168,22 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
       >
        {onUpgrade && field.level < MAX_FIELD_LEVEL && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onUpgrade, sounds.upgrade, haptics.upgradeField)} style={actionStyle('var(--ares-blueset, #6B93D6)')}>
-         <ArrowUp size={14} /> Апгрейд модуля до ур. {field.level + 1} ({fmtPotato(upgradeCostMicro(field.level, field.fieldType), 0)} POTATO)
+         <ArrowUp size={14} /> {t('Апгрейд модуля до ур. {level} ({cost} POTATO)', { level: field.level + 1, cost: fmtPotato(upgradeCostMicro(field.level, field.fieldType), 0) })}
         </motion.button>
        )}
        {onRepair && field.durability < MAX_DURABILITY && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onRepair, sounds.repair, haptics.repairField)} style={actionStyle('var(--pf-teal)')}>
-         <Wrench size={14} /> Техремонт до 100% ({fmtPotato(repairCostMicro(field.fieldType), 0)} POTATO)
+         <Wrench size={14} /> {t('Техремонт до 100% ({cost} POTATO)', { cost: fmtPotato(repairCostMicro(field.fieldType), 0) })}
         </motion.button>
        )}
        {onPayTax && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onPayTax, sounds.payTax, haptics.payTax)} style={actionStyle('var(--pf-gold)')}>
-         <Receipt size={14} /> Пошлина: +{TAX_PERIOD_DAYS} дней ({fmtPotato(taxCostMicro(field.fieldType), 0)} POTATO)
+         <Receipt size={14} /> {t('Пошлина: +{days} дней ({cost} POTATO)', { days: TAX_PERIOD_DAYS, cost: fmtPotato(taxCostMicro(field.fieldType), 0) })}
         </motion.button>
        )}
        {onApplyFertilizer && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onApplyFertilizer, sounds.fertilizer, haptics.applyFertilizer)} style={actionStyle('#22c55e')}>
-         <Droplet size={14} /> Удобрить ×1.5 на {FERTILIZER_HOURS}ч ({fmtPotato(fertilizerCostMicro(field.fieldType), 0)} POTATO)
+         <Droplet size={14} /> {t('Удобрить ×1.5 на {h}ч ({cost} POTATO)', { h: FERTILIZER_HOURS, cost: fmtPotato(fertilizerCostMicro(field.fieldType), 0) })}
         </motion.button>
        )}
       </motion.div>

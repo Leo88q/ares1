@@ -1,4 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, ReactNode } from 'react'
+import { t } from '../i18n'
+
 import { Connection, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { decodeConfig, decodeEpoch, DecodedConfig, DecodedEpoch, pdas } from '../utils/anchorClient'
@@ -6,8 +8,11 @@ import { describeError } from '../utils/errors'
 import { withRetry } from '../utils/rpc'
 import { usePolling } from '../hooks/usePolling'
 
-const DEFAULT_PROGRAM_ID = "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha"
-const rawProgramId = import.meta.env.VITE_PROGRAM_ID || DEFAULT_PROGRAM_ID
+// Fail-fast: без VITE_PROGRAM_ID сборка не должна молча указывать на старый адрес.
+const rawProgramId = import.meta.env.VITE_PROGRAM_ID
+if (!rawProgramId) {
+ throw new Error('VITE_PROGRAM_ID не задан (см. apps/web/.env.example) — отказ от запуска вместо старого захардкоженного program id')
+}
 export const PROGRAM_ID = new PublicKey(rawProgramId)
 export const CLUSTER = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet'
 export const IS_MAINNET = CLUSTER === 'mainnet-beta'
@@ -46,7 +51,7 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
    if (!info) {
     setConfig(null)
     setEpoch(null)
-    setRpcError('GameConfig не найден: программа не инициализирована на этом кластере.')
+    setRpcError(t('GameConfig не найден: программа не инициализирована на этом кластере.'))
     return
    }
    const cfg = decodeConfig(info.data)
@@ -64,18 +69,82 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
 
  const sendIx = useCallback(
   async (ixs: TransactionInstruction[]): Promise<string> => {
-   if (!wallet.publicKey || !wallet.sendTransaction) throw new Error('Кошелёк не подключён.')
+   if (!wallet.publicKey || !wallet.signTransaction || !wallet.sendTransaction) throw new Error(t('Кошелёк не подключён.'))
+   const MISSING_SIG = t('Кошелёк не вернул подпись транзакции. Отключите кошелёк в настройках игры и подключите заново.')
+   const activeAdapter =
+    (wallet as { wallet?: { adapter?: { name?: string; connect: () => Promise<void>; disconnect: () => Promise<void> } } | null })
+     .wallet?.adapter ?? null
+   const walletName = activeAdapter?.name ?? '?'
+   // Диагностика «зombie»-сессии: какой адаптер подключён и какие in-app
+   // провайдеры видит браузер (на телефонах это ключ к пониманию сбоя).
+   const dumpDiag = (detail: string[]) => {
+    const w = window as unknown as { phantom?: { isPhantom?: () => boolean }; solana?: { isSolflare?: boolean } }
+    console.error('[potato] wallet returned unsigned tx', {
+     wallet: walletName,
+     publicKey: wallet.publicKey?.toBase58(),
+     detail,
+     windowPhantom: !!w.phantom,
+     phantomInApp: typeof w.phantom?.isPhantom === 'function' ? w.phantom.isPhantom() : null,
+     windowSolana: !!w.solana,
+     solflareInApp: !!w.solana?.isSolflare,
+    })
+   }
+   // Проверка ПО КЛЮЧАМ, а не по числу: ловит и «подписей нет», и
+   // «подписал другой аккаунт, чем feePayer».
+   const missingSigners = (signed: Transaction): string[] => {
+    const msg = signed.compileMessage()
+    const missing: string[] = []
+    for (let i = 0; i < msg.header.numRequiredSignatures; i++) {
+     const key = msg.staticAccountKeys[i]
+     const pair = signed.signatures[i]
+     if (!pair || pair.signature === null || !pair.publicKey.equals(key)) missing.push(key.toBase58())
+    }
+    return missing
+   }
    try {
     const tx = new Transaction().add(...ixs)
     const { blockhash, lastValidBlockHeight } = await withRetry(() => connection.getLatestBlockhash('confirmed'))
     tx.recentBlockhash = blockhash
     tx.feePayer = wallet.publicKey
-    const sig = await wallet.sendTransaction(tx, connection)
+    // Явная подпись кошельком + локальная проверка, что ВСЕ required-сигнатуры
+    // на месте: мобильные кошельки (Phantom, shim встроенных в-апп кошельков)
+    // при «восстановленной» сессии иногда возвращают транзакцию с null-подписью,
+    // и без проверки ошибка улетала бы в сеть («Missing signature for public key»).
+    let signed = (await wallet.signTransaction(tx)) as Transaction
+    let missing = missingSigners(signed)
+    if (missing.length > 0) {
+     // Первая попытка вернула неподписанную tx — сессия «зombie»: кошелёк
+     // «знает» аккаунт, но подпись не отдаёт. Переподключаем кошелёк (свежая
+     // авторизация — на Seeker это повторный отпечаток пальца) и пробуем ещё раз.
+     if (activeAdapter) {
+      await activeAdapter.disconnect()
+      await activeAdapter.connect()
+     }
+     signed = (await wallet.signTransaction(tx)) as Transaction
+     missing = missingSigners(signed)
+    }
+    if (missing.length > 0) {
+     dumpDiag(missing)
+     throw new Error(`${MISSING_SIG} (${walletName})`)
+    }
+    let raw: Buffer
+    try {
+     raw = signed.serialize() // requireAllSignatures: true — финальная страховка
+    } catch {
+     throw new Error(MISSING_SIG)
+    }
+    const sig = await connection.sendRawTransaction(raw, { skipPreflight: false, maxRetries: 3 })
     const res = await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed')
-    if (res.value.err) throw new Error(`Транзакция отклонена сетью: ${JSON.stringify(res.value.err)}`)
+    if (res.value.err) throw new Error(t('Транзакция отклонена сетью: {err}', { err: JSON.stringify(res.value.err) }))
     return sig
    } catch (err) {
-    throw new Error(describeError(err))
+    const msg = describeError(err)
+    // RPC-вариант того же сбоя: подпись не доехала до сети.
+    if (/Signature verification failed|Missing signature/i.test(msg)) {
+     dumpDiag([msg])
+     throw new Error(`${MISSING_SIG} (${walletName})`)
+    }
+    throw new Error(msg)
    }
   },
   [wallet, connection],

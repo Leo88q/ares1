@@ -46,6 +46,8 @@ export interface GameConfig {
   fieldCount: bigint;
   epochId: bigint;
   totalBurnedMicro: bigint;
+  /** v2: total_burned snapshot on the previous roll_epoch (elastic cap). */
+  lastTotalBurnedMicro: bigint;
   paused: boolean;
   bump: number;
 }
@@ -62,6 +64,7 @@ export function decodeGameConfig(data: Buffer): GameConfig {
   const fieldCount = readU64(data, o); o = fieldCount.next;
   const epochId = readU64(data, o); o = epochId.next;
   const totalBurnedMicro = readU64(data, o); o = totalBurnedMicro.next;
+  const lastTotalBurnedMicro = readU64(data, o); o = lastTotalBurnedMicro.next;
   const paused = readBool(data, o); o = paused.next;
   const bump = readU8(data, o);
   return {
@@ -75,6 +78,7 @@ export function decodeGameConfig(data: Buffer): GameConfig {
     fieldCount: fieldCount.value,
     epochId: epochId.value,
     totalBurnedMicro: totalBurnedMicro.value,
+    lastTotalBurnedMicro: lastTotalBurnedMicro.value,
     paused: paused.value,
     bump: bump.value,
   };
@@ -86,6 +90,8 @@ export interface EpochAccount {
   mintedMicro: bigint;
   startTime: bigint;
   bump: number;
+  /** v2: burn accounted during this epoch (elastic cap axis). */
+  burnedMicro: bigint;
 }
 
 export function decodeEpoch(data: Buffer): EpochAccount {
@@ -94,12 +100,14 @@ export function decodeEpoch(data: Buffer): EpochAccount {
   const mintCapMicro = readU64(data, o); o = mintCapMicro.next;
   const mintedMicro = readU64(data, o); o = mintedMicro.next;
   const startTime = readI64(data, o); o = startTime.next;
-  const bump = readU8(data, o);
+  const bump = readU8(data, o); o = bump.next;
+  const burnedMicro = readU64(data, o);
   return {
     id: id.value,
     mintCapMicro: mintCapMicro.value,
     mintedMicro: mintedMicro.value,
     startTime: startTime.value,
     bump: bump.value,
+    burnedMicro: burnedMicro.value,
   };
 }

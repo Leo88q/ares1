@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion'
+import { t } from '../i18n'
+
 import { haptics } from '../utils/haptic'
 import { Home, ShoppingCart, BarChart3, User } from 'lucide-react'
 
@@ -9,10 +11,10 @@ interface Props {
 
 export default function BottomNav({ current, onNavigate }: Props) {
  const items = [
-  { id: 'farm' as const, icon: Home, label: 'Ферма' },
-  { id: 'market' as const, icon: ShoppingCart, label: 'Рынок' },
-  { id: 'stats' as const, icon: BarChart3, label: 'Стата' },
-  { id: 'profile' as const, icon: User, label: 'Профиль' },
+  { id: 'farm' as const, icon: Home, label: t('Ферма') },
+  { id: 'market' as const, icon: ShoppingCart, label: t('Рынок') },
+  { id: 'stats' as const, icon: BarChart3, label: t('Стата') },
+  { id: 'profile' as const, icon: User, label: t('Профиль') },
  ]
 
  return (

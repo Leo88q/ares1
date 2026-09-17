@@ -4,21 +4,21 @@
   "private": true,
   "workspaces": [
     "apps/web",
-    "apps/bot",
     "apps/backend"
   ],
   "scripts": {
     "build:web": "yarn workspace web build",
-    "build:bot": "yarn workspace bot build",
     "build:backend": "yarn workspace backend build",
     "dev:web": "yarn workspace web dev",
-    "dev:bot": "yarn workspace bot dev",
     "dev:backend": "yarn workspace backend dev",
     "init-onchain": "tsx scripts/init-onchain.ts",
+    "grant-skr": "tsx scripts/grant-skr.ts",
+    "migrate-v2": "tsx scripts/migrate-v2.ts",
     "test": "anchor test",
     "test:unit": "cargo test -p solana_potato --lib",
     "typecheck": "yarn workspace web exec tsc --noEmit && yarn workspace backend typecheck",
-    "simulate": "python3 economy/simulate.py"
+    "simulate": "python3 economy/simulate.py",
+    "ci:local": "./scripts/ci-local.sh"
   },
   "devDependencies": {
     "@coral-xyz/anchor": "^0.30.1",
@@ -36,5 +36,10 @@
   "overrides": {
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0"
+  },
+  "resolutions": {
+    "@solana-mobile/wallet-adapter-mobile": "2.1.5",
+    "@solana-mobile/mobile-wallet-adapter-protocol-web3js": "2.1.5",
+    "@solana-mobile/mobile-wallet-adapter-protocol": "2.1.5"
   }
 }

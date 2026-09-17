@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import {
   createContext,
   useCallback,
@@ -210,7 +211,7 @@ function initialState(): GamificationState {
     serial: 0,
     flights: [],
     levels: [],
-    lastReward: "Исследуй колонию",
+    lastReward: t("Исследуй колонию"),
   };
 
   if (typeof window === "undefined") {
@@ -237,7 +238,7 @@ function initialState(): GamificationState {
       streak: streakFor(parsed.lastDay, today, parsed.streak),
       lastDay: today,
       colonistRank: parsed.colonistRank,
-      lastReward: "Прогресс этой сессии восстановлен",
+      lastReward: t("Прогресс этой сессии восстановлен"),
     };
   } catch {
     return fallback;
@@ -249,7 +250,7 @@ function rewardFor(action: XpAction): RewardDefinition | null {
     case "section":
       return {
         amount: 10,
-        label: "Секция исследована",
+        label: t("Секция исследована"),
         key: `section:${action.id}`,
         colonistRank: false,
       };
@@ -257,7 +258,7 @@ function rewardFor(action: XpAction): RewardDefinition | null {
     case "mascot":
       return {
         amount: 5,
-        label: "Прыжок ТЮБЕР-9",
+        label: t("Прыжок ТЮБЕР-9"),
         key: null,
         colonistRank: false,
       };
@@ -265,7 +266,7 @@ function rewardFor(action: XpAction): RewardDefinition | null {
     case "faq":
       return {
         amount: 2,
-        label: "Ответ колонии открыт",
+        label: t("Ответ колонии открыт"),
         key: `faq:${action.id}`,
         colonistRank: false,
       };
@@ -279,7 +280,7 @@ function rewardFor(action: XpAction): RewardDefinition | null {
 
       return {
         amount: 1,
-        label: "Механика изучена",
+        label: t("Механика изучена"),
         key: `feature:${action.id}`,
         colonistRank: false,
       };
@@ -288,7 +289,7 @@ function rewardFor(action: XpAction): RewardDefinition | null {
     case "waitlist":
       return {
         amount: 100,
-        label: "Заявка принята · ранг колониста",
+        label: t("Заявка принята · ранг колониста"),
         key: "waitlist:confirmed",
         colonistRank: true,
       };

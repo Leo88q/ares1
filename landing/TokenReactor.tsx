@@ -1,4 +1,5 @@
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
+import { t, tr, useI18n } from "./i18n";
 import { motion } from "framer-motion";
 import { tokenCycle } from "./content";
 import { useLivingScene } from "./useLivingScene";
@@ -36,6 +37,10 @@ function ringSegment(start: number, end: number): string {
   ].join(" ");
 }
 
+// tr() — ленивый прокси: строки пере-переводятся при каждом обращении,
+// поэтому пересборка sectors по смене языка даёт актуальные подписи.
+const TC = tr(tokenCycle);
+
 function createSectors(): readonly ReactorSector[] {
   const cycleColors = [
     ["#0DE1B9", "#BBFFE7", "#125347"],
@@ -43,9 +48,9 @@ function createSectors(): readonly ReactorSector[] {
     ["#FF249D", "#FFA6DB", "#681044"],
   ] as const;
   const cycle = [
-    { label: tokenCycle.birth.title, hint: "эмиссия эпохи" },
-    { label: tokenCycle.flow.title, hint: "кошельки · ордера · мост AOF" },
-    { label: tokenCycle.death.title, hint: "комиссии · налоги · рецепты" },
+    { label: TC.birth.title, hint: t("эмиссия эпохи") },
+    { label: TC.flow.title, hint: t("кошельки · ордера · мост AOF") },
+    { label: TC.death.title, hint: t("комиссии · налоги · рецепты") },
   ];
 
   let angle = -90;
@@ -61,10 +66,10 @@ function createSectors(): readonly ReactorSector[] {
   });
 }
 
-const sectors = createSectors();
-
 export function TokenReactor(): JSX.Element {
   const { ref, active, reducedMotion } = useLivingScene<HTMLDivElement>();
+  const { lang } = useI18n();
+  const sectors = useMemo(() => createSectors(), [lang]);
   const id = useId().replace(/:/g, "");
   const [selected, setSelected] = useState(0);
   const sector = sectors[selected] ?? sectors[0];
@@ -241,14 +246,14 @@ export function TokenReactor(): JSX.Element {
               $POTATO
             </text>
             <text x="250" y="301" textAnchor="middle" fill="#C2B8D6" fontSize="8" fontFamily="'JetBrains Mono', monospace" letterSpacing="2">
-              ЯДРО ЭКОНОМИКИ
+              {t("ЯДРО ЭКОНОМИКИ")}
             </text>
             <path d="M216 323h68" stroke="#7CFF6B" strokeWidth="2" strokeOpacity="0.7" />
           </svg>
         </motion.div>
       </div>
 
-      <div className="reactor-selector" role="group" aria-label="Фаза цикла токена">
+      <div className="reactor-selector" role="group" aria-label={t("Фаза цикла токена")}>
         {sectors.map((item, index) => (
           <button
             key={item.label}
@@ -269,9 +274,9 @@ export function TokenReactor(): JSX.Element {
       </div>
 
       <div className="token-supply">
-        <span>ПОТОЛОК ПРЕДЛОЖЕНИЯ</span>
+        <span>{t("ПОТОЛОК ПРЕДЛОЖЕНИЯ")}</span>
         <strong>1 000 000 000</strong>
-        <small>Майнится игроками · горит в комиссиях</small>
+        <small>{t("Майнится игроками · горит в комиссиях")}</small>
       </div>
     </div>
   );

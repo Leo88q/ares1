@@ -1,5 +1,5 @@
 {
-  "address": "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha",
+  "address": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
   "metadata": {
     "name": "solana_potato",
     "version": "0.2.0",
@@ -114,11 +114,735 @@
       "args": []
     },
     {
-      "name": "buy_field_sol",
+      "name": "buy_export_license",
       "docs": [
-        "Покупка поля за SOL во время пресейла.",
-        "SOL переводится в treasury_sol PDA. Лимит: 5 полей на кошелёк, cap по PresaleState."
+        "Покупка лицензии экспорта: 500 SKR уходят в казну проекта",
+        "(ATA PDA `treasury_sol` — та же казна, что и 80 % SKR-пресейла),",
+        "лицензия на 30 дней. Снижает комиссию рынка на 3% (300 bps)",
+        "для продавца с активной лицензией."
       ],
+      "discriminator": [
+        18,
+        110,
+        90,
+        198,
+        215,
+        125,
+        216,
+        153
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "license",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  105,
+                  99,
+                  101,
+                  110,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "payer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "skr_mint",
+          "address": "Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o"
+        },
+        {
+          "name": "user_skr_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "payer"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "skr_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "treasury_sol",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury_skr_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "treasury_sol"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "skr_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "buy_field_skr",
+      "docs": [
+        "Покупка поля за SKR во время пресейла.",
+        "Тир поля (0/1/2) определяется on-chain: keccak(buyer ‖ sold ‖ slot) % 100",
+        "→ COMMON 70 % / RARE 25 % / EPIC 5 %. Клиентский выбор тира не принимается —",
+        "это закрывает обход, при котором покупатель всегда забирал EPIC за цену дропа.",
+        "`sold` и `slot` покупатель не контролирует в момент подписания (конкурентные",
+        "покупки сдвигают `sold`, слот включения в блок неизвестен заранее)."
+      ],
+      "discriminator": [
+        122,
+        180,
+        144,
+        243,
+        2,
+        198,
+        171,
+        198
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "presale_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  97,
+                  108,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "relations": [
+            "presale_state"
+          ]
+        },
+        {
+          "name": "buyer_presale",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  121,
+                  101,
+                  114,
+                  95,
+                  112,
+                  114,
+                  101,
+                  115,
+                  97,
+                  108,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "buyer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "field",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "field_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "skr_mint",
+          "address": "Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o"
+        },
+        {
+          "name": "buyer_skr_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "buyer"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "skr_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "treasury_sol",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury_skr_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "treasury_sol"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "skr_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "buyback_skr_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "skr_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "field_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "buy_field_sol",
       "discriminator": [
         79,
         250,
@@ -264,7 +988,7 @@
       ],
       "args": [
         {
-          "name": "_field_id",
+          "name": "field_id",
           "type": "u64"
         },
         {
@@ -362,6 +1086,292 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "claim_achievement",
+      "docs": [
+        "Обновляет цену пресейла (только authority).已售-поля не затрагивает."
+      ],
+      "discriminator": [
+        107,
+        181,
+        102,
+        247,
+        207,
+        212,
+        251,
+        24
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "achievements",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  99,
+                  104,
+                  118
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "quest_treasury",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  113,
+                  117,
+                  101,
+                  115,
+                  116,
+                  95,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "quest_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "quest_treasury"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "potato_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "user_potato_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "potato_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "potato_mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "quest_id",
+          "type": "u8"
+        }
+      ]
     },
     {
       "name": "close_expired_order",
@@ -509,7 +1519,7 @@
       ],
       "args": [
         {
-          "name": "_field_id",
+          "name": "field_id",
           "type": "u64"
         },
         {
@@ -676,7 +1686,7 @@
       ],
       "args": [
         {
-          "name": "_order_id",
+          "name": "order_id",
           "type": "u64"
         },
         {
@@ -693,7 +1703,22 @@
       "name": "fill_order",
       "docs": [
         "Buys an active order: SOL goes to the seller, $POTATO to the buyer, the",
-        "fee is split between burn and treasury, escrow and order are closed."
+        "fee is split between burn and treasury, escrow and order are closed.",
+        "",
+        "Fee accounting. The escrow holds exactly `amount + fee_listed` and must",
+        "drain to zero, so every rupee of the fee has an explicit destination:",
+        "* seller with an export license: −3 % of the amount off the fee,",
+        "the difference is refunded to the seller (the fee payer);",
+        "* buyer with a registered referrer: −1 % off the fee (refunded to the",
+        "seller) and +0.5 % paid to the referrer **from the fee itself** —",
+        "no fresh supply is minted, so the reward is always cap-safe;",
+        "* the net fee is split 60 % burn / 40 % treasury.",
+        "",
+        "`remaining_accounts` (fixed positions):",
+        "* [0] seller export-license PDA (always passed; may not exist);",
+        "* [1] buyer's referral PDA (only when the buyer has a referrer);",
+        "* [2] referrer's $POTATO ATA (only together with [1]).",
+        "If the referrer's ATA is missing/invalid the reward is burned instead."
       ],
       "discriminator": [
         232,
@@ -798,6 +1823,13 @@
         },
         {
           "name": "buyer_potato",
+          "writable": true
+        },
+        {
+          "name": "seller_potato",
+          "docs": [
+            "Получает refund скидок с комиссии (лицензия продавца / рефералка покупателя)."
+          ],
           "writable": true
         },
         {
@@ -1069,7 +2101,98 @@
           "writable": true
         },
         {
+          "name": "treasury_potato",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "config"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "potato_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
           "name": "owner",
+          "writable": true,
           "signer": true,
           "relations": [
             "field"
@@ -1078,6 +2201,14 @@
         {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         }
       ],
       "args": []
@@ -1286,6 +2417,172 @@
       "args": []
     },
     {
+      "name": "migrate_config",
+      "docs": [
+        "Миграция GameConfig: realloc 156 → 164 байт (добавляет last_total_burned_micro)."
+      ],
+      "discriminator": [
+        92,
+        131,
+        58,
+        105,
+        210,
+        154,
+        224,
+        193
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "migrate_epoch",
+      "docs": [
+        "Миграция Epoch: realloc 41 → 49 байт (добавляет burned_micro)."
+      ],
+      "discriminator": [
+        45,
+        95,
+        197,
+        140,
+        11,
+        150,
+        183,
+        237
+      ],
+      "accounts": [
+        {
+          "name": "epoch",
+          "writable": true
+        },
+        {
+          "name": "config"
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "migrate_field",
+      "docs": [
+        "Миграция Field: realloc 69 → 70 байт (добавляет mutation_type)."
+      ],
+      "discriminator": [
+        65,
+        252,
+        186,
+        179,
+        130,
+        96,
+        116,
+        7
+      ],
+      "accounts": [
+        {
+          "name": "field",
+          "writable": true
+        },
+        {
+          "name": "config"
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "migrate_presale_authority",
+      "docs": [
+        "After a two-step authority transfer the presale state still references",
+        "the OLD authority (fixed at `init_presale`), so all presale purchases",
+        "fail on `has_one = authority`. Call once, by the new authority."
+      ],
+      "discriminator": [
+        166,
+        121,
+        233,
+        15,
+        93,
+        113,
+        192,
+        92
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "presale_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  97,
+                  108,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "pay_tax",
       "docs": [
         "Extends tax coverage by one period (prepaid up to `MAX_TAX_PREPAY`)."
@@ -1395,6 +2692,99 @@
       "args": [
         {
           "name": "new_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "register_referrer",
+      "docs": [
+        "Регистрация реферера: одноразовый burn 5 POTATO, запись `referrer` в PDA Referral.",
+        "PDA Referral создаётся один раз на кошелёк."
+      ],
+      "discriminator": [
+        122,
+        229,
+        215,
+        169,
+        100,
+        145,
+        198,
+        120
+      ],
+      "accounts": [
+        {
+          "name": "referral",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  102,
+                  101,
+                  114,
+                  114,
+                  97,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "potato_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "user_potato",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "referrer",
           "type": "pubkey"
         }
       ]
@@ -1655,9 +3045,6 @@
     },
     {
       "name": "update_presale_price",
-      "docs": [
-        "Обновляет цену пресейла (только authority).已售-поля не затрагивает."
-      ],
       "discriminator": [
         140,
         169,
@@ -1786,6 +3173,277 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "withdraw_skr_treasury",
+      "docs": [
+        "Authority-only: withdraw SKR from the treasury ATA (80 % of SKR presale",
+        "proceeds + export license payments) to the authority's own SKR ATA."
+      ],
+      "discriminator": [
+        134,
+        137,
+        115,
+        105,
+        155,
+        191,
+        208,
+        164
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury_sol",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury_skr_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "treasury_sol"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "skr_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "skr_mint",
+          "address": "Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o"
+        },
+        {
+          "name": "destination_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "skr_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount_skr_atoms",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "withdraw_treasury",
@@ -1939,9 +3597,102 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "withdraw_treasury_sol",
+      "docs": [
+        "Authority-only: withdraw SOL accumulated in the `treasury_sol` PDA vault",
+        "(SOL presale proceeds). Without this instruction the vault is a dead end."
+      ],
+      "discriminator": [
+        183,
+        223,
+        87,
+        23,
+        30,
+        186,
+        126,
+        187
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury_sol",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount_lamports",
+          "type": "u64"
+        }
+      ]
     }
   ],
   "accounts": [
+    {
+      "name": "Achievements",
+      "discriminator": [
+        62,
+        7,
+        225,
+        132,
+        64,
+        203,
+        126,
+        83
+      ]
+    },
     {
       "name": "BuyerPresaleCounter",
       "discriminator": [
@@ -1966,6 +3717,19 @@
         138,
         152,
         108
+      ]
+    },
+    {
+      "name": "ExportLicense",
+      "discriminator": [
+        222,
+        87,
+        243,
+        120,
+        62,
+        140,
+        83,
+        31
       ]
     },
     {
@@ -2034,6 +3798,19 @@
       ]
     },
     {
+      "name": "Referral",
+      "discriminator": [
+        30,
+        235,
+        136,
+        224,
+        106,
+        107,
+        49,
+        64
+      ]
+    },
+    {
       "name": "SellerProfile",
       "discriminator": [
         96,
@@ -2048,6 +3825,19 @@
     }
   ],
   "events": [
+    {
+      "name": "AchievementClaimed",
+      "discriminator": [
+        14,
+        49,
+        71,
+        199,
+        214,
+        248,
+        116,
+        232
+      ]
+    },
     {
       "name": "AuthorityAccepted",
       "discriminator": [
@@ -2098,6 +3888,19 @@
         221,
         121,
         223
+      ]
+    },
+    {
+      "name": "ExportLicensePurchased",
+      "discriminator": [
+        97,
+        49,
+        157,
+        147,
+        122,
+        224,
+        179,
+        248
       ]
     },
     {
@@ -2231,6 +4034,19 @@
       ]
     },
     {
+      "name": "PresaleAuthorityMigrated",
+      "discriminator": [
+        179,
+        50,
+        8,
+        125,
+        73,
+        35,
+        195,
+        159
+      ]
+    },
+    {
       "name": "PresalePurchase",
       "discriminator": [
         26,
@@ -2241,6 +4057,32 @@
         142,
         20,
         204
+      ]
+    },
+    {
+      "name": "ReferralRewardPaid",
+      "discriminator": [
+        247,
+        206,
+        14,
+        191,
+        85,
+        164,
+        46,
+        228
+      ]
+    },
+    {
+      "name": "ReferrerRegistered",
+      "discriminator": [
+        106,
+        198,
+        28,
+        51,
+        115,
+        46,
+        57,
+        3
       ]
     },
     {
@@ -2270,6 +4112,45 @@
       ]
     },
     {
+      "name": "TreasurySkrWithdrawn",
+      "discriminator": [
+        85,
+        115,
+        133,
+        155,
+        30,
+        193,
+        148,
+        101
+      ]
+    },
+    {
+      "name": "TreasurySolWithdrawn",
+      "discriminator": [
+        240,
+        220,
+        250,
+        166,
+        65,
+        159,
+        120,
+        207
+      ]
+    },
+    {
+      "name": "TreasuryTaxed",
+      "discriminator": [
+        50,
+        40,
+        39,
+        45,
+        16,
+        201,
+        87,
+        76
+      ]
+    },
+    {
       "name": "TreasuryWithdrawn",
       "discriminator": [
         143,
@@ -2286,171 +4167,215 @@
   "errors": [
     {
       "code": 6000,
+      "name": "AlreadyClaimed"
+    },
+    {
+      "code": 6001,
+      "name": "BadProof"
+    },
+    {
+      "code": 6002,
       "name": "Paused",
       "msg": "Game is paused"
     },
     {
-      "code": 6001,
+      "code": 6003,
       "name": "FieldInactive",
       "msg": "Field is not active"
     },
     {
-      "code": 6002,
+      "code": 6004,
       "name": "NothingToHarvest",
       "msg": "Nothing to harvest"
     },
     {
-      "code": 6003,
+      "code": 6005,
       "name": "HarvestTooSoon",
       "msg": "Harvest too soon: wait at least 60 seconds between harvests"
     },
     {
-      "code": 6004,
+      "code": 6006,
       "name": "MaxLevelReached",
       "msg": "Max level reached"
     },
     {
-      "code": 6005,
+      "code": 6007,
       "name": "Unauthorized",
       "msg": "Unauthorized"
     },
     {
-      "code": 6006,
+      "code": 6008,
       "name": "InvalidAuthority",
       "msg": "Invalid authority"
     },
     {
-      "code": 6007,
+      "code": 6009,
       "name": "InvalidFieldType",
       "msg": "Invalid field type: expected 0, 1 or 2"
     },
     {
-      "code": 6008,
+      "code": 6010,
       "name": "InvalidAmount",
       "msg": "Invalid amount"
     },
     {
-      "code": 6009,
+      "code": 6011,
       "name": "OrderTooSmall",
-      "msg": "Order is too small: minimum is 0.1 POTATO"
+      "msg": "Order is too small: minimum is 10 POTATO"
     },
     {
-      "code": 6010,
+      "code": 6012,
       "name": "InvalidPrice",
       "msg": "Invalid price"
     },
     {
-      "code": 6011,
+      "code": 6013,
       "name": "OrderNotActive",
       "msg": "Order is not active"
     },
     {
-      "code": 6012,
+      "code": 6014,
       "name": "OrderExpired",
       "msg": "Order has expired"
     },
     {
-      "code": 6013,
+      "code": 6015,
       "name": "OrderNotExpired",
       "msg": "Order has not expired yet"
     },
     {
-      "code": 6014,
+      "code": 6016,
       "name": "SelfTradeBlocked",
       "msg": "Self-trade is blocked"
     },
     {
-      "code": 6015,
+      "code": 6017,
       "name": "CancelCooldown",
       "msg": "Cooldown: you can create orders only 3 hours after a cancel"
     },
     {
-      "code": 6016,
+      "code": 6018,
       "name": "RewardTooLarge",
       "msg": "Reward too large (max 1000 POTATO)"
     },
     {
-      "code": 6017,
+      "code": 6019,
       "name": "EpochCapExceeded",
       "msg": "Epoch mint cap exceeded — try again next epoch"
     },
     {
-      "code": 6018,
+      "code": 6020,
       "name": "CapTooHigh",
       "msg": "Daily cap cannot be raised above 250K POTATO"
     },
     {
-      "code": 6019,
+      "code": 6021,
       "name": "MultiplierTooHigh",
       "msg": "Global multiplier too high (max 2.0x)"
     },
     {
-      "code": 6020,
+      "code": 6022,
       "name": "EpochNotOver",
       "msg": "Epoch has not ended yet"
     },
     {
-      "code": 6021,
+      "code": 6023,
       "name": "MathOverflow",
       "msg": "Math overflow"
     },
     {
-      "code": 6022,
+      "code": 6024,
       "name": "InvalidMint",
       "msg": "Token account mint does not match the game mint"
     },
     {
-      "code": 6023,
+      "code": 6025,
       "name": "InvalidMintAuthority",
       "msg": "Mint authority must be the config PDA"
     },
     {
-      "code": 6024,
+      "code": 6026,
       "name": "InvalidMintDecimals",
       "msg": "Mint must have 6 decimals"
     },
     {
-      "code": 6025,
+      "code": 6027,
       "name": "MintHasFreezeAuthority",
       "msg": "Mint must not have a freeze authority"
     },
     {
-      "code": 6026,
+      "code": 6028,
       "name": "OrderTotalTooSmall",
       "msg": "Order total is below the minimum of 10 000 lamports"
     },
     {
-      "code": 6027,
+      "code": 6029,
       "name": "PrepayLimitReached",
       "msg": "Prepay limit reached: tax up to 28 days, fertilizer up to 7 days ahead"
     },
     {
-      "code": 6028,
+      "code": 6030,
       "name": "NothingToRepair",
       "msg": "Field durability is already at maximum"
     },
     {
-      "code": 6029,
+      "code": 6031,
       "name": "MaxSupplyReached",
       "msg": "Max supply reached"
     },
     {
-      "code": 6030,
+      "code": 6032,
       "name": "PresaleCapReached",
       "msg": "Presale cap reached: all fields sold"
     },
     {
-      "code": 6031,
+      "code": 6033,
       "name": "PresaleWalletLimitReached",
       "msg": "Wallet presale limit reached: max 5 fields per wallet"
     },
     {
-      "code": 6032,
+      "code": 6034,
       "name": "PresaleNotActive",
       "msg": "Presale is not active"
     }
   ],
   "types": [
+    {
+      "name": "AchievementClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "quest_id",
+            "type": "u8"
+          },
+          {
+            "name": "reward",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Achievements",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bitmap",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
     {
       "name": "AuthorityAccepted",
       "type": {
@@ -2549,6 +4474,10 @@
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "burned_micro",
+            "type": "u64"
           }
         ]
       }
@@ -2565,6 +4494,49 @@
           {
             "name": "start_time",
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExportLicense",
+      "docs": [
+        "Export license: снижает комиссию рынка на 3% на 30 дней. PDA seeds: [b\"license\", owner]."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExportLicensePurchased",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "cost_skr_atoms",
+            "type": "u64"
           }
         ]
       }
@@ -2631,6 +4603,10 @@
           },
           {
             "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "mutation_type",
             "type": "u8"
           }
         ]
@@ -2739,6 +4715,10 @@
           },
           {
             "name": "total_burned_micro",
+            "type": "u64"
+          },
+          {
+            "name": "last_total_burned_micro",
             "type": "u64"
           },
           {
@@ -2969,6 +4949,18 @@
       }
     },
     {
+      "name": "PresaleAuthorityMigrated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
       "name": "PresalePurchase",
       "type": {
         "kind": "struct",
@@ -2987,7 +4979,17 @@
           },
           {
             "name": "sol_amount",
+            "docs": [
+              "SKR atoms paid (6 decimals)."
+            ],
             "type": "u64"
+          },
+          {
+            "name": "roll",
+            "docs": [
+              "On-chain drop roll, 0-99: <70 COMMON, <95 RARE, else EPIC."
+            ],
+            "type": "u8"
           }
         ]
       }
@@ -3019,6 +5021,66 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Referral",
+      "docs": [
+        "Реферальная связь игрока. PDA seeds: `[\"referral\", owner]`.",
+        "Создаётся один раз через `register_referrer` (burn 5 POTATO)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "referrer",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReferralRewardPaid",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "referrer",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReferrerRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "referrer",
+            "type": "pubkey"
           }
         ]
       }
@@ -3081,6 +5143,62 @@
           {
             "name": "cost_micro",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TreasurySkrWithdrawn",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_skr_atoms",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TreasurySolWithdrawn",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TreasuryTaxed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "tax_bps",
+            "type": "u16"
           }
         ]
       }

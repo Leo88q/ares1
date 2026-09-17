@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { t } from '../i18n'
+
 import { motion } from 'framer-motion'
 import { PublicKey } from '@solana/web3.js'
 
@@ -71,12 +73,12 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
      borderBottom: '1px solid var(--pf-border-soft)',
     }}>
      <div style={{ flex: 1 }}>
-      <div className="pf-h2" style={{ fontSize: 18 }}>РАСТЕНИЕ</div>
+      <div className="pf-h2" style={{ fontSize: 18 }}>{t("РАСТЕНИЕ")}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
        <span className="ares-mono" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', padding: '2px 8px', borderRadius: 4, color: RARE_COLOR[rare], border: `1px solid ${RARE_COLOR[rare]}66`, background: `${RARE_COLOR[rare]}1a`, textShadow: `0 0 8px ${RARE_COLOR[rare]}55` }}>
         {RARE_LABEL[rare]}
        </span>
-       <span className="pf-subtitle" style={{ fontSize: 10 }}>РАНГ {field.level}</span>
+       <span className="pf-subtitle" style={{ fontSize: 10 }}>{t('РАНГ {n}', { n: field.level })}</span>
       </div>
      </div>
      <div style={{ textAlign: 'right' }}>
@@ -87,14 +89,14 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       }}>
        <AnimatedNumber value={accumulated} decimals={2} />
       </div>
-      <div className="pf-subtitle" style={{ fontSize: 10 }}>POTATO к сбору</div>
+      <div className="pf-subtitle" style={{ fontSize: 10 }}>{t("POTATO к сбору")}</div>
      </div>
     </div>
 
     {/* Целостность */}
     <div style={{ padding: '12px 20px' }}>
      <div className="pf-subtitle" style={{ fontSize: 10, marginBottom: 4 }}>
-      Целостность {durability}/{MAX_DURABILITY}
+      {t('Целостность {d}/{max}', { d: durability, max: MAX_DURABILITY })}
      </div>
      <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
       <motion.div
@@ -122,7 +124,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       border: `1px solid ${taxExpired ? 'rgba(255,59,59,0.4)' : taxDaysLeft <= 2 ? 'rgba(255,122,26,0.4)' : 'rgba(18,231,196,0.35)'}`,
       boxShadow: taxExpired ? '0 0 10px rgba(255,59,59,0.3)' : 'none',
      }}>
-       {taxExpired ? 'Пошлина просрочен!' : taxDaysLeft <= 1 ? `Пошлина: ${taxHoursLeft} ч` : `Пошлина: ${taxDaysLeft} дн`}
+{taxExpired ? t('Пошлина просрочен!') : taxDaysLeft <= 1 ? t('Пошлина: {h} ч', { h: taxHoursLeft }) : t('Пошлина: {d} дн', { d: taxDaysLeft })}
      </span>
 
      {fertActive && (
@@ -135,7 +137,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
        color: 'var(--pf-green)',
        border: '1px solid rgba(124,255,107,0.35)',
       }}>
-        Питание: {fertHoursLeft} ч
+        {t('Питание: {h} ч', { h: fertHoursLeft })}
       </span>
      )}
     </div>
@@ -150,7 +152,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       className={canHarvest ? 'gradient-gold' : ''}
       style={{ fontSize: 11, padding: '10px 8px' }}
      >
-      Собрать
+      {t('Собрать')}
      </Button>
 
      <Button
@@ -159,7 +161,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       onClick={() => run('upgrade', onUpgrade, () => sounds.upgrade(), () => haptics.upgradeField())}
       style={{ fontSize: 11, padding: '10px 8px' }}
      >
-      Апгрейд модуля
+      {t('Апгрейд модуля')}
      </Button>
 
      <Button
@@ -168,7 +170,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       onClick={() => run('repair', onRepair, () => sounds.repair(), () => haptics.repairField())}
       style={{ fontSize: 11, padding: '10px 8px' }}
      >
-      Полив
+      {t('Полив')}
      </Button>
 
      <Button
@@ -177,7 +179,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       onClick={() => run('tax', onPayTax, () => sounds.payTax(), () => haptics.payTax())}
       style={{ fontSize: 11, padding: '10px 8px' }}
      >
-      Пошлина
+      {t('Пошлина')}
      </Button>
 
      <Button
@@ -186,7 +188,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       onClick={() => run('fert', onApplyFertilizer, () => sounds.fertilizer(), () => haptics.applyFertilizer())}
       style={{ fontSize: 11, gridColumn: '1 / -1' }}
      >
-      {fertActive ? 'Удобрено ' : 'Питание +50% · 24ч'}
+      {fertActive ? t('Удобрено ') : t('Питание +50% · 24ч')}
      </Button>
     </div>
    </HullPanel>

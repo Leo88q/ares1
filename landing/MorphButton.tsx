@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import {
   useEffect,
   useRef,
@@ -188,8 +189,8 @@ export function MorphButton(props: MorphButtonProps): JSX.Element {
     magnetic = true,
     fullWidth = false,
     className = "",
-    loadingLabel = "Загрузка…",
-    successLabel = "✓ Готово",
+    loadingLabel = t("Загрузка…"),
+    successLabel = t("✓ Готово"),
     ...nativeProps
   } = props;
 

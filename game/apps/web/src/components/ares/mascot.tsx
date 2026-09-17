@@ -1,4 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
+import { t } from '../../i18n'
+
 import { AnimatePresence, motion } from 'framer-motion';
 import { ParticleBurst } from './effects';
 import { IconEarth } from './icons';
@@ -111,7 +113,7 @@ export const Tuber9 = memo(function Tuber9({
    animate={jumpOverride ? { y: [0, -10, 0] } : { y: 0 }}
    transition={{ duration: JUMP_OVERRIDE_MS / 1000, ease: 'easeOut' }}
    className={className}
-   aria-label="Тюбер-9"
+   aria-label={t("Тюбер-9")}
    style={{
     position: 'relative',
     width: size,
@@ -128,7 +130,7 @@ export const Tuber9 = memo(function Tuber9({
     <img
      key={src}
      src={src}
-     alt="Тюбер-9"
+     alt={t("Тюбер-9")}
      onError={() => setImageFailed(true)}
      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
     />
@@ -179,7 +181,7 @@ export const HomeBeacon = memo(function HomeBeacon({
    type="button"
    onClick={handleClick}
    className={className}
-   aria-label="Дом"
+   aria-label={t("Дом")}
    style={{
     position: 'relative',
     background: 'transparent',
@@ -212,7 +214,7 @@ export const HomeBeacon = memo(function HomeBeacon({
        color: 'var(--ares-blueset, #6B93D6)',
       }}
      >
-      {HOME_TOOLTIP_TEXT}
+      {t(HOME_TOOLTIP_TEXT)}
      </motion.span>
     ) : null}
    </AnimatePresence>

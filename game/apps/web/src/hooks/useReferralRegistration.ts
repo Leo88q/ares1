@@ -1,75 +1,88 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { PublicKey } from '@solana/web3.js'
+import { getAssociatedTokenAddressSync, createAssociatedTokenAccountIdempotentInstruction } from '@solana/spl-token'
 import { useSolana } from '../contexts/SolanaContext'
-import { getTelegramInitData, getTelegramStartParam } from '../utils/telegram'
-import { parseReferrerFromStartParam, registerReferral } from '../utils/referral'
+import { ixRegisterReferrer, pdas } from '../utils/anchorClient'
+import { getRefFromUrl } from '../utils/referral'
+
+const REGISTERED_KEY = 'ares_ref_registered'
+
+// Не более одной попытки за страницу: иначе при неудаче (нет 5 🥔 на burn)
+// кошелёк будет просить подпись при каждом 30-сек опросе config.
+// При следующем открытии страницы — попробуем снова.
+let attemptDone = false
 
 /**
- * Автоматически регистрирует реферальную связь при первом запуске Mini App,
- * если пользователь пришёл по реферальной ссылке (?startapp=ref_<wallet>).
- *
- * Логика:
- * 1. При загрузке читаем Telegram.WebApp.initDataUnsafe.start_param
- * 2. Если там "ref_<wallet>" — ждём подключения кошелька
- * 3. Вызываем POST /api/referral/register
- * 4. Ставим флаг в localStorage чтобы не спамить API
+ * Автотегистрация по реферал-ссылке ?ref=<wallet> (dApp Store / любой браузер).
+ * On-chain: PDA ["referral", owner], одноразовый burn 5 POTATO (см. register_referrer
+ * в программе). Без Telegram и backend — токен кошелька и есть идентичность.
  */
-export function useReferralRegistration() {
- const { publicKey } = useSolana()
- const [status, setStatus] = useState<'idle' | 'registering' | 'registered' | 'error'>('idle')
+export function useReferralRegistration(): void {
+ const { connection, programId, publicKey, connected, config, sendIx } = useSolana()
 
  useEffect(() => {
-  // Уже регистрировали в этой сессии
-  if (localStorage.getItem('referral_registered') === 'true') {
-   setStatus('registered')
-   return
+  if (!connected || !publicKey || !config) return
+
+  const ref = getRefFromUrl()
+  if (!ref) return
+  let referrer: PublicKey
+  try {
+   referrer = new PublicKey(ref)
+  } catch {
+   return // невалидный ref-код в ссылке — молча игнорируем
   }
+  if (referrer.equals(publicKey)) return // сам на себя — не регистрируем
+  if (attemptDone) return
 
-  // Нет start_param или он не реферальный
-  const startParam = getTelegramStartParam()
-  const referrerWallet = parseReferrerFromStartParam(startParam)
-  if (!referrerWallet) {
-   setStatus('registered') // помечаем чтобы больше не проверять
-   return
+  const done = () => {
+   try {
+    localStorage.setItem(REGISTERED_KEY, ref)
+   } catch {
+    /* ignore */
+   }
   }
-
-  // Ждём подключения кошелька
-  if (!publicKey) return
-
-  const initData = getTelegramInitData() || ''
-  if (!initData) {
-   console.warn('[referral] нет Telegram initData, пропускаем регистрацию')
-   return
+  try {
+   if (localStorage.getItem(REGISTERED_KEY)) return
+  } catch {
+    /* ignore */
   }
 
   let cancelled = false
-
-  async function doRegister() {
-   setStatus('registering')
-   const result = await registerReferral({
-    referrerWallet: referrerWallet!,
-    invitedWallet: publicKey!.toBase58(),
-    initData: initData || '',
-   })
-
-   if (cancelled) return
-
-   if (result.ok) {
-    localStorage.setItem('referral_registered', 'true')
-    setStatus('registered')
-    console.log('[referral]  зарегистрирован:', result.rewards)
-   } else {
-    console.warn('[referral]  ошибка регистрации:', result.error)
-    // Не ставим флаг — попробуем ещё раз при следующем запуске
-    setStatus('error')
+  void (async () => {
+   try {
+    const referralPda = PublicKey.findProgramAddressSync([Buffer.from('referral'), publicKey.toBuffer()], programId)[0]
+    // Уже зарегистрирован on-chain — ничего не делаем (PDA одноразовый).
+    const existing = await connection.getAccountInfo(referralPda)
+    if (existing) {
+     if (!cancelled) done()
+     return
+    }
+    const { config: configPda } = pdas(programId)
+    const userPotato = getAssociatedTokenAddressSync(config.potatoMint, publicKey, false)
+    // ATA должна существовать до burn — создаём идемпотентно
+    const ataIx = createAssociatedTokenAccountIdempotentInstruction(publicKey, userPotato, publicKey, config.potatoMint)
+    const ix = await ixRegisterReferrer(
+     programId,
+     {
+      referral: referralPda,
+      config: configPda(),
+      potatoMint: config.potatoMint,
+      userPotato,
+      owner: publicKey,
+     },
+     referrer,
+    )
+    attemptDone = true
+    await sendIx([ataIx, ix])
+    if (!cancelled) done()
+   } catch (err) {
+    // Недостаточно 5 POTATO для burn или сетевая ошибка — не спамим,
+    // повторимся при следующем запуске (флаг не ставим).
+    console.warn('Авторегистрация по ?ref= не удалась:', err)
    }
-  }
-
-  doRegister()
-
+  })()
   return () => {
    cancelled = true
   }
- }, [publicKey])
-
- return { status }
+ }, [connected, publicKey, config, connection, programId, sendIx])
 }

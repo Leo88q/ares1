@@ -1,147 +1,139 @@
+// Фоновый трек ARES-1: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0.
+// https://creativecommons.org/licenses/by/4.0/ — свободное использование
+// с указанием автора (атрибуция в UI настроек и README).
+// public/music/cipher.mp3 играет по кругу через AudioBufferSourceNode.
+//
+// Музыка ГЛОБАЛЬНАЯ: жизненный цикл не зависит от экрана/компонентов.
+// Настройки (вкл/громкость) живут в localStorage, инициализация — один раз
+// в App (ambientMusic.init()).
+const TRACK_URL = '/music/cipher.mp3'
+const ON_KEY = 'potato_music'
+const VOL_KEY = 'potato_music_volume'
+
 let ctx: AudioContext | null = null
 let masterGain: GainNode | null = null
+let buffer: AudioBuffer | null = null
+let loading: Promise<AudioBuffer | null> | null = null
+let source: AudioBufferSourceNode | null = null
 let isPlaying = false
 let volume = 0.15
-let nextNoteTime = 0
-let timerId: number | null = null
-let oscillators: OscillatorNode[] = []
 
-const getCtx = () => {
+const getCtx = (): AudioContext => {
  if (!ctx) {
-  ctx = new (window.AudioContext || window.webkitAudioContext)()
+  ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
   masterGain = ctx.createGain()
   masterGain.gain.value = volume
   masterGain.connect(ctx.destination)
  }
- return { ctx: ctx, master: masterGain! }
+ return ctx
 }
 
-// Пентатоника — всегда звучит приятно
-const SCALE = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25]
-const BASS_NOTES = [65.41, 73.42, 82.41, 98.00] // C2, D2, E2, G2
-
-function playNote(freq: number, duration: number, when: number, type: OscillatorType = 'sine', vol = 0.3) {
- if (!ctx || !masterGain) return
- const osc = ctx.createOscillator()
- const gain = ctx.createGain()
- const filter = ctx.createBiquadFilter()
- 
- osc.type = type
- osc.frequency.value = freq
- 
- // Low-pass filter для мягкости
- filter.type = 'lowpass'
- filter.frequency.value = 2000
- filter.Q.value = 1
- 
- // ADSR envelope
- gain.gain.setValueAtTime(0, when)
- gain.gain.linearRampToValueAtTime(vol, when + 0.1)
- gain.gain.exponentialRampToValueAtTime(0.001, when + duration)
- 
- osc.connect(filter)
- filter.connect(gain)
- gain.connect(masterGain)
- 
- osc.start(when)
- osc.stop(when + duration)
- 
- oscillators.push(osc)
- osc.onended = () => {
-  const idx = oscillators.indexOf(osc)
-  if (idx > -1) oscillators.splice(idx, 1)
- }
-}
-
-function playPad(freq: number, when: number) {
- if (!ctx || !masterGain) return
- // Два осциллятора для богатого pad-звука
- for (let i = 0; i < 2; i++) {
-  const osc = ctx.createOscillator()
-  const gain = ctx.createGain()
-  const filter = ctx.createBiquadFilter()
-  
-  osc.type = 'triangle'
-  osc.frequency.value = freq * (i === 0 ? 1 : 1.002) // Detune для ширины
-  
-  filter.type = 'lowpass'
-  filter.frequency.value = 800
-  
-  gain.gain.setValueAtTime(0, when)
-  gain.gain.linearRampToValueAtTime(0.15, when + 0.5)
-  gain.gain.linearRampToValueAtTime(0.15, when + 3.5)
-  gain.gain.exponentialRampToValueAtTime(0.001, when + 4)
-  
-  osc.connect(filter)
-  filter.connect(gain)
-  gain.connect(masterGain)
-  
-  osc.start(when)
-  osc.stop(when + 4)
- }
-}
-
-function scheduler() {
- if (!ctx || !isPlaying) return
- 
- while (nextNoteTime < ctx.currentTime + 0.1) {
-  // Случайная нота из пентатоники
-  const noteFreq = SCALE[Math.floor(Math.random() * SCALE.length)]
-  const octave = Math.random() > 0.5 ? 1 : 2
-  playNote(noteFreq * octave, 2, nextNoteTime, 'sine', 0.2)
-  
-  // Иногда бас
-  if (Math.random() > 0.7) {
-   const bassFreq = BASS_NOTES[Math.floor(Math.random() * BASS_NOTES.length)]
-   playNote(bassFreq, 3, nextNoteTime, 'triangle', 0.25)
+const loadTrack = async (): Promise<AudioBuffer | null> => {
+ if (buffer) return buffer
+ if (loading) return loading
+ loading = (async () => {
+  try {
+   const ac = getCtx()
+   const res = await fetch(TRACK_URL)
+   if (!res.ok) throw new Error(`http ${res.status}`)
+   buffer = await ac.decodeAudioData(await res.arrayBuffer())
+   return buffer
+  } catch {
+   return null
+  } finally {
+   loading = null
   }
-  
-  // Редко pad
-  if (Math.random() > 0.85) {
-   const padFreq = SCALE[Math.floor(Math.random() * SCALE.length)] / 2
-   playPad(padFreq, nextNoteTime)
-  }
-  
-  // Следующая нота через 1-3 секунды (разнообразие)
-  nextNoteTime += 1 + Math.random() * 2
- }
- 
- timerId = window.setTimeout(scheduler, 100)
+ })()
+ return loading
 }
+
+const readOn = (): boolean => {
+ try {
+  return localStorage.getItem(ON_KEY) === 'on'
+ } catch {
+  return false
+ }
+}
+
+const readVolume = (): number => {
+ try {
+  const v = parseFloat(localStorage.getItem(VOL_KEY) || '0.15')
+  return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.15
+ } catch {
+  return 0.15
+ }
+}
+
+const start = () => {
+ if (isPlaying) return
+ void loadTrack().then((buf) => {
+  if (!buf || isPlaying) return
+  try {
+   const ac = getCtx()
+   if (ac.state === 'suspended') void ac.resume()
+   source = ac.createBufferSource()
+   source.buffer = buf
+   source.loop = true
+   source.connect(masterGain!)
+   source.start()
+   isPlaying = true
+  } catch {
+   // аудио недоступно — молча пропускаем
+  }
+ })
+}
+
+const stop = () => {
+ if (source) {
+  try {
+   source.stop()
+  } catch {
+   // уже остановлен
+  }
+  source = null
+ }
+ isPlaying = false
+}
+
+let inited = false
 
 export const ambientMusic = {
- start: () => {
-  if (isPlaying) return
-  const { ctx: audioCtx } = getCtx()
-  
-  if (audioCtx.state === 'suspended') {
-   audioCtx.resume()
+ // Один раз при старте приложения (в App): читает настройки и включает трек,
+ // если он был включён ранее. Если браузер заблокировал автовоспроизведение,
+ // повторный старт произойдёт при первом взаимодействии пользователя.
+ init: () => {
+  if (inited) return
+  inited = true
+  volume = readVolume()
+  if (readOn()) start()
+  const onFirstGesture = () => {
+   if (readOn()) start()
   }
-  
-  isPlaying = true
-  nextNoteTime = audioCtx.currentTime
-  scheduler()
+  window.addEventListener('pointerdown', onFirstGesture, { once: true })
+  window.addEventListener('keydown', onFirstGesture, { once: true })
  },
- 
- stop: () => {
-  isPlaying = false
-  if (timerId !== null) {
-   clearTimeout(timerId)
-   timerId = null
+
+ setOn: (on: boolean) => {
+  try {
+   localStorage.setItem(ON_KEY, on ? 'on' : 'off')
+  } catch {
+   // приватный режим
   }
-  oscillators.forEach(osc => {
-   try { osc.stop() } catch {}
-  })
-  oscillators = []
+  if (on) start()
+  else stop()
  },
- 
+
  setVolume: (v: number) => {
   volume = Math.max(0, Math.min(1, v))
-  if (masterGain) {
-   masterGain.gain.value = volume
+  try {
+   localStorage.setItem(VOL_KEY, volume.toString())
+  } catch {
+   // приватный режим
   }
+  if (masterGain) masterGain.gain.value = volume
  },
- 
+
+ getOn: readOn,
+ getVolume: readVolume,
  isPlaying: () => isPlaying,
- getVolume: () => volume,
 }

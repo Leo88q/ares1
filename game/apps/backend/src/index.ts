@@ -1,12 +1,9 @@
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { env } from "./env.js";
-import { rewardRouter } from "./routes/reward.js";
-import { referralRouter } from "./routes/referral.js";
 import { configRouter } from "./routes/config.js";
 import { startEpochRoller } from "./epochRoller.js";
-import { startReferralChecker } from "./referralChecker.js";
-import { authorityKeypair, connection, fetchConfig, programId } from "./solana.js";
+import { connection, fetchConfig, payerKeypair, programId } from "./solana.js";
 
 /** Minimal fixed-window rate limiter per IP (no extra dependency). */
 function rateLimit(perMinute: number) {
@@ -14,6 +11,10 @@ function rateLimit(perMinute: number) {
   return (req: Request, res: Response, next: NextFunction) => {
     const ip = req.ip || "unknown";
     const now = Date.now();
+    // Прунинг: без него Map растёт неограниченно на долгоживущем инстансе (AUDIT I5)
+    if (hits.size > 10_000) {
+      for (const [k, v] of hits) if (now - v.windowStart > 120_000) hits.delete(k);
+    }
     const entry = hits.get(ip);
     if (!entry || now - entry.windowStart > 60_000) {
       hits.set(ip, { count: 1, windowStart: now });
@@ -40,9 +41,7 @@ async function main() {
       res.status(503).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
     }
   });
-  app.use("/api/config", configRouter);
-  app.use("/api/reward", rateLimit(env.rateLimitPerMinute), rewardRouter);
-  app.use("/api/referral", rateLimit(env.rateLimitPerMinute), referralRouter);
+  app.use("/api/config", rateLimit(env.rateLimitPerMinute), configRouter);
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     console.error("[http] unhandled error:", err);
@@ -50,18 +49,21 @@ async function main() {
   });
 
   const config = await fetchConfig();
-  if (!config.authority.equals(authorityKeypair.publicKey)) {
-    console.warn(
-      `[startup] WARNING: keypair ${authorityKeypair.publicKey.toBase58()} is not GameConfig.authority (${config.authority.toBase58()}). grant_reward will fail.`,
+  // Fail-fast: payer без баланса роллить эпохи не сможет (rent + fee ~0.01 SOL/эпоху с запасом)
+  const payerBal = await connection.getBalance(payerKeypair.publicKey);
+  if (payerBal < 10_000_000) {
+    console.error(
+      `[startup] FATAL: PAYER_KEYPAIR_JSON (${payerKeypair.publicKey.toBase58()}) ` +
+      `баланс ${(payerBal / 1e9).toFixed(4)} SOL < 0.01 — нечем платить rent/fee за epoch. Бэкенд не запускается.`,
     );
+    process.exit(1);
   }
 
   startEpochRoller();
-  startReferralChecker();
   app.listen(env.port, () => {
     console.log(`[startup] Solana Potato backend on :${env.port}`);
     console.log(`[startup] program=${programId.toBase58()} rpc=${env.rpcUrl}`);
-    console.log(`[startup] authority=${authorityKeypair.publicKey.toBase58()} epoch=${config.epochId}`);
+    console.log(`[startup] epoch-payer=${payerKeypair.publicKey.toBase58()} epoch=${config.epochId}`);
   });
 }
 

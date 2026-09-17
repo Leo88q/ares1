@@ -1,4 +1,6 @@
 import { memo, useMemo } from 'react';
+import { t } from '../../i18n'
+
 import { useSeekerPhase, SEEKER_PHASE_LABELS_RU } from '../../theme/ares';
 import type { SolPhase } from '../../theme/ares';
 import { IconO2, IconDrop, IconCrate } from './icons';
@@ -113,7 +115,7 @@ export const SolHud = memo(function SolHud({
    <HudCell
     icon={<IconCrate size={14} accent={accent} />}
     label="RATION"
-    value={rationLabel}
+    value={t(rationLabel)}
     accent={accent}
     breathing={breathing}
    />
@@ -130,7 +132,7 @@ export const SolHud = memo(function SolHud({
      textShadow: '0 1px 4px rgba(0,0,0,0.7)',
     }}
    >
-    Seeker {solLabel} · {SEEKER_PHASE_LABELS_RU[phase]}
+    {t('Seeker {sol} · {phase}', { sol: solLabel, phase: t(SEEKER_PHASE_LABELS_RU[phase]) })}
    </span>
   </div>
  );
