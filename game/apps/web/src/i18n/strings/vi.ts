@@ -416,6 +416,11 @@ const vi: Record<string, string> = {
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — game nông trại on-chain. Mua mảnh đất, thu $POTATO mỗi giây và giao dịch trên sàn P2P tích hợp lấy SOL.',
   'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Nhạc: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
   'Кошелёк не вернул подпись транзакции. Отключите кошелёк в настройках игры и подключите заново.': 'Ví không trả về chữ ký của giao dịch. Tắt ví trong cài đặt trò chơi rồi kết nối lại.',
+  'Мобильный кошелёк не найден': 'Không tìm thấy ví di động',
+  'Открой игру в Chrome на телефоне и убедись, что Seed Vault или Phantom установлены. Затем нажми «Подключить кошелёк» ещё раз.': 'Hãy mở game trong Chrome trên điện thoại và chắc chắn đã cài Seed Vault hoặc Phantom. Sau đó nhấn “Kết nối ví” lần nữa.',
+  'Запрос отклонён в кошельке': 'Yêu cầu bị từ chối trong ví',
+  'Не удалось подключить кошелёк': 'Không thể kết nối ví',
+  'Подключение…': 'Đang kết nối…',
 };
 
 export default vi;

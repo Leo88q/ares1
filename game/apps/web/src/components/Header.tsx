@@ -15,11 +15,24 @@ interface Props {
 
 export default function Header({ stats }: Props) {
  const { setVisible } = useWalletModal()
- const { connected, publicKey, wallet } = useWallet()
+ const { connected, publicKey, wallet, connect, connecting } = useWallet()
  // Имя подключённого кошелька (Phantom / Solana Mobile / Solflare) —
  // видно в шапке: по скриншоту сразу понятно, какой кошелёк не отдаёт подпись.
  const walletName =
   ((wallet as { adapter?: { name?: string } } | null)?.adapter?.name as string | undefined) ?? undefined
+
+ // Если кошелёк уже выбран (адаптер существует), а подключения нет —
+ // штатный changeWallet в модалке early-return'ит (кошелёк уже «selected»),
+ // и connect не вызывается: «абсолютно ничего не происходит». Обходим:
+ // вызываем connect() адаптера напрямую.
+ const handleConnectClick = () => {
+  if (wallet && !connected && !connecting) {
+   console.info('[wallet] direct connect:', wallet.adapter.name, wallet.readyState)
+   void connect().catch((e: unknown) => console.error('[wallet] direct connect failed:', e))
+   return
+  }
+  setVisible(true)
+ }
 
  return (
   <header>
@@ -70,11 +83,12 @@ export default function Header({ stats }: Props) {
     ) : (
      <motion.button
       whileTap={{ scale: 0.98 }}
-      onClick={() => setVisible(true)}
-      style={{ width: '100%', padding: 12, borderRadius: 12, background: 'linear-gradient(135deg, var(--pf-teal), var(--pf-teal))', color: 'white', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 20px rgba(193, 68, 14, 0.45)' }}
+      onClick={handleConnectClick}
+      disabled={connecting}
+      style={{ width: '100%', padding: 12, borderRadius: 12, background: 'linear-gradient(135deg, var(--pf-teal), var(--pf-teal))', color: 'white', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 20px rgba(193, 68, 14, 0.45)', opacity: connecting ? 0.7 : 1 }}
      >
       <Wallet size={18} aria-hidden="true" />
-      {t('Подключить кошелёк')}
+      {connecting ? t('Подключение…') : t('Подключить кошелёк')}
      </motion.button>
     )}
    </div>

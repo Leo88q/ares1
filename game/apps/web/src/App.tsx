@@ -6,6 +6,7 @@ import GrainOverlay from './components/GrainOverlay'
 import PageTransition from './components/PageTransition'
 import ErrorBoundary from './components/ErrorBoundary'
 import { ToastProvider } from './components/Toast'
+import { WalletErrorReporter } from './components/WalletErrorReporter'
 import { GameProvider } from './contexts/GameContext'
 import { t, useI18n } from './i18n'
 import { ambientMusic } from './utils/ambientMusic'
@@ -57,6 +58,7 @@ export default function App() {
     <div className="ares-habitat-bg" aria-hidden="true" />
     <ErrorBoundary>
      <ToastProvider>
+      <WalletErrorReporter />
       <GameProvider>
        {showTutorial && <InteractiveTutorial onComplete={() => setShowTutorial(false)} />}
        {booted ? (
