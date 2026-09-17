@@ -33,9 +33,11 @@ const endpoint = import.meta.env.VITE_RPC_URL || (CLUSTER === 'localnet' ? 'http
 // собственному протоколу — без официального адаптера в-апп кошелёк
 // «подключается» только через совместимый shim, который умеет connect,
 // но возвращает транзакцию без подписи (ошибка «Missing signature»).
-const solanaMobile = new SolanaMobileWalletAdapter({
+ const mobileWallet = new SolanaMobileWalletAdapter({
  addressSelector: createDefaultAddressSelector(),
- appIdentity: { name: 'Solana Potato', uri: 'https://play.pages.dev' },
+ // identity = фактический origin страницы (как делает авто-адаптер
+ // wallet-adapter-react) — кошелёк связывает авторизацию именно с ним
+ appIdentity: { name: 'Solana Potato', uri: typeof window !== 'undefined' ? window.location.origin : 'https://play.pages.dev' },
  authorizationResultCache: createDefaultAuthorizationResultCache(),
  chain: CLUSTER as 'devnet' | 'testnet' | 'mainnet-beta',
  onWalletNotFound: createDefaultWalletNotFoundHandler(),
@@ -44,7 +46,7 @@ const solanaMobile = new SolanaMobileWalletAdapter({
 const wallets = [
  new PhantomWalletAdapter(),
  new SolflareWalletAdapter(),
- solanaMobile,
+ mobileWallet,
 ]
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
