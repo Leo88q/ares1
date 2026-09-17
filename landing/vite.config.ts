@@ -9,6 +9,10 @@ export default defineConfig({
       globals: { Buffer: true, global: true, process: true },
     }),
   ],
+  server: {
+    // Превью-хосты Arena: {port}-{sandboxId}.e2b.app
+    allowedHosts: [".e2b.app"],
+  },
   define: {
     "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV || "development"),
   },

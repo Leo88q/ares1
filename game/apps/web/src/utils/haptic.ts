@@ -1,107 +1,75 @@
-import { haptic } from './telegram'
+/**
+ * Тактильный отклик — нейтральный к платформе (dApp Store / браузер).
+ * Web Vibration API; в webview, где он недоступен, — тихо no-op.
+ * (Раньше реализация была на Telegram.WebApp.HapticFeedback — убрана,
+ *  продукт ориентирован на dApp Store. Публичный API не изменился.)
+ */
 
-export type HapticPattern = 
+export type HapticPattern =
  | 'light'    // Лёгкий клик
- | 'medium'    // Среднее нажатие
+ | 'medium'   // Среднее нажатие
  | 'heavy'    // Тяжёлое действие
- | 'success'   // Успех
- | 'warning'   // Предупреждение
+ | 'success'  // Успех
+ | 'warning'  // Предупреждение
  | 'error'    // Ошибка
  | 'selection'  // Выбор
- | 'harvest'   // Сбор урожая
+ | 'harvest'    // Сбор урожая
  | 'purchase'   // Покупка
  | 'achievement' // Достижение
- | 'levelup'   // Новый уровень
+ | 'levelup'    // Новый уровень
 
-// Встроенные паттерны Telegram
-const TELEGRAM_PATTERNS: Record<HapticPattern, () => void> = {
- light: () => haptic('light'),
- medium: () => haptic('light'),
- heavy: () => haptic('success'),
- success: () => haptic('success'),
- warning: () => haptic('warning'),
- error: () => haptic('error'),
- selection: () => haptic('light'),
- harvest: () => {
-  haptic('success')
-  setTimeout(() => haptic('light'), 100)
-  setTimeout(() => haptic('success'), 200)
- },
- purchase: () => {
-  haptic('light')
-  setTimeout(() => haptic('success'), 150)
- },
- achievement: () => {
-  haptic('success')
-  setTimeout(() => haptic('success'), 150)
-  setTimeout(() => haptic('success'), 300)
-  setTimeout(() => haptic('success'), 450)
- },
- levelup: () => {
-  for (let i = 0; i < 5; i++) {
-   setTimeout(() => haptic(i === 4 ? 'success' : 'light'), i * 80)
-  }
- },
+const VIBRATE_PATTERNS: Record<HapticPattern, number | number[]> = {
+ light: 10,
+ medium: 20,
+ heavy: 40,
+ success: [15, 40, 15],
+ warning: [30, 60, 30],
+ error: [50, 80, 50, 80, 50],
+ selection: 15,
+ harvest: [10, 30, 25],
+ purchase: [20, 40, 20, 40, 20],
+ achievement: [15, 30, 15, 30, 60],
+ levelup: [10, 20, 10, 20, 10, 20, 40],
 }
 
-// Fallback на Vibration API если нет Telegram
-function vibrateWithPattern(pattern: number[]) {
- if ('vibrate' in navigator) {
-  try {
-   navigator.vibrate(pattern)
-  } catch {}
+const HAPTIC_STORAGE_KEY = 'haptics_enabled'
+
+export function isHapticEnabled(): boolean {
+ try {
+  return localStorage.getItem(HAPTIC_STORAGE_KEY) !== '0'
+ } catch {
+  return true
  }
 }
 
-// Паттерны вибрации для браузеров без Telegram
-const BROWSER_PATTERNS: Record<HapticPattern, number[]> = {
- light: [10],
- medium: [20],
- heavy: [40],
- success: [50, 30, 50],
- warning: [30, 50, 30],
- error: [100, 50, 100],
- selection: [10],
- harvest: [30, 50, 30, 50, 80],
- purchase: [20, 40],
- achievement: [80, 40, 80, 40, 120],
- levelup: [40, 30, 40, 30, 40, 30, 100],
-}
-
-let enabled = true
-
-export const setHapticEnabled = (value: boolean) => {
- enabled = value
- localStorage.setItem('potato_haptic', value ? 'on' : 'off')
-}
-
-export const isHapticEnabled = () => {
- if (enabled === undefined) {
-  enabled = localStorage.getItem('potato_haptic') !== 'off'
- }
- return enabled
-}
-
-export function triggerHaptic(pattern: HapticPattern = 'light') {
- if (!enabled) return
- 
- // Проверяем есть ли Telegram
- const tg = window.Telegram?.WebApp
- if (tg) {
-  TELEGRAM_PATTERNS[pattern]()
- } else {
-  // Fallback на Vibration API
-  vibrateWithPattern(BROWSER_PATTERNS[pattern])
+export function setHapticEnabled(enabled: boolean): void {
+ try {
+  localStorage.setItem(HAPTIC_STORAGE_KEY, enabled ? '1' : '0')
+ } catch {
+  /* ignore */
  }
 }
 
-// Умный haptic для конкретных действий
+export function haptic(pattern: HapticPattern = 'light'): void {
+ if (!isHapticEnabled()) return
+ try {
+  if (typeof navigator === 'undefined' || !('vibrate' in navigator)) return
+  navigator.vibrate(VIBRATE_PATTERNS[pattern] ?? 10)
+ } catch {
+  /* ignore */
+ }
+}
+
+function triggerHaptic(pattern: HapticPattern): void {
+ haptic(pattern)
+}
+
 export const haptics = {
  // UI interactions
  tap: () => triggerHaptic('light'),
  buttonPress: () => triggerHaptic('medium'),
  longPress: () => triggerHaptic('heavy'),
- 
+
  // Game actions
  harvest: () => triggerHaptic('harvest'),
  purchaseField: () => triggerHaptic('purchase'),
@@ -118,19 +86,19 @@ export const haptics = {
   setTimeout(() => triggerHaptic('light'), 100)
   setTimeout(() => triggerHaptic('light'), 200)
  },
- 
+
  // Events
  success: () => triggerHaptic('success'),
  warning: () => triggerHaptic('warning'),
  error: () => triggerHaptic('error'),
  achievement: () => triggerHaptic('achievement'),
  levelUp: () => triggerHaptic('levelup'),
- 
+
  // Navigation
  navigate: () => triggerHaptic('light'),
  openModal: () => triggerHaptic('selection'),
  closeModal: () => triggerHaptic('light'),
- 
+
  // Swipe gestures
  swipeUp: () => triggerHaptic('light'),
  swipeDown: () => triggerHaptic('light'),

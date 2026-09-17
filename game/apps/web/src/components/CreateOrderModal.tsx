@@ -1,8 +1,12 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
+import { t } from '../i18n'
+
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ShoppingCart, Info } from 'lucide-react'
 import Button from './Button'
 import { MICRO, MIN_ORDER_AMOUNT_POTATO, feeBps } from '../utils/constants'
+import { pdas, decodeExportLicense } from '../utils/anchorClient'
+import { useSolana } from '../contexts/SolanaContext'
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 import { useToast } from './Toast'
@@ -34,9 +38,39 @@ const inputStyle: CSSProperties = {
  */
 export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro }: Props) {
  const { show } = useToast()
+ const { connection, programId, publicKey } = useSolana()
  const [amount, setAmount] = useState('100')
  const [price, setPrice] = useState('0.05')
  const [busy, setBusy] = useState(false)
+ const [hasLicense, setHasLicense] = useState(false)
+
+ // Экспортная лицензия продавца (= текущий пользователь): скидка 3 %
+ // от суммы списывается с комиссии при покупках — подсказываем это здесь.
+ useEffect(() => {
+  if (!open || !publicKey || !programId || !connection) {
+   setHasLicense(false)
+   return
+  }
+  let cancelled = false
+  void (async () => {
+   try {
+    const licPda = pdas(programId).exportLicense(publicKey)
+    const acc = await connection.getAccountInfo(licPda)
+    if (cancelled) return
+    if (acc && acc.data.length > 0) {
+     const lic = decodeExportLicense(acc.data as Buffer)
+     setHasLicense(Number(lic.expiresAt) > Math.floor(Date.now() / 1000))
+    } else {
+     setHasLicense(false)
+    }
+   } catch {
+    if (!cancelled) setHasLicense(false)
+   }
+  })()
+  return () => {
+   cancelled = true
+  }
+ }, [open, publicKey, programId, connection])
 
  const amountNum = parseFloat(amount) || 0
  const priceNum = parseFloat(price) || 0
@@ -48,15 +82,15 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
 
  const handleSubmit = async () => {
   if (amountNum < MIN_ORDER_AMOUNT_POTATO) {
-   show({ type: 'warning', title: `Минимум ${MIN_ORDER_AMOUNT_POTATO} POTATO` })
+   show({ type: 'warning', title: t('Минимум {amount} POTATO', { amount: MIN_ORDER_AMOUNT_POTATO }) })
    return
   }
   if (priceNum <= 0) {
-   show({ type: 'warning', title: 'Укажи цену за 1 POTATO в SOL' })
+   show({ type: 'warning', title: t('Укажи цену за 1 POTATO в SOL') })
    return
   }
   if (totalPotato * MICRO > balanceMicro) {
-   show({ type: 'warning', title: 'Недостаточно $POTATO', message: `С комиссией нужно ${totalPotato.toFixed(2)} POTATO.` })
+   show({ type: 'warning', title: t('Недостаточно $POTATO'), message: t('С комиссией нужно {total} POTATO.', { total: totalPotato.toFixed(2) }) })
    return
   }
   sounds.click()
@@ -116,11 +150,11 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
        }}>
         <ShoppingCart size={22} />
        </span>
-       <h2 className="pf-h2" style={{ fontSize: 18, flex: 1 }}>Отгрузить $POTATO</h2>
+       <h2 className="pf-h2" style={{ fontSize: 18, flex: 1 }}>{t("Отгрузить $POTATO")}</h2>
        <motion.button
         whileTap={{ scale: 0.9 }}
         onClick={onClose}
-        aria-label="Закрыть"
+        aria-label={t("Закрыть")}
         style={{
          background: 'rgba(255,255,255,0.06)',
          border: '1px solid var(--pf-border-soft)',
@@ -139,7 +173,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
       <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span className="pf-subtitle" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-         Количество POTATO
+         {t('Количество POTATO')}
         </span>
         <input
          type="number"
@@ -156,7 +190,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
 
        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span className="pf-subtitle" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-         Цена за 1 POTATO (SKR)
+         {t('Цена за 1 POTATO (SKR)')}
         </span>
         <input
          type="number"
@@ -183,15 +217,21 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
         gap: 6,
        }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-         <span className="pf-subtitle">Таможенный сбор ({bps} bps)</span>
+         <span className="pf-subtitle">{t("Таможенный сбор")} ({bps} bps)</span>
          <span className="pf-mono" style={{ color: 'var(--pf-text-secondary)' }}>−{feeAmount.toFixed(2)} POTATO</span>
         </div>
+        {hasLicense && (
+         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+          <span className="pf-subtitle" style={{ color: 'var(--pf-green)' }}>{t("С твоей лицензией (−3 % от суммы)")}</span>
+          <span className="pf-mono" style={{ color: 'var(--pf-green)' }}>≈ {Math.max(0, bps - 300) / 100}% {t('факт.')}</span>
+         </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-         <span className="pf-subtitle">Спишется</span>
+         <span className="pf-subtitle">{t("Спишется")}</span>
          <span className="pf-mono" style={{ color: 'var(--pf-gold)' }}>{totalPotato.toFixed(2)} POTATO</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '1px solid rgba(124,255,107,0.15)', paddingTop: 6 }}>
-         <span className="pf-subtitle" style={{ color: 'var(--pf-text-primary)' }}>Получишь</span>
+         <span className="pf-subtitle" style={{ color: 'var(--pf-text-primary)' }}>{t("Получишь")}</span>
          <span className="pf-mono" style={{ color: 'var(--pf-green)', textShadow: 'var(--pf-glow-green)' }}>
           ≈ {totalSol.toFixed(4)} SKR
          </span>
@@ -206,12 +246,12 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
         icon={<ShoppingCart size={16} />}
         style={{ width: '100%' }}
        >
-        {busy ? 'Создаём…' : 'Оформить ордер'}
+        {busy ? t('Создаём…') : t('Оформить ордер')}
        </Button>
 
        <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--pf-text-muted)', margin: 0 }}>
         <Info size={12} />
-        Ордер висит на бирже до 24ч или пока груз не примут.
+        {t('Ордер висит на бирже до 24ч или пока груз не примут.')}
        </p>
       </div>
      </motion.div>

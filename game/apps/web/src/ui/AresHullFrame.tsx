@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { t } from "../i18n";
 import {
   motion,
   useMotionValue,
@@ -749,7 +750,7 @@ export function AresHullFrame({
               fontSize="6.5"
               letterSpacing="1.3"
             >
-              {skin.plate}
+              {t(skin.plate)}
             </text>
           </g>
         )}

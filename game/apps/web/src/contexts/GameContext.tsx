@@ -1,22 +1,26 @@
-import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { t } from '../i18n'
+
 import { PublicKey, SystemProgram, TransactionInstruction } from '@solana/web3.js'
 import { createAssociatedTokenAccountIdempotentInstruction, createAssociatedTokenAccountInstruction, createTransferInstruction, unpackAccount, getAssociatedTokenAddressSync } from '@solana/spl-token'
-import { useSolana, BACKEND_URL, IS_MAINNET } from './SolanaContext'
+import { useSolana, IS_MAINNET } from './SolanaContext'
 import { useToast } from '../components/Toast'
-import {
+ import {
  decodeField, pdas,
  ixCreateField, ixHarvest, ixRepairField, ixUpgradeField, ixPayTax, ixApplyFertilizer,
  ixBuyFieldSkr, TEST_SKR_MINT, treasurySkrAta, buybackSkrAta, presaleStatePda, buyerPresalePda, treasurySolPda,
+ potatoAta,
+ achievementsPda, questTreasuryPda, decodeAchievementsBitmap, ixClaimAchievement, QUEST_REWARDS_MICRO,
 } from '../utils/anchorClient'
 import {
  accumulatedMicro, fieldPriceMicro, fertilizerCostMicro, repairCostMicro, taxCostMicro, upgradeCostMicro, fmtPotato, MICRO,
 } from '../utils/constants'
 import { describeError } from '../utils/errors'
 import { randomU64, withRetry } from '../utils/rpc'
-import { getTelegramInitData } from '../utils/telegram'
+
 import { usePolling } from '../hooks/usePolling'
 
-const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1
+const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1 // 70: +mutation_type (v2)
 const FIELDS_POLL_MS = 20_000
 
 export interface Field {
@@ -42,6 +46,8 @@ export interface GameStats {
  experience: number
  /** Wallet balance in micro POTATO. */
  potatoBalance: number
+ /** Wallet SKR balance (in SKR units; mint has 6 decimals). */
+ skrBalance: number
 }
 
 export interface GameContextType {
@@ -50,11 +56,11 @@ export interface GameContextType {
  solBalance: number
  loading: boolean
  purchasing: boolean
- /** Quest ids already claimed by this Telegram user (from the backend). */
+ /** Quest ids already claimed by this wallet (on-chain, bitmap PDA "achv"). */
  claimed: Record<string, boolean>
  harvest: (field: PublicKey) => Promise<boolean>
  purchaseField: (fieldType: number) => Promise<boolean>
- buyFieldPresale: (fieldType: number) => Promise<boolean>
+ buyFieldPresale: () => Promise<number | null>
  upgradeField: (field: PublicKey) => Promise<boolean>
  repairField: (field: PublicKey) => Promise<boolean>
  payTax: (field: PublicKey) => Promise<boolean>
@@ -76,12 +82,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
  const [rawFields, setRawFields] = useState<RawField[]>([])
  const [potatoBalance, setPotatoBalance] = useState(0)
- const devBalanceOffset = useRef(0)
+ const [skrBalance, setSkrBalance] = useState(0)
  const [ataExists, setAtaExists] = useState(false)
  const [solBalance, setSolBalance] = useState(0)
  const [loading, setLoading] = useState(true)
  const [purchasing, setPurchasing] = useState(false)
- const [claimed, setClaimed] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('dev_claimed') || '{}') } catch { return {} } })
+ const [claimed, setClaimed] = useState<Record<string, boolean>>({})
  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000))
 
  // Local 1s ticker so "accumulated" grows smoothly between RPC polls.
@@ -102,23 +108,27 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }
   try {
    const ata = getAssociatedTokenAddressSync(config.potatoMint, publicKey, false)
+   // Та же SKR-ATA, что и в проверке presale-покупки (buyFieldPresale)
+   const skrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, publicKey, false)
    const [accounts, infos] = await Promise.all([
     withRetry(() =>
      connection.getProgramAccounts(programId, {
       filters: [{ dataSize: FIELD_ACCOUNT_SIZE }, { memcmp: { offset: 8, bytes: publicKey.toBase58() } }],
      }),
     ),
-    withRetry(() => connection.getMultipleAccountsInfo([publicKey, ata])),
+    withRetry(() => connection.getMultipleAccountsInfo([publicKey, ata, skrAta])),
    ])
-   const [walletInfo, ataInfo] = infos
+   const [walletInfo, ataInfo, skrInfo] = infos
    setSolBalance((walletInfo?.lamports ?? 0) / 1e9)
    if (ataInfo) {
     setAtaExists(true)
-    setPotatoBalance(Number(unpackAccount(ata, ataInfo).amount) + devBalanceOffset.current)
+    setPotatoBalance(Number(unpackAccount(ata, ataInfo).amount))
    } else {
     setAtaExists(false)
-    setPotatoBalance(0 + devBalanceOffset.current)
+    setPotatoBalance(0)
    }
+   // SKR в единицах SKR (6 децималов) — реальный on-chain баланс токена
+   setSkrBalance(skrInfo ? Number(unpackAccount(skrAta, skrInfo).amount) / 1e6 : 0)
    setRawFields(
     accounts
      .map(({ pubkey, account }) => {
@@ -148,7 +158,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const fields = useMemo<Field[]>(() => {
   if (!config) return []
   const cfg = { baseYieldMicroPerDay: Number(config.baseYieldMicroPerDay), globalMultiplierBps: config.globalMultiplierBps }
-  const currentEpoch = Math.floor(nowSec / (24 * 3600)) // примерный epoch_id
+  const currentEpoch = Number(config.epochId) // реальный epoch_id из GameConfig
   return rawFields.map((f) => ({
    ...f,
    accumulated: accumulatedMicro({ ...f, epochId: currentEpoch }, cfg, nowSec),
@@ -162,8 +172,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
    playerLevel: Math.floor(fields.length / 3) + 1,
    experience: fields.length * 100 + potatoBalance / MICRO,
    potatoBalance,
+   skrBalance,
   }),
-  [fields, potatoBalance],
+  [fields, potatoBalance, skrBalance],
  )
 
  const refreshAll = useCallback(async () => {
@@ -172,7 +183,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
  /** ATA of the connected wallet plus a create-instruction when it does not exist yet. */
  const ownAta = useCallback((): { address: PublicKey; ixs: TransactionInstruction[] } => {
-  if (!publicKey || !config) throw new Error('Кошелёк не подключён.')
+  if (!publicKey || !config) throw new Error(t('Кошелёк не подключён.'))
   const address = getAssociatedTokenAddressSync(config.potatoMint, publicKey, false)
   const ixs = ataExists ? [] : [createAssociatedTokenAccountInstruction(publicKey, address, publicKey, config.potatoMint)]
   return { address, ixs }
@@ -181,7 +192,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const requireBalance = useCallback(
   (costMicro: number): boolean => {
    if (potatoBalance >= costMicro) return true
-   notify('warning', 'Недостаточно $POTATO', `Нужно ${fmtPotato(costMicro, 0)} POTATO, а у тебя ${fmtPotato(potatoBalance)} POTATO.`)
+   notify('warning', t('Недостаточно $POTATO'), t('Нужно {need} POTATO, а у тебя {have} POTATO.', { need: fmtPotato(costMicro, 0), have: fmtPotato(potatoBalance) }))
    return false
   },
   [potatoBalance, notify],
@@ -205,13 +216,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const purchaseField = useCallback(
   async (fieldType: number) => {
    if (!config || !publicKey || !ready) {
-    notify('warning', 'Игра ещё загружается', 'Подожди пару секунд.')
+    notify('warning', t('Игра ещё загружается'), t('Подожди пару секунд.'))
     return false
    }
    if (!requireBalance(fieldPriceMicro(fieldType))) return false
    setPurchasing(true)
    try {
-    return await runTx('Не удалось купить поле', async () => {
+    return await runTx(t('Не удалось купить поле'), async () => {
      const { address: userPotato, ixs } = ownAta()
      const fieldId = randomU64()
      const { config: configPda, field } = pdas(programId)
@@ -230,57 +241,79 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
 
  const buyFieldPresale = useCallback(
-  async (fieldType: number) => {
+  async (): Promise<number | null> => {
    if (!config || !publicKey || !ready) {
-    notify('warning', 'Игра ещё загружается', 'Подожди пару секунд.')
-    return false
+    notify('warning', t('Игра ещё загружается'), t('Подожди пару секунд.'))
+    return null
    }
-   // 1053 SKR за растение + ~0.01 SKR rent на Field + BuyerPresaleCounter (guard только по SOL-gas)
-   const requiredSol = 0.02
-   if (solBalance < requiredSol) {
-    notify('warning', 'Недостаточно SKR', `Нужно минимум ${requiredSol} SKR (цена 0.25 + rent)`)
-    return false
+   // Проверяем баланс SKR (пресейл платится SKR, а не SOL)
+   const buyerSkrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, publicKey)
+   try {
+    const skrBal = await withRetry(() => connection.getTokenAccountBalance(buyerSkrAta))
+    const need = 1_053_000_000n // 1053 SKR
+    if (BigInt(skrBal.value.amount) < need) {
+     notify('warning', t('Недостаточно SKR'), t('Нужно 1053 SKR, у тебя {have} SKR.', { have: (Number(BigInt(skrBal.value.amount)) / 1e6).toFixed(0) }))
+     return null
+    }
+   } catch {
+    notify('error', t('SKR недоступны'), t('Mint SKR не найден на этом кластере — пресейл за SKR сейчас отключён.'))
+    return null
+   }
+   if (solBalance < 0.02) {
+    notify('warning', t('Недостаточно SOL'), t('Нужно ~0.02 SOL на rent и комиссию сети.'))
+    return null
    }
    setPurchasing(true)
    try {
-    return await runTx('Не удалось купить растение за SKR', async () => {
-     const fieldId = randomU64()
-     const { config: configPda, field } = pdas(programId)
-     const buyerSkrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, publicKey)
-     const ataIx = createAssociatedTokenAccountIdempotentInstruction(publicKey, buyerSkrAta, publicKey, TEST_SKR_MINT)
-     const ix = await ixBuyFieldSkr(programId, {
-      config: configPda(),
-      presaleState: presaleStatePda(programId),
-      authority: config.authority,
-      buyerPresale: buyerPresalePda(programId, publicKey),
-      field: field(fieldId),
-      buyer: publicKey,
-      treasurySol: treasurySolPda(programId),
-      skrMint: TEST_SKR_MINT,
-      buyerSkrAta,
-      treasurySkrAta: treasurySkrAta(programId, TEST_SKR_MINT),
-      buybackSkrAta: buybackSkrAta(config.authority, TEST_SKR_MINT),
-      fieldId,
-      fieldType,
-     })
-     return [ataIx, ix]
+    const fieldId = randomU64()
+    const { config: configPda, field } = pdas(programId)
+    const ataIx = createAssociatedTokenAccountIdempotentInstruction(publicKey, buyerSkrAta, publicKey, TEST_SKR_MINT)
+    const ix = await ixBuyFieldSkr(programId, {
+     config: configPda(),
+     presaleState: presaleStatePda(programId),
+     authority: config.authority,
+     buyerPresale: buyerPresalePda(programId, publicKey),
+     field: field(fieldId),
+     buyer: publicKey,
+     treasurySol: treasurySolPda(programId),
+     skrMint: TEST_SKR_MINT,
+     buyerSkrAta,
+     treasurySkrAta: treasurySkrAta(programId, TEST_SKR_MINT),
+     buybackSkrAta: buybackSkrAta(config.authority, TEST_SKR_MINT),
+     fieldId,
     })
+    await sendIx([ataIx, ix])
+    await refreshAll()
+    // Тир определяется on-chain — читаем реально созданное поле (field_type на offset 67)
+    try {
+     const info = await withRetry(() => connection.getAccountInfo(field(fieldId)))
+     if (info) {
+      const tier = info.data[67]
+      notify('success', t('Модуль получен'), t('On-chain дроп: {tier}', { tier: ['COMMON', 'RARE', 'EPIC'][tier] ?? 'COMMON' }))
+      return tier
+     }
+    } catch { /* не критично: показываем без тира */ }
+    return null
+   } catch (err) {
+    notify('error', t('Не удалось купить растение за SKR'), describeError(err))
+    return null
    } finally {
     setPurchasing(false)
    }
   },
-  [config, publicKey, ready, solBalance, runTx, programId, notify],
+  [config, publicKey, ready, solBalance, sendIx, refreshAll, programId, notify, connection],
  )
 
  const harvest = useCallback(
   async (fieldPk: PublicKey) => {
    if (!config || !publicKey) return false
-   return runTx('Не удалось собрать урожай', async () => {
+   return runTx(t('Не удалось собрать урожай'), async () => {
     const { address: userPotato, ixs } = ownAta()
     const { config: configPda, epoch } = pdas(programId)
     const ix = await ixHarvest(programId, {
      config: configPda(), epoch: epoch(config.epochId), field: fieldPk,
      potatoMint: config.potatoMint, userPotato, owner: publicKey,
+     treasuryPotato: potatoAta(configPda(), config.potatoMint),
     })
     return [...ixs, ix]
    })
@@ -308,93 +341,83 @@ export function GameProvider({ children }: { children: ReactNode }) {
  )
 
  const upgradeField = useMemo(
-  () => fieldSpend(ixUpgradeField, (f) => upgradeCostMicro(f.level, f.fieldType), 'Не удалось улучшить поле'),
+  () => fieldSpend(ixUpgradeField, (f) => upgradeCostMicro(f.level, f.fieldType), t('Не удалось улучшить поле')),
   [fieldSpend],
  )
  const repairField = useMemo(
-  () => fieldSpend(ixRepairField, (f) => repairCostMicro(f.fieldType), 'Не удалось отремонтировать поле'),
+  () => fieldSpend(ixRepairField, (f) => repairCostMicro(f.fieldType), t('Не удалось отремонтировать поле')),
   [fieldSpend],
  )
  const payTax = useMemo(
-  () => fieldSpend(ixPayTax, (f) => taxCostMicro(f.fieldType), 'Не удалось оплатить налог'),
+  () => fieldSpend(ixPayTax, (f) => taxCostMicro(f.fieldType), t('Не удалось оплатить налог')),
   [fieldSpend],
  )
  const applyFertilizer = useMemo(
-  () => fieldSpend(ixApplyFertilizer, (f) => fertilizerCostMicro(f.fieldType), 'Не удалось удобрить поле'),
+  () => fieldSpend(ixApplyFertilizer, (f) => fertilizerCostMicro(f.fieldType), t('Не удалось удобрить поле')),
   [fieldSpend],
  )
 
- // ── Backend quests ──
- const backendHeaders = useCallback((): HeadersInit | null => {
-  const initData = getTelegramInitData()
-  if (!initData || !BACKEND_URL) return null
-  return { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': initData }
- }, [])
+ // ── Quests (on-chain) ──
+ // Шесть нашивок верифицируются в программе (claim_achievement) и выдаются
+ // из квест-казны PDA (550 POTATO, заправлена init-onchain). Идентичность — кошелёк.
+ const QUEST_ID_BY_ACH: Record<string, number> = { a1: 0, a2: 1, a3: 2, a4: 3, a5: 4, a6: 5 }
 
  const loadClaimed = useCallback(async () => {
-  const headers = backendHeaders()
-  if (!headers) return
+  if (!ready || !publicKey) return
   try {
-   const res = await fetch(`${BACKEND_URL}/api/reward/status`, { headers })
-   if (res.ok) {
-    const json = (await res.json()) as { claimed: string[] }
-    setClaimed(Object.fromEntries(json.claimed.map((id) => [id, true])))
+   const pda = achievementsPda(publicKey, programId)
+   const info = await withRetry(() => connection.getAccountInfo(pda))
+   const bitmap = info ? decodeAchievementsBitmap(info.data) : 0
+   const next: Record<string, boolean> = {}
+   for (const [id, qid] of Object.entries(QUEST_ID_BY_ACH)) {
+    next[id] = Boolean(bitmap & (1 << qid))
    }
+   setClaimed(next)
   } catch {
-   /* backend offline — quests simply stay unclaimed in the UI */
+   /* RPC-сбой — оставляем предыдущий bitmap */
   }
- }, [backendHeaders])
+ }, [ready, publicKey, connection, programId])
 
  useEffect(() => {
   void loadClaimed()
  }, [loadClaimed, publicKey])
 
  const claimReward = useCallback(
-  async (questId: string, rewardMicro?: number): Promise<boolean> => {
-   if (!publicKey) return false
-   const headers = backendHeaders()
-   if (!headers) {
-    if (import.meta.env.DEV) {
-     const key = 'dev_claimed'
-     const store: Record<string, boolean> = JSON.parse(localStorage.getItem(key) || '{}')
-     if (store[questId]) {
-      notify('warning', 'Уже собрано', 'Эта награда уже получена в dev-режиме.')
-      return false
-     }
-     store[questId] = true
-     localStorage.setItem(key, JSON.stringify(store))
-     setClaimed((c) => ({ ...c, [questId]: true }))
-     const amount = rewardMicro ?? 0
-     if (amount > 0) {
-      devBalanceOffset.current += amount
-      setPotatoBalance((prev) => prev + amount)
-     }
-     notify('success', 'Награда получена (dev)', amount > 0 ? `+${fmtPotato(amount, 0)} POTATO начислено` : 'Состояние UI обновлено.')
-     return true
-    }
-    notify('error', 'Задачи смены доступны только в Telegram', 'Открой мини-приложение через бота, чтобы получать награды.')
-    return false
-   }
+  async (questId: string, _rewardMicro?: number): Promise<boolean> => {
+   const qid = QUEST_ID_BY_ACH[questId]
+   if (qid === undefined || !publicKey || !ready || !config) return false
    try {
-    const res = await fetch(`${BACKEND_URL}/api/reward/claim`, {
-     method: 'POST', headers,
-     body: JSON.stringify({ questId, walletAddress: publicKey.toBase58() }),
-    })
-    const json = (await res.json().catch(() => ({}))) as { error?: string; amountMicro?: string }
-    if (!res.ok) {
-     notify('error', 'Награда не выдана', json.error ?? res.statusText)
-     return false
-    }
+    const userAta = getAssociatedTokenAddressSync(config.potatoMint, publicKey, true)
+    const questTreasury = questTreasuryPda(programId)
+    const questAta = getAssociatedTokenAddressSync(config.potatoMint, questTreasury, true)
+    const ix = await ixClaimAchievement(
+     programId,
+     {
+      config: pdas(programId).config(),
+      achievements: achievementsPda(publicKey, programId),
+      user: publicKey,
+      questTreasury,
+      questAta,
+      userAta,
+      potatoMint: config.potatoMint,
+     },
+     qid,
+     fields.map((f) => f.publicKey),
+    )
+    const userAtaExists = (await connection.getAccountInfo(userAta)) !== null
+    const ataIx = userAtaExists ? [] : [createAssociatedTokenAccountInstruction(publicKey, userAta, publicKey, config.potatoMint)]
+    await sendIx([...ataIx, ix])
+    const amount = QUEST_REWARDS_MICRO[qid]
     setClaimed((c) => ({ ...c, [questId]: true }))
-    notify('success', 'Награда получена', `+${fmtPotato(Number(json.amountMicro ?? 0), 0)} POTATO`)
+    notify('success', t('Награда получена'), t('+{amount} POTATO (on-chain)', { amount: fmtPotato(amount, 0) }))
     await loadFields()
     return true
    } catch (err) {
-    notify('error', 'Награда не выдана', describeError(err))
+    notify('error', t('Награда не выдана'), describeError(err))
     return false
    }
   },
-  [publicKey, backendHeaders, notify, loadFields],
+  [publicKey, ready, config, connection, programId, sendIx, fields, notify, loadFields],
  )
 
  // ── Wallet helpers ──
@@ -407,7 +430,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
    await loadFields()
    return true
   } catch (err) {
-   notify('error', 'Airdrop недоступен', describeError(err))
+   notify('error', t('Airdrop недоступен'), describeError(err))
    return false
   }
  }, [publicKey, connection, loadFields, notify])
@@ -422,10 +445,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
    try {
     toPub = new PublicKey(to)
    } catch {
-    notify('error', 'Неверный адрес получателя')
+    notify('error', t('Неверный адрес получателя'))
     return false
    }
-   return runTx('Не удалось отправить $POTATO', async () => {
+   return runTx(t('Не удалось отправить $POTATO'), async () => {
     const { address: fromAta, ixs } = ownAta()
     const toAta = getAssociatedTokenAddressSync(config.potatoMint, toPub, true)
     const toInfo = await withRetry(() => connection.getAccountInfo(toAta))
@@ -443,12 +466,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
    try {
     toPub = new PublicKey(to)
    } catch {
-    notify('error', 'Неверный адрес получателя')
+    notify('error', t('Неверный адрес получателя'))
     return false
    }
    const lamports = Math.floor(amount * 1e9)
    if (lamports <= 0) return false
-   return runTx('Не удалось отправить SKR', async () => [
+   return runTx(t('Не удалось отправить SKR'), async () => [
     SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: toPub, lamports }),
    ])
   },

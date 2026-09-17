@@ -1,6 +1,6 @@
 # API Reference
 
-## On-chain program `48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha`
+## On-chain program `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf`
 
 Anchor 0.30.1 · IDL: `target/idl/solana_potato.json` (копия для клиента — `apps/web/src/idl.json`). Все суммы `*_micro` — в 10⁻⁶ 🥔.
 
@@ -15,6 +15,9 @@ Anchor 0.30.1 · IDL: `target/idl/solana_potato.json` (копия для кли�
 | escrow (TokenAccount) | `["escrow", order_pubkey]` | 165 | Хранит amount + fee ордера |
 | `MarketStats` | `["market_stats"]` | 49 | Счётчики рынка |
 | `SellerProfile` | `["seller", seller_pubkey]` | 49 | Кулдаун после отмены |
+| `Referral` | `["referral", owner_pubkey]` | 49 | Одноразовая привязка «кто пригласил» (register_referrer) |
+| `Achievements` | `["achv", user_pubkey]` | 25 | Bitmap выданных квест-наград (claim_achievement) |
+| `quest_treasury` | `["quest_treasury"]` | — | PDA-казна пула квестов (550 🥔, заправлена init-onchain) |
 | treasury ATA | ATA(`config`, `potato_mint`) | 165 | 40 % комиссий рынка |
 
 ### Инструкции
@@ -34,7 +37,9 @@ Anchor 0.30.1 · IDL: `target/idl/solana_potato.json` (копия для кли�
 | `fill_order` | покупатель ≠ продавец | — | SOL → продавцу, 🥔 → покупателю, 60 % fee burn / 40 % treasury, escrow и ордер закрываются |
 | `cancel_order` | продавец | — | Возврат amount + fee, `last_cancel_at = now`; работает и на паузе |
 | `close_expired_order` | **любой** | — | После `expires_at`: возврат продавцу, ордер закрыт |
-| `grant_reward` | authority (backend) | `amount_micro ≤ 1 000 🥔` | Минт в счёт капа эпохи |
+| `claim_achievement` | игрок | `quest_id: u8` (0–5) | Проверка прогресса в программе (поля/balance через remaining-аккаунты), одноразово (bitmap); выплата из квест-казны: 50/50/100/100/200/50 🥔 |
+| `register_referrer` | игрок | `referrer: Pubkey` | Создаёт PDA Referral (одноразово, burn 5 🥔). Далее: приглашённому −1 % комиссии, рефереру +0.5 % от суммы его сделок (до burn-доли) |
+| `grant_reward` | authority | `amount_micro ≤ 1 000 🥔` | Минт в счёт капа эпохи (используется init-onchain для заправки квест-казны; backend-кран наград удалён 14.09.2026) |
 | `withdraw_treasury` | authority | `amount_micro` | Перевод из treasury ATA в любой 🥔-аккаунт |
 | `set_paused` | authority | `paused: bool` | Блокирует минт и траты; возвраты работают |
 | `update_config` | authority | `daily_mint_cap? ≤ 250k`, `base_yield?`, `global_multiplier_bps? ≤ 20 000` | Кап применяется со следующей эпохи |
@@ -44,7 +49,7 @@ Anchor 0.30.1 · IDL: `target/idl/solana_potato.json` (копия для кли�
 
 ### События
 
-`FieldCreated`, `Harvested`, `FieldRepaired`, `FieldUpgraded`, `TaxPaid`, `FertilizerApplied`, `OrderCreated`, `OrderFilled`, `OrderCancelled`, `OrderExpiredEvent`, `RewardGranted`, `TreasuryWithdrawn`, `EpochRolled`, `PausedToggled`, `AuthorityProposed`, `AuthorityAccepted`, `ConfigUpdated`. Подписка: `program.addEventListener` или Helius webhooks по program id.
+`FieldCreated`, `Harvested`, `FieldRepaired`, `FieldUpgraded`, `TaxPaid`, `FertilizerApplied`, `OrderCreated`, `OrderFilled`, `OrderCancelled`, `OrderExpiredEvent`, `RewardGranted`, `TreasuryWithdrawn`, `EpochRolled`, `PausedToggled`, `AuthorityProposed`, `AuthorityAccepted`, `ConfigUpdated`, `AchievementClaimed`, `ReferralRewardPaid`. Подписка: `program.addEventListener` или Helius webhooks по program id.
 
 ### Ошибки
 
@@ -69,26 +74,19 @@ Anchor 0.30.1 · IDL: `target/idl/solana_potato.json` (копия для кли�
 
 ## Backend `apps/backend` (Express)
 
-Все ответы — JSON. Аутентификация Telegram: заголовок `X-Telegram-Init-Data` с `window.Telegram.WebApp.initData`; сервер проверяет HMAC по токену бота и `auth_date` (≤ 24 ч).
+Все ответы — JSON, без аутентификации (только чтение on-chain state).
+(Раньше здесь были кран наград и рефералка с Telegram initData — удалено
+продуктовым решением 14.09.2026: квесты выдаёт on-chain `claim_achievement`,
+рефералка — on-chain `register_referrer`/`fill_order`.)
 
 | Метод | Путь | Auth | Описание |
 |---|---|---|---|
 | GET | `/health` | — | `{ ok, slot, epochId, paused }`; 503 если RPC/конфиг недоступны |
 | GET | `/api/config` | — | Снимок `GameConfig` + текущей эпохи |
-| GET | `/api/reward/quests` | — | Фиксированные квесты и суммы (micro) |
-| GET | `/api/reward/status` | TG | `{ claimed: string[] }` — что уже получено этим пользователем |
-| POST | `/api/reward/claim` | TG | `{ questId, walletAddress }` → `{ ok, signature, amountMicro }` |
 
-Правила `claim`:
-* один кошелёк на Telegram-аккаунт и один аккаунт на кошелёк (привязка при первом клейме);
-* идемпотентность по `userId:questId`; дневные квесты имеют суффикс даты (`daily_checkin:2026-09-04`, `ad_bonus:…`);
-* лимиты: `MAX_SINGLE_REWARD_MICRO` (200 🥔), `DAILY_USER_REWARD_CAP_MICRO` (500 🥔/день);
-* серверная верификация прогресса: `a1/a4/a6` — число полей кошелька on-chain, `a2/a3/a5` — баланс 🥔, `social_channel` — `getChatMember` (если задан `TELEGRAM_CHANNEL_ID`);
-* rate limit 30 req/мин/IP, один незавершённый клейм на пользователя.
+Rate limit: `RATE_LIMIT_PER_MINUTE` req/мин/IP (по умолчанию 30).
 
-Ошибки: 400 (невалидные данные), 401 (initData), 403 (привязка/верификация), 409 (уже получено), 429 (лимиты), 503 (пауза), 500 (RPC/tx).
-
-Крон `EPOCH_ROLL_CRON` (по умолчанию каждые 10 мин) вызывает `roll_epoch`, когда эпоха старше 24 ч.
+Крон `EPOCH_ROLL_CRON` (по умолчанию каждые 10 мин) вызывает `roll_epoch`, когда эпоха старше 24 ч — единственный on-chain write бэкенда, подписывается authority-ключом.
 
 ## Переменные окружения
 
@@ -97,8 +95,7 @@ Anchor 0.30.1 · IDL: `target/idl/solana_potato.json` (копия для кли�
 | web | `VITE_SOLANA_CLUSTER` | да | `localnet` / `devnet` / `mainnet-beta` |
 | web | `VITE_RPC_URL` | для localnet / prod | RPC endpoint (публичный devnet отдаёт 429) |
 | web | `VITE_PROGRAM_ID` | да | адрес программы |
-| web | `VITE_BACKEND_URL` | нет | без него вкладка квестов отключена |
-| backend | `RPC_URL`, `PROGRAM_ID`, `AUTHORITY_KEYPAIR_JSON`, `TELEGRAM_BOT_TOKEN` | да | см. `.env.example` |
-| backend | `TELEGRAM_CHANNEL_ID`, `CORS_ORIGIN`, `DAILY_USER_REWARD_CAP_MICRO`, `MAX_SINGLE_REWARD_MICRO`, `EPOCH_ROLL_CRON`, `RATE_LIMIT_PER_MINUTE`, `DATA_DIR`, `PORT` | нет | |
-| bot | `TELEGRAM_BOT_TOKEN`, `WEB_APP_URL` | да | |
+| web | `VITE_BACKEND_URL` | нет | без него бэкенд-запросы не идут (квесты on-chain, он не нужен) |
+| backend | `RPC_URL`, `PROGRAM_ID`, `PAYER_KEYPAIR_JSON` (выделенный low-privilege кошелёк, **не** authority — AUDIT B4) | да | см. `.env.example` |
+| backend | `CORS_ORIGIN`, `EPOCH_ROLL_CRON`, `RATE_LIMIT_PER_MINUTE`, `PORT` | нет | |
 | scripts | `ADMIN_KEYPAIR_PATH`, `RPC_URL`, `PROGRAM_ID` | для `init-onchain` | |

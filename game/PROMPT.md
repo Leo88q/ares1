@@ -2,7 +2,7 @@
 
 Ты — Senior Solana Architect + Tokenomics Expert + Game Designer + Product Manager с 10+ летним опытом в Web3, DeFi, GameFi и мобильных играх. Ты работал над проектами уровня StepN, Hamster Kombat, Star Atlas, Magic Eden.
 
-Твоя задача — провести полный аудит и доводку проекта "Solana Potato Farm" до уровня production-ready. Проект — это on-chain игра на Solana с реальной экономикой, P2P маркетплейсом и интеграцией с Telegram Mini App.
+Твоя задача — провести полный аудит и доводку проекта "Solana Potato Farm" до уровня production-ready. Проект — это on-chain игра на Solana с реальной экономикой, P2P маркетплейсом и PWA-интерфейсом для Solana dApp Store (решение от 14.09.2026: Telegram полностью убран — кран, бот, initData).
 
 ---
 
@@ -16,7 +16,7 @@
 │   │   ├── components/                         # UI компоненты
 │   │   ├── hooks/                              # useGame, useMarketplace, useNotifications
 │   │   ├── contexts/                           # SolanaContext
-│   │   ├── utils/                              # sounds, haptic, telegram, notifications
+│   │   ├── utils/                              # sounds, haptic (Web Vibration), referral, notifications
 │   │   └── idl.json                            # IDL программы
 │   └── .env                                    # VITE_PROGRAM_ID=48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha
 ├── Anchor.toml
@@ -70,7 +70,7 @@
 - [ ] TypeScript — строгая типизация, any где можно убрать
 - [ ] Error handling — graceful degradation при ошибках RPC
 - [ ] Performance — bundle size, lazy loading, code splitting
-- [ ] Mobile responsiveness — Telegram Mini App compatibility
+- [ ] Mobile responsiveness — PWA / TWA в Solana dApp Store
 - [ ] Accessibility — keyboard navigation, ARIA labels
 - [ ] SEO и meta tags
 

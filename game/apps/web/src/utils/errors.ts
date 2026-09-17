@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 import idl from '../idl.json'
 
 interface IdlError {
@@ -67,27 +68,27 @@ function messageOf(err: unknown): string {
 /** Turns any wallet / RPC / program error into a short Russian message. */
 export function describeError(err: unknown): string {
  const raw = messageOf(err)
- if (isUserRejection(err)) return 'Транзакция отклонена в кошельке.'
- if (isRateLimited(err)) return 'RPC перегружен (429). Подожди несколько секунд и повтори.'
+ if (isUserRejection(err)) return t('Транзакция отклонена в кошельке.')
+ if (isRateLimited(err)) return t('RPC перегружен (429). Подожди несколько секунд и повтори.')
  if (/insufficient (lamports|funds)|Attempt to debit an account but found no record/i.test(raw)) {
-  return 'Недостаточно SKR на комиссии сети или аренды аккаунта.'
+  return t('Недостаточно SKR на комиссии сети или аренды аккаунта.')
  }
- if (/insufficient funds/i.test(raw) && /Token/i.test(raw)) return 'Недостаточно $POTATO.'
- if (/blockhash not found|block height exceeded/i.test(raw)) return 'Сеть не подтвердила транзакцию вовремя. Повтори.'
+ if (/insufficient funds/i.test(raw) && /Token/i.test(raw)) return t('Недостаточно $POTATO.')
+ if (/blockhash not found|block height exceeded/i.test(raw)) return t('Сеть не подтвердила транзакцию вовремя. Повтори.')
 
  const custom = raw.match(/custom program error: 0x([0-9a-fA-F]+)/)
  const numbered = raw.match(/Error Number: (\d+)/)
  const code = custom ? parseInt(custom[1], 16) : numbered ? parseInt(numbered[1], 10) : null
  if (code !== null) {
-  if (RU[code]) return RU[code]
-  if (ANCHOR_RU[code]) return ANCHOR_RU[code]
+  if (RU[code]) return t(RU[code])
+  if (ANCHOR_RU[code]) return t(ANCHOR_RU[code])
   // 0x1 from the SPL token program = insufficient funds
-  if (code === 1 && /Token|spl/i.test(raw)) return 'Недостаточно $POTATO на балансе.'
+  if (code === 1 && /Token|spl/i.test(raw)) return t('Недостаточно $POTATO на балансе.')
   const idlErr = IDL_ERRORS.get(code)
   if (idlErr?.msg) return idlErr.msg
-  return `Ошибка программы (код ${code}).`
+  return t('Ошибка программы (код {code}).', { code })
  }
  const anchorMsg = raw.match(/Error Message: ([^.]+)\./)
  if (anchorMsg) return anchorMsg[1]
- return raw.length > 160 ? raw.slice(0, 157) + '…' : raw || 'Неизвестная ошибка.'
+ return raw.length > 160 ? raw.slice(0, 157) + '…' : raw || t('Неизвестная ошибка.')
 }

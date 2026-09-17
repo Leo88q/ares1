@@ -1,4 +1,6 @@
-import { ReactNode, useEffect, useState } from 'react'
+import { ReactNode, useState } from 'react'
+import { t } from '../i18n'
+
 import { motion, AnimatePresence } from 'framer-motion'
 import { Volume2, VolumeX, Music, X, Bell, Vibrate, Settings } from 'lucide-react'
 import { ambientMusic } from '../utils/ambientMusic'
@@ -12,23 +14,15 @@ export default function AudioSettings() {
  const [isOpen, setIsOpen] = useState(false)
  const [hapticOn, setHapticOn] = useState(isHapticEnabled())
  const [soundsOn, setSoundsOn] = useState(isSoundEnabled())
- const [musicOn, setMusicOn] = useState(() => localStorage.getItem('potato_music') === 'on')
- const [musicVolume, setMusicVolume] = useState(() => parseFloat(localStorage.getItem('potato_music_volume') || '0.15'))
+ const [musicOn, setMusicOn] = useState(() => ambientMusic.getOn())
+ const [musicVolume, setMusicVolume] = useState(() => ambientMusic.getVolume())
 
- useEffect(() => {
-  if (musicOn) {
-   ambientMusic.start()
-   ambientMusic.setVolume(musicVolume)
-  } else {
-   ambientMusic.stop()
-  }
-  return () => ambientMusic.stop()
- }, [musicOn, musicVolume])
-
+ // Музыка глобальная: жизненный цикл в ambientMusic (init в App),
+ // здесь только настройки. При уходе с «Каюты» трек не останавливается.
  const toggleMusic = () => {
   const next = !musicOn
   setMusicOn(next)
-  localStorage.setItem('potato_music', next ? 'on' : 'off')
+  ambientMusic.setOn(next)
  }
 
  const toggleSfx = () => {
@@ -43,7 +37,7 @@ export default function AudioSettings() {
 
  const changeVolume = (v: number) => {
   setMusicVolume(v)
-  localStorage.setItem('potato_music_volume', v.toString())
+  ambientMusic.setVolume(v)
  }
 
  return (
@@ -52,7 +46,7 @@ export default function AudioSettings() {
     whileHover={{ scale: 1.1 }}
     whileTap={{ scale: 0.9 }}
     onClick={() => setIsOpen(true)}
-    aria-label="Настройки звука и уведомлений"
+    aria-label={t("Настройки звука и уведомлений")}
     style={{ position: 'relative', top: 0, left: 0, width: 44, height: 44, borderRadius: '50%', background: 'rgba(22, 17, 13, 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(160, 82, 40, 0.65)', boxShadow: '0 0 18px -4px rgba(193,68,14,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
    >
     {musicOn ? <Music size={18} color="var(--pf-teal)" /> : <Settings size={18} color="var(--pf-text-secondary)" />}
@@ -73,34 +67,34 @@ export default function AudioSettings() {
        style={{ width: '100%', maxWidth: 360, borderRadius: 24, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,214,170,0.1)' }}
       >
        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h2 id="settings-title" style={{ fontSize: 20 }}>НАСТРОЙКИ</h2>
-        <button onClick={() => setIsOpen(false)} aria-label="Закрыть" style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(160, 82, 40, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <h2 id="settings-title" style={{ fontSize: 20 }}>{t("НАСТРОЙКИ")}</h2>
+        <button onClick={() => setIsOpen(false)} aria-label={t("Закрыть")} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(160, 82, 40, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
          <X size={16} color="var(--pf-text-secondary)" />
         </button>
        </div>
 
-       <SettingRow icon={<Music size={18} color="var(--pf-teal)" />} title="Фоновая музыка" subtitle="Генеративный ambient через WebAudio" on={musicOn} color="var(--pf-teal)" onToggle={toggleMusic} />
+       <SettingRow icon={<Music size={18} color="var(--pf-teal)" />} title={t("Фоновая музыка")} subtitle={t("Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0")} on={musicOn} color="var(--pf-teal)" onToggle={toggleMusic} />
        {musicOn && (
         <label style={{ display: 'block', margin: '-8px 0 20px 28px' }}>
-         <span style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8, display: 'block' }}>Громкость: {Math.round(musicVolume * 100)}%</span>
+         <span style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8, display: 'block' }}> {t("Громкость")}: {Math.round(musicVolume * 100)}%</span>
          <input type="range" min="0" max="1" step="0.05" value={musicVolume} onChange={(e) => changeVolume(parseFloat(e.target.value))} style={{ width: '100%' }} />
         </label>
        )}
-       <SettingRow icon={soundsOn ? <Volume2 size={18} color="var(--ares-hud-amber, #FFB347)" /> : <VolumeX size={18} color="var(--ares-hud-amber, #FFB347)" />} title="Звуковые эффекты" subtitle="Сбор урожая, покупки, достижения" on={soundsOn} color="var(--ares-hud-amber, #FFB347)" onToggle={toggleSfx} />
-       <SettingRow icon={<Vibrate size={18} color="#FF2E93" />} title="Вибрация" subtitle="Тактильный отклик (Telegram / мобильные)" on={hapticOn} color="#FF2E93" onToggle={toggleHaptic} />
+       <SettingRow icon={soundsOn ? <Volume2 size={18} color="var(--ares-hud-amber, #FFB347)" /> : <VolumeX size={18} color="var(--ares-hud-amber, #FFB347)" />} title={t("Звуковые эффекты")} subtitle={t("Сбор урожая, покупки, достижения")} on={soundsOn} color="var(--ares-hud-amber, #FFB347)" onToggle={toggleSfx} />
+       <SettingRow icon={<Vibrate size={18} color="#FF2E93" />} title={t("Вибрация")} subtitle={t("Тактильный отклик (Web Vibration API)")} on={hapticOn} color="#FF2E93" onToggle={toggleHaptic} />
        <SettingRow
-        icon={<Bell size={18} color="var(--pf-gold)" />} title="Уведомления" color="var(--pf-gold)"
-        subtitle={permissionGranted ? 'Урожай готов, истекает налог, низкая прочность' : 'Браузер попросит разрешение'}
+        icon={<Bell size={18} color="var(--pf-gold)" />} title={t("Уведомления")} color="var(--pf-gold)"
+        subtitle={permissionGranted ? t('Урожай готов, истекает налог, низкая прочность') : t('Браузер попросит разрешение')}
         on={notificationsEnabled && permissionGranted} onToggle={() => void toggleNotifications()}
        />
        {notificationsEnabled && permissionGranted && (
         <button onClick={testNotification} style={{ margin: '-8px 0 16px 28px', fontSize: 12, color: 'var(--pf-gold)', background: 'none', textDecoration: 'underline' }}>
-         Отправить тестовое уведомление
+         {t('Отправить тестовое уведомление')}
         </button>
        )}
 
        <div style={{ padding: 12, borderRadius: 12, background: 'rgba(193, 68, 14, 0.10)', border: '1px solid rgba(160, 82, 40, 0.5)', fontSize: 11, color: 'var(--pf-text-secondary)', lineHeight: 1.5 }}>
-        Настройки хранятся только в этом браузере.
+        {t('Настройки хранятся только в этом браузере.')}
        </div>
       </motion.div>
      </motion.div>

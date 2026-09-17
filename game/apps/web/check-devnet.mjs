@@ -1,7 +1,7 @@
 import { PublicKey, Connection } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 
-const PID = '48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha'
+const PID = 'DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf'
 const pid = new PublicKey(PID)
 const conn = new Connection('https://api.devnet.solana.com', 'confirmed')
 

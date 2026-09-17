@@ -1,4 +1,6 @@
 import { Field } from '../hooks/useGame'
+import { t } from '../i18n'
+
 
 export interface NotificationPayload {
  title: string
@@ -70,8 +72,8 @@ export function checkFieldNotifications(
   // Урожай готов (больше 100,000 micro = 0.1 POTATO)
   if (field.accumulated >= 100000 && now - lastTime > 3600000) { // не чаще раза в час
    showNotification({
-    title: ' Урожай готов!',
-    body: `На поле накопилось ${(field.accumulated / 1_000_000).toFixed(2)} POTATO. Собери сейчас!`,
+    title: t(' Урожай готов!'),
+    body: t('На поле накопилось {amount} POTATO. Собери сейчас!', { amount: (field.accumulated / 1_000_000).toFixed(2) }),
     tag: `harvest-${fieldId}`,
     icon: '/android-chrome-192x192.png',
    })
@@ -82,8 +84,8 @@ export function checkFieldNotifications(
   const taxDaysLeft = Math.ceil((field.taxPaidUntil * 1000 - now) / 86400000)
   if (taxDaysLeft <= 1 && taxDaysLeft > 0 && now - lastTime > 86400000) { // раз в день
    showNotification({
-    title: ' Пошлина истекает!',
-    body: `Осталось ${taxDaysLeft} день. Оплати налог чтобы не потерять урожай!`,
+    title: t(' Пошлина истекает!'),
+    body: t('Осталось {d} день. Оплати налог чтобы не потерять урожай!', { d: taxDaysLeft }),
     tag: `tax-${fieldId}`,
     icon: '/android-chrome-192x192.png',
     requireInteraction: true,
@@ -94,8 +96,8 @@ export function checkFieldNotifications(
   // Целостность низкая (меньше 25%)
   if (field.durability < 25 && now - lastTime > 7200000) { // раз в 2 часа
    showNotification({
-    title: ' Поле нуждается в ремонте!',
-    body: `Целостность поля всего ${field.durability}%. Отремонтируй чтобы не потерять урожай!`,
+    title: t(' Поле нуждается в ремонте!'),
+    body: t('Целостность поля всего {d}%. Отремонтируй чтобы не потерять урожай!', { d: field.durability }),
     tag: `repair-${fieldId}`,
     icon: '/android-chrome-192x192.png',
    })

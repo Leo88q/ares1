@@ -6,17 +6,13 @@ import {
   useState,
 } from "react";
 import type {
-
-  FormEvent,
   MouseEvent as ReactMouseEvent,
   ReactNode,
 } from "react";
 import {
   AnimatePresence,
-  animate,
   motion,
   useAnimationControls,
-  useMotionValue,
   useReducedMotion,
   useScroll,
   useSpring,
@@ -28,8 +24,25 @@ import {
   ChevronDown,
   Menu,
   X, Play} from "lucide-react";
+import { PublicKey, Transaction } from "@solana/web3.js";
+import {
+  createAssociatedTokenAccountIdempotentInstruction,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
 import { useLandingWallet } from "./hooks/useLandingWallet";
-import { PrizeRevealShow } from "./PrizeRevealShow";
+import { useLiveChain } from "./hooks/useLiveChain";
+import {
+  TEST_SKR_MINT,
+  buybackSkrAta,
+  buyerPresalePda,
+  decodeConfig,
+  ixBuyFieldSkr,
+  pdas,
+  presaleStatePda,
+  randomU64,
+  treasurySkrAta,
+  treasurySolPda,
+} from "./utils/anchorClient";
 import { LiquidPanelBorder } from "./LiquidPanel";
 import type { LiquidPanelVariant } from "./LiquidPanel";
 import { MorphButton } from "./MorphButton";
@@ -55,33 +68,30 @@ import {
   SparkProgress,
 } from "./MicroMotion";
 import { SoundToggle } from "./SoundToggle";
+import { t, useI18n, tr } from "./i18n";
+import { LangSwitcher } from "./i18n/LangSwitcher";
 import { useSounds } from "./useSounds";
 import {
   assets,
   faq,
   features,
-  formatNumber,
   gameConfig,
 
   presale,
   roadmap,
   siteContent,
-  socialLinks,
-  testimonials,
   tokenCycle,
   chainConfig,
   playConfig,
 } from "./content";
 import type { FeatureIconName } from "./content";
 import {
-  useCountUp,
   useMousePosition,
   usePrefersReducedMotion,
   useTypewriter,
 } from "./hooks";
 
 const easeOut = [0.22, 1, 0.36, 1] as const;
-const emptyFieldErrors: FieldErrors = { email: "", telegram: "" };
 
 type Notify = (message: string) => void;
 
@@ -111,6 +121,8 @@ interface SectionHeadingProps {
 
 interface ActionProps extends ChildrenProps {
   readonly href?: string;
+  readonly target?: string;
+  readonly rel?: string;
   readonly onClick?: () => void;
   readonly variant?: "primary" | "secondary";
   readonly type?: "button" | "submit";
@@ -122,23 +134,12 @@ interface ActionProps extends ChildrenProps {
 
 // Click effects are owned by MorphButton.
 
-interface FieldErrors {
-  readonly email: string;
-  readonly telegram: string;
-}
-
-interface WaitlistResponse {
-  readonly ok: true;
-}
-
-function isWaitlistResponse(value: unknown): value is WaitlistResponse {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "ok" in value &&
-    value.ok === true
-  );
-}
+const SC = tr(siteContent);
+const TC = tr(tokenCycle);
+const FEATURES = tr(features);
+const ROADMAP = tr(roadmap);
+const FAQ_ITEMS = tr(faq);
+const PC = tr(playConfig);
 
 function Mark({ className = "" }: { readonly className?: string }): JSX.Element {
   return (
@@ -346,6 +347,8 @@ function SectionHeading({
 function Action({
   children,
   href,
+  target,
+  rel,
   onClick,
   variant = "primary",
   type = "button",
@@ -360,6 +363,8 @@ function Action({
     return (
       <MorphButton
         href={href}
+        target={target}
+        rel={rel}
         variant={variant}
         disabled={disabled}
         loading={loading}
@@ -381,11 +386,10 @@ function Action({
       disabled={disabled}
       loading={loading}
       success={success}
-      magnetic={true}
-      fullWidth={fullWidth}
-      className={className}
-      loadingLabel={siteContent.waitlist.loading}
-      onClick={() => onClick?.()}
+        magnetic={true}
+        fullWidth={fullWidth}
+        className={className}
+        onClick={() => onClick?.()}
     >
       {children}
     </MorphButton>
@@ -471,12 +475,13 @@ function Cursor(): JSX.Element | null {
 
 function WalletButton(): JSX.Element {
   const { connected, publicKey, balanceSkr, connect, disconnect, connecting } = useLandingWallet();
+  useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
 
   if (connecting) {
     return (
       <button className="morph-button morph-button--header" disabled>
-        <span className="wallet-full">Подключение…</span>
+        <span className="wallet-full">{t("Подключение…")}</span>
         <span className="wallet-short">⬡ …</span>
       </button>
     );
@@ -485,8 +490,8 @@ function WalletButton(): JSX.Element {
   if (!connected || !publicKey) {
     return (
       <button onClick={() => { void connect(); }} className="morph-button morph-button--header">
-        <span className="wallet-full">Подключить кошелёк</span>
-        <span className="wallet-short">⬡ Кошелёк</span>
+        <span className="wallet-full">{t("Подключить кошелёк")}</span>
+        <span className="wallet-short">⬡ {t("Кошелёк")}</span>
       </button>
     );
   }
@@ -533,7 +538,7 @@ function WalletButton(): JSX.Element {
               fontSize: 12,
             }}
           >
-            Отключить
+            {t("Отключить")}
           </button>
         </div>
       )}
@@ -543,6 +548,7 @@ function WalletButton(): JSX.Element {
 
 function Header({ notify }: { readonly notify: Notify }): JSX.Element {
   const [scrolled, setScrolled] = useState(false);
+  useI18n();
   const [open, setOpen] = useState(false);
   const reduced = useReducedMotion() ?? false;
   void notify;
@@ -557,16 +563,16 @@ function Header({ notify }: { readonly notify: Notify }): JSX.Element {
   return (
     <header className={`header ${scrolled || open ? "header--scrolled" : ""}`}>
       <div className="container header-inner">
-        <a href="#hero" className="brand" aria-label={siteContent.header.homeLabel}>
+        <a href="#hero" className="brand" aria-label={SC.header.homeLabel}>
           <Mark />
           <span className="brand-text">ARES-1</span>
         </a>
 
         <nav
           className="desktop-nav"
-          aria-label={siteContent.header.navigationLabel}
+          aria-label={SC.header.navigationLabel}
         >
-          {siteContent.header.navigation.map((link) => (
+          {SC.header.navigation.map((link) => (
             <AnimatedTextLink key={link.href} href={link.href}>
               {link.label}
               <MotionIcon>
@@ -579,14 +585,15 @@ function Header({ notify }: { readonly notify: Notify }): JSX.Element {
         <div className="header-actions">
           <a
             className="header-play"
-            href={playConfig.url}
+            href={PC.url}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={playConfig.label}
+            aria-label={PC.label}
           >
             <Play size={14} aria-hidden="true" />
-            <span className="header-play-full">{playConfig.labelShort}</span>
+            <span className="header-play-full">{PC.labelShort}</span>
           </a>
+          <LangSwitcher />
           <SoundToggle />
           <span className="network-label">
             <span className="status-dot" />
@@ -597,7 +604,7 @@ function Header({ notify }: { readonly notify: Notify }): JSX.Element {
             className="menu-toggle"
             onClick={() => setOpen(!open)}
             aria-expanded={open}
-            aria-label={open ? siteContent.header.closeMenu : siteContent.header.openMenu}
+            aria-label={open ? SC.header.closeMenu : SC.header.openMenu}
             aria-controls={open ? "mobile-navigation" : undefined}
           >
             {open ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
@@ -611,14 +618,14 @@ function Header({ notify }: { readonly notify: Notify }): JSX.Element {
             key="mobile-navigation"
             id="mobile-navigation"
             className="mobile-nav"
-            aria-label={siteContent.header.navigationLabel}
+            aria-label={SC.header.navigationLabel}
             initial={{ height: reduced ? "auto" : 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: reduced ? "auto" : 0, opacity: 0 }}
             transition={{ duration: reduced ? 0.15 : 0.25 }}
           >
             <div className="container mobile-nav-inner">
-              {siteContent.header.navigation.map((link) => (
+              {SC.header.navigation.map((link) => (
                 <AnimatedTextLink
                   key={link.href}
                   href={link.href}
@@ -644,6 +651,7 @@ function MarsScene({
 }: {
   readonly target: React.RefObject<HTMLElement>;
 }): JSX.Element {
+  useI18n();
   const reduced = usePrefersReducedMotion();
   const id = useId().replace(/:/g, "");
   const { scrollYProgress } = useScroll({
@@ -832,8 +840,8 @@ function MarsScene({
 
         <div className="dome-callout">
           <span className="status-dot" />
-          КУПОЛ ARES-1
-          <small>6 КАССЕТ · ВИЗУАЛИЗАЦИЯ МОДУЛЯ</small>
+          {t("КУПОЛ ARES-1")}
+          <small>{t("6 КАССЕТ · ВИЗУАЛИЗАЦИЯ МОДУЛЯ")}</small>
         </div>
       </motion.div>
 
@@ -912,6 +920,7 @@ function FlipValue({
 
 function Countdown(): JSX.Element {
   const configuredEnd: string | null = presale.endsAt;
+  useI18n();
   const end = configuredEnd === null ? NaN : Date.parse(configuredEnd);
   const [now, setNow] = useState(() => Date.now());
 
@@ -945,25 +954,25 @@ function Countdown(): JSX.Element {
     return (
       <p className="countdown-note">
         <span className="status-dot status-dot--amber" />
-        {siteContent.hero.countdownUnavailable}
+        {SC.hero.countdownUnavailable}
       </p>
     );
   }
 
   const seconds = Math.max(0, Math.floor((end - now) / 1000));
   const units = [
-    { value: Math.floor(seconds / 86400), label: "дни" },
-    { value: Math.floor((seconds % 86400) / 3600), label: "часы" },
-    { value: Math.floor((seconds % 3600) / 60), label: "минуты" },
-    { value: seconds % 60, label: "секунды" },
+    { value: Math.floor(seconds / 86400), label: t("дни") },
+    { value: Math.floor((seconds % 86400) / 3600), label: t("часы") },
+    { value: Math.floor((seconds % 3600) / 60), label: t("минуты") },
+    { value: seconds % 60, label: t("секунды") },
   ];
 
   return (
     <div className="countdown">
       <p>
         {seconds === 0
-          ? siteContent.hero.countdownEnded
-          : siteContent.hero.countdownLabel}
+          ? SC.hero.countdownEnded
+          : SC.hero.countdownLabel}
       </p>
       <div className="flip-timer" role="timer" aria-live="off">
         {units.map((unit) => (
@@ -978,9 +987,12 @@ function Countdown(): JSX.Element {
   );
 }
 
-function Hero({ notify }: { readonly notify: Notify }): JSX.Element {
+function Hero(): JSX.Element {
   const ref = useRef<HTMLElement>(null);
-  const title = useTypewriter({ text: siteContent.hero.title });
+  useI18n();
+  const title = useTypewriter({ text: SC.hero.title });
+  const live = useLiveChain();
+  const sold = live.online ? live.sold : 0;
 
   return (
     <section ref={ref} id="hero" className="hero" aria-labelledby="hero-title">
@@ -991,15 +1003,15 @@ function Hero({ notify }: { readonly notify: Notify }): JSX.Element {
           <Reveal>
             <div className="hero-badge">
               <span className="status-dot" />
-              ПЕРВАЯ КАРТОФЕЛЬНАЯ КОЛОНИЯ
+              {t("ПЕРВАЯ КАРТОФЕЛЬНАЯ КОЛОНИЯ")}
               <span className="badge-code">2031</span>
             </div>
           </Reveal>
 
           <h1 id="hero-title" className="hero-title">
-            <span className="sr-only">{siteContent.hero.title}</span>
+            <span className="sr-only">{SC.hero.title}</span>
             <span className="typewriter-reserve" aria-hidden="true">
-              {siteContent.hero.title}
+              {SC.hero.title}
             </span>
             <span className="typewriter-visible" aria-hidden="true">
               {title.displayedText}
@@ -1008,75 +1020,84 @@ function Hero({ notify }: { readonly notify: Notify }): JSX.Element {
           </h1>
 
           <Reveal delay={0.15}>
-            <p className="hero-description">{siteContent.hero.subtitle}</p>
+            <p className="hero-description">{SC.hero.subtitle}</p>
           </Reveal>
 
           <Reveal className="hero-actions" delay={0.25}>
             <a
               className="cta-play"
-              href={playConfig.url}
+              href={PC.url}
               target="_blank"
               rel="noopener noreferrer"
             >
               <Play size={18} aria-hidden="true" />
-              {playConfig.label}
+              {PC.label}
             </a>
-            <Action href="#waitlist">{siteContent.hero.primaryCta}</Action>
+            <Action href={SC.hero.primaryHref}>
+              {SC.hero.primaryCta}
+            </Action>
             <Action
               variant="secondary"
-              onClick={() => notify(siteContent.accessibility.externalUnavailable)}
+              href={SC.hero.secondaryHref}
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              {siteContent.hero.secondaryCta}
+              {SC.hero.secondaryCta}
               <ArrowUpRight size={16} aria-hidden="true" />
             </Action>
           </Reveal>
 
           <Reveal className="presale-panel" delay={0.35} panel="accent">
             <div className="presale-top">
-              <span>ПЕРВАЯ ВОЛНА</span>
+              <span>{t("ПЕРВАЯ ВОЛНА · LIVE")}</span>
               <span>
                 <strong>
-                  <RollingNumber value={presale.sold} />
+                  <RollingNumber value={sold} />
                 </strong>
                 {" / "}
-                <RollingNumber value={presale.supply} />
+                <RollingNumber value={live.online ? live.cap : presale.supply} />
               </span>
             </div>
 
             <SparkProgress
-              value={presale.sold}
-              max={presale.supply}
-              label={siteContent.hero.progressLabel}
-              valueText={siteContent.hero.soldLabel}
+              value={sold}
+              max={live.online ? live.cap : presale.supply}
+              label={SC.hero.progressLabel}
+              valueText={
+                live.online
+                  ? t("{n} модулей продано", { n: `${sold} / ${live.online ? live.cap : presale.supply}` })
+                  : t("подключение к devnet…")
+              }
               color="#FF2E93"
             />
 
             <div className="presale-bottom">
-              <span>модулей продано</span>
-              <strong>1 053 SKR / модуль</strong>
+              <span>
+                {live.online ? t("данные с devnet-цепи") : t("ожидание ответа RPC")}
+              </span>
+              <strong>{t("0.25 SOL · 1 053 SKR / модуль")}</strong>
             </div>
             <Countdown />
           </Reveal>
 
           <p className="hero-habitat-note">
-            Внутри купола — шесть гидропонных кассет:
-            ростки, листва и клубни. Дрон показывает цикл осмотра.
-            Сцена иллюстративная, не телеметрия твоей фермы.
+            {t("Внутри купола — шесть гидропонных кассет: ростки, листва и клубни. Дрон показывает цикл осмотра.")}
+            {t("Сцена иллюстративная, не телеметрия твоей фермы.")}
           </p>
         </div>
 
         <div className="hero-side-label" aria-hidden="true">
-          ДОЛИНА МАРИНЕРА
-          <span>14° Ю. Ш. · МАРС</span>
+          {t("ДОЛИНА МАРИНЕРА")}
+          <span>{t("14° Ю. Ш. · МАРС")}</span>
         </div>
 
         <div className="hero-bottom">
           <p>
             <span className="status-dot" />
-            SEEKER DEVNET
+            SOLANA DEVNET
           </p>
-          <span>ИСХОДНИКИ ОТКРЫТЫ · ПРОГРАММА ОБНОВЛЯЕТСЯ</span>
-          <a href="#problem" aria-label="Узнать о колонии">
+          <span>{t("ИСХОДНИКИ ОТКРЫТЫ · ПРОГРАММА ОБНОВЛЯЕТСЯ")}</span>
+          <a href="#problem" aria-label={t("Узнать о колонии")}>
             <ChevronDown size={18} aria-hidden="true" />
           </a>
         </div>
@@ -1084,14 +1105,14 @@ function Hero({ notify }: { readonly notify: Notify }): JSX.Element {
     </section>
   );
 }
-
 function Problem(): JSX.Element {
+  useI18n();
   return (
     <Section id="problem" className="problem-section" speed={0.3}>
       <SectionHeading
         id="problem-title"
-        eyebrow="01 / ДРУГИЕ ПРАВИЛА"
-        title={siteContent.problem.title}
+        eyebrow={t("01 / ДРУГИЕ ПРАВИЛА")}
+        title={SC.problem.title}
       />
 
       <div className="problem-grid">
@@ -1101,11 +1122,11 @@ function Problem(): JSX.Element {
           runningLight={false}
         >
           <div className="panel-topline">
-            <span className="panel-label">{siteContent.problem.before.title}</span>
-            <span className="small-code">ЗЕМЛЯ / ОФЧЕЙН</span>
+            <span className="panel-label">{SC.problem.before.title}</span>
+            <span className="small-code">{t("ЗЕМЛЯ / ОФЧЕЙН")}</span>
           </div>
           <ul>
-            {siteContent.problem.before.items.map((item) => (
+            {SC.problem.before.items.map((item) => (
               <li key={item}>
                 <X size={19} aria-hidden="true" />
                 <span>{item}</span>
@@ -1120,11 +1141,11 @@ function Problem(): JSX.Element {
           panel="accent"
         >
           <div className="panel-topline">
-            <span className="panel-label">{siteContent.problem.after.title}</span>
+            <span className="panel-label">{SC.problem.after.title}</span>
             <Mark className="mini-mark" />
           </div>
           <ul>
-            {siteContent.problem.after.items.map((item) => (
+            {SC.problem.after.items.map((item) => (
               <li key={item}>
                 <Check size={19} aria-hidden="true" />
                 <span>{item}</span>
@@ -1136,8 +1157,8 @@ function Problem(): JSX.Element {
 
       <Reveal>
         <p className="section-footnote">
-          Сейчас колония работает в devnet. Открытый код позволяет изучить
-          правила, но не исключает обновлений программы и рисков тестовой сети.
+          {t("Сейчас колония работает в devnet. Открытый код позволяет изучить правила,")}
+          {t("но не исключает обновлений программы и рисков тестовой сети.")}
         </p>
       </Reveal>
     </Section>
@@ -1204,19 +1225,19 @@ function TiltCard({ children, xpKey }: TiltCardProps): JSX.Element {
     </motion.article>
   );
 }
-
 function Mechanics(): JSX.Element {
+  useI18n();
   return (
     <Section id="mechanics" speed={0.8}>
       <SectionHeading
         id="mechanics-title"
-        eyebrow="02 / ЖИЗНЬ ПОД КУПОЛОМ"
-        title={siteContent.mechanics.title}
-        text="Один модуль. Свой ритм. Целая колония возможностей."
+        eyebrow={t("02 / ЖИЗНЬ ПОД КУПОЛОМ")}
+        title={SC.mechanics.title}
+        text={t("Один модуль. Свой ритм. Целая колония возможностей.")}
       />
 
       <div className="feature-grid">
-        {features.map((feature, index) => (
+        {FEATURES.map((feature, index) => (
           <Reveal key={feature.id} delay={index * 0.08}>
             <TiltCard xpKey={feature.id}>
               <div className="feature-top">
@@ -1236,28 +1257,28 @@ function Mechanics(): JSX.Element {
 
       <Reveal className="colony-manual">
         <div>
-          <span className="small-code">СИСТЕМНОЕ ВРЕМЯ</span>
-          <p>05–08 рассвет · 08–17 день · 17–20 синий закат · 20–05 ночь</p>
+          <span className="small-code">{t("СИСТЕМНОЕ ВРЕМЯ")}</span>
+          <p>{t("05–08 рассвет · 08–17 день · 17–20 синий закат · 20–05 ночь")}</p>
         </div>
         <div>
-          <span className="small-code">ОБСЛУЖИВАНИЕ МОДУЛЯ</span>
-          <p>Ремонт · удобрения ×1,5 на 24 ч · налог раз в 7 дней · уровни</p>
+          <span className="small-code">{t("ОБСЛУЖИВАНИЕ МОДУЛЯ")}</span>
+          <p>{t("Ремонт · удобрения ×1,5 на 24 ч · налог раз в 7 дней · уровни")}</p>
         </div>
         <div>
-          <span className="small-code">БИРЖА И ДОСТИЖЕНИЯ</span>
-          <p>Ордер от 10 POTATO и 1 SKR · 6 ончейн-квестов без бэкенда</p>
+          <span className="small-code">{t("БИРЖА И ДОСТИЖЕНИЯ")}</span>
+          <p>{t("Ордер от 10 POTATO и 1 SKR · 6 ончейн-квестов без бэкенда")}</p>
         </div>
       </Reveal>
 
       <Reveal className="tier-panel panel" panel="accent">
         <div className="tier-intro">
-          <p className="eyebrow">ЛОТЕРЕЯ МОДУЛЕЙ</p>
-          <h3>ОДНА ЦЕНА.<br />ТРИ ХАРАКТЕРА.</h3>
-          <p>1 053 SKR за модуль. Тир определяется случайно.</p>
+          <p className="eyebrow">{t("ЛОТЕРЕЯ МОДУЛЕЙ")}</p>
+          <h3>{t("ОДНА ЦЕНА.")}<br />{t("ТРИ ХАРАКТЕРА.")}</h3>
+          <p>{t("1 053 SKR за модуль. Тир определяется случайно.")}</p>
         </div>
         <RarityModules />
         <p className="tier-disclaimer">
-          Проценты урожая — игровые характеристики, не финансовая доходность.
+          {t("Проценты урожая — игровые характеристики, не финансовая доходность.")}
         </p>
       </Reveal>
     </Section>
@@ -1334,6 +1355,7 @@ function TuberArt(): JSX.Element {
 
 function Mascot(): JSX.Element {
   const { award } = useGamification();
+  useI18n();
   const { play } = useSounds();
   const reduced = usePrefersReducedMotion();
   const controls = useAnimationControls();
@@ -1404,7 +1426,7 @@ function Mascot(): JSX.Element {
         <Reveal className="mascot-visual">
           <div className="mascot-orbit mascot-orbit--one" aria-hidden="true" />
           <div className="mascot-orbit mascot-orbit--two" aria-hidden="true" />
-          <span className="mascot-coordinate" aria-hidden="true">МОДУЛЬ №7</span>
+          <span className="mascot-coordinate" aria-hidden="true">{t("МОДУЛЬ №7")}</span>
           <div className="mascot-shadow" aria-hidden="true" />
 
           <button
@@ -1413,7 +1435,7 @@ function Mascot(): JSX.Element {
             onClick={(event) => {
               void jump(elementXpOrigin(event.currentTarget));
             }}
-            aria-label={siteContent.mascot.buttonLabel}
+            aria-label={SC.mascot.buttonLabel}
           >
             <motion.span
               className="mascot-body"
@@ -1437,7 +1459,7 @@ function Mascot(): JSX.Element {
           </button>
 
           <div className="mascot-counter" aria-live="polite" aria-atomic="true">
-            <span>{siteContent.mascot.counterLabel}</span>
+            <span>{SC.mascot.counterLabel}</span>
             <strong>
               <RollingNumber value={jumps} minimumDigits={3} />
             </strong>
@@ -1447,21 +1469,21 @@ function Mascot(): JSX.Element {
         <div className="mascot-copy">
           <SectionHeading
             id="mascot-title"
-            eyebrow="03 / ЭКИПАЖ ARES-1"
-            title={siteContent.mascot.title}
+            eyebrow={t("03 / ЭКИПАЖ ARES-1")}
+            title={SC.mascot.title}
           />
           <Reveal>
-            <p className="body-copy">{siteContent.mascot.text}</p>
+            <p className="body-copy">{SC.mascot.text}</p>
             <div className="mascot-quote">
               <span aria-hidden="true">“</span>
-              <p>Гравитация ниже.<br />Планы — выше.</p>
-              <small>ТЮБЕР-9 · ГЛАВНЫЙ АГРОНОМ</small>
+              <p>{t("Гравитация ниже.")}<br />{t("Планы — выше.")}</p>
+              <small>{t("ТЮБЕР-9 · ГЛАВНЫЙ АГРОНОМ")}</small>
             </div>
             <div className="quest-chips">
               {gameConfig.quests.featured.map((quest) => (
                 <span key={quest.title}>
                   <Check size={14} aria-hidden="true" />
-                  {quest.title}
+                  {t(quest.title)}
                   <b>+{quest.rewardPotato} $POTATO</b>
                 </span>
               ))}
@@ -1475,6 +1497,7 @@ function Mascot(): JSX.Element {
 
 function Tokenomics(): JSX.Element {
   const [supply, setSupply] = useState<number | null>(null);
+  useI18n();
 
   useEffect(() => {
     let alive = true;
@@ -1512,9 +1535,9 @@ function Tokenomics(): JSX.Element {
     <Section id="tokenomics" speed={0.5}>
       <SectionHeading
         id="tokenomics-title"
-        eyebrow="04 / ТОПЛИВО КОЛОНИИ"
-        title={tokenCycle.manifesto}
-        text={tokenCycle.manifestoSub}
+        eyebrow={t("04 / ТОПЛИВО КОЛОНИИ")}
+        title={TC.manifesto}
+        text={TC.manifestoSub}
       />
 
       <div className="tokenomics-grid">
@@ -1523,14 +1546,14 @@ function Tokenomics(): JSX.Element {
           {chainConfig.potatoMint && (
             <div className="token-live">
               {supply === null ? (
-                <span className="small-code">ПОДКЛЮЧЕНИЕ К ЦЕПИ…</span>
+                <span className="small-code">{t("ПОДКЛЮЧЕНИЕ К ЦЕПИ…")}</span>
               ) : (
                 <>
                   <span className="token-live-value">
                     <RollingNumber value={Math.round(supply)} /> POTATO
                   </span>
                   <span className="small-code">
-                    В ОБРАЩЕНИИ · {supplyPct?.toFixed(2)}% ПОТОЛКА
+                    {t("В ОБРАЩЕНИИ · {pct}% ПОТОЛКА", { pct: (supplyPct ?? 0).toFixed(2) })}
                   </span>
                 </>
               )}
@@ -1540,11 +1563,11 @@ function Tokenomics(): JSX.Element {
 
         <Reveal className="cycle-panel panel" panel="default">
           <div className="panel-topline">
-            <span className="panel-label">ЦИКЛ ТОКЕНА</span>
+            <span className="panel-label">{t("ЦИКЛ ТОКЕНА")}</span>
             <span className="small-code">MINT → FLOW → BURN</span>
           </div>
           <div className="cycle-columns">
-            {[tokenCycle.birth, tokenCycle.flow, tokenCycle.death].map((col) => (
+            {[TC.birth, TC.flow, TC.death].map((col) => (
               <div key={col.title} className="cycle-column">
                 <div className="cycle-column-title">{col.title}</div>
                 <ul>
@@ -1561,16 +1584,16 @@ function Tokenomics(): JSX.Element {
       <Reveal className="deflation-panel">
         <div className="burn-symbol" aria-hidden="true">60<span>%</span></div>
         <div>
-          <p className="eyebrow">КОМИССИИ СЖИГАЕТСЯ</p>
-          <p>{siteContent.tokenomics.deflation}</p>
+          <p className="eyebrow">{t("КОМИССИИ СЖИГАЕТСЯ")}</p>
+          <p>{SC.tokenomics.deflation}</p>
         </div>
-        <span className="burn-tag">МЕНЬШЕ ТОКЕНОВ<br />НЕ ОБЕЩАНИЕ РОСТА ЦЕНЫ</span>
+        <span className="burn-tag">{t("МЕНЬШЕ ТОКЕНОВ")}<br />{t("НЕ ОБЕЩАНИЕ РОСТА ЦЕНЫ")}</span>
       </Reveal>
 
       <Reveal className="interstellar-reserve-note">
-        <p>{tokenCycle.teamNote}</p>
-        <p>{tokenCycle.treasuryNote}</p>
-        <p>{tokenCycle.capNote}</p>
+        <p>{TC.teamNote}</p>
+        <p>{TC.treasuryNote}</p>
+        <p>{TC.capNote}</p>
       </Reveal>
     </Section>
   );
@@ -1578,18 +1601,19 @@ function Tokenomics(): JSX.Element {
 
 function Roadmap(): JSX.Element {
   const reduced = usePrefersReducedMotion();
+  useI18n();
 
   return (
     <Section id="roadmap" speed={0.9}>
       <SectionHeading
         id="roadmap-title"
-        eyebrow="05 / ПЛАН ЭКСПЕДИЦИИ"
-        title={siteContent.roadmap.title}
-        text="От первого ростка до собственной марсианской экономики."
+        eyebrow={t("05 / ПЛАН ЭКСПЕДИЦИИ")}
+        title={SC.roadmap.title}
+        text={t("От первого ростка до собственной марсианской экономики.")}
       />
 
       <ol className="roadmap">
-        {roadmap.map((milestone, index) => (
+        {ROADMAP.map((milestone, index) => (
           <li key={milestone.period} className={milestone.done ? "roadmap-done" : ""}>
             <Reveal delay={index * 0.08}>
               <div className="roadmap-marker">
@@ -1619,8 +1643,8 @@ function Roadmap(): JSX.Element {
                   <span>{milestone.period}</span>
                   <small>
                     {milestone.done
-                      ? siteContent.roadmap.completedLabel
-                      : siteContent.roadmap.plannedLabel}
+                      ? SC.roadmap.completedLabel
+                      : SC.roadmap.plannedLabel}
                   </small>
                 </div>
                 <h3>{milestone.title}</h3>
@@ -1632,166 +1656,115 @@ function Roadmap(): JSX.Element {
       </ol>
 
       <p className="section-footnote">
-        План и статусы приведены из концепции проекта. Сроки будущих этапов могут измениться.
+        {t("План и статусы приведены из концепции проекта. Сроки будущих этапов могут измениться.")}
       </p>
     </Section>
   );
 }
 
-function Marquee(): JSX.Element {
-  const reduced = usePrefersReducedMotion();
-  const firstGroup = useRef<HTMLDivElement>(null);
-  const x = useMotionValue(0);
-  const animation = useRef<ReturnType<typeof animate> | null>(null);
-  const [width, setWidth] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [hidden, setHidden] = useState(false);
+function LiveStats({ notify }: { readonly notify: Notify }): JSX.Element {
+  const live = useLiveChain();
+  useI18n();
+  const stats = SC.social.stats;
 
-  useEffect(() => {
-    const element = firstGroup.current;
+  const value = (
+    number: bigint | number | null,
+    decimals = 0,
+  ): string => {
+    if (number === null) return "—";
+    const v = Number(number);
+    if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(2)}B`;
+    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
+    if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
+    return v.toLocaleString("ru-RU", { maximumFractionDigits: decimals });
+  };
 
-    if (!element) {
-      return;
-    }
-
-    const observer = new ResizeObserver(() => {
-      setWidth(element.getBoundingClientRect().width);
-    });
-
-    observer.observe(element);
-    setWidth(element.getBoundingClientRect().width);
-
-    function onVisibility(): void {
-      setHidden(document.hidden);
-    }
-
-    onVisibility();
-    document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      observer.disconnect();
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (reduced || width === 0) {
-      x.set(0);
-      return;
-    }
-
-    x.set(0);
-    const control = animate(x, -width, {
-      duration: width / 50,
-      ease: "linear",
-      repeat: Infinity,
-      repeatType: "loop",
-    });
-
-    animation.current = control;
-
-    return () => {
-      control.stop();
-      animation.current = null;
-    };
-  }, [reduced, width, x]);
-
-  useEffect(() => {
-    if (paused || hidden) {
-      animation.current?.pause();
-    } else {
-      animation.current?.play();
-    }
-  }, [paused, hidden, width, reduced]);
-
-  const cards = testimonials.map((item) => (
-    <figure key={item.handle} className="testimonial">
-      <div className="testimonial-avatar" aria-hidden="true">
-        {item.handle.slice(1, 3).toUpperCase()}
-      </div>
-      <figcaption>{item.handle}</figcaption>
-      <blockquote>«{item.quote}»</blockquote>
-    </figure>
-  ));
-
-  return (
-    <div
-      className={`marquee ${reduced ? "marquee--static" : ""}`}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-    >
-      <motion.div className="marquee-track" style={{ x }} data-marquee-track>
-        <div ref={firstGroup} className="marquee-group">
-          {cards}
-        </div>
-        {!reduced && (
-          <div className="marquee-group" aria-hidden="true">
-            {cards}
-          </div>
-        )}
-      </motion.div>
-    </div>
-  );
-}
-
-function Social({ notify }: { readonly notify: Notify }): JSX.Element {
-  const counter = useCountUp<HTMLSpanElement>({
-    target: siteContent.social.colonistsCount,
-  });
+  const tiles: { key: string; label: string; figure: string; sub?: string }[] = [
+    {
+      key: "sold",
+      label: stats.sold,
+      figure: `${live.online ? live.sold : "—"} / ${live.online ? live.cap : presale.supply}`,
+    },
+    {
+      key: "fields",
+      label: stats.fields,
+      figure: live.online ? value(live.fieldCount) : "—",
+    },
+    {
+      key: "players",
+      label: stats.players,
+      figure: live.players === null ? "—" : value(live.players),
+    },
+    {
+      key: "burned",
+      label: stats.burned,
+      figure: live.online ? value(live.burnedMicro / 1_000_000n) : "—",
+    },
+    {
+      key: "supply",
+      label: stats.supply,
+      figure: live.supplyMicro === null ? "—" : value(live.supplyMicro / 1_000_000n),
+      sub: t("потолок 1B · premine нет"),
+    },
+    {
+      key: "treasury",
+      label: stats.treasury,
+      figure:
+        live.treasuryLamports === null
+          ? "—"
+          : (Number(live.treasuryLamports) / 1e9).toFixed(3),
+    },
+  ];
 
   return (
     <Section id="social" className="social-section" speed={1.5}>
       <SectionHeading
         id="social-title"
-        eyebrow="06 / СИГНАЛ С МАРСА"
-        title={siteContent.social.title}
+        eyebrow={t("06 / СИГНАЛ С МАРСА")}
+        title={SC.social.title}
+        text={SC.social.subtitle}
       />
 
-      <Reveal className="colonist-counter">
-        <div className="colonist-avatars" aria-hidden="true">
-          {["А", "М", "Т", "К", "+"].map((letter, index) => (
-            <span key={index}>{letter}</span>
-          ))}
-        </div>
-        <p>
-          <span className="sr-only">{siteContent.social.counterText}</span>
-          <span ref={counter.ref} className="colonist-number" aria-hidden="true">
-            {formatNumber(counter.value)}
-          </span>
-          <span className="colonist-label" aria-hidden="true">
-            {siteContent.social.counterSuffix}
-          </span>
-          <span className="colonist-data-status">
-            Демонстрационный счётчик · не live-статистика
-          </span>
+      {!live.online && (
+        <p className="live-offline-note">
+          <span className="status-dot status-dot--amber" />
+          {SC.social.offline}
         </p>
-      </Reveal>
+      )}
 
-      <Marquee />
+      <div className="live-stats-grid">
+        {tiles.map((tile, index) => (
+          <Reveal key={tile.key} delay={index * 0.05} className="live-stat panel" panel="default">
+            <div className="live-stat-figure">{tile.figure}</div>
+            <div className="live-stat-label">{tile.label}</div>
+            {tile.sub && <div className="live-stat-sub">{tile.sub}</div>}
+          </Reveal>
+        ))}
+      </div>
 
       <div className="social-bottom">
-        <p className="section-footnote">{siteContent.social.demoNotice}</p>
-        <nav aria-label={siteContent.social.linksLabel} className="social-links">
-          {socialLinks.map((link) => (
-            <MorphButton
-              key={link.id}
-              type="button"
-              variant="secondary"
-              className="morph-button--social"
-              onClick={() => notify(siteContent.accessibility.externalUnavailable)}
-            >
-              {link.label}
-              <ArrowUpRight size={15} aria-hidden="true" />
-            </MorphButton>
-          ))}
-        </nav>
+        <p className="section-footnote">
+          {live.online
+            ? t("Обновлено {time} · источник: общий devnet RPC Solana", { time: new Date(live.updatedAt).toLocaleTimeString() })
+            : t("Секция читает getAccountInfo / getProgramAccounts напрямую из публичного RPC.")}
+        </p>
+        <a
+          className="small-code"
+          href="https://explorer.solana.com/address/DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf?cluster=devnet"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => notify(t("Проверка цифр — в Solana Explorer. Программа DUUBi…Eadf."))}
+        >
+          DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf
+          <ArrowUpRight size={12} aria-hidden="true" />
+        </a>
       </div>
     </Section>
   );
 }
-
 function FAQ(): JSX.Element {
   const { award } = useGamification();
+  useI18n();
   const [active, setActive] = useState<number | null>(0);
   const reduced = usePrefersReducedMotion();
 
@@ -1800,13 +1773,13 @@ function FAQ(): JSX.Element {
       <div className="faq-layout">
         <SectionHeading
           id="faq-title"
-          eyebrow="07 / ЦЕНТР СВЯЗИ"
-          title={siteContent.faq.title}
-          text="Всё, что стоит знать до посадки на Марс."
+          eyebrow={t("07 / ЦЕНТР СВЯЗИ")}
+          title={SC.faq.title}
+          text={t("Всё, что стоит знать до посадки на Марс.")}
         />
 
         <div className="faq-list">
-          {faq.map((item, index) => {
+          {FAQ_ITEMS.map((item, index) => {
             const open = active === index;
             const triggerId = `faq-trigger-${index}`;
             const panelId = `faq-panel-${index}`;
@@ -1888,349 +1861,109 @@ function FAQ(): JSX.Element {
   );
 }
 
-export function Waitlist(): JSX.Element {
-  const { award } = useGamification();
-  const { play } = useSounds();
-  const emailRef = useRef<HTMLInputElement>(null);
-  const telegramRef = useRef<HTMLInputElement>(null);
-  const controller = useRef<AbortController | null>(null);
-  const lock = useRef(false);
-  const mounted = useRef(true);
 
-  const endpointValue: unknown = import.meta.env.VITE_WAITLIST_ENDPOINT;
-  const endpoint = typeof endpointValue === "string" ? endpointValue.trim() : "";
-  const demo = endpoint.length === 0;
-
-  const [email, setEmail] = useState("");
-  const [telegram, setTelegram] = useState("");
-  const [errors, setErrors] = useState<FieldErrors>(emptyFieldErrors);
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [submitError, setSubmitError] = useState("");
-  const [prizeVisible, setPrizeVisible] = useState(false);
-
-  useEffect(() => {
-    mounted.current = true;
-
-    return () => {
-      mounted.current = false;
-      controller.current?.abort();
-    };
-  }, []);
-
-  function celebrate(): void {
-    if (mounted.current) {
-      setPrizeVisible(true);
-    }
+function describeTxError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/user rejected|User rejected/i.test(msg)) {
+    return t("Транзакция отменена в кошельке.");
   }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-
-    if (lock.current) {
-      return;
-    }
-
-    const normalizedEmail = email.trim();
-    const normalizedTelegram = telegram.trim().replace(/^@/, "");
-
-    const nextErrors: FieldErrors = {
-      email:
-        normalizedEmail.length <= 254 &&
-        /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalizedEmail)
-          ? ""
-          : siteContent.waitlist.emailError,
-      telegram:
-        /^[a-zA-Z0-9]{5,32}$/.test(normalizedTelegram)
-          ? ""
-          : siteContent.waitlist.telegramError,
-    };
-
-    setErrors(nextErrors);
-    setSubmitError("");
-
-    if (nextErrors.email || nextErrors.telegram) {
-      play("ui.error", 0.3);
-
-      if (nextErrors.email) {
-        emailRef.current?.focus();
-      } else {
-        telegramRef.current?.focus();
-      }
-
-      return;
-    }
-
-    setEmail(normalizedEmail);
-    setTelegram(normalizedTelegram);
-    setStatus("loading");
-    lock.current = true;
-
-    let timeout: number | undefined;
-
-    try {
-      if (!demo) {
-        const url = new URL(endpoint, window.location.origin);
-
-        if (
-          !["https:", "http:"].includes(url.protocol) ||
-          (window.location.protocol === "https:" && url.protocol !== "https:")
-        ) {
-          throw new Error("Invalid endpoint protocol.");
-        }
-
-        const abort = new AbortController();
-        controller.current = abort;
-        timeout = window.setTimeout(() => abort.abort(), 12000);
-
-        const response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          credentials: "omit",
-          body: JSON.stringify({
-            email: normalizedEmail,
-            telegram: normalizedTelegram,
-            source: "ares-1-landing",
-          }),
-          signal: abort.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error("Waitlist request failed.");
-        }
-
-        const result: unknown = await response.json();
-
-        if (!isWaitlistResponse(result)) {
-          throw new Error("Unexpected waitlist response.");
-        }
-      }
-
-      if (!mounted.current) {
-        return;
-      }
-
-      setStatus("success");
-      play("ui.success", 0.45);
-
-      if (!demo) {
-        const submit = document.querySelector<HTMLElement>(
-          "#waitlist [data-morph-control][type='submit']",
-        );
-
-        award(
-          { kind: "waitlist" },
-          submit ? elementXpOrigin(submit) : undefined,
-        );
-      }
-
-      setEmail("");
-      setTelegram("");
-      celebrate();
-    } catch {
-      if (mounted.current) {
-        setStatus("error");
-        play("ui.error", 0.3);
-        setSubmitError(
-          "Не удалось отправить заявку. Проверь соединение и попробуй ещё раз.",
-        );
-      }
-    } finally {
-      if (timeout !== undefined) {
-        window.clearTimeout(timeout);
-      }
-
-      controller.current = null;
-      lock.current = false;
-    }
+  if (/presalecapreached|PresaleCapReached/i.test(msg)) {
+    return t("Волна распродана: cap 500 модулей достигнут.");
   }
-
-  return (
-    <Section id="waitlist" className="waitlist-section" speed={0.7}>
-      <PrizeRevealShow
-        trigger={prizeVisible}
-        amount={0}
-        title={demo ? "ПРОВЕРКА ПРОЙДЕНА" : "ЗАЯВКА ПРИНЯТА"}
-        message={
-          demo
-            ? "Демонстрационный пропуск готов. Заявка не отправлена, токены не начислены."
-            : "Ты в списке ожидания ARES-1. Следующая остановка — Марс."
-        }
-        onComplete={() => setPrizeVisible(false)}
-      />
-      <Reveal className="waitlist-panel panel" panel="accent">
-        <div className="waitlist-copy">
-          <p className="eyebrow">
-            <span className="status-dot" />
-            08 / СЛЕДУЮЩАЯ ВОЛНА
-          </p>
-          <h2 id="waitlist-title">{siteContent.waitlist.title}</h2>
-          <p>{siteContent.waitlist.subtitle}</p>
-          <p className="waitlist-payment-note">{siteContent.hero.presaleNotice}</p>
-
-          <div className="boarding-pass" aria-hidden="true">
-            <Mark />
-            <div>
-              <span>ЗЕМЛЯ → МАРС</span>
-              <strong>ARES-1</strong>
-              <small>ПОСАДОЧНЫЙ ПРОПУСК</small>
-            </div>
-            <div className="barcode" />
-          </div>
-        </div>
-
-        <div className="waitlist-form-area">
-          <p className={`form-mode ${demo ? "" : "form-mode--live"}`}>
-            <span className="status-dot status-dot--amber" />
-            {demo ? "ДЕМОРЕЖИМ · БЕЗ ОТПРАВКИ" : "ЗАЯВКА НА РАННИЙ ДОСТУП"}
-          </p>
-
-          <div className="form-status" role="status" aria-live="polite" aria-atomic="true">
-            {status === "success" && (
-              <div className="success-message">
-                <motion.span
-                  className="success-icon"
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{
-                    opacity: 1,
-                    scale: [0, 1.3, 1],
-                  }}
-                  transition={{ duration: 0.45 }}
-                >
-                  <Check size={22} aria-hidden="true" />
-                </motion.span>
-                <p>
-                  {demo
-                    ? siteContent.waitlist.demoSuccess
-                    : "✓ Заявка принята. Ты в списке ожидания ARES-1."}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <form
-            noValidate
-            onSubmit={(event) => void handleSubmit(event)}
-            aria-busy={status === "loading"}
-          >
-            <div className="form-field">
-              <label htmlFor="waitlist-email">{siteContent.waitlist.emailLabel}</label>
-              <input
-                ref={emailRef}
-                id="waitlist-email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                inputMode="email"
-                maxLength={254}
-                required
-                value={email}
-                disabled={status === "loading"}
-                placeholder={siteContent.waitlist.emailPlaceholder}
-                aria-invalid={Boolean(errors.email)}
-                aria-describedby={errors.email ? "email-error" : undefined}
-                onChange={(event) => {
-                  setEmail(event.target.value);
-                  setErrors((current) => ({ ...current, email: "" }));
-                  if (status === "success") setStatus("idle");
-                }}
-              />
-              {errors.email && (
-                <p id="email-error" className="field-error" role="alert">
-                  {errors.email}
-                </p>
-              )}
-            </div>
-
-            <div className="form-field">
-              <label htmlFor="waitlist-telegram">{siteContent.waitlist.telegramLabel}</label>
-              <input
-                ref={telegramRef}
-                id="waitlist-telegram"
-                name="telegram"
-                type="text"
-                autoComplete="off"
-                autoCapitalize="none"
-                spellCheck={false}
-                maxLength={33}
-                required
-                value={telegram}
-                disabled={status === "loading"}
-                placeholder={siteContent.waitlist.telegramPlaceholder}
-                aria-invalid={Boolean(errors.telegram)}
-                aria-describedby={
-                  errors.telegram
-                    ? "telegram-hint telegram-error"
-                    : "telegram-hint"
-                }
-                onChange={(event) => {
-                  setTelegram(event.target.value);
-                  setErrors((current) => ({ ...current, telegram: "" }));
-                  if (status === "success") setStatus("idle");
-                }}
-              />
-              <p id="telegram-hint" className="field-hint">
-                {siteContent.waitlist.telegramHint}
-              </p>
-              {errors.telegram && (
-                <p id="telegram-error" className="field-error" role="alert">
-                  {errors.telegram}
-                </p>
-              )}
-            </div>
-
-            <Action
-              type="submit"
-              loading={status === "loading"}
-              success={status === "success"}
-              className="form-submit"
-            >
-              {siteContent.waitlist.idle}
-            </Action>
-
-            {submitError && (
-              <p className="field-error submit-error" role="alert">
-                {submitError}
-              </p>
-            )}
-
-            <p className="form-privacy">
-              {demo
-                ? siteContent.waitlist.demoNotice
-                : "Нажимая кнопку, ты отправляешь email и имя в Телеграме оператору проекта для связи по заявке. Не вводи пароли и ключи кошелька."}
-            </p>
-          </form>
-        </div>
-      </Reveal>
-    </Section>
-  );
+  if (/presalewalletlimitreached|PresaleWalletLimitReached/i.test(msg)) {
+    return t("Лимит: один кошелёк может купить не больше 5 модулей в пресейле.");
+  }
+  if (/insufficient funds|INSUFFICIENT_FUNDS|blockhash/i.test(msg)) {
+    return t("Недостаточно SOL для комиссии/rent или blockhash протух — попробуй ещё раз.");
+  }
+  return t("Не удалось отправить транзакцию: {msg}", { msg });
 }
 
-
 function PacksSection(): JSX.Element {
-  const { connected, publicKey, balanceSkr, connect, connecting } = useLandingWallet();
+  useI18n();
+  const { connected, publicKey, balanceSkr, connect, connecting, connection } =
+    useLandingWallet();
+  const live = useLiveChain();
   const [purchasing, setPurchasing] = useState(false);
   const [success, setSuccess] = useState<{ tx: string; tier: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const price = chainConfig.presalePriceSkrAtoms;
   const balanceOk = balanceSkr >= price;
+  const soldOut = live.online && live.sold >= live.cap;
 
   const buyPack = async () => {
-    if (!connected || !publicKey || purchasing) return;
+    if (!connected || !publicKey || purchasing || soldOut) return;
     setPurchasing(true);
     setError(null);
     try {
-      // TODO Фаза 2: реальная транзакция ixBuyFieldSkr после деплоя контракта.
-      // Тир роллится контрактом — человек не выбирает редкость.
-      await new Promise((r) => setTimeout(r, 1500));
-      const roll = Math.random() * 100;
-      const tier = roll < 70 ? 0 : roll < 95 ? 1 : 2;
-      setSuccess({ tx: "simulated_" + Date.now(), tier });
+      // Реальная devnet-транзакция (как в игре): buy_field_skr,
+      // тир кидает сама программа: keccak(buyer ‖ sold ‖ slot).
+      const programId = new PublicKey(chainConfig.programId);
+      const { config: configPda, field } = pdas(programId);
+
+      const cfgInfo = await connection.getAccountInfo(configPda());
+      if (!cfgInfo) throw new Error(t("GameConfig PDA не найден — devnet не отвечает."));
+      const cfg = decodeConfig(Buffer.from(cfgInfo.data));
+
+      const fieldId = randomU64();
+      const buyerSkrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, publicKey);
+
+      const ataIx = createAssociatedTokenAccountIdempotentInstruction(
+        publicKey,
+        buyerSkrAta,
+        publicKey,
+        TEST_SKR_MINT,
+      );
+      const buyIx = await ixBuyFieldSkr(programId, {
+        config: configPda(),
+        presaleState: presaleStatePda(programId),
+        authority: cfg.authority,
+        buyerPresale: buyerPresalePda(programId, publicKey),
+        field: field(fieldId),
+        buyer: publicKey,
+        treasurySol: treasurySolPda(programId),
+        skrMint: TEST_SKR_MINT,
+        buyerSkrAta,
+        treasurySkrAta: treasurySkrAta(programId, TEST_SKR_MINT),
+        buybackSkrAta: buybackSkrAta(cfg.authority, TEST_SKR_MINT),
+        fieldId,
+      });
+
+      const tx = new Transaction().add(ataIx, buyIx);
+      tx.feePayer = publicKey;
+      const blockhash = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash.blockhash;
+
+      const signed = await window.solana?.signTransaction(tx);
+      if (!signed) throw new Error(t("Кошелёк не вернул подписанную транзакцию."));
+
+      const signature = await connection.sendRawTransaction(signed.serialize());
+      const confirmation = await connection.confirmTransaction(
+        {
+          signature,
+          blockhash: blockhash.blockhash,
+          lastValidBlockHeight: blockhash.lastValidBlockHeight,
+        },
+        "confirmed",
+      );
+      if (confirmation.value.err) {
+        throw new Error(t("Программа отклонила транзакцию: ") + String(confirmation.value.err));
+      }
+
+      // Читаем реальный тир из созданного поля: field_type на offset 67
+      let tier = 0;
+      try {
+        const fieldInfo = await connection.getAccountInfo(field(fieldId));
+        const onchainTier = fieldInfo?.data[67];
+        if (typeof onchainTier === "number") tier = onchainTier;
+      } catch {
+        /* тир не критичен: показываем COMMON-фолбэк */
+      }
+
+      setSuccess({ tx: signature, tier });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Ошибка транзакции");
+      setError(describeTxError(err));
     } finally {
       setPurchasing(false);
     }
@@ -2245,24 +1978,27 @@ function PacksSection(): JSX.Element {
         <div className="waitlist-copy">
           <p className="eyebrow">
             <span className="status-dot" />
-            08 / ПРЕСЕЙЛ МОДУЛЕЙ
+            {t("08 / ПРЕСЕЙЛ МОДУЛЕЙ")}
           </p>
-          <h2 id="packs-title">Купи модуль колонии</h2>
+          <h2 id="packs-title">{t("Купи модуль колонии")}</h2>
           <p>
-            1053 SKR — и гидропонная кассета твоя. Редкость выпадает случайно
-            после транзакции: COMMON 70% · RARE 25% · EPIC 5%.
+            {live.online
+              ? t("{n} модулей продано — данные live с devnet.", { n: `${live.sold} / ${live.cap}` })
+              : t("Счётчик читается с devnet (общий RPC).")}{" "}
+            {t("1053 SKR — и гидропонная кассета твоя. Редкость кидает сама программа: COMMON 70% · RARE 25% · EPIC 5%.")}
+            <span className="pack-note" aria-hidden="true">keccak(buyer ‖ sold ‖ slot)</span>
           </p>
           <p className="waitlist-payment-note">
-            Модуль записывается на твой кошелёк прямо в контракте — игра
-            подхватит его автоматически. Без заявок, без посредников.
+            {t("Реальная devnet-транзакция: модуль записывается на твой кошелёк прямо в контракте,")}
+            {t("игра подхватит его автоматически.")}
           </p>
 
           <div className="boarding-pass" aria-hidden="true">
             <Mark />
             <div>
-              <span>ЗЕМЛЯ → МАРС</span>
+              <span>{t("ЗЕМЛЯ → МАРС")}</span>
               <strong>ARES-1</strong>
-              <small>ГИДРОПОННЫЙ МОДУЛЬ</small>
+              <small>{t("ГИДРОПОННЫЙ МОДУЛЬ")}</small>
             </div>
             <div className="barcode" />
           </div>
@@ -2271,17 +2007,17 @@ function PacksSection(): JSX.Element {
         <div className="waitlist-form-area">
           <p className={`form-mode ${connected ? "form-mode--live" : ""}`}>
             <span className={`status-dot ${connected ? "" : "status-dot--amber"}`} />
-            {connected ? "КОШЕЛЁК ПОДКЛЮЧЁН · DEVNET" : "КОШЕЛЁК НЕ ПОДКЛЮЧЁН"}
+            {connected ? t("КОШЕЛЁК ПОДКЛЮЧЁН · DEVNET") : t("КОШЕЛЁК НЕ ПОДКЛЮЧЁН")}
           </p>
 
           {connected ? (
             <>
               <div className="pack-wallet-line">
-                <span>адрес</span>
+                <span>{t("адрес")}</span>
                 <strong>{addr.slice(0, 4)}…{addr.slice(-4)}</strong>
               </div>
               <div className="pack-wallet-line">
-                <span>баланс SKR</span>
+                <span>{t("баланс SKR")}</span>
                 <strong style={{ color: balanceOk ? "#35e0c0" : "#ff5470" }}>
                   {balance} SKR
                 </strong>
@@ -2289,12 +2025,15 @@ function PacksSection(): JSX.Element {
               <button
                 className="pack-buy-main"
                 onClick={() => { void buyPack(); }}
-                disabled={purchasing || !balanceOk}
+                disabled={purchasing || !balanceOk || soldOut}
               >
-                ⚡ {purchasing ? "Отправка транзакции…" : "Купить модуль · 1053 SKR"}
+                ⚡ {purchasing ? t("Отправка транзакции…") : soldOut ? t("Волна распродана") : t("Купить модуль · 1053 SKR")}
               </button>
-              {!balanceOk && (
-                <p className="pack-note">Недостаточно SKR для покупки модуля.</p>
+              {soldOut && (
+                <p className="pack-note">{t("Все {n} модулей первой волны проданы.", { n: live.cap })}</p>
+              )}
+              {!balanceOk && !soldOut && (
+                <p className="pack-note">{t("Недостаточно SKR для покупки модуля.")}</p>
               )}
             </>
           ) : (
@@ -2304,10 +2043,10 @@ function PacksSection(): JSX.Element {
                 onClick={() => { void connect(); }}
                 disabled={connecting}
               >
-                {connecting ? "Подключение…" : "⚡ Подключить кошелёк"}
+                {connecting ? t("Подключение…") : "⚡ " + t("Подключить кошелёк")}
               </button>
               <p className="pack-note">
-                Phantom или Solflare. После подключения кнопка покупки станет активной.
+                {t("Phantom или Solflare. После подключения кнопка покупки станет активной.")}
               </p>
             </>
           )}
@@ -2315,7 +2054,7 @@ function PacksSection(): JSX.Element {
           {error && <p className="pack-note pack-note--error">{error}</p>}
 
           <p className="pack-note">
-            До деплоя контракта покупка симулируется: транзакция не отправляется.
+            {t("devnet: SKR и SOL тестовые и не имеют реальной стоимости.")}
           </p>
         </div>
       </Reveal>
@@ -2329,6 +2068,7 @@ function PacksSection(): JSX.Element {
 
 function SuccessModal({ tx, tier, onClose }: { tx: string; tier: number; onClose: () => void }): JSX.Element {
   const TIERS = ["COMMON", "RARE", "EPIC"];
+  useI18n();
   const COLORS = ["#9AA0AC", "#B85CFF", "#FFC94A"];
 
   return (
@@ -2367,11 +2107,11 @@ function SuccessModal({ tx, tier, onClose }: { tx: string; tier: number; onClose
         >
           <div style={{ fontSize: 44, marginBottom: 14 }} aria-hidden="true">🥔</div>
           <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 10, color: COLORS[tier], letterSpacing: "0.06em" }}>
-            {TIERS[tier]} · МОДУЛЬ КУПЛЕН
+            {TIERS[tier]} · {t("МОДУЛЬ КУПЛЕН")}
           </h2>
           <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 18, color: "var(--pf-text-secondary, #b8b8c8)" }}>
-            Модуль ждёт вас в игре: он уже записан на твой кошелёк в контракте.
-            Заходи под тем же кошельком — делянка на месте.
+            {t("Модуль ждёт вас в игре: он уже записан на твой кошелёк в контракте.")}
+            {t("Заходи под тем же кошельком — делянка на месте.")}
           </p>
           <a
             href={`https://explorer.solana.com/tx/${tx}?cluster=devnet`}
@@ -2389,17 +2129,17 @@ function SuccessModal({ tx, tier, onClose }: { tx: string; tier: number; onClose
               fontFamily: '"JetBrains Mono", ui-monospace, monospace',
             }}
           >
-            транзакция в эксплорере ↗
+            {t("транзакция в эксплорере")} ↗
           </a>
           <div>
             <a
-              href={playConfig.url}
+              href={PC.url}
               target="_blank"
               rel="noopener noreferrer"
               className="cta-play"
             >
               <Play size={18} aria-hidden="true" />
-              ИГРАТЬ
+              {t("ИГРАТЬ")}
             </a>
           </div>
         </motion.div>
@@ -2407,29 +2147,30 @@ function SuccessModal({ tx, tier, onClose }: { tx: string; tier: number; onClose
     </AnimatePresence>
   );
 }
-
-function Footer({ notify }: { readonly notify: Notify }): JSX.Element {
+function Footer(): JSX.Element {
+  useI18n();
   return (
     <footer className="footer">
       <div className="container">
         <div className="footer-top">
-          <a href="#hero" className="brand" aria-label={siteContent.header.homeLabel}>
+          <a href="#hero" className="brand" aria-label={SC.header.homeLabel}>
             <Mark />
             <span>
               <strong>POTATO</strong>
-              <small>КОЛОНИЯ · ARES-1</small>
+              <small>{t("КОЛОНИЯ · ARES-1")}</small>
             </span>
           </a>
 
-          <nav aria-label={siteContent.footer.navigationLabel} className="footer-links">
-            {siteContent.footer.links.map((link) => (
+          <nav aria-label={SC.footer.navigationLabel} className="footer-links">
+            {SC.footer.links.map((link) => (
               <MorphButton
                 key={link.label}
-                type="button"
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
                 variant="ghost"
                 className="morph-button--footer"
                 magnetic={false}
-                onClick={() => notify(siteContent.accessibility.externalUnavailable)}
               >
                 {link.label}
                 <ArrowUpRight size={14} aria-hidden="true" />
@@ -2439,27 +2180,13 @@ function Footer({ notify }: { readonly notify: Notify }): JSX.Element {
         </div>
 
         <div className="footer-middle">
-          <p>{siteContent.footer.copyright}</p>
-          <nav aria-label={siteContent.social.linksLabel} className="footer-socials">
-            {socialLinks.map((link) => (
-              <MorphButton
-                key={link.id}
-                type="button"
-                variant="ghost"
-                className="morph-button--footer"
-                magnetic={false}
-                onClick={() => notify(siteContent.accessibility.externalUnavailable)}
-              >
-                {link.label}
-              </MorphButton>
-            ))}
-          </nav>
+          <p>{SC.footer.copyright}</p>
         </div>
 
-        <p className="disclaimer">{siteContent.footer.disclaimer}</p>
+        <p className="disclaimer">{SC.footer.disclaimer}</p>
         <div className="footer-bottom">
-          <span>СДЕЛАНО ДЛЯ НИЗКОЙ ГРАВИТАЦИИ</span>
-          <AnimatedTextLink href="#hero">НАВЕРХ ↑</AnimatedTextLink>
+          <span>{t("СДЕЛАНО ДЛЯ НИЗКОЙ ГРАВИТАЦИИ")}</span>
+          <AnimatedTextLink href="#hero">{t("НАВЕРХ")} ↑</AnimatedTextLink>
         </div>
       </div>
     </footer>
@@ -2535,7 +2262,7 @@ function Toast({
             <button
               type="button"
               className="icon-button"
-              aria-label={siteContent.accessibility.closeNotification}
+              aria-label={SC.accessibility.closeNotification}
               onClick={close}
             >
               <MotionIcon>
@@ -2550,8 +2277,24 @@ function Toast({
 }
 
 export default function App(): JSX.Element {
+  const { lang } = useI18n();
   const [notice, setNotice] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
+
+  // SEO-теги следуют за языком (title, description, og:*, twitter:*, html lang).
+  useEffect(() => {
+    document.title = SC.seo.title;
+    const setMeta = (selector: string, value: string): void => {
+      document.head.querySelector(selector)?.setAttribute("content", value);
+    };
+    setMeta('meta[name="description"]', SC.seo.description);
+    setMeta('meta[property="og:title"]', SC.seo.ogTitle);
+    setMeta('meta[property="og:description"]', SC.seo.ogDescription);
+    setMeta('meta[property="og:image:alt"]', SC.seo.ogImageAlt);
+    setMeta('meta[name="twitter:title"]', SC.seo.title);
+    setMeta('meta[name="twitter:description"]', SC.seo.description);
+    document.documentElement.lang = lang === "es-419" ? "es" : lang;
+  }, [lang]);
 
   const notify = useCallback((message: string): void => {
     if (timer.current !== null) {
@@ -2581,23 +2324,23 @@ export default function App(): JSX.Element {
   return (
     <>
       <a href="#main-content" className="skip-link">
-        {siteContent.accessibility.skipToContent}
+        {SC.accessibility.skipToContent}
       </a>
       <Ambient />
       <Header notify={notify} />
       <main id="main-content" tabIndex={-1}>
-        <Hero notify={notify} />
+        <Hero />
         <Problem />
         <Mechanics />
         <Mascot />
         <Tokenomics />
         <InterstellarSection />
         <Roadmap />
-        <Social notify={notify} />
+        <LiveStats notify={notify} />
         <FAQ />
         <PacksSection />
       </main>
-      <Footer notify={notify} />
+      <Footer />
       <Overlays />
       <Cursor />
       <Toast message={notice} close={closeNotice} />

@@ -1,5 +1,5 @@
 [toolchain]
-anchor_version = "0.30.1"
+anchor_version = "0.31.2"
 solana_version = "4.2.2"
 
 [features]
@@ -7,18 +7,21 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-solana_potato = "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha"
+solana_potato = "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf"
 
 [programs.localnet]
-solana_potato = "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha"
+solana_potato = "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf"
 
 [programs.mainnet]
-solana_potato = "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha"
+solana_potato = "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
+# anchor test starts its own localnet validator and deploys to THIS cluster —
+# must stay Localnet (CI + local runs). For 'anchor deploy' to devnet pass
+# the URL explicitly:  anchor deploy -- --url devnet
 cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 

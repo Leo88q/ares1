@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Solana Potato reward & epoch service: holds the game authority key, verifies Telegram initData, grants quest rewards, rolls epochs.",
+  "description": "Solana Potato epoch service: holds the game authority key, reads on-chain config, rolls epochs.",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",

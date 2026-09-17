@@ -1,4 +1,6 @@
 import { memo, useState } from 'react';
+import { t } from '../../i18n'
+
 import type { ReactNode } from 'react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import type { PanInfo } from 'framer-motion';
@@ -50,7 +52,7 @@ export const OrderManifest = memo(function OrderManifest({
      className="ares-mono"
      style={{ opacity: cancelHintOpacity, color: 'var(--ares-rust, #C1440E)', fontSize: 11 }}
     >
-     ОТМЕНА
+     {t('ОТМЕНА')}
     </motion.span>
    </div>
 

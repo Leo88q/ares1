@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { t } from '../i18n'
+
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ChevronRight } from 'lucide-react'
 import { HullPanel } from '../ui/HullPanel'
@@ -15,51 +17,51 @@ interface TutorialStep {
 const TUTORIAL_STEPS: TutorialStep[] = [
  {
   id: 'welcome',
-  eyebrow: '01 / КОЛОНИЯ',
-  title: 'ARES-1: картофельная колония на Solana',
-  description: 'Картошка = $POTATO. Всё через кошелёк, без посредников. 100% токена рождается в руках игроков — команда не майнит.',
+  eyebrow: t('01 / КОЛОНИЯ'),
+  title: t('ARES-1: картофельная колония на Solana'),
+  description: t('Картошка = $POTATO. Всё через кошелёк, без посредников. 100% токена рождается в руках игроков — команда не майнит.'),
   position: 'center',
  },
  {
   id: 'field',
-  eyebrow: '02 / ДЕЛЯНКА',
-  title: 'Модуль, харвест, лунный цикл',
-  description: 'Купи модуль за SKR. Харвест ограничен капом эпохи 250–750K POTATO и лунным множителем 0.85×–1.15× (Фобос влияет).',
+  eyebrow: t('02 / ДЕЛЯНКА'),
+  title: t('Модуль, харвест, лунный цикл'),
+  description: t('Купи модуль за SKR. Харвест ограничен капом эпохи 250–750K POTATO и лунным множителем 0.85×–1.15× (Фобос влияет).'),
   position: 'top',
  },
  {
   id: 'mutations',
-  eyebrow: '03 / ИЗНОС И МУТАЦИИ',
-  title: 'Ремонт, апгрейд, 5% шанс мутации',
-  description: 'Durability падает — чини. Апгрейд даёт 5% шанс: Golden +25% урожая навсегда, или Silicon — износ ×0.5.',
+  eyebrow: t('03 / ИЗНОС И МУТАЦИИ'),
+  title: t('Ремонт, апгрейд, 5% шанс мутации'),
+  description: t('Durability падает — чини. Апгрейд даёт 5% шанс: Golden +25% урожая навсегда, или Silicon — износ ×0.5.'),
   position: 'top',
  },
  {
   id: 'license',
-  eyebrow: '04 / НАЛОГ И ЛИЦЕНЗИЯ',
-  title: 'Налог на харвест и экспорт-лицензия',
-  description: 'Неуплаченный налог = −15% к урожаю. Лицензия 500 SKR / 30 дней → −3% комиссии рынка. Покупка в КАЮТЕ.',
+  eyebrow: t('04 / НАЛОГ И ЛИЦЕНЗИЯ'),
+  title: t('Налог на харвест и экспорт-лицензия'),
+  description: t('Неуплаченный налог = −15% к урожаю. Лицензия 500 SKR / 30 дней → −3% комиссии рынка. Покупка в КАЮТЕ.'),
   position: 'bottom',
  },
  {
   id: 'market',
-  eyebrow: '05 / РЫНОК',
-  title: 'Ордера, комиссия, burn',
-  description: 'Комиссия 9–12%: 60% сгорает навсегда, 40% в казну. Отмена ордера — с кулдауном. Всё в escrow, без контрагентов.',
+  eyebrow: t('05 / РЫНОК'),
+  title: t('Ордера, комиссия, burn'),
+  description: t('Комиссия 9–12%: 60% сгорает навсегда, 40% в казну. Отмена ордера — с кулдауном. Всё в escrow, без контрагентов.'),
   position: 'bottom',
  },
  {
   id: 'referral',
-  eyebrow: '06 / РЕФЕРАЛКА',
-  title: 'Приводи — экономьте вместе',
-  description: 'Ссылка в КАЮТЕ. Тебе и другу −1% комиссии. Рефереру +0.5% от каждой сделки приглашённого.',
+  eyebrow: t('06 / РЕФЕРАЛКА'),
+  title: t('Приводи — экономьте вместе'),
+  description: t('Ссылка в КАЮТЕ. Тебе и другу −1% комиссии. Рефереру +0.5% от каждой сделки приглашённого.'),
   position: 'bottom',
  },
  {
   id: 'done',
-  eyebrow: '07 / КВЕСТЫ И МОСТ',
-  title: 'Награды сервера, мост через burn',
-  description: 'Квесты минтит сервер (не клиент). Мост в Age of Farming работает только через burn — без пулов ликвидности. Удачи, колонист.',
+  eyebrow: t('07 / КВЕСТЫ И МОСТ'),
+  title: t('Награды сервера, мост через burn'),
+  description: t('Квесты минтит сервер (не клиент). Мост в Age of Farming работает только через burn — без пулов ликвидности. Удачи, колонист.'),
   position: 'center',
  },
 ]
@@ -74,7 +76,6 @@ export default function InteractiveTutorial({ onComplete }: Props) {
 
  const step = TUTORIAL_STEPS[currentStep]
  const isLast = currentStep === TUTORIAL_STEPS.length - 1
- const progress = ((currentStep + 1) / TUTORIAL_STEPS.length) * 100
 
  const handleNext = () => {
   if (isLast) {
@@ -154,7 +155,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
         color: 'var(--pf-text-muted)',
         marginBottom: 8,
        }}>
-        ПРОГРЕСС · {currentStep + 1} / {TUTORIAL_STEPS.length}
+        t('ПРОГРЕСС') · {currentStep + 1} / {TUTORIAL_STEPS.length}
        </div>
        <div style={{
         display: 'flex',
@@ -227,7 +228,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
           cursor: 'pointer',
          }}
         >
-         Пропустить
+         {t('Пропустить')}
         </button>
        )}
        <button
@@ -247,7 +248,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
          gap: 6,
         }}
        >
-        {isLast ? 'Завершить' : 'Далее'}
+        {isLast ? t('Завершить') : t('Далее')}
         {!isLast && <ChevronRight size={16} />}
        </button>
       </div>

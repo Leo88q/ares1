@@ -1,4 +1,6 @@
-import { PRESALE_DROP, rollPresaleDrop } from '../utils/constants'
+import { PRESALE_DROP } from '../utils/constants'
+import { t } from '../i18n'
+
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { TrendingUp  } from 'lucide-react'
@@ -16,7 +18,7 @@ const PRESALE_PRICE_SKR = 1053
  * Использует PotatoCard rare="gold" + GlowIcon + AnimatedNumber + PotatoButton glow="none"
  */
 export default function PresaleSection() {
- const { buyFieldPresale, purchasing } = useGame() as any
+ const { buyFieldPresale, purchasing } = useGame()
  const { connected, connection } = useSolana()
  const [sold, setSold] = useState(0)
  const [loading, setLoading] = useState(true)
@@ -63,11 +65,12 @@ export default function PresaleSection() {
  const [lastDrop, setLastDrop] = useState<number | null>(null)
 
  const handleBuy = async () => {
-  const drop = rollPresaleDrop()
   sounds.buy()
   haptics.purchaseField()
-  const ok = await buyFieldPresale?.(drop)
-  if (ok) setLastDrop(drop)
+  // Тир кидает сама программа (keccak(buyer ‖ sold ‖ slot)); результат
+  // читаем из on-chain состояния созданного поля.
+  const tier = await buyFieldPresale?.()
+  if (tier !== null && tier !== undefined) setLastDrop(tier)
  }
 
  return (
@@ -105,7 +108,7 @@ export default function PresaleSection() {
       PRESALE
      </h2>
      <div className="pf-subtitle" style={{ fontSize: 12, margin: 0 }}>
-      Растение за SKR · Лимит 5 на кошелёк
+      {t('Растение за SKR · Лимит 5 на кошелёк')}
      </div>
     </div>
    </div>
@@ -119,7 +122,7 @@ export default function PresaleSection() {
    }}>
     <div>
      <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-      Осталось
+      {t('Осталось')}
      </div>
      <div className="pf-mono lcd-readout" style={{ fontSize: 32, fontWeight: 700, color: soldOut ? 'var(--pf-red)' : 'var(--ares-hud-amber, #FFB347)', fontVariantNumeric: 'tabular-nums' }}>
       {loading ? '—' : String(remaining).padStart(4, '0')}
@@ -130,7 +133,7 @@ export default function PresaleSection() {
     </div>
     <div style={{ textAlign: 'right' }}>
      <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-      Цена
+      {t('Цена')}
      </div>
      <div className="pf-mono lcd-readout" style={{ fontSize: 22, fontWeight: 700, color: 'var(--ares-hud-amber, #FFB347)' }}>
       {String(PRESALE_PRICE_SKR).padStart(4, '0')} SKR
@@ -189,15 +192,15 @@ export default function PresaleSection() {
     }}
    >
     {soldOut ? (
-     'РАСПРОДАНО'
+     t('РАСПРОДАНО')
     ) : loading ? (
-     'Загрузка…'
+     t('Загрузка…')
     ) : !connected ? (
-     'Подключи кошелёк'
+     t('Подключи кошелёк')
     ) : (
      <>
       <TrendingUp size={18} />
-       Купить растения за {PRESALE_PRICE_SKR} SKR
+       {t('Купить растения за {price} SKR', { price: PRESALE_PRICE_SKR })}
      </>
     )}
    </motion.button>
@@ -211,7 +214,7 @@ export default function PresaleSection() {
      margin: '12px 0 0 0',
     }}>
      <div className="ares-mono" style={{ marginTop: 10, textAlign: 'center', fontSize: 9, color: 'rgba(255,179,71,0.55)', letterSpacing: '0.14em' }}>
-      ШАНСЫ ДРОПА МОДУЛЯ
+      {t('ШАНСЫ ДРОПА МОДУЛЯ')}
      </div>
      <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginTop: 8, marginBottom: 8, flexWrap: 'wrap' }}>
       {PRESALE_DROP.map(d => (
@@ -222,10 +225,10 @@ export default function PresaleSection() {
      </div>
      {lastDrop !== null && (
       <div className="ares-mono" style={{ marginTop: 0, textAlign: 'center', fontSize: 11, color: PRESALE_DROP[lastDrop].color, letterSpacing: '0.1em' }}>
-       ВЫПАЛО: {PRESALE_DROP[lastDrop].label}
+       {t('ВЫПАЛО: {label}', { label: PRESALE_DROP[lastDrop].label })}
       </div>
      )}
-     80% SKR → казна · 20% → buyback & burn POTATO
+     {t('80% SKR → казна · 20% → buyback & burn POTATO')}
     </div>
    )}
   </motion.div>

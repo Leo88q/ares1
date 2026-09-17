@@ -1,3 +1,4 @@
+import { t, tr, useI18n, getLang } from "./i18n";
 import {
   useEffect,
   useId,
@@ -52,17 +53,25 @@ const emptyMetrics: InterstellarMetrics = {
   nextFlightAt: null,
 };
 
-const numberFormatter = new Intl.NumberFormat("ru-RU", {
-  maximumFractionDigits: 6,
-});
+const LOCALES: Record<string, string> = {
+  en: "en-US",
+  ru: "ru-RU",
+  "pt-BR": "pt-BR",
+  "es-419": "es-MX",
+  vi: "vi-VN",
+  id: "id-ID",
+  tl: "fil-PH",
+};
 
-const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
-  day: "numeric",
-  month: "long",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+function currentLocale(): string {
+  try {
+    return LOCALES[getLang()] ?? "ru-RU";
+  } catch {
+    return "ru-RU";
+  }
+}
 
+const SC = tr(interstellarContent);
 const revealEase = [0.19, 1, 0.22, 1] as const;
 
 function safeExternalUrl(value: string | null): string | null {
@@ -359,7 +368,7 @@ function QuantumRoute({
       {!compact && (
         <div className="quantum-route-label">
           <span>$POTATO</span>
-          <small>ДВА МИРА · ОДИН СИГНАЛ</small>
+          <small>{t("ДВА МИРА · ОДИН СИГНАЛ")}</small>
         </div>
       )}
     </div>
@@ -401,32 +410,32 @@ function BridgeMetrics({
     metrics.transferredPotato !== null &&
     Number.isFinite(metrics.transferredPotato) &&
     metrics.transferredPotato >= 0
-      ? `${numberFormatter.format(metrics.transferredPotato)} $POTATO`
-      : interstellarContent.noMetrics;
+      ? `${new Intl.NumberFormat(currentLocale(), { maximumFractionDigits: 6 }).format(metrics.transferredPotato)} $POTATO`
+      : SC.noMetrics;
 
-  let schedule = interstellarContent.noSchedule as string;
+  let schedule = SC.noSchedule as string;
 
   if (Number.isFinite(flightTime)) {
     const remaining = flightTime - now;
 
     schedule =
       remaining > 0
-        ? `Через ${Math.max(1, Math.ceil(remaining / 3_600_000))} ч`
-        : interstellarContent.awaitingSchedule;
+        ? t("Через {h} ч", { h: Math.max(1, Math.ceil(remaining / 3_600_000)) })
+        : SC.awaitingSchedule;
   }
 
   return (
     <dl className="interstellar-metrics">
       <div>
-        <dt>{interstellarContent.transferLabel}</dt>
+        <dt>{SC.transferLabel}</dt>
         <dd>{transferred}</dd>
       </div>
       <div>
-        <dt>{interstellarContent.nextFlightLabel}</dt>
+        <dt>{SC.nextFlightLabel}</dt>
         <dd>{schedule}</dd>
         {Number.isFinite(flightTime) && (
           <small>
-            {dateFormatter.format(flightTime)} · по твоим часам
+            {new Intl.DateTimeFormat(currentLocale(), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(flightTime)} · {t("по твоим часам")}
           </small>
         )}
       </div>
@@ -440,6 +449,7 @@ function BridgeDialog({
   metrics,
   ageOfFarmingUrl,
 }: BridgeDialogProps): JSX.Element {
+  useI18n();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const { play } = useSounds();
   const reducedMotion = usePrefersReducedMotion();
@@ -488,12 +498,12 @@ function BridgeDialog({
           >
             <div className="interstellar-dialog-top">
               <p className="interstellar-eyebrow">
-                {interstellarContent.routeLabel}
+                {SC.routeLabel}
               </p>
               <button
                 type="button"
                 className="interstellar-close"
-                aria-label={interstellarContent.close}
+                aria-label={SC.close}
                 onClick={close}
                 autoFocus
               >
@@ -501,9 +511,9 @@ function BridgeDialog({
               </button>
             </div>
 
-            <h2 id={`${id}-title`}>{interstellarContent.dialogTitle}</h2>
+            <h2 id={`${id}-title`}>{SC.dialogTitle}</h2>
             <p id={`${id}-description`}>
-              {interstellarContent.dialogDescription}
+              {SC.dialogDescription}
             </p>
 
             <div className="interstellar-mini-scene" aria-hidden="true">
@@ -516,8 +526,8 @@ function BridgeDialog({
 
             <p className="interstellar-safety">
               {interstellarConfig.status === "planned"
-                ? interstellarContent.plannedNotice
-                : interstellarContent.openNotice}
+                ? SC.plannedNotice
+                : SC.openNotice}
             </p>
 
             {url ? (
@@ -528,11 +538,11 @@ function BridgeDialog({
                 fullWidth
                 magnetic={false}
               >
-                {interstellarContent.gameCta}
+                {SC.gameCta}
               </MorphButton>
             ) : (
               <p className="interstellar-unavailable">
-                {interstellarContent.unavailableLink}
+                {SC.unavailableLink}
               </p>
             )}
           </motion.div>
@@ -553,7 +563,7 @@ function PlanetCard({
 }): JSX.Element {
   const reducedMotion = usePrefersReducedMotion();
   const id = useId().replace(/:/g, "");
-  const copy = interstellarContent[planet];
+  const copy = SC[planet];
 
   return (
     <div
@@ -576,7 +586,7 @@ function PlanetCard({
         <motion.ul
           id={`${id}-benefits`}
           className="interstellar-benefits"
-          aria-label={`${interstellarContent.benefitsLabel}: ${copy.name}`}
+          aria-label={`${SC.benefitsLabel}: ${copy.name}`}
           initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reducedMotion ? 0.15 : 0.25 }}
@@ -595,6 +605,7 @@ function PlanetCard({
 
 export function InterstellarSection(): JSX.Element {
   const sectionRef = useRef<HTMLElement>(null);
+  useI18n();
   const reducedMotion = usePrefersReducedMotion();
   const [selected, setSelected] = useState<PlanetName>("mars");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -635,15 +646,15 @@ export function InterstellarSection(): JSX.Element {
           }}
         >
           <p className="interstellar-eyebrow">
-            {interstellarContent.eyebrow}
+            {SC.eyebrow}
           </p>
-          <h2 id="interstellar-title">{interstellarContent.title}</h2>
-          <p className="interstellar-subtitle">{interstellarContent.subtitle}</p>
+          <h2 id="interstellar-title">{SC.title}</h2>
+          <p className="interstellar-subtitle">{SC.subtitle}</p>
           <span className="interstellar-status">
             <span aria-hidden="true" />
             {interstellarConfig.status === "planned"
-              ? interstellarContent.plannedLabel
-              : interstellarContent.availableLabel}
+              ? SC.plannedLabel
+              : SC.availableLabel}
           </span>
         </motion.div>
 
@@ -670,7 +681,7 @@ export function InterstellarSection(): JSX.Element {
         </div>
 
         <p className="interstellar-interaction-hint">
-          {interstellarContent.benefitHint}
+          {SC.benefitHint}
         </p>
 
         <LiquidPanel
@@ -682,14 +693,14 @@ export function InterstellarSection(): JSX.Element {
             <span className="interstellar-signal" aria-hidden="true">17.42</span>
             <div>
               <p className="interstellar-eyebrow">
-                {interstellarContent.frequencyLabel}
+                {SC.frequencyLabel}
               </p>
-              <h3>{interstellarContent.narrativeLabel}</h3>
+              <h3>{SC.narrativeLabel}</h3>
             </div>
           </div>
 
           <div className="interstellar-story-columns">
-            {interstellarContent.paragraphs.map((paragraph, index) => (
+            {SC.paragraphs.map((paragraph, index) => (
               <motion.p
                 key={paragraph}
                 initial={{ opacity: 0, y: reducedMotion ? 0 : 16 }}
@@ -706,7 +717,7 @@ export function InterstellarSection(): JSX.Element {
           </div>
 
           <p className="interstellar-narrative-notice">
-            {interstellarContent.narrativeNotice}
+            {SC.narrativeNotice}
           </p>
         </LiquidPanel>
 
@@ -715,9 +726,9 @@ export function InterstellarSection(): JSX.Element {
             type="button"
             onClick={() => setDialogOpen(true)}
           >
-            {interstellarContent.cta}
+            {SC.cta}
           </MorphButton>
-          <p>{interstellarContent.plannedNotice}</p>
+          <p>{SC.plannedNotice}</p>
         </div>
       </div>
 
@@ -735,6 +746,7 @@ export function InterstellarBridge({
   metrics = emptyMetrics,
   ageOfFarmingUrl = interstellarConfig.ageOfFarmingUrl,
 }: InterstellarBridgeProps): JSX.Element {
+  useI18n();
   const [dialogOpen, setDialogOpen] = useState(false);
   const id = useId().replace(/:/g, "");
   const url = safeExternalUrl(ageOfFarmingUrl);
@@ -750,19 +762,19 @@ export function InterstellarBridge({
       >
         <div className="interstellar-game-heading">
           <p className="interstellar-eyebrow">
-            {interstellarContent.routeLabel}
+            {SC.routeLabel}
           </p>
           <span className="interstellar-status">
             <span aria-hidden="true" />
             {interstellarConfig.status === "planned"
-              ? interstellarContent.plannedLabel
-              : interstellarContent.availableLabel}
+              ? SC.plannedLabel
+              : SC.availableLabel}
           </span>
         </div>
 
-        <h3 id={`${id}-title`}>{interstellarContent.dialogTitle}</h3>
+        <h3 id={`${id}-title`}>{SC.dialogTitle}</h3>
         <p className="interstellar-game-description">
-          {interstellarContent.subtitle}
+          {SC.subtitle}
         </p>
 
         <div className="interstellar-mini-scene" aria-hidden="true">
@@ -781,7 +793,7 @@ export function InterstellarBridge({
               rel="noopener noreferrer"
               fullWidth
             >
-              {interstellarContent.gameCta}
+              {SC.gameCta}
             </MorphButton>
           ) : (
             <MorphButton
@@ -790,7 +802,7 @@ export function InterstellarBridge({
               fullWidth
               onClick={() => setDialogOpen(true)}
             >
-              {interstellarContent.detailsCta}
+              {SC.detailsCta}
             </MorphButton>
           )}
 
@@ -800,15 +812,15 @@ export function InterstellarBridge({
               className="interstellar-detail-link"
               onClick={() => setDialogOpen(true)}
             >
-              {interstellarContent.detailsCta}
+              {SC.detailsCta}
             </button>
           )}
         </div>
 
         <p className="interstellar-game-note">
           {interstellarConfig.status === "planned"
-            ? interstellarContent.plannedNotice
-            : interstellarContent.openNotice}
+            ? SC.plannedNotice
+            : SC.openNotice}
         </p>
       </LiquidPanel>
 

@@ -1,12 +1,13 @@
 import { useCallback, useMemo, useState } from 'react'
+import { t } from '../i18n'
+
 import { PublicKey } from '@solana/web3.js'
-import { createAssociatedTokenAccountInstruction, createAssociatedTokenAccountIdempotentInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token'
+import { createAssociatedTokenAccountInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { useSolana } from '../contexts/SolanaContext'
 import { useToast } from '../components/Toast'
 import {
  decodeMarketOrder, decodeMarketStats, decodeExportLicense, pdas, potatoAta,
  ixCreateSellOrder, ixFillOrder, ixCancelOrder,
-TEST_SKR_MINT,
 } from '../utils/anchorClient'
 import { MICRO } from '../utils/constants'
 import { describeError } from '../utils/errors'
@@ -45,6 +46,7 @@ export function useMarketplace() {
  const [stats, setStats] = useState<MarketStatsView>({ sellVolume24h: 0, buyVolume24h: 0, totalSolVolume: 0, totalTrades: 0 })
  const [loading, setLoading] = useState(true)
  const [actionLoading, setActionLoading] = useState<string | null>(null)
+ const [error, setError] = useState<string | null>(null)
 
  const loadOrders = useCallback(async () => {
   if (!ready) {
@@ -79,6 +81,7 @@ export function useMarketplace() {
      isOwn: publicKey ? d.seller.equals(publicKey) : false,
     }
    })
+   setError(null)
    setOrders(
     mapped
      .filter((o) => o.status === 'active')
@@ -93,6 +96,9 @@ export function useMarketplace() {
      totalTrades: Number(s.totalTrades),
     })
    }
+  } catch (err) {
+   setError(describeError(err))
+   throw err
   } finally {
    setLoading(false)
   }
@@ -134,11 +140,11 @@ export function useMarketplace() {
      orderId, amountMicro, priceLamports,
     })
     await sendIx([...ixs, ix])
-    show({ type: 'success', title: 'Ордер опубликован', message: 'Он будет активен 24 часа.' })
+    show({ type: 'success', title: t('Ордер опубликован'), message: t('Он будет активен 24 часа.') })
     await loadOrders()
     return true
    } catch (err) {
-    notifyError('Не удалось создать ордер', err)
+    notifyError(t('Не удалось создать ордер'), err)
     return false
    } finally {
     setActionLoading(null)
@@ -156,22 +162,17 @@ export function useMarketplace() {
     // ~0.003 SOL covers the fee plus a possible ATA rent for the buyer/treasury.
     if (solBal < order.totalLamports + 3_000_000) {
      show({
-      type: 'warning', title: 'Недостаточно SKR',
-      message: `Нужно ${(order.totalLamports / 1e6).toFixed(4)} SOL + комиссия, у тебя ${(solBal / 1e6).toFixed(4)} SOL.`,
+      type: 'warning', title: t('Недостаточно SOL'),
+      message: t('Нужно {need} SOL + комиссия, у тебя {have} SOL.', { need: (order.totalLamports / 1e6).toFixed(4), have: (solBal / 1e6).toFixed(4) }),
      })
      return false
     }
     const { escrow, marketStats, config: configPdaFn } = pdas(programId)
     const configPda = configPdaFn()
     const { address: buyerPotato, ixs } = await ensureAtaIx(publicKey, config.potatoMint)
-    const buyerSkrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, publicKey)
-    const sellerSkrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, order.seller)
-    // idempotent: создаём ATA для SKR у покупателя и продавца если их нет
-    const skrAtaIxs = [
-      createAssociatedTokenAccountIdempotentInstruction(publicKey, buyerSkrAta, publicKey, TEST_SKR_MINT),
-      createAssociatedTokenAccountIdempotentInstruction(publicKey, sellerSkrAta, order.seller, TEST_SKR_MINT),
-    ]
-    // Проверяем лицензию продавца — если активна, применяем скидку 3%
+    // Продавец платит комиссию при листинге — его ATA всегда существует.
+    const sellerPotato = getAssociatedTokenAddressSync(config.potatoMint, order.seller, true)
+    // Лицензия продавца: скидка 3 % (slot [0] remaining_accounts)
     const sellerLicensePda = pdas(programId).exportLicense(order.seller)
     let sellerLicense: PublicKey | null = null
     try {
@@ -183,20 +184,37 @@ export function useMarketplace() {
       }
      }
     } catch { /* лицензия не существует — нормально */ }
-    
+    // Рефералка покупателя: −1 % комиссии + 0.5 % рефереру (slots [1], [2])
+    let buyerReferral: PublicKey | null = null
+    let referrerPotato: PublicKey | null = null
+    try {
+     const referralPda = PublicKey.findProgramAddressSync(
+      [Buffer.from('referral'), publicKey.toBuffer()], programId,
+     )[0]
+     const refAcc = await connection.getAccountInfo(referralPda)
+     if (refAcc && refAcc.data.length >= 8 + 32 + 32) {
+      const referrer = new PublicKey(refAcc.data.subarray(8 + 32, 8 + 64))
+      if (referrer.toBase58() !== '11111111111111111111111111111111'
+       && !referrer.equals(publicKey) && !referrer.equals(order.seller)) {
+       buyerReferral = referralPda
+       referrerPotato = getAssociatedTokenAddressSync(config.potatoMint, referrer, true)
+      }
+     }
+    } catch { /* рефералка не зарегистрирована — нормально */ }
+
     const ix = await ixFillOrder(programId, {
      buyer: publicKey, seller: order.seller, config: configPda, potatoMint: config.potatoMint,
      marketStats: marketStats(), order: order.publicKey, escrow: escrow(order.publicKey),
-     buyerPotato, skrMint: TEST_SKR_MINT, buyerSkrAta, sellerSkrAta,
+     buyerPotato, sellerPotato,
      treasuryPotato: potatoAta(configPda, config.potatoMint),
-     sellerLicense,
+     sellerLicense, buyerReferral, referrerPotato,
     })
-    await sendIx([...ixs, ...skrAtaIxs, ix])
-    show({ type: 'success', title: 'Покупка выполнена', message: `+${(order.amountMicro / MICRO).toFixed(2)} POTATO` })
+    await sendIx([...ixs, ix])
+    show({ type: 'success', title: t('Покупка выполнена'), message: t('+{amount} POTATO', { amount: (order.amountMicro / MICRO).toFixed(2) }) })
     await Promise.all([loadOrders(), refreshConfig()])
     return true
    } catch (err) {
-    notifyError('Не удалось купить', err)
+    notifyError(t('Не удалось купить'), err)
     return false
    } finally {
     setActionLoading(null)
@@ -219,7 +237,7 @@ export function useMarketplace() {
     await loadOrders()
     return true
    } catch (err) {
-    notifyError('Не удалось отменить ордер', err)
+    notifyError(t('Не удалось отменить ордер'), err)
     return false
    } finally {
     setActionLoading(null)
@@ -228,5 +246,5 @@ export function useMarketplace() {
   [config, publicKey, programId, ensureAtaIx, sendIx, loadOrders, notifyError],
  )
 
- return { orders, myOrders, stats, loading, actionLoading, createOrder, fillOrder, cancelOrder, reload: loadOrders }
+ return { orders, myOrders, stats, loading, actionLoading, error, createOrder, fillOrder, cancelOrder, reload: loadOrders }
 }

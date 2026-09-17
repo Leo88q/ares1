@@ -1,4 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { useI18n } from '../../i18n'
+
 import { AnimatePresence, motion } from 'framer-motion';
 import { StarField, usePrefersReducedMotion } from './effects';
 import { AstronautLoader } from '../../ui/TuberAstronaut';
@@ -25,11 +27,10 @@ const STAGE_DURATIONS_MS: Record<Exclude<LandingStage, 'ready'>, number> = {
  telemetry: 1800,
 };
 
-const TELEMETRY_LINES = [
+const TELEMETRY_LINES_STATIC = [
  'O2 ................ 98.4%',
  'H2O ............... 76.2%',
  'Seeker .......... 0417',
- 'RATION ............ ГОТОВ',
 ];
 
 function useTypedLines(lines: string[], active: boolean, charIntervalMs = 14): string[] {
@@ -77,8 +78,13 @@ export const LandingSequence = memo(function LandingSequence({
  onLanded,
 }: LandingSequenceProps): JSX.Element {
  const reducedMotion = usePrefersReducedMotion();
+ const { t, lang } = useI18n();
  const [stageIndex, setStageIndex] = useState(0);
  const stage = STAGE_ORDER[stageIndex] ?? 'ready';
+ const telemetryLines = useMemo(
+  () => [...TELEMETRY_LINES_STATIC, `RATION ............ ${t('ГОТОВ')}`],
+  [t, lang],
+ );
 
  useEffect(() => {
   if (stage === 'ready') {
@@ -94,7 +100,7 @@ export const LandingSequence = memo(function LandingSequence({
 
  const loadPct = [8, 30, 52, 68, 88, 100][stageIndex] ?? 100;
  const telemetryActive = stage === 'telemetry' || stage === 'ready';
- const typedLines = useTypedLines(TELEMETRY_LINES, telemetryActive, reducedMotion ? 2 : 14);
+ const typedLines = useTypedLines(telemetryLines, telemetryActive, reducedMotion ? 2 : 14);
 
  const stageProgress = useMemo(() => {
   return {
@@ -194,7 +200,7 @@ export const LandingSequence = memo(function LandingSequence({
       pointerEvents: 'none',
      }}
     >
-     <AstronautLoader progress={loadPct} label="РАСПАКОВКА ГИДРОПОНИКИ" />
+     <AstronautLoader progress={loadPct} label={t("РАСПАКОВКА ГИДРОПОНИКИ")} />
     </div>
    ) : null}
 
@@ -213,7 +219,7 @@ export const LandingSequence = memo(function LandingSequence({
      }}
     >
      {typedLines.map((line, index) => (
-      <div key={TELEMETRY_LINES[index]}>{line || ' '}</div>
+<div key={telemetryLines[index]}>{line || ' '}</div>
      ))}
     </div>
    ) : null}

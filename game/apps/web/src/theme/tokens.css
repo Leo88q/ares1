@@ -1,0 +1,120 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Единый набор дизайн-токенов (Source of Truth, Stage 4 — 14.09.2026)
+   ─────────────────────────────────────────────────────────────────
+   Все цвета/радиусы/шрифты/тени в проекте берутся отсюда.
+   Имена --pf-* сохранены исторически (на них завязаны компоненты);
+   --ares-* — палитра ARES-скинов (ранее дублировалась в theme/ares.ts
+   и inline-стилях как сырые hex).
+   Правило: в компонентах и CSS — ТОЛЬКО var(--pf-*) / var(--ares-*).
+   Сырые hex в стилях — баг (см. docs/UI-AUDIT-2026-09-14.md).
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Фоновые ── */
+  --pf-bg-base: #0B0714;
+  --pf-bg-elevated: #150E22;
+  --pf-glass: rgba(20, 14, 30, 0.6);
+  --pf-glass-strong: rgba(20, 14, 30, 0.82);
+
+  /* ── Границы ── */
+  --pf-border-soft: rgba(255, 255, 255, 0.08);
+  --pf-border-strong: rgba(255, 255, 255, 0.18);
+
+  /* ── Акцентные ── */
+  --pf-orange: #FF7A1A;
+  --pf-pink: #FF2E93;
+  --pf-teal: #12E7C4;
+  --pf-purple: #B85CFF;
+  --pf-gold: #FFC94A;
+  --pf-green: #7CFF6B;
+  --pf-red: #FF3B3B;
+
+  /* ── Семантика (алиасы для состояний) ── */
+  --pf-accent: var(--pf-orange);
+  --pf-success: var(--pf-green);
+  --pf-warning: var(--pf-gold);
+  --pf-danger: var(--pf-red);
+  --pf-info: var(--pf-teal);
+
+  /* ── Градиенты ── */
+  --pf-grad-sunset: linear-gradient(135deg, #2D0B3D 0%, #6A1B5D 45%, #FF3E7F 100%);
+  --pf-grad-cta: linear-gradient(135deg, var(--pf-orange) 0%, var(--pf-pink) 100%);
+  --pf-grad-gold: linear-gradient(135deg, #FFE08A 0%, var(--pf-gold) 60%, #E8940A 100%);
+  --pf-grad-border: conic-gradient(from 180deg, var(--pf-pink), var(--pf-teal), var(--pf-purple), var(--pf-pink));
+
+  /* ── Текст ── */
+  --pf-text-primary: #F5F0EA;
+  --pf-text-secondary: #9C93AE;
+  --pf-text-muted: #6B6380;
+
+  /* ── Шрифты ── */
+  --pf-font-display: 'Anton', 'Archivo Black', sans-serif;
+  --pf-font-ui: 'Inter', sans-serif;
+  --pf-font-mono: 'JetBrains Mono', monospace;
+
+  /* ── Типографика: размеры (мобайл-first) ── */
+  --pf-text-xs: 11px;
+  --pf-text-sm: 12px;
+  --pf-text-md: 14px;
+  --pf-text-lg: 16px;
+  --pf-text-xl: 20px;
+  --pf-text-2xl: 24px;
+  --pf-line-tight: 1.15;
+  --pf-line-normal: 1.5;
+
+  /* ── Радиусы ── */
+  --pf-radius-card: 18px;
+  --pf-radius-btn: 14px;
+  --pf-radius-pill: 999px;
+
+  /* ── Отступы (шапка сетки) ── */
+  --pf-space-1: 4px;
+  --pf-space-2: 8px;
+  --pf-space-3: 12px;
+  --pf-space-4: 16px;
+  --pf-space-5: 24px;
+  --pf-space-6: 32px;
+  --pf-space-7: 48px;
+
+  /* ── Тени / glow ── */
+  --pf-glow-orange: 0 0 24px rgba(255, 122, 26, 0.45);
+  --pf-glow-pink: 0 0 24px rgba(184, 92, 255, 0.45);
+  --pf-glow-teal: 0 0 20px rgba(18, 231, 196, 0.4);
+  --pf-glow-gold: 0 0 20px rgba(255, 201, 74, 0.45);
+  --pf-glow-green: 0 0 22px rgba(124, 255, 107, 0.22);
+  --pf-glow-red: 0 0 20px rgba(255, 59, 59, 0.4);
+  --pf-grad-border-green: conic-gradient(from 180deg,
+    rgba(124, 255, 107, 0.75),
+    rgba(18, 231, 196, 0.55),
+    rgba(124, 255, 107, 0.18),
+    rgba(18, 231, 196, 0.75),
+    rgba(124, 255, 107, 0.75));
+
+  /* ── Движение ── */
+  --pf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --pf-speed-1: 150ms;
+  --pf-speed-2: 250ms;
+
+  /* ── Зона касания (мобайл) ── */
+  --pf-touch-min: 44px;
+
+  /* ── ARES-палитра (скины корабля; ранее theme/ares.ts + raw hex) ── */
+  --ares-rust: #C1440E;
+  --ares-rust-dark: #8A2E08;
+  --ares-dust: #E0A183;
+  --ares-sky: #D9A06B;
+  --ares-blueset: #6B93D6;
+  --ares-space: #050308;
+  --ares-grow-pink: #FF2E93;
+  --ares-grow-violet: #B85CFF;
+  --ares-bio-green: #7CFF6B;
+  --ares-bio-cyan: #12E7C4;
+  --ares-hud-amber: #FFB347;
+  --ares-hud-orange: #FF7A1A;
+  --ares-metal-dark: #2A2D34;
+  --ares-metal-light: #4A4F5A;
+  --ares-glass: rgba(180, 220, 255, 0.10);
+}
+
+/* Базовая анимация для Spinner (ui/states.tsx) */
+@keyframes pf-spin { to { transform: rotate(360deg); } }
