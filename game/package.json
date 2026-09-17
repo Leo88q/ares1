@@ -17,7 +17,8 @@
     "test": "anchor test",
     "test:unit": "cargo test -p solana_potato --lib",
     "typecheck": "yarn workspace web exec tsc --noEmit && yarn workspace backend typecheck",
-    "simulate": "python3 economy/simulate.py"
+    "simulate": "python3 economy/simulate.py",
+    "ci:local": "./scripts/ci-local.sh"
   },
   "devDependencies": {
     "@coral-xyz/anchor": "^0.30.1",

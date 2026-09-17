@@ -96,6 +96,17 @@ curl localhost:8080/health
 
 `.github/workflows/ci.yml`: `cargo test` → `anchor build` → проверка, что `apps/web/src/idl.json` совпадает с IDL сборки → `anchor test`; отдельно `tsc` + `vite build` для web и `tsc` для backend.
 
+**Локальный CI** (когда GitHub Actions недоступен/не оплачен) — та же последовательность команд на своей машине:
+
+```bash
+cd game
+./scripts/ci-local.sh                # всё: unit + anchor build + IDL + validator + web + backend
+./scripts/ci-local.sh --skip-chain   # только web + backend (быстро)
+./scripts/ci-local.sh --skip-validator  # без локального валидатора
+```
+
+Версии, как в CI: solana-cli `4.2.2`, anchor `0.31.2`, rustc `1.97.1`, Node `22`.
+
 ## Безопасность — коротко
 
 * Все токен-аккаунты и mint проверяются (`token::mint`, `token::authority`, `has_one = potato_mint`); PDA с сохранёнными bump.
