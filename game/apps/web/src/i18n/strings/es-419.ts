@@ -416,6 +416,11 @@ const es419: Record<string, string> = {
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — juego de granja on-chain. Compra parcelas, recoge $POTATO cada segundo y comercia en el marketplace P2P integrado por SOL.',
   'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Tema: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
   'Кошелёк не вернул подпись транзакции. Отключите кошелёк в настройках игры и подключите заново.': 'El wallet no devolvió la firma de la transacción. Desconecta el wallet en los ajustes del juego y vuelve a conectarlo.',
+  'Мобильный кошелёк не найден': 'Billetera móvil no encontrada',
+  'Открой игру в Chrome на телефоне и убедись, что Seed Vault или Phantom установлены. Затем нажми «Подключить кошелёк» ещё раз.': 'Abre el juego en Chrome del teléfono y asegúrate de tener Seed Vault o Phantom instalados. Luego pulsa «Conectar billetera» otra vez.',
+  'Запрос отклонён в кошельке': 'Solicitud rechazada en la billetera',
+  'Не удалось подключить кошелёк': 'No se pudo conectar la billetera',
+  'Подключение…': 'Conectando…',
 };
 
 export default es419;

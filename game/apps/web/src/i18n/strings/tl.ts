@@ -416,6 +416,11 @@ const tl: Record<string, string> = {
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — on-chain na laro ng farm. Bumili ng taniman, kumolekta ng $POTATO tuwing segundo, at magtrade sa built-in na P2P marketplace para sa SOL.',
   'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Tunog: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
   'Кошелёк не вернул подпись транзакции. Отключите кошелёк в настройках игры и подключите заново.': 'Hindi ibinalik ng wallet ang signature ng transaksyon. I-disconnect ang wallet sa settings ng laro at ikonekta ulit.',
+  'Мобильный кошелёк не найден': 'Hindi mahanap ang mobile wallet',
+  'Открой игру в Chrome на телефоне и убедись, что Seed Vault или Phantom установлены. Затем нажми «Подключить кошелёк» ещё раз.': 'Buksan ang laro sa Chrome ng telepono at tiyaking naka-install ang Seed Vault o Phantom. Pagkatapos ay pindutin ulit ang “Konektahan ang wallet”.',
+  'Запрос отклонён в кошельке': 'Tinanggihan ang request sa wallet',
+  'Не удалось подключить кошелёк': 'Hindi maikonekta ang wallet',
+  'Подключение…': 'Kumokonekta…',
 };
 
 export default tl;
