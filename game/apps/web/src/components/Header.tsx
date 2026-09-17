@@ -15,7 +15,11 @@ interface Props {
 
 export default function Header({ stats }: Props) {
  const { setVisible } = useWalletModal()
- const { connected, publicKey } = useWallet()
+ const { connected, publicKey, wallet } = useWallet()
+ // Имя подключённого кошелька (Phantom / Solana Mobile / Solflare) —
+ // видно в шапке: по скриншоту сразу понятно, какой кошелёк не отдаёт подпись.
+ const walletName =
+  ((wallet as { adapter?: { name?: string } } | null)?.adapter?.name as string | undefined) ?? undefined
 
  return (
   <header>
@@ -50,13 +54,18 @@ export default function Header({ stats }: Props) {
       onClick={() => setVisible(true)}
       className="pf-card hull-skin"
       aria-label={t("Смена кошелька")}
-      style={{ width: '100%', padding: 10, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: '1px solid rgba(160, 82, 40, 0.65)' }}
+      style={{ width: '100%', padding: 8, borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, border: '1px solid rgba(160, 82, 40, 0.65)' }}
      >
-      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--pf-teal)' }} />
-      <span style={{ fontSize: 12, color: 'var(--pf-teal)', fontWeight: 600 }}>
-       {publicKey.toString().slice(0, 4)}…{publicKey.toString().slice(-4)}
-      </span>
-      <span style={{ fontSize: 11, color: 'var(--pf-text-muted)' }}>· {t("Смена кошелька")}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+       <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--pf-teal)' }} />
+       <span style={{ fontSize: 12, color: 'var(--pf-teal)', fontWeight: 600 }}>
+        {publicKey.toString().slice(0, 4)}…{publicKey.toString().slice(-4)}
+       </span>
+       {walletName ? (
+        <span style={{ fontSize: 10, color: 'var(--pf-text-muted)' }}>· {walletName}</span>
+       ) : null}
+      </div>
+      <span style={{ fontSize: 11, color: 'var(--pf-text-muted)' }}>{t("Смена кошелька")}</span>
      </motion.button>
     ) : (
      <motion.button
