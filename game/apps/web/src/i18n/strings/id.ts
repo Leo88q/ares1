@@ -421,6 +421,7 @@ const id: Record<string, string> = {
   'Запрос отклонён в кошельке': 'Permintaan ditolak di dompet',
   'Не удалось подключить кошелёк': 'Gagal menghubungkan dompet',
   'Подключение…': 'Menghubungkan…',
+  'Подключение кошелька заняло больше двух минут. Попробуй ещё раз или выбери другой кошелёк.': 'Menghubungkan dompet memakan waktu lebih dari dua menit. Coba lagi atau pilih dompet lain.',
 };
 
 export default id;

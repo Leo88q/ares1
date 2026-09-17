@@ -421,6 +421,7 @@ const en: Record<string, string> = {
   'Запрос отклонён в кошельке': 'Request rejected in wallet',
   'Не удалось подключить кошелёк': 'Could not connect wallet',
   'Подключение…': 'Connecting…',
+  'Подключение кошелька заняло больше двух минут. Попробуй ещё раз или выбери другой кошелёк.': 'Wallet connection took more than two minutes. Try again, or choose a different wallet.',
 };
 
 export default en;

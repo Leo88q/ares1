@@ -421,6 +421,7 @@ const vi: Record<string, string> = {
   'Запрос отклонён в кошельке': 'Yêu cầu bị từ chối trong ví',
   'Не удалось подключить кошелёк': 'Không thể kết nối ví',
   'Подключение…': 'Đang kết nối…',
+  'Подключение кошелька заняло больше двух минут. Попробуй ещё раз или выбери другой кошелёк.': 'Kết nối ví mất hơn hai phút. Hãy thử lại hoặc chọn ví khác.',
 };
 
 export default vi;

@@ -421,6 +421,7 @@ const ptBR: Record<string, string> = {
   'Запрос отклонён в кошельке': 'Solicitação rejeitada na carteira',
   'Не удалось подключить кошелёк': 'Não foi possível conectar a carteira',
   'Подключение…': 'Conectando…',
+  'Подключение кошелька заняло больше двух минут. Попробуй ещё раз или выбери другой кошелёк.': 'A conexão da carteira levou mais de dois minutos. Tente novamente ou escolha outra carteira.',
 };
 
 export default ptBR;
