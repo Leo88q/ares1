@@ -416,6 +416,11 @@ const id: Record<string, string> = {
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — game pertanian on-chain. Beli bedeng, kumpulkan $POTATO setiap detik dan berdagang di marketplace P2P bawaan dengan SOL.',
   'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Lagu: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
   'Кошелёк не вернул подпись транзакции. Отключите кошелёк в настройках игры и подключите заново.': 'Dompet tidak mengembalikan tanda tangan transaksi. Putuskan dompet di pengaturan permainan lalu hubungkan ulang.',
+  'Мобильный кошелёк не найден': 'Dompet seluler tidak ditemukan',
+  'Открой игру в Chrome на телефоне и убедись, что Seed Vault или Phantom установлены. Затем нажми «Подключить кошелёк» ещё раз.': 'Buka game di Chrome pada ponsel dan pastikan Seed Vault atau Phantom terpasang. Lalu ketuk “Hubungkan dompet” lagi.',
+  'Запрос отклонён в кошельке': 'Permintaan ditolak di dompet',
+  'Не удалось подключить кошелёк': 'Gagal menghubungkan dompet',
+  'Подключение…': 'Menghubungkan…',
 };
 
 export default id;
