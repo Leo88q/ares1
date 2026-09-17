@@ -416,6 +416,11 @@ const en: Record<string, string> = {
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — on-chain farm game. Buy fields, collect $POTATO every second and trade on the built-in P2P marketplace for SOL.',
   'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Track: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
   'Кошелёк не вернул подпись транзакции. Отключите кошелёк в настройках игры и подключите заново.': 'The wallet did not return a transaction signature. Disconnect the wallet in the game settings and reconnect it.',
+  'Мобильный кошелёк не найден': 'Mobile wallet not found',
+  'Открой игру в Chrome на телефоне и убедись, что Seed Vault или Phantom установлены. Затем нажми «Подключить кошелёк» ещё раз.': 'Open the game in Chrome on your phone and make sure Seed Vault or Phantom is installed. Then tap “Connect wallet” again.',
+  'Запрос отклонён в кошельке': 'Request rejected in wallet',
+  'Не удалось подключить кошелёк': 'Could not connect wallet',
+  'Подключение…': 'Connecting…',
 };
 
 export default en;

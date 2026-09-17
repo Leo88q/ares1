@@ -416,6 +416,11 @@ const ptBR: Record<string, string> = {
   'Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.': 'Solana Potato — jogo de fazenda on-chain. Compre campos, colete $POTATO a cada segundo e negocie no marketplace P2P integrado por SOL.',
   'Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0': 'Faixa: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0',
   'Кошелёк не вернул подпись транзакции. Отключите кошелёк в настройках игры и подключите заново.': 'A carteira não retornou a assinatura da transação. Desconecte a carteira nas configurações do jogo e conecte novamente.',
+  'Мобильный кошелёк не найден': 'Carteira móvel não encontrada',
+  'Открой игру в Chrome на телефоне и убедись, что Seed Vault или Phantom установлены. Затем нажми «Подключить кошелёк» ещё раз.': 'Abra o jogo no Chrome do celular e verifique se o Seed Vault ou o Phantom estão instalados. Depois toque em “Conectar carteira” novamente.',
+  'Запрос отклонён в кошельке': 'Solicitação rejeitada na carteira',
+  'Не удалось подключить кошелёк': 'Não foi possível conectar a carteira',
+  'Подключение…': 'Conectando…',
 };
 
 export default ptBR;
