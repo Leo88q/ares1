@@ -10,7 +10,14 @@ import {
  createDefaultAddressSelector,
  createDefaultAuthorizationResultCache,
 } from '@solana-mobile/wallet-adapter-mobile'
-import { reportWalletError } from './utils/walletBus'
+import {
+ reportWalletError,
+ reportWalletErrorOnce,
+ isWalletNotFoundError,
+ isUserRejectedError,
+ isSignOrSendError,
+ errorRawText,
+} from './utils/walletBus'
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
 import { clusterApiUrl } from '@solana/web3.js'
 import './i18n/dicts'
@@ -34,18 +41,20 @@ const endpoint = import.meta.env.VITE_RPC_URL || (CLUSTER === 'localnet' ? 'http
  // «подключается» только через совместимый shim, который умеет connect,
  // но возвращает транзакцию без подписи (ошибка «Missing signature»).
 function handleWalletError(error: unknown, adapter?: { name?: string }) {
- const name = (error as { name?: string } | null)?.name ?? ''
- const message = (error as { message?: string } | null)?.message ?? String(error)
  const adapterName = adapter?.name ?? ''
- if (/Sign|SendTransaction/i.test(name)) {
-  console.error('[wallet] sign error (already toasted by sendIx):', message)
+ if (isSignOrSendError(error)) {
+  console.error('[wallet] sign error (already toasted by sendIx):', errorRawText(error))
   return
  }
- if (/user rejected|rejected the request/i.test(message)) {
-  reportWalletError({ kind: 'rejected', adapter: adapterName, raw: '' })
+ if (isWalletNotFoundError(error)) {
+  // onWalletNotFound уже показал отдельный тост «мобильный кошелёк не найден»
   return
  }
- reportWalletError({ kind: 'connect', adapter: adapterName, raw: message })
+ if (isUserRejectedError(error)) {
+  reportWalletErrorOnce(error, { kind: 'rejected', adapter: adapterName, raw: '' })
+  return
+ }
+ reportWalletErrorOnce(error, { kind: 'connect', adapter: adapterName, raw: errorRawText(error) })
 }
 
 const mobileWallet = new SolanaMobileWalletAdapter({

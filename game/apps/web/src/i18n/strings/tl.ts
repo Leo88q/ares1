@@ -421,6 +421,7 @@ const tl: Record<string, string> = {
   'Запрос отклонён в кошельке': 'Tinanggihan ang request sa wallet',
   'Не удалось подключить кошелёк': 'Hindi maikonekta ang wallet',
   'Подключение…': 'Kumokonekta…',
+  'Подключение кошелька заняло больше двух минут. Попробуй ещё раз или выбери другой кошелёк.': 'Lumagpas ng dalawang minuto ang koneksyon ng wallet. Subukang muli o pumili ng ibang wallet.',
 };
 
 export default tl;

@@ -4,6 +4,12 @@ import { t } from '../i18n'
 import { Wallet } from 'lucide-react'
 import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import { useWallet } from '@solana/wallet-adapter-react'
+import {
+ reportWalletErrorOnce,
+ isWalletNotFoundError,
+ isUserRejectedError,
+ errorRawText,
+} from '../utils/walletBus'
 import { RollingNumber } from '../ui/RollingNumber'
 import LangSwitcher from './LangSwitcher'
 import { GameStats } from '../contexts/GameContext'
@@ -15,7 +21,7 @@ interface Props {
 
 export default function Header({ stats }: Props) {
  const { setVisible } = useWalletModal()
- const { connected, publicKey, wallet, connect, connecting } = useWallet()
+ const { connected, publicKey, wallet, connect, disconnect, connecting } = useWallet()
  // Имя подключённого кошелька (Phantom / Solana Mobile / Solflare) —
  // видно в шапке: по скриншоту сразу понятно, какой кошелёк не отдаёт подпись.
  const walletName =
@@ -25,10 +31,54 @@ export default function Header({ stats }: Props) {
  // штатный changeWallet в модалке early-return'ит (кошелёк уже «selected»),
  // и connect не вызывается: «абсолютно ничего не происходит». Обходим:
  // вызываем connect() адаптера напрямую.
+ //
+ // ВАЖНО: rejection промиса connect() приходит только сюда (.catch) —
+ // WalletProvider сам его re-throw'ит, а его onError-канал на мобильных
+ // гасит ошибки после beforeunload (ассоциация мобильного кошелька делает
+ // location.assign). Поэтому отчёт о неудаче показываем именно здесь,
+ // а дедупликация (reportWalletErrorOnce) не даст тост дважды,
+ // если onError тоже сработал.
+ const CONNECT_WATCHDOG_MS = 120_000
+
  const handleConnectClick = () => {
   if (wallet && !connected && !connecting) {
-   console.info('[wallet] direct connect:', wallet.adapter.name, wallet.readyState)
-   void connect().catch((e: unknown) => console.error('[wallet] direct connect failed:', e))
+   const adapterName = wallet.adapter.name
+   console.info('[wallet] direct connect:', adapterName, wallet.readyState)
+   let settled = false
+   let timeoutId: ReturnType<typeof setTimeout> | undefined
+   const settle = () => {
+    settled = true
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+   }
+   // Мобильный адаптер может не отвечать долго (авторизация в в-апп
+   // кошельке). У WebSocket есть свой 30-сек таймаут, но у запроса
+   // authorize — никакого: кнопка может зависнуть на «Подключение…»
+   // навсегда. Watchdog — страховка: показываем ошибку и снимаем состояние.
+   timeoutId = setTimeout(() => {
+    if (settled) return
+    settled = true
+    console.error('[wallet] direct connect timed out:', adapterName)
+    reportWalletErrorOnce({ aresConnectTimeout: adapterName }, {
+     kind: 'connect',
+     adapter: adapterName,
+     raw: t('Подключение кошелька заняло больше двух минут. Попробуй ещё раз или выбери другой кошелёк.'),
+    })
+    void disconnect().catch(() => undefined)
+   }, CONNECT_WATCHDOG_MS)
+   connect()
+    .then(() => {
+     settle()
+    })
+    .catch((e: unknown) => {
+     settle()
+     console.error('[wallet] direct connect failed:', e)
+     if (isWalletNotFoundError(e)) return // onWalletNotFound уже показал свой тост
+     if (isUserRejectedError(e)) {
+      reportWalletErrorOnce(e, { kind: 'rejected', adapter: adapterName, raw: '' })
+      return
+     }
+     reportWalletErrorOnce(e, { kind: 'connect', adapter: adapterName, raw: errorRawText(e) })
+    })
    return
   }
   setVisible(true)

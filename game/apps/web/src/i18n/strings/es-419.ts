@@ -421,6 +421,7 @@ const es419: Record<string, string> = {
   'Запрос отклонён в кошельке': 'Solicitud rechazada en la billetera',
   'Не удалось подключить кошелёк': 'No se pudo conectar la billetera',
   'Подключение…': 'Conectando…',
+  'Подключение кошелька заняло больше двух минут. Попробуй ещё раз или выбери другой кошелёк.': 'La conexión de la billetera tardó más de dos minutos. Intenta de nuevo o elige otra billetera.',
 };
 
 export default es419;
