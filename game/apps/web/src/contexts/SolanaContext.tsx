@@ -1,4 +1,3 @@
-import { decodeSkrPricing, skrPdas, type SkrPricing } from '../utils/skrPayments'
 import { createContext, useCallback, useContext, useMemo, useState, ReactNode } from 'react'
 import { t } from '../i18n'
 
@@ -43,7 +42,6 @@ interface SolanaContextType {
   sendIx: (ixs: TransactionInstruction[], opts?: { lookupTables?: AddressLookupTableAccount[] }) => Promise<string>
   lookupTable: AddressLookupTableAccount | null
   ensureLookupTable: () => Promise<AddressLookupTableAccount | null>
-  skrPricing: SkrPricing | null
   refreshConfig: () => Promise<void>
 }
 
@@ -53,7 +51,6 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
   const { connection } = useConnection()
   const wallet = useWallet()
   const [config, setConfig] = useState<DecodedConfig | null>(null)
-  const [skrPricing, setSkrPricing] = useState<SkrPricing | null>(null)
   const [epoch, setEpoch] = useState<DecodedEpoch | null>(null)
   const [rpcError, setRpcError] = useState<string | null>(null)
   const [lookupTable, setLookupTable] = useState<AddressLookupTableAccount | null>(null)
@@ -77,21 +74,12 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
       const info = await withRetry(() => connection.getAccountInfo(configPda()))
       if (!info) {
         setConfig(null)
-        setSkrPricing(null)
         setEpoch(null)
         setRpcError(t('GameConfig не найден: программа не инициализирована на этом кластере.'))
         return
       }
       const cfg = decodeConfig(info.data)
       setConfig(cfg)
-      setSkrPricing(null)
-      const priceInfo = await connection.getAccountInfo(skrPdas(PROGRAM_ID).pricing(cfg.skrMint))
-      if (priceInfo) {
-        if (!priceInfo.owner.equals(PROGRAM_ID)) throw new Error('Invalid SKR pricing owner')
-        const prices = decodeSkrPricing(priceInfo.data)
-        if (!prices.skrMint.equals(cfg.skrMint)) throw new Error('Invalid SKR pricing mint')
-        setSkrPricing(prices)
-      }
       const epochInfo = await withRetry(() => connection.getAccountInfo(epochPda(cfg.epochId)))
       setEpoch(epochInfo ? decodeEpoch(epochInfo.data) : null)
       setRpcError(null)
@@ -253,7 +241,6 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
       connected: wallet.connected,
       ready: config !== null,
       config,
-      skrPricing,
       epoch,
       rpcError,
       sendIx,
@@ -261,7 +248,7 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
       ensureLookupTable,
       refreshConfig,
     }),
-    [connection, wallet.publicKey, wallet.connected, config, skrPricing, epoch, rpcError, sendIx, lookupTable, ensureLookupTable, refreshConfig],
+    [connection, wallet.publicKey, wallet.connected, config, epoch, rpcError, sendIx, lookupTable, ensureLookupTable, refreshConfig],
   )
 
   return <SolanaContext.Provider value={value}>{children}</SolanaContext.Provider>

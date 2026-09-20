@@ -1,18 +1,17 @@
 //! # Solana Potato
 //!
 //! On-chain farming game. Players own `Field` accounts that accrue $POTATO
-//! (an SPL resource minted by the `GameConfig` PDA). Purchases and upkeep are
-//! paid in configured SKR; the versioned escrow market trades POTATO for SKR.
-//! Legacy SOL/POTATO purchase instructions reject; escrow recovery stays open.
+//! (an SPL token whose mint authority is the `GameConfig` PDA), spend $POTATO on
+//! upkeep (tax, repair, upgrades, fertilizer — all of it is **burned**), and trade
+//! $POTATO for SOL on a built-in escrow marketplace.
 //!
 //! ## Economic guard rails
 //! * Emission through `harvest` / `batch_harvest` / `grant_reward` is bounded by
 //!   a per-epoch mint cap (`Epoch.mint_cap_micro`, dynamically 250k–750k after roll)
 //!   and by `GameConfig.max_supply_micro`.
 //! * Epochs are 24h long and are rolled permissionlessly via `roll_epoch`.
-//! * SKR is transferred, never minted by this program. Service/market payments
-//!   no longer burn POTATO; the existing emission-cap formula is unchanged.
-//! * New SKR prices default to disabled until the authority configures them.
+//! * Every in-game spend is a burn; 60 % of marketplace fees are burned and the
+//!   remaining 40 % go to the treasury ATA owned by the config PDA.
 //!
 //! ## Account layout stability
 //! The field order of every `#[account]` struct is part of the public ABI: the
@@ -23,7 +22,6 @@
 //! All `_bps` values are basis points (10_000 = 1.0×).
 
 mod migrations;
-mod skr_payments;
 
 use anchor_lang::prelude::*;
 use anchor_lang::AccountDeserialize;
@@ -131,31 +129,6 @@ pub const FEE_BURN_PERCENT: u64 = 60;
 #[program]
 pub mod solana_potato {
     use super::*;
-
-    pub fn configure_skr_pricing(ctx: Context<ConfigureSkrPricing>, prices: [u64; 6], market_min_atoms: u64) -> Result<()> {
-        skr_payments::configure(ctx, prices, market_min_atoms)
-    }
-    pub fn create_field_skr(ctx: Context<CreateFieldSkr>, field_id: u64, field_type: u8, max_skr_atoms: u64) -> Result<()> {
-        skr_payments::create_field(ctx, field_id, field_type, max_skr_atoms)
-    }
-    pub fn service_field_skr(ctx: Context<ServiceFieldSkr>, action: u8, max_skr_atoms: u64) -> Result<()> {
-        skr_payments::service_field(ctx, action, max_skr_atoms)
-    }
-    pub fn register_referrer_skr(ctx: Context<RegisterReferrerSkr>, referrer: Pubkey, max_skr_atoms: u64) -> Result<()> {
-        skr_payments::register_referrer(ctx, referrer, max_skr_atoms)
-    }
-    pub fn create_skr_order(ctx: Context<CreateSkrOrder>, order_id: u64, amount_micro: u64, price_skr_atoms: u64) -> Result<()> {
-        skr_payments::create_order(ctx, order_id, amount_micro, price_skr_atoms)
-    }
-    pub fn fill_skr_order<'info>(ctx: Context<'_, '_, '_, 'info, FillSkrOrder<'info>>, max_skr_atoms: u64) -> Result<()> {
-        skr_payments::fill_order(ctx, max_skr_atoms)
-    }
-    pub fn cancel_skr_order(ctx: Context<CancelSkrOrder>) -> Result<()> {
-        skr_payments::cancel_order(ctx)
-    }
-    pub fn close_expired_skr_order(ctx: Context<CloseExpiredSkrOrder>) -> Result<()> {
-        skr_payments::expire_order(ctx)
-    }
 
     /// Creates the singleton `GameConfig`. The $POTATO mint must already have
     /// the config PDA as its mint authority, 6 decimals and no freeze authority.
@@ -273,8 +246,36 @@ pub mod solana_potato {
     /// Buys a new field of `field_type` (0 = Грядка, 1 = Луг, 2 = Поле) by
     /// burning its price. `field_id` is a client-chosen nonce for the PDA.
     pub fn create_field(ctx: Context<CreateField>, field_id: u64, field_type: u8) -> Result<()> {
-        // Legacy payment rail is closed; existing escrows remain cancellable.
-        err!(GameError::LegacyPaymentDisabled)
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        require!(field_type < FIELD_TYPE_COUNT, GameError::InvalidFieldType);
+
+        let cost = field_price_micro(field_type);
+        burn_from_user(
+            &ctx.accounts.token_program,
+            &ctx.accounts.potato_mint,
+            &ctx.accounts.user_potato,
+            &ctx.accounts.owner,
+            cost,
+        )?;
+
+        let now = Clock::get()?.unix_timestamp;
+        let config = &mut ctx.accounts.config;
+        config.total_burned_micro = config.total_burned_micro.saturating_add(cost);
+        config.field_count = config.field_count.checked_add(1).ok_or(GameError::MathOverflow)?;
+
+        let field = &mut ctx.accounts.field;
+        field.owner = ctx.accounts.owner.key();
+        field.level = 1;
+        field.durability = MAX_DURABILITY;
+        field.last_harvest = now;
+        field.tax_paid_until = now.checked_add(INITIAL_TAX_GRACE).ok_or(GameError::MathOverflow)?;
+        field.fertilizer_until = 0;
+        field.is_active = true;
+        field.field_type = field_type;
+        field.bump = ctx.bumps.field;
+
+        emit!(FieldCreated { owner: field.owner, field: field.key(), field_type });
+        Ok(())
     }
 
     /// Создаёт синглтон пресейла. Только authority.
@@ -342,7 +343,6 @@ pub mod solana_potato {
     /// `sold` и `slot` покупатель не контролирует в момент подписания (конкурентные
     /// покупки сдвигают `sold`, слот включения в блок неизвестен заранее).
     pub fn buy_field_skr(ctx: Context<BuyFieldSkr>, field_id: u64) -> Result<()> {
-        require!(ctx.accounts.skr_mint.decimals == 6, GameError::InvalidMintDecimals);
         require!(!ctx.accounts.config.paused, GameError::Paused);
         let presale = &mut ctx.accounts.presale_state;
         require!(presale.sold < presale.cap, GameError::PresaleCapReached);
@@ -438,8 +438,67 @@ pub mod solana_potato {
     }
 
     pub fn buy_field_sol(ctx: Context<BuyFieldSol>, field_id: u64, field_type: u8) -> Result<()> {
-        // Legacy payment rail is closed; existing escrows remain cancellable.
-        err!(GameError::LegacyPaymentDisabled)
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        require!(field_type < FIELD_TYPE_COUNT, GameError::InvalidFieldType);
+        require!(ctx.accounts.presale_state.price_lamports > 0, GameError::PresaleNotActive);
+
+        let presale = &mut ctx.accounts.presale_state;
+        require!(presale.sold < presale.cap, GameError::PresaleCapReached);
+
+        let buyer_presale = &mut ctx.accounts.buyer_presale;
+        require!(buyer_presale.count < 5, GameError::PresaleWalletLimitReached);
+
+        // Transfer SOL: buyer → treasury_sol PDA
+        let sol_amount = presale.price_lamports;
+        let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
+            &ctx.accounts.buyer.key(),
+            &ctx.accounts.treasury_sol.key(),
+            sol_amount,
+        );
+        anchor_lang::solana_program::program::invoke(
+            &transfer_ix,
+            &[
+                ctx.accounts.buyer.to_account_info(),
+                ctx.accounts.treasury_sol.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+        )?;
+
+        // Создаём поле (логика идентична create_field)
+        let now = Clock::get()?.unix_timestamp;
+        let field = &mut ctx.accounts.field;
+        field.owner = ctx.accounts.buyer.key();
+        field.level = 1;
+        field.durability = MAX_DURABILITY;
+        field.last_harvest = now;
+        field.tax_paid_until = now.checked_add(INITIAL_TAX_GRACE).ok_or(GameError::MathOverflow)?;
+        field.fertilizer_until = 0;
+        field.is_active = true;
+        field.field_type = field_type;
+        field.bump = ctx.bumps.field;
+
+        // Обновляем счётчики
+        presale.sold = presale.sold.checked_add(1).ok_or(GameError::MathOverflow)?;
+        if buyer_presale.count == 0 {
+            buyer_presale.buyer = ctx.accounts.buyer.key();
+            buyer_presale.bump = ctx.bumps.buyer_presale;
+        }
+        buyer_presale.count = buyer_presale.count.checked_add(1).ok_or(GameError::MathOverflow)?;
+
+        let config = &mut ctx.accounts.config;
+        config.field_count = config.field_count.checked_add(1).ok_or(GameError::MathOverflow)?;
+
+        emit!(PresalePurchase {
+            buyer: field.owner,
+            field: field.key(),
+            field_type,
+            sol_amount,
+            // SOL-пресейл — явный тир, ролла нет (0 = без дропа)
+            roll: 0,
+        });
+        emit!(FieldCreated { owner: field.owner, field: field.key(), field_type });
+
+        Ok(())
     }
 
     /// Mints the yield accrued since the last harvest to the owner's token
@@ -570,26 +629,122 @@ pub mod solana_potato {
 
     /// Restores durability to 100 for a burn.
     pub fn repair_field(ctx: Context<RepairField>) -> Result<()> {
-        // Legacy payment rail is closed; existing escrows remain cancellable.
-        err!(GameError::LegacyPaymentDisabled)
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        require!(ctx.accounts.field.durability < MAX_DURABILITY, GameError::NothingToRepair);
+        let base_cost = scaled_cost(BASE_REPAIR_MICRO, ctx.accounts.field.field_type);
+        // Прогрессивный множитель ремонта: L1-2 → 1×, L30 → 10×, L50 → 16×
+        let level_mult = ((ctx.accounts.field.level as u64) / 3).max(1);
+        let cost = base_cost
+            .checked_mul(level_mult)
+            .ok_or(GameError::MathOverflow)?;
+        burn_from_user(
+            &ctx.accounts.token_program,
+            &ctx.accounts.potato_mint,
+            &ctx.accounts.user_potato,
+            &ctx.accounts.owner,
+            cost,
+        )?;
+        ctx.accounts.config.total_burned_micro =
+            ctx.accounts.config.total_burned_micro.saturating_add(cost);
+        let field = &mut ctx.accounts.field;
+        field.durability = MAX_DURABILITY;
+        emit!(FieldRepaired { field: field.key(), cost_micro: cost });
+        Ok(())
     }
 
     /// Raises the field level by one for a burn of `BASE_UPGRADE × level × type`.
     pub fn upgrade_field(ctx: Context<UpgradeField>) -> Result<()> {
-        // Legacy payment rail is closed; existing escrows remain cancellable.
-        err!(GameError::LegacyPaymentDisabled)
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        let field = &ctx.accounts.field;
+        require!(field.level < MAX_FIELD_LEVEL, GameError::MaxLevelReached);
+        let cost = upgrade_cost_micro(field.level, field.field_type)?;
+        burn_from_user(
+            &ctx.accounts.token_program,
+            &ctx.accounts.potato_mint,
+            &ctx.accounts.user_potato,
+            &ctx.accounts.owner,
+            cost,
+        )?;
+        ctx.accounts.config.total_burned_micro =
+            ctx.accounts.config.total_burned_micro.saturating_add(cost);
+        let field = &mut ctx.accounts.field;
+        field.level = field.level.checked_add(1).ok_or(GameError::MathOverflow)?;
+
+        // Шанс мутации при апгрейде (5% общий: 3% Golden, 2% Silicon)
+        // Детерминированный рандом: keccak(field_key, slot) — непредсказуем для игрока
+        if field.mutation_type == 0 {
+            let slot = Clock::get()?.slot;
+            let seed = anchor_lang::solana_program::keccak::hashv(&[
+                field.key().as_ref(),
+                &slot.to_le_bytes(),
+            ]);
+            let roll = (seed.0[0] as u64) % 100;
+            if roll < 3 {
+                field.mutation_type = 1; // Golden Sprout
+            } else if roll < 5 {
+                field.mutation_type = 2; // Silicon Skin
+            }
+        }
+
+        emit!(FieldUpgraded { field: field.key(), new_level: field.level, cost_micro: cost });
+        Ok(())
     }
 
     /// Extends tax coverage by one period (prepaid up to `MAX_TAX_PREPAY`).
     pub fn pay_tax(ctx: Context<PayTax>) -> Result<()> {
-        // Legacy payment rail is closed; existing escrows remain cancellable.
-        err!(GameError::LegacyPaymentDisabled)
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        let now = Clock::get()?.unix_timestamp;
+        let field = &ctx.accounts.field;
+        let new_until = extend_timer(field.tax_paid_until, now, TAX_PERIOD)?;
+        require!(
+            new_until <= now.saturating_add(MAX_TAX_PREPAY),
+            GameError::PrepayLimitReached
+        );
+        let base_cost = scaled_cost(BASE_TAX_MICRO, field.field_type);
+        // Прогрессивный множитель: L1 → 1×, L10 → 5.5×, L50 → 25.5×
+        let level_mult = (field.level as u64).saturating_add(1) / 2;
+        let cost = base_cost
+            .checked_mul(level_mult)
+            .ok_or(GameError::MathOverflow)?;
+        burn_from_user(
+            &ctx.accounts.token_program,
+            &ctx.accounts.potato_mint,
+            &ctx.accounts.user_potato,
+            &ctx.accounts.owner,
+            cost,
+        )?;
+        ctx.accounts.config.total_burned_micro =
+            ctx.accounts.config.total_burned_micro.saturating_add(cost);
+        let field = &mut ctx.accounts.field;
+        field.tax_paid_until = new_until;
+        emit!(TaxPaid { field: field.key(), paid_until: new_until, cost_micro: cost });
+        Ok(())
     }
 
     /// Applies fertilizer for 24h (stackable up to `MAX_FERTILIZER_PREPAY`).
     pub fn apply_fertilizer(ctx: Context<ApplyFertilizer>) -> Result<()> {
-        // Legacy payment rail is closed; existing escrows remain cancellable.
-        err!(GameError::LegacyPaymentDisabled)
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        let now = Clock::get()?.unix_timestamp;
+        let field = &ctx.accounts.field;
+        let new_until = extend_timer(field.fertilizer_until, now, FERTILIZER_DURATION)?;
+        require!(
+            new_until <= now.saturating_add(MAX_FERTILIZER_PREPAY),
+            GameError::PrepayLimitReached
+        );
+        let cost = scaled_cost(BASE_FERTILIZER_MICRO, field.field_type);
+        burn_from_user(
+            &ctx.accounts.token_program,
+            &ctx.accounts.potato_mint,
+            &ctx.accounts.user_potato,
+            &ctx.accounts.owner,
+            cost,
+        )?;
+        ctx.accounts.config.total_burned_micro =
+            ctx.accounts.config.total_burned_micro.saturating_add(cost);
+        let field = &mut ctx.accounts.field;
+        field.fertilizer_until = new_until;
+        emit!(FertilizerApplied { field: field.key(), active_until: new_until, cost_micro: cost });
+        Ok(())
     }
 
     /// Покупка лицензии экспорта: 500 SKR уходят в казну проекта
@@ -597,7 +752,6 @@ pub mod solana_potato {
     /// лицензия на 30 дней. Снижает комиссию рынка на 3% (300 bps)
     /// для продавца с активной лицензией.
     pub fn buy_export_license(ctx: Context<BuyExportLicense>) -> Result<()> {
-        require!(ctx.accounts.skr_mint.decimals == 6, GameError::InvalidMintDecimals);
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
         let now = Clock::get()?.unix_timestamp;
@@ -640,8 +794,59 @@ pub mod solana_potato {
         amount_micro: u64,
         price_lamports_per_potato: u64,
     ) -> Result<()> {
-        // Legacy payment rail is closed; existing escrows remain cancellable.
-        err!(GameError::LegacyPaymentDisabled)
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        require!(amount_micro >= MIN_ORDER_AMOUNT_MICRO, GameError::OrderTooSmall);
+        require!(price_lamports_per_potato > 0, GameError::InvalidPrice);
+        let total_lamports = order_total_lamports(amount_micro, price_lamports_per_potato)?;
+        require!(total_lamports >= MIN_ORDER_TOTAL_LAMPORTS, GameError::OrderTotalTooSmall);
+
+        let now = Clock::get()?.unix_timestamp;
+
+        let profile = &mut ctx.accounts.seller_profile;
+        require!(
+            now.saturating_sub(profile.last_cancel_at) >= CANCEL_COOLDOWN,
+            GameError::CancelCooldown
+        );
+        profile.seller = ctx.accounts.seller.key();
+        profile.bump = ctx.bumps.seller_profile;
+
+        let fee_micro = order_fee_micro(amount_micro)?;
+        let total_to_escrow = amount_micro.checked_add(fee_micro).ok_or(GameError::MathOverflow)?;
+
+        let order = &mut ctx.accounts.order;
+        order.seller = ctx.accounts.seller.key();
+        order.amount_micro = amount_micro;
+        order.price_lamports_per_potato = price_lamports_per_potato;
+        order.fee_micro = fee_micro;
+        order.status = OrderStatus::Active;
+        order.created_at = now;
+        order.expires_at = now.checked_add(ORDER_TTL).ok_or(GameError::MathOverflow)?;
+        order.escrow_bump = ctx.bumps.escrow;
+        order.order_bump = ctx.bumps.order;
+
+        let stats = &mut ctx.accounts.market_stats;
+        stats.bump = ctx.bumps.market_stats;
+        stats.roll_window(now);
+
+        token::transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.seller_potato.to_account_info(),
+                    to: ctx.accounts.escrow.to_account_info(),
+                    authority: ctx.accounts.seller.to_account_info(),
+                },
+            ),
+            total_to_escrow,
+        )?;
+
+        emit!(OrderCreated {
+            order: order.key(),
+            seller: order.seller,
+            amount_micro,
+            price_lamports_per_potato,
+        });
+        Ok(())
     }
 
     /// Buys an active order: SOL goes to the seller, $POTATO to the buyer, the
@@ -662,8 +867,216 @@ pub mod solana_potato {
     /// * [2] referrer's $POTATO ATA (only together with [1]).
     /// If the referrer's ATA is missing/invalid the reward is burned instead.
     pub fn fill_order<'info>(ctx: Context<'_, '_, '_, 'info, FillOrder<'info>>) -> Result<()> {
-        // Legacy payment rail is closed; existing escrows remain cancellable.
-        err!(GameError::LegacyPaymentDisabled)
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        let now = Clock::get()?.unix_timestamp;
+        let order = &ctx.accounts.order;
+        require!(order.status == OrderStatus::Active, GameError::OrderNotActive);
+        require!(now < order.expires_at, GameError::OrderExpired);
+        require!(order.seller != ctx.accounts.buyer.key(), GameError::SelfTradeBlocked);
+
+        let order_key = order.key();
+        let escrow_bump = order.escrow_bump;
+        let amount_micro = order.amount_micro;
+        let fee_listed = order.fee_micro;
+        let total_lamports = order_total_lamports(amount_micro, order.price_lamports_per_potato)?;
+
+        // ── Скидка за экспортную лицензию продавца (−3 % от суммы) ──
+        let mut license_discount: u64 = 0;
+        if let Some(lic_acc) = ctx.remaining_accounts.first() {
+            let (expected, _) = Pubkey::find_program_address(
+                &[b"license", ctx.accounts.seller.key().as_ref()],
+                ctx.program_id,
+            );
+            if lic_acc.key() == expected && !lic_acc.data_is_empty() {
+                let data = lic_acc.try_borrow_data()?;
+                if let Ok(lic) = ExportLicense::try_deserialize(&mut &data[..]) {
+                    if lic.expires_at > now {
+                        license_discount = ((amount_micro as u128 * 300 / 10_000) as u64).min(fee_listed);
+                    }
+                }
+            }
+        }
+
+        // ── Рефералка покупателя: −1 % комиссии + 0.5 % рефереру ──
+        let mut referrer_key = Pubkey::default();
+        let mut referral_discount: u64 = 0;
+        if let Some(ref_acc) = ctx.remaining_accounts.get(1) {
+            let (expected_ref, _) = Pubkey::find_program_address(
+                &[b"referral", ctx.accounts.buyer.key().as_ref()],
+                ctx.program_id,
+            );
+            if ref_acc.key() == expected_ref && !ref_acc.data_is_empty() {
+                let data = ref_acc.try_borrow_data()?;
+                if let Ok(referral) = Referral::try_deserialize(&mut &data[..]) {
+                    let referrer = referral.referrer;
+                    if referrer != Pubkey::default()
+                        && referrer != ctx.accounts.seller.key()
+                        && referrer != ctx.accounts.buyer.key()
+                    {
+                        referrer_key = referrer;
+                        referral_discount = (amount_micro as u128 * 100 / 10_000) as u64;
+                    }
+                }
+            }
+        }
+
+        // ── Итоговая комиссия: скидки уменьшают её, разница — refund продавцу ──
+        let total_discounts = license_discount
+            .saturating_add(referral_discount)
+            .min(fee_listed);
+        let fee_net = fee_listed.saturating_sub(total_discounts);
+        let fee_to_treasury = ((fee_net as u128) * (100u128 - FEE_BURN_PERCENT as u128) / 100) as u64;
+        let fee_to_burn_base = fee_net.saturating_sub(fee_to_treasury);
+        let referrer_reward = if referrer_key != Pubkey::default() {
+            // 0.5 % от суммы, не больше burn-доли
+            ((amount_micro as u128 * 50 / 10_000) as u64).min(fee_to_burn_base)
+        } else {
+            0
+        };
+        let mut fee_to_burn = fee_to_burn_base.saturating_sub(referrer_reward);
+
+        // ── Effects (CEI) ──
+        ctx.accounts.order.status = OrderStatus::Filled;
+        ctx.accounts.config.total_burned_micro =
+            ctx.accounts.config.total_burned_micro.saturating_add(fee_to_burn);
+        let stats = &mut ctx.accounts.market_stats;
+        stats.roll_window(now);
+        stats.total_trades = stats.total_trades.saturating_add(1);
+        stats.total_sol_volume = stats.total_sol_volume.saturating_add(total_lamports);
+        stats.sell_volume_24h_micro = stats.sell_volume_24h_micro.saturating_add(amount_micro);
+        stats.buy_volume_24h_micro = stats.buy_volume_24h_micro.saturating_add(amount_micro);
+
+        // ── Interactions ──
+        anchor_lang::solana_program::program::invoke(
+            &anchor_lang::solana_program::system_instruction::transfer(
+                &ctx.accounts.buyer.key(),
+                &ctx.accounts.seller.key(),
+                total_lamports,
+            ),
+            &[
+                ctx.accounts.buyer.to_account_info(),
+                ctx.accounts.seller.to_account_info(),
+                ctx.accounts.system_program.to_account_info(),
+            ],
+        )?;
+
+        let seeds: &[&[u8]] = &[b"escrow", order_key.as_ref(), &[escrow_bump]];
+        let signer: &[&[&[u8]]] = &[seeds];
+        let token_program = ctx.accounts.token_program.to_account_info();
+        let escrow = ctx.accounts.escrow.to_account_info();
+
+        // Награда рефереру — переводом из escrow (часть комиссии), НЕ минтом.
+        // ATA реферера валидируется по байтам: mint (0..32) и owner (32..64).
+        let mut reward_claimed = false;
+        if referrer_reward > 0 {
+            if let Some(ata_acc) = ctx.remaining_accounts.get(2) {
+                let data = ata_acc.try_borrow_data()?;
+                if data.len() >= 64 {
+                    let ata_mint = Pubkey::new_from_array(data[0..32].try_into().unwrap());
+                    let ata_owner = Pubkey::new_from_array(data[32..64].try_into().unwrap());
+                    let valid = ata_mint == ctx.accounts.potato_mint.key() && ata_owner == referrer_key;
+                    drop(data);
+                    if valid {
+                        token::transfer(
+                            CpiContext::new_with_signer(
+                                token_program.clone(),
+                                Transfer {
+                                    from: escrow.clone(),
+                                    to: ata_acc.to_account_info(),
+                                    authority: escrow.clone(),
+                                },
+                                signer,
+                            ),
+                            referrer_reward,
+                        )?;
+                        reward_claimed = true;
+                    }
+                }
+            }
+            if !reward_claimed {
+                // ATA не передан/неверный — доля сгорает, баланс escrow сходится.
+                fee_to_burn = fee_to_burn.saturating_add(referrer_reward);
+            }
+        }
+
+        if fee_to_burn > 0 {
+            token::burn(
+                CpiContext::new_with_signer(
+                    token_program.clone(),
+                    Burn {
+                        mint: ctx.accounts.potato_mint.to_account_info(),
+                        from: escrow.clone(),
+                        authority: escrow.clone(),
+                    },
+                    signer,
+                ),
+                fee_to_burn,
+            )?;
+        }
+        if fee_to_treasury > 0 {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    token_program.clone(),
+                    Transfer {
+                        from: escrow.clone(),
+                        to: ctx.accounts.treasury_potato.to_account_info(),
+                        authority: escrow.clone(),
+                    },
+                    signer,
+                ),
+                fee_to_treasury,
+            )?;
+        }
+        if total_discounts > 0 {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    token_program.clone(),
+                    Transfer {
+                        from: escrow.clone(),
+                        to: ctx.accounts.seller_potato.to_account_info(),
+                        authority: escrow.clone(),
+                    },
+                    signer,
+                ),
+                total_discounts,
+            )?;
+        }
+        token::transfer(
+            CpiContext::new_with_signer(
+                token_program.clone(),
+                Transfer {
+                    from: escrow.clone(),
+                    to: ctx.accounts.buyer_potato.to_account_info(),
+                    authority: escrow.clone(),
+                },
+                signer,
+            ),
+            amount_micro,
+        )?;
+        token::close_account(CpiContext::new_with_signer(
+            token_program,
+            CloseAccount {
+                account: escrow.clone(),
+                destination: ctx.accounts.seller.to_account_info(),
+                authority: escrow,
+            },
+            signer,
+        ))?;
+
+        emit!(OrderFilled {
+            order: order_key,
+            buyer: ctx.accounts.buyer.key(),
+            amount_micro,
+            total_lamports,
+        });
+        if reward_claimed {
+            emit!(ReferralRewardPaid {
+                buyer: ctx.accounts.buyer.key(),
+                referrer: referrer_key,
+                reward_micro: referrer_reward,
+            });
+        }
+        Ok(())
     }
 
     /// Seller cancels their own active order; amount + fee are refunded and a
@@ -818,7 +1231,6 @@ pub mod solana_potato {
     /// Authority-only: withdraw SKR from the treasury ATA (80 % of SKR presale
     /// proceeds + export license payments) to the authority's own SKR ATA.
     pub fn withdraw_skr_treasury(ctx: Context<WithdrawSkrTreasury>, amount_skr_atoms: u64) -> Result<()> {
-        require!(ctx.accounts.skr_mint.decimals == 6, GameError::InvalidMintDecimals);
         require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
         require!(amount_skr_atoms > 0, GameError::InvalidAmount);
         let (_, t_bump) = Pubkey::find_program_address(&[b"treasury_sol"], ctx.program_id);
@@ -912,7 +1324,7 @@ pub mod solana_potato {
 
     /// S-01: обновляет SKR mint (mainnet миграция) — только authority.
     pub fn update_skr_mint(ctx: Context<UpdateConfig>, new_skr_mint: Pubkey) -> Result<()> {
-        require!(new_skr_mint != Pubkey::default() && new_skr_mint != ctx.accounts.config.potato_mint, GameError::InvalidMint);
+        require!(new_skr_mint != Pubkey::default(), GameError::InvalidMint);
         ctx.accounts.config.skr_mint = new_skr_mint;
         emit!(SkrMintUpdated { new_skr_mint });
         Ok(())
@@ -959,8 +1371,32 @@ pub mod solana_potato {
     /// Registers a one-time referral relationship; burns the registration cost.
 
     pub fn register_referrer(ctx: Context<RegisterReferrer>, referrer: Pubkey) -> Result<()> {
-        // Legacy payment rail is closed; existing escrows remain cancellable.
-        err!(GameError::LegacyPaymentDisabled)
+        require!(referrer != ctx.accounts.owner.key(), GameError::Unauthorized);
+        require!(referrer != Pubkey::default(), GameError::Unauthorized);
+        
+        // Burn 50 POTATO (антиспам, повышено с 5 → 50 после аудита 2026-09-20:
+        // при награде 0.5% от сделки sybil с 5 POTATO окупался за 1 сделку 1k POTATO).
+        token::burn(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Burn {
+                    mint: ctx.accounts.potato_mint.to_account_info(),
+                    from: ctx.accounts.user_potato.to_account_info(),
+                    authority: ctx.accounts.owner.to_account_info(),
+                },
+            ),
+            50_000_000, // 50 POTATO
+        )?;
+        
+        ctx.accounts.referral.owner = ctx.accounts.owner.key();
+        ctx.accounts.referral.referrer = referrer;
+        ctx.accounts.referral.bump = ctx.bumps.referral;
+        
+        emit!(ReferrerRegistered {
+            owner: ctx.accounts.owner.key(),
+            referrer,
+        });
+        Ok(())
     }
 
     /// Дешёвая батч-чеканка: собирает урожай сразу с N полей за одну транзакцию.
@@ -2575,13 +3011,6 @@ pub enum GameError {
     PresaleWalletLimitReached, // 6031
     #[msg("Presale is not active")]
     PresaleNotActive, // 6032
-    #[msg("Legacy payment rail disabled; use SKR instructions. Existing orders can still be cancelled.")]
-    LegacyPaymentDisabled,
-    #[msg("This SKR action has not been priced; it is disabled")]
-    SkrPriceNotConfigured,
-    #[msg("SKR payment exceeds the amount approved by the wallet")]
-    SkrPriceChanged,
-
 }
 
 // ──────────────────────────── Tests ──────────────────────────────
@@ -2824,222 +3253,3 @@ pub struct AchievementClaimed {
 }
 
 pub const QUEST_REWARD_MICRO: [u64; 6] = [50_000_000, 50_000_000, 100_000_000, 100_000_000, 200_000_000, 50_000_000];
-
-// SKR payment rail v2: new state namespaces prevent legacy SOL order reinterpretation.
-
-#[account]
-#[derive(InitSpace)]
-pub struct SkrPricing {
-    pub skr_mint: Pubkey,
-    pub prices: [u64; 6],
-    pub market_min_atoms: u64,
-    pub bump: u8,
-}
-#[account]
-#[derive(InitSpace)]
-pub struct SkrOrder {
-    pub seller: Pubkey,
-    pub potato_mint: Pubkey,
-    pub skr_mint: Pubkey,
-    pub amount_micro: u64,
-    pub price_skr_atoms: u64,
-    pub fee_bps: u16,
-    pub created_at: i64,
-    pub expires_at: i64,
-    pub escrow_bump: u8,
-    pub bump: u8,
-}
-#[account]
-#[derive(InitSpace)]
-pub struct SkrMarketStats {
-    pub skr_mint: Pubkey,
-    pub volume_24h_micro: u64,
-    pub total_skr_atoms: u64,
-    pub total_trades: u64,
-    pub last_update: i64,
-    pub bump: u8,
-}
-#[derive(Accounts)]
-pub struct ConfigureSkrPricing<'info> {
-    #[account(seeds = [b"config"], bump = config.bump, has_one = authority, has_one = skr_mint)]
-    pub config: Account<'info, GameConfig>,
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    pub skr_mint: Account<'info, Mint>,
-    #[account(init_if_needed, payer = authority, space = 8 + SkrPricing::INIT_SPACE,
-        seeds = [b"skr_pricing", skr_mint.key().as_ref()], bump)]
-    pub pricing: Account<'info, SkrPricing>,
-    pub system_program: Program<'info, System>,
-}
-#[derive(Accounts)]
-#[instruction(field_id: u64)]
-pub struct CreateFieldSkr<'info> {
-    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = skr_mint)]
-    pub config: Box<Account<'info, GameConfig>>,
-    #[account(seeds = [b"skr_pricing", skr_mint.key().as_ref()], bump = pricing.bump, has_one = skr_mint)]
-    pub pricing: Box<Account<'info, SkrPricing>>,
-    pub skr_mint: Box<Account<'info, Mint>>,
-    #[account(mut, token::mint = skr_mint, token::authority = owner)]
-    pub user_skr: Box<Account<'info, TokenAccount>>,
-    /// CHECK: canonical authority for the SKR treasury ATA, no SOL purchase transfer.
-    #[account(seeds = [b"treasury_sol"], bump)]
-    pub treasury: UncheckedAccount<'info>,
-    #[account(mut, associated_token::mint = skr_mint, associated_token::authority = treasury)]
-    pub treasury_skr: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub owner: Signer<'info>,
-    pub token_program: Program<'info, Token>,
-    pub system_program: Program<'info, System>,
-    #[account(init, payer = owner, space = 8 + Field::INIT_SPACE, seeds = [b"field", field_id.to_le_bytes().as_ref()], bump)]
-    pub field: Account<'info, Field>,
-}
-#[derive(Accounts)]
-
-pub struct ServiceFieldSkr<'info> {
-    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = skr_mint)]
-    pub config: Box<Account<'info, GameConfig>>,
-    #[account(seeds = [b"skr_pricing", skr_mint.key().as_ref()], bump = pricing.bump, has_one = skr_mint)]
-    pub pricing: Box<Account<'info, SkrPricing>>,
-    pub skr_mint: Box<Account<'info, Mint>>,
-    #[account(mut, token::mint = skr_mint, token::authority = owner)]
-    pub user_skr: Box<Account<'info, TokenAccount>>,
-    /// CHECK: canonical authority for the SKR treasury ATA, no SOL purchase transfer.
-    #[account(seeds = [b"treasury_sol"], bump)]
-    pub treasury: UncheckedAccount<'info>,
-    #[account(mut, associated_token::mint = skr_mint, associated_token::authority = treasury)]
-    pub treasury_skr: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub owner: Signer<'info>,
-    pub token_program: Program<'info, Token>,
-    pub system_program: Program<'info, System>,
-    #[account(mut, has_one = owner)]
-    pub field: Account<'info, Field>,
-}
-#[derive(Accounts)]
-
-pub struct RegisterReferrerSkr<'info> {
-    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = skr_mint)]
-    pub config: Box<Account<'info, GameConfig>>,
-    #[account(seeds = [b"skr_pricing", skr_mint.key().as_ref()], bump = pricing.bump, has_one = skr_mint)]
-    pub pricing: Box<Account<'info, SkrPricing>>,
-    pub skr_mint: Box<Account<'info, Mint>>,
-    #[account(mut, token::mint = skr_mint, token::authority = owner)]
-    pub user_skr: Box<Account<'info, TokenAccount>>,
-    /// CHECK: canonical authority for the SKR treasury ATA, no SOL purchase transfer.
-    #[account(seeds = [b"treasury_sol"], bump)]
-    pub treasury: UncheckedAccount<'info>,
-    #[account(mut, associated_token::mint = skr_mint, associated_token::authority = treasury)]
-    pub treasury_skr: Box<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub owner: Signer<'info>,
-    pub token_program: Program<'info, Token>,
-    pub system_program: Program<'info, System>,
-    #[account(init, payer = owner, space = 8 + Referral::INIT_SPACE, seeds = [b"referral", owner.key().as_ref()], bump)]
-    pub referral: Account<'info, Referral>,
-}
-#[derive(Accounts)]
-#[instruction(order_id: u64)]
-pub struct CreateSkrOrder<'info> {
-    #[account(mut)]
-    pub seller: Signer<'info>,
-    #[account(seeds = [b"config"], bump = config.bump, has_one = potato_mint, has_one = skr_mint)]
-    pub config: Box<Account<'info, GameConfig>>,
-    #[account(seeds = [b"skr_pricing", skr_mint.key().as_ref()], bump = pricing.bump, has_one = skr_mint)]
-    pub pricing: Box<Account<'info, SkrPricing>>,
-    pub skr_mint: Box<Account<'info, Mint>>,
-    #[account(init_if_needed, payer = seller, space = 8 + SellerProfile::INIT_SPACE,
-        seeds = [b"seller", seller.key().as_ref()], bump)]
-    pub seller_profile: Box<Account<'info, SellerProfile>>,
-    #[account(init, payer = seller, space = 8 + SkrOrder::INIT_SPACE,
-        seeds = [b"skr_order", order_id.to_le_bytes().as_ref()], bump)]
-    pub order: Box<Account<'info, SkrOrder>>,
-    #[account(init_if_needed, payer = seller, space = 8 + SkrMarketStats::INIT_SPACE,
-        seeds = [b"skr_market_stats", skr_mint.key().as_ref()], bump)]
-    pub market_stats: Box<Account<'info, SkrMarketStats>>,
-    #[account(mut, token::mint = potato_mint, token::authority = seller)]
-    pub seller_potato: Box<Account<'info, TokenAccount>>,
-    #[account(init, payer = seller, seeds = [b"skr_escrow", order.key().as_ref()], bump,
-        token::mint = potato_mint, token::authority = escrow)]
-    pub escrow: Box<Account<'info, TokenAccount>>,
-    pub potato_mint: Box<Account<'info, Mint>>,
-    pub token_program: Program<'info, Token>,
-    pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
-}
-#[derive(Accounts)]
-pub struct FillSkrOrder<'info> {
-    #[account(mut)]
-    pub buyer: Signer<'info>,
-    /// CHECK: bound to order.seller; receives rent refunds only (not purchase SOL).
-    #[account(mut)]
-    pub seller: UncheckedAccount<'info>,
-    #[account(seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
-    pub config: Box<Account<'info, GameConfig>>,
-    pub potato_mint: Box<Account<'info, Mint>>,
-    pub skr_mint: Box<Account<'info, Mint>>,
-    #[account(mut, seeds = [b"skr_market_stats", skr_mint.key().as_ref()], bump = market_stats.bump, has_one = skr_mint)]
-    pub market_stats: Box<Account<'info, SkrMarketStats>>,
-    #[account(mut, has_one = seller, has_one = potato_mint, has_one = skr_mint, close = seller)]
-    pub order: Box<Account<'info, SkrOrder>>,
-    #[account(mut, seeds = [b"skr_escrow", order.key().as_ref()], bump = order.escrow_bump,
-        token::mint = potato_mint, token::authority = escrow)]
-    pub escrow: Box<Account<'info, TokenAccount>>,
-    #[account(mut, token::mint = potato_mint, token::authority = buyer)]
-    pub buyer_potato: Box<Account<'info, TokenAccount>>,
-    #[account(mut, token::mint = potato_mint, token::authority = seller)]
-    pub seller_potato: Box<Account<'info, TokenAccount>>,
-    #[account(mut, token::mint = skr_mint, token::authority = buyer)]
-    pub buyer_skr: Box<Account<'info, TokenAccount>>,
-    #[account(mut, associated_token::mint = skr_mint, associated_token::authority = seller)]
-    pub seller_skr: Box<Account<'info, TokenAccount>>,
-    /// CHECK: canonical SKR treasury authority.
-    #[account(seeds = [b"treasury_sol"], bump)]
-    pub treasury: UncheckedAccount<'info>,
-    #[account(mut, associated_token::mint = skr_mint, associated_token::authority = treasury)]
-    pub treasury_skr: Box<Account<'info, TokenAccount>>,
-    pub token_program: Program<'info, Token>,
-}
-#[derive(Accounts)]
-pub struct CancelSkrOrder<'info> {
-    #[account(mut)]
-    pub seller: Signer<'info>,
-    #[account(mut, seeds = [b"seller", seller.key().as_ref()], bump = seller_profile.bump, has_one = seller)]
-    pub seller_profile: Account<'info, SellerProfile>,
-    #[account(mut, has_one = seller, close = seller)]
-    pub order: Account<'info, SkrOrder>,
-    #[account(mut, seeds = [b"skr_escrow", order.key().as_ref()], bump = order.escrow_bump,
-        constraint = escrow.mint == order.potato_mint @ GameError::InvalidMint, token::authority = escrow)]
-    pub escrow: Account<'info, TokenAccount>,
-    #[account(mut, token::authority = seller, constraint = seller_potato.mint == order.potato_mint @ GameError::InvalidMint)]
-    pub seller_potato: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
-}
-#[derive(Accounts)]
-pub struct CloseExpiredSkrOrder<'info> {
-    /// CHECK: bound to order.seller; receives rent only.
-    #[account(mut)]
-    pub seller: UncheckedAccount<'info>,
-
-    #[account(mut, has_one = seller, close = seller)]
-    pub order: Account<'info, SkrOrder>,
-    #[account(mut, seeds = [b"skr_escrow", order.key().as_ref()], bump = order.escrow_bump,
-        constraint = escrow.mint == order.potato_mint @ GameError::InvalidMint, token::authority = escrow)]
-    pub escrow: Account<'info, TokenAccount>,
-    #[account(mut, token::authority = seller, constraint = seller_potato.mint == order.potato_mint @ GameError::InvalidMint)]
-    pub seller_potato: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
-}
-#[event]
-pub struct SkrPayment { pub payer: Pubkey, pub skr_mint: Pubkey, pub action: u8, pub amount_atoms: u64 }
-#[event]
-pub struct SkrPricingUpdated { pub skr_mint: Pubkey, pub prices: [u64; 6], pub market_min_atoms: u64 }
-#[event]
-pub struct SkrOrderCreated { pub order: Pubkey, pub seller: Pubkey, pub skr_mint: Pubkey, pub amount_micro: u64, pub price_skr_atoms: u64 }
-#[event]
-pub struct SkrOrderFilled {
-    pub order: Pubkey, pub buyer: Pubkey, pub seller: Pubkey, pub skr_mint: Pubkey,
-    pub amount_micro: u64, pub total_skr_atoms: u64, pub seller_skr_atoms: u64,
-    pub treasury_skr_atoms: u64, pub referrer_skr_atoms: u64,
-}
-#[event]
-pub struct SkrOrderClosed { pub order: Pubkey, pub expired: bool }

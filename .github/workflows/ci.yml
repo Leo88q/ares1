@@ -93,7 +93,7 @@ jobs:
         run: |
           mkdir -p ~/.config/solana
           solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
-          ./scripts/ci-run.sh anchor test --skip-build
+          ./scripts/ci-run.sh python3 scripts/run-anchor-test.py
       - name: Legacy migration fixtures on isolated localnet
         timeout-minutes: 6
         if: ${{ !cancelled() && steps.build_program.outcome == 'success' }}

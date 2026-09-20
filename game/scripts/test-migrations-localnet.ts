@@ -7,7 +7,7 @@ import path from 'node:path';
 import net from 'node:net';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
-import { Connection, Keypair, PublicKey, ComputeBudgetProgram, SystemProgram, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, ComputeBudgetProgram, SystemProgram, Transaction, type Signer } from '@solana/web3.js';
 import { anchorDiscriminator, decodeGameConfig, decodeEpoch } from '../apps/backend/src/anchorRaw';
 import { migrationInstruction, type MigrationKind } from './migrationClient';
 
@@ -103,20 +103,38 @@ async function run(configSize: 156 | 164) {
     const deadline = Date.now() + 60_000;
     for (;;) {
       if (launchError) throw launchError;
-      if (child.exitCode !== null) throw new Error(`Validator exited: ${output}`);
+      if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Validator exited: ${output}`);
       try { await connection.getVersion(); break; } catch { /* startup only */ }
       if (Date.now() > deadline) throw new Error(`Validator did not start: ${output}`);
       await delay(500);
     }
     // Prevent connecting to another process on this test port.
     assert.deepEqual((await connection.getAccountInfo(configPda))!.data, config);
-    const airdrop = await connection.requestAirdrop(admin.publicKey, 2_000_000_000);
-    await connection.confirmTransaction(airdrop, 'confirmed');
+    // HTTP-only confirmation: do not leave SDK websocket reconnect timers alive
+    // after the isolated validator shuts down. Every wait is bounded.
+    const confirm = async (signature: string) => {
+      const deadline = Date.now() + 30_000;
+      while (Date.now() < deadline) {
+        if (child.exitCode !== null || child.signalCode !== null) throw new Error('Validator exited during confirmation');
+        const status = (await connection.getSignatureStatuses([signature])).value[0];
+        if (status?.err) throw new Error(`Localnet transaction failed: ${JSON.stringify(status.err)}`);
+        if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') return signature;
+        await delay(250);
+      }
+      throw new Error('Localnet confirmation timed out after 30 seconds');
+    };
+    const sendTx = async (tx: Transaction, signers: Signer[]) => {
+      tx.feePayer = admin.publicKey;
+      tx.recentBlockhash = (await connection.getLatestBlockhash('confirmed')).blockhash;
+      tx.sign(...signers);
+      return confirm(await connection.sendRawTransaction(tx.serialize(), { preflightCommitment: 'confirmed', maxRetries: 2 }));
+    };
+    await confirm(await connection.requestAirdrop(admin.publicKey, 2_000_000_000));
     let nonce = 0;
     const send = (kind: MigrationKind, target: PublicKey, signer = admin) => {
       const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 + nonce++ }), migrationInstruction(kind, programId, target, signer.publicKey));
       tx.feePayer = admin.publicKey;
-      return sendAndConfirmTransaction(connection, tx, signer === admin ? [admin] : [admin, signer], { commitment: 'confirmed', maxRetries: 3, abortSignal: AbortSignal.timeout(30_000) });
+      return sendTx(tx, signer === admin ? [admin] : [admin, signer]);
     };
     const reject = async (action: () => Promise<unknown>, code: string, target: PublicKey) => {
       const before = await connection.getAccountInfo(target);
@@ -131,7 +149,7 @@ async function run(configSize: 156 | 164) {
     await reject(() => send('epoch', wrongEpochAddress), 'BadProof', wrongEpochAddress);
     const fakeIx = migrationInstruction('field', programId, fieldPda(100n), admin.publicKey);
     fakeIx.keys[1].pubkey = fakeConfig;
-    await reject(() => sendAndConfirmTransaction(connection, new Transaction().add(fakeIx), [admin]), 'ConstraintSeeds', fieldPda(100n));
+    await reject(() => sendTx(new Transaction().add(fakeIx), [admin]), 'ConstraintSeeds', fieldPda(100n));
 
     // Migrate a Field while config is still legacy, then normalize the config.
     await send('field', fieldPda(100n));
@@ -167,10 +185,10 @@ async function run(configSize: 156 | 164) {
     if (fs.existsSync(log)) console.error(fs.readFileSync(log, 'utf8').slice(-10000));
     throw error;
   } finally {
-    if (child.exitCode === null && !launchError) {
+    if (child.exitCode === null && child.signalCode === null && !launchError) {
       child.kill('SIGTERM');
       const timer = setTimeout(() => child.kill('SIGKILL'), 5000);
-      await new Promise<void>(resolve => child.once('exit', () => resolve()));
+      await Promise.race([new Promise<void>(resolve => child.once('exit', () => resolve())), delay(6000).then(() => { throw new Error('Validator did not stop'); })]);
       clearTimeout(timer);
     }
     fs.rmSync(dir, { recursive: true, force: true });
