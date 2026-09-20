@@ -7,7 +7,7 @@ import path from 'node:path';
 import net from 'node:net';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
-import { Connection, Keypair, PublicKey, SystemProgram, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, ComputeBudgetProgram, SystemProgram, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
 import { anchorDiscriminator, decodeGameConfig, decodeEpoch } from '../apps/backend/src/anchorRaw';
 import { migrationInstruction, type MigrationKind } from './migrationClient';
 
@@ -111,8 +111,9 @@ async function run(configSize: 156 | 164) {
     assert.deepEqual((await connection.getAccountInfo(configPda))!.data, config);
     const airdrop = await connection.requestAirdrop(admin.publicKey, 2_000_000_000);
     await connection.confirmTransaction(airdrop, 'confirmed');
+    let nonce = 0;
     const send = (kind: MigrationKind, target: PublicKey, signer = admin) => {
-      const tx = new Transaction().add(migrationInstruction(kind, programId, target, signer.publicKey));
+      const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 + nonce++ }), migrationInstruction(kind, programId, target, signer.publicKey));
       tx.feePayer = admin.publicKey;
       return sendAndConfirmTransaction(connection, tx, signer === admin ? [admin] : [admin, signer]);
     };
