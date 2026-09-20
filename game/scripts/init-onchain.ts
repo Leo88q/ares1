@@ -116,12 +116,6 @@ async function main() {
   console.log("Program:    ", PROGRAM_ID.toBase58());
   console.log("Config PDA: ", configPda.toBase58());
 
-  const skrMintInfo = await connection.getAccountInfo(SKR_MINT);
-  if (!skrMintInfo) {
-    console.warn("\n⚠ SKR mint NOT found on this cluster — SKR presale / export license will be unavailable until SKR exists here.");
-  } else {
-    console.log("\nSKR mint:   ", SKR_MINT.toBase58(), "(found)");
-  }
 
   let mint: PublicKey;
   let epochId: bigint;
@@ -172,6 +166,14 @@ async function main() {
     console.log("tx:        ", sig);
     epochId = 0n;
   }
+
+  const skrMintInfo = await connection.getAccountInfo(SKR_MINT);
+  if (!skrMintInfo) {
+    console.warn("\n⚠ SKR mint NOT found on this cluster — SKR presale / export license will be unavailable until SKR exists here.");
+  } else {
+    console.log("\nSKR mint:   ", SKR_MINT.toBase58(), "(found)");
+  }
+
 
   // Bootstrap must never silently perform a legacy-state migration.
   const currentEpoch = await connection.getAccountInfo(epochPdaOf(epochId));

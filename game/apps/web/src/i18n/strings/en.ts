@@ -421,6 +421,15 @@ const en: Record<string, string> = {
   'Запрос отклонён в кошельке': 'Request rejected in wallet',
   'Не удалось подключить кошелёк': 'Could not connect wallet',
   'Подключение…': 'Connecting…',
+
+  'Купить за {price} SOL': 'Buy for {price} SOL',
+  'Недостаточно SOL на комиссии сети или аренды аккаунта.': 'Not enough SOL for the network fee or account rent.',
+  'ЦЕНА ДО, SOL': 'PRICE TO, SOL',
+  'ЦЕНА ОТ, SOL': 'PRICE FROM, SOL',
+  'Цена за 1 POTATO (SOL)': 'Price for 1 POTATO (SOL)',
+
+  'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'MIN ORDER: 10 POTATO · AMOUNT FROM 0.001 SOL',
+  'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Minimum order: 10 POTATO and an amount from 0.001 SOL. Raise the price or the quantity.',
 };
 
 export default en;

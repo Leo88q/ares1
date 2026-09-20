@@ -117,10 +117,10 @@ pub const BASE_UPGRADE_MICRO: u64 = 100_000_000; // 100 $POTATO × level
 pub const ORDER_TTL: i64 = 24 * 3600;
 /// After cancelling an order a seller must wait this long before listing again.
 pub const CANCEL_COOLDOWN: i64 = 3 * 3600;
-/// Minimum order size: 0.1 $POTATO.
+/// Minimum order size: 10 $POTATO.
 pub const MIN_ORDER_AMOUNT_MICRO: u64 = 10_000_000; // 10 POTATO
 /// Minimum SOL an order must be worth so that rounding can never make it free.
-pub const MIN_ORDER_TOTAL_LAMPORTS: u64 = 1_000_000; // 1 SKR (6 dec)
+pub const MIN_ORDER_TOTAL_LAMPORTS: u64 = 1_000_000; // 0.001 SOL
 /// Share of the marketplace fee that is burned; the rest goes to the treasury.
 pub const FEE_BURN_PERCENT: u64 = 60;
 
@@ -2997,7 +2997,7 @@ pub enum GameError {
     InvalidMintDecimals, // 6024
     #[msg("Mint must not have a freeze authority")]
     MintHasFreezeAuthority, // 6025
-    #[msg("Order total is below the minimum of 10 000 lamports")]
+    #[msg("Order total is below the minimum of 1 000 000 lamports (0.001 SOL)")]
     OrderTotalTooSmall, // 6026
     #[msg("Prepay limit reached: tax up to 28 days, fertilizer up to 7 days ahead")]
     PrepayLimitReached, // 6027

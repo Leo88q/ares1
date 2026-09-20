@@ -38,7 +38,7 @@ const RU: Record<string, string> = {
  EpochNotOver: 'Эпоха ещё не закончилась.',
  MathOverflow: 'Переполнение при расчёте.',
  InvalidMint: 'Токен-аккаунт не соответствует $POTATO.',
- OrderTotalTooSmall: 'Минимальный ордер: 10 POTATO и сумма от 1 SKR. Подними цену или количество.',
+ OrderTotalTooSmall: 'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.',
  PrepayLimitReached: 'Лимит предоплаты: налог до 28 дней, удобрение до 7 дней вперёд.',
  NothingToRepair: 'Целостность уже максимальная.',
  MaxSupplyReached: 'Достигнут максимальный supply $POTATO.',
@@ -73,7 +73,7 @@ export function describeError(err: unknown): string {
  if (isUserRejection(err)) return t('Транзакция отклонена в кошельке.')
  if (isRateLimited(err)) return t('RPC перегружен (429). Подожди несколько секунд и повтори.')
  if (/insufficient (lamports|funds)|Attempt to debit an account but found no record/i.test(raw)) {
-  return t('Недостаточно SKR на комиссии сети или аренды аккаунта.')
+  return t('Недостаточно SOL на комиссии сети или аренды аккаунта.')
  }
  if (/insufficient funds/i.test(raw) && /Token/i.test(raw)) return t('Недостаточно $POTATO.')
  if (/blockhash not found|block height exceeded/i.test(raw)) return t('Сеть не подтвердила транзакцию вовремя. Повтори.')

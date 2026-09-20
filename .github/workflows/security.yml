@@ -41,5 +41,5 @@ jobs:
           fi
           gitleaks git . --config .gitleaks.toml --log-opts="$RANGE" --redact=100 --no-banner
       - name: Full historical audit
-        if: github.event_name == 'workflow_dispatch' && inputs.full_history
-        run: ./game/scripts/scan-secrets.sh history
+        if: (github.event_name == 'workflow_dispatch' && inputs.full_history) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[audit-history]'))
+        run: ./game/scripts/ci-run.sh ./game/scripts/scan-secrets.sh history
