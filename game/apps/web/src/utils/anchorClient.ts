@@ -664,6 +664,113 @@ export async function ixCloseField(programId: PublicKey, params: {
  })
 }
 
+// ───────────────────────────────────────────────────────────────
+// Advanced Solana: Token-2022 + ZK Compression + Metaplex Core + LUT
+// ───────────────────────────────────────────────────────────────
+
+/** Token-2022 mint PDA — для mainnet migrated POTATO (hook+metadata) */
+export const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenzQdBNbLqP5VEhdkAS6FFYh-BRnj-LvaybEd')
+export const BUBBLEGUM_PROGRAM_ID = new PublicKey('BGUMAp9Gq7iTEuapy4pqaxsQSKP9pRFw9tgo88Ruef4')
+export const MPL_CORE_PROGRAM_ID = new PublicKey('CoREENxT6tWLL37r42jwFW6dvSzpzy1gZb98F1QYn7R')
+export const COMPRESSION_PROGRAM_ID = new PublicKey('cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK')
+
+export function token2022Ata(owner: PublicKey, mint: PublicKey): PublicKey {
+  return getAssociatedTokenAddressSync(mint, owner, true, TOKEN_2022_PROGRAM_ID)
+}
+
+/** PDA для Token-2022 transfer hook: [b"hook", mint] */
+export function hookPda(mint: PublicKey, programId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from('hook'), mint.toBuffer()], programId)[0]
+}
+
+/** PDA compression tree: [b"merkle-tree", authority] */
+export function compressionTreePda(authority: PublicKey, programId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from('merkle-tree'), authority.toBuffer()], programId)[0]
+}
+
+/** PDA Core collection: [b"collection", authority] */
+export function coreCollectionPda(authority: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from('collection'), authority.toBuffer()], MPL_CORE_PROGRAM_ID)[0]
+}
+
+export async function ixInitCompressionTree(programId: PublicKey, params: {
+  merkleTree: PublicKey; treeAuthority: PublicKey; payer: PublicKey
+}): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('init_compression_tree'))
+  return new TransactionInstruction({
+    programId,
+    data,
+    keys: [
+      { pubkey: params.merkleTree, isSigner: false, isWritable: true },
+      { pubkey: params.treeAuthority, isSigner: false, isWritable: false },
+      { pubkey: params.payer, isSigner: true, isWritable: true },
+      // payer doubles as authority for compression tree
+      { pubkey: params.payer, isSigner: true, isWritable: false },
+      { pubkey: COMPRESSION_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+  })
+}
+
+export async function ixMintCompressedField(programId: PublicKey, params: {
+  merkleTree: PublicKey; treeAuthority: PublicKey; leafOwner: PublicKey; payer: PublicKey
+  fieldId: bigint; fieldType: number
+}): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('mint_compressed_field'), u64LE(params.fieldId), u8(params.fieldType))
+  return new TransactionInstruction({
+    programId,
+    data,
+    keys: [
+      { pubkey: params.merkleTree, isSigner: false, isWritable: true },
+      { pubkey: params.treeAuthority, isSigner: false, isWritable: false },
+      { pubkey: params.leafOwner, isSigner: false, isWritable: false },
+      { pubkey: params.payer, isSigner: true, isWritable: true },
+      { pubkey: BUBBLEGUM_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: COMPRESSION_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+  })
+}
+
+export async function ixMintCoreField(programId: PublicKey, params: {
+  collection: PublicKey; asset: PublicKey; authority: PublicKey; payer: PublicKey; owner: PublicKey
+  fieldId: bigint; fieldType: number
+}): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('mint_core_field'), u64LE(params.fieldId), u8(params.fieldType))
+  return new TransactionInstruction({
+    programId,
+    data,
+    keys: [
+      { pubkey: params.collection, isSigner: false, isWritable: true },
+      { pubkey: params.asset, isSigner: false, isWritable: true },
+      { pubkey: params.authority, isSigner: true, isWritable: true },
+      { pubkey: params.payer, isSigner: true, isWritable: true },
+      { pubkey: params.owner, isSigner: false, isWritable: false },
+      { pubkey: MPL_CORE_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+  })
+}
+
+/** Token-2022 hook exec — валидация налога на transfer POTATO (0.5% burn) */
+export async function ixExecuteTransferHook(programId: PublicKey, params: {
+  mint: PublicKey; source: PublicKey; dest: PublicKey; authority: PublicKey
+  amount: bigint
+}): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('execute_transfer_hook'), u64LE(params.amount))
+  return new TransactionInstruction({
+    programId,
+    data,
+    keys: [
+      { pubkey: params.mint, isSigner: false, isWritable: false },
+      { pubkey: params.source, isSigner: false, isWritable: true },
+      { pubkey: params.dest, isSigner: false, isWritable: true },
+      { pubkey: params.authority, isSigner: true, isWritable: false },
+      { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+    ],
+  })
+}
+
 export async function ixClaimAchievement(programId: PublicKey, params: {
  config: PublicKey;
  achievements: PublicKey;
