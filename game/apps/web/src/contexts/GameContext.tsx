@@ -8,10 +8,10 @@ import { useToast } from '../components/Toast'
  import {
  decodeField, pdas,
  ixCreateField, ixHarvest, ixRepairField, ixUpgradeField, ixPayTax, ixApplyFertilizer,
- ixBuyFieldSkr, ixBatchHarvest, ixCloseField, TEST_SKR_MINT, SKR_MINT, treasurySkrAta, buybackSkrAta, presaleStatePda, buyerPresalePda, treasurySolPda,
+ ixBuyFieldSkr, ixBatchHarvest, ixCloseField, SKR_MINT, treasurySkrAta, buybackSkrAta, presaleStatePda, buyerPresalePda, treasurySolPda,
  potatoAta,
  achievementsPda, questTreasuryPda, decodeAchievementsBitmap, ixClaimAchievement, QUEST_REWARDS_MICRO,
- ixInitCompressionTree, ixMintCompressedField, ixMintCoreField, compressionTreePda, coreCollectionPda,
+ ixInitCompressionTree, ixMintCompressedField, ixMintCoreField, compressionTreePda,
 } from '../utils/anchorClient'
 import {
  accumulatedMicro, fieldPriceMicro, fertilizerCostMicro, repairCostMicro, taxCostMicro, upgradeCostMicro, fmtPotato, MICRO,

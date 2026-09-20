@@ -59,3 +59,9 @@ Deploy contract:
 ## License
 
 MIT - Zlata, 2026
+
+## Stabilization / beta readiness
+
+Current validation and remaining release blockers: [21 Sep 2026 status](game/docs/STABILIZATION-2026-09-21.md).
+Build, key handling, Docker and incident procedures: [Operations](game/docs/OPERATIONS.md).
+No real-funds/mainnet readiness is claimed.

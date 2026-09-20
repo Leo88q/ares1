@@ -154,6 +154,38 @@ describe("solana_potato", () => {
     });
   });
 
+  describe("reward signer separation", () => {
+    it("delegates mint only, rejects admin actions, and revokes the old signer", async () => {
+      const rewardSigner = Keypair.generate();
+      const rewardAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, rewardSigner.publicKey)).address;
+      const reward = (amount: number) => program.methods.grantReward(new BN(amount)).accountsPartial({
+        config: configPda, epoch: epochPda(0), authority: rewardSigner.publicKey,
+        potatoMint: mint, userPotato: rewardAta, tokenProgram: TOKEN_PROGRAM_ID,
+      }).signers([rewardSigner]).rpc();
+      await program.methods.updateRewardSigner(rewardSigner.publicKey).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      try {
+        const before = (await program.account.epoch.fetch(epochPda(0))).mintedMicro;
+        await reward(1);
+        expect(await ataBalance(rewardAta)).to.eq(1n);
+        expect((await program.account.epoch.fetch(epochPda(0))).mintedMicro.sub(before).toNumber()).to.eq(1);
+        await expectFail(reward(0), "RewardTooLarge");
+        await expectFail(reward(1_000_000_001), "RewardTooLarge");
+        await expectFail(program.methods.setPaused(true).accountsPartial({ config: configPda, authority: rewardSigner.publicKey }).signers([rewardSigner]).rpc(), "ConstraintHasOne");
+        await expectFail(program.methods.updateRewardSigner(player.publicKey).accountsPartial({ config: configPda, authority: rewardSigner.publicKey }).signers([rewardSigner]).rpc(), "ConstraintHasOne");
+      } finally {
+        await program.methods.updateRewardSigner(admin.publicKey).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      }
+      await expectFail(reward(2), "Unauthorized");
+    });
+
+    it("current-layout config migration is idempotent and authority-only", async () => {
+      const before = (await connection.getAccountInfo(configPda))!.data;
+      await expectFail(program.methods.migrateConfig().accountsPartial({ config: configPda, authority: player.publicKey, systemProgram: SystemProgram.programId }).signers([player]).rpc(), "Unauthorized");
+      await program.methods.migrateConfig().accountsPartial({ config: configPda, authority: admin.publicKey, systemProgram: SystemProgram.programId }).rpc();
+      expect((await connection.getAccountInfo(configPda))!.data.equals(before)).to.be.true;
+    });
+  });
+
   describe("fields", () => {
     const fieldId = BigInt(Date.now());
     let field: PublicKey;
@@ -280,6 +312,77 @@ describe("solana_potato", () => {
     it("repair restores durability", async () => {
       await program.methods.repairField().accountsPartial(fieldSpendAccounts(field, admin.publicKey, adminAta)).rpc();
       expect((await program.account.field.fetch(field)).durability).to.eq(100);
+    });
+  });
+
+  describe("batch_harvest and close_field", () => {
+    const owner = Keypair.generate();
+    const ids = [900_000_001n, 900_000_002n];
+    let ownerAta: PublicKey;
+    const accounts = () => ({
+      config: configPda, epoch: epochPda(0), potatoMint: mint, userPotato: ownerAta,
+      treasuryPotato: treasuryAta, owner: owner.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+      systemProgram: SystemProgram.programId, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    });
+    const batch = (fields: bigint[], writable = true) => program.methods.batchHarvest().accountsPartial(accounts())
+      .remainingAccounts(fields.map(id => ({ pubkey: fieldPda(id), isWritable: writable, isSigner: false })))
+      .signers([owner]).rpc();
+    before(async () => {
+      await connection.confirmTransaction(await connection.requestAirdrop(owner.publicKey, LAMPORTS_PER_SOL));
+      ownerAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, owner.publicKey)).address;
+      await program.methods.grantReward(new BN(300_000_000)).accountsPartial({
+        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint,
+        userPotato: ownerAta, tokenProgram: TOKEN_PROGRAM_ID,
+      }).rpc();
+      for (const id of ids) {
+        await program.methods.createField(new BN(id.toString()), 0).accountsPartial({
+          config: configPda, field: fieldPda(id), owner: owner.publicKey, potatoMint: mint,
+          userPotato: ownerAta, systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID,
+        }).signers([owner]).rpc();
+      }
+    });
+    it("rejects empty, duplicate, read-only and premature batches", async () => {
+      await expectFail(batch([]), "NothingToHarvest");
+      await expectFail(batch([ids[0], ids[0]]), "BadProof");
+      await expectFail(batch([ids[0]], false), "BadProof");
+      await expectFail(batch([ids[0]]), "HarvestTooSoon");
+    });
+    it("mints once, persists readable fields, and cannot immediately harvest twice", async function () {
+      this.timeout(120_000);
+      await new Promise(resolve => setTimeout(resolve, 62_000));
+      const before = await ataBalance(ownerAta);
+      const treasuryBefore = await ataBalance(treasuryAta);
+      const supplyBefore = (await getMint(connection, mint)).supply;
+      const epochBefore = (await program.account.epoch.fetch(epochPda(0))).mintedMicro;
+      const lastBefore = (await program.account.field.fetch(fieldPda(ids[0]))).lastHarvest;
+      await batch(ids);
+      const delta = await ataBalance(ownerAta) - before;
+      const total = delta + (await ataBalance(treasuryAta) - treasuryBefore);
+      expect(delta > 0n).to.be.true;
+      expect((await getMint(connection, mint)).supply - supplyBefore).to.eq(total);
+      expect((await program.account.epoch.fetch(epochPda(0))).mintedMicro.sub(epochBefore).toString()).to.eq(total.toString());
+      for (const id of ids) {
+        const field = await program.account.field.fetch(fieldPda(id));
+        expect(field.owner.equals(owner.publicKey)).to.be.true;
+        expect(field.lastHarvest.gt(lastBefore)).to.be.true;
+        expect(field.durability).to.eq(99);
+      }
+      await expectFail(batch(ids), "HarvestTooSoon");
+    });
+    it("rejects a foreign owner and refunds rent on close even while paused", async () => {
+      await expectFail(program.methods.closeField().accountsPartial({ field: fieldPda(ids[0]), owner: player.publicKey }).signers([player]).rpc(), "ConstraintHasOne");
+      const rent = (await connection.getAccountInfo(fieldPda(ids[0])))!.lamports;
+      const before = await connection.getBalance(owner.publicKey);
+      await program.methods.setPaused(true).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      try {
+        await expectFail(batch(ids), "Paused");
+        await program.methods.closeField().accountsPartial({ field: fieldPda(ids[0]), owner: owner.publicKey }).signers([owner]).rpc();
+        expect(await connection.getAccountInfo(fieldPda(ids[0]))).to.eq(null);
+        // Provider/admin pays the transaction fee, so the owner receives full rent.
+        expect(await connection.getBalance(owner.publicKey)).to.eq(before + rent);
+      } finally {
+        await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      }
     });
   });
 
@@ -768,6 +871,10 @@ describe("solana_potato", () => {
       await claim(saver, 2, [], saverAta); // 1100 🥔 ≥ 1000
       expect(await ataBalance(saverAta)).to.eq(1200_000_000n);
       expect(await ataBalance(questAta())).to.eq(POOL - 50_000_000n - 50_000_000n - 100_000_000n);
+    });
+
+    it("rejects repeating one field as a five-field achievement proof", async () => {
+      await expectFail(claim(player, 3, Array(5).fill(presaleFieldIds[0])), "BadProof");
     });
 
     it("pays quest 3 (5 fields) to the player", async () => {

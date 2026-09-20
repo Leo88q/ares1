@@ -12,34 +12,36 @@ const IDL_ERRORS = new Map<number, IdlError>(
 )
 
 /** Player-facing translations of the on-chain error codes. */
-const RU: Record<number, string> = {
- 6000: 'Игра на паузе. Попробуй позже.',
- 6001: 'Поле неактивно.',
- 6002: 'Пока нечего собирать.',
- 6003: 'Слишком рано: между сборами должно пройти минимум 60 секунд.',
- 6004: 'Достигнут максимальный уровень поля.',
- 6005: 'Нет прав на это действие.',
- 6006: 'Некорректный адрес нового администратора.',
- 6007: 'Неверный тип поля.',
- 6008: 'Неверная сумма.',
- 6009: 'Минимальный ордер — 0.1 POTATO.',
- 6010: 'Укажи цену больше нуля.',
- 6011: 'Ордер уже неактивен (куплен, отменён или истёк).',
- 6012: 'Срок ордера истёк.',
- 6013: 'Ордер ещё не истёк.',
- 6014: 'Нельзя купить собственный ордер.',
- 6015: 'После отмены ордера новые можно выставлять только через 3 часа.',
- 6016: 'Награда слишком большая.',
- 6017: 'Дневной лимит эмиссии исчерпан — урожай можно будет собрать в следующей эпохе.',
- 6018: 'Дневной лимит нельзя поднять выше 250 000 POTATO.',
- 6019: 'Глобальный множитель слишком велик.',
- 6020: 'Эпоха ещё не закончилась.',
- 6021: 'Переполнение при расчёте.',
- 6022: 'Токен-аккаунт не соответствует $POTATO.',
- 6026: 'Минимальный ордер: 10 POTATO и сумма от 1 SKR. Подними цену или количество.',
- 6027: 'Лимит предоплаты: налог до 28 дней, удобрение до 7 дней вперёд.',
- 6028: 'Целостность уже максимальная.',
- 6029: 'Достигнут максимальный supply $POTATO.',
+const RU: Record<string, string> = {
+ AlreadyClaimed: 'Награда уже получена.',
+ BadProof: 'Не выполнены условия награды.',
+ Paused: 'Игра на паузе. Попробуй позже.',
+ FieldInactive: 'Поле неактивно.',
+ NothingToHarvest: 'Пока нечего собирать.',
+ HarvestTooSoon: 'Слишком рано: между сборами должно пройти минимум 60 секунд.',
+ MaxLevelReached: 'Достигнут максимальный уровень поля.',
+ Unauthorized: 'Нет прав на это действие.',
+ InvalidAuthority: 'Некорректный адрес нового администратора.',
+ InvalidFieldType: 'Неверный тип поля.',
+ InvalidAmount: 'Неверная сумма.',
+ OrderTooSmall: 'Минимальный ордер — 10 POTATO.',
+ InvalidPrice: 'Укажи цену больше нуля.',
+ OrderNotActive: 'Ордер уже неактивен (куплен, отменён или истёк).',
+ OrderExpired: 'Срок ордера истёк.',
+ OrderNotExpired: 'Ордер ещё не истёк.',
+ SelfTradeBlocked: 'Нельзя купить собственный ордер.',
+ CancelCooldown: 'После отмены ордера новые можно выставлять только через 3 часа.',
+ RewardTooLarge: 'Награда слишком большая.',
+ EpochCapExceeded: 'Дневной лимит эмиссии исчерпан — урожай можно будет собрать в следующей эпохе.',
+ CapTooHigh: 'Дневной лимит нельзя поднять выше 250 000 POTATO.',
+ MultiplierTooHigh: 'Глобальный множитель слишком велик.',
+ EpochNotOver: 'Эпоха ещё не закончилась.',
+ MathOverflow: 'Переполнение при расчёте.',
+ InvalidMint: 'Токен-аккаунт не соответствует $POTATO.',
+ OrderTotalTooSmall: 'Минимальный ордер: 10 POTATO и сумма от 1 SKR. Подними цену или количество.',
+ PrepayLimitReached: 'Лимит предоплаты: налог до 28 дней, удобрение до 7 дней вперёд.',
+ NothingToRepair: 'Целостность уже максимальная.',
+ MaxSupplyReached: 'Достигнут максимальный supply $POTATO.',
 }
 
 /** Anchor built-in error codes we expect players to hit. */
@@ -80,11 +82,11 @@ export function describeError(err: unknown): string {
  const numbered = raw.match(/Error Number: (\d+)/)
  const code = custom ? parseInt(custom[1], 16) : numbered ? parseInt(numbered[1], 10) : null
  if (code !== null) {
-  if (RU[code]) return t(RU[code])
+  const idlErr = IDL_ERRORS.get(code)
+  if (idlErr && RU[idlErr.name]) return t(RU[idlErr.name])
   if (ANCHOR_RU[code]) return t(ANCHOR_RU[code])
   // 0x1 from the SPL token program = insufficient funds
   if (code === 1 && /Token|spl/i.test(raw)) return t('Недостаточно $POTATO на балансе.')
-  const idlErr = IDL_ERRORS.get(code)
   if (idlErr?.msg) return idlErr.msg
   return t('Ошибка программы (код {code}).', { code })
  }

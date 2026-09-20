@@ -24,7 +24,7 @@ configRouter.get("/", async (_req, res) => {
         startTime: epoch.startTime.toString(),
       },
     });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "failed to read config" });
+  } catch {
+    res.status(503).json({ error: "Failed to read on-chain config" });
   }
 });

@@ -1,3 +1,4 @@
+import { assertDedicatedPayer, safeError } from "./security.js";
 import cron from "node-cron";
 import { env } from "./env.js";
 import {
@@ -20,6 +21,7 @@ export let consecutiveFailures = 0;
 
 export async function tryRollEpoch(): Promise<string | null> {
   const config = await fetchConfig();
+  assertDedicatedPayer(payerKeypair.publicKey, config);
   const current = await fetchEpoch(config.epochId);
   const now = Math.floor(Date.now() / 1000);
 
@@ -51,8 +53,8 @@ export function startEpochRoller() {
       }
     } catch (err) {
       consecutiveFailures += 1;
-      lastRollError = err instanceof Error ? err.message : String(err);
-      console.error(`[epoch-roller] failed (attempt ${consecutiveFailures}):`, err);
+      lastRollError = safeError(err);
+      console.error(`[epoch-roller] failed (attempt ${consecutiveFailures}):`, safeError(err));
       // Alert after 3 consecutive failures — need external webhook in prod
       if (consecutiveFailures >= 3) {
         console.error(`[epoch-roller] CRITICAL: 3 consecutive roll failures! Check RPC and payer balance.`);
@@ -66,7 +68,7 @@ export function startEpochRoller() {
       const sig = await tryRollEpoch();
       if (sig) console.log(`[epoch-roller] startup roll, tx=${sig}`);
     } catch (err) {
-      console.error("[epoch-roller] startup check failed:", err);
+      console.error("[epoch-roller] startup check failed:", safeError(err));
     }
   }, 5000);
 }

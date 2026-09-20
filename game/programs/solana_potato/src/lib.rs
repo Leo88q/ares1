@@ -6,8 +6,8 @@
 //! $POTATO for SOL on a built-in escrow marketplace.
 //!
 //! ## Economic guard rails
-//! * Emission happens only through `harvest` / `grant_reward` and is bounded by
-//!   a per-epoch mint cap (`Epoch.mint_cap_micro`, at most [`MAX_DAILY_CAP_MICRO`])
+//! * Emission through `harvest` / `batch_harvest` / `grant_reward` is bounded by
+//!   a per-epoch mint cap (`Epoch.mint_cap_micro`, dynamically 250k–750k after roll)
 //!   and by `GameConfig.max_supply_micro`.
 //! * Epochs are 24h long and are rolled permissionlessly via `roll_epoch`.
 //! * Every in-game spend is a burn; 60 % of marketplace fees are burned and the
@@ -44,8 +44,8 @@ pub const SECONDS_PER_DAY: i64 = 86_400;
 
 /// Epoch length. The mint cap resets every epoch.
 pub const EPOCH_DURATION: i64 = SECONDS_PER_DAY;
-/// Hard ceiling for the per-epoch mint cap: 250 000 $POTATO. Even the authority
-/// cannot raise `daily_mint_cap_micro` above this.
+/// Ceiling for the configured bootstrap cap, NOT for subsequent dynamic epochs.
+/// roll_epoch currently clamps its independent calculation to 250k–750k POTATO.
 pub const MAX_DAILY_CAP_MICRO: u64 = 250_000_000_000;
 /// Hard ceiling for a single off-chain reward: 1 000 $POTATO.
 pub const MAX_REWARD_MICRO: u64 = 1_000_000_000;
@@ -1496,7 +1496,6 @@ pub mod solana_potato {
 
         // Первый проход: валидация + расчёт pending без мутации состояния
         // Собираем данные чтобы проверить лимиты до минта
-        let mut pending_list: Vec<(Pubkey, u64, u64, u64)> = Vec::new(); // (field_key, pending, player_yield, treasury)
         // Для защиты от дублей в батче
         for i in 0..ctx.remaining_accounts.len() {
             for j in (i+1)..ctx.remaining_accounts.len() {
@@ -1504,7 +1503,7 @@ pub mod solana_potato {
             }
         }
         for acc in ctx.remaining_accounts.iter() {
-            require!(acc.owner == ctx.program_id, GameError::BadProof);
+            require!(acc.owner == ctx.program_id && acc.is_writable, GameError::BadProof);
             let mut slice: &[u8] = &acc.try_borrow_data()?[..];
             let f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
             require!(f.owner == ctx.accounts.owner.key(), GameError::Unauthorized);
@@ -1517,7 +1516,6 @@ pub mod solana_potato {
             let player_yield = pending.saturating_sub(tax_amount);
             let treasury_share = tax_amount / 2;
             require!(player_yield > 0, GameError::NothingToHarvest);
-            pending_list.push((acc.key(), pending, player_yield, treasury_share));
             total_gross = total_gross.saturating_add(pending);
             total_player = total_player.saturating_add(player_yield);
             total_treasury = total_treasury.saturating_add(treasury_share);
@@ -1544,19 +1542,14 @@ pub mod solana_potato {
         ctx.accounts.epoch.minted_micro = ctx.accounts.epoch.minted_micro
             .saturating_add(scaled_player).saturating_add(scaled_treasury);
 
-        for (idx, acc) in ctx.remaining_accounts.iter().enumerate() {
-            // Перечитываем поле mutable через AccountLoader-подобный доступ:
-            // remaining_accounts — Unchecked, поэтому мутируем данные напрямую через try_borrow_mut_data + Field deserialization is unsafe.
-            // Вместо этого требуем чтобы поле было передано и как mutable remaining — мы обновляем через поле PDA seeds.
-            // Упрощение: ожидаем что поля уже проверены, и обновляем last_harvest/durability через CPI-подобный подход:
-            // Декодируем, модифицируем и сериализуем обратно.
+        for acc in ctx.remaining_accounts.iter() {
+            // All remaining accounts were validated before any state mutation.
             let mut data = acc.try_borrow_mut_data()?;
             let mut slice: &[u8] = &data;
             let mut f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
             // Пропорциональный consumed
-            let (_, pending, _, _) = pending_list[idx];
             let elapsed = now.saturating_sub(f.last_harvest).min(MAX_ACCRUAL_SECONDS);
-            let consumed: i64 = if scale_num == 1 {
+            let consumed: i64 = if scale_num == scale_den {
                 elapsed
             } else {
                 ((elapsed as u128) * scale_num / scale_den) as i64
@@ -1566,11 +1559,7 @@ pub mod solana_potato {
             let decay_interval = if f.mutation_type == 2 { DURABILITY_DECAY_INTERVAL * 2 } else { DURABILITY_DECAY_INTERVAL };
             let decay = (consumed / decay_interval).max(1).min(MAX_DURABILITY as i64) as u8;
             f.durability = f.durability.saturating_sub(decay);
-            // Сериализуем обратно
-            let mut out: Vec<u8> = Vec::new();
-            f.try_serialize(&mut out).map_err(|_| error!(GameError::MathOverflow))?;
-            // data[0..8] — discriminator, сохраняем
-            data[8..8+out.len()].copy_from_slice(&out);
+            write_field_account(&f, &mut data)?;
         }
 
         // Интеракция: минт
@@ -1689,6 +1678,13 @@ pub mod solana_potato {
         Ok(())
     }
 
+}
+
+/// Anchor AccountSerialize writes the discriminator AND payload. Remaining
+/// accounts must be written from offset zero, without reallocating the account.
+fn write_field_account(field: &Field, data: &mut [u8]) -> Result<()> {
+    require!(data.len() == 8 + Field::INIT_SPACE, GameError::BadProof);
+    field.try_serialize(&mut &mut data[..])
 }
 
 // ────────────────────────── Pure helpers ─────────────────────────
@@ -2506,6 +2502,7 @@ pub struct BatchHarvest<'info> {
 pub struct CloseField<'info> {
     #[account(mut, has_one = owner, close = owner)]
     pub field: Account<'info, Field>,
+    #[account(mut)]
     pub owner: Signer<'info>,
 }
 
@@ -3185,14 +3182,45 @@ mod tests {
     }
 
     #[test]
+    fn batch_field_serialization_round_trips_without_extra_discriminator() {
+        let mut original = field(3, 99, 1);
+        original.last_harvest = 123456;
+        let mut data = vec![0; 8 + Field::INIT_SPACE];
+        write_field_account(&original, &mut data).unwrap();
+        let restored = Field::try_deserialize(&mut &data[..]).unwrap();
+        assert_eq!(restored.owner, original.owner);
+        assert_eq!(restored.last_harvest, 123456);
+        assert_eq!(restored.durability, 99);
+        assert_eq!(restored.level, 3);
+        assert!(write_field_account(&original, &mut data[..69]).is_err());
+    }
+
+    #[test]
+    fn achievement_proofs_reject_duplicate_and_foreign_fields() {
+        let user = Pubkey::new_unique();
+        let program = crate::ID;
+        let key = Pubkey::new_unique();
+        let mut f = field(3, 100, 1);
+        f.owner = user;
+        let mut data = vec![0; 8 + Field::INIT_SPACE];
+        write_field_account(&f, &mut data).unwrap();
+        let mut lamports = 1;
+        let account = AccountInfo::new(&key, false, false, &mut lamports, &mut data, &program, false, 0);
+        assert!(verify_fields(&[account.clone()], &user, &program, 1, 3).is_ok());
+        assert!(verify_fields(&[account.clone(), account.clone()], &user, &program, 2, 0).is_err());
+        assert!(verify_fields(&[account.clone()], &Pubkey::new_unique(), &program, 1, 0).is_err());
+        assert!(verify_fields(&[account], &user, &Pubkey::new_unique(), 1, 0).is_err());
+    }
+
+    #[test]
     fn account_sizes_match_client_decoders() {
         assert_eq!(8 + Field::INIT_SPACE, 70);
         assert_eq!(8 + MarketOrder::INIT_SPACE, 83);
         // GameConfig: 32*5 (authority,pending,potato,skr,reward) + 8*4 +2+8*3+1+1
         assert_eq!(8 + GameConfig::INIT_SPACE, 8 + 32 * 5 + 8 * 4 + 2 + 8 * 3 + 1 + 1);
-        assert_eq!(8 + CompressionTree::INIT_SPACE, 32 + 32 + 4 + 1);
-        assert_eq!(8 + CoreCollection::INIT_SPACE, 32 + 1);
-        assert_eq!(8 + CoreAsset::INIT_SPACE, 32 + 32 + 8 + 1 + 1);
+        assert_eq!(8 + CompressionTree::INIT_SPACE, 8 + 32 + 32 + 4 + 1);
+        assert_eq!(8 + CoreCollection::INIT_SPACE, 8 + 32 + 1);
+        assert_eq!(8 + CoreAsset::INIT_SPACE, 8 + 32 + 32 + 8 + 1 + 1);
     }
 }
 

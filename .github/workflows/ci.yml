@@ -1,355 +1,99 @@
 name: CI
-
 on:
   push:
-    branches: [main]
+    branches: [main, 'arena/**']
   pull_request:
-  # Ручной запуск из вкладки Actions (полезно для проверки, пока нет событий на main)
   workflow_dispatch:
 
-env:
-  # Запинчено под рабочую локальную версию (solana-cli 4.2.2, client:Agave):
-  # "stable" даёт новый SBF-nightly toolchain, где удалён proc_macro::SourceFile,
-  # а anchor 0.30.1 (anchor-syn) его ещё вызывает → E0599 в cargo build-sbf.
-  SOLANA_VERSION: "4.2.2"
-  ANCHOR_VERSION: 0.31.2
-  NODE_VERSION: 22
-
-# Least privilege: достаточно чтения контента + записи артефактов (upload-artifact).
-# Не требует "Read and write permissions" на уровне репозитория.
 permissions:
-  # contents:write — нужен для push логов во ветку ci-diag-log при сбое
-  # (sandbox не видит run-логи/артефакты; это единственный читаемый канал)
-  contents: write
-  actions: write
-  # issues:write — только для PR-комментария-зеркала логов при сбое (sandbox не видит run-логи)
-  issues: write
+  contents: read
 
-# Моноrepo: код, package.json и Anchor-проект лежат в game/
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOLANA_VERSION: '4.2.2'
+  ANCHOR_VERSION: '0.31.2'
+
 defaults:
   run:
     working-directory: game
+    shell: bash
 
 jobs:
-  program:
-    name: Anchor program (build + unit + integration tests)
-    runs-on: ubuntu-latest
-    # 60: холодная сборка (cache-miss) = avm + все зависимости + program + validator
-    timeout-minutes: 60
-    env:
-      PR_URL: ${{ github.event.pull_request.comments_url }}
+  offchain:
+    name: Web + backend (typecheck, tests, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-
-      # Запинчено под рабочую версию (rustc 1.97.1) — свежий stable ломает
-      # proc-macro2 в anchor build (Span::source_file удалён из proc_macro).
-      - uses: dtolnay/rust-toolchain@1.97.1
-
-      # Кэш разбит на два: actions/cache молча не сохраняет запись >10 ГБ,
-      # и один общий кэш (registry+git+bin+target) мог целиком пропускаться.
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.cargo/bin
-          key: ${{ runner.os }}-anchor-deps-${{ env.ANCHOR_VERSION }}-${{ hashFiles('game/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-anchor-${{ env.ANCHOR_VERSION }}-${{ hashFiles('game/Cargo.lock') }}
-            ${{ runner.os }}-anchor-${{ env.ANCHOR_VERSION }}-
-
-      - uses: actions/cache@v4
-        with:
-          path: game/target
-          key: ${{ runner.os }}-anchor-target-${{ env.ANCHOR_VERSION }}-${{ hashFiles('game/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-anchor-${{ env.ANCHOR_VERSION }}-${{ hashFiles('game/Cargo.lock') }}
-            ${{ runner.os }}-anchor-${{ env.ANCHOR_VERSION }}-
-
-      - name: Install Solana CLI
-        run: |
-          # Версионный URL может требовать префикс v (release.anza.xyz/v4.2.2/install)
-          # — пробуем оба варианта и явно проверяем результат.
-          echo "Requesting release.anza.xyz/${SOLANA_VERSION}/install"
-          if ! curl -fsSL "https://release.anza.xyz/${SOLANA_VERSION}/install" -o /tmp/solana-install.sh; then
-            echo "::warning::Versioned URL (no v-prefix) failed — retrying with v-prefix"
-            curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
-          fi
-          [ -s /tmp/solana-install.sh ] || { echo "::error::solana install script empty (URL 404?)"; exit 1; }
-          sh /tmp/solana-install.sh
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-          solana --version || { echo "::error::solana binary missing after install"; exit 1; }
-          # Диагностика SBF-тулчейна (с ним компилируется anchor build):
-          rustup toolchain list 2>/dev/null || true
-          rustup run sbf rustc --version 2>/dev/null || echo "sbf toolchain not installed yet"
-
-      - name: Install Anchor
-        run: |
-          if ! command -v anchor >/dev/null || [ "$(anchor --version | awk '{print $2}')" != "$ANCHOR_VERSION" ]; then
-            cargo install --git https://github.com/coral-xyz/anchor avm --force
-            avm install "$ANCHOR_VERSION"
-            avm use "$ANCHOR_VERSION"
-          fi
-          anchor --version
-
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version-file: .node-version
           cache: yarn
           cache-dependency-path: game/yarn.lock
+      - run: npm install --global yarn@1.22.22
+      - run: ./scripts/ci-local.sh --skip-chain
 
-      - name: yarn install (frozen)
+  program:
+    name: Anchor program (build + unit + integration tests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.97.1'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: yarn
+          cache-dependency-path: game/yarn.lock
+      - run: npm install --global yarn@1.22.22
+      - run: yarn install --frozen-lockfile --non-interactive
+      - name: Install pinned Solana CLI
         run: |
-          set -o pipefail
-          node --version; yarn --version
-          if ! yarn install --frozen-lockfile --network-timeout 100000 2>&1 | tee /tmp/yarn-install.log; then
-            echo "::error title=yarn-install-failed::$(tail -n 40 /tmp/yarn-install.log | tr '\n' ' | ' | head -c 6000)"
-            exit 1
-          fi
-
+          curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
+          sh /tmp/solana-install.sh
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Install pinned Anchor CLI
+        run: cargo install anchor-cli --version "=$ANCHOR_VERSION" --locked
+      - name: Verify toolchain
+        run: |
+          test "$(rustc --version | awk '{print $2}')" = '1.97.1'
+          test "$(solana --version | awk '{print $2}')" = "$SOLANA_VERSION"
+          test "$(anchor --version | awk '{print $2}')" = "$ANCHOR_VERSION"
       - name: Unit tests (host)
+        run: cargo test --locked -p solana_potato --lib
+      - name: Anchor build (locked)
+        run: anchor build -- --locked
+      - name: Clean localnet integration / deployment smoke
         run: |
-          set -o pipefail
-          if ! cargo test -p solana_potato --lib 2>&1 | tee /tmp/cargo-test.log; then
-            # ВАЖНО: шаг выполняется с `bash -e` — любая команда, возвращающая
-            # ненулевой код, роняет весь скрипт. Все grep/tee ниже — через `|| true`.
-            # rustc красит вывод ANSI-кодами: строки ошибок начинаются с \x1b
-            sed -e 's/\x1b\[[0-9;]*m//g' /tmp/cargo-test.log > /tmp/cargo-test-plain.log 2>/dev/null || cp /tmp/cargo-test.log /tmp/cargo-test-plain.log
-            LOGSIZE=$(wc -c < /tmp/cargo-test.log 2>/dev/null || echo missing)
-            ERRCOUNT=$(grep -c '^error' /tmp/cargo-test-plain.log 2>/dev/null || true)
-            echo "DIAG cargo-failed: log=${LOGSIZE}B error_lines=${ERRCOUNT:-0} PR_URL=${PR_URL:-EMPTY}"
-            echo "::error::cargo-test-failed log=${LOGSIZE}B error_lines=${ERRCOUNT:-0}"
-            # Зеркало полного лога в step summary (вкладка Summary у ран)
-            if [ -n "$GITHUB_STEP_SUMMARY" ]; then
-              {
-                echo "## :x: cargo test failed — полный лог"
-                echo '```'
-                head -c 30000 /tmp/cargo-test.log
-                echo '```'
-              } >> "$GITHUB_STEP_SUMMARY"
-            fi
-            # Полный лог в PR-комментарий (gh первично, curl — фолбэк)
-            {
-              echo "### :x: cargo test failed (run $GITHUB_RUN_ID) — полный лог"
-              echo '```'
-              head -c 30000 /tmp/cargo-test.log
-              echo '```'
-            } > /tmp/pr-comment.md
-            if ! gh api -X POST "repos/Leo88q/ares1/issues/1/comments" \
-                -F body=@/tmp/pr-comment.md > /tmp/pr-comment-resp.json 2>&1; then
-              echo "PR comment gh failed; trying curl"
-              cat /tmp/pr-comment-resp.json 2>/dev/null || true
-              if [ -n "$PR_URL" ]; then
-                curl -sS -o /tmp/pr-comment-resp2.json -w "PR comment: %{http_code}\n" -X POST "$PR_URL" \
-                  -H "Authorization: Bearer $GITHUB_TOKEN" \
-                  -H "Accept: application/vnd.github+json" \
-                  --data-binary @/tmp/pr-comment.md || {
-                  echo "PR comment curl failed too"
-                  cat /tmp/pr-comment-resp2.json 2>/dev/null || true
-                }
-              else
-                echo "DIAG: PR_URL is empty — curl fallback impossible"
-              fi
-            fi
-            # Построчные аннотации (best effort; не должны ронять скрипт)
-            {
-              grep -E "^error|^test .* FAILED|panicked at|^  --> " /tmp/cargo-test-plain.log \
-                | head -15 | sed 's/::/:/g' \
-                | while IFS= read -r line; do
-                    [ -z "$line" ] && continue
-                    echo "::error file=game/programs/solana_potato/src/lib.rs::cargo: ${line:0:400}"
-                  done
-            } || true
-            exit 1
-          fi
-
-      # Гарантированный канал логов: sandbox не видит run-логи/артефакты,
-      # PR-комментарии не постятся — push логов во вспомогательную ветку
-      # (orphan; workflow её не трiggерит: push-триггер только main).
-      - name: Push cargo log to ci-diag-log branch
-        if: failure()
-        run: |
-          set +e
-          [ -f /tmp/cargo-test.log ] || exit 0
-          git config user.name "ci-diag"
-          git config user.email "ci-diag@users.noreply.github.com"
-          git checkout --orphan ci-diag-log 2>/dev/null || git checkout -B ci-diag-log
-          git rm -rf --cached . >/dev/null 2>&1
-          mkdir -p .ci-diag
-          cp /tmp/cargo-test.log .ci-diag/cargo-test.txt
-          [ -f /tmp/anchor-build.log ] && cp /tmp/anchor-build.log .ci-diag/anchor-build.txt
-          git add .ci-diag
-          git commit -m "ci diag logs (run $GITHUB_RUN_ID, $GITHUB_SHA)" >/dev/null 2>&1 || {
-            git commit --allow-empty -m "ci diag logs (run $GITHUB_RUN_ID, $GITHUB_SHA)" >/dev/null 2>&1
-          }
-          git push -f origin ci-diag-log 2>&1 | tail -2 || echo "diag push failed"
-
-      - name: anchor build
-        run: |
-          set -o pipefail
-          if ! anchor build 2>&1 | tee /tmp/anchor-build.log; then
-            sed -e 's/\x1b\[[0-9;]*m//g' /tmp/anchor-build.log > /tmp/anchor-build-plain.log 2>/dev/null || cp /tmp/anchor-build.log /tmp/anchor-build-plain.log
-            LOGSIZE=$(wc -c < /tmp/anchor-build.log 2>/dev/null || echo missing)
-            ERRCOUNT=$(grep -c '^error' /tmp/anchor-build-plain.log 2>/dev/null || true)
-            echo "DIAG anchor-build-failed: log=${LOGSIZE}B error_lines=${ERRCOUNT:-0}"
-            echo "::error::anchor-build-failed log=${LOGSIZE}B error_lines=${ERRCOUNT:-0}"
-            {
-              grep -E "^error|panicked|^  --> " /tmp/anchor-build-plain.log \
-                | head -15 | sed 's/::/:/g' \
-                | while IFS= read -r line; do
-                    [ -z "$line" ] && continue
-                    echo "::error file=game/programs/solana_potato/src/lib.rs::anchor build: ${line:0:400}"
-                  done
-            } || true
-            if [ -n "$GITHUB_STEP_SUMMARY" ]; then
-              {
-                echo "## :x: anchor build failed — полный лог"
-                echo '```'
-                head -c 30000 /tmp/anchor-build.log
-                echo '```'
-              } >> "$GITHUB_STEP_SUMMARY"
-            fi
-            {
-              echo "### :x: anchor build failed (run $GITHUB_RUN_ID) — полный лог"
-              echo '```'
-              head -c 30000 /tmp/anchor-build.log
-              echo '```'
-            } > /tmp/pr-comment.md
-            if ! gh api -X POST "repos/Leo88q/ares1/issues/1/comments" \
-                -F body=@/tmp/pr-comment.md > /tmp/pr-comment-resp.json 2>&1; then
-              echo "PR comment gh failed; trying curl"
-              cat /tmp/pr-comment-resp.json 2>/dev/null || true
-              if [ -n "$PR_URL" ]; then
-                curl -sS -o /tmp/pr-comment-resp2.json -w "PR comment: %{http_code}\n" -X POST "$PR_URL" \
-                  -H "Authorization: Bearer $GITHUB_TOKEN" \
-                  -H "Accept: application/vnd.github+json" \
-                  --data-binary @/tmp/pr-comment.md || echo "PR comment curl failed too"
-              fi
-            fi
-            exit 1
-          fi
-
-      - name: Upload build artifacts (.so + IDL)
+          mkdir -p ~/.config/solana
+          solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
+          anchor test --skip-build
+      - name: IDL and program IDs match source and build
+        if: ${{ !cancelled() && hashFiles('game/target/idl/solana_potato.json') != '' }}
+        run: yarn check:contract target/idl/solana_potato.json
+      # Never publish logs to a git branch or PR comment. GitHub job logs remain
+      # the diagnostic channel; never pass production keys to this workflow.
+      - name: Build artifacts (no deploy keypair)
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: program-build
+          retention-days: 7
+          if-no-files-found: ignore
           path: |
             game/target/deploy/solana_potato.so
             game/target/idl/solana_potato.json
             game/target/types/solana_potato.ts
 
-      - name: IDL is committed and up to date
-        run: |
-          cp target/idl/solana_potato.json apps/web/src/idl.json
-          git diff --exit-code -- apps/web/src/idl.json || (echo "::error::apps/web/src/idl.json is stale — run anchor build and commit it" && exit 1)
-
-      - name: anchor test (local validator)
-        run: |
-          solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
-          set +e
-          anchor test --skip-build 2>&1 | tee /tmp/anchor-test.log
-          EXIT=${PIPESTATUS[0]}
-          if [ "$EXIT" != "0" ]; then
-            echo "DIAG anchor-test-failed: exit=${EXIT} log=$(wc -c < /tmp/anchor-test.log)B"
-            echo "::error title=anchor-test-failed::exit=${EXIT} | $(tail -n 45 /tmp/anchor-test.log | tr '\n' ' | ' | head -c 6000)"
-            exit "$EXIT"
-          fi
-
-      # Лог anchor test — в ветку ci-diag-log (sandbox не видит run-логи/артефакты;
-      # аннотации дробятся, а это единственный читаемый канал с полным логом).
-      - name: Push anchor test log to ci-diag-log branch
-        if: failure()
-        run: |
-          set +e
-          [ -f /tmp/anchor-test.log ] || exit 0
-          git config user.name "ci-diag"
-          git config user.email "ci-diag@users.noreply.github.com"
-          git checkout --orphan ci-diag-log 2>/dev/null || git checkout -B ci-diag-log
-          git rm -rf --cached . >/dev/null 2>&1
-          mkdir -p .ci-diag
-          cp /tmp/anchor-test.log .ci-diag/anchor-test.txt
-          git add .ci-diag
-          git commit -m "ci diag logs anchor-test (run $GITHUB_RUN_ID, $GITHUB_SHA)" >/dev/null 2>&1 || {
-            git commit --allow-empty -m "ci diag logs anchor-test (run $GITHUB_RUN_ID, $GITHUB_SHA)" >/dev/null 2>&1
-          }
-          git push -f origin ci-diag-log 2>&1 | tail -2 || echo "diag push failed"
-
-      # Лог-артефакт на каждый прогон: sandbox не видит run-логи,
-      # а аннотации могут теряться (GH дробит payload по '::').
-      - name: Upload job logs (diagnostics)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: program-job-logs-${{ github.run_id }}
-          path: |
-            /tmp/cargo-test.log
-            /tmp/anchor-build.log
-            /tmp/yarn-install.log
-          if-no-files-found: ignore
-
-  web:
-    name: Web (typecheck + build)
-    runs-on: ubuntu-latest
+  container:
+    name: Backend container build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: yarn
-          cache-dependency-path: game/yarn.lock
-      - name: yarn install (frozen)
-        run: |
-          set -o pipefail
-          node --version; yarn --version
-          if ! yarn install --frozen-lockfile --network-timeout 100000 2>&1 | tee /tmp/yarn-install.log; then
-            echo "::error title=yarn-install-failed::$(tail -n 40 /tmp/yarn-install.log | tr '\n' ' | ' | head -c 6000)"
-            exit 1
-          fi
-      - name: web typecheck
-        run: |
-          set -o pipefail
-          if ! yarn workspace web exec tsc --noEmit 2>&1 | tee /tmp/tsc-web.log; then
-            grep -E "^\S+\([0-9]+,[0-9]+\): error TS" /tmp/tsc-web.log \
-              | sed -E 's/^([^(:]+)\(([0-9]+),([0-9]+)\): (.*)$/::error file=\1,line=\2,col=\3::\4/' | head -40
-            echo "::error title=tsc-web-failed::$(grep -cE 'error TS' /tmp/tsc-web.log) ошибок; хвост: $(tail -n 10 /tmp/tsc-web.log | tr '\n' ' | ' | head -c 3000)"
-            exit 1
-          fi
-      - run: yarn workspace web build
-        env:
-          VITE_SOLANA_CLUSTER: devnet
-          VITE_RPC_URL: https://api.devnet.solana.com
-          VITE_PROGRAM_ID: DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf
-          VITE_BACKEND_URL: ""
-      - uses: actions/upload-artifact@v4
-        with:
-          name: web-dist
-          path: game/apps/web/dist
-
-  backend:
-    name: Backend (typecheck)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: yarn
-          cache-dependency-path: game/yarn.lock
-      - name: yarn install (frozen)
-        run: |
-          set -o pipefail
-          node --version; yarn --version
-          if ! yarn install --frozen-lockfile --network-timeout 100000 2>&1 | tee /tmp/yarn-install.log; then
-            echo "::error title=yarn-install-failed::$(tail -n 40 /tmp/yarn-install.log | tr '\n' ' | ' | head -c 6000)"
-            exit 1
-          fi
-      - name: backend typecheck
-        run: |
-          set -o pipefail
-          if ! yarn workspace backend typecheck 2>&1 | tee /tmp/tsc-be.log; then
-            grep -E "^\S+\([0-9]+,[0-9]+\): error TS" /tmp/tsc-be.log \
-              | sed -E 's/^([^(:]+)\(([0-9]+),([0-9]+)\): (.*)$/::error file=\1,line=\2,col=\3::\4/' | head -40
-            echo "::error title=tsc-be-failed::$(grep -cE 'error TS' /tmp/tsc-be.log) ошибок; хвост: $(tail -n 10 /tmp/tsc-be.log | tr '\n' ' | ' | head -c 3000)"
-            exit 1
-          fi
+      - run: docker build -f apps/backend/Dockerfile .
