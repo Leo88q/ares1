@@ -1,4 +1,3 @@
-import { skrCost, formatSkrCost, skrPdas, ixCreateFieldSkr, ixServiceFieldSkr } from '../utils/skrPayments'
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { t } from '../i18n'
 
@@ -8,14 +7,14 @@ import { useSolana, IS_MAINNET } from './SolanaContext'
 import { useToast } from '../components/Toast'
  import {
  decodeField, pdas,
- ixHarvest,
+ ixCreateField, ixHarvest, ixRepairField, ixUpgradeField, ixPayTax, ixApplyFertilizer,
  ixBuyFieldSkr, ixBatchHarvest, ixCloseField, SKR_MINT, treasurySkrAta, buybackSkrAta, presaleStatePda, buyerPresalePda, treasurySolPda,
  potatoAta,
  achievementsPda, questTreasuryPda, decodeAchievementsBitmap, ixClaimAchievement, QUEST_REWARDS_MICRO,
  ixInitCompressionTree, ixMintCompressedField, ixMintCoreField, compressionTreePda,
 } from '../utils/anchorClient'
 import {
- accumulatedMicro, fmtPotato, MICRO,
+ accumulatedMicro, fieldPriceMicro, fertilizerCostMicro, repairCostMicro, taxCostMicro, upgradeCostMicro, fmtPotato, MICRO,
 } from '../utils/constants'
 import { describeError } from '../utils/errors'
 import { randomU64, withRetry } from '../utils/rpc'
@@ -79,7 +78,7 @@ const GameContext = createContext<GameContextType | undefined>(undefined)
 type RawField = Omit<Field, 'accumulated'>
 
 export function GameProvider({ children }: { children: ReactNode }) {
- const { connection, programId, publicKey, connected, ready, config, skrPricing, refreshConfig, sendIx, lookupTable, ensureLookupTable } = useSolana()
+ const { connection, programId, publicKey, connected, ready, config, refreshConfig, sendIx, lookupTable, ensureLookupTable } = useSolana()
  const { show } = useToast()
 
  const [rawFields, setRawFields] = useState<RawField[]>([])
@@ -216,32 +215,31 @@ export function GameProvider({ children }: { children: ReactNode }) {
   [sendIx, refreshAll, notify, lookupTable],
  )
 
- const paymentAccounts = useCallback(() => {
-  if (!config || !publicKey) throw new Error('Connect wallet')
-  const treasury = skrPdas(programId).treasury()
-  const treasurySkr = getAssociatedTokenAddressSync(config.skrMint, treasury, true)
-  return {
-   accounts: { config: pdas(programId).config(), pricing: skrPdas(programId).pricing(config.skrMint), skrMint: config.skrMint,
-    userSkr: getAssociatedTokenAddressSync(config.skrMint, publicKey), treasury, treasurySkr, owner: publicKey },
-   ixs: [createAssociatedTokenAccountIdempotentInstruction(publicKey, treasurySkr, treasury, config.skrMint)],
-  }
- }, [config, publicKey, programId])
- const approveSkrCost = useCallback((cost: bigint | null): cost is bigint => {
-  if (cost === null) { notify('warning', t('Цена в SKR ещё не настроена — действие недоступно.')); return false }
-  // UI preflight only. SPL Token enforces the exact integer balance on chain.
-  if (Number(cost) / 1e6 > skrBalance) { notify('warning', t('Недостаточно SKR'), `${formatSkrCost(cost)} SKR`); return false }
-  return true
- }, [skrBalance, notify])
- const purchaseField = useCallback(async (fieldType: number) => {
-  if (!config || !publicKey || !ready) return false
-  const cost = skrCost(skrPricing, 0, fieldType)
-  if (!approveSkrCost(cost)) return false
-  setPurchasing(true)
-  try { return await runTx(t('Не удалось купить поле'), async () => {
-   const { accounts, ixs } = paymentAccounts(); const fieldId = randomU64()
-   return [...ixs, await ixCreateFieldSkr(programId, { ...accounts, field: pdas(programId).field(fieldId), fieldId, fieldType, maxSkrAtoms: cost })]
-  }) } finally { setPurchasing(false) }
- }, [config, publicKey, ready, skrPricing, approveSkrCost, paymentAccounts, programId, runTx])
+ const purchaseField = useCallback(
+  async (fieldType: number) => {
+   if (!config || !publicKey || !ready) {
+    notify('warning', t('Игра ещё загружается'), t('Подожди пару секунд.'))
+    return false
+   }
+   if (!requireBalance(fieldPriceMicro(fieldType))) return false
+   setPurchasing(true)
+   try {
+    return await runTx(t('Не удалось купить поле'), async () => {
+     const { address: userPotato, ixs } = ownAta()
+     const fieldId = randomU64()
+     const { config: configPda, field } = pdas(programId)
+     const ix = await ixCreateField(programId, {
+      config: configPda(), field: field(fieldId), owner: publicKey,
+      potatoMint: config.potatoMint, userPotato, fieldId, fieldType,
+     })
+     return [...ixs, ix]
+    })
+   } finally {
+    setPurchasing(false)
+   }
+  },
+  [config, publicKey, ready, requireBalance, runTx, ownAta, programId, notify],
+ )
 
  const buyFieldPresale = useCallback(
   async (): Promise<number | null> => {
@@ -450,20 +448,41 @@ export function GameProvider({ children }: { children: ReactNode }) {
    }
  }, [publicKey, connection, fields, ensureLookupTable, sendIx, notify])
 
- const fieldSpend = useCallback((action: number, label: string) => async (fieldPk: PublicKey): Promise<boolean> => {
-  if (!config || !publicKey) return false
-  const f = fields.find(x => x.publicKey.equals(fieldPk)); if (!f) return false
-  const cost = skrCost(skrPricing, action, f.fieldType, f.level)
-  if (!approveSkrCost(cost)) return false
-  return runTx(label, async () => {
-   const { accounts, ixs } = paymentAccounts()
-   return [...ixs, await ixServiceFieldSkr(programId, { ...accounts, field: fieldPk, action, maxSkrAtoms: cost })]
-  })
- }, [config, publicKey, fields, skrPricing, approveSkrCost, paymentAccounts, programId, runTx])
- const upgradeField = useMemo(() => fieldSpend(2, t('Не удалось улучшить поле')), [fieldSpend])
- const repairField = useMemo(() => fieldSpend(1, t('Не удалось отремонтировать поле')), [fieldSpend])
- const payTax = useMemo(() => fieldSpend(3, t('Не удалось оплатить налог')), [fieldSpend])
- const applyFertilizer = useMemo(() => fieldSpend(4, t('Не удалось удобрить поле')), [fieldSpend])
+ const fieldSpend = useCallback(
+  (build: typeof ixRepairField, cost: (f: Field) => number, label: string) =>
+   async (fieldPk: PublicKey): Promise<boolean> => {
+    if (!config || !publicKey) return false
+    const f = fields.find((x) => x.publicKey.equals(fieldPk))
+    if (!f) return false
+    if (!requireBalance(cost(f))) return false
+    return runTx(label, async () => {
+     const { address: userPotato, ixs } = ownAta()
+     const { config: configPda } = pdas(programId)
+     const ix = await build(programId, {
+      field: fieldPk, potatoMint: config.potatoMint, userPotato, config: configPda(), owner: publicKey,
+     })
+     return [...ixs, ix]
+    })
+   },
+  [config, publicKey, fields, requireBalance, runTx, ownAta, programId],
+ )
+
+ const upgradeField = useMemo(
+  () => fieldSpend(ixUpgradeField, (f) => upgradeCostMicro(f.level, f.fieldType), t('Не удалось улучшить поле')),
+  [fieldSpend],
+ )
+ const repairField = useMemo(
+  () => fieldSpend(ixRepairField, (f) => repairCostMicro(f.fieldType), t('Не удалось отремонтировать поле')),
+  [fieldSpend],
+ )
+ const payTax = useMemo(
+  () => fieldSpend(ixPayTax, (f) => taxCostMicro(f.fieldType), t('Не удалось оплатить налог')),
+  [fieldSpend],
+ )
+ const applyFertilizer = useMemo(
+  () => fieldSpend(ixApplyFertilizer, (f) => fertilizerCostMicro(f.fieldType), t('Не удалось удобрить поле')),
+  [fieldSpend],
+ )
 
  const QUEST_ID_BY_ACH: Record<string, number> = { a1: 0, a2: 1, a3: 2, a4: 3, a5: 4, a6: 5 }
 

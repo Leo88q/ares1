@@ -13,9 +13,6 @@ const IDL_ERRORS = new Map<number, IdlError>(
 
 /** Player-facing translations of the on-chain error codes. */
 const RU: Record<string, string> = {
- LegacyPaymentDisabled: 'Старый способ оплаты отключён. Обнови приложение: оплата теперь в SKR.',
- SkrPriceNotConfigured: 'Цена в SKR ещё не настроена — действие недоступно.',
- SkrPriceChanged: 'Цена выше подтверждённой суммы SKR. Обнови цену и подтверди заново.',
  AlreadyClaimed: 'Награда уже получена.',
  BadProof: 'Не выполнены условия награды.',
  Paused: 'Игра на паузе. Попробуй позже.',
@@ -40,7 +37,7 @@ const RU: Record<string, string> = {
  MultiplierTooHigh: 'Глобальный множитель слишком велик.',
  EpochNotOver: 'Эпоха ещё не закончилась.',
  MathOverflow: 'Переполнение при расчёте.',
- InvalidMint: 'Токен-аккаунт не соответствует настроенному mint.',
+ InvalidMint: 'Токен-аккаунт не соответствует $POTATO.',
  OrderTotalTooSmall: 'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.',
  PrepayLimitReached: 'Лимит предоплаты: налог до 28 дней, удобрение до 7 дней вперёд.',
  NothingToRepair: 'Целостность уже максимальная.',

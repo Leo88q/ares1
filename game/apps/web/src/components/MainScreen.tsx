@@ -1,4 +1,3 @@
-import { skrCost, formatSkrCost } from '../utils/skrPayments'
 import { motion } from 'framer-motion'
 import { t } from '../i18n'
 
@@ -9,7 +8,7 @@ import { useSolana } from '../contexts/SolanaContext'
 import FieldCardVice from './FieldCardVice'
 import PresaleSection from './PresaleSection'
 import Header from './Header'
-import { FIELD_TYPES, HARVEST_THRESHOLD_MICRO } from '../utils/constants'
+import { FIELD_TYPES, fieldPriceMicro, fmtPotato, HARVEST_THRESHOLD_MICRO } from '../utils/constants'
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 import { AgroBay } from './ares/AgroBay'
@@ -118,9 +117,7 @@ interface BuyProps {
 
 const RARE_LABELS = ['COMMON', 'RARE', 'EPIC']
 
-function BuyFieldCard({ onPurchase, purchasing, firstField }: BuyProps) {
- const { skrPricing } = useSolana()
- const { stats: { skrBalance } } = useGame()
+function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyProps) {
  const styles = [
   { background: 'rgba(193, 68, 14, 0.12)', border: '1px solid rgba(160, 82, 40, 0.65)', color: 'var(--pf-teal)' },
   { background: 'var(--ares-btn-bg)', color: 'var(--ares-btn-text)', boxShadow: '0 0 14px rgba(184,92,255,0.45)' },
@@ -145,14 +142,14 @@ function BuyFieldCard({ onPurchase, purchasing, firstField }: BuyProps) {
    )}
    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
     {FIELD_TYPES.map((type) => {
-     const price = skrCost(skrPricing, 0, type.id)
-     const affordable = price !== null && skrBalance >= Number(price) / 1e6
+     const price = fieldPriceMicro(type.id)
+     const affordable = balanceMicro >= price
      return (
       <motion.button
        key={type.id}
        whileTap={{ scale: 0.95 }}
        disabled={purchasing || !affordable}
-       aria-label={t('Купить {name} за {price} SKR', { name: type.name, price: formatSkrCost(price) })}
+       aria-label={t('Купить {name} за {price} POTATO', { name: type.name, price: fmtPotato(price, 0) })}
        onClick={() => {
         sounds.buy()
         haptics.purchaseField()
@@ -161,7 +158,7 @@ function BuyFieldCard({ onPurchase, purchasing, firstField }: BuyProps) {
        style={{ padding: 10, borderRadius: 10, fontSize: 12, fontWeight: 600, display: 'flex', justifyContent: 'space-between', ...styles[type.id] }}
       >
        <span><span className="ares-mono" style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.14em' }}>{RARE_LABELS[type.id]}</span> <span className="ares-mono" style={{ fontSize: 10, opacity: 0.75 }}>(×{(type.yieldBps / 10_000).toFixed(2)})</span></span>
-       <span>{formatSkrCost(price)} SKR</span>
+       <span>{fmtPotato(price, 0)} POTATO</span>
       </motion.button>
      )
     })}

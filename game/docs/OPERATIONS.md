@@ -1,7 +1,5 @@
 # Operations — closed devnet beta
 
-> **SKR v2 override:** paid actions and new orders use SKR. Follow [SKR-PAYMENTS.md](SKR-PAYMENTS.md) before any upgrade; legacy SOL/burn examples below describe historical state only. No production price table or live deployment is implied.
-
 Status: **not approved for real funds or mainnet**. See [STABILIZATION-2026-09-21.md](STABILIZATION-2026-09-21.md).
 No key, mnemonic, secret JSON, private RPC URL or admin token belongs in this document.
 

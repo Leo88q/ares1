@@ -1,5 +1,3 @@
-import { skrCost, formatSkrCost } from '../utils/skrPayments'
-import { useSolana } from '../contexts/SolanaContext'
 import { useState } from 'react'
 import { t } from '../i18n'
 
@@ -12,7 +10,7 @@ import ProgressBar from './ProgressBar'
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 import {
- fieldTypeInfo, mutationInfo, fmtPotato,
+ fieldTypeInfo, mutationInfo, fmtPotato, upgradeCostMicro, repairCostMicro, taxCostMicro, fertilizerCostMicro,
  HARVEST_THRESHOLD_MICRO, MAX_FIELD_LEVEL, MAX_DURABILITY, TAX_PERIOD_DAYS, FERTILIZER_HOURS,
 } from '../utils/constants'
 import { IconMutGold, IconMutSilicon } from './ares/icons'
@@ -30,8 +28,6 @@ interface Props {
 }
 
 export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair, onPayTax, onApplyFertilizer }: Props) {
- const { skrPricing } = useSolana()
- const price = (action: number) => skrCost(skrPricing, action, field.fieldType, field.level)
  const [showHarvest, setShowHarvest] = useState(false)
  const [harvestedAmount, setHarvestedAmount] = useState(0)
  const [harvesting, setHarvesting] = useState(false)
@@ -171,23 +167,23 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
        style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12, overflow: 'hidden' }}
       >
        {onUpgrade && field.level < MAX_FIELD_LEVEL && (
-        <motion.button whileTap={{ scale: 0.95 }} disabled={price(2) === null} onClick={action(onUpgrade, sounds.upgrade, haptics.upgradeField)} style={actionStyle('var(--ares-blueset, #6B93D6)')}>
-         <ArrowUp size={14} /> {t('Апгрейд модуля до ур. {level} ({cost} SKR)', { level: field.level + 1, cost: formatSkrCost(price(2)) })}
+        <motion.button whileTap={{ scale: 0.95 }} onClick={action(onUpgrade, sounds.upgrade, haptics.upgradeField)} style={actionStyle('var(--ares-blueset, #6B93D6)')}>
+         <ArrowUp size={14} /> {t('Апгрейд модуля до ур. {level} ({cost} POTATO)', { level: field.level + 1, cost: fmtPotato(upgradeCostMicro(field.level, field.fieldType), 0) })}
         </motion.button>
        )}
        {onRepair && field.durability < MAX_DURABILITY && (
-        <motion.button whileTap={{ scale: 0.95 }} disabled={price(1) === null} onClick={action(onRepair, sounds.repair, haptics.repairField)} style={actionStyle('var(--pf-teal)')}>
-         <Wrench size={14} /> {t('Техремонт до 100% ({cost} SKR)', { cost: formatSkrCost(price(1)) })}
+        <motion.button whileTap={{ scale: 0.95 }} onClick={action(onRepair, sounds.repair, haptics.repairField)} style={actionStyle('var(--pf-teal)')}>
+         <Wrench size={14} /> {t('Техремонт до 100% ({cost} POTATO)', { cost: fmtPotato(repairCostMicro(field.fieldType), 0) })}
         </motion.button>
        )}
        {onPayTax && (
-        <motion.button whileTap={{ scale: 0.95 }} disabled={price(3) === null} onClick={action(onPayTax, sounds.payTax, haptics.payTax)} style={actionStyle('var(--pf-gold)')}>
-         <Receipt size={14} /> {t('Пошлина: +{days} дней ({cost} SKR)', { days: TAX_PERIOD_DAYS, cost: formatSkrCost(price(3)) })}
+        <motion.button whileTap={{ scale: 0.95 }} onClick={action(onPayTax, sounds.payTax, haptics.payTax)} style={actionStyle('var(--pf-gold)')}>
+         <Receipt size={14} /> {t('Пошлина: +{days} дней ({cost} POTATO)', { days: TAX_PERIOD_DAYS, cost: fmtPotato(taxCostMicro(field.fieldType), 0) })}
         </motion.button>
        )}
        {onApplyFertilizer && (
-        <motion.button whileTap={{ scale: 0.95 }} disabled={price(4) === null} onClick={action(onApplyFertilizer, sounds.fertilizer, haptics.applyFertilizer)} style={actionStyle('#22c55e')}>
-         <Droplet size={14} /> {t('Удобрить ×1.5 на {h}ч ({cost} SKR)', { h: FERTILIZER_HOURS, cost: formatSkrCost(price(4)) })}
+        <motion.button whileTap={{ scale: 0.95 }} onClick={action(onApplyFertilizer, sounds.fertilizer, haptics.applyFertilizer)} style={actionStyle('#22c55e')}>
+         <Droplet size={14} /> {t('Удобрить ×1.5 на {h}ч ({cost} POTATO)', { h: FERTILIZER_HOURS, cost: fmtPotato(fertilizerCostMicro(field.fieldType), 0) })}
         </motion.button>
        )}
       </motion.div>
