@@ -144,6 +144,8 @@ pub mod solana_potato {
         config.authority = ctx.accounts.authority.key();
         config.pending_authority = Pubkey::default();
         config.potato_mint = mint.key();
+        config.skr_mint = SKR_MINT;
+        config.reward_signer = ctx.accounts.authority.key();
         config.max_supply_micro = DEFAULT_MAX_SUPPLY_MICRO;
         config.daily_mint_cap_micro = MAX_DAILY_CAP_MICRO;
         config.base_yield_micro_per_day = DEFAULT_BASE_YIELD_MICRO_PER_DAY;
@@ -346,7 +348,7 @@ pub mod solana_potato {
         let buyer_presale = &mut ctx.accounts.buyer_presale;
         require!(buyer_presale.count < 5, GameError::PresaleWalletLimitReached);
 
-        require!(ctx.accounts.skr_mint.key() == SKR_MINT, GameError::InvalidMint);
+        require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
         // PresaleState.price_lamports — цена SOL-пресейла (buy_field_sol);
         // цена SKR-пресейла зафиксирована константой 1053 SKR (PRESALE_PRICE_SKR_ATOMS).
         require!(presale.cap > 0, GameError::PresaleNotActive);
@@ -749,6 +751,7 @@ pub mod solana_potato {
     /// для продавца с активной лицензией.
     pub fn buy_export_license(ctx: Context<BuyExportLicense>) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
+        require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
         let now = Clock::get()?.unix_timestamp;
         let thirty_days = 30i64 * 86400;
 
@@ -1132,6 +1135,11 @@ pub mod solana_potato {
     /// Authority-only (backend) reward mint, counted against the epoch cap.
     pub fn grant_reward(ctx: Context<GrantReward>, amount_micro: u64) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
+        // S-03: reward_signer отделён от authority — backend использует low-priv ключ (fallback к authority для совместимости)
+        let signer_key = ctx.accounts.authority.key();
+        let cfg = &ctx.accounts.config;
+        let authorized = signer_key == cfg.reward_signer || signer_key == cfg.authority;
+        require!(authorized, GameError::Unauthorized);
         require!(
             amount_micro > 0 && amount_micro <= MAX_REWARD_MICRO,
             GameError::RewardTooLarge
@@ -1221,6 +1229,7 @@ pub mod solana_potato {
     /// Authority-only: withdraw SKR from the treasury ATA (80 % of SKR presale
     /// proceeds + export license payments) to the authority's own SKR ATA.
     pub fn withdraw_skr_treasury(ctx: Context<WithdrawSkrTreasury>, amount_skr_atoms: u64) -> Result<()> {
+        require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
         require!(amount_skr_atoms > 0, GameError::InvalidAmount);
         let (_, t_bump) = Pubkey::find_program_address(&[b"treasury_sol"], ctx.program_id);
         let seeds: &[&[u8]] = &[b"treasury_sol", &[t_bump]];
@@ -1310,20 +1319,69 @@ pub mod solana_potato {
         });
         Ok(())
     }
+
+    /// S-01: обновляет SKR mint (mainnet миграция) — только authority.
+    pub fn update_skr_mint(ctx: Context<UpdateConfig>, new_skr_mint: Pubkey) -> Result<()> {
+        require!(new_skr_mint != Pubkey::default(), GameError::InvalidMint);
+        ctx.accounts.config.skr_mint = new_skr_mint;
+        emit!(SkrMintUpdated { new_skr_mint });
+        Ok(())
+    }
+
+    /// S-03: обновляет reward_signer — только authority. Backend будет подписывать grant_reward этим ключом.
+    pub fn update_reward_signer(ctx: Context<UpdateConfig>, new_signer: Pubkey) -> Result<()> {
+        require!(new_signer != Pubkey::default(), GameError::InvalidAuthority);
+        ctx.accounts.config.reward_signer = new_signer;
+        emit!(RewardSignerUpdated { new_signer });
+        Ok(())
+    }
     // ───────────────────────── Migration (devnet → v2) ───────────────────────────
     
-    /// Миграция GameConfig: realloc 156 → 164 байт (добавляет last_total_burned_micro).
+    /// Миграция GameConfig: realloc 156→164 (last_total_burned) →228 (skr_mint+reward_signer, +64).
+    /// Корректно сдвигает хвост (maxSupply..bump) на 64 байта вперёд, чтобы вставить skr/reward после potato_mint.
     pub fn migrate_config(ctx: Context<MigrateConfig>) -> Result<()> {
         let info = ctx.accounts.config.to_account_info();
         require_keys_eq!(*info.owner, *ctx.program_id, GameError::Unauthorized);
-        // Читаем authority напрямую из data (offset 8, первый pubkey)
-        let data = info.try_borrow_data()?;
-        require!(data.len() >= 40, GameError::Unauthorized);
-        let stored_authority = Pubkey::new_from_array(data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
-        drop(data);
-        require_keys_eq!(stored_authority, ctx.accounts.authority.key(), GameError::Unauthorized);
-        // realloc (zero_init=false → новые байты = 0)
-        info.realloc(8 + GameConfig::INIT_SPACE, false)?;
+        let old_len = info.data_len();
+        let new_len = 8 + GameConfig::INIT_SPACE;
+        // Читаем authority и снапшот старых данных для проверки/копирования
+        let (stored_authority, old_data_snapshot) = {
+            let data = info.try_borrow_data()?;
+            require!(data.len() >= 40, GameError::Unauthorized);
+            let v = Pubkey::new_from_array(data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
+            require_keys_eq!(v, ctx.accounts.authority.key(), GameError::Unauthorized);
+            (v, data.to_vec())
+        };
+        if old_len < new_len {
+            // realloc, затем пересборка layout через Vec чтобы избежать overlapping borrow проблем
+            info.realloc(new_len, false)?;
+            let mut data = info.try_borrow_mut_data()?;
+            // Новая раскладка: disc(8) + authority(32) + pending(32) + potato(32) + skr(32) + reward(32) + tail
+            // Копируем префикс 104 байта (disc + 3 pubkeys) из снапшота
+            data[0..104].copy_from_slice(&old_data_snapshot[0..104.min(old_data_snapshot.len())]);
+            // Вставляем новые поля
+            data[104..136].copy_from_slice(&SKR_MINT.to_bytes());
+            data[136..168].copy_from_slice(&stored_authority.to_bytes());
+            // Копируем хвост (maxSupply..) который в старом лежал на 104..old_len
+            let tail_len = old_len.saturating_sub(104);
+            if tail_len > 0 {
+                data[168..168+tail_len].copy_from_slice(&old_data_snapshot[104..104+tail_len]);
+            }
+            // Остаток (new_len - (168+tail_len)) уже zero от realloc
+        } else if old_len == new_len {
+            // Уже новый размер, но поля могут быть zero (если realloc ранее был без инициализации) — заполнить если default
+            let mut data = info.try_borrow_mut_data()?;
+            if data.len() >= 168 {
+                let skr = Pubkey::new_from_array(data[104..136].try_into().unwrap());
+                if skr == Pubkey::default() {
+                    data[104..136].copy_from_slice(&SKR_MINT.to_bytes());
+                }
+                let rw = Pubkey::new_from_array(data[136..168].try_into().unwrap());
+                if rw == Pubkey::default() {
+                    data[136..168].copy_from_slice(&stored_authority.to_bytes());
+                }
+            }
+        }
         Ok(())
     }
 
@@ -1582,10 +1640,10 @@ pub mod solana_potato {
     /// здесь аллоцируем PDA-заглушку чтобы не тянуть зависимость в default фиче.
     pub fn init_compression_tree(ctx: Context<InitCompressionTree>) -> Result<()> {
         ctx.accounts.tree.authority = ctx.accounts.authority.key();
-        ctx.accounts.tree.merkle_tree = ctx.accounts.merkle_tree.key();
+        ctx.accounts.tree.merkle_tree = ctx.accounts.tree.key();
         ctx.accounts.tree.next_leaf_index = 0;
         ctx.accounts.tree.bump = ctx.bumps.tree;
-        emit!(CompressionTreeCreated { authority: ctx.accounts.authority.key(), merkle_tree: ctx.accounts.merkle_tree.key() });
+        emit!(CompressionTreeCreated { authority: ctx.accounts.authority.key(), merkle_tree: ctx.accounts.tree.key() });
         Ok(())
     }
 
@@ -2022,7 +2080,6 @@ pub struct BuyExportLicense<'info> {
     pub license: Account<'info, ExportLicense>,
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(address = SKR_MINT)]
     pub skr_mint: Account<'info, Mint>,
     #[account(
         mut,
@@ -2253,7 +2310,6 @@ pub struct BuyFieldSkr<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
 
-    #[account(address = SKR_MINT)]
     pub skr_mint: Account<'info, Mint>,
 
     #[account(
@@ -2332,10 +2388,11 @@ pub struct BuyFieldSol<'info> {
 
 #[derive(Accounts)]
 pub struct GrantReward<'info> {
-    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = authority, has_one = potato_mint)]
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
     pub config: Account<'info, GameConfig>,
     #[account(mut, seeds = [b"epoch", config.epoch_id.to_le_bytes().as_ref()], bump = epoch.bump)]
     pub epoch: Account<'info, Epoch>,
+    /// S-03: может подписать как authority, так и reward_signer (low-priv backend)
     pub authority: Signer<'info>,
     #[account(mut)]
     pub potato_mint: Account<'info, Mint>,
@@ -2380,7 +2437,6 @@ pub struct WithdrawSkrTreasury<'info> {
     pub treasury_skr_ata: Account<'info, TokenAccount>,
     #[account(mut)]
     pub authority: Signer<'info>,
-    #[account(address = SKR_MINT)]
     pub skr_mint: Account<'info, Mint>,
     // init-аккаунт имплицитно mut (в anchor 0.30 явный `mut` с init запрещён);
     // init_if_needed + associated_token требует system_program в контексте
@@ -2457,36 +2513,28 @@ pub struct CloseField<'info> {
 
 #[derive(Accounts)]
 pub struct InitCompressionTree<'info> {
-    /// CHECK: PDA ConcurrentMerkleTree (в проде — spl-account-compression, здесь unchecked для default build)
-    #[account(mut)]
-    pub merkle_tree: UncheckedAccount<'info>,
     #[account(init, payer = payer, space = 8 + CompressionTree::INIT_SPACE, seeds = [b"merkle-tree", authority.key().as_ref()], bump)]
     pub tree: Account<'info, CompressionTree>,
     #[account(mut)]
     pub authority: Signer<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
-    /// CHECK: compression program (cmtDvXum...)
-    pub compression_program: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 #[instruction(field_id: u64)]
 pub struct MintCompressedField<'info> {
-    #[account(mut, seeds = [b"merkle-tree", leaf_owner.key().as_ref()], bump = tree.bump)]
+    #[account(mut, seeds = [b"merkle-tree", authority.key().as_ref()], bump = tree.bump)]
     pub tree: Account<'info, CompressionTree>,
-    /// CHECK: merkle tree PDA (raw, owner = compression program в проде)
-    #[account(mut)]
-    pub merkle_tree: UncheckedAccount<'info>,
+    /// CHECK: владелец листа (получатель cNFT) — в проде leaf_owner != authority, но для stub используем authority
+    pub authority: Signer<'info>,
     /// CHECK: владелец листа (получатель cNFT)
     pub leaf_owner: UncheckedAccount<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
-    /// CHECK: Bubblegum program
+    /// CHECK: Bubblegum program (в stub не используется, но оставляем для будущего CPI)
     pub bubblegum_program: UncheckedAccount<'info>,
-    /// CHECK: compression program
-    pub compression_program: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -2535,6 +2583,8 @@ pub struct GameConfig {
     pub authority: Pubkey,
     pub pending_authority: Pubkey,
     pub potato_mint: Pubkey,
+    pub skr_mint: Pubkey,              // S-01: конфигурируемый SKR mint (mainnet мигрируется без redeploy)
+    pub reward_signer: Pubkey,         // S-03: low-priv ключ для grant_reward (backend), отделён от authority
     pub max_supply_micro: u64,
     pub daily_mint_cap_micro: u64,
     pub base_yield_micro_per_day: u64,
@@ -2924,6 +2974,16 @@ pub struct ConfigUpdated {
     pub global_multiplier_bps: u16,
 }
 
+#[event]
+pub struct SkrMintUpdated {
+    pub new_skr_mint: Pubkey,
+}
+
+#[event]
+pub struct RewardSignerUpdated {
+    pub new_signer: Pubkey,
+}
+
 // ─────────────────────────── Errors ──────────────────────────────
 // Codes 6000-6021 are frozen (clients match on them). Append only.
 
@@ -3128,7 +3188,11 @@ mod tests {
     fn account_sizes_match_client_decoders() {
         assert_eq!(8 + Field::INIT_SPACE, 70);
         assert_eq!(8 + MarketOrder::INIT_SPACE, 83);
-        assert_eq!(8 + GameConfig::INIT_SPACE, 8 + 32 * 3 + 8 * 4 + 2 + 8 * 3 + 1 + 1);
+        // GameConfig: 32*5 (authority,pending,potato,skr,reward) + 8*4 +2+8*3+1+1
+        assert_eq!(8 + GameConfig::INIT_SPACE, 8 + 32 * 5 + 8 * 4 + 2 + 8 * 3 + 1 + 1);
+        assert_eq!(8 + CompressionTree::INIT_SPACE, 32 + 32 + 4 + 1);
+        assert_eq!(8 + CoreCollection::INIT_SPACE, 32 + 1);
+        assert_eq!(8 + CoreAsset::INIT_SPACE, 32 + 32 + 8 + 1 + 1);
     }
 }
 

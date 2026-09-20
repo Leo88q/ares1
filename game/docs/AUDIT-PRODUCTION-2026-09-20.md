@@ -70,9 +70,9 @@
 
 | # | Находка | Риск | Решение |
 |---|---------|------|---------|
-| S-01 | **SKR_MINT хардкожен** (`Fotom…`, devnet) — на mainnet без нового mint SKR-пресейл/лицензии мертвы | mainnet: SKR не работает | Вынести `skr_mint` в `GameConfig` (32 bytes, realloc 164→196, миграция `migrate_config_v3`) + `update_skr_mint` (authority). На devnet — принять. Патч задокументирован, код не меняли чтобы не ломать devnet-стейт. |
+| S-01 | **SKR_MINT хардкожен** (`Fotom…`, devnet) | mainnet: SKR не работает | ✅ **Исправлено 20.09b+**: `GameConfig.skr_mint` (32 bytes, 164→228, `migrate_config` с меммув), `update_skr_mint` (authority), все SKR-чеки `== config.skr_mint` (`buy_field_skr`, `buy_export_license`, `withdraw_skr_treasury`), фронт/backend `decodeConfig` с fallback. |
 | S-02 | **Один authority-ключ** = `withdraw_treasury` без лимитов/таймлока + `set_paused` + `update_config` | компрометация = drain казны | Squads multisig (2/3) на authority, таймлок 24h на `withdraw_*` (или отдельная роль `treasury_authority`). До mainnet — обязательно. |
-| S-03 | **Бэкенд = тот же authority** (до 20.09: `PAYER_KEYPAIR_JSON` уже отделён на low-priv epoch-payer, но `grant_reward` всё ещё требует authority) | компрометация сервера = drain | Выделить `reward_signer` роль: новая инструкция `grant_reward` с `has_one = reward_signer`, authority только меняет signer. |
+| S-03 | **Бэкенд = тот же authority** | компрометация сервера = drain | ✅ **Исправлено 20.09b+**: `GameConfig.reward_signer` (32 bytes), `update_reward_signer` (authority), `grant_reward` теперь `signer == reward_signer || signer == authority` (low-priv backend, fallback для совместимости). |
 | S-04 | **Ролл `keccak(field, slot)` 5% мутаций** — валидатор может подсмотреть slot и пропустить апгрейд | казуальный, 5% | Принять (казуальный риск). Для v2 — VRF (Switchboard) или `recent_blockhash`. |
 | S-05 | **Order PDA без owner в seeds** — перебор `field_id`/`order_id` по все сети | DOS перебором рандома (2^-64) | Принять (64-bit nonce + `getProgramAccounts` memcmp по owner). Для v3 — добавить `owner` в seeds. |
 | S-06 | **Комиссия 9–12% обходится дроблением** (L1) | fee de-facto 9% | Order book v2: комиссия по адресу за 24h (агрегат). Принято для демо. |

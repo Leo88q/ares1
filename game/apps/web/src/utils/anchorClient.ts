@@ -262,6 +262,7 @@ export function decodeMarketStats(data: Buffer): DecodedMarketStats {
 
 export interface DecodedConfig {
  authority: PublicKey; pendingAuthority: PublicKey; potatoMint: PublicKey
+ skrMint: PublicKey; rewardSigner: PublicKey
  maxSupplyMicro: bigint; dailyMintCapMicro: bigint; baseYieldMicroPerDay: bigint
  globalMultiplierBps: number; fieldCount: bigint; epochId: bigint; totalBurnedMicro: bigint
  lastTotalBurnedMicro: bigint; paused: boolean
@@ -288,6 +289,15 @@ export function decodeConfig(data: Buffer): DecodedConfig {
  const authority = readPubkey(data, o); o = authority.next
  const pendingAuthority = readPubkey(data, o); o = pendingAuthority.next
  const potatoMint = readPubkey(data, o); o = potatoMint.next
+ // S-01/S-03: новые поля skr_mint + reward_signer (64 bytes). Поддержка старых аккаунтов 164 байт (до миграции).
+ let skrMint: PublicKey, rewardSigner: PublicKey
+ if (data.length >= 8 + 32*5 + 8*4 + 2 + 8*3 + 1 + 1) {
+   const skr = readPubkey(data, o); o = skr.next; skrMint = skr.value
+   const rw = readPubkey(data, o); o = rw.next; rewardSigner = rw.value
+ } else {
+   skrMint = SKR_MINT
+   rewardSigner = authority.value
+ }
  const maxSupplyMicro = readU64(data, o); o = maxSupplyMicro.next
  const dailyMintCapMicro = readU64(data, o); o = dailyMintCapMicro.next
  const baseYieldMicroPerDay = readU64(data, o); o = baseYieldMicroPerDay.next
@@ -300,6 +310,7 @@ export function decodeConfig(data: Buffer): DecodedConfig {
  const paused = readBool(data, o)
  return {
   authority: authority.value, pendingAuthority: pendingAuthority.value, potatoMint: potatoMint.value,
+  skrMint, rewardSigner,
   maxSupplyMicro: maxSupplyMicro.value, dailyMintCapMicro: dailyMintCapMicro.value,
   baseYieldMicroPerDay: baseYieldMicroPerDay.value, globalMultiplierBps,
   fieldCount: fieldCount.value, epochId: epochId.value, totalBurnedMicro: totalBurnedMicro.value,
@@ -694,26 +705,25 @@ export function coreCollectionPda(authority: PublicKey): PublicKey {
 }
 
 export async function ixInitCompressionTree(programId: PublicKey, params: {
-  merkleTree: PublicKey; treeAuthority: PublicKey; payer: PublicKey
+  tree: PublicKey; authority: PublicKey; payer: PublicKey
 }): Promise<TransactionInstruction> {
   const data = concatBytes(await ixDiscriminator('init_compression_tree'))
   return new TransactionInstruction({
     programId,
     data,
     keys: [
-      { pubkey: params.merkleTree, isSigner: false, isWritable: true },
-      { pubkey: params.treeAuthority, isSigner: false, isWritable: false },
+      { pubkey: params.tree, isSigner: false, isWritable: true },
+      { pubkey: params.authority, isSigner: true, isWritable: true },
       { pubkey: params.payer, isSigner: true, isWritable: true },
-      // payer doubles as authority for compression tree
-      { pubkey: params.payer, isSigner: true, isWritable: false },
-      { pubkey: COMPRESSION_PROGRAM_ID, isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
   })
 }
+// Back-compat alias for old call sites (merkleTree/treeAuthority)
+export const ixInitCompressionTreeLegacy = ixInitCompressionTree
 
 export async function ixMintCompressedField(programId: PublicKey, params: {
-  merkleTree: PublicKey; treeAuthority: PublicKey; leafOwner: PublicKey; payer: PublicKey
+  tree: PublicKey; authority: PublicKey; leafOwner: PublicKey; payer: PublicKey
   fieldId: bigint; fieldType: number
 }): Promise<TransactionInstruction> {
   const data = concatBytes(await ixDiscriminator('mint_compressed_field'), u64LE(params.fieldId), u8(params.fieldType))
@@ -721,15 +731,18 @@ export async function ixMintCompressedField(programId: PublicKey, params: {
     programId,
     data,
     keys: [
-      { pubkey: params.merkleTree, isSigner: false, isWritable: true },
-      { pubkey: params.treeAuthority, isSigner: false, isWritable: false },
+      { pubkey: params.tree, isSigner: false, isWritable: true },
+      { pubkey: params.authority, isSigner: true, isWritable: true },
       { pubkey: params.leafOwner, isSigner: false, isWritable: false },
       { pubkey: params.payer, isSigner: true, isWritable: true },
       { pubkey: BUBBLEGUM_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: COMPRESSION_PROGRAM_ID, isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
   })
+}
+// Back-compat overload: old signature with merkleTree/treeAuthority
+export async function ixMintCompressedFieldLegacy(programId: PublicKey, params: { merkleTree: PublicKey; treeAuthority: PublicKey; leafOwner: PublicKey; payer: PublicKey; fieldId: bigint; fieldType: number }): Promise<TransactionInstruction> {
+  return ixMintCompressedField(programId, { tree: params.merkleTree, authority: params.payer, leafOwner: params.leafOwner, payer: params.payer, fieldId: params.fieldId, fieldType: params.fieldType })
 }
 
 export async function ixMintCoreField(programId: PublicKey, params: {
@@ -771,6 +784,20 @@ export async function ixExecuteTransferHook(programId: PublicKey, params: {
   })
 }
 
+export async function ixUpdateSkrMint(programId: PublicKey, params: { config: PublicKey; authority: PublicKey; newSkrMint: PublicKey }): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('update_skr_mint'), params.newSkrMint.toBuffer())
+  return new TransactionInstruction({ programId, data, keys: [
+    { pubkey: params.config, isSigner: false, isWritable: true },
+    { pubkey: params.authority, isSigner: true, isWritable: false },
+  ]})
+}
+export async function ixUpdateRewardSigner(programId: PublicKey, params: { config: PublicKey; authority: PublicKey; newSigner: PublicKey }): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('update_reward_signer'), params.newSigner.toBuffer())
+  return new TransactionInstruction({ programId, data, keys: [
+    { pubkey: params.config, isSigner: false, isWritable: true },
+    { pubkey: params.authority, isSigner: true, isWritable: false },
+  ]})
+}
 export async function ixClaimAchievement(programId: PublicKey, params: {
  config: PublicKey;
  achievements: PublicKey;
