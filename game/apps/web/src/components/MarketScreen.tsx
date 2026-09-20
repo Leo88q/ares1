@@ -78,9 +78,9 @@ function MarketScreenInner() {
 
    <p style={{ fontSize: 12 }}>SKR — оплата и расчёты. SOL — только комиссия сети и rent.</p>
    {!skrPricing?.marketMinAtoms && <p role="status">{t('Цена в SKR ещё не настроена — действие недоступно.')}</p>}
-   {legacyOrders.length > 0 && <section aria-label="Legacy SOL orders">
-    <p>Старые SOL-ордера: доступен только возврат POTATO, без конвертации цены в SKR.</p>
-    {legacyOrders.map(o => <button key={o.publicKey.toBase58()} disabled={actionLoading !== null} onClick={() => void cancelOrder(o.publicKey, true)}>
+   {legacyOrders.length > 0 && <section aria-label="Order recovery">
+    <p>Старые SOL-ордера и ордера прежнего mint: возврат POTATO без конвертации цены.</p>
+    {legacyOrders.map(o => <button key={o.publicKey.toBase58()} disabled={actionLoading !== null} onClick={() => void cancelOrder(o.publicKey, o.legacy)}>
      Вернуть {fmtPotato(o.amountMicro)} POTATO · {o.publicKey.toBase58().slice(0, 8)}
     </button>)}
    </section>}

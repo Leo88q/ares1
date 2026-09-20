@@ -25,7 +25,9 @@ const one = title => {
   if (matches.length !== 1) throw new Error(`Expected exactly one ${title} annotation; use the build artifact instead`);
   return matches[0].message.trim();
 };
-const encoded = one('ares-public-idl-gzip-base64');
+const count = Number(one('ares-public-idl-parts'));
+if (!Number.isInteger(count) || count < 1 || count > 8) throw new Error('Invalid IDL part count');
+const encoded = Array.from({ length: count }, (_, i) => one(`ares-public-idl-part-${String(i).padStart(3, '0')}`)).join('');
 if (!/^[A-Za-z0-9+/=]+$/.test(encoded) || encoded.length > 48000) throw new Error('Invalid IDL transport');
 const data = gunzipSync(Buffer.from(encoded, 'base64'), { maxOutputLength: 5_000_000 });
 if (createHash('sha256').update(data).digest('hex') !== one('ares-public-idl-sha256')) throw new Error('IDL checksum mismatch');

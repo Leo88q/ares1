@@ -20,7 +20,7 @@ export function useMarketplace() {
  const { connection, programId, publicKey, config, skrPricing, sendIx, refreshConfig } = useSolana()
  const { show } = useToast()
  const [allOrders, setOrders] = useState<MarketOrder[]>([])
- const [legacyOrders, setLegacyOrders] = useState<{ publicKey: PublicKey; amountMicro: number }[]>([])
+ const [legacyOrders, setLegacyOrders] = useState<{ publicKey: PublicKey; amountMicro: number; legacy: boolean }[]>([])
  const [stats, setStats] = useState<MarketStatsView>({ sellVolume24h: 0, buyVolume24h: 0, totalSkrVolume: 0, totalTrades: 0 })
  const [loading, setLoading] = useState(true), [actionLoading, setActionLoading] = useState<string | null>(null), [error, setError] = useState<string | null>(null)
  const loadOrders = useCallback(async () => {
@@ -32,10 +32,15 @@ export function useMarketplace() {
     publicKey ? connection.getProgramAccounts(programId, { filters: [{ dataSize: 83 }, { memcmp: { offset: 8, bytes: publicKey.toBase58() } }, { memcmp: { offset: 64, bytes: '1' } }] }) : Promise.resolve([]),
    ])
    const now = Math.floor(Date.now() / 1000)
+   const recovery: { publicKey: PublicKey; amountMicro: number; legacy: boolean }[] = []
    const mapped = accounts.flatMap(({ pubkey, account }): MarketOrder[] => {
     try {
      const d = decodeSkrOrder(account.data)
-     if (!d.potatoMint.equals(config.potatoMint) || !d.skrMint.equals(config.skrMint)) return []
+     if (!d.potatoMint.equals(config.potatoMint)) return []
+     if (!d.skrMint.equals(config.skrMint)) {
+      if (d.seller.equals(publicKey ?? PublicKey.default)) recovery.push({ publicKey: pubkey, amountMicro: Number(d.amountMicro), legacy: false })
+      return []
+     }
      if (d.amountMicro > BigInt(Number.MAX_SAFE_INTEGER) || d.priceSkrAtoms > BigInt(Number.MAX_SAFE_INTEGER)) return []
      return [{ publicKey: pubkey, seller: d.seller, amountMicro: Number(d.amountMicro), priceSkrAtomsPerPotato: Number(d.priceSkrAtoms), feeBps: d.feeBps,
       status: Number(d.expiresAt) <= now ? 'expired' : 'active', createdAt: Number(d.createdAt), expiresAt: Number(d.expiresAt),
@@ -43,7 +48,7 @@ export function useMarketplace() {
     } catch { return [] }
    })
    setOrders(mapped.sort((a, b) => a.priceSkrAtomsPerPotato - b.priceSkrAtomsPerPotato))
-   setLegacyOrders(legacy.map(({ pubkey, account }) => ({ publicKey: pubkey, amountMicro: Number(decodeMarketOrder(account.data).amountMicro) })))
+   setLegacyOrders([...recovery, ...legacy.map(({ pubkey, account }) => ({ publicKey: pubkey, amountMicro: Number(decodeMarketOrder(account.data).amountMicro), legacy: true }))])
    if (info) {
     if (!info.owner.equals(programId)) throw new Error('Invalid SKR stats owner')
     const s = decodeSkrStats(info.data); if (!s.skrMint.equals(config.skrMint)) throw new Error('Invalid SKR stats mint')

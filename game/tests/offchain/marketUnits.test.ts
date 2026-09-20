@@ -17,5 +17,5 @@ test('order total follows on-chain integer division without float intermediates'
   assert.throws(() => marketTotalSkrAtoms(10n ** 18n, 10n ** 18n));
 });
 test('price conversion rejects nonfinite, negative and unsafe input', () => {
-  for (const value of [NaN, Infinity, -1, 0, Number.MAX_VALUE, 1e-12]) assert.throws(() => skrToAtoms(value));
+  for (const value of [NaN, Infinity, -1, 0, Number.MAX_VALUE, 1e-12, 0.0000009, 1.0000001]) assert.throws(() => skrToAtoms(value));
 });

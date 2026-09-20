@@ -2,7 +2,7 @@
 export const skrAtomsToTokens = (value: number | bigint): number => Number(value) / 1_000_000
 export function skrToAtoms(value: number): bigint {
  const atoms = Math.round(value * 1_000_000)
- if (!Number.isFinite(value) || value <= 0 || !Number.isSafeInteger(atoms) || atoms <= 0) throw new Error('Enter a positive SKR price within the supported range')
+ if (!/^\d+(?:\.\d{1,6})?$/.test(String(value)) || !Number.isFinite(value) || value <= 0 || !Number.isSafeInteger(atoms) || atoms <= 0) throw new Error('Enter a positive SKR price within the supported range')
  return BigInt(atoms)
 }
 export function marketTotalSkrAtoms(amountMicro: bigint, priceAtoms: bigint): number {
