@@ -1,0 +1,407 @@
+.morph-button {
+  position: relative;
+  display: inline-grid;
+  min-width: 64px;
+  max-width: 100%;
+  vertical-align: middle;
+  isolation: isolate;
+  --morph-height: 54px;
+  --morph-padding-inline: 23px;
+  --morph-font-size: 13px;
+  --morph-ring: rgba(255, 46, 147, 0.5);
+  --morph-text: #fff5fa;
+  --morph-border: rgba(255, 183, 223, 0.43);
+  --morph-background: #511231;
+}
+
+.morph-button--full {
+  display: grid;
+  width: 100%;
+}
+
+.morph-slot {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  width: 100%;
+  min-height: var(--morph-height);
+  border-radius: 8px;
+}
+
+.morph-measure {
+  display: inline-flex;
+  min-width: 64px;
+  min-height: var(--morph-height);
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px var(--morph-padding-inline);
+  visibility: hidden;
+  pointer-events: none;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: var(--morph-font-size);
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.morph-measure svg {
+  flex-shrink: 0;
+}
+
+.morph-stage-position {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.morph-stage {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  min-width: 44px;
+  max-width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  pointer-events: auto;
+}
+
+.morph-control {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--morph-border);
+  border-radius: inherit;
+  background: var(--morph-background);
+  color: var(--morph-text);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 16px #ffffff15,
+    0 3px 0 rgba(0, 0, 0, 0.35);
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: var(--morph-font-size);
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.morph-control:focus-visible {
+  outline: 3px solid #7cff6b;
+  outline-offset: 5px;
+}
+
+.morph-button[data-disabled="true"] .morph-control {
+  cursor: not-allowed;
+}
+
+.morph-button[data-disabled="true"]:not([data-loading="true"]) {
+  opacity: 0.6;
+}
+
+.morph-accessible-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.morph-surface {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.morph-metal {
+  position: absolute;
+  inset: -70%;
+  background:
+    radial-gradient(
+      ellipse at 20% 30%,
+      rgba(255, 179, 71, 0.5),
+      transparent 35%
+    ),
+    linear-gradient(
+      115deg,
+      #8a2e08 5%,
+      #c1440e 22%,
+      #ff2e93 49%,
+      #b85cff 69%,
+      #6b93d6 90%
+    );
+}
+
+.morph-surface-shade {
+  position: absolute;
+  inset: 0;
+  background: rgba(21, 4, 22, 0.55);
+}
+
+.morph-surface-highlight {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.13),
+      transparent 18%,
+      transparent 70%,
+      rgba(0, 0, 0, 0.16)
+    );
+}
+
+.morph-visual-content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  place-items: center;
+  pointer-events: none;
+}
+
+.morph-content-state {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-inline: 10px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.morph-content-state > svg {
+  flex-shrink: 0;
+}
+
+.morph-glow-ring {
+  position: absolute;
+  z-index: -1;
+  inset: -2px;
+  border: 2px solid var(--morph-ring);
+  border-radius: inherit;
+  box-shadow: 0 0 12px 3px var(--morph-ring);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.morph-button[data-focused="true"] {
+  --morph-ring: rgba(124, 255, 107, 0.65);
+}
+
+.morph-button[data-variant="secondary"] {
+  --morph-border: rgba(177, 153, 197, 0.48);
+  --morph-background: #19101f;
+}
+
+.morph-button[data-variant="secondary"] .morph-metal {
+  opacity: 0.43;
+}
+
+.morph-button[data-variant="secondary"] .morph-surface-shade {
+  background: rgba(12, 8, 19, 0.72);
+}
+
+.morph-button[data-variant="ghost"] {
+  --morph-padding-inline: 13px;
+  --morph-border: transparent;
+  --morph-background: transparent;
+  --morph-text: #decce8;
+}
+
+.morph-button[data-variant="ghost"] .morph-control {
+  box-shadow: none;
+}
+
+.morph-button[data-variant="ghost"] .morph-metal {
+  opacity: 0.1;
+}
+
+.morph-button[data-variant="ghost"] .morph-surface-shade {
+  background: rgba(12, 8, 19, 0.82);
+}
+
+.morph-button[data-variant="ghost"] .morph-surface-highlight {
+  opacity: 0.3;
+}
+
+.morph-button[data-variant="danger"] {
+  --morph-border: rgba(255, 156, 170, 0.55);
+  --morph-background: #551522;
+  --morph-ring: rgba(255, 108, 131, 0.55);
+}
+
+.morph-button[data-variant="danger"] .morph-metal {
+  background: linear-gradient(
+    115deg,
+    #8a2e08,
+    #c1440e 25%,
+    #cf2859 55%,
+    #ff2e93 80%,
+    #8c3155
+  );
+}
+
+.morph-button[data-success="true"] .morph-control {
+  border-color: rgba(124, 255, 107, 0.6);
+}
+
+.morph-success-mark {
+  color: #b7ffa8;
+}
+
+.morph-spinner {
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+}
+
+.morph-spinner::after {
+  position: absolute;
+  top: 13px;
+  left: 13px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #f8eefa;
+  content: "";
+}
+
+.morph-spinner-orbit {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+}
+
+.morph-spinner-orbit > span {
+  position: absolute;
+  top: -2px;
+  left: calc(50% - 2px);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+
+.morph-spinner-orbit--0 {
+  inset: 1px;
+}
+
+.morph-spinner-orbit--0 > span {
+  background: #ffb347;
+  box-shadow: 0 0 7px rgba(255, 179, 71, 0.5);
+}
+
+.morph-spinner-orbit--1 {
+  inset: 5px;
+}
+
+.morph-spinner-orbit--1 > span {
+  background: #7cff6b;
+  box-shadow: 0 0 7px rgba(124, 255, 107, 0.45);
+}
+
+.morph-spinner-orbit--2 {
+  inset: 9px;
+}
+
+.morph-spinner-orbit--2 > span {
+  background: #ff82c1;
+  box-shadow: 0 0 7px rgba(255, 46, 147, 0.5);
+}
+
+.morph-reduced-label {
+  font-size: 11px;
+}
+
+.morph-ripple-clip {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.morph-ripple {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.morph-particles {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.morph-particle {
+  position: absolute;
+  margin: -1px 0 0 -1px;
+  border-radius: 1px;
+}
+
+.morph-button--header {
+  --morph-height: 44px;
+  --morph-padding-inline: 14px;
+  --morph-font-size: 11px;
+}
+
+.morph-button--footer {
+  --morph-height: 44px;
+  --morph-padding-inline: 8px;
+  --morph-font-size: 10px;
+}
+
+.morph-button--social {
+  --morph-height: 44px;
+  --morph-padding-inline: 18px;
+  --morph-font-size: 11px;
+}
+
+/* Preserve the existing full-width waitlist layout. */
+.form-submit.morph-button {
+  display: grid;
+  width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .morph-ripple-clip,
+  .morph-particles {
+    display: none !important;
+  }
+
+  .morph-metal,
+  .morph-spinner-orbit {
+    transform: none !important;
+  }
+}
