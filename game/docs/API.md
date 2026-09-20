@@ -1,16 +1,17 @@
 # ARES-1 API — source reference, 21 September 2026
 
-**Not a statement about the deployed binary.** Anchor CLI/crates 0.31.2; source:
-`programs/solana_potato/src/lib.rs`. Committed `apps/web/src/idl.json` is currently
-stale (8 instructions missing). Regenerate/compare with `yarn check:contract target/idl/solana_potato.json` after `anchor build`; do not deploy based on this document alone.
+**Not a statement about the deployed binary.** SKR settlement v2 supersedes the old
+SOL/POTATO purchase rails. See [SKR-PAYMENTS.md](SKR-PAYMENTS.md) for pricing, account
+layouts, recovery and economic effects. Verify the genuine generated ABI with
+`yarn check:contract target/idl/solana_potato.json`; never deploy from labels alone.
 Program ID in source: `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf`.
 
 ## Units and accounts
 
 POTATO amounts `*_micro` use 6 decimals. SOL amounts are lamports (1 SOL = 1e9).
-`fill_order` settles in **native SOL via System Program**, not SKR. The separate SKR
-presale/export-license rail uses 6-decimal token atoms. Resolve its mint from
-`GameConfig.skr_mint`, not a hardcoded mainnet assumption.
+New payments use **6-decimal SKR SPL tokens**, resolved from `GameConfig.skr_mint`.
+Legacy `fill_order` is disabled. SOL remains necessary for native fees/rent.
+
 
 Sizes include the 8-byte Anchor discriminator:
 
@@ -54,29 +55,30 @@ builders in web/backend must match the generated IDL, not just its address.
 
 **Cap warning:** changing `daily_mint_cap_micro` does not currently constrain the
 next `roll_epoch`. The latter computes its own cap from burn/utilization. Do not
-advertise this setting as an emergency mint limit. Economics were not changed in
-the stabilization patch. Reward minting shares the harvest budget; there is no
+advertise this setting as an emergency mint limit. SKR payment conversion changes the POTATO burn sinks; emission caps are unchanged. Reward minting shares the harvest budget; there is no
 separate daily reward budget, timelock or governance-enforced withdrawal delay.
 
 ## Player instructions
 
-- `create_field`: field type 0/1/2; burns 100/250/500 POTATO.
+- `create_field_skr`: field type 0/1/2; configured SKR price and wallet maximum.
+- `configure_skr_pricing`: authority configures six SKR base prices and market minimum; zero means disabled.
 - `harvest`: owned active field, ≥60s interval, ≤48h accrual, epoch/supply limits.
 - `batch_harvest`: 1–10 unique writable owned Field accounts in remaining accounts;
   aggregate mint limits; updates field timestamps/durability. Needs integration validation.
 - `close_field`: owner closes field account and receives rent, including while paused.
   Historical field counters are not decremented; closing does not guarantee an ID
   can never be reused.
-- `repair_field`, `upgrade_field`, `pay_tax`, `apply_fertilizer`: burn-based upkeep;
-  level/type scaling, tax prepay ≤28 days, fertilizer ≤7 days.
-- `create_sell_order`, `fill_order`, `cancel_order`, `close_expired_order`: current
-  market settles in native SOL; minimum order 10 POTATO and total 0.001 SOL. Fees depend on tier
-  and referral; 60% of fee burn / 40% treasury before referral adjustments.
-- `register_referrer`: one-time link, burn 50 POTATO, self-referral rejected.
+- `service_field_skr`: actions 1=repair, 2=upgrade, 3=tax, 4=fertilizer; configured
+  SKR transfers, unchanged type/level scaling and prepay limits.
+- `create_skr_order`, `fill_skr_order`, `cancel_skr_order`, `close_expired_skr_order`:
+  POTATO resource escrow, SKR quote/fee payouts; distinct v2 state and mint snapshots.
+- `register_referrer_skr`: explicit one-time SKR registration with a signed ceiling.
+- Legacy POTATO spending / SOL purchasing instructions reject. Legacy order cancel
+  and expiry remain available to recover balances, not to convert prices to SKR.
 - `claim_achievement`: on-chain proofs and bitmap, quest IDs 0–5; transfers existing
   tokens from quest treasury (does not mint new rewards). Duplicate field proofs rejected.
-- `init_presale`, `update_presale_price` (authority); `buy_field_sol`, `buy_field_skr`
-  (buyer): global cap and 5-field wallet cap.
+- `init_presale` (authority); `buy_field_skr`
+  (buyer): global cap and 5-field wallet cap. Old `update_presale_price` only edits the disabled SOL-price field.
 - `buy_export_license`: configured SKR payment; inspect source/current config for terms.
 
 ## Experimental, not release-ready

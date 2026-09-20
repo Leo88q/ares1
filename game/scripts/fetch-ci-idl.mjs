@@ -13,8 +13,13 @@ const api = route => JSON.parse(execFileSync('gh', ['api', route], { cwd: game, 
 const checks = api(`repos/${repo}/commits/${sha}/check-runs?per_page=100`).check_runs;
 const check = checks.find(c => c.name === 'Anchor program (build + unit + integration tests)' && c.head_sha === sha);
 if (!check) throw new Error('No chain check exists for current revision');
-const pages = JSON.parse(execFileSync('gh', ['api', `repos/${repo}/check-runs/${check.id}/annotations`, '--paginate', '--slurp'], { cwd: game, encoding: 'utf8', maxBuffer: 5_000_000 }));
-const annotations = pages.flat();
+const annotations = [];
+for (let page = 1; page <= 20; page++) {
+  const batch = api(`repos/${repo}/check-runs/${check.id}/annotations?per_page=100&page=${page}`);
+  annotations.push(...batch);
+  if (batch.length < 100) break;
+  if (page === 20) throw new Error('Too many check annotations');
+}
 const one = title => {
   const matches = annotations.filter(a => a.title === title);
   if (matches.length !== 1) throw new Error(`Expected exactly one ${title} annotation; use the build artifact instead`);

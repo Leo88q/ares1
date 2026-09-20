@@ -1,3 +1,6 @@
+import { useReferral } from '../hooks/useReferral'
+import { PENDING_REFERRER_KEY } from '../hooks/useReferralRegistration'
+import { skrCost, formatSkrCost } from '../utils/skrPayments'
 import { useState } from 'react'
 import { t } from '../i18n'
 
@@ -11,11 +14,14 @@ import { haptics } from '../utils/haptic'
 /**
  * Рефералка — on-chain (PDA Referral, instruction register_referrer / fill_order).
  * Экономика в программе: приглашённый получает −1 % комиссии за сделки,
- * рефереру — 0.5 % от суммы сделки (не больше burn-доли комиссии).
+ * Referrer receives 0.5% of the SKR quote, from the treasury share of the fee.
  * Без Telegram и backend: идентичность — кошелёк, ссылка — ?ref=<wallet>.
  */
 export function ReferralSection() {
- const { publicKey } = useSolana()
+ const { publicKey, skrPricing } = useSolana()
+ const { registerReferrer, loading } = useReferral()
+ const [pending, setPending] = useState(() => { try { return localStorage.getItem(PENDING_REFERRER_KEY) || '' } catch { return '' } })
+ const registrationCost = skrCost(skrPricing, 5)
  const { show } = useToast()
  const [copied, setCopied] = useState(false)
 
@@ -76,7 +82,7 @@ export function ReferralSection() {
        {t('Вызови поселенца — дели комиссию!')}
       </div>
       <div style={{ fontSize: 13, color: 'var(--pf-text-secondary)', marginTop: 4 }}>
-       {t('Приглашённому −1 % комиссии за сделки, тебе — 0.5 % от суммы каждой его сделки (on-chain)')}
+       {t('Реферальные сделки: −1 п.п. комиссии продавца; рефереру — 0.5 % суммы в SKR (on-chain).')}
       </div>
      </div>
     </div>
@@ -85,10 +91,10 @@ export function ReferralSection() {
     <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)' }}>
      {[
       t('Ссылка бесплатна — приглашающий платит ничего'),
-      t('Приглашённый открывает ссылку с ?ref= — регистрируется автоматически (on-chain, одноразово)'),
-      t('Антиспам: 5 🥔 сгорает с баланса приглашённого, разово'),
-      t('Скидка приглашённому: −1 % на покупках маркета, в каждой'),
-      t('Твоя награда: 0.5 % от комиссии маркета по его сделкам'),
+      t('Ссылка не списывает токены. Регистрация — только после подтверждения стоимости в SKR.'),
+      t('Регистрация оплачивается в SKR один раз; SOL нужен для комиссии сети и rent.'),
+      t('Реферальная скидка уменьшает комиссию продавца на 1 процентный пункт. Цена покупки не меняется.'),
+      t('Твоя награда: 0.5 % суммы сделки в SKR из комиссии, при наличии подходящего SKR-счёта.'),
      ].map((t, i) => (
       <div key={i} style={{ display: 'flex', gap: 6, padding: '2px 0', fontSize: 11, color: 'var(--pf-text-secondary)', lineHeight: 1.5 }}>
        <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true">✓</span> {t}
@@ -118,6 +124,12 @@ export function ReferralSection() {
      </div>
     )}
 
+    {publicKey && <div style={{ marginBottom: 16 }}>
+     <label>Реферер (адрес кошелька)<input aria-label="Referrer wallet" value={pending} onChange={e => setPending(e.target.value)} style={{ width: '100%' }} /></label>
+     <button disabled={loading || !pending || registrationCost === null} onClick={async () => {
+      if (await registerReferrer(pending)) { setPending(''); try { localStorage.removeItem(PENDING_REFERRER_KEY) } catch { /* storage unavailable */ } }
+     }}>Зарегистрировать · {formatSkrCost(registrationCost)} SKR</button>
+    </div>}
     {/* Кнопки */}
     <div style={{ display: 'flex', gap: 10 }}>
      <button

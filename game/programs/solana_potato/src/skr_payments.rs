@@ -18,6 +18,7 @@ pub(crate) fn configure(ctx: Context<ConfigureSkrPricing>, prices: [u64; 6], mar
 /// Zero means disabled, not free. Preserve the existing type/level multipliers.
 pub(crate) fn cost(pricing: &SkrPricing, action: u8, field_type: u8, level: u8) -> Result<u64> {
     require!(action < 6 && field_type < FIELD_TYPE_COUNT, GameError::InvalidFieldType);
+    require!((1..=MAX_FIELD_LEVEL).contains(&level), GameError::InvalidAmount);
     let base = pricing.prices[action as usize];
     require!(base > 0, GameError::SkrPriceNotConfigured);
     let multiplier = match action { 1 => ((level as u64) / 3).max(1), 2 => level as u64,
@@ -37,6 +38,10 @@ fn transfer<'info>(program: &Program<'info, Token>, mint: &Account<'info, Mint>,
     token::transfer_checked(CpiContext::new(program.to_account_info(), TransferChecked {
         from: source, to: destination, mint: mint.to_account_info(), authority: signer,
     }), amount, mint.decimals)
+}
+fn quote_total_atoms(resource_micro: u64, quote_atoms_per_potato: u64) -> Result<u64> {
+    let total = (resource_micro as u128).checked_mul(quote_atoms_per_potato as u128).ok_or(GameError::MathOverflow)? / MICRO;
+    u64::try_from(total).map_err(|_| error!(GameError::MathOverflow))
 }
 fn approve(amount: u64, maximum: u64) -> Result<()> {
     require!(amount <= maximum, GameError::SkrPriceChanged);
@@ -119,8 +124,8 @@ pub(crate) fn create_order(ctx: Context<CreateSkrOrder>, _id: u64, amount_micro:
     require!(ctx.accounts.pricing.market_min_atoms > 0, GameError::SkrPriceNotConfigured);
     require!(amount_micro >= MIN_ORDER_AMOUNT_MICRO, GameError::OrderTooSmall);
     require!(price > 0, GameError::InvalidPrice);
-    let total = order_total_lamports(amount_micro, price)?; // pure integer math, units supplied by caller
-    require!(total >= ctx.accounts.pricing.market_min_atoms, GameError::OrderTotalTooSmall);
+    let total = quote_total_atoms(amount_micro, price)?;
+    require!(total >= ctx.accounts.pricing.market_min_atoms, GameError::InvalidPrice);
     let now = Clock::get()?.unix_timestamp;
     let profile = &mut ctx.accounts.seller_profile;
     require!(profile.last_cancel_at == 0 || now >= profile.last_cancel_at.saturating_add(CANCEL_COOLDOWN), GameError::CancelCooldown);
@@ -146,7 +151,7 @@ pub(crate) fn fill_order<'info>(ctx: Context<'_, '_, '_, 'info, FillSkrOrder<'in
     let order = &ctx.accounts.order;
     require!(now < order.expires_at, GameError::OrderExpired);
     require!(order.seller != ctx.accounts.buyer.key(), GameError::SelfTradeBlocked);
-    let total = order_total_lamports(order.amount_micro, order.price_skr_atoms)?;
+    let total = quote_total_atoms(order.amount_micro, order.price_skr_atoms)?;
     approve(total, max)?;
     let mut fee_bps = order.fee_bps as u64;
     // Optional accounts: [0] seller license, [1] buyer referral, [2] referrer's SKR token account.

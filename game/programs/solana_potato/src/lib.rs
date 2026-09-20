@@ -1,17 +1,18 @@
 //! # Solana Potato
 //!
 //! On-chain farming game. Players own `Field` accounts that accrue $POTATO
-//! (an SPL token whose mint authority is the `GameConfig` PDA), spend $POTATO on
-//! upkeep (tax, repair, upgrades, fertilizer — all of it is **burned**), and trade
-//! $POTATO for SOL on a built-in escrow marketplace.
+//! (an SPL resource minted by the `GameConfig` PDA). Purchases and upkeep are
+//! paid in configured SKR; the versioned escrow market trades POTATO for SKR.
+//! Legacy SOL/POTATO purchase instructions reject; escrow recovery stays open.
 //!
 //! ## Economic guard rails
 //! * Emission through `harvest` / `batch_harvest` / `grant_reward` is bounded by
 //!   a per-epoch mint cap (`Epoch.mint_cap_micro`, dynamically 250k–750k after roll)
 //!   and by `GameConfig.max_supply_micro`.
 //! * Epochs are 24h long and are rolled permissionlessly via `roll_epoch`.
-//! * Every in-game spend is a burn; 60 % of marketplace fees are burned and the
-//!   remaining 40 % go to the treasury ATA owned by the config PDA.
+//! * SKR is transferred, never minted by this program. Service/market payments
+//!   no longer burn POTATO; the existing emission-cap formula is unchanged.
+//! * New SKR prices default to disabled until the authority configures them.
 //!
 //! ## Account layout stability
 //! The field order of every `#[account]` struct is part of the public ABI: the
@@ -341,6 +342,7 @@ pub mod solana_potato {
     /// `sold` и `slot` покупатель не контролирует в момент подписания (конкурентные
     /// покупки сдвигают `sold`, слот включения в блок неизвестен заранее).
     pub fn buy_field_skr(ctx: Context<BuyFieldSkr>, field_id: u64) -> Result<()> {
+        require!(ctx.accounts.skr_mint.decimals == 6, GameError::InvalidMintDecimals);
         require!(!ctx.accounts.config.paused, GameError::Paused);
         let presale = &mut ctx.accounts.presale_state;
         require!(presale.sold < presale.cap, GameError::PresaleCapReached);
@@ -595,6 +597,7 @@ pub mod solana_potato {
     /// лицензия на 30 дней. Снижает комиссию рынка на 3% (300 bps)
     /// для продавца с активной лицензией.
     pub fn buy_export_license(ctx: Context<BuyExportLicense>) -> Result<()> {
+        require!(ctx.accounts.skr_mint.decimals == 6, GameError::InvalidMintDecimals);
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
         let now = Clock::get()?.unix_timestamp;
@@ -815,6 +818,7 @@ pub mod solana_potato {
     /// Authority-only: withdraw SKR from the treasury ATA (80 % of SKR presale
     /// proceeds + export license payments) to the authority's own SKR ATA.
     pub fn withdraw_skr_treasury(ctx: Context<WithdrawSkrTreasury>, amount_skr_atoms: u64) -> Result<()> {
+        require!(ctx.accounts.skr_mint.decimals == 6, GameError::InvalidMintDecimals);
         require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
         require!(amount_skr_atoms > 0, GameError::InvalidAmount);
         let (_, t_bump) = Pubkey::find_program_address(&[b"treasury_sol"], ctx.program_id);
@@ -908,7 +912,7 @@ pub mod solana_potato {
 
     /// S-01: обновляет SKR mint (mainnet миграция) — только authority.
     pub fn update_skr_mint(ctx: Context<UpdateConfig>, new_skr_mint: Pubkey) -> Result<()> {
-        require!(new_skr_mint != Pubkey::default(), GameError::InvalidMint);
+        require!(new_skr_mint != Pubkey::default() && new_skr_mint != ctx.accounts.config.potato_mint, GameError::InvalidMint);
         ctx.accounts.config.skr_mint = new_skr_mint;
         emit!(SkrMintUpdated { new_skr_mint });
         Ok(())
