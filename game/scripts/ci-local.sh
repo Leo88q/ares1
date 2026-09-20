@@ -16,6 +16,7 @@ NODE_VERSION=$(cat ../.node-version)
 [[ "$(yarn --version)" == "1.22.22" ]] || { echo 'Use Yarn 1.22.22' >&2; exit 1; }
 yarn install --frozen-lockfile --non-interactive
 yarn typecheck
+yarn typecheck:tools
 yarn test:offchain
 VITE_SOLANA_CLUSTER=devnet VITE_RPC_URL=https://api.devnet.solana.com \
 VITE_PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf VITE_BACKEND_URL='' yarn build
@@ -23,11 +24,12 @@ if [[ "$SKIP_CHAIN" == 0 ]]; then
   [[ "$(anchor --version)" == 'anchor-cli 0.31.2' ]] || { echo 'Use Anchor 0.31.2' >&2; exit 1; }
   [[ "$(solana --version | awk '{print $2}')" == '4.2.2' ]] || { echo 'Use Solana 4.2.2' >&2; exit 1; }
   cargo test --locked -p solana_potato --lib
-  anchor build -- --locked
+  ./scripts/build-program.sh
   if [[ "$SKIP_VALIDATOR" == 0 ]]; then
     # Do not create or overwrite the operator wallet silently.
     [[ -f "$HOME/.config/solana/id.json" ]] || { echo 'Create a disposable LOCALNET wallet first (see docs/OPERATIONS.md)' >&2; exit 1; }
     anchor test --skip-build
+    yarn test:migrations
   fi
   yarn check:contract target/idl/solana_potato.json
 else

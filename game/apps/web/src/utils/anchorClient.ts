@@ -470,7 +470,7 @@ export async function ixMigrateConfig(programId: PublicKey, params: {
   data,
   keys: [
    { pubkey: params.config, isSigner: false, isWritable: true },
-   { pubkey: params.authority, isSigner: true, isWritable: false },
+   { pubkey: params.authority, isSigner: true, isWritable: true },
    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ],
  })
@@ -486,7 +486,7 @@ export async function ixMigrateField(programId: PublicKey, params: {
   keys: [
    { pubkey: params.field, isSigner: false, isWritable: true },
    { pubkey: params.config, isSigner: false, isWritable: false },
-   { pubkey: params.authority, isSigner: true, isWritable: false },
+   { pubkey: params.authority, isSigner: true, isWritable: true },
    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ],
  })
@@ -502,7 +502,7 @@ export async function ixMigrateEpoch(programId: PublicKey, params: {
   keys: [
    { pubkey: params.epoch, isSigner: false, isWritable: true },
    { pubkey: params.config, isSigner: false, isWritable: false },
-   { pubkey: params.authority, isSigner: true, isWritable: false },
+   { pubkey: params.authority, isSigner: true, isWritable: true },
    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ],
  })

@@ -21,7 +21,9 @@
     "ci:local": "./scripts/ci-local.sh",
     "build": "yarn build:web && yarn build:backend",
     "test:offchain": "tsx --test tests/offchain/*.test.ts",
-    "check:contract": "node scripts/check-contract.mjs"
+    "check:contract": "node scripts/check-contract.mjs",
+    "typecheck:tools": "tsc -p tsconfig.tools.json",
+    "test:migrations": "tsx scripts/test-migrations-localnet.ts"
   },
   "devDependencies": {
     "@coral-xyz/anchor": "0.30.1",

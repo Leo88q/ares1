@@ -4,12 +4,17 @@ on:
     branches: [main, 'arena/**']
   pull_request:
   workflow_dispatch:
+    inputs:
+      sync_idl_run:
+        description: 'Optional CI run ID on this exact revision: copy its generated IDL to this non-main branch'
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ inputs.sync_idl_run && 'idl-sync' || 'validation' }}
   cancel-in-progress: true
 
 env:
@@ -23,6 +28,7 @@ defaults:
 
 jobs:
   offchain:
+    if: ${{ !inputs.sync_idl_run }}
     name: Web + backend (typecheck, tests, build)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -37,6 +43,7 @@ jobs:
       - run: ./scripts/ci-local.sh --skip-chain
 
   program:
+    if: ${{ !inputs.sync_idl_run }}
     name: Anchor program (build + unit + integration tests)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -57,22 +64,37 @@ jobs:
           curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
           sh /tmp/solana-install.sh
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache/restore@v4
+        id: anchor-cache
+        with:
+          path: ~/.cargo/bin/anchor
+          key: anchor-cli-${{ runner.os }}-${{ runner.arch }}-rust-1.97.1-${{ env.ANCHOR_VERSION }}
       - name: Install pinned Anchor CLI
-        run: cargo install anchor-cli --version "=$ANCHOR_VERSION" --locked
+        run: |
+          if ! command -v anchor >/dev/null || [[ "$(anchor --version | awk '{print $2}')" != "$ANCHOR_VERSION" ]]; then
+            cargo install anchor-cli --version "=$ANCHOR_VERSION" --locked
+          fi
+      - uses: actions/cache/save@v4
+        if: steps.anchor-cache.outputs.cache-hit != 'true'
+        with:
+          path: ~/.cargo/bin/anchor
+          key: ${{ steps.anchor-cache.outputs.cache-primary-key }}
       - name: Verify toolchain
         run: |
           test "$(rustc --version | awk '{print $2}')" = '1.97.1'
           test "$(solana --version | awk '{print $2}')" = "$SOLANA_VERSION"
           test "$(anchor --version | awk '{print $2}')" = "$ANCHOR_VERSION"
       - name: Unit tests (host)
-        run: cargo test --locked -p solana_potato --lib
-      - name: Anchor build (locked)
-        run: anchor build -- --locked
+        run: ./scripts/ci-run.sh cargo test --locked -p solana_potato --lib
+      - name: Anchor build (lockfile verified)
+        run: ./scripts/ci-run.sh ./scripts/build-program.sh
       - name: Clean localnet integration / deployment smoke
         run: |
           mkdir -p ~/.config/solana
           solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
-          anchor test --skip-build
+          ./scripts/ci-run.sh anchor test --skip-build
+      - name: Legacy migration fixtures on isolated localnet
+        run: ./scripts/ci-run.sh yarn test:migrations
       - name: IDL and program IDs match source and build
         if: ${{ !cancelled() && hashFiles('game/target/idl/solana_potato.json') != '' }}
         run: yarn check:contract target/idl/solana_potato.json
@@ -91,9 +113,56 @@ jobs:
             game/target/types/solana_potato.ts
 
   container:
+    if: ${{ !inputs.sync_idl_run }}
     name: Backend container build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - run: docker build -f apps/backend/Dockerfile .
+
+  sync-idl:
+    name: Reviewable generated IDL update (manual only)
+    if: github.event_name == 'workflow_dispatch' && inputs.sync_idl_run != '' && github.ref_type == 'branch' && github.ref_name != 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Verify artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.sync_idl_run }}
+        run: |
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]] || exit 1
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" > /tmp/source-run.json
+          node -e '
+            const r=require("/tmp/source-run.json");
+            if (r.head_sha !== process.env.GITHUB_SHA || r.head_branch !== process.env.GITHUB_REF_NAME ||
+                r.path !== ".github/workflows/ci.yml" || r.status !== "completed" ||
+                r.head_repository.full_name !== process.env.GITHUB_REPOSITORY) process.exit(1);
+          '
+      - uses: actions/download-artifact@v4
+        with:
+          name: program-build
+          path: ${{ runner.temp }}/program-build
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.sync_idl_run }}
+      - name: Validate and commit only the generated JSON
+        run: |
+          mapfile -t FILES < <(find "$RUNNER_TEMP/program-build" -type f -name solana_potato.json)
+          [[ "${#FILES[@]}" == 1 ]] || exit 1
+          [[ $(wc -c < "${FILES[0]}") -lt 5000000 ]] || exit 1
+          cp "${FILES[0]}" apps/web/src/idl.json
+          node scripts/check-contract.mjs "${FILES[0]}"
+          if git diff --quiet -- apps/web/src/idl.json; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/web/src/idl.json
+          git commit -m "Regenerate IDL from verified CI build ${{ inputs.sync_idl_run }}"
+          # Non-force push fails if the branch moved after dispatch. No main writes.
+          git push origin "HEAD:$GITHUB_REF_NAME"
