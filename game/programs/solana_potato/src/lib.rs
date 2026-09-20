@@ -21,6 +21,8 @@
 //! All amounts suffixed `_micro` are in 10^-6 $POTATO (the mint has 6 decimals).
 //! All `_bps` values are basis points (10_000 = 1.0×).
 
+mod migrations;
+
 use anchor_lang::prelude::*;
 use anchor_lang::AccountDeserialize;
 use anchor_lang::pubkey;
@@ -1337,106 +1339,37 @@ pub mod solana_potato {
     }
     // ───────────────────────── Migration (devnet → v2) ───────────────────────────
     
-    /// Миграция GameConfig: realloc 156→164 (last_total_burned) →228 (skr_mint+reward_signer, +64).
-    /// Корректно сдвигает хвост (maxSupply..bump) на 64 байта вперёд, чтобы вставить skr/reward после potato_mint.
+    /// Upgrade supported legacy layouts, preserving existing fields and flags.
+    /// Authority pays only the target account's rent shortfall; retries are safe.
     pub fn migrate_config(ctx: Context<MigrateConfig>) -> Result<()> {
         let info = ctx.accounts.config.to_account_info();
-        require_keys_eq!(*info.owner, *ctx.program_id, GameError::Unauthorized);
-        let old_len = info.data_len();
-        let new_len = 8 + GameConfig::INIT_SPACE;
-        // Читаем authority и снапшот старых данных для проверки/копирования
-        let (stored_authority, old_data_snapshot) = {
+        let updated = {
             let data = info.try_borrow_data()?;
-            require!(data.len() >= 40, GameError::Unauthorized);
-            let v = Pubkey::new_from_array(data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
-            require_keys_eq!(v, ctx.accounts.authority.key(), GameError::Unauthorized);
-            (v, data.to_vec())
+            migrations::authority(&data, &ctx.accounts.authority.key())?;
+            migrations::config(&data)?
         };
-        if old_len < new_len {
-            // realloc, затем пересборка layout через Vec чтобы избежать overlapping borrow проблем
-            info.realloc(new_len, false)?;
-            let mut data = info.try_borrow_mut_data()?;
-            // Новая раскладка: disc(8) + authority(32) + pending(32) + potato(32) + skr(32) + reward(32) + tail
-            // Копируем префикс 104 байта (disc + 3 pubkeys) из снапшота
-            data[0..104].copy_from_slice(&old_data_snapshot[0..104.min(old_data_snapshot.len())]);
-            // Вставляем новые поля
-            data[104..136].copy_from_slice(&SKR_MINT.to_bytes());
-            data[136..168].copy_from_slice(&stored_authority.to_bytes());
-            // Копируем хвост (maxSupply..) который в старом лежал на 104..old_len
-            let tail_len = old_len.saturating_sub(104);
-            if tail_len > 0 {
-                data[168..168+tail_len].copy_from_slice(&old_data_snapshot[104..104+tail_len]);
-            }
-            // Остаток (new_len - (168+tail_len)) уже zero от realloc
-        } else if old_len == new_len {
-            // Уже новый размер, но поля могут быть zero (если realloc ранее был без инициализации) — заполнить если default
-            let mut data = info.try_borrow_mut_data()?;
-            if data.len() >= 168 {
-                let skr = Pubkey::new_from_array(data[104..136].try_into().unwrap());
-                if skr == Pubkey::default() {
-                    data[104..136].copy_from_slice(&SKR_MINT.to_bytes());
-                }
-                let rw = Pubkey::new_from_array(data[136..168].try_into().unwrap());
-                if rw == Pubkey::default() {
-                    data[136..168].copy_from_slice(&stored_authority.to_bytes());
-                }
-            }
-        }
-        Ok(())
+        write_migrated_account(&info, &ctx.accounts.authority, &ctx.accounts.system_program, &updated)
     }
 
-    /// Миграция Field: realloc 69 → 70 байт (добавляет mutation_type).
     pub fn migrate_field(ctx: Context<MigrateField>) -> Result<()> {
+        migrations::authority(&ctx.accounts.config.try_borrow_data()?, &ctx.accounts.authority.key())?;
         let info = ctx.accounts.field.to_account_info();
-        require_keys_eq!(*info.owner, *ctx.program_id, GameError::Unauthorized);
-        // Читаем authority из config (offset 8)
-        let cfg_info = ctx.accounts.config.to_account_info();
-        require_keys_eq!(*cfg_info.owner, *ctx.program_id, GameError::Unauthorized);
-        let cfg_data = cfg_info.try_borrow_data()?;
-        require!(cfg_data.len() >= 40, GameError::Unauthorized);
-        let stored_authority = Pubkey::new_from_array(cfg_data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
-        drop(cfg_data);
-        require_keys_eq!(stored_authority, ctx.accounts.authority.key(), GameError::Unauthorized);
-        // realloc
-        info.realloc(8 + Field::INIT_SPACE, false)?;
-        // Явно обнуляем последний байт (mutation_type = 0)
-        let mut data = info.try_borrow_mut_data()?;
-        let new_len = 8 + Field::INIT_SPACE;
-        if data.len() >= new_len {
-            data[new_len - 1] = 0;
-        }
-        Ok(())
+        let updated = migrations::field(&info.try_borrow_data()?)?;
+        write_migrated_account(&info, &ctx.accounts.authority, &ctx.accounts.system_program, &updated)
     }
 
-    /// Миграция Epoch: realloc 41 → 49 байт (добавляет burned_micro).
     pub fn migrate_epoch(ctx: Context<MigrateEpoch>) -> Result<()> {
+        migrations::authority(&ctx.accounts.config.try_borrow_data()?, &ctx.accounts.authority.key())?;
         let info = ctx.accounts.epoch.to_account_info();
-        require_keys_eq!(*info.owner, *ctx.program_id, GameError::Unauthorized);
-        // Читаем authority из config (offset 8)
-        let cfg_info = ctx.accounts.config.to_account_info();
-        require_keys_eq!(*cfg_info.owner, *ctx.program_id, GameError::Unauthorized);
-        let cfg_data = cfg_info.try_borrow_data()?;
-        require!(cfg_data.len() >= 40, GameError::Unauthorized);
-        let stored_authority = Pubkey::new_from_array(cfg_data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
-        drop(cfg_data);
-        require_keys_eq!(stored_authority, ctx.accounts.authority.key(), GameError::Unauthorized);
-        // realloc
-        info.realloc(8 + Epoch::INIT_SPACE, false)?;
-        // Явно обнуляем последние 8 байт (burned_micro = 0)
-        let mut data = info.try_borrow_mut_data()?;
-        let new_len = 8 + Epoch::INIT_SPACE;
-        if data.len() >= new_len {
-            for i in (new_len - 8)..new_len {
-                data[i] = 0;
-            }
-        }
-        Ok(())
+        let updated = migrations::epoch(&info.try_borrow_data()?)?;
+        let epoch = Epoch::try_deserialize(&mut &updated[..])?;
+        let (expected, _) = Pubkey::find_program_address(&[b"epoch", &epoch.id.to_le_bytes()], ctx.program_id);
+        require_keys_eq!(info.key(), expected, GameError::BadProof);
+        write_migrated_account(&info, &ctx.accounts.authority, &ctx.accounts.system_program, &updated)
     }
 
-    // ───────────────────────── Реферальная программа (п.8) ───────────────────────────
-    
-    /// Регистрация реферера: одноразовый burn 5 POTATO, запись `referrer` в PDA Referral.
-    /// PDA Referral создаётся один раз на кошелёк.
+    /// Registers a one-time referral relationship; burns the registration cost.
+
     pub fn register_referrer(ctx: Context<RegisterReferrer>, referrer: Pubkey) -> Result<()> {
         require!(referrer != ctx.accounts.owner.key(), GameError::Unauthorized);
         require!(referrer != Pubkey::default(), GameError::Unauthorized);
@@ -1852,36 +1785,60 @@ pub struct RegisterReferrer<'info> {
 
 #[derive(Accounts)]
 pub struct MigrateConfig<'info> {
-    /// CHECK: raw data, manual read of authority at offset 8
-    #[account(mut)]
+    /// CHECK: canonical PDA/owner here; exact layout, discriminator and authority in handler.
+    #[account(mut, seeds = [b"config"], bump, owner = crate::ID)]
     pub config: UncheckedAccount<'info>,
+    #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct MigrateField<'info> {
-    /// CHECK: raw data
-    #[account(mut)]
+    /// CHECK: program owner here; exact Field layout and discriminator in handler.
+    #[account(mut, owner = crate::ID)]
     pub field: UncheckedAccount<'info>,
-    /// CHECK: raw data for authority read
+    /// CHECK: canonical config PDA; legacy layout is validated in handler.
+    #[account(seeds = [b"config"], bump, owner = crate::ID)]
     pub config: UncheckedAccount<'info>,
+    #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct MigrateEpoch<'info> {
-    /// CHECK: raw data
-    #[account(mut)]
+    /// CHECK: program owner here; exact Epoch layout/discriminator and PDA in handler.
+    #[account(mut, owner = crate::ID)]
     pub epoch: UncheckedAccount<'info>,
-    /// CHECK: raw data for authority read
+    /// CHECK: canonical config PDA; legacy layout is validated in handler.
+    #[account(seeds = [b"config"], bump, owner = crate::ID)]
     pub config: UncheckedAccount<'info>,
+    #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
-
+fn write_migrated_account<'info>(
+    account: &AccountInfo<'info>,
+    authority: &Signer<'info>,
+    system_program: &Program<'info, System>,
+    data: &[u8],
+) -> Result<()> {
+    let shortfall = Rent::get()?.minimum_balance(data.len()).saturating_sub(account.lamports());
+    if shortfall > 0 {
+        anchor_lang::system_program::transfer(
+            CpiContext::new(system_program.to_account_info(), anchor_lang::system_program::Transfer {
+                from: authority.to_account_info(), to: account.clone(),
+            }), shortfall,
+        )?;
+    }
+    if account.data_len() != data.len() {
+        account.realloc(data.len(), true)?;
+    }
+    account.try_borrow_mut_data()?.copy_from_slice(data);
+    Ok(())
+}
 
 // ───────────────────────── CPI helpers ───────────────────────────
 
