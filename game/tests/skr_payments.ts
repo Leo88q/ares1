@@ -130,20 +130,67 @@ describe('SKR-only payment rail', () => {
     const rent = (await c.getAccountInfo(order(1)))!.lamports + (await c.getAccountInfo(escrow(1)))!.lamports;
     const sellerBefore = await balance(adminSkr), buyerBefore = await balance(buyerSkr), vaultBefore = await balance(vault);
     const potatoes = await balance(buyerPotato); const skrSupply = (await getMint(c, skr)).supply;
-    const tx = await program.methods.fillSkrOrder(new BN(20_000_000)).accountsPartial(fill(1)).signers([buyer]).rpc();
+    const buyerSolBefore = await c.getBalance(buyer.publicKey);
+    await program.methods.fillSkrOrder(new BN(20_000_000)).accountsPartial(fill(1)).signers([buyer]).rpc();
     expect(buyerBefore - await balance(buyerSkr)).to.eq(20_000_000n);
     expect(await balance(adminSkr) - sellerBefore).to.eq(18_200_000n);
     expect(await balance(vault) - vaultBefore).to.eq(1_800_000n);
     expect(await balance(buyerPotato) - potatoes).to.eq(10_000_000n);
     expect((await getMint(c, skr)).supply).to.eq(skrSupply);
     expect(await c.getAccountInfo(order(1))).to.eq(null); expect(await c.getAccountInfo(escrow(1))).to.eq(null);
-    const record = await c.getTransaction(tx, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 });
-    assert.isNotNull(record);
-    // The buyer is not fee payer and no account is created here: its SOL is untouched.
-    const keys = record!.transaction.message.getAccountKeys().staticAccountKeys;
-    const index = keys.findIndex(k => k.equals(buyer.publicKey));
-    expect(record!.meta!.postBalances[index]).to.eq(record!.meta!.preBalances[index]);
+    // Provider/admin is fee payer; no buyer-owned account is allocated on fill.
+    // Read account state, not eventually indexed getTransaction history.
+    expect(await c.getBalance(buyer.publicKey)).to.eq(buyerSolBefore);
     assert.isAbove(rent, 0);
+  });
+  it('insufficient SKR rolls back seller payment and preserves escrow', async () => {
+    const poorSkr = (await getOrCreateAssociatedTokenAccount(c, admin, skr, stranger.publicKey)).address;
+    const poorPotato = (await getOrCreateAssociatedTokenAccount(c, admin, potato, stranger.publicKey)).address;
+    await mintTo(c, admin, skr, poorSkr, admin, 19_500_000n); // seller leg can succeed, fee leg cannot
+    await program.methods.createSkrOrder(new BN(10), new BN(10_000_000), new BN(2_000_000)).accountsPartial(listing(10)).rpc();
+    const sellerBefore = await balance(adminSkr), vaultBefore = await balance(vault);
+    await reject(program.methods.fillSkrOrder(new BN(20_000_000)).accountsPartial({ ...fill(10), buyer: stranger.publicKey, buyerSkr: poorSkr, buyerPotato: poorPotato }).signers([stranger]).rpc());
+    expect(await balance(poorSkr)).to.eq(19_500_000n); expect(await balance(adminSkr)).to.eq(sellerBefore); expect(await balance(vault)).to.eq(vaultBefore);
+    expect(await balance(escrow(10))).to.eq(10_000_000n);
+  });
+  it('referral fee and payout use SKR and conserve the entire buyer payment', async () => {
+    const refAta = getAssociatedTokenAddressSync(skr, stranger.publicKey);
+    const referral = pda(Buffer.from('referral'), buyer.publicKey.toBuffer());
+    const sellerBefore = await balance(adminSkr), vaultBefore = await balance(vault), refBefore = await balance(refAta), buyerBefore = await balance(buyerSkr);
+    await program.methods.fillSkrOrder(new BN(20_000_000)).accountsPartial(fill(10)).remainingAccounts([
+      { pubkey: SystemProgram.programId, isWritable: false, isSigner: false },
+      { pubkey: referral, isWritable: false, isSigner: false },
+      { pubkey: refAta, isWritable: true, isSigner: false },
+    ]).signers([buyer]).rpc();
+    expect(buyerBefore - await balance(buyerSkr)).to.eq(20_000_000n);
+    expect(await balance(adminSkr) - sellerBefore).to.eq(18_400_000n);
+    expect(await balance(vault) - vaultBefore).to.eq(1_500_000n);
+    expect(await balance(refAta) - refBefore).to.eq(100_000n);
+  });
+  it('order quote mint is pinned across config changes; an unpriced new mint is not usable', async () => {
+    await program.methods.createSkrOrder(new BN(11), new BN(10_000_000), new BN(2_000_000)).accountsPartial(listing(11)).rpc();
+    await program.methods.updateSkrMint(foreign).accountsPartial({ config, authority: admin.publicKey }).rpc();
+    try {
+      await reject(create(11), 'ConstraintHasOne');
+      await program.methods.fillSkrOrder(new BN(20_000_000)).accountsPartial(fill(11)).signers([buyer]).rpc();
+    } finally { await program.methods.updateSkrMint(skr).accountsPartial({ config, authority: admin.publicKey }).rpc(); }
+  });
+  it('self-trade and premature expiry are rejected', async () => {
+    await program.methods.createSkrOrder(new BN(12), new BN(10_000_000), new BN(2_000_000)).accountsPartial(listing(12)).rpc();
+    await reject(program.methods.fillSkrOrder(new BN(20_000_000)).accountsPartial({ ...fill(12), buyer: admin.publicKey, buyerSkr: adminSkr, buyerPotato: adminPotato }).rpc(), 'SelfTradeBlocked');
+    await reject(program.methods.closeExpiredSkrOrder().accountsPartial({ seller: admin.publicKey, order: order(12), escrow: escrow(12), sellerPotato: adminPotato, tokenProgram: TOKEN_PROGRAM_ID }).rpc(), 'OrderNotExpired');
+    await reject(program.methods.cancelSkrOrder().accountsPartial({ seller: buyer.publicKey, sellerProfile: profile(admin.publicKey), order: order(12), escrow: escrow(12), sellerPotato: buyerPotato, tokenProgram: TOKEN_PROGRAM_ID }).signers([buyer]).rpc());
+  });
+  it('export license costs 500 SKR and reduces the seller fee, not the buyer quote', async () => {
+    await mintTo(c, admin, skr, adminSkr, admin, 500_000_000n);
+    const license = pda(Buffer.from('license'), admin.publicKey.toBuffer());
+    const before = await balance(adminSkr), vaultBefore = await balance(vault);
+    await program.methods.buyExportLicense().accountsPartial({ config, license, owner: admin.publicKey, skrMint: skr, userSkrAta: adminSkr, treasurySol: treasury, treasurySkrAta: vault, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId }).rpc();
+    expect(before - await balance(adminSkr)).to.eq(500_000_000n); expect(await balance(vault) - vaultBefore).to.eq(500_000_000n);
+    await program.methods.createSkrOrder(new BN(14), new BN(10_000_000), new BN(2_000_000)).accountsPartial(listing(14)).rpc();
+    const sellerBefore = await balance(adminSkr);
+    await program.methods.fillSkrOrder(new BN(20_000_000)).accountsPartial(fill(14)).remainingAccounts([{ pubkey: license, isSigner: false, isWritable: false }]).signers([buyer]).rpc();
+    expect(await balance(adminSkr) - sellerBefore).to.eq(18_800_000n); // 9% - 3% = 6% quote fee
   });
   it('cancellation works while paused and returns all escrowed resource', async () => {
     await program.methods.createSkrOrder(new BN(2), new BN(10_000_000), new BN(2_000_000)).accountsPartial(listing(2)).rpc();
@@ -166,10 +213,37 @@ describe('SKR-only payment rail', () => {
     await program.methods.closeField().accountsPartial({ field: field(1), owner: buyer.publicKey }).signers([buyer]).rpc();
     expect(await c.getBalance(buyer.publicKey) - sol).to.eq(rent);
   });
+  it('presale receives 1053 SKR per field, splits 80/20 and enforces wallet/global caps', async () => {
+    const presale = pda(Buffer.from('presale'));
+    await program.methods.initPresale(new BN(6), new BN(1)).accountsPartial({ config, presaleState: presale, authority: admin.publicKey, systemProgram: SystemProgram.programId }).rpc();
+    await mintTo(c, admin, skr, buyerSkr, admin, 6_318_000_000n);
+    const buy = (n: number, payer = buyer, source = buyerSkr) => program.methods.buyFieldSkr(new BN(n)).accountsPartial({ config, presaleState: presale, authority: admin.publicKey,
+      buyerPresale: pda(Buffer.from('buyer_presale'), payer.publicKey.toBuffer()), field: field(n), buyer: payer.publicKey,
+      skrMint: skr, buyerSkrAta: source, treasurySol: treasury, treasurySkrAta: vault, buybackSkrAta: adminSkr,
+      tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID }).signers([payer]).rpc();
+    const before = await balance(buyerSkr), treasuryBefore = await balance(vault), buybackBefore = await balance(adminSkr);
+    for (let i = 0; i < 5; i++) await buy(100 + i);
+    expect(before - await balance(buyerSkr)).to.eq(5_265_000_000n);
+    expect(await balance(vault) - treasuryBefore).to.eq(4_212_000_000n);
+    expect(await balance(adminSkr) - buybackBefore).to.eq(1_053_000_000n);
+    await reject(buy(105), 'PresaleWalletLimitReached');
+    await mintTo(c, admin, skr, adminSkr, admin, 1_053_000_000n);
+    await buy(106, admin, adminSkr);
+    await reject(buy(107), 'PresaleCapReached');
+  });
   it('SKR treasury withdrawal is authority-only and transfers SKR, never mints it', async () => {
     const before = await balance(adminSkr); const supply = (await getMint(c, skr)).supply;
     await reject(program.methods.withdrawSkrTreasury(new BN(1)).accountsPartial({ config, treasurySol: treasury, treasurySkrAta: vault, authority: buyer.publicKey, skrMint: skr, destinationAta: buyerSkr, systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID }).signers([buyer]).rpc(), 'ConstraintHasOne');
     await program.methods.withdrawSkrTreasury(new BN(1)).accountsPartial({ config, treasurySol: treasury, treasurySkrAta: vault, authority: admin.publicKey, skrMint: skr, destinationAta: adminSkr, systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID }).rpc();
     expect(await balance(adminSkr) - before).to.eq(1n); expect((await getMint(c, skr)).supply).to.eq(supply);
   });
+  it('retains reward/emission cap and authority checks', async () => {
+    const rewardAccounts = { config, epoch, authority: admin.publicKey, potatoMint: potato, userPotato: adminPotato, tokenProgram: TOKEN_PROGRAM_ID };
+    await reject(program.methods.grantReward(new BN(1_000_000_001)).accountsPartial(rewardAccounts).rpc(), 'RewardTooLarge');
+    await reject(program.methods.grantReward(new BN(1)).accountsPartial({ ...rewardAccounts, authority: buyer.publicKey }).signers([buyer]).rpc(), 'Unauthorized');
+    await reject(program.methods.updateConfig(new BN('250000000001'), null, null).accountsPartial({ config, authority: admin.publicKey }).rpc(), 'CapTooHigh');
+    await reject(program.methods.updateConfig(null, null, 20_001).accountsPartial({ config, authority: admin.publicKey }).rpc(), 'MultiplierTooHigh');
+    await reject(program.methods.updateSkrMint(potato).accountsPartial({ config, authority: admin.publicKey }).rpc(), 'InvalidMint');
+  });
+
 });
