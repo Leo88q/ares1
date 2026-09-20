@@ -15,7 +15,13 @@ export const env = {
    *  ключу нужны только lamports на rent/fee нового epoch-аккаунта (~0.0013 SOL
    *  в эпоху). 0.1–0.2 SOL хватит на годы. AUDIT B4. */
   payerKeypairJson: required("PAYER_KEYPAIR_JSON"),
-  corsOrigin: process.env.CORS_ORIGIN || "*",
+  corsOrigin: (() => {
+    const v = process.env.CORS_ORIGIN;
+    if (!v && process.env.NODE_ENV === "production") {
+      throw new Error("Missing required env var: CORS_ORIGIN (production must not use '*')");
+    }
+    return v || "*"; // '*' only for local dev
+  })(),
   epochRollCron: process.env.EPOCH_ROLL_CRON || "*/10 * * * *",
   /** Requests per minute per IP on /api/*. */
   rateLimitPerMinute: parseInt(process.env.RATE_LIMIT_PER_MINUTE || "30", 10),

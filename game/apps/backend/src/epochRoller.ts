@@ -12,6 +12,12 @@ import {
 
 const EPOCH_DURATION_SECONDS = 86_400;
 
+// Metrics for monitoring
+export let lastRollAttempt: number | null = null;
+export let lastRollSuccess: number | null = null;
+export let lastRollError: string | null = null;
+export let consecutiveFailures = 0;
+
 export async function tryRollEpoch(): Promise<string | null> {
   const config = await fetchConfig();
   const current = await fetchEpoch(config.epochId);
@@ -32,12 +38,35 @@ export async function tryRollEpoch(): Promise<string | null> {
 }
 
 export function startEpochRoller() {
+  console.log(`[epoch-roller] schedule=${env.epochRollCron}`);
   cron.schedule(env.epochRollCron, async () => {
+    lastRollAttempt = Date.now();
     try {
       const sig = await tryRollEpoch();
-      if (sig) console.log(`[epoch-roller] rolled epoch, tx=${sig}`);
+      if (sig) {
+        console.log(`[epoch-roller] rolled epoch, tx=${sig}`);
+        lastRollSuccess = Date.now();
+        lastRollError = null;
+        consecutiveFailures = 0;
+      }
     } catch (err) {
-      console.error("[epoch-roller] failed:", err);
+      consecutiveFailures += 1;
+      lastRollError = err instanceof Error ? err.message : String(err);
+      console.error(`[epoch-roller] failed (attempt ${consecutiveFailures}):`, err);
+      // Alert after 3 consecutive failures — need external webhook in prod
+      if (consecutiveFailures >= 3) {
+        console.error(`[epoch-roller] CRITICAL: 3 consecutive roll failures! Check RPC and payer balance.`);
+      }
     }
   });
+
+  // Immediate check on startup after 5s
+  setTimeout(async () => {
+    try {
+      const sig = await tryRollEpoch();
+      if (sig) console.log(`[epoch-roller] startup roll, tx=${sig}`);
+    } catch (err) {
+      console.error("[epoch-roller] startup check failed:", err);
+    }
+  }, 5000);
 }
