@@ -108,7 +108,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }
   try {
    const ata = getAssociatedTokenAddressSync(config.potatoMint, publicKey, false)
-   const skrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, publicKey, false)
+   const skrMint = (config.skrMint as unknown as PublicKey) ?? SKR_MINT
+   const skrAta = getAssociatedTokenAddressSync(skrMint, publicKey, false)
    const [accounts, infos] = await Promise.all([
     withRetry(() =>
      connection.getProgramAccounts(programId, {
@@ -246,7 +247,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     notify('warning', t('Игра ещё загружается'), t('Подожди пару секунд.'))
     return null
    }
-   const buyerSkrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, publicKey)
+   const skrMint = (config.skrMint as unknown as PublicKey) ?? SKR_MINT
+   const buyerSkrAta = getAssociatedTokenAddressSync(skrMint, publicKey)
    try {
     const skrBal = await withRetry(() => connection.getTokenAccountBalance(buyerSkrAta))
     const need = 1_053_000_000n
@@ -266,7 +268,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
    try {
     const fieldId = randomU64()
     const { config: configPda, field } = pdas(programId)
-    const ataIx = createAssociatedTokenAccountIdempotentInstruction(publicKey, buyerSkrAta, publicKey, TEST_SKR_MINT)
+    const ataIx = createAssociatedTokenAccountIdempotentInstruction(publicKey, buyerSkrAta, publicKey, skrMint)
     const ix = await ixBuyFieldSkr(programId, {
      config: configPda(),
      presaleState: presaleStatePda(programId),
@@ -275,10 +277,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
      field: field(fieldId),
      buyer: publicKey,
      treasurySol: treasurySolPda(programId),
-     skrMint: TEST_SKR_MINT,
+     skrMint,
      buyerSkrAta,
-     treasurySkrAta: treasurySkrAta(programId, TEST_SKR_MINT),
-     buybackSkrAta: buybackSkrAta(config.authority, TEST_SKR_MINT),
+     treasurySkrAta: treasurySkrAta(programId, skrMint),
+     buybackSkrAta: buybackSkrAta(config.authority, skrMint),
      fieldId,
     })
     await sendIx([ataIx, ix])
@@ -364,17 +366,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
    try {
     return await runTx(t('Не удалось создать сжатое поле'), async () => {
      const fieldId = randomU64()
-     const merkleTree = compressionTreePda(publicKey, programId)
+     const tree = compressionTreePda(publicKey, programId)
      // Если дерева нет — сначала init (1 раз на игрока, ~0.01 SOL)
-     const treeInfo = await withRetry(() => connection.getAccountInfo(merkleTree))
+     const treeInfo = await withRetry(() => connection.getAccountInfo(tree))
      const ixs: TransactionInstruction[] = []
      if (!treeInfo) {
-       const treeAuthority = PublicKey.findProgramAddressSync([Buffer.from('tree-auth'), (merkleTree).toBuffer()], programId)[0]
-       ixs.push(await ixInitCompressionTree(programId, { merkleTree: merkleTree, treeAuthority, payer: publicKey }))
+       ixs.push(await ixInitCompressionTree(programId, { tree, authority: publicKey, payer: publicKey }))
      }
-     const treeAuth = PublicKey.findProgramAddressSync([Buffer.from('tree-auth'), (merkleTree).toBuffer()], programId)[0]
      const mintIx = await ixMintCompressedField(programId, {
-       merkleTree: merkleTree, treeAuthority: treeAuth, leafOwner: publicKey, payer: publicKey, fieldId, fieldType
+       tree, authority: publicKey, leafOwner: publicKey, payer: publicKey, fieldId, fieldType
      })
      return [...ixs, mintIx]
     })
@@ -409,7 +409,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   [config, publicKey, ready, runTx, programId, notify],
  )
 
- // ── LUT management ──
+ // ── LUT management (ALT) ──
+ // Solana требует: create LUT в одном блоке, extend — в следующем (после подтверждения).
+ // Поэтому делаем 2 транзакции: 1) create 2) extend (+ кэш в localStorage).
  const ensureLut = useCallback(async (): Promise<string | null> => {
    if (!publicKey) return null
    const existing = await ensureLookupTable()
@@ -421,16 +423,23 @@ export function GameProvider({ children }: { children: ReactNode }) {
        payer: publicKey,
        recentSlot: slot,
      })
-     // Расширяем всеми field PDA сразу (до 20 за раз)
-     const fieldPks = fields.map(f => f.publicKey)
-     const extendIx = fieldPks.length > 0 ? AddressLookupTableProgram.extendLookupTable({
-       payer: publicKey,
-       authority: publicKey,
-       lookupTable: lutAddress,
-       addresses: fieldPks.slice(0, 20),
-     }) : null
-     await sendIx(extendIx ? [createIx, extendIx] : [createIx])
+     await sendIx([createIx])
+     // Дожидаемся финализации LUT перед extend (иначе AddressLookupTableNotFound)
+     await new Promise(r => setTimeout(r, 800))
      localStorage.setItem(`ares-lut:${publicKey.toBase58()}`, lutAddress.toBase58())
+     const fieldPks = fields.map(f => f.publicKey)
+     if (fieldPks.length > 0) {
+       const extendIx = AddressLookupTableProgram.extendLookupTable({
+         payer: publicKey,
+         authority: publicKey,
+         lookupTable: lutAddress,
+         addresses: fieldPks.slice(0, 20),
+       })
+       try { await sendIx([extendIx]) } catch (e) {
+         // extend может упасть если таблица ещё не активна (256 слотов warmup) — не критично, переиспользуется позже
+         console.warn('[lut] extend deferred:', describeError(e))
+       }
+     }
      notify('success', t('LUT создана'), lutAddress.toBase58().slice(0, 8) + '…')
      return lutAddress.toBase58()
    } catch (err) {

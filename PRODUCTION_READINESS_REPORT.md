@@ -69,15 +69,17 @@
 - [x] `verify_fields` duplicate-proof
 - [x] `register_referrer` 5→50 POTATO
 - [x] `LUNAR_TABLE` фронтенд = чейну
-- [x] `SKR_MINT` экспорт + `TEST_SKR_MINT` alias
+- [x] `SKR_MINT` экспорт + `TEST_SKR_MINT` alias + `GameConfig.skr_mint`/`update_skr_mint` + `migrate_config` 164→228
+- [x] `GameConfig.reward_signer`/`update_reward_signer` + `grant_reward` low-priv (S-03)
 - [x] `batch_harvest` + `close_field` (дешёвая чеканка)
 - [x] `CORS_ORIGIN` fail-fast, security headers, `/health`+`/ready`
-- [x] `epochRoller` метрики + `ComputeBudget` + `simulateTransaction` + `VersionedTransaction` (V0+LUT)
-- [x] `GameContext` batch/close + `createCompressedField`/`createCoreField`/`ensureLut`
+- [x] `epochRoller` метрики + `ComputeBudget` + `simulateTransaction` + `VersionedTransaction` (V0+LUT) + `sendVersionedTx` бэкенд
+- [x] `GameContext` batch/close (LUT-aware) + `createCompressedField`/`createCoreField`/`ensureLut` (2-tx LUT)
 - [x] LUT + VersionedTransaction (`lut.ts`, `SolanaContext` V0, бэкенд `sendVersionedTx`)
-- [x] ZK Compression / Bubblegum cNFT (`compression.ts`, `init_compression_tree`, `mint_compressed_field`)
-- [x] Token-2022 Transfer Hook (`token2022.ts`, `execute_transfer_hook`, `Cargo.toml` feature)
-- [x] Metaplex Core (`metaplexCore.ts`, `mint_core_field`, `CoreCollection`/`CoreAsset`)
+- [x] ZK Compression / Bubblegum cNFT (`compression.ts`, `init_compression_tree`/`mint_compressed_field` без лишнего merkle_tree)
+- [x] Token-2022 Transfer Hook (`token2022.ts`, `execute_transfer_hook`, `Cargo.toml` `token_2022`)
+- [x] Metaplex Core (`metaplexCore.ts`, `mint_core_field` per-player `CoreCollection` + `CoreAsset`)
+- [x] `decodeConfig`/`decodeGameConfig` поддержка 164/228 байт + fallback, тесты `account_sizes` обновлены
 - [x] Аудит-доки + этот отчёт
 - [ ] Включить GitHub Actions (Settings → Actions → General) и прогнать `ci.yml`
 - [ ] Прогнать `cargo test` + `anchor test` + `tsc` + `vite build` (требует solana 4.2.2, anchor 0.31.2, Node 22)

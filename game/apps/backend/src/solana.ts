@@ -70,6 +70,21 @@ export function buildGrantRewardIx(params: {
   return new TransactionInstruction({ programId, keys, data });
 }
 
+export function buildUpdateSkrMintIx(params: { config: PublicKey; authority: PublicKey; newSkrMint: PublicKey }): TransactionInstruction {
+  const data = Buffer.concat([anchorDiscriminator("global", "update_skr_mint"), params.newSkrMint.toBuffer()]);
+  return new TransactionInstruction({ programId, data, keys: [
+    { pubkey: params.config, isSigner: false, isWritable: true },
+    { pubkey: params.authority, isSigner: true, isWritable: false },
+  ]});
+}
+export function buildUpdateRewardSignerIx(params: { config: PublicKey; authority: PublicKey; newSigner: PublicKey }): TransactionInstruction {
+  const data = Buffer.concat([anchorDiscriminator("global", "update_reward_signer"), params.newSigner.toBuffer()]);
+  return new TransactionInstruction({ programId, data, keys: [
+    { pubkey: params.config, isSigner: false, isWritable: true },
+    { pubkey: params.authority, isSigner: true, isWritable: false },
+  ]});
+}
+
 export function buildRollEpochIx(params: {
   config: PublicKey;
   currentEpoch: PublicKey;
