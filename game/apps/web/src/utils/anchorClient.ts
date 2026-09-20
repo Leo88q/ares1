@@ -2,7 +2,9 @@ import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction } 
 import { t } from '../i18n'
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
 
-export const TEST_SKR_MINT = new PublicKey('Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o')
+export const SKR_MINT = new PublicKey('Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o')
+/** @deprecated — use SKR_MINT; kept for back-compat */
+export const TEST_SKR_MINT = SKR_MINT
 
 async function sha256(input: string): Promise<Uint8Array> {
  const bytes = new TextEncoder().encode(input)
@@ -626,6 +628,42 @@ export function decodeAchievementsBitmap(data: Buffer): number {
  *  0: ≥1 поле · 1: ≥100 🥔 · 2: ≥1000 🥔 · 3: ≥5 полей · 4: ≥10 000 🥔 · 5: ≥6 полей, ≥3-го уровня одно.
  * Поля игрока передаются в remaining_accounts (proof by ownership).
  */
+
+// ── Batch harvest (cheap, 1 tx for up to 10 fields) ──
+export async function ixBatchHarvest(programId: PublicKey, params: {
+ config: PublicKey; epoch: PublicKey; potatoMint: PublicKey; userPotato: PublicKey; treasuryPotato: PublicKey; owner: PublicKey;
+ fieldPks: PublicKey[];
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('batch_harvest'))
+ const keys = [
+  { pubkey: params.config, isSigner: false, isWritable: true },
+  { pubkey: params.epoch, isSigner: false, isWritable: true },
+  { pubkey: params.potatoMint, isSigner: false, isWritable: true },
+  { pubkey: params.userPotato, isSigner: false, isWritable: true },
+  { pubkey: params.treasuryPotato, isSigner: false, isWritable: true },
+  { pubkey: params.owner, isSigner: true, isWritable: true },
+  { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  ...params.fieldPks.map(pk => ({ pubkey: pk, isSigner: false, isWritable: true })),
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
+
+export async function ixCloseField(programId: PublicKey, params: {
+ field: PublicKey; owner: PublicKey;
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('close_field'))
+ return new TransactionInstruction({
+  programId,
+  data,
+  keys: [
+   { pubkey: params.field, isSigner: false, isWritable: true },
+   { pubkey: params.owner, isSigner: true, isWritable: true },
+  ],
+ })
+}
+
 export async function ixClaimAchievement(programId: PublicKey, params: {
  config: PublicKey;
  achievements: PublicKey;

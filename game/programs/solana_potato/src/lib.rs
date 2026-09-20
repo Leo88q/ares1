@@ -1383,7 +1383,8 @@ pub mod solana_potato {
         require!(referrer != ctx.accounts.owner.key(), GameError::Unauthorized);
         require!(referrer != Pubkey::default(), GameError::Unauthorized);
         
-        // Burn 5 POTATO (антиспам)
+        // Burn 50 POTATO (антиспам, повышено с 5 → 50 после аудита 2026-09-20:
+        // при награде 0.5% от сделки sybil с 5 POTATO окупался за 1 сделку 1k POTATO).
         token::burn(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -1393,7 +1394,7 @@ pub mod solana_potato {
                     authority: ctx.accounts.owner.to_account_info(),
                 },
             ),
-            5_000_000, // 5 POTATO
+            50_000_000, // 50 POTATO
         )?;
         
         ctx.accounts.referral.owner = ctx.accounts.owner.key();
@@ -1404,6 +1405,169 @@ pub mod solana_potato {
             owner: ctx.accounts.owner.key(),
             referrer,
         });
+        Ok(())
+    }
+
+    /// Дешёвая батч-чеканка: собирает урожай сразу с N полей за одну транзакцию.
+    /// Экономия: 1 подпись вместо N, 1 CU-оплата, 1 приоритетная комиссия.
+    /// Все поля проверяются: owner == signer, is_active, интервал, кроме того
+    /// агрегированный mint ограничен капом эпохи и max_supply.
+    /// Использует remaining_accounts как список Field PDAs.
+    pub fn batch_harvest<'info>(ctx: Context<'_, '_, '_, 'info, BatchHarvest<'info>>) -> Result<()> {
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        require!(!ctx.remaining_accounts.is_empty(), GameError::NothingToHarvest);
+        require!(ctx.remaining_accounts.len() <= 10, GameError::InvalidAmount); // лимит 10 полей/батч
+
+        let now = Clock::get()?.unix_timestamp;
+        let epoch_id = ctx.accounts.config.epoch_id;
+        let base_yield = ctx.accounts.config.base_yield_micro_per_day;
+        let global_bps = ctx.accounts.config.global_multiplier_bps;
+        let total_supply = ctx.accounts.potato_mint.supply;
+        let max_supply = ctx.accounts.config.max_supply_micro;
+
+        // Проверка supply-налога один раз для всех полей (консервативно)
+        let supply_ratio_bps = if max_supply > 0 {
+            ((total_supply as u128) * 10_000 / (max_supply as u128)) as u64
+        } else { 0 };
+        let base_tax_bps: u64 = 200 + (800 * supply_ratio_bps * supply_ratio_bps / 100_000_000);
+        let base_tax_bps = base_tax_bps.min(1000);
+
+        let mut total_player: u64 = 0;
+        let mut total_treasury: u64 = 0;
+        let mut total_gross: u64 = 0;
+
+        // Первый проход: валидация + расчёт pending без мутации состояния
+        // Собираем данные чтобы проверить лимиты до минта
+        let mut pending_list: Vec<(Pubkey, u64, u64, u64)> = Vec::new(); // (field_key, pending, player_yield, treasury)
+        // Для защиты от дублей в батче
+        for i in 0..ctx.remaining_accounts.len() {
+            for j in (i+1)..ctx.remaining_accounts.len() {
+                require!(ctx.remaining_accounts[i].key() != ctx.remaining_accounts[j].key(), GameError::BadProof);
+            }
+        }
+        for acc in ctx.remaining_accounts.iter() {
+            require!(acc.owner == ctx.program_id, GameError::BadProof);
+            let mut slice: &[u8] = &acc.try_borrow_data()?[..];
+            let f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
+            require!(f.owner == ctx.accounts.owner.key(), GameError::Unauthorized);
+            require!(f.is_active, GameError::FieldInactive);
+            let elapsed = now.saturating_sub(f.last_harvest).min(MAX_ACCRUAL_SECONDS);
+            require!(elapsed >= MIN_HARVEST_INTERVAL, GameError::HarvestTooSoon);
+            let pending = compute_pending_yield(base_yield, global_bps, &f, elapsed, now, epoch_id)?;
+            require!(pending > 0, GameError::NothingToHarvest);
+            let tax_amount = (pending as u128 * base_tax_bps as u128 / 10_000) as u64;
+            let player_yield = pending.saturating_sub(tax_amount);
+            let treasury_share = tax_amount / 2;
+            require!(player_yield > 0, GameError::NothingToHarvest);
+            pending_list.push((acc.key(), pending, player_yield, treasury_share));
+            total_gross = total_gross.saturating_add(pending);
+            total_player = total_player.saturating_add(player_yield);
+            total_treasury = total_treasury.saturating_add(treasury_share);
+        }
+
+        // Проверка капов (агрегированно)
+        let epoch_cap_left = ctx.accounts.epoch.mint_cap_micro.saturating_sub(ctx.accounts.epoch.minted_micro);
+        let supply_left = max_supply.saturating_sub(total_supply);
+        let available = epoch_cap_left.min(supply_left);
+        // Если капа не хватает на весь батч — пропорционально урезаем каждый harvest
+        // (аналогично одиночному harvest: consumed пропорционально gross_mint/pending)
+        let (scale_num, scale_den) = if total_gross > available {
+            require!(available > 0, GameError::EpochCapExceeded);
+            (available as u128, total_gross as u128)
+        } else {
+            (1u128, 1u128)
+        };
+
+        let scaled_player = (total_player as u128 * scale_num / scale_den) as u64;
+        let scaled_treasury = (total_treasury as u128 * scale_num / scale_den) as u64;
+        require!(scaled_player > 0, GameError::NothingToHarvest);
+
+        // Эффекты: обновляем epoch и каждое поле
+        ctx.accounts.epoch.minted_micro = ctx.accounts.epoch.minted_micro
+            .saturating_add(scaled_player).saturating_add(scaled_treasury);
+
+        for (idx, acc) in ctx.remaining_accounts.iter().enumerate() {
+            // Перечитываем поле mutable через AccountLoader-подобный доступ:
+            // remaining_accounts — Unchecked, поэтому мутируем данные напрямую через try_borrow_mut_data + Field deserialization is unsafe.
+            // Вместо этого требуем чтобы поле было передано и как mutable remaining — мы обновляем через поле PDA seeds.
+            // Упрощение: ожидаем что поля уже проверены, и обновляем last_harvest/durability через CPI-подобный подход:
+            // Декодируем, модифицируем и сериализуем обратно.
+            let mut data = acc.try_borrow_mut_data()?;
+            let mut slice: &[u8] = &data;
+            let mut f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
+            // Пропорциональный consumed
+            let (_, pending, _, _) = pending_list[idx];
+            let elapsed = now.saturating_sub(f.last_harvest).min(MAX_ACCRUAL_SECONDS);
+            let consumed: i64 = if scale_num == 1 {
+                elapsed
+            } else {
+                ((elapsed as u128) * scale_num / scale_den) as i64
+            };
+            let accrual_start = now.saturating_sub(elapsed);
+            f.last_harvest = accrual_start.saturating_add(consumed).min(now);
+            let decay_interval = if f.mutation_type == 2 { DURABILITY_DECAY_INTERVAL * 2 } else { DURABILITY_DECAY_INTERVAL };
+            let decay = (consumed / decay_interval).max(1).min(MAX_DURABILITY as i64) as u8;
+            f.durability = f.durability.saturating_sub(decay);
+            // Сериализуем обратно
+            let mut out: Vec<u8> = Vec::new();
+            f.try_serialize(&mut out).map_err(|_| error!(GameError::MathOverflow))?;
+            // data[0..8] — discriminator, сохраняем
+            data[8..8+out.len()].copy_from_slice(&out);
+        }
+
+        // Интеракция: минт
+        let bump = ctx.accounts.config.bump;
+        let seeds: &[&[u8]] = &[b"config", &[bump]];
+        let signer: &[&[&[u8]]] = &[seeds];
+        token::mint_to(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                MintTo {
+                    mint: ctx.accounts.potato_mint.to_account_info(),
+                    to: ctx.accounts.user_potato.to_account_info(),
+                    authority: ctx.accounts.config.to_account_info(),
+                },
+                signer,
+            ),
+            scaled_player,
+        )?;
+        if scaled_treasury > 0 {
+            token::mint_to(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    MintTo {
+                        mint: ctx.accounts.potato_mint.to_account_info(),
+                        to: ctx.accounts.treasury_potato.to_account_info(),
+                        authority: ctx.accounts.config.to_account_info(),
+                    },
+                    signer,
+                ),
+                scaled_treasury,
+            )?;
+        }
+
+        emit!(BatchHarvested {
+            owner: ctx.accounts.owner.key(),
+            field_count: ctx.remaining_accounts.len() as u8,
+            total_micro: scaled_player,
+            treasury_micro: scaled_treasury,
+        });
+        Ok(())
+    }
+
+    /// Закрывает поле и возвращает ренту владельцу. Поле становится неактивным
+    /// навсегда (is_active=false) и больше не приносит урожай. Дешёвая "де-чеканка":
+    /// игрок возвращает ~0.001 SOL за каждое закрытое поле, что снижает
+    /// эффективную стоимость минта на 50% при выходе из игры.
+    pub fn close_field(ctx: Context<CloseField>) -> Result<()> {
+        let field = &mut ctx.accounts.field;
+        require!(field.is_active, GameError::FieldInactive);
+        // Налоговое требование: нельзя закрыть поле с просроченным налогом без оплаты?
+        // Разрешаем закрытие всегда — игрок уже заплатил burn при создании.
+        field.is_active = false;
+        // Anchor close = transfer lamports + zero data
+        // Поле будет закрыто через `close = owner` в контексте
+        emit!(FieldClosed { owner: ctx.accounts.owner.key(), field: ctx.accounts.field.key() });
         Ok(())
     }
 
@@ -2198,6 +2362,37 @@ pub struct AcceptAuthority<'info> {
     pub new_authority: Signer<'info>,
 }
 
+#[derive(Accounts)]
+pub struct BatchHarvest<'info> {
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
+    pub config: Account<'info, GameConfig>,
+    #[account(mut, seeds = [b"epoch", config.epoch_id.to_le_bytes().as_ref()], bump = epoch.bump)]
+    pub epoch: Account<'info, Epoch>,
+    #[account(mut)]
+    pub potato_mint: Account<'info, Mint>,
+    #[account(mut, token::mint = potato_mint, token::authority = owner)]
+    pub user_potato: Account<'info, TokenAccount>,
+    #[account(
+        init_if_needed,
+        payer = owner,
+        associated_token::mint = potato_mint,
+        associated_token::authority = config,
+    )]
+    pub treasury_potato: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+}
+
+#[derive(Accounts)]
+pub struct CloseField<'info> {
+    #[account(mut, has_one = owner, close = owner)]
+    pub field: Account<'info, Field>,
+    pub owner: Signer<'info>,
+}
+
 // ──────────────────────────── State ──────────────────────────────
 
 /// Singleton game configuration and the mint authority of $POTATO.
@@ -2516,6 +2711,20 @@ pub struct AuthorityAccepted {
 }
 
 #[event]
+pub struct BatchHarvested {
+    pub owner: Pubkey,
+    pub field_count: u8,
+    pub total_micro: u64,
+    pub treasury_micro: u64,
+}
+
+#[event]
+pub struct FieldClosed {
+    pub owner: Pubkey,
+    pub field: Pubkey,
+}
+
+#[event]
 pub struct ConfigUpdated {
     pub daily_mint_cap_micro: u64,
     pub base_yield_micro_per_day: u64,
@@ -2732,6 +2941,13 @@ mod tests {
 
 fn verify_fields(accs: &[AccountInfo], user: &Pubkey, program: &Pubkey, min: usize, min_level: u8) -> Result<()> {
     require!(accs.len() >= min, GameError::BadProof);
+    // Защита от дублей: один и тот же Field PDA нельзя засчитать дважды
+    // (иначе 1 поле проходит проверку "5 полей" и "6 полей L3").
+    for i in 0..accs.len() {
+        for j in (i + 1)..accs.len() {
+            require!(accs[i].key() != accs[j].key(), GameError::BadProof);
+        }
+    }
     let mut saw_level = min_level == 0;
     for acc in accs.iter() {
         require!(acc.owner == program, GameError::BadProof);

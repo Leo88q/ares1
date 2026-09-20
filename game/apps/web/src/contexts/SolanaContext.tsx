@@ -102,7 +102,14 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
     return missing
    }
    try {
-    const tx = new Transaction().add(...ixs)
+    // Добавляем приоритетную комиссию и compute budget для стабильности при нагрузке
+    const { ComputeBudgetProgram } = await import('@solana/web3.js')
+    const priorityIxs: typeof ixs = [
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 }),
+      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }),
+      ...ixs,
+    ]
+    const tx = new Transaction().add(...priorityIxs)
     const { blockhash, lastValidBlockHeight } = await withRetry(() => connection.getLatestBlockhash('confirmed'))
     tx.recentBlockhash = blockhash
     tx.feePayer = wallet.publicKey
@@ -132,6 +139,15 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
      raw = signed.serialize() // requireAllSignatures: true — финальная страховка
     } catch {
      throw new Error(MISSING_SIG)
+    }
+    // Preflight simulation для раннего отлова ошибок программы
+    const sim = await connection.simulateTransaction(signed)
+    if (sim.value.err) {
+      const logs = (sim.value.logs ?? []).join('\n')
+      // Если симуляция показывает кастомную ошибку — пробрасываем её сразу
+      if (/custom program error|AlreadyClaimed|BadProof|Paused|HarvestTooSoon|EpochCapExceeded/i.test(logs)) {
+        throw new Error(logs.slice(0, 400))
+      }
     }
     const sig = await connection.sendRawTransaction(raw, { skipPreflight: false, maxRetries: 3 })
     const res = await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed')

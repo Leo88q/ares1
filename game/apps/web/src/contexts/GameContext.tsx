@@ -8,7 +8,7 @@ import { useToast } from '../components/Toast'
  import {
  decodeField, pdas,
  ixCreateField, ixHarvest, ixRepairField, ixUpgradeField, ixPayTax, ixApplyFertilizer,
- ixBuyFieldSkr, TEST_SKR_MINT, treasurySkrAta, buybackSkrAta, presaleStatePda, buyerPresalePda, treasurySolPda,
+ ixBuyFieldSkr, ixBatchHarvest, ixCloseField, TEST_SKR_MINT, SKR_MINT, treasurySkrAta, buybackSkrAta, presaleStatePda, buyerPresalePda, treasurySolPda,
  potatoAta,
  achievementsPda, questTreasuryPda, decodeAchievementsBitmap, ixClaimAchievement, QUEST_REWARDS_MICRO,
 } from '../utils/anchorClient'
@@ -59,6 +59,8 @@ export interface GameContextType {
  /** Quest ids already claimed by this wallet (on-chain, bitmap PDA "achv"). */
  claimed: Record<string, boolean>
  harvest: (field: PublicKey) => Promise<boolean>
+ batchHarvest: (fields: PublicKey[]) => Promise<boolean>
+ closeField: (field: PublicKey) => Promise<boolean>
  purchaseField: (fieldType: number) => Promise<boolean>
  buyFieldPresale: () => Promise<number | null>
  upgradeField: (field: PublicKey) => Promise<boolean>
@@ -321,6 +323,38 @@ export function GameProvider({ children }: { children: ReactNode }) {
   [config, publicKey, runTx, ownAta, programId],
  )
 
+ const batchHarvest = useCallback(
+  async (fieldPks: PublicKey[]) => {
+   if (!config || !publicKey || fieldPks.length === 0) return false
+   if (fieldPks.length > 10) {
+    notify('warning', t('Слишком много полей'), t('Максимум 10 полей за один батч.'))
+    return false
+   }
+   return runTx(t('Не удалось собрать урожай батчем'), async () => {
+    const { address: userPotato, ixs } = ownAta()
+    const { config: configPda, epoch } = pdas(programId)
+    const ix = await ixBatchHarvest(programId, {
+     config: configPda(), epoch: epoch(config.epochId), potatoMint: config.potatoMint,
+     userPotato, treasuryPotato: potatoAta(configPda(), config.potatoMint), owner: publicKey,
+     fieldPks,
+    })
+    return [...ixs, ix]
+   })
+  },
+  [config, publicKey, runTx, ownAta, programId, notify],
+ )
+
+ const closeField = useCallback(
+  async (fieldPk: PublicKey) => {
+   if (!config || !publicKey) return false
+   return runTx(t('Не удалось закрыть поле'), async () => {
+    const ix = await ixCloseField(programId, { field: fieldPk, owner: publicKey })
+    return [ix]
+   })
+  },
+  [config, publicKey, runTx, programId, notify],
+ )
+
  const fieldSpend = useCallback(
   (build: typeof ixRepairField, cost: (f: Field) => number, label: string) =>
    async (fieldPk: PublicKey): Promise<boolean> => {
@@ -481,10 +515,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const value = useMemo<GameContextType>(
   () => ({
    fields, stats, solBalance, loading, purchasing, claimed,
-   harvest, purchaseField, buyFieldPresale, upgradeField, repairField, payTax, applyFertilizer,
+   harvest, batchHarvest, closeField, purchaseField, buyFieldPresale, upgradeField, repairField, payTax, applyFertilizer,
    claimReward, airdropSol, sendPotato, sendSol, reload: loadFields,
   }),
-  [fields, stats, solBalance, loading, purchasing, claimed, harvest, purchaseField, upgradeField, repairField,
+  [fields, stats, solBalance, loading, purchasing, claimed, harvest, batchHarvest, closeField, purchaseField, upgradeField, repairField,
    payTax, applyFertilizer, claimReward, airdropSol, sendPotato, sendSol, loadFields],
  )
 
