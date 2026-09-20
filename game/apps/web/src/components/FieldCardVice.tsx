@@ -1,3 +1,5 @@
+import { skrCost, formatSkrCost } from '../utils/skrPayments'
+import { useSolana } from '../contexts/SolanaContext'
 import { useState } from 'react'
 import { t } from '../i18n'
 
@@ -34,6 +36,8 @@ const RARE_COLOR: Record<'basic' | 'meadow' | 'gold', string> = { basic: '#9AA0A
  * Тир редкости: 0 (Грядка) → basic, 1 (Луг) → meadow, 2 (Поле) → gold.
  */
 export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRepair, onPayTax, onApplyFertilizer }: Props) {
+ const { skrPricing } = useSolana()
+ const price = (action: number) => skrCost(skrPricing, action, field.fieldType, field.level)
  const [busy, setBusy] = useState<string | null>(null)
 
  const now = Math.floor(Date.now() / 1000)
@@ -157,38 +161,38 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
 
      <Button
       variant="secondary"
-      disabled={busy !== null}
+      disabled={busy !== null || price(2) === null || field.level >= 50}
       onClick={() => run('upgrade', onUpgrade, () => sounds.upgrade(), () => haptics.upgradeField())}
       style={{ fontSize: 11, padding: '10px 8px' }}
      >
-      {t('Апгрейд модуля')}
+      {t('Апгрейд модуля')} · {formatSkrCost(price(2))} SKR
      </Button>
 
      <Button
       variant="secondary"
-      disabled={!needsRepair || busy !== null}
+      disabled={!needsRepair || busy !== null || price(1) === null}
       onClick={() => run('repair', onRepair, () => sounds.repair(), () => haptics.repairField())}
       style={{ fontSize: 11, padding: '10px 8px' }}
      >
-      {t('Полив')}
+      {t('Полив')} · {formatSkrCost(price(1))} SKR
      </Button>
 
      <Button
       variant="secondary"
-      disabled={busy !== null}
+      disabled={busy !== null || price(3) === null}
       onClick={() => run('tax', onPayTax, () => sounds.payTax(), () => haptics.payTax())}
       style={{ fontSize: 11, padding: '10px 8px' }}
      >
-      {t('Пошлина')}
+      {t('Пошлина')} · {formatSkrCost(price(3))} SKR
      </Button>
 
      <Button
       variant="secondary"
-      disabled={fertActive || busy !== null}
+      disabled={fertActive || busy !== null || price(4) === null}
       onClick={() => run('fert', onApplyFertilizer, () => sounds.fertilizer(), () => haptics.applyFertilizer())}
       style={{ fontSize: 11, gridColumn: '1 / -1' }}
      >
-      {fertActive ? t('Удобрено ') : t('Питание +50% · 24ч')}
+      {fertActive ? t('Удобрено ') : t('Питание +50% · 24ч')} · {formatSkrCost(price(4))} SKR
      </Button>
     </div>
    </HullPanel>

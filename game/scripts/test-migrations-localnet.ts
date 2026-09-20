@@ -81,6 +81,7 @@ async function run(configSize: 156 | 164) {
   fs.mkdirSync('.anchor', { recursive: true });
   const dir = fs.mkdtempSync(path.resolve('.anchor/migration-'));
   const args = ['--reset', '--quiet', '--ledger', path.join(dir, 'ledger'),
+    '--gossip-port', '19010', '--dynamic-port-range', '19011-19040',
     '--bind-address', '127.0.0.1', '--rpc-port', String(port), '--faucet-port', String(port + 101),
     '--bpf-program', programId.toBase58(), program];
   for (const [i, fixture] of fixtures.entries()) {
@@ -96,7 +97,7 @@ async function run(configSize: 156 | 164) {
   let launchError: Error | undefined;
   child.once('error', error => { launchError = error; });
   for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => { output = (output + chunk).slice(-12000); });
-  const connection = new Connection(rpc, { commitment: 'confirmed', disableRetryOnRateLimit: true,
+  const connection = new Connection(rpc, { commitment: 'confirmed', confirmTransactionInitialTimeout: 30_000, disableRetryOnRateLimit: true,
     fetch: (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(3000) }) });
   try {
     const deadline = Date.now() + 60_000;
@@ -115,7 +116,7 @@ async function run(configSize: 156 | 164) {
     const send = (kind: MigrationKind, target: PublicKey, signer = admin) => {
       const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 + nonce++ }), migrationInstruction(kind, programId, target, signer.publicKey));
       tx.feePayer = admin.publicKey;
-      return sendAndConfirmTransaction(connection, tx, signer === admin ? [admin] : [admin, signer]);
+      return sendAndConfirmTransaction(connection, tx, signer === admin ? [admin] : [admin, signer], { commitment: 'confirmed', maxRetries: 3, abortSignal: AbortSignal.timeout(30_000) });
     };
     const reject = async (action: () => Promise<unknown>, code: string, target: PublicKey) => {
       const before = await connection.getAccountInfo(target);
@@ -159,6 +160,12 @@ async function run(configSize: 156 | 164) {
     assert.deepEqual((await connection.getAccountInfo(fieldPda(101n)))!.data, currentField);
     assert.deepEqual((await connection.getAccountInfo(epochPda(43n)))!.data, currentEpoch);
     console.log(`PASS: Config ${configSize}->228, Field 69->70, Epoch 41->49; rent, flags, idempotency and negative cases`);
+  } catch (error) {
+    console.error(`Migration fixture ${configSize} failed:`, error);
+    console.error('Validator output:', output);
+    const log = path.join(dir, 'ledger', 'validator.log');
+    if (fs.existsSync(log)) console.error(fs.readFileSync(log, 'utf8').slice(-10000));
+    throw error;
   } finally {
     if (child.exitCode === null && !launchError) {
       child.kill('SIGTERM');

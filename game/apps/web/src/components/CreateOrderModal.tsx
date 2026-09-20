@@ -76,9 +76,9 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
  const priceNum = parseFloat(price) || 0
  const amountMicro = Math.floor(amountNum * MICRO)
  const bps = feeBps(amountMicro)
- const feeAmount = (amountNum * bps) / 10_000
- const totalPotato = amountNum + feeAmount
- const totalSol = amountNum * priceNum
+ const feeAmount = (amountNum * priceNum * bps) / 10_000
+ const totalPotato = amountNum
+ const totalSkr = amountNum * priceNum
 
  const handleSubmit = async () => {
   if (amountNum < MIN_ORDER_AMOUNT_POTATO) {
@@ -86,11 +86,11 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
    return
   }
   if (!Number.isFinite(priceNum) || priceNum <= 0) {
-   show({ type: 'warning', title: t('Укажи цену за 1 POTATO в SOL') })
+   show({ type: 'warning', title: t('Укажи цену за 1 POTATO в SKR') })
    return
   }
   if (totalPotato * MICRO > balanceMicro) {
-   show({ type: 'warning', title: t('Недостаточно $POTATO'), message: t('С комиссией нужно {total} POTATO.', { total: totalPotato.toFixed(2) }) })
+   show({ type: 'warning', title: t('Недостаточно $POTATO'), message: t('Нужно {total} POTATO.', { total: totalPotato.toFixed(2) }) })
    return
   }
   sounds.click()
@@ -190,14 +190,14 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
 
        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span className="pf-subtitle" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-         {t('Цена за 1 POTATO (SOL)')}
+         {t('Цена за 1 POTATO (SKR)')}
         </span>
         <input
          type="number"
          inputMode="decimal"
          value={price}
          min="0"
-         step="0.000000001"
+         step="0.000001"
          onChange={(e) => setPrice(e.target.value)}
          onFocus={(e) => { e.target.style.borderColor = 'var(--pf-green)'; e.target.style.boxShadow = 'var(--pf-glow-green)' }}
          onBlur={(e) => { e.target.style.borderColor = 'rgba(124, 255, 107, 0.25)'; e.target.style.boxShadow = 'none' }}
@@ -218,7 +218,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
        }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
          <span className="pf-subtitle">{t("Таможенный сбор")} ({bps} bps)</span>
-         <span className="pf-mono" style={{ color: 'var(--pf-text-secondary)' }}>−{feeAmount.toFixed(2)} POTATO</span>
+         <span className="pf-mono" style={{ color: 'var(--pf-text-secondary)' }}>−{feeAmount.toFixed(6)} SKR</span>
         </div>
         {hasLicense && (
          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
@@ -231,9 +231,9 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
          <span className="pf-mono" style={{ color: 'var(--pf-gold)' }}>{totalPotato.toFixed(2)} POTATO</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '1px solid rgba(124,255,107,0.15)', paddingTop: 6 }}>
-         <span className="pf-subtitle" style={{ color: 'var(--pf-text-primary)' }}>{t("Получишь")}</span>
+         <span className="pf-subtitle" style={{ color: 'var(--pf-text-primary)' }}>{t("Получишь не меньше (без скидок)")}</span>
          <span className="pf-mono" style={{ color: 'var(--pf-green)', textShadow: 'var(--pf-glow-green)' }}>
-          ≈ {totalSol.toFixed(4)} SOL
+          ≈ {(totalSkr - feeAmount).toFixed(6)} SKR
          </span>
         </div>
        </div>

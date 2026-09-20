@@ -1,3 +1,6 @@
+import { useSolana } from '../contexts/SolanaContext'
+import { formatSkrCost } from '../utils/skrPayments'
+import { skrAtomsToTokens } from '../utils/marketUnits'
 import { ReactNode, useState, useMemo } from 'react'
 import { t } from '../i18n'
 
@@ -8,12 +11,13 @@ import CreateOrderModal from './CreateOrderModal'
 import { haptics } from '../utils/haptic'
 import { useMarketplace, MarketOrder } from '../hooks/useMarketplace'
 import { useGame } from '../contexts/GameContext'
-import { fmtPotato, fmtSol, MICRO, CANCEL_COOLDOWN_HOURS } from '../utils/constants'
+import { fmtPotato, MICRO, CANCEL_COOLDOWN_HOURS } from '../utils/constants'
 import { SupplyBay } from './ares/SupplyBay';
 import { HullPanel } from '../ui/HullPanel';
 import { ErrorState, EmptyState as SharedEmptyState, LoadingState } from '../ui/states'
 function MarketScreenInner() {
- const { orders, myOrders, stats, loading, actionLoading, error, createOrder, fillOrder, cancelOrder, reload } = useMarketplace()
+ const { orders, myOrders, legacyOrders, stats, loading, actionLoading, error, createOrder, fillOrder, cancelOrder, reload } = useMarketplace()
+ const { skrPricing } = useSolana()
  const { stats: gameStats } = useGame()
 
 
@@ -44,7 +48,7 @@ function MarketScreenInner() {
 
  const baseOrders = filter === 'mine' ? myOrders : orders.filter((o) => !o.isOwn)
  const filteredOrders = useMemo(() => baseOrders.filter((o) => {
-  const price = o.priceLamportsPerPotato / 1e9
+  const price = o.priceSkrAtomsPerPotato / 1e6
   const amt = o.amountMicro / MICRO
   if (fPriceMin && price < Number(fPriceMin)) return false
   if (fPriceMax && price > Number(fPriceMax)) return false
@@ -72,9 +76,17 @@ function MarketScreenInner() {
     </motion.button>
    </div>
 
+   <p style={{ fontSize: 12 }}>SKR — оплата и расчёты. SOL — только комиссия сети и rent.</p>
+   {!skrPricing?.marketMinAtoms && <p role="status">{t('Цена в SKR ещё не настроена — действие недоступно.')}</p>}
+   {legacyOrders.length > 0 && <section aria-label="Legacy SOL orders">
+    <p>Старые SOL-ордера: доступен только возврат POTATO, без конвертации цены в SKR.</p>
+    {legacyOrders.map(o => <button key={o.publicKey.toBase58()} disabled={actionLoading !== null} onClick={() => void cancelOrder(o.publicKey, true)}>
+     Вернуть {fmtPotato(o.amountMicro)} POTATO · {o.publicKey.toBase58().slice(0, 8)}
+    </button>)}
+   </section>}
    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
     <StatCard label={t("Грузооборот за сол")} value={`${stats.sellVolume24h.toFixed(0)} POTATO`} />
-    <StatCard label={t("Оборот рынка")} value={`${stats.totalSolVolume.toFixed(2)} SOL`} />
+    <StatCard label={t("Оборот рынка")} value={`${stats.totalSkrVolume.toFixed(2)} SKR`} />
     <StatCard label={t("Всего операций")} value={stats.totalTrades.toString()} />
     <StatCard label={t("Активных ордеров")} value={orders.length.toString()} />
    </div>
@@ -102,15 +114,15 @@ function MarketScreenInner() {
      <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
        <span className="ares-mono" style={{ fontSize: 10, color: 'var(--pf-text-muted)', letterSpacing: '0.14em' }}>{t("ФИЛЬТРЫ БИРЖИ")}</span>
-       <span className="ares-mono" style={{ fontSize: 9, color: 'var(--ares-hud-amber, #FFB347)', letterSpacing: '0.08em' }}>{t("МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL")}</span>
+       <span className="ares-mono" style={{ fontSize: 9, color: 'var(--ares-hud-amber, #FFB347)', letterSpacing: '0.08em' }}>10 POTATO · {formatSkrCost(skrPricing?.marketMinAtoms || null)} SKR min</span>
       </div>
       <div className="market-filter-grid">
        <label className="market-filter-field">
-        <span>{t('ЦЕНА ОТ, SOL')}</span>
+        <span>{t('ЦЕНА ОТ, SKR')}</span>
         <input inputMode="decimal" placeholder="0.00" value={dPriceMin} onChange={e => setDPriceMin(e.target.value)} />
        </label>
        <label className="market-filter-field">
-        <span>{t('ЦЕНА ДО, SOL')}</span>
+        <span>{t('ЦЕНА ДО, SKR')}</span>
         <input inputMode="decimal" placeholder="∞" value={dPriceMax} onChange={e => setDPriceMax(e.target.value)} />
        </label>
        <label className="market-filter-field">
@@ -313,19 +325,19 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
      </div>
     </div>
     <div style={{ textAlign: 'right' }}>
-     <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--pf-teal)' }}>{fmtSol(order.priceLamportsPerPotato, 4)} SOL</div>
+     <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--pf-teal)' }}>{skrAtomsToTokens(order.priceSkrAtomsPerPotato).toFixed(6)} SKR</div>
      <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>{t("за 1 POTATO")}</div>
     </div>
    </div>
    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: 12, fontSize: 12 }}>
     <span style={{ color: 'var(--pf-text-secondary)' }}>{t('Итого к оплате')}:</span>
-    <span style={{ fontWeight: 700, color: 'white' }}>{fmtSol(order.totalLamports, 4)} SOL</span>
+    <span style={{ fontWeight: 700, color: 'white' }}>{skrAtomsToTokens(order.totalSkrAtoms).toFixed(6)} SKR</span>
    </div>
    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, fontSize: 11 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--pf-text-secondary)' }}>
      <Clock size={12} aria-hidden="true" /> {t('{h} ч осталось', { h: hoursLeft })}
     </div>
-    <div style={{ color: 'var(--pf-gold)' }}>{t('Комиссия продавца')}: {((order.feeMicro / order.amountMicro) * 100).toFixed(1)}%</div>
+    <div style={{ color: 'var(--pf-gold)' }}>{t('Комиссия продавца')}: {(order.feeBps / 100).toFixed(1)}%</div>
    </div>
    {order.isOwn ? (
     <motion.button whileTap={{ scale: 0.95 }} onClick={onCancel} disabled={busy}
@@ -335,7 +347,7 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
    ) : (
     <motion.button whileTap={{ scale: 0.95 }} onClick={onBuy} disabled={busy} className="gradient-primary"
      style={{ width: '100%', padding: 12, borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-     {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null  } {t('Купить за {price} SOL', { price: fmtSol(order.totalLamports, 4) })}
+     {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null  } {t('Купить за {price} SKR', { price: skrAtomsToTokens(order.totalSkrAtoms).toFixed(6) })}
     </motion.button>
    )}
   </motion.div>

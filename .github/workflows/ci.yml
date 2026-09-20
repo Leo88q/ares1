@@ -95,6 +95,7 @@ jobs:
           solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
           ./scripts/ci-run.sh anchor test --skip-build
       - name: Legacy migration fixtures on isolated localnet
+        timeout-minutes: 6
         if: ${{ !cancelled() && steps.build_program.outcome == 'success' }}
         run: ./scripts/ci-run.sh yarn test:migrations
       - name: IDL and program IDs match source and build
