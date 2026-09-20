@@ -1,101 +1,129 @@
-# API Reference
+# ARES-1 API — source reference, 21 September 2026
 
-## On-chain program `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf`
+**Not a statement about the deployed binary.** Anchor CLI/crates 0.31.2; source:
+`programs/solana_potato/src/lib.rs`. Committed `apps/web/src/idl.json` is currently
+stale (8 instructions missing). Regenerate/compare with `yarn check:contract target/idl/solana_potato.json` after `anchor build`; do not deploy based on this document alone.
+Program ID in source: `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf`.
 
-Anchor 0.30.1 · IDL: `target/idl/solana_potato.json` (копия для клиента — `apps/web/src/idl.json`). Все суммы `*_micro` — в 10⁻⁶ 🥔.
+## Units and accounts
 
-### PDA
+POTATO amounts `*_micro` use 6 decimals. SOL amounts are lamports. The current SKR
+rail uses 6-decimal atoms; several market argument names still say `lamports` even
+though settlement is in SKR. Resolve SKR mint from `GameConfig.skr_mint`, not a
+hardcoded mainnet assumption.
 
-| Аккаунт | Seeds | Размер | Назначение |
-|---|---|---|---|
-| `GameConfig` | `["config"]` | 156 | Синглтон, mint authority $POTATO, параметры эмиссии |
-| `Epoch` | `["epoch", u64 le epoch_id]` | 41 | Окно эмиссии на 24 ч |
-| `Field` | `["field", u64 le field_id]` | 69 | Поле игрока (`field_id` — клиентский nonce) |
-| `MarketOrder` | `["order", u64 le order_id]` | 83 | Ордер на продажу, закрывается при исполнении/отмене/истечении |
-| escrow (TokenAccount) | `["escrow", order_pubkey]` | 165 | Хранит amount + fee ордера |
-| `MarketStats` | `["market_stats"]` | 49 | Счётчики рынка |
-| `SellerProfile` | `["seller", seller_pubkey]` | 49 | Кулдаун после отмены |
-| `Referral` | `["referral", owner_pubkey]` | 49 | Одноразовая привязка «кто пригласил» (register_referrer) |
-| `Achievements` | `["achv", user_pubkey]` | 25 | Bitmap выданных квест-наград (claim_achievement) |
-| `quest_treasury` | `["quest_treasury"]` | — | PDA-казна пула квестов (550 🥔, заправлена init-onchain) |
-| treasury ATA | ATA(`config`, `potato_mint`) | 165 | 40 % комиссий рынка |
+Sizes include the 8-byte Anchor discriminator:
 
-### Инструкции
+| Account | Seeds | Current bytes |
+|---|---|---:|
+| GameConfig | `config` | 228 |
+| Epoch | `epoch`, epoch ID u64 LE | 49 |
+| Field | `field`, field ID u64 LE | 70 |
+| MarketOrder | `order`, order ID u64 LE | 83 |
+| MarketStats | `market_stats` | 49 |
+| SellerProfile | `seller`, seller pubkey | 49 |
+| PresaleState | `presale` | 57 |
+| BuyerPresaleCounter | `buyer_presale`, buyer pubkey | 42 |
+| Achievements | `achv`, user pubkey | 17 |
 
-| Инструкция | Кто | Аргументы | Эффект |
-|---|---|---|---|
-| `initialize` | любой (становится authority) | — | Создаёт `GameConfig`; требует mint с authority = config PDA, 6 decimals, без freeze |
-| `init_epoch` | authority | — | Создаёт эпоху `config.epoch_id` (только bootstrap) |
-| `roll_epoch` | **любой** | — | Если прошло 24 ч — создаёт следующую эпоху, `epoch_id += 1` |
-| `create_field` | игрок | `field_id: u64, field_type: u8` | Сжигает 100/250/500 🥔, создаёт поле, налог оплачен на 7 дней |
-| `harvest` | владелец поля | — | Минтит накопленный урожай (≥ 60 с с прошлого сбора, ≤ 48 ч накопления), с учётом капа эпохи и max supply |
-| `repair_field` | владелец | — | Сжигает 6/15/30 🥔, прочность → 100 |
-| `upgrade_field` | владелец | — | Сжигает 100·L × type_cost, уровень +1 (≤ 50) |
-| `pay_tax` | владелец | — | Сжигает 2.4/6/12 🥔, +7 дней налога (≤ 28 дней вперёд) |
-| `apply_fertilizer` | владелец | — | Сжигает 4/10/20 🥔, +24 ч ×1.5 (≤ 7 дней вперёд) |
-| `create_sell_order` | продавец | `order_id: u64, amount_micro: u64, price_lamports_per_potato: u64` | Переводит amount + fee в escrow; ≥ 0.1 🥔, итог ≥ 10 000 lamports, кулдаун 3 ч после отмены |
-| `fill_order` | покупатель ≠ продавец | — | SOL → продавцу, 🥔 → покупателю, 60 % fee burn / 40 % treasury, escrow и ордер закрываются |
-| `cancel_order` | продавец | — | Возврат amount + fee, `last_cancel_at = now`; работает и на паузе |
-| `close_expired_order` | **любой** | — | После `expires_at`: возврат продавцу, ордер закрыт |
-| `claim_achievement` | игрок | `quest_id: u8` (0–5) | Проверка прогресса в программе (поля/balance через remaining-аккаунты), одноразово (bitmap); выплата из квест-казны: 50/50/100/100/200/50 🥔 |
-| `register_referrer` | игрок | `referrer: Pubkey` | Создаёт PDA Referral (одноразово, burn 5 🥔). Далее: приглашённому −1 % комиссии, рефереру +0.5 % от суммы его сделок (до burn-доли) |
-| `grant_reward` | authority | `amount_micro ≤ 1 000 🥔` | Минт в счёт капа эпохи (используется init-onchain для заправки квест-казны; backend-кран наград удалён 14.09.2026) |
-| `withdraw_treasury` | authority | `amount_micro` | Перевод из treasury ATA в любой 🥔-аккаунт |
-| `set_paused` | authority | `paused: bool` | Блокирует минт и траты; возвраты работают |
-| `update_config` | authority | `daily_mint_cap? ≤ 250k`, `base_yield?`, `global_multiplier_bps? ≤ 20 000` | Кап применяется со следующей эпохи |
-| `propose_authority` / `accept_authority` | authority / новый ключ | `new_authority` | Двухшаговая передача управления |
+Config legacy layouts 156/164 and epoch legacy layout 41 are recognized by raw
+clients for reads. That does **not** certify on-chain migration safety. Field migration
+and legacy config migration require separate fixture-based validation.
+Account order, writable/signer flags and discriminators are an ABI. Raw instruction
+builders in web/backend must match the generated IDL, not just its address.
 
-Порядок аккаунтов в каждой инструкции = порядку полей в `#[derive(Accounts)]` = IDL. Raw-клиенты (`apps/web/src/utils/anchorClient.ts`, `apps/backend/src/solana.ts`) передают ключи позиционно — при изменении структур обновляйте оба.
+## Operational / privileged instructions
 
-### События
+| Instruction | Permission and behavior |
+|---|---|
+| `initialize` | First caller initializes singleton with correctly configured POTATO mint; establishes authority/reward signer |
+| `init_epoch` | Authority; bootstrap cap from `config.daily_mint_cap_micro` |
+| `roll_epoch` | Any funded payer after 24h; independent dynamic cap clamped to 250k–750k |
+| `grant_reward` | Authority OR reward signer; >0 and ≤1000 POTATO/call, within current epoch cap and max supply; blocked while paused |
+| `update_reward_signer` | Authority; replace delegated reward signer (authority retains reward permission) |
+| `update_skr_mint` | Authority; change configured SKR mint |
+| `update_config` | Authority; configured cap ≤250k, multiplier ≤2×; see cap warning below |
+| `set_paused` | Authority; does not freeze all instructions or treasury |
+| `propose_authority`, `accept_authority` | Two-step game authority transfer, NOT program upgrade authority transfer |
+| `withdraw_treasury` | Authority; POTATO treasury ATA → destination token account of same mint |
+| `withdraw_treasury_sol` | Authority; SOL vault PDA → authority |
+| `withdraw_skr_treasury` | Authority; configured SKR vault ATA → authority's SKR ATA |
+| `migrate_config`, `migrate_epoch`, `migrate_field` | Authority; legacy-layout migration paths, additional validation required |
+| `migrate_presale_authority` | New game authority synchronizes presale authority after transfer |
 
-`FieldCreated`, `Harvested`, `FieldRepaired`, `FieldUpgraded`, `TaxPaid`, `FertilizerApplied`, `OrderCreated`, `OrderFilled`, `OrderCancelled`, `OrderExpiredEvent`, `RewardGranted`, `TreasuryWithdrawn`, `EpochRolled`, `PausedToggled`, `AuthorityProposed`, `AuthorityAccepted`, `ConfigUpdated`, `AchievementClaimed`, `ReferralRewardPaid`. Подписка: `program.addEventListener` или Helius webhooks по program id.
+**Cap warning:** changing `daily_mint_cap_micro` does not currently constrain the
+next `roll_epoch`. The latter computes its own cap from burn/utilization. Do not
+advertise this setting as an emergency mint limit. Economics were not changed in
+the stabilization patch. Reward minting shares the harvest budget; there is no
+separate daily reward budget, timelock or governance-enforced withdrawal delay.
 
-### Ошибки
+## Player instructions
 
-Коды 6000–6021 зафиксированы (совместимость с клиентами), 6022–6029 добавлены аудитом. Русские сообщения для UI — `apps/web/src/utils/errors.ts`.
+- `create_field`: field type 0/1/2; burns 100/250/500 POTATO.
+- `harvest`: owned active field, ≥60s interval, ≤48h accrual, epoch/supply limits.
+- `batch_harvest`: 1–10 unique writable owned Field accounts in remaining accounts;
+  aggregate mint limits; updates field timestamps/durability. Needs integration validation.
+- `close_field`: owner closes field account and receives rent, including while paused.
+  Historical field counters are not decremented; closing does not guarantee an ID
+  can never be reused.
+- `repair_field`, `upgrade_field`, `pay_tax`, `apply_fertilizer`: burn-based upkeep;
+  level/type scaling, tax prepay ≤28 days, fertilizer ≤7 days.
+- `create_sell_order`, `fill_order`, `cancel_order`, `close_expired_order`: current
+  market settles in SKR; minimum order 10 POTATO and total 1 SKR. Fees depend on tier
+  and referral; 60% of fee burn / 40% treasury before referral adjustments.
+- `register_referrer`: one-time link, burn 50 POTATO, self-referral rejected.
+- `claim_achievement`: on-chain proofs and bitmap, quest IDs 0–5; transfers existing
+  tokens from quest treasury (does not mint new rewards). Duplicate field proofs rejected.
+- `init_presale`, `update_presale_price` (authority); `buy_field_sol`, `buy_field_skr`
+  (buyer): global cap and 5-field wallet cap.
+- `buy_export_license`: configured SKR payment; inspect source/current config for terms.
 
-| Код | Имя | Когда |
+## Experimental, not release-ready
+
+`init_compression_tree`, `mint_compressed_field`, `mint_core_field`,
+`execute_transfer_hook` are placeholder/custom-account implementations. They do
+**not** implement the advertised Bubblegum/Light/Core CPI behavior or Token-2022
+burn. The unused incompatible SDK dependencies/`full` feature were removed; turning
+on a feature cannot make these instructions production-ready. No beta/mainnet funds
+should depend on these paths. They remain in source/ABI pending a separate scope decision.
+
+## Events and errors
+
+Use events from the **generated, verified** IDL. At minimum, monitoring/indexing
+should cover `FieldCreated`, `Harvested`, `BatchHarvested`, `FieldClosed`,
+`OrderCreated`, `OrderFilled`, `PresalePurchase`, `AchievementClaimed`, `RewardGranted`,
+`TreasuryWithdrawn`, `TreasurySolWithdrawn`, `TreasurySkrWithdrawn`, `EpochRolled`,
+`PausedToggled`, `ConfigUpdated`, `AuthorityProposed`, `AuthorityAccepted`,
+`SkrMintUpdated`, `RewardSignerUpdated`.
+
+Error codes start with `AlreadyClaimed=6000`, `BadProof=6001`, `Paused=6002` in the
+current enum/committed IDL. Old comments claiming `Paused=6000` are not the ABI.
+Frontend translations now look up error **names** from IDL instead of assuming old
+numeric offsets. Do not reorder enum variants on upgrade.
+
+## Backend HTTP API
+
+Express, no admin HTTP endpoint and no admin token. Only on-chain write is the
+permissionless epoch roller, signed by a dedicated payer. HTTP responses are JSON.
+
+| Method / path | Success | Failure |
 |---|---|---|
-| 6000 | Paused | игра на паузе |
-| 6003 | HarvestTooSoon | < 60 с с прошлого сбора |
-| 6014 | SelfTradeBlocked | покупатель = продавец |
-| 6015 | CancelCooldown | < 3 ч после отмены |
-| 6017 | EpochCapExceeded | кап эпохи исчерпан |
-| 6020 | EpochNotOver | roll_epoch раньше 24 ч |
-| 6022 | InvalidMint | token account другого mint |
-| 6023–6025 | InvalidMintAuthority / InvalidMintDecimals / MintHasFreezeAuthority | неверный mint в `initialize` |
-| 6026 | OrderTotalTooSmall | итог ордера < 10 000 lamports |
-| 6027 | PrepayLimitReached | налог > 28 дн / удобрение > 7 дн вперёд |
-| 6028 | NothingToRepair | прочность уже 100 |
-| 6029 | MaxSupplyReached | награда превысила бы max supply |
+| `GET /live` | `{live:true}` | Process/network unavailable |
+| `GET /ready` | `{ready:true}` after reading config | 503 `{ready:false}` |
+| `GET /health` | `{ok,slot,epochId,paused,payer,payerSol,uptime}` | 503 with generic dependency error |
+| `GET /api/config` | Config + current epoch snapshot; u64 amounts as decimal strings | 503 with generic error |
 
-Полный список — в IDL (`errors`).
+`/api/config` returns authority, potatoMint, maxSupplyMicro, dailyMintCapMicro,
+baseYieldMicroPerDay, globalMultiplierBps, fieldCount, epochId, totalBurnedMicro,
+paused and epoch `{mintCapMicro,mintedMicro,startTime}`. `dailyMintCapMicro` and
+`epoch.mintCapMicro` have different semantics (see warning).
 
-## Backend `apps/backend` (Express)
+Except `/live`, requests share `RATE_LIMIT_PER_MINUTE` (default 30/IP). Behind a
+proxy, validate the existing one-hop `trust proxy` assumption. Production RPC URLs
+must not be returned or printed; operational errors are redacted.
 
-Все ответы — JSON, без аутентификации (только чтение on-chain state).
-(Раньше здесь были кран наград и рефералка с Telegram initData — удалено
-продуктовым решением 14.09.2026: квесты выдаёт on-chain `claim_achievement`,
-рефералка — on-chain `register_referrer`/`fill_order`.)
-
-| Метод | Путь | Auth | Описание |
-|---|---|---|---|
-| GET | `/health` | — | `{ ok, slot, epochId, paused }`; 503 если RPC/конфиг недоступны |
-| GET | `/api/config` | — | Снимок `GameConfig` + текущей эпохи |
-
-Rate limit: `RATE_LIMIT_PER_MINUTE` req/мин/IP (по умолчанию 30).
-
-Крон `EPOCH_ROLL_CRON` (по умолчанию каждые 10 мин) вызывает `roll_epoch`, когда эпоха старше 24 ч — единственный on-chain write бэкенда, подписывается authority-ключом.
-
-## Переменные окружения
-
-| Приложение | Переменная | Обязательна | Назначение |
-|---|---|---|---|
-| web | `VITE_SOLANA_CLUSTER` | да | `localnet` / `devnet` / `mainnet-beta` |
-| web | `VITE_RPC_URL` | для localnet / prod | RPC endpoint (публичный devnet отдаёт 429) |
-| web | `VITE_PROGRAM_ID` | да | адрес программы |
-| web | `VITE_BACKEND_URL` | нет | без него бэкенд-запросы не идут (квесты on-chain, он не нужен) |
-| backend | `RPC_URL`, `PROGRAM_ID`, `PAYER_KEYPAIR_JSON` (выделенный low-privilege кошелёк, **не** authority — AUDIT B4) | да | см. `.env.example` |
-| backend | `CORS_ORIGIN`, `EPOCH_ROLL_CRON`, `RATE_LIMIT_PER_MINUTE`, `PORT` | нет | |
-| scripts | `ADMIN_KEYPAIR_PATH`, `RPC_URL`, `PROGRAM_ID` | для `init-onchain` | |
+Required backend env: `RPC_URL`, `PROGRAM_ID`, `PAYER_KEYPAIR_JSON` (path).
+`CORS_ORIGIN` is required in production; set explicit origins, never `*`.
+Optional: `PORT=8080`, `EPOCH_ROLL_CRON=*/10 * * * *`, `RATE_LIMIT_PER_MINUTE=30`.
+See [OPERATIONS.md](OPERATIONS.md) for deployment, key inventory and incident response.
+Watchtower endpoints and persistent analytics are **not implemented** in this package.

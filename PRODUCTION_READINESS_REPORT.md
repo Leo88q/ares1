@@ -1,3 +1,7 @@
+> **Обновление 21.09.2026:** ниже исторический отчёт, не подтверждение готовности.
+> В нём завышен статус experimental compression/Core/hook; текущий CI падал,
+> IDL устарел. Актуальные проверки и блокеры: [STABILIZATION-2026-09-21](game/docs/STABILIZATION-2026-09-21.md).
+
 # PRODUCTION READINESS REPORT — ARES-1 (Potato Colony) — 20.09.2026
 
 ## Что сделано по этапам (MASTER-PROMPT-PRODUCTION)

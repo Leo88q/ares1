@@ -1,24 +1,28 @@
-version: "3.9"
-
 services:
   backend:
-    build: ./apps/backend
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
     restart: unless-stopped
+    init: true
     ports:
       - "8080:8080"
     env_file:
       - ./apps/backend/.env
+    environment:
+      PAYER_KEYPAIR_JSON: /app/keys/epoch-payer.json
     volumes:
       - ./apps/backend/keys:/app/keys:ro
-      - backend-data:/app/data
-
-  bot:
-    build: ./apps/bot
-    restart: unless-stopped
-    env_file:
-      - ./apps/bot/.env
-    depends_on:
-      - backend
-
-volumes:
-  backend-data:
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

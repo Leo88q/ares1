@@ -15,14 +15,9 @@ no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 default = []
-# Full prod build with all advanced features (ZK compression, Bubblegum, Metaplex Core)
-full = ["spl-account-compression", "mpl-bubblegum", "mpl-core", "light-compressed-pda"]
+# Experimental CPI integrations are not implemented. Do not resolve unused
+# legacy SDKs here: Cargo resolves optional dependencies even in default builds.
 
 [dependencies]
-anchor-lang = { version = "0.31.2", features = ["init-if-needed"] }
-anchor-spl = { version = "0.31.2", features = ["token", "associated_token", "token_2022", "metadata"] }
-# ── Advanced Solana tech: compression, Token-2022, Metaplex Core ──
-spl-account-compression = { version = "0.4.1", optional = true }
-mpl-bubblegum = { version = "2.0.1", optional = true }
-mpl-core = { version = "0.10.1", optional = true }
-light-compressed-pda = { version = "0.3.1", optional = true }
+anchor-lang = { version = "=0.31.2", features = ["init-if-needed"] }
+anchor-spl = { version = "=0.31.2", features = ["token", "associated_token"] }

@@ -54,7 +54,14 @@ export interface GameConfig {
   bump: number;
 }
 
+function validateAccount(data: Buffer, name: string, sizes: number[]): void {
+  if (!sizes.includes(data.length) || !data.subarray(0, 8).equals(anchorDiscriminator("account", name))) {
+    throw new Error(`Invalid ${name} account layout`);
+  }
+}
+
 export function decodeGameConfig(data: Buffer): GameConfig {
+  validateAccount(data, "GameConfig", [156, 164, 228]);
   let o = 8; // skip account discriminator
   const authority = readPubkey(data, o); o = authority.next;
   const pendingAuthority = readPubkey(data, o); o = pendingAuthority.next;
@@ -74,7 +81,7 @@ export function decodeGameConfig(data: Buffer): GameConfig {
   const fieldCount = readU64(data, o); o = fieldCount.next;
   const epochId = readU64(data, o); o = epochId.next;
   const totalBurnedMicro = readU64(data, o); o = totalBurnedMicro.next;
-  const lastTotalBurnedMicro = readU64(data, o); o = lastTotalBurnedMicro.next;
+  const lastTotalBurnedMicro = data.length === 156 ? { value: 0n, next: o } : readU64(data, o); o = lastTotalBurnedMicro.next;
   const paused = readBool(data, o); o = paused.next;
   const bump = readU8(data, o);
   return {
@@ -107,13 +114,14 @@ export interface EpochAccount {
 }
 
 export function decodeEpoch(data: Buffer): EpochAccount {
+  validateAccount(data, "Epoch", [41, 49]);
   let o = 8;
   const id = readU64(data, o); o = id.next;
   const mintCapMicro = readU64(data, o); o = mintCapMicro.next;
   const mintedMicro = readU64(data, o); o = mintedMicro.next;
   const startTime = readI64(data, o); o = startTime.next;
   const bump = readU8(data, o); o = bump.next;
-  const burnedMicro = readU64(data, o);
+  const burnedMicro = data.length === 41 ? { value: 0n } : readU64(data, o);
   return {
     id: id.value,
     mintCapMicro: mintCapMicro.value,
