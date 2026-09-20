@@ -2,7 +2,9 @@ import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction } 
 import { t } from '../i18n'
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
 
-export const TEST_SKR_MINT = new PublicKey('Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o')
+export const SKR_MINT = new PublicKey('Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o')
+/** @deprecated — use SKR_MINT; kept for back-compat */
+export const TEST_SKR_MINT = SKR_MINT
 
 async function sha256(input: string): Promise<Uint8Array> {
  const bytes = new TextEncoder().encode(input)
@@ -260,6 +262,7 @@ export function decodeMarketStats(data: Buffer): DecodedMarketStats {
 
 export interface DecodedConfig {
  authority: PublicKey; pendingAuthority: PublicKey; potatoMint: PublicKey
+ skrMint: PublicKey; rewardSigner: PublicKey
  maxSupplyMicro: bigint; dailyMintCapMicro: bigint; baseYieldMicroPerDay: bigint
  globalMultiplierBps: number; fieldCount: bigint; epochId: bigint; totalBurnedMicro: bigint
  lastTotalBurnedMicro: bigint; paused: boolean
@@ -286,6 +289,15 @@ export function decodeConfig(data: Buffer): DecodedConfig {
  const authority = readPubkey(data, o); o = authority.next
  const pendingAuthority = readPubkey(data, o); o = pendingAuthority.next
  const potatoMint = readPubkey(data, o); o = potatoMint.next
+ // S-01/S-03: новые поля skr_mint + reward_signer (64 bytes). Поддержка старых аккаунтов 164 байт (до миграции).
+ let skrMint: PublicKey, rewardSigner: PublicKey
+ if (data.length >= 8 + 32*5 + 8*4 + 2 + 8*3 + 1 + 1) {
+   const skr = readPubkey(data, o); o = skr.next; skrMint = skr.value
+   const rw = readPubkey(data, o); o = rw.next; rewardSigner = rw.value
+ } else {
+   skrMint = SKR_MINT
+   rewardSigner = authority.value
+ }
  const maxSupplyMicro = readU64(data, o); o = maxSupplyMicro.next
  const dailyMintCapMicro = readU64(data, o); o = dailyMintCapMicro.next
  const baseYieldMicroPerDay = readU64(data, o); o = baseYieldMicroPerDay.next
@@ -298,6 +310,7 @@ export function decodeConfig(data: Buffer): DecodedConfig {
  const paused = readBool(data, o)
  return {
   authority: authority.value, pendingAuthority: pendingAuthority.value, potatoMint: potatoMint.value,
+  skrMint, rewardSigner,
   maxSupplyMicro: maxSupplyMicro.value, dailyMintCapMicro: dailyMintCapMicro.value,
   baseYieldMicroPerDay: baseYieldMicroPerDay.value, globalMultiplierBps,
   fieldCount: fieldCount.value, epochId: epochId.value, totalBurnedMicro: totalBurnedMicro.value,
@@ -626,6 +639,165 @@ export function decodeAchievementsBitmap(data: Buffer): number {
  *  0: ≥1 поле · 1: ≥100 🥔 · 2: ≥1000 🥔 · 3: ≥5 полей · 4: ≥10 000 🥔 · 5: ≥6 полей, ≥3-го уровня одно.
  * Поля игрока передаются в remaining_accounts (proof by ownership).
  */
+
+// ── Batch harvest (cheap, 1 tx for up to 10 fields) ──
+export async function ixBatchHarvest(programId: PublicKey, params: {
+ config: PublicKey; epoch: PublicKey; potatoMint: PublicKey; userPotato: PublicKey; treasuryPotato: PublicKey; owner: PublicKey;
+ fieldPks: PublicKey[];
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('batch_harvest'))
+ const keys = [
+  { pubkey: params.config, isSigner: false, isWritable: true },
+  { pubkey: params.epoch, isSigner: false, isWritable: true },
+  { pubkey: params.potatoMint, isSigner: false, isWritable: true },
+  { pubkey: params.userPotato, isSigner: false, isWritable: true },
+  { pubkey: params.treasuryPotato, isSigner: false, isWritable: true },
+  { pubkey: params.owner, isSigner: true, isWritable: true },
+  { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  ...params.fieldPks.map(pk => ({ pubkey: pk, isSigner: false, isWritable: true })),
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
+
+export async function ixCloseField(programId: PublicKey, params: {
+ field: PublicKey; owner: PublicKey;
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('close_field'))
+ return new TransactionInstruction({
+  programId,
+  data,
+  keys: [
+   { pubkey: params.field, isSigner: false, isWritable: true },
+   { pubkey: params.owner, isSigner: true, isWritable: true },
+  ],
+ })
+}
+
+// ───────────────────────────────────────────────────────────────
+// Advanced Solana: Token-2022 + ZK Compression + Metaplex Core + LUT
+// ───────────────────────────────────────────────────────────────
+
+/** Token-2022 mint PDA — для mainnet migrated POTATO (hook+metadata) */
+export const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenzQdBNbLqP5VEhdkAS6FFYh-BRnj-LvaybEd')
+export const BUBBLEGUM_PROGRAM_ID = new PublicKey('BGUMAp9Gq7iTEuapy4pqaxsQSKP9pRFw9tgo88Ruef4')
+export const MPL_CORE_PROGRAM_ID = new PublicKey('CoREENxT6tWLL37r42jwFW6dvSzpzy1gZb98F1QYn7R')
+export const COMPRESSION_PROGRAM_ID = new PublicKey('cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK')
+
+export function token2022Ata(owner: PublicKey, mint: PublicKey): PublicKey {
+  return getAssociatedTokenAddressSync(mint, owner, true, TOKEN_2022_PROGRAM_ID)
+}
+
+/** PDA для Token-2022 transfer hook: [b"hook", mint] */
+export function hookPda(mint: PublicKey, programId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from('hook'), mint.toBuffer()], programId)[0]
+}
+
+/** PDA compression tree: [b"merkle-tree", authority] */
+export function compressionTreePda(authority: PublicKey, programId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from('merkle-tree'), authority.toBuffer()], programId)[0]
+}
+
+/** PDA Core collection: [b"collection", authority] */
+export function coreCollectionPda(authority: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from('collection'), authority.toBuffer()], MPL_CORE_PROGRAM_ID)[0]
+}
+
+export async function ixInitCompressionTree(programId: PublicKey, params: {
+  tree: PublicKey; authority: PublicKey; payer: PublicKey
+}): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('init_compression_tree'))
+  return new TransactionInstruction({
+    programId,
+    data,
+    keys: [
+      { pubkey: params.tree, isSigner: false, isWritable: true },
+      { pubkey: params.authority, isSigner: true, isWritable: true },
+      { pubkey: params.payer, isSigner: true, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+  })
+}
+// Back-compat alias for old call sites (merkleTree/treeAuthority)
+export const ixInitCompressionTreeLegacy = ixInitCompressionTree
+
+export async function ixMintCompressedField(programId: PublicKey, params: {
+  tree: PublicKey; authority: PublicKey; leafOwner: PublicKey; payer: PublicKey
+  fieldId: bigint; fieldType: number
+}): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('mint_compressed_field'), u64LE(params.fieldId), u8(params.fieldType))
+  return new TransactionInstruction({
+    programId,
+    data,
+    keys: [
+      { pubkey: params.tree, isSigner: false, isWritable: true },
+      { pubkey: params.authority, isSigner: true, isWritable: true },
+      { pubkey: params.leafOwner, isSigner: false, isWritable: false },
+      { pubkey: params.payer, isSigner: true, isWritable: true },
+      { pubkey: BUBBLEGUM_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+  })
+}
+// Back-compat overload: old signature with merkleTree/treeAuthority
+export async function ixMintCompressedFieldLegacy(programId: PublicKey, params: { merkleTree: PublicKey; treeAuthority: PublicKey; leafOwner: PublicKey; payer: PublicKey; fieldId: bigint; fieldType: number }): Promise<TransactionInstruction> {
+  return ixMintCompressedField(programId, { tree: params.merkleTree, authority: params.payer, leafOwner: params.leafOwner, payer: params.payer, fieldId: params.fieldId, fieldType: params.fieldType })
+}
+
+export async function ixMintCoreField(programId: PublicKey, params: {
+  collection: PublicKey; asset: PublicKey; authority: PublicKey; payer: PublicKey; owner: PublicKey
+  fieldId: bigint; fieldType: number
+}): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('mint_core_field'), u64LE(params.fieldId), u8(params.fieldType))
+  return new TransactionInstruction({
+    programId,
+    data,
+    keys: [
+      { pubkey: params.collection, isSigner: false, isWritable: true },
+      { pubkey: params.asset, isSigner: false, isWritable: true },
+      { pubkey: params.authority, isSigner: true, isWritable: true },
+      { pubkey: params.payer, isSigner: true, isWritable: true },
+      { pubkey: params.owner, isSigner: false, isWritable: false },
+      { pubkey: MPL_CORE_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+  })
+}
+
+/** Token-2022 hook exec — валидация налога на transfer POTATO (0.5% burn) */
+export async function ixExecuteTransferHook(programId: PublicKey, params: {
+  mint: PublicKey; source: PublicKey; dest: PublicKey; authority: PublicKey
+  amount: bigint
+}): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('execute_transfer_hook'), u64LE(params.amount))
+  return new TransactionInstruction({
+    programId,
+    data,
+    keys: [
+      { pubkey: params.mint, isSigner: false, isWritable: false },
+      { pubkey: params.source, isSigner: false, isWritable: true },
+      { pubkey: params.dest, isSigner: false, isWritable: true },
+      { pubkey: params.authority, isSigner: true, isWritable: false },
+      { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+    ],
+  })
+}
+
+export async function ixUpdateSkrMint(programId: PublicKey, params: { config: PublicKey; authority: PublicKey; newSkrMint: PublicKey }): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('update_skr_mint'), params.newSkrMint.toBuffer())
+  return new TransactionInstruction({ programId, data, keys: [
+    { pubkey: params.config, isSigner: false, isWritable: true },
+    { pubkey: params.authority, isSigner: true, isWritable: false },
+  ]})
+}
+export async function ixUpdateRewardSigner(programId: PublicKey, params: { config: PublicKey; authority: PublicKey; newSigner: PublicKey }): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('update_reward_signer'), params.newSigner.toBuffer())
+  return new TransactionInstruction({ programId, data, keys: [
+    { pubkey: params.config, isSigner: false, isWritable: true },
+    { pubkey: params.authority, isSigner: true, isWritable: false },
+  ]})
+}
 export async function ixClaimAchievement(programId: PublicKey, params: {
  config: PublicKey;
  achievements: PublicKey;

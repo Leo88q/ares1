@@ -32,7 +32,7 @@ import {
 import { useLandingWallet } from "./hooks/useLandingWallet";
 import { useLiveChain } from "./hooks/useLiveChain";
 import {
-  TEST_SKR_MINT,
+  SKR_MINT, TEST_SKR_MINT,
   buybackSkrAta,
   buyerPresalePda,
   decodeConfig,
@@ -1907,13 +1907,13 @@ function PacksSection(): JSX.Element {
       const cfg = decodeConfig(Buffer.from(cfgInfo.data));
 
       const fieldId = randomU64();
-      const buyerSkrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, publicKey);
+      const buyerSkrAta = getAssociatedTokenAddressSync(SKR_MINT, TEST_SKR_MINT, publicKey);
 
       const ataIx = createAssociatedTokenAccountIdempotentInstruction(
         publicKey,
         buyerSkrAta,
         publicKey,
-        TEST_SKR_MINT,
+        SKR_MINT, TEST_SKR_MINT,
       );
       const buyIx = await ixBuyFieldSkr(programId, {
         config: configPda(),
@@ -1923,7 +1923,7 @@ function PacksSection(): JSX.Element {
         field: field(fieldId),
         buyer: publicKey,
         treasurySol: treasurySolPda(programId),
-        skrMint: TEST_SKR_MINT,
+        skrMint: SKR_MINT, TEST_SKR_MINT,
         buyerSkrAta,
         treasurySkrAta: treasurySkrAta(programId, TEST_SKR_MINT),
         buybackSkrAta: buybackSkrAta(cfg.authority, TEST_SKR_MINT),

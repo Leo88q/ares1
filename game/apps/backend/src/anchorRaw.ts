@@ -39,6 +39,8 @@ export interface GameConfig {
   authority: PublicKey;
   pendingAuthority: PublicKey;
   potatoMint: PublicKey;
+  skrMint: PublicKey;
+  rewardSigner: PublicKey;
   maxSupplyMicro: bigint;
   dailyMintCapMicro: bigint;
   baseYieldMicroPerDay: bigint;
@@ -57,6 +59,14 @@ export function decodeGameConfig(data: Buffer): GameConfig {
   const authority = readPubkey(data, o); o = authority.next;
   const pendingAuthority = readPubkey(data, o); o = pendingAuthority.next;
   const potatoMint = readPubkey(data, o); o = potatoMint.next;
+  let skrMint: PublicKey, rewardSigner: PublicKey
+  if (data.length >= 8 + 32*5 + 8*4 + 2 + 8*3 + 1 + 1) {
+    const skr = readPubkey(data, o); o = skr.next; skrMint = skr.value
+    const rw = readPubkey(data, o); o = rw.next; rewardSigner = rw.value
+  } else {
+    skrMint = new PublicKey('Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o')
+    rewardSigner = authority.value
+  }
   const maxSupplyMicro = readU64(data, o); o = maxSupplyMicro.next;
   const dailyMintCapMicro = readU64(data, o); o = dailyMintCapMicro.next;
   const baseYieldMicroPerDay = readU64(data, o); o = baseYieldMicroPerDay.next;
@@ -71,6 +81,8 @@ export function decodeGameConfig(data: Buffer): GameConfig {
     authority: authority.value,
     pendingAuthority: pendingAuthority.value,
     potatoMint: potatoMint.value,
+    skrMint,
+    rewardSigner,
     maxSupplyMicro: maxSupplyMicro.value,
     dailyMintCapMicro: dailyMintCapMicro.value,
     baseYieldMicroPerDay: baseYieldMicroPerDay.value,

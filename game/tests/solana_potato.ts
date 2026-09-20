@@ -391,14 +391,14 @@ describe("solana_potato", () => {
     let referrerAta: PublicKey;
     const playerReferralPda = pda(Buffer.from("referral"), player.publicKey.toBuffer());
 
-    it("register_referrer burns 5 POTATO and stores the link once", async () => {
+    it("register_referrer burns 50 POTATO and stores the link once (AUDIT 2026-09-20: 5→50 anti-sybil)", async () => {
       referrerAta = (await getOrCreateAssociatedTokenAccount(connection, player, mint, referrer.publicKey)).address;
       const before = await ataBalance(playerAta);
       await program.methods.registerReferrer(referrer.publicKey).accountsPartial({
         referral: playerReferralPda, config: configPda, potatoMint: mint, userPotato: playerAta,
         owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
       }).signers([player]).rpc();
-      expect(before - (await ataBalance(playerAta))).to.eq(5_000_000n);
+      expect(before - (await ataBalance(playerAta))).to.eq(50_000_000n);
       const r = await program.account.referral.fetch(playerReferralPda);
       expect(r.owner.equals(player.publicKey)).to.be.true;
       expect(r.referrer.equals(referrer.publicKey)).to.be.true;
