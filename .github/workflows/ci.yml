@@ -4,17 +4,12 @@ on:
     branches: [main, 'arena/**']
   pull_request:
   workflow_dispatch:
-    inputs:
-      sync_idl_run:
-        description: 'Optional CI run ID on this exact revision: copy its generated IDL to this non-main branch'
-        type: string
-        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ inputs.sync_idl_run && 'idl-sync' || 'validation' }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -28,7 +23,6 @@ defaults:
 
 jobs:
   offchain:
-    if: ${{ !inputs.sync_idl_run }}
     name: Web + backend (typecheck, tests, build)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -43,7 +37,6 @@ jobs:
       - run: ./scripts/ci-local.sh --skip-chain
 
   program:
-    if: ${{ !inputs.sync_idl_run }}
     name: Anchor program (build + unit + integration tests)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -84,16 +77,25 @@ jobs:
           test "$(rustc --version | awk '{print $2}')" = '1.97.1'
           test "$(solana --version | awk '{print $2}')" = "$SOLANA_VERSION"
           test "$(anchor --version | awk '{print $2}')" = "$ANCHOR_VERSION"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: game
+          cache-on-failure: true
+          key: solana-${{ env.SOLANA_VERSION }}-anchor-${{ env.ANCHOR_VERSION }}
       - name: Unit tests (host)
         run: ./scripts/ci-run.sh cargo test --locked -p solana_potato --lib
       - name: Anchor build (lockfile verified)
+        id: build_program
         run: ./scripts/ci-run.sh ./scripts/build-program.sh
+      - name: Public IDL recovery metadata
+        run: python3 scripts/publish-idl-annotation.py
       - name: Clean localnet integration / deployment smoke
         run: |
           mkdir -p ~/.config/solana
           solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
           ./scripts/ci-run.sh anchor test --skip-build
       - name: Legacy migration fixtures on isolated localnet
+        if: ${{ !cancelled() && steps.build_program.outcome == 'success' }}
         run: ./scripts/ci-run.sh yarn test:migrations
       - name: IDL and program IDs match source and build
         if: ${{ !cancelled() && hashFiles('game/target/idl/solana_potato.json') != '' }}
@@ -113,56 +115,9 @@ jobs:
             game/target/types/solana_potato.ts
 
   container:
-    if: ${{ !inputs.sync_idl_run }}
     name: Backend container build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - run: docker build -f apps/backend/Dockerfile .
-
-  sync-idl:
-    name: Reviewable generated IDL update (manual only)
-    if: github.event_name == 'workflow_dispatch' && inputs.sync_idl_run != '' && github.ref_type == 'branch' && github.ref_name != 'main'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      contents: write
-      actions: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-      - name: Verify artifact provenance
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ inputs.sync_idl_run }}
-        run: |
-          [[ "$RUN_ID" =~ ^[0-9]+$ ]] || exit 1
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" > /tmp/source-run.json
-          node -e '
-            const r=require("/tmp/source-run.json");
-            if (r.head_sha !== process.env.GITHUB_SHA || r.head_branch !== process.env.GITHUB_REF_NAME ||
-                r.path !== ".github/workflows/ci.yml" || r.status !== "completed" ||
-                r.head_repository.full_name !== process.env.GITHUB_REPOSITORY) process.exit(1);
-          '
-      - uses: actions/download-artifact@v4
-        with:
-          name: program-build
-          path: ${{ runner.temp }}/program-build
-          github-token: ${{ github.token }}
-          run-id: ${{ inputs.sync_idl_run }}
-      - name: Validate and commit only the generated JSON
-        run: |
-          mapfile -t FILES < <(find "$RUNNER_TEMP/program-build" -type f -name solana_potato.json)
-          [[ "${#FILES[@]}" == 1 ]] || exit 1
-          [[ $(wc -c < "${FILES[0]}") -lt 5000000 ]] || exit 1
-          cp "${FILES[0]}" apps/web/src/idl.json
-          node scripts/check-contract.mjs "${FILES[0]}"
-          if git diff --quiet -- apps/web/src/idl.json; then exit 0; fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add apps/web/src/idl.json
-          git commit -m "Regenerate IDL from verified CI build ${{ inputs.sync_idl_run }}"
-          # Non-force push fails if the branch moved after dispatch. No main writes.
-          git push origin "HEAD:$GITHUB_REF_NAME"

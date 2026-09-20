@@ -7,10 +7,10 @@ Program ID in source: `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf`.
 
 ## Units and accounts
 
-POTATO amounts `*_micro` use 6 decimals. SOL amounts are lamports. The current SKR
-rail uses 6-decimal atoms; several market argument names still say `lamports` even
-though settlement is in SKR. Resolve SKR mint from `GameConfig.skr_mint`, not a
-hardcoded mainnet assumption.
+POTATO amounts `*_micro` use 6 decimals. SOL amounts are lamports (1 SOL = 1e9).
+`fill_order` settles in **native SOL via System Program**, not SKR. The separate SKR
+presale/export-license rail uses 6-decimal token atoms. Resolve its mint from
+`GameConfig.skr_mint`, not a hardcoded mainnet assumption.
 
 Sizes include the 8-byte Anchor discriminator:
 
@@ -28,7 +28,8 @@ Sizes include the 8-byte Anchor discriminator:
 
 Config legacy layouts 156/164 and epoch legacy layout 41 are recognized by raw
 clients for reads. That does **not** certify on-chain migration safety. Field migration
-and legacy config migration require separate fixture-based validation.
+and legacy config migration have separate fixture tests; see [MIGRATIONS.md](MIGRATIONS.md)
+and the stabilization report for execution status.
 Account order, writable/signer flags and discriminators are an ABI. Raw instruction
 builders in web/backend must match the generated IDL, not just its address.
 
@@ -48,7 +49,7 @@ builders in web/backend must match the generated IDL, not just its address.
 | `withdraw_treasury` | Authority; POTATO treasury ATA → destination token account of same mint |
 | `withdraw_treasury_sol` | Authority; SOL vault PDA → authority |
 | `withdraw_skr_treasury` | Authority; configured SKR vault ATA → authority's SKR ATA |
-| `migrate_config`, `migrate_epoch`, `migrate_field` | Authority; legacy-layout migration paths, additional validation required |
+| `migrate_config`, `migrate_epoch`, `migrate_field` | Authority; exact legacy/current layouts, discriminator/owner/PDA checks; rent shortfall paid to target; current data preserved on retry |
 | `migrate_presale_authority` | New game authority synchronizes presale authority after transfer |
 
 **Cap warning:** changing `daily_mint_cap_micro` does not currently constrain the
@@ -69,7 +70,7 @@ separate daily reward budget, timelock or governance-enforced withdrawal delay.
 - `repair_field`, `upgrade_field`, `pay_tax`, `apply_fertilizer`: burn-based upkeep;
   level/type scaling, tax prepay ≤28 days, fertilizer ≤7 days.
 - `create_sell_order`, `fill_order`, `cancel_order`, `close_expired_order`: current
-  market settles in SKR; minimum order 10 POTATO and total 1 SKR. Fees depend on tier
+  market settles in native SOL; minimum order 10 POTATO and total 0.001 SOL. Fees depend on tier
   and referral; 60% of fee burn / 40% treasury before referral adjustments.
 - `register_referrer`: one-time link, burn 50 POTATO, self-referral rejected.
 - `claim_achievement`: on-chain proofs and bitmap, quest IDs 0–5; transfers existing

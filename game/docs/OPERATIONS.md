@@ -19,14 +19,15 @@ yarn build                            # provide VITE_* settings below
 
 On-chain tools: Rust **1.97.1** (`rust-toolchain.toml`), Solana CLI **4.2.2**,
 Anchor CLI/crates **0.31.2** (`Anchor.toml`, Cargo.toml). These retain the repository's
-existing CI versions; availability/build compatibility still needs a fresh chain run.
+existing versions; installation and host Rust tests have now passed in GitHub Actions.
+SBF/localnet validation is tracked separately in the stabilization report.
 The JS test client is pinned separately to **@coral-xyz/anchor 0.30.1** (previously
 used by the integration suite). This is not the CLI version; compatibility with the
 new generated IDL must be validated by `anchor test`, not assumed.
 
 ```sh
 cargo test --locked -p solana_potato --lib
-anchor build -- --locked
+./scripts/build-program.sh  # standard anchor build + locked metadata + unchanged Cargo.lock check
 # A disposable LOCALNET provider wallet must exist at the Anchor.toml wallet path.
 # Never use the deploy/admin wallet for tests. On a clean test machine only:
 # solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
@@ -94,7 +95,7 @@ gitleaks dir /path/to/private-review-copy --config .gitleaks.toml --redact=100 -
 Tree mode scans tracked/new non-ignored files, not ignored private files. History
 mode scans fetched refs, not deleted remote artifacts or unknown forks. The
 `Secret scanning` workflow checks source + newly introduced commits; manually run
-it with `full_history=true` for the historical audit. The known historical leak is
+it with `full_history=true` (or request an audit with `[audit-history]` in a push commit message) for the historical audit. The known historical leak is
 **not allowlisted**; a full audit may correctly remain red until remediation.
 Do not upload raw scanner reports, keys or downloaded CI artifacts to Git.
 
@@ -174,3 +175,15 @@ current accounts. Program rollback is a governed upgrade, not a database rewind;
 on-chain transfers cannot be undone. Account migrations may make old binaries
 incompatible. Rehearse migration and recovery on localnet first; do **not** run
 `migrate_config` against legacy funded state on the strength of the existing reports.
+
+## Legacy migrations and generated IDL recovery
+
+Use [MIGRATIONS.md](MIGRATIONS.md) for exact layouts, read-only planning and the
+isolated fixture tests. No migration script was executed against devnet/mainnet.
+
+The CI build publishes the public IDL as an artifact plus a checksummed compressed
+check annotation for API-only environments that cannot download artifact archives.
+`node scripts/fetch-ci-idl.mjs` retrieves only the IDL for the exact current Git SHA
+into ignored `target/idl/`; it does not overwrite the committed client ABI. Review
+that file, copy it to `apps/web/src/idl.json`, run `check:contract`, then rerun CI.
+No private key, raw job log or signing material is included in that annotation.

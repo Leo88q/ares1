@@ -648,6 +648,27 @@ describe("solana_potato", () => {
       }).rpc();
     });
 
+    it("SKR rail: rejects a mint different from config before the presale is exhausted", async function () {
+      this.timeout(20_000);
+      // Run before wallet/global caps are exhausted, so this exercises the mint guard.
+      // SKR is configurable now; rejection is InvalidMint in the handler, not ConstraintAddress.
+      const wrongSkrMint = await createMint(connection, admin, admin.publicKey, null, 6);
+      const buyerSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, player.publicKey, true)).address;
+      const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, treasurySolPda, true)).address;
+      const buybackSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, admin.publicKey, true)).address;
+      const id = BigInt(Date.now()) + 5555n;
+      await expectFail(
+        program.methods.buyFieldSkr(new BN(id.toString())).accountsPartial({
+          config: configPda, presaleState: presalePda, authority: admin.publicKey,
+          buyerPresale: buyerPresalePda(player.publicKey), field: fieldPda(id),
+          buyer: player.publicKey, skrMint: wrongSkrMint, buyerSkrAta,
+          treasurySol: treasurySolPda, treasurySkrAta, buybackSkrAta,
+          tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        }).signers([player]).rpc(),
+        "InvalidMint",
+      );
+    });
+
     it("buy_field_sol moves SOL to the treasury and creates the field", async () => {
       const fieldId = BigInt(Date.now()) + 1n;
       const treasuryBefore = await connection.getBalance(treasurySolPda);
@@ -718,28 +739,6 @@ describe("solana_potato", () => {
         "Paused",
       );
       await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
-    });
-
-    it("SKR rail: wrong mint is rejected (SKR_MINT is a program constant)", async function () {
-      this.timeout(20_000);
-      // Полноценный happy-path buy_field_skr на localnet невозможен: программа
-      // проверяет skr_mint == SKR_MINT (константа, devnet-mint Fotom…), а его
-      // нельзя создать без ключа. Проверяем guard + аккаунт-валидацию.
-      const wrongSkrMint = await createMint(connection, admin, admin.publicKey, null, 6);
-      const buyerSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, player.publicKey, true)).address;
-      const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, treasurySolPda, true)).address;
-      const buybackSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, admin.publicKey, true)).address;
-      const id = BigInt(Date.now()) + 5555n;
-      await expectFail(
-        program.methods.buyFieldSkr(new BN(id.toString())).accountsPartial({
-          config: configPda, presaleState: presalePda, authority: admin.publicKey,
-          buyerPresale: buyerPresalePda(player.publicKey), field: fieldPda(id),
-          buyer: player.publicKey, skrMint: wrongSkrMint, buyerSkrAta,
-          treasurySol: treasurySolPda, treasurySkrAta, buybackSkrAta,
-          tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-        }).signers([player]).rpc(),
-        "ConstraintAddress",
-      );
     });
 
     it("migrate_presale_authority repairs the presale after an authority transfer", async () => {

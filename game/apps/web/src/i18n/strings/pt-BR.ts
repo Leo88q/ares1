@@ -421,6 +421,15 @@ const ptBR: Record<string, string> = {
   'Запрос отклонён в кошельке': 'Solicitação rejeitada na carteira',
   'Не удалось подключить кошелёк': 'Não foi possível conectar a carteira',
   'Подключение…': 'Conectando…',
+
+  'Купить за {price} SOL': 'Comprar por {price} SOL',
+  'Недостаточно SOL на комиссии сети или аренды аккаунта.': 'Pouco SOL para a taxa da rede ou aluguel da conta.',
+  'ЦЕНА ДО, SOL': 'PREÇO ATÉ, SOL',
+  'ЦЕНА ОТ, SOL': 'PREÇO DE, SOL',
+  'Цена за 1 POTATO (SOL)': 'Preço de 1 POTATO (SOL)',
+
+  'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'PEDIDO MÍN.: 10 POTATO · VALOR A PARTIR DE 0.001 SOL',
+  'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Pedido mínimo: 10 POTATO e valor a partir de 0.001 SOL. Aumente o preço ou a quantidade.',
 };
 
 export default ptBR;

@@ -421,6 +421,15 @@ const vi: Record<string, string> = {
   'Запрос отклонён в кошельке': 'Yêu cầu bị từ chối trong ví',
   'Не удалось подключить кошелёк': 'Không thể kết nối ví',
   'Подключение…': 'Đang kết nối…',
+
+  'Купить за {price} SOL': 'Mua với {price} SOL',
+  'Недостаточно SOL на комиссии сети или аренды аккаунта.': 'Không đủ SOL cho phí mạng hoặc thuê tài khoản.',
+  'ЦЕНА ДО, SOL': 'GIÁ ĐẾN, SOL',
+  'ЦЕНА ОТ, SOL': 'GIÁ TỪ, SOL',
+  'Цена за 1 POTATO (SOL)': 'Giá 1 POTATO (SOL)',
+
+  'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'LỆNH TỐI THIỂU: 10 POTATO · SỐ TIỀN TỪ 0.001 SOL',
+  'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Lệnh tối thiểu: 10 POTATO và số tiền từ 0.001 SOL. Tăng giá hoặc số lượng lên.',
 };
 
 export default vi;

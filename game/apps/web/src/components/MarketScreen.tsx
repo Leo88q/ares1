@@ -8,7 +8,7 @@ import CreateOrderModal from './CreateOrderModal'
 import { haptics } from '../utils/haptic'
 import { useMarketplace, MarketOrder } from '../hooks/useMarketplace'
 import { useGame } from '../contexts/GameContext'
-import { fmtPotato, fmtSkr, MICRO, CANCEL_COOLDOWN_HOURS } from '../utils/constants'
+import { fmtPotato, fmtSol, MICRO, CANCEL_COOLDOWN_HOURS } from '../utils/constants'
 import { SupplyBay } from './ares/SupplyBay';
 import { HullPanel } from '../ui/HullPanel';
 import { ErrorState, EmptyState as SharedEmptyState, LoadingState } from '../ui/states'
@@ -44,7 +44,7 @@ function MarketScreenInner() {
 
  const baseOrders = filter === 'mine' ? myOrders : orders.filter((o) => !o.isOwn)
  const filteredOrders = useMemo(() => baseOrders.filter((o) => {
-  const price = o.priceLamportsPerPotato / 1e6
+  const price = o.priceLamportsPerPotato / 1e9
   const amt = o.amountMicro / MICRO
   if (fPriceMin && price < Number(fPriceMin)) return false
   if (fPriceMax && price > Number(fPriceMax)) return false
@@ -74,7 +74,7 @@ function MarketScreenInner() {
 
    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
     <StatCard label={t("Грузооборот за сол")} value={`${stats.sellVolume24h.toFixed(0)} POTATO`} />
-    <StatCard label={t("Оборот рынка")} value={`${stats.totalSolVolume.toFixed(2)} SKR`} />
+    <StatCard label={t("Оборот рынка")} value={`${stats.totalSolVolume.toFixed(2)} SOL`} />
     <StatCard label={t("Всего операций")} value={stats.totalTrades.toString()} />
     <StatCard label={t("Активных ордеров")} value={orders.length.toString()} />
    </div>
@@ -102,15 +102,15 @@ function MarketScreenInner() {
      <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
        <span className="ares-mono" style={{ fontSize: 10, color: 'var(--pf-text-muted)', letterSpacing: '0.14em' }}>{t("ФИЛЬТРЫ БИРЖИ")}</span>
-       <span className="ares-mono" style={{ fontSize: 9, color: 'var(--ares-hud-amber, #FFB347)', letterSpacing: '0.08em' }}>{t("МИН. ОРДЕР: 10 POTATO · СУММА ОТ 1 SKR")}</span>
+       <span className="ares-mono" style={{ fontSize: 9, color: 'var(--ares-hud-amber, #FFB347)', letterSpacing: '0.08em' }}>{t("МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL")}</span>
       </div>
       <div className="market-filter-grid">
        <label className="market-filter-field">
-        <span>{t('ЦЕНА ОТ, SKR')}</span>
+        <span>{t('ЦЕНА ОТ, SOL')}</span>
         <input inputMode="decimal" placeholder="0.00" value={dPriceMin} onChange={e => setDPriceMin(e.target.value)} />
        </label>
        <label className="market-filter-field">
-        <span>{t('ЦЕНА ДО, SKR')}</span>
+        <span>{t('ЦЕНА ДО, SOL')}</span>
         <input inputMode="decimal" placeholder="∞" value={dPriceMax} onChange={e => setDPriceMax(e.target.value)} />
        </label>
        <label className="market-filter-field">
@@ -313,13 +313,13 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
      </div>
     </div>
     <div style={{ textAlign: 'right' }}>
-     <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--pf-teal)' }}>{fmtSkr(order.priceLamportsPerPotato, 4)} SKR</div>
+     <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--pf-teal)' }}>{fmtSol(order.priceLamportsPerPotato, 4)} SOL</div>
      <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>{t("за 1 POTATO")}</div>
     </div>
    </div>
    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: 12, fontSize: 12 }}>
     <span style={{ color: 'var(--pf-text-secondary)' }}>{t('Итого к оплате')}:</span>
-    <span style={{ fontWeight: 700, color: 'white' }}>{fmtSkr(order.totalLamports, 4)} SKR</span>
+    <span style={{ fontWeight: 700, color: 'white' }}>{fmtSol(order.totalLamports, 4)} SOL</span>
    </div>
    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, fontSize: 11 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--pf-text-secondary)' }}>
@@ -335,7 +335,7 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
    ) : (
     <motion.button whileTap={{ scale: 0.95 }} onClick={onBuy} disabled={busy} className="gradient-primary"
      style={{ width: '100%', padding: 12, borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-     {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null  } {t('Купить за {price} SKR', { price: fmtSkr(order.totalLamports, 4) })}
+     {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null  } {t('Купить за {price} SOL', { price: fmtSol(order.totalLamports, 4) })}
     </motion.button>
    )}
   </motion.div>
