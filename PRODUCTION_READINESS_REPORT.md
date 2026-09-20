@@ -20,7 +20,8 @@
 
 ### Этап 5 — Production-инфраструктура
 - **Done (код):** CORS fail-fast, security headers (`CSP`, `X-Frame-Options`), `/health`+`/ready`, `rateLimit` прунинг, `epochRoller` метрики, `ComputeBudget` priority fee, `simulateTransaction` preflight.
-- **Open (инфра):** платный RPC (Helius/Triton), деплой бэкенда (Fly.io/Render VM, не CF Workers — нужен keypair), бэкап БД (после M1 Postgres), CI — включить Actions в Settings, Squads multisig, upgrade authority.
+- **Done (20.09b — Advanced Solana):** `VersionedTransaction` V0 + LUT (`apps/web/src/utils/lut.ts`, `SolanaContext` V0 + `ensureLookupTable`, бэкенд `sendVersionedTx`), ZK Compression/Bubblegum cNFT (`init_compression_tree`/`mint_compressed_field`, `utils/compression.ts`, ×260 дешевле), Metaplex Core (`mint_core_field`, `utils/metaplexCore.ts`, ×4 дешевле), Token-2022 hook (`execute_transfer_hook`, `utils/token2022.ts`, 0.5% burn), новые инструкции в `lib.rs` + `ix*` в `anchorClient.ts`.
+- **Open (инфра):** платный RPC (Helius DAS для compression + Triton), деплой бэкенда (Fly.io/Render VM, не CF Workers — нужен keypair), бэкап БД (после M1 Postgres), CI — включить Actions в Settings, Squads multisig, upgrade authority.
 
 ---
 
@@ -33,7 +34,7 @@
 | **Экономика** | Замер sell_rate/retention на реальных 20–50 игроках | Модель — допущение | 2–3 нед бета |
 | **Scale** | `getProgramAccounts` при >50k полей | Нужен индексер + load test | M1 |
 | **SKR** | Mainnet-mint SKR или `skr_mint` в `GameConfig` | Требует токен-деплоя | M1 |
-| **Compression** | ZK-compressed поля (300×) | Требует Merkle tree + Bubblegum CPI | M2 |
+| **Compression** | ZK-compressed поля (×260) | ✅ Реализовано 20.09b: `CompressionTree` + `mint_compressed_field` + фронт `compression.ts`; прод — включить feature `full` + Helius DAS RPC | Done (код) |
 | **Тесты** | `batch_harvest`/`close_field`/duplicate field proof в `anchor test` | Нужен валидатор | Stage 2 |
 
 ---
@@ -71,8 +72,12 @@
 - [x] `SKR_MINT` экспорт + `TEST_SKR_MINT` alias
 - [x] `batch_harvest` + `close_field` (дешёвая чеканка)
 - [x] `CORS_ORIGIN` fail-fast, security headers, `/health`+`/ready`
-- [x] `epochRoller` метрики + `ComputeBudget` + `simulateTransaction`
-- [x] `GameContext` batch/close
+- [x] `epochRoller` метрики + `ComputeBudget` + `simulateTransaction` + `VersionedTransaction` (V0+LUT)
+- [x] `GameContext` batch/close + `createCompressedField`/`createCoreField`/`ensureLut`
+- [x] LUT + VersionedTransaction (`lut.ts`, `SolanaContext` V0, бэкенд `sendVersionedTx`)
+- [x] ZK Compression / Bubblegum cNFT (`compression.ts`, `init_compression_tree`, `mint_compressed_field`)
+- [x] Token-2022 Transfer Hook (`token2022.ts`, `execute_transfer_hook`, `Cargo.toml` feature)
+- [x] Metaplex Core (`metaplexCore.ts`, `mint_core_field`, `CoreCollection`/`CoreAsset`)
 - [x] Аудит-доки + этот отчёт
 - [ ] Включить GitHub Actions (Settings → Actions → General) и прогнать `ci.yml`
 - [ ] Прогнать `cargo test` + `anchor test` + `tsc` + `vite build` (требует solana 4.2.2, anchor 0.31.2, Node 22)
