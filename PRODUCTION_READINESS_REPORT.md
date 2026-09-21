@@ -71,7 +71,7 @@
 ## Чек-лист «Тёплый прод» (что закрыто в этой ветке)
 
 - [x] `verify_fields` duplicate-proof
-- [x] `register_referrer` 5→50 POTATO
+- [x] Исторически: `register_referrer` 5→50 POTATO. **Отменено последующим решением владельца: текущая цена регистрации — 5 POTATO.**
 - [x] `LUNAR_TABLE` фронтенд = чейну
 - [x] `SKR_MINT` экспорт + `TEST_SKR_MINT` alias + `GameConfig.skr_mint`/`update_skr_mint` + `migrate_config` 164→228
 - [x] `GameConfig.reward_signer`/`update_reward_signer` + `grant_reward` low-priv (S-03)

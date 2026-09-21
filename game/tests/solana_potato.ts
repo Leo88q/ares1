@@ -11,6 +11,7 @@ import {
   getMint,
   getOrCreateAssociatedTokenAccount,
   setAuthority,
+  transfer,
 } from "@solana/spl-token";
 import { assert, expect } from "chai";
 import { SolanaPotato } from "../target/types/solana_potato";
@@ -494,20 +495,52 @@ describe("solana_potato", () => {
     let referrerAta: PublicKey;
     const playerReferralPda = pda(Buffer.from("referral"), player.publicKey.toBuffer());
 
-    it("register_referrer burns 50 POTATO and stores the link once (AUDIT 2026-09-20: 5→50 anti-sybil)", async () => {
+    it("register_referrer burns exactly 5 POTATO and stores the link once", async () => {
       referrerAta = (await getOrCreateAssociatedTokenAccount(connection, player, mint, referrer.publicKey)).address;
       const before = await ataBalance(playerAta);
+      const supplyBefore = (await getMint(connection, mint)).supply;
       await program.methods.registerReferrer(referrer.publicKey).accountsPartial({
         referral: playerReferralPda, config: configPda, potatoMint: mint, userPotato: playerAta,
         owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
       }).signers([player]).rpc();
-      expect(before - (await ataBalance(playerAta))).to.eq(50_000_000n);
+      expect(before - (await ataBalance(playerAta))).to.eq(5_000_000n);
+      expect(supplyBefore - (await getMint(connection, mint)).supply).to.eq(5_000_000n);
       const r = await program.account.referral.fetch(playerReferralPda);
       expect(r.owner.equals(player.publicKey)).to.be.true;
       expect(r.referrer.equals(referrer.publicKey)).to.be.true;
     });
 
-    it("rejects self-referral and re-registration", async () => {
+    it("registration rejects 4.999999 POTATO atomically and succeeds with exactly 5", async () => {
+      const newcomer = Keypair.generate();
+      await connection.confirmTransaction(await connection.requestAirdrop(newcomer.publicKey, LAMPORTS_PER_SOL));
+      const newcomerAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, newcomer.publicKey)).address;
+      const referral = pda(Buffer.from("referral"), newcomer.publicKey.toBuffer());
+      await transfer(connection, admin, adminAta, newcomerAta, admin, 4_999_999n);
+      const register = () => program.methods.registerReferrer(referrer.publicKey).accountsPartial({
+        referral, config: configPda, potatoMint: mint, userPotato: newcomerAta,
+        owner: newcomer.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+      }).signers([newcomer]).rpc();
+      const supplyBefore = (await getMint(connection, mint)).supply;
+      const rentBefore = await connection.getBalance(newcomer.publicKey);
+      await expectFail(register());
+      expect(await ataBalance(newcomerAta)).to.eq(4_999_999n);
+      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
+      expect(await connection.getAccountInfo(referral)).to.be.null;
+      expect(await connection.getBalance(newcomer.publicKey)).to.eq(rentBefore);
+
+      await transfer(connection, admin, adminAta, newcomerAta, admin, 1n);
+      await register();
+      expect(await ataBalance(newcomerAta)).to.eq(0n);
+      expect(supplyBefore - (await getMint(connection, mint)).supply).to.eq(5_000_000n);
+      const stored = await program.account.referral.fetch(referral);
+      expect(stored.owner.equals(newcomer.publicKey)).to.be.true;
+      expect(stored.referrer.equals(referrer.publicKey)).to.be.true;
+    });
+
+    it("rejects self-referral and re-registration without another charge", async () => {
+      const playerBefore = await ataBalance(playerAta);
+      const adminBefore = await ataBalance(adminAta);
+      const supplyBefore = (await getMint(connection, mint)).supply;
       const selfPda = pda(Buffer.from("referral"), admin.publicKey.toBuffer());
       await expectFail(
         program.methods.registerReferrer(admin.publicKey).accountsPartial({
@@ -522,6 +555,10 @@ describe("solana_potato", () => {
           owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
         }).signers([player]).rpc(),
       );
+      expect(await ataBalance(playerAta)).to.eq(playerBefore);
+      expect(await ataBalance(adminAta)).to.eq(adminBefore);
+      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
+      expect(await connection.getAccountInfo(selfPda)).to.be.null;
     });
 
     it("fill_order pays the 0.5 % referral reward to the referrer from escrow, minting nothing", async () => {

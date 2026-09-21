@@ -106,6 +106,8 @@ pub const SKR_MINT: Pubkey = pubkey!("Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA
 /// 1053 SKR (6 decimals) = 2000 RUB при курсе 1.90
 pub const PRESALE_PRICE_SKR_ATOMS: u64 = 1_053_000_000;
 pub const EXPORT_LICENSE_PRICE_SKR_ATOMS: u64 = 500_000_000; // 500 SKR / 30 дней
+/// One-time referral registration cost, confirmed by the game owner: 5 POTATO.
+pub const REFERRAL_REGISTRATION_COST_MICRO: u64 = 5_000_000;
 pub const BASE_TAX_MICRO: u64 = 6_000_000; // 6 $POTATO / week
 pub const BASE_REPAIR_MICRO: u64 = 15_000_000; // 15 $POTATO
 pub const BASE_FERTILIZER_MICRO: u64 = 10_000_000; // 10 $POTATO / 24h
@@ -1374,8 +1376,7 @@ pub mod solana_potato {
         require!(referrer != ctx.accounts.owner.key(), GameError::Unauthorized);
         require!(referrer != Pubkey::default(), GameError::Unauthorized);
         
-        // Burn 50 POTATO (антиспам, повышено с 5 → 50 после аудита 2026-09-20:
-        // при награде 0.5% от сделки sybil с 5 POTATO окупался за 1 сделку 1k POTATO).
+        // One-time registration burns 5 POTATO; market referral rewards are unchanged.
         token::burn(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -1385,7 +1386,7 @@ pub mod solana_potato {
                     authority: ctx.accounts.owner.to_account_info(),
                 },
             ),
-            50_000_000, // 50 POTATO
+            REFERRAL_REGISTRATION_COST_MICRO,
         )?;
         
         ctx.accounts.referral.owner = ctx.accounts.owner.key();

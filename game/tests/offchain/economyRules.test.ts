@@ -43,3 +43,13 @@ test('unapproved SKR service pricing rail is absent from contract and active cli
   assert.match(client, /ixCreateField\(programId/);
   assert.doesNotMatch(client, /ixCreateFieldSkr|ixServiceFieldSkr|skrPricing/);
 });
+
+
+test('owner-confirmed referral registration costs 5 POTATO, matching the UI', () => {
+  assert.equal(constant('REFERRAL_REGISTRATION_COST_MICRO'), 5n * 1_000_000n);
+  assert.match(handler('register_referrer'), /token::burn\(/);
+  assert.match(handler('register_referrer'), /REFERRAL_REGISTRATION_COST_MICRO/);
+  assert.doesNotMatch(handler('register_referrer'), /50_000_000/);
+  const ui = fs.readFileSync('apps/web/src/components/ReferralSection.tsx', 'utf8');
+  assert.match(ui, /Антиспам: 5 🥔 сгорает с баланса приглашённого, разово/);
+});
