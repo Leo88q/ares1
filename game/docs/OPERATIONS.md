@@ -182,7 +182,7 @@ Use [MIGRATIONS.md](MIGRATIONS.md) for exact layouts, read-only planning and the
 isolated fixture tests. No migration script was executed against devnet/mainnet.
 
 The CI build publishes the public IDL as an artifact plus a checksummed compressed
-check annotation for API-only environments that cannot download artifact archives.
+set of chunked check annotations for API-only environments that cannot download artifact archives.
 `node scripts/fetch-ci-idl.mjs` retrieves only the IDL for the exact current Git SHA
 into ignored `target/idl/`; it does not overwrite the committed client ABI. Review
 that file, copy it to `apps/web/src/idl.json`, run `check:contract`, then rerun CI.

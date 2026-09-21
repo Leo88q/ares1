@@ -165,11 +165,14 @@ export async function ixFillOrder(programId: PublicKey, params: {
   { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
  ]
- // Позиции remaining_accounts зафиксированы программой: [0]=лицензия продавца
- if (params.sellerLicense) keys.push({ pubkey: params.sellerLicense, isSigner: false, isWritable: false })
- // [1]=реферальная PDA покупателя — передаём только вместе с [2]
- if (params.buyerReferral) keys.push({ pubkey: params.buyerReferral, isSigner: false, isWritable: false })
- // [2]=ATA реферера (получает 0.5 % из комиссии)
+ // Fixed positions must not shift when an earlier optional account is absent.
+ // System Program is a harmless, readonly placeholder (not a license/referral PDA).
+ if (params.sellerLicense || params.buyerReferral || params.referrerPotato) {
+  keys.push({ pubkey: params.sellerLicense ?? SystemProgram.programId, isSigner: false, isWritable: false })
+ }
+ if (params.buyerReferral || params.referrerPotato) {
+  keys.push({ pubkey: params.buyerReferral ?? SystemProgram.programId, isSigner: false, isWritable: false })
+ }
  if (params.referrerPotato) keys.push({ pubkey: params.referrerPotato, isSigner: false, isWritable: true })
  return new TransactionInstruction({ programId, keys, data })
 }
@@ -603,7 +606,7 @@ export async function ixRegisterReferrer(programId: PublicKey, params: {
     data,
     keys: [
       { pubkey: params.referral, isSigner: false, isWritable: true },
-      { pubkey: params.config, isSigner: false, isWritable: false },
+      { pubkey: params.config, isSigner: false, isWritable: true },
       { pubkey: params.potatoMint, isSigner: false, isWritable: true },
       { pubkey: params.userPotato, isSigner: false, isWritable: true },
       { pubkey: params.owner, isSigner: true, isWritable: true },
@@ -829,7 +832,7 @@ export async function ixClaimAchievement(programId: PublicKey, params: {
    { pubkey: params.userAta, isSigner: false, isWritable: true },
    { pubkey: params.potatoMint, isSigner: false, isWritable: false },
    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-   { pubkey: SystemProgram.programId, isSigner: false, isWritable: true },
+   { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
    ...fieldPkas.map((pk) => ({ pubkey: pk, isSigner: false, isWritable: false })),
   ],
  });

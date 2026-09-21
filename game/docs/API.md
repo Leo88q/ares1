@@ -1,8 +1,8 @@
 # ARES-1 API — source reference, 21 September 2026
 
 **Not a statement about the deployed binary.** Anchor CLI/crates 0.31.2; source:
-`programs/solana_potato/src/lib.rs`. Committed `apps/web/src/idl.json` is currently
-stale (8 instructions missing). Regenerate/compare with `yarn check:contract target/idl/solana_potato.json` after `anchor build`; do not deploy based on this document alone.
+`programs/solana_potato/src/lib.rs`. Committed `apps/web/src/idl.json` is synchronized with the genuine pinned-Anchor
+build for `5ffdc0b` (40 instructions). Regenerate/compare with `yarn check:contract target/idl/solana_potato.json` after `anchor build`; do not deploy based on this document alone.
 Program ID in source: `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf`.
 
 ## Confirmed payment rules
@@ -72,7 +72,7 @@ separate daily reward budget, timelock or governance-enforced withdrawal delay.
 - `create_field`: field type 0/1/2; burns 100/250/500 POTATO.
 - `harvest`: owned active field, ≥60s interval, ≤48h accrual, epoch/supply limits.
 - `batch_harvest`: 1–10 unique writable owned Field accounts in remaining accounts;
-  aggregate mint limits; updates field timestamps/durability. Needs integration validation.
+  aggregate mint limits; updates field timestamps/durability. Covered by localnet CI.
 - `close_field`: owner closes field account and receives rent, including while paused.
   Historical field counters are not decremented; closing does not guarantee an ID
   can never be reused.
