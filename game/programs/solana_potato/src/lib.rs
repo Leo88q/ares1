@@ -29,7 +29,6 @@
 mod migrations;
 
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::slot_hashes::SlotHashes;
 use anchor_lang::AccountDeserialize;
 use anchor_lang::pubkey;
 use anchor_lang::solana_program::program_option::COption;
@@ -450,7 +449,7 @@ pub mod solana_potato {
             &presale.sold.to_le_bytes(),
             &slot.to_le_bytes(),
         ]);
-        if let Some((recent_slot, recent_hash)) = ctx.accounts.slot_hashes.iter().next() {
+        if let Some((recent_slot, recent_hash)) = recent_slot_hash(&ctx.accounts.slot_hashes) {
             roll_hash = anchor_lang::solana_program::keccak::hashv(&[
                 roll_hash.as_ref(),
                 &recent_slot.to_le_bytes(),
@@ -791,7 +790,7 @@ pub mod solana_potato {
                 field.key().as_ref(),
                 &slot.to_le_bytes(),
             ]);
-            if let Some((recent_slot, recent_hash)) = ctx.accounts.slot_hashes.iter().next() {
+            if let Some((recent_slot, recent_hash)) = recent_slot_hash(&ctx.accounts.slot_hashes) {
                 seed = anchor_lang::solana_program::keccak::hashv(&[
                     seed.as_ref(),
                     &recent_slot.to_le_bytes(),
@@ -2244,7 +2243,9 @@ pub struct UpgradeField<'info> {
     pub config: Account<'info, GameConfig>,
     pub owner: Signer<'info>,
     pub token_program: Program<'info, Token>,
-    pub slot_hashes: Sysvar<'info, SlotHashes>,
+    /// CHECK: SlotHashes sysvar pinned by `address`; newest entry is read raw in recent_slot_hash (from_account_info/get are UnsupportedSysvar).
+    #[account(address = pubkey!("SysvarS1otHashes111111111111111111111111111"))]
+    pub slot_hashes: UncheckedAccount<'info>,
 }
 
 // Boxed: three `init`s plus an escrow token account exceed the 4 KiB SBF stack frame unboxed.
@@ -2548,7 +2549,9 @@ pub struct BuyFieldSkr<'info> {
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     /// Энтропия drop-roll'а: хеш последнего слота неизвестен покупателю при подписании.
-    pub slot_hashes: Sysvar<'info, SlotHashes>,
+    /// CHECK: SlotHashes sysvar pinned by `address`; newest entry is read raw in recent_slot_hash (from_account_info/get are UnsupportedSysvar).
+    #[account(address = pubkey!("SysvarS1otHashes111111111111111111111111111"))]
+    pub slot_hashes: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
@@ -3505,6 +3508,26 @@ fn verify_fields(accs: &[AccountInfo], user: &Pubkey, program: &Pubkey, min: usi
     }
     require!(saw_level, GameError::BadProof);
     Ok(())
+}
+
+/// Частичное чтение новейшей записи `(slot, hash)` из сырых данных sysvar SlotHashes.
+///
+/// Полный bincode-декод SlotHashes on-chain невозможен: `Sysvar<SlotHashes>`,
+/// `SlotHashes::from_account_info` и `SlotHashes::get` возвращают `UnsupportedSysvar`
+/// (sysvar слишком велик), поэтому sysvar прокидывается как `UncheckedAccount` с
+/// address-констрейнтом, а здесь декодируется только первая (самая свежая) запись:
+/// `[0..8]` — число записей (LE u64), `[8..16]` — slot, `[16..48]` — 32-байтный hash.
+/// Возвращает `None`, если sysvar ещё не заполнен (например, на свежем валидаторе),
+/// тогда энтропия опирается на оставшиеся компоненты сида.
+fn recent_slot_hash(account: &UncheckedAccount) -> Option<(u64, [u8; 32])> {
+    let data = account.try_borrow_data().ok()?;
+    if data.len() < 48 {
+        return None;
+    }
+    let slot = u64::from_le_bytes(data[8..16].try_into().ok()?);
+    let mut hash = [0u8; 32];
+    hash.copy_from_slice(&data[16..48]);
+    Some((slot, hash))
 }
 
 #[account]
