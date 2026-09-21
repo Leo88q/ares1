@@ -1,6 +1,6 @@
 import { Connection, Keypair, Transaction, PublicKey } from '@solana/web3.js'
 import { getAssociatedTokenAddressSync, createAssociatedTokenAccountIdempotentInstruction } from '@solana/spl-token'
-import { pdas, potatoAta, ixFillOrder, decodeMarketOrder, decodeConfig, TEST_SKR_MINT } from '../src/utils/anchorClient'
+import { pdas, potatoAta, ixFillOrder, decodeMarketOrder, decodeConfig, SKR_MINT } from '../src/utils/anchorClient'
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -23,7 +23,7 @@ async function main() {
   console.log('potato mint:', mint.toBase58())
 
   // проверяем ATA у CLI
-  const buyerSkrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, buyer.publicKey)
+  const buyerSkrAta = getAssociatedTokenAddressSync(SKR_MINT, buyer.publicKey)
   try {
     const b = await conn.getTokenAccountBalance(buyerSkrAta)
     console.log('CLI SKR:', b.value.uiAmount)
@@ -49,7 +49,7 @@ async function main() {
   console.log('  объём:', Number(d.amountMicro) / 1e6, 'POTATO')
   console.log('  цена:', Number(d.priceLamportsPerPotato) / 1e6, 'SKR/шт')
 
-  const sellerSkrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, d.seller)
+  const sellerSkrAta = getAssociatedTokenAddressSync(SKR_MINT, d.seller)
   try {
     const b = await conn.getTokenAccountBalance(sellerSkrAta)
     console.log('  SKR продавца (до):', b.value.uiAmount)
@@ -72,7 +72,7 @@ async function main() {
     order: orderPk,
     escrow: escrow(orderPk),
     buyerPotato: buyerPotatoAta,
-    skrMint: TEST_SKR_MINT,
+    skrMint: SKR_MINT,
     buyerSkrAta,
     sellerSkrAta,
     treasuryPotato: potatoAta(config(), mint),

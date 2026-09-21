@@ -79,8 +79,11 @@ version и row lock. Сбой/обрыв соединения откатывае
 
 - `events/ares1-idl.json` — event-only snapshot подлинного IDL игры: события,
   их Borsh layouts и instruction discriminators **для чтения**, без builders.
-  CI сравнивает snapshot и SHA-256 с `game/apps/web/src/idl.json`.
-- `events/ares1-event-map.json` покрывает **34 существующих события**. Gameplay,
+  CI сравнивает snapshot и SHA-256 с `game/apps/web/src/idl.json`. После каждой
+  пересборки игрового IDL snapshot перегенерируется одной командой:
+  `node scripts/sync-idl.mjs` (обновляет также `idlSha256` в
+  `integration-manifest.json` и падает, если event-map разошёлся с IDL).
+- `events/ares1-event-map.json` покрывает **30 существующих событий**. Gameplay,
   покупки, рынок, rewards, treasury и authority/config changes сохраняются по
   фактически испущенным событиям. u64/i64 экспортируются десятичными **строками**.
 - `PresalePurchase.sol_amount` исторически неоднозначен: `buy_field_skr` → SKR,
@@ -90,8 +93,10 @@ version и row lock. Сбой/обрыв соединения откатывае
 - Логи чужой программы не принимаются за события ARES-1. События failed/caught CPI
   и откатившейся транзакции сохраняются с `applied=false`; они НЕ входят в daily
   projections. Потребитель обязан учитывать `applied`, а не только eventType.
-- Experimental Core/compression/hook events помечены `experimental`. Наличие
-  emit! в старой заглушке не доказывает реальный asset CPI.
+- Experimental Core/compression/hook events (CompressionTreeCreated,
+  CompressedFieldMinted, CoreFieldMinted, TransferHookExecuted) удалены из
+  программы и IDL 2026-09-21: заглушки никогда не выполняли реальный asset CPI.
+  Исторические devnet-события с этими дискриминаторами декодируются как `Unknown`.
 - Не синтезируются TokenMinted/TokenBurned/PaymentSettled только по названию события;
   registry описывает действительно поддерживаемые события и недоступную телеметрию.
   Observed counts — не supply, balance, полный бухгалтерский ledger или DAU.

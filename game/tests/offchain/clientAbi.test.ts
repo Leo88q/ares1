@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { BN, BorshInstructionCoder, type Idl } from '@coral-xyz/anchor';
-import { PublicKey, SystemProgram, type TransactionInstruction } from '@solana/web3.js';
+import { PublicKey, SystemProgram, SYSVAR_SLOT_HASHES_PUBKEY, type TransactionInstruction } from '@solana/web3.js';
 import * as client from '../../apps/web/src/utils/anchorClient';
 
 // This is the genuine pinned-Anchor output, not a hand-written test ABI.
@@ -14,12 +14,12 @@ const names = ['config', 'epoch', 'field', 'owner', 'potatoMint', 'userPotato', 
   'seller', 'sellerProfile', 'order', 'marketStats', 'sellerPotato', 'escrow', 'buyer', 'buyerPotato',
   'presaleState', 'authority', 'buyerPresale', 'treasurySol', 'skrMint', 'buyerSkrAta', 'treasurySkrAta',
   'buybackSkrAta', 'license', 'payer', 'userSkrAta', 'referral', 'referrer', 'newSkrMint', 'newSigner',
-  'achievements', 'user', 'questTreasury', 'questAta', 'userAta'] as const;
+  'achievements', 'user', 'questTreasury', 'questAta', 'userAta', 'adminState'] as const;
 const keys = Object.fromEntries(names.map(name => [name, PublicKey.unique()])) as { [K in typeof names[number]]: PublicKey };
 const high = 0x8123456789abcdefn;
 const bn = new BN(high.toString());
 const p = { ...keys, fieldId: high, fieldType: 2, orderId: high, amountMicro: high, priceLamports: high,
-  cap: 0x12345678, fieldPks: [] as PublicKey[] };
+  maxTotalLamports: high, cap: 0x12345678, fieldPks: [] as PublicKey[] };
 const cases: [string, () => Promise<TransactionInstruction>, Record<string, unknown>][] = [
   ['create_field', () => client.ixCreateField(program, p), { field_id: bn, field_type: 2 }],
   ['harvest', () => client.ixHarvest(program, p), {}],
@@ -32,7 +32,7 @@ const cases: [string, () => Promise<TransactionInstruction>, Record<string, unkn
   ['cancel_order', () => client.ixCancelOrder(program, p), {}],
   ['init_presale', () => client.ixInitPresale(program, p), { cap: p.cap, price_lamports: bn }],
   ['update_presale_price', () => client.ixUpdatePresalePrice(program, p), { price_lamports: bn }],
-  ['buy_field_sol', () => client.ixBuyFieldSol(program, p), { field_id: bn, field_type: 2 }],
+  ['buy_field_sol', () => client.ixBuyFieldSol(program, p), { field_id: bn, field_type: 2, max_total_lamports: bn }],
   ['buy_field_skr', () => client.ixBuyFieldSkr(program, p), { field_id: bn }],
   ['buy_export_license', () => client.ixBuyExportLicense(program, p), {}],
   ['migrate_config', () => client.ixMigrateConfig(program, p), {}],
@@ -42,6 +42,9 @@ const cases: [string, () => Promise<TransactionInstruction>, Record<string, unkn
   ['batch_harvest', () => client.ixBatchHarvest(program, p), {}],
   ['close_field', () => client.ixCloseField(program, p), {}],
   ['update_skr_mint', () => client.ixUpdateSkrMint(program, p), { new_skr_mint: keys.newSkrMint }],
+  ['apply_pending_skr_mint', () => client.ixApplyPendingSkrMint(program, p), {}],
+  ['apply_pending_presale_price', () => client.ixApplyPendingPresalePrice(program, p), {}],
+  ['close_old_epoch', () => client.ixCloseOldEpoch(program, p), {}],
   ['update_reward_signer', () => client.ixUpdateRewardSigner(program, p), { new_signer: keys.newSigner }],
   ['claim_achievement', () => client.ixClaimAchievement(program, p, 3, []), { quest_id: 3 }],
 ];
@@ -57,7 +60,13 @@ for (const [name, build, args] of cases) {
       assert('name' in account && !('accounts' in account), 'Flatten nested accounts explicitly');
       const a = account as { name: string; address?: string; writable?: boolean; signer?: boolean };
       const param = a.name === 'user_potato_ata' ? 'userAta' : a.name.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
-      const expected = a.address ? new PublicKey(a.address) : keys[param as keyof typeof keys];
+      // slot_hashes is an address-checked UncheckedAccount on-chain (Sysvar<SlotHashes> is
+      // UnsupportedSysvar, so it cannot be a typed Sysvar). Anchor does not emit its `address`
+      // into the IDL for UncheckedAccount, but the browser builder pins it to the sysvar, so
+      // the ABI test pins it here too instead of relying on a generated account key.
+      const expected = a.address ? new PublicKey(a.address)
+        : a.name === 'slot_hashes' ? SYSVAR_SLOT_HASHES_PUBKEY
+        : keys[param as keyof typeof keys];
       assert(expected, `Unmapped account ${name}.${a.name}`);
       assert.deepEqual(actual.keys[i], { pubkey: expected, isWritable: !!a.writable, isSigner: !!a.signer }, `${name}.${a.name}`);
     }

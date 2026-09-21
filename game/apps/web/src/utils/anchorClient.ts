@@ -1,10 +1,8 @@
-import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction } from '@solana/web3.js'
+import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_SLOT_HASHES_PUBKEY, TransactionInstruction } from '@solana/web3.js'
 import { t } from '../i18n'
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
 
 export const SKR_MINT = new PublicKey('Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o')
-/** @deprecated — use SKR_MINT; kept for back-compat */
-export const TEST_SKR_MINT = SKR_MINT
 
 async function sha256(input: string): Promise<Uint8Array> {
  const bytes = new TextEncoder().encode(input)
@@ -46,7 +44,9 @@ export function pdas(programId: PublicKey) {
  const marketStats = () => PublicKey.findProgramAddressSync([Buffer.from('market_stats')], programId)[0]
  const treasuryAuthority = () => config()
  const exportLicense = (owner: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from('license'), owner.toBuffer()], programId)[0]
- return { config, epoch, field, order, escrow, sellerProfile, marketStats, treasuryAuthority, exportLicense }
+ // Withdrawal rate limits + timelocked admin proposals (AdminState singleton).
+ const adminState = () => PublicKey.findProgramAddressSync([Buffer.from('admin_state')], programId)[0]
+ return { config, epoch, field, order, escrow, sellerProfile, marketStats, treasuryAuthority, exportLicense, adminState }
 }
 
 export function potatoAta(owner: PublicKey, mint: PublicKey): PublicKey {
@@ -107,8 +107,20 @@ async function ixFieldAction(name: string, programId: PublicKey, params: {
 
 export const ixRepairField = (programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]) =>
  ixFieldAction('repair_field', programId, params)
-export const ixUpgradeField = (programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]) =>
- ixFieldAction('upgrade_field', programId, params)
+/** upgrade_field = field_spend_accounts + SlotHashes (энтропия мутаций). */
+export async function ixUpgradeField(programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('upgrade_field'))
+ const keys = [
+  { pubkey: params.field, isSigner: false, isWritable: true },
+  { pubkey: params.potatoMint, isSigner: false, isWritable: true },
+  { pubkey: params.userPotato, isSigner: false, isWritable: true },
+  { pubkey: params.config, isSigner: false, isWritable: true },
+  { pubkey: params.owner, isSigner: true, isWritable: false },
+  { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
 export const ixPayTax = (programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]) =>
  ixFieldAction('pay_tax', programId, params)
 export const ixApplyFertilizer = (programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]) =>
@@ -273,7 +285,9 @@ export interface DecodedConfig {
 
 export interface DecodedEpoch {
  id: bigint; mintCapMicro: bigint; mintedMicro: bigint; startTime: bigint
- bump: number; burnedMicro: bigint
+ bump: number
+ /** micro-POTATO выданные grant_reward в эту эпоху (квота 10% капа). НЕ burn. */
+ grantedMicro: bigint
 }
 
 export function decodeEpoch(data: Buffer): DecodedEpoch {
@@ -283,8 +297,8 @@ export function decodeEpoch(data: Buffer): DecodedEpoch {
  const mintedMicro = readU64(data, o); o = mintedMicro.next
  const startTime = readI64(data, o); o = startTime.next
  const bump = readU8(data, o); o = bump.next
- const burnedMicro = data.length === 41 ? { value: 0n } : readU64(data, o)
- return { id: id.value, mintCapMicro: mintCapMicro.value, mintedMicro: mintedMicro.value, startTime: startTime.value, bump: bump.value, burnedMicro: burnedMicro.value }
+ const grantedMicro = data.length === 41 ? { value: 0n } : readU64(data, o)
+ return { id: id.value, mintCapMicro: mintCapMicro.value, mintedMicro: mintedMicro.value, startTime: startTime.value, bump: bump.value, grantedMicro: grantedMicro.value }
 }
 
 export function decodeConfig(data: Buffer): DecodedConfig {
@@ -376,13 +390,33 @@ export async function ixInitPresale(programId: PublicKey, params: {
  return new TransactionInstruction({ programId, keys, data })
 }
 
+/**
+ * priceLamports == 0 — аварийная остановка пресейла (применяется сразу).
+ * priceLamports > 0 — предложение: применяется через ixApplyPendingPresalePrice
+ * после 24-часового тимелока.
+ */
 export async function ixUpdatePresalePrice(programId: PublicKey, params: {
- config: PublicKey; presaleState: PublicKey; authority: PublicKey; priceLamports: bigint
+ config: PublicKey; presaleState: PublicKey; adminState: PublicKey; authority: PublicKey; priceLamports: bigint
 }): Promise<TransactionInstruction> {
  const data = concatBytes(await ixDiscriminator('update_presale_price'), u64LE(params.priceLamports))
  const keys = [
   { pubkey: params.config, isSigner: false, isWritable: false },
   { pubkey: params.presaleState, isSigner: false, isWritable: true },
+  { pubkey: params.adminState, isSigner: false, isWritable: true },
+  { pubkey: params.authority, isSigner: true, isWritable: true },
+  { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
+
+export async function ixApplyPendingPresalePrice(programId: PublicKey, params: {
+ config: PublicKey; presaleState: PublicKey; adminState: PublicKey; authority: PublicKey
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('apply_pending_presale_price'))
+ const keys = [
+  { pubkey: params.config, isSigner: false, isWritable: false },
+  { pubkey: params.presaleState, isSigner: false, isWritable: true },
+  { pubkey: params.adminState, isSigner: false, isWritable: true },
   { pubkey: params.authority, isSigner: true, isWritable: false },
  ]
  return new TransactionInstruction({ programId, keys, data })
@@ -390,9 +424,11 @@ export async function ixUpdatePresalePrice(programId: PublicKey, params: {
 
 export async function ixBuyFieldSol(programId: PublicKey, params: {
  config: PublicKey; presaleState: PublicKey; authority: PublicKey; buyerPresale: PublicKey;
- field: PublicKey; buyer: PublicKey; treasurySol: PublicKey; fieldId: bigint; fieldType: number
+ field: PublicKey; buyer: PublicKey; treasurySol: PublicKey; fieldId: bigint; fieldType: number;
+ /** Slippage-guard: цена масштабируется типом поля (0.4× / 1× / 2× price_lamports). */
+ maxTotalLamports: bigint
 }): Promise<TransactionInstruction> {
- const data = concatBytes(await ixDiscriminator('buy_field_sol'), u64LE(params.fieldId), u8(params.fieldType))
+ const data = concatBytes(await ixDiscriminator('buy_field_sol'), u64LE(params.fieldId), u8(params.fieldType), u64LE(params.maxTotalLamports))
  const keys = [
   { pubkey: params.config, isSigner: false, isWritable: true },
   { pubkey: params.presaleState, isSigner: false, isWritable: true },
@@ -432,6 +468,8 @@ export async function ixBuyFieldSkr(programId: PublicKey, params: {
       { pubkey: params.buybackSkrAta, isSigner: false, isWritable: true },
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      // Энтропия drop-roll'а: SlotHashes[0] неизвестен покупателю при подписании.
+      { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
     ],
   })
 }
@@ -666,132 +704,67 @@ export async function ixBatchHarvest(programId: PublicKey, params: {
 }
 
 export async function ixCloseField(programId: PublicKey, params: {
- field: PublicKey; owner: PublicKey;
+ config: PublicKey; field: PublicKey; owner: PublicKey;
 }): Promise<TransactionInstruction> {
  const data = concatBytes(await ixDiscriminator('close_field'))
  return new TransactionInstruction({
   programId,
   data,
   keys: [
+   // config нужен программе для декремента field_count.
+   { pubkey: params.config, isSigner: false, isWritable: true },
    { pubkey: params.field, isSigner: false, isWritable: true },
    { pubkey: params.owner, isSigner: true, isWritable: true },
   ],
  })
 }
 
+/** Permissionless crank: закрывает epoch PDA старше current-2, возвращая ренту payer'у. */
+export async function ixCloseOldEpoch(programId: PublicKey, params: {
+ config: PublicKey; epoch: PublicKey; payer: PublicKey;
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('close_old_epoch'))
+ return new TransactionInstruction({
+  programId,
+  data,
+  keys: [
+   { pubkey: params.config, isSigner: false, isWritable: false },
+   { pubkey: params.epoch, isSigner: false, isWritable: true },
+   { pubkey: params.payer, isSigner: true, isWritable: true },
+  ],
+ })
+}
+
 // ───────────────────────────────────────────────────────────────
-// Advanced Solana: Token-2022 + ZK Compression + Metaplex Core + LUT
+// Token-2022 helper + timelocked admin migrations
 // ───────────────────────────────────────────────────────────────
 
-/** Token-2022 mint PDA — для mainnet migrated POTATO (hook+metadata) */
+/** Token-2022 ATA helper — для будущего mainnet-mint POTATO. */
 export { TOKEN_2022_PROGRAM_ID }
-export const BUBBLEGUM_PROGRAM_ID = new PublicKey('BGUMAp9Gq7iTEuapy4pqaxsQSKP9pRFw9tgo88Ruef4')
-export const MPL_CORE_PROGRAM_ID = new PublicKey('CoREENxT6tWLL37r42jwFW6dvSzpzy1gZb98F1QYn7R')
-export const COMPRESSION_PROGRAM_ID = new PublicKey('cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK')
 
 export function token2022Ata(owner: PublicKey, mint: PublicKey): PublicKey {
   return getAssociatedTokenAddressSync(mint, owner, true, TOKEN_2022_PROGRAM_ID)
 }
 
-/** PDA для Token-2022 transfer hook: [b"hook", mint] */
-export function hookPda(mint: PublicKey, programId: PublicKey): PublicKey {
-  return PublicKey.findProgramAddressSync([Buffer.from('hook'), mint.toBuffer()], programId)[0]
-}
-
-/** PDA compression tree: [b"merkle-tree", authority] */
-export function compressionTreePda(authority: PublicKey, programId: PublicKey): PublicKey {
-  return PublicKey.findProgramAddressSync([Buffer.from('merkle-tree'), authority.toBuffer()], programId)[0]
-}
-
-/** PDA Core collection: [b"collection", authority] */
-export function coreCollectionPda(authority: PublicKey): PublicKey {
-  return PublicKey.findProgramAddressSync([Buffer.from('collection'), authority.toBuffer()], MPL_CORE_PROGRAM_ID)[0]
-}
-
-export async function ixInitCompressionTree(programId: PublicKey, params: {
-  tree: PublicKey; authority: PublicKey; payer: PublicKey
-}): Promise<TransactionInstruction> {
-  const data = concatBytes(await ixDiscriminator('init_compression_tree'))
-  return new TransactionInstruction({
-    programId,
-    data,
-    keys: [
-      { pubkey: params.tree, isSigner: false, isWritable: true },
-      { pubkey: params.authority, isSigner: true, isWritable: true },
-      { pubkey: params.payer, isSigner: true, isWritable: true },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ],
-  })
-}
-// Back-compat alias for old call sites (merkleTree/treeAuthority)
-export const ixInitCompressionTreeLegacy = ixInitCompressionTree
-
-export async function ixMintCompressedField(programId: PublicKey, params: {
-  tree: PublicKey; authority: PublicKey; leafOwner: PublicKey; payer: PublicKey
-  fieldId: bigint; fieldType: number
-}): Promise<TransactionInstruction> {
-  const data = concatBytes(await ixDiscriminator('mint_compressed_field'), u64LE(params.fieldId), u8(params.fieldType))
-  return new TransactionInstruction({
-    programId,
-    data,
-    keys: [
-      { pubkey: params.tree, isSigner: false, isWritable: true },
-      { pubkey: params.authority, isSigner: true, isWritable: true },
-      { pubkey: params.leafOwner, isSigner: false, isWritable: false },
-      { pubkey: params.payer, isSigner: true, isWritable: true },
-      { pubkey: BUBBLEGUM_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ],
-  })
-}
-// Back-compat overload: old signature with merkleTree/treeAuthority
-export async function ixMintCompressedFieldLegacy(programId: PublicKey, params: { merkleTree: PublicKey; treeAuthority: PublicKey; leafOwner: PublicKey; payer: PublicKey; fieldId: bigint; fieldType: number }): Promise<TransactionInstruction> {
-  return ixMintCompressedField(programId, { tree: params.merkleTree, authority: params.payer, leafOwner: params.leafOwner, payer: params.payer, fieldId: params.fieldId, fieldType: params.fieldType })
-}
-
-export async function ixMintCoreField(programId: PublicKey, params: {
-  collection: PublicKey; asset: PublicKey; authority: PublicKey; payer: PublicKey; owner: PublicKey
-  fieldId: bigint; fieldType: number
-}): Promise<TransactionInstruction> {
-  const data = concatBytes(await ixDiscriminator('mint_core_field'), u64LE(params.fieldId), u8(params.fieldType))
-  return new TransactionInstruction({
-    programId,
-    data,
-    keys: [
-      { pubkey: params.collection, isSigner: false, isWritable: true },
-      { pubkey: params.asset, isSigner: false, isWritable: true },
-      { pubkey: params.authority, isSigner: true, isWritable: true },
-      { pubkey: params.payer, isSigner: true, isWritable: true },
-      { pubkey: params.owner, isSigner: false, isWritable: false },
-      { pubkey: MPL_CORE_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-    ],
-  })
-}
-
-/** Token-2022 hook exec — валидация налога на transfer POTATO (0.5% burn) */
-export async function ixExecuteTransferHook(programId: PublicKey, params: {
-  mint: PublicKey; source: PublicKey; dest: PublicKey; authority: PublicKey
-  amount: bigint
-}): Promise<TransactionInstruction> {
-  const data = concatBytes(await ixDiscriminator('execute_transfer_hook'), u64LE(params.amount))
-  return new TransactionInstruction({
-    programId,
-    data,
-    keys: [
-      { pubkey: params.mint, isSigner: false, isWritable: false },
-      { pubkey: params.source, isSigner: false, isWritable: true },
-      { pubkey: params.dest, isSigner: false, isWritable: true },
-      { pubkey: params.authority, isSigner: true, isWritable: false },
-      { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
-    ],
-  })
-}
-
-export async function ixUpdateSkrMint(programId: PublicKey, params: { config: PublicKey; authority: PublicKey; newSkrMint: PublicKey }): Promise<TransactionInstruction> {
+/**
+ * Двухшаговая миграция SKR mint: предложение (proposal) сохраняется в
+ * AdminState и применяется через ixApplyPendingSkrMint после 24-часового
+ * тимелока. Мгновенная подмена митта невозможна даже для authority.
+ */
+export async function ixUpdateSkrMint(programId: PublicKey, params: { config: PublicKey; adminState: PublicKey; authority: PublicKey; newSkrMint: PublicKey }): Promise<TransactionInstruction> {
   const data = concatBytes(await ixDiscriminator('update_skr_mint'), params.newSkrMint.toBuffer())
   return new TransactionInstruction({ programId, data, keys: [
+    { pubkey: params.config, isSigner: false, isWritable: false },
+    { pubkey: params.adminState, isSigner: false, isWritable: true },
+    { pubkey: params.authority, isSigner: true, isWritable: true },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  ]})
+}
+export async function ixApplyPendingSkrMint(programId: PublicKey, params: { config: PublicKey; adminState: PublicKey; authority: PublicKey }): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('apply_pending_skr_mint'))
+  return new TransactionInstruction({ programId, data, keys: [
     { pubkey: params.config, isSigner: false, isWritable: true },
+    { pubkey: params.adminState, isSigner: false, isWritable: true },
     { pubkey: params.authority, isSigner: true, isWritable: false },
   ]})
 }

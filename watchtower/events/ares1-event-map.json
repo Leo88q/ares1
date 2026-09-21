@@ -32,36 +32,12 @@
     "notes": "Observed program event; not a complete token accounting ledger."
   },
   {
-    "on_chain_event": "CompressedFieldMinted",
-    "normalized_event": "CompressedFieldMinted",
-    "category": "experimental",
-    "resource": null,
-    "confidence": "partial",
-    "notes": "Emitted by experimental/stub handler; not evidence of real asset CPI."
-  },
-  {
-    "on_chain_event": "CompressionTreeCreated",
-    "normalized_event": "CompressionTreeCreated",
-    "category": "experimental",
-    "resource": null,
-    "confidence": "partial",
-    "notes": "Emitted by experimental/stub handler; not evidence of real asset CPI."
-  },
-  {
     "on_chain_event": "ConfigUpdated",
     "normalized_event": "ConfigUpdated",
     "category": "security",
     "resource": null,
     "confidence": "partial",
     "notes": "Observed program event; not a complete token accounting ledger."
-  },
-  {
-    "on_chain_event": "CoreFieldMinted",
-    "normalized_event": "CoreFieldMinted",
-    "category": "experimental",
-    "resource": null,
-    "confidence": "partial",
-    "notes": "Emitted by experimental/stub handler; not evidence of real asset CPI."
   },
   {
     "on_chain_event": "EpochRolled",
@@ -230,14 +206,6 @@
     "resource": "POTATO",
     "confidence": "partial",
     "notes": "Observed program event; not a complete token accounting ledger."
-  },
-  {
-    "on_chain_event": "TransferHookExecuted",
-    "normalized_event": "TransferHookExecuted",
-    "category": "experimental",
-    "resource": null,
-    "confidence": "partial",
-    "notes": "Emitted by experimental/stub handler; not evidence of real asset CPI."
   },
   {
     "on_chain_event": "TreasurySkrWithdrawn",

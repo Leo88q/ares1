@@ -109,8 +109,8 @@ export interface EpochAccount {
   mintedMicro: bigint;
   startTime: bigint;
   bump: number;
-  /** v2: burn accounted during this epoch (elastic cap axis). */
-  burnedMicro: bigint;
+  /** v2 (renamed): micro-POTATO minted via grant_reward this epoch (10% quota). Not a burn. */
+  grantedMicro: bigint;
 }
 
 export function decodeEpoch(data: Buffer): EpochAccount {
@@ -121,13 +121,13 @@ export function decodeEpoch(data: Buffer): EpochAccount {
   const mintedMicro = readU64(data, o); o = mintedMicro.next;
   const startTime = readI64(data, o); o = startTime.next;
   const bump = readU8(data, o); o = bump.next;
-  const burnedMicro = data.length === 41 ? { value: 0n } : readU64(data, o);
+  const grantedMicro = data.length === 41 ? { value: 0n } : readU64(data, o);
   return {
     id: id.value,
     mintCapMicro: mintCapMicro.value,
     mintedMicro: mintedMicro.value,
     startTime: startTime.value,
     bump: bump.value,
-    burnedMicro: burnedMicro.value,
+    grantedMicro: grantedMicro.value,
   };
 }

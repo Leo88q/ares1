@@ -112,7 +112,9 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
         })
       }
       const priorityIxs: TransactionInstruction[] = [
-        ComputeBudgetProgram.setComputeUnitLimit({ units: 250_000 }),
+        // 400k: headroom for claim_achievement with up to 12 field proofs and
+        // for txs that now carry SlotHashes/AdminState accounts (audit M-5).
+        ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }),
         ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }),
         ...ixs,
       ]

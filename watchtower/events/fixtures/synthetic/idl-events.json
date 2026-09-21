@@ -39,44 +39,12 @@
   },
   {
     "provenance": "synthetic",
-    "onChainEvent": "CompressedFieldMinted",
-    "base64": "LHpfowX651AAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHwEAAAAAACAABwcAAAA=",
-    "expected": {
-      "owner": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
-      "field_id": "9007199254740993",
-      "field_type": 7,
-      "leaf_index": 7
-    }
-  },
-  {
-    "provenance": "synthetic",
-    "onChainEvent": "CompressionTreeCreated",
-    "base64": "F0Bsxbp6rfAAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHwABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4f",
-    "expected": {
-      "authority": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
-      "merkle_tree": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE"
-    }
-  },
-  {
-    "provenance": "synthetic",
     "onChainEvent": "ConfigUpdated",
     "base64": "KPHmegsTxsIBAAAAAAAgAAEAAAAAACAABwA=",
     "expected": {
       "daily_mint_cap_micro": "9007199254740993",
       "base_yield_micro_per_day": "9007199254740993",
       "global_multiplier_bps": 7
-    }
-  },
-  {
-    "provenance": "synthetic",
-    "onChainEvent": "CoreFieldMinted",
-    "base64": "IkhXyOPId2sAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHwABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8BAAAAAAAgAAc=",
-    "expected": {
-      "owner": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
-      "collection": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
-      "asset": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
-      "field_id": "9007199254740993",
-      "field_type": 7
     }
   },
   {
@@ -275,18 +243,6 @@
       "field": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
       "paid_until": "-123",
       "cost_micro": "9007199254740993"
-    }
-  },
-  {
-    "provenance": "synthetic",
-    "onChainEvent": "TransferHookExecuted",
-    "base64": "u6Sz4BZbEwAAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHwABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8BAAAAAAAgAAEAAAAAACAA",
-    "expected": {
-      "mint": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
-      "source": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
-      "destination": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
-      "amount": "9007199254740993",
-      "fee": "9007199254740993"
     }
   },
   {

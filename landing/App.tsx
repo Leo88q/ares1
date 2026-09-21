@@ -32,7 +32,7 @@ import {
 import { useLandingWallet } from "./hooks/useLandingWallet";
 import { useLiveChain } from "./hooks/useLiveChain";
 import {
-  SKR_MINT, TEST_SKR_MINT,
+  SKR_MINT,
   buybackSkrAta,
   buyerPresalePda,
   decodeConfig,
@@ -1907,13 +1907,15 @@ function PacksSection(): JSX.Element {
       const cfg = decodeConfig(Buffer.from(cfgInfo.data));
 
       const fieldId = randomU64();
-      const buyerSkrAta = getAssociatedTokenAddressSync(SKR_MINT, TEST_SKR_MINT, publicKey);
+      // ATA покупателя SKR: (mint, owner, allowOwnerOffCurve). Раньше сюда
+      // ошибочно передавался TEST_SKR_MINT как owner и publicKey как флаг.
+      const buyerSkrAta = getAssociatedTokenAddressSync(SKR_MINT, publicKey, true);
 
       const ataIx = createAssociatedTokenAccountIdempotentInstruction(
         publicKey,
         buyerSkrAta,
         publicKey,
-        SKR_MINT, TEST_SKR_MINT,
+        SKR_MINT,
       );
       const buyIx = await ixBuyFieldSkr(programId, {
         config: configPda(),
@@ -1923,10 +1925,10 @@ function PacksSection(): JSX.Element {
         field: field(fieldId),
         buyer: publicKey,
         treasurySol: treasurySolPda(programId),
-        skrMint: SKR_MINT, TEST_SKR_MINT,
+        skrMint: SKR_MINT,
         buyerSkrAta,
-        treasurySkrAta: treasurySkrAta(programId, TEST_SKR_MINT),
-        buybackSkrAta: buybackSkrAta(cfg.authority, TEST_SKR_MINT),
+        treasurySkrAta: treasurySkrAta(programId, SKR_MINT),
+        buybackSkrAta: buybackSkrAta(cfg.authority, SKR_MINT),
         fieldId,
       });
 

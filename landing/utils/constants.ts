@@ -7,7 +7,8 @@
 export const MICRO = 1_000_000
 export const BPS = 10_000
 export const SECONDS_PER_DAY = 86_400
-export const MAX_ACCRUAL_SECONDS = 48 * 3600
+/** Mirror of Rust MAX_ACCRUAL_SECONDS: 7 days. */
+export const MAX_ACCRUAL_SECONDS = 7 * SECONDS_PER_DAY
 export const MIN_HARVEST_INTERVAL = 60
 export const MAX_FIELD_LEVEL = 50
 export const MAX_DURABILITY = 100
@@ -120,21 +121,17 @@ export interface YieldConfig {
 }
 
 /** Yield per day at the current state of the field, in micro POTATO. */
-/** Лунный цикл: 28 эпох, множитель yield в bps (8500–11500) */
+/** Лунный цикл: 28 эпох, множитель yield в bps (8500–11500) — MUST match LUNAR_TABLE in game/programs/solana_potato/src/lib.rs */
 export const LUNAR_TABLE = [
- 9_500, 9_200, 8_800, 8_500, 8_700, 9_000, 9_300,
- 9_600, 9_900, 10_200, 10_500, 10_800, 11_100, 11_400,
- 11_500, 11_300, 11_000, 10_700, 10_400, 10_100, 9_800,
- 9_500, 9_200, 8_900, 8_700, 8_600, 8_800, 9_100,
+ 10_000, 10_334, 10_651, 10_935, 11_173, 11_352, 11_462, 11_500, // дни 0-7 (пик)
+ 11_462, 11_352, 11_173, 10_935, 10_651, 10_334, 10_000, 9_666,  // дни 8-15
+ 9_349, 9_065, 8_827, 8_648, 8_538, 8_500, 8_538, 8_648,         // дни 16-23 (дно)
+ 8_827, 9_065, 9_349, 9_666,                                     // дни 24-27
 ] as const;
 
-export function dailyYieldMicro(f: YieldInputs, cfg: YieldConfig, nowSec: number): number {
+export function dailyYieldMicroNoLunar(f: YieldInputs, cfg: YieldConfig, nowSec: number): number {
  // Golden Sprout (mutationType = 1): +25% yield
  const mut_bps = f.mutationType === 1 ? 12_500 : BPS
- // Лунный цикл: детерминированный множитель по epoch_id (28 эпох)
- const lunar_bps = typeof f.epochId === 'number' && LUNAR_TABLE
-  ? LUNAR_TABLE[f.epochId % 28]
-  : BPS
  const mults = [
   levelMultBps(f.level),
   durabilityMultBps(f.durability),
@@ -143,9 +140,37 @@ export function dailyYieldMicro(f: YieldInputs, cfg: YieldConfig, nowSec: number
   nowSec < f.fertilizerUntil ? FERTILIZER_YIELD_BPS : BPS,
   nowSec > f.taxPaidUntil ? UNPAID_TAX_YIELD_BPS : BPS,
   mut_bps,
-  lunar_bps,
  ]
  return mults.reduce((v, m) => (v * m) / BPS, cfg.baseYieldMicroPerDay)
+}
+
+export function dailyYieldMicro(f: YieldInputs, cfg: YieldConfig, nowSec: number): number {
+ // Лунный цикл: детерминированный множитель по epoch_id (28 эпох)
+ const lunar_bps = typeof f.epochId === 'number' && LUNAR_TABLE
+  ? LUNAR_TABLE[f.epochId % 28]
+  : BPS
+ return Math.floor((dailyYieldMicroNoLunar(f, cfg, nowSec) * lunar_bps) / BPS)
+}
+
+/**
+ * Mirror of the on-chain `lunar_weighted_bps`: each trailing 86400s segment of
+ * the accrual window is weighted by the lunar bps of its own epoch, so a
+ * multi-day accrual spanning roll_epoch cannot be farmed at the peak rate.
+ */
+export function lunarWeightedBps(elapsedSec: number, epochId: number): number {
+ const current = LUNAR_TABLE[((epochId % 28) + 28) % 28]
+ if (elapsedSec <= 0) return current
+ let weighted = 0
+ let remaining = elapsedSec
+ let ageDays = 0
+ while (remaining > 0) {
+  const chunk = Math.min(remaining, SECONDS_PER_DAY)
+  const idx = ((((epochId - ageDays) % 28) + 28) % 28)
+  weighted += LUNAR_TABLE[idx] * chunk
+  remaining -= chunk
+  ageDays += 1
+ }
+ return Math.floor(weighted / elapsedSec)
 }
 
 /** Accrued but unharvested yield, in micro POTATO (same formula as the program). */
@@ -155,7 +180,9 @@ export function accumulatedMicro(
  nowSec: number,
 ): number {
  const elapsed = Math.min(Math.max(nowSec - f.lastHarvest, 0), MAX_ACCRUAL_SECONDS)
- return Math.floor((dailyYieldMicro(f, cfg, nowSec) * elapsed) / SECONDS_PER_DAY)
+ const lunar = typeof f.epochId === 'number' ? lunarWeightedBps(elapsed, f.epochId) : BPS
+ const perDay = dailyYieldMicroNoLunar(f, cfg, nowSec)
+ return Math.floor((perDay * lunar * elapsed) / (BPS * SECONDS_PER_DAY))
 }
 
 export const fmtPotato = (micro: number | bigint, decimals = 2) => (Number(micro) / MICRO).toFixed(decimals)

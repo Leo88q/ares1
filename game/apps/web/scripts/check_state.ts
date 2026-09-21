@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from '@solana/web3.js'
-import { presaleStatePda, buyerPresalePda, TEST_SKR_MINT } from '../src/utils/anchorClient'
+import { presaleStatePda, buyerPresalePda, SKR_MINT } from '../src/utils/anchorClient'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
