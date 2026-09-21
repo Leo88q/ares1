@@ -10,7 +10,7 @@ import ProgressBar from './ProgressBar'
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 import {
- fieldTypeInfo, mutationInfo, fmtPotato, upgradeCostMicro, repairCostMicro, taxCostMicro, fertilizerCostMicro,
+ fieldTypeInfo, mutationInfo, fmtPotato, fmtPotatoExact, upgradeCostMicro, repairCostMicro, taxCostMicro, fertilizerCostMicro,
  HARVEST_THRESHOLD_MICRO, MAX_FIELD_LEVEL, MAX_DURABILITY, TAX_PERIOD_DAYS, FERTILIZER_HOURS,
 } from '../utils/constants'
 import { IconMutGold, IconMutSilicon } from './ares/icons'
@@ -168,22 +168,22 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
       >
        {onUpgrade && field.level < MAX_FIELD_LEVEL && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onUpgrade, sounds.upgrade, haptics.upgradeField)} style={actionStyle('var(--ares-blueset, #6B93D6)')}>
-         <ArrowUp size={14} /> {t('Апгрейд модуля до ур. {level} ({cost} POTATO)', { level: field.level + 1, cost: fmtPotato(upgradeCostMicro(field.level, field.fieldType), 0) })}
+         <ArrowUp size={14} /> {t('Апгрейд модуля до ур. {level} ({cost} POTATO)', { level: field.level + 1, cost: fmtPotatoExact(upgradeCostMicro(field.level, field.fieldType)) })}
         </motion.button>
        )}
        {onRepair && field.durability < MAX_DURABILITY && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onRepair, sounds.repair, haptics.repairField)} style={actionStyle('var(--pf-teal)')}>
-         <Wrench size={14} /> {t('Техремонт до 100% ({cost} POTATO)', { cost: fmtPotato(repairCostMicro(field.fieldType), 0) })}
+         <Wrench size={14} /> {t('Техремонт до 100% ({cost} POTATO)', { cost: fmtPotatoExact(repairCostMicro(field.level, field.fieldType)) })}
         </motion.button>
        )}
        {onPayTax && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onPayTax, sounds.payTax, haptics.payTax)} style={actionStyle('var(--pf-gold)')}>
-         <Receipt size={14} /> {t('Пошлина: +{days} дней ({cost} POTATO)', { days: TAX_PERIOD_DAYS, cost: fmtPotato(taxCostMicro(field.fieldType), 0) })}
+         <Receipt size={14} /> {t('Пошлина: +{days} дней ({cost} POTATO)', { days: TAX_PERIOD_DAYS, cost: fmtPotatoExact(taxCostMicro(field.level, field.fieldType)) })}
         </motion.button>
        )}
        {onApplyFertilizer && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onApplyFertilizer, sounds.fertilizer, haptics.applyFertilizer)} style={actionStyle('#22c55e')}>
-         <Droplet size={14} /> {t('Удобрить ×1.5 на {h}ч ({cost} POTATO)', { h: FERTILIZER_HOURS, cost: fmtPotato(fertilizerCostMicro(field.fieldType), 0) })}
+         <Droplet size={14} /> {t('Удобрить ×1.5 на {h}ч ({cost} POTATO)', { h: FERTILIZER_HOURS, cost: fmtPotatoExact(fertilizerCostMicro(field.fieldType)) })}
         </motion.button>
        )}
       </motion.div>

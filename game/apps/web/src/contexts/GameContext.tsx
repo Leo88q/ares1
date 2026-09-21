@@ -14,7 +14,7 @@ import { useToast } from '../components/Toast'
  ixInitCompressionTree, ixMintCompressedField, ixMintCoreField, compressionTreePda,
 } from '../utils/anchorClient'
 import {
- accumulatedMicro, fieldPriceMicro, fertilizerCostMicro, repairCostMicro, taxCostMicro, upgradeCostMicro, fmtPotato, MICRO,
+ accumulatedMicro, fieldPriceMicro, fertilizerCostMicro, repairCostMicro, taxCostMicro, upgradeCostMicro, fmtPotato, fmtPotatoExact, MICRO,
 } from '../utils/constants'
 import { describeError } from '../utils/errors'
 import { randomU64, withRetry } from '../utils/rpc'
@@ -190,7 +190,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const requireBalance = useCallback(
   (costMicro: number): boolean => {
    if (potatoBalance >= costMicro) return true
-   notify('warning', t('Недостаточно $POTATO'), t('Нужно {need} POTATO, а у тебя {have} POTATO.', { need: fmtPotato(costMicro, 0), have: fmtPotato(potatoBalance) }))
+   notify('warning', t('Недостаточно $POTATO'), t('Нужно {need} POTATO, а у тебя {have} POTATO.', { need: fmtPotatoExact(costMicro), have: fmtPotatoExact(potatoBalance) }))
    return false
   },
   [potatoBalance, notify],
@@ -472,11 +472,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
   [fieldSpend],
  )
  const repairField = useMemo(
-  () => fieldSpend(ixRepairField, (f) => repairCostMicro(f.fieldType), t('Не удалось отремонтировать поле')),
+  () => fieldSpend(ixRepairField, (f) => repairCostMicro(f.level, f.fieldType), t('Не удалось отремонтировать поле')),
   [fieldSpend],
  )
  const payTax = useMemo(
-  () => fieldSpend(ixPayTax, (f) => taxCostMicro(f.fieldType), t('Не удалось оплатить налог')),
+  () => fieldSpend(ixPayTax, (f) => taxCostMicro(f.level, f.fieldType), t('Не удалось оплатить налог')),
   [fieldSpend],
  )
  const applyFertilizer = useMemo(
