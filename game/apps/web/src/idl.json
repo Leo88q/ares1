@@ -1176,6 +1176,9 @@
         },
         {
           "name": "slot_hashes",
+          "docs": [
+            "Энтропия drop-roll'а: хеш последнего слота неизвестен покупателю при подписании."
+          ],
           "address": "SysvarS1otHashes111111111111111111111111111"
         }
       ],
@@ -3568,10 +3571,10 @@
       "docs": [
         "Updates the presale price (authority only). Two-step for safety:",
         "* `price_lamports == 0` — EMERGENCY STOP: applies immediately and closes",
-        "  both presale rails (SOL and SKR) until a new price is set.",
+        "both presale rails (SOL and SKR) until a new price is set.",
         "* `price_lamports > 0` — proposal only: stored in `AdminState` and applied",
-        "  by `apply_pending_presale_price` after the 24 h timelock, so a stolen",
-        "  authority key cannot silently re-price the presale within one day."
+        "by `apply_pending_presale_price` after the 24 h timelock, so a stolen",
+        "authority key cannot silently re-price the presale within one day."
       ],
       "discriminator": [
         140,
@@ -4323,11 +4326,11 @@
         },
         {
           "name": "authority",
+          "writable": true,
           "signer": true,
           "relations": [
             "config"
-          ],
-          "writable": true
+          ]
         },
         {
           "name": "token_program",
@@ -5187,7 +5190,7 @@
     {
       "code": 6037,
       "name": "BaseYieldTooHigh",
-      "msg": "Base yield too high (100 POTATO/day per reference field)"
+      "msg": "Base yield too high (max 100 POTATO/day per reference field)"
     },
     {
       "code": 6038,
@@ -5254,6 +5257,9 @@
         "fields": [
           {
             "name": "window_start",
+            "docs": [
+              "Start of the current rolling withdrawal window (unix seconds)."
+            ],
             "type": "i64"
           },
           {
@@ -5270,6 +5276,9 @@
           },
           {
             "name": "pending_skr_mint",
+            "docs": [
+              "Proposed SKR mint; applied by `apply_pending_skr_mint` after the timelock."
+            ],
             "type": "pubkey"
           },
           {
@@ -5278,6 +5287,9 @@
           },
           {
             "name": "pending_presale_price",
+            "docs": [
+              "Proposed presale price (lamports); applied by `apply_pending_presale_price`."
+            ],
             "type": "u64"
           },
           {
@@ -5416,6 +5428,11 @@
           },
           {
             "name": "granted_micro",
+            "docs": [
+              "micro-POTATO minted through `grant_reward` during this epoch.",
+              "Counts toward the manual-grant quota (GRANT_QUOTA_SHARE_BPS of the cap).",
+              "NOT a burn — the historical name was misleading; layout is unchanged."
+            ],
             "type": "u64"
           }
         ]
