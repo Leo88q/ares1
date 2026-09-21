@@ -1178,8 +1178,7 @@
           "name": "slot_hashes",
           "docs": [
             "Энтропия drop-roll'а: хеш последнего слота неизвестен покупателю при подписании."
-          ],
-          "address": "SysvarS1otHashes111111111111111111111111111"
+          ]
         }
       ],
       "args": [
@@ -3864,8 +3863,7 @@
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
-          "name": "slot_hashes",
-          "address": "SysvarS1otHashes111111111111111111111111111"
+          "name": "slot_hashes"
         }
       ],
       "args": []
