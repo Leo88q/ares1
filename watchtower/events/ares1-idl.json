@@ -1,0 +1,1499 @@
+{
+  "address": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+  "metadata": {
+    "name": "solana_potato",
+    "version": "0.2.0",
+    "spec": "0.1.0",
+    "description": "Solana Potato game program"
+  },
+  "sourceIdlSha256": "7df5d0668bb4e8dcbb901212f64671bb35c8ac94fc30ae2f90570f9646ff84b7",
+  "events": [
+    {
+      "name": "AchievementClaimed",
+      "discriminator": [
+        14,
+        49,
+        71,
+        199,
+        214,
+        248,
+        116,
+        232
+      ]
+    },
+    {
+      "name": "AuthorityAccepted",
+      "discriminator": [
+        166,
+        192,
+        219,
+        188,
+        41,
+        209,
+        195,
+        26
+      ]
+    },
+    {
+      "name": "AuthorityProposed",
+      "discriminator": [
+        244,
+        117,
+        94,
+        112,
+        53,
+        151,
+        35,
+        89
+      ]
+    },
+    {
+      "name": "BatchHarvested",
+      "discriminator": [
+        4,
+        7,
+        63,
+        176,
+        236,
+        104,
+        135,
+        143
+      ]
+    },
+    {
+      "name": "CompressedFieldMinted",
+      "discriminator": [
+        44,
+        122,
+        95,
+        163,
+        5,
+        250,
+        231,
+        80
+      ]
+    },
+    {
+      "name": "CompressionTreeCreated",
+      "discriminator": [
+        23,
+        64,
+        108,
+        197,
+        186,
+        122,
+        173,
+        240
+      ]
+    },
+    {
+      "name": "ConfigUpdated",
+      "discriminator": [
+        40,
+        241,
+        230,
+        122,
+        11,
+        19,
+        198,
+        194
+      ]
+    },
+    {
+      "name": "CoreFieldMinted",
+      "discriminator": [
+        34,
+        72,
+        87,
+        200,
+        227,
+        200,
+        119,
+        107
+      ]
+    },
+    {
+      "name": "EpochRolled",
+      "discriminator": [
+        185,
+        99,
+        207,
+        231,
+        204,
+        221,
+        121,
+        223
+      ]
+    },
+    {
+      "name": "ExportLicensePurchased",
+      "discriminator": [
+        97,
+        49,
+        157,
+        147,
+        122,
+        224,
+        179,
+        248
+      ]
+    },
+    {
+      "name": "FertilizerApplied",
+      "discriminator": [
+        155,
+        131,
+        105,
+        205,
+        52,
+        157,
+        255,
+        160
+      ]
+    },
+    {
+      "name": "FieldClosed",
+      "discriminator": [
+        69,
+        247,
+        166,
+        250,
+        55,
+        225,
+        170,
+        27
+      ]
+    },
+    {
+      "name": "FieldCreated",
+      "discriminator": [
+        113,
+        96,
+        145,
+        12,
+        225,
+        179,
+        244,
+        15
+      ]
+    },
+    {
+      "name": "FieldRepaired",
+      "discriminator": [
+        236,
+        45,
+        151,
+        176,
+        171,
+        106,
+        232,
+        115
+      ]
+    },
+    {
+      "name": "FieldUpgraded",
+      "discriminator": [
+        64,
+        229,
+        233,
+        12,
+        73,
+        232,
+        135,
+        220
+      ]
+    },
+    {
+      "name": "Harvested",
+      "discriminator": [
+        249,
+        229,
+        78,
+        151,
+        106,
+        185,
+        149,
+        11
+      ]
+    },
+    {
+      "name": "OrderCancelled",
+      "discriminator": [
+        108,
+        56,
+        128,
+        68,
+        168,
+        113,
+        168,
+        239
+      ]
+    },
+    {
+      "name": "OrderCreated",
+      "discriminator": [
+        224,
+        1,
+        229,
+        63,
+        254,
+        60,
+        190,
+        159
+      ]
+    },
+    {
+      "name": "OrderExpiredEvent",
+      "discriminator": [
+        150,
+        3,
+        200,
+        97,
+        178,
+        224,
+        156,
+        9
+      ]
+    },
+    {
+      "name": "OrderFilled",
+      "discriminator": [
+        120,
+        124,
+        109,
+        66,
+        249,
+        116,
+        174,
+        30
+      ]
+    },
+    {
+      "name": "PausedToggled",
+      "discriminator": [
+        77,
+        42,
+        45,
+        184,
+        47,
+        55,
+        187,
+        17
+      ]
+    },
+    {
+      "name": "PresaleAuthorityMigrated",
+      "discriminator": [
+        179,
+        50,
+        8,
+        125,
+        73,
+        35,
+        195,
+        159
+      ]
+    },
+    {
+      "name": "PresalePurchase",
+      "discriminator": [
+        26,
+        146,
+        49,
+        21,
+        233,
+        142,
+        20,
+        204
+      ]
+    },
+    {
+      "name": "ReferralRewardPaid",
+      "discriminator": [
+        247,
+        206,
+        14,
+        191,
+        85,
+        164,
+        46,
+        228
+      ]
+    },
+    {
+      "name": "ReferrerRegistered",
+      "discriminator": [
+        106,
+        198,
+        28,
+        51,
+        115,
+        46,
+        57,
+        3
+      ]
+    },
+    {
+      "name": "RewardGranted",
+      "discriminator": [
+        114,
+        199,
+        215,
+        169,
+        224,
+        19,
+        56,
+        70
+      ]
+    },
+    {
+      "name": "RewardSignerUpdated",
+      "discriminator": [
+        4,
+        12,
+        80,
+        176,
+        14,
+        63,
+        174,
+        200
+      ]
+    },
+    {
+      "name": "SkrMintUpdated",
+      "discriminator": [
+        89,
+        214,
+        167,
+        69,
+        183,
+        148,
+        57,
+        131
+      ]
+    },
+    {
+      "name": "TaxPaid",
+      "discriminator": [
+        4,
+        134,
+        57,
+        255,
+        63,
+        46,
+        212,
+        238
+      ]
+    },
+    {
+      "name": "TransferHookExecuted",
+      "discriminator": [
+        187,
+        164,
+        179,
+        224,
+        22,
+        91,
+        19,
+        0
+      ]
+    },
+    {
+      "name": "TreasurySkrWithdrawn",
+      "discriminator": [
+        85,
+        115,
+        133,
+        155,
+        30,
+        193,
+        148,
+        101
+      ]
+    },
+    {
+      "name": "TreasurySolWithdrawn",
+      "discriminator": [
+        240,
+        220,
+        250,
+        166,
+        65,
+        159,
+        120,
+        207
+      ]
+    },
+    {
+      "name": "TreasuryTaxed",
+      "discriminator": [
+        50,
+        40,
+        39,
+        45,
+        16,
+        201,
+        87,
+        76
+      ]
+    },
+    {
+      "name": "TreasuryWithdrawn",
+      "discriminator": [
+        143,
+        181,
+        157,
+        169,
+        87,
+        155,
+        170,
+        46
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "AchievementClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "quest_id",
+            "type": "u8"
+          },
+          {
+            "name": "reward",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuthorityAccepted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "previous",
+            "type": "pubkey"
+          },
+          {
+            "name": "current",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuthorityProposed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pending_authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BatchHarvested",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "field_count",
+            "type": "u8"
+          },
+          {
+            "name": "total_micro",
+            "type": "u64"
+          },
+          {
+            "name": "treasury_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CompressedFieldMinted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "field_id",
+            "type": "u64"
+          },
+          {
+            "name": "field_type",
+            "type": "u8"
+          },
+          {
+            "name": "leaf_index",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CompressionTreeCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "merkle_tree",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConfigUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "daily_mint_cap_micro",
+            "type": "u64"
+          },
+          {
+            "name": "base_yield_micro_per_day",
+            "type": "u64"
+          },
+          {
+            "name": "global_multiplier_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CoreFieldMinted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "collection",
+            "type": "pubkey"
+          },
+          {
+            "name": "asset",
+            "type": "pubkey"
+          },
+          {
+            "name": "field_id",
+            "type": "u64"
+          },
+          {
+            "name": "field_type",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EpochRolled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "epoch_id",
+            "type": "u64"
+          },
+          {
+            "name": "start_time",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExportLicensePurchased",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "cost_skr_atoms",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FertilizerApplied",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "active_until",
+            "type": "i64"
+          },
+          {
+            "name": "cost_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FieldClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "field",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FieldCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "field_type",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FieldRepaired",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "cost_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FieldUpgraded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_level",
+            "type": "u8"
+          },
+          {
+            "name": "cost_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Harvested",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderCancelled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "price_lamports_per_potato",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderExpiredEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderFilled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "total_lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PausedToggled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "paused",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PresaleAuthorityMigrated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PresalePurchase",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "field_type",
+            "type": "u8"
+          },
+          {
+            "name": "sol_amount",
+            "docs": [
+              "SKR atoms paid (6 decimals)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "roll",
+            "docs": [
+              "On-chain drop roll, 0-99: <70 COMMON, <95 RARE, else EPIC."
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReferralRewardPaid",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "referrer",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReferrerRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "referrer",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardGranted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recipient",
+            "docs": [
+              "Wallet that owns the receiving token account."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardSignerUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "new_signer",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SkrMintUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "new_skr_mint",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TaxPaid",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "paid_until",
+            "type": "i64"
+          },
+          {
+            "name": "cost_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TransferHookExecuted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "source",
+            "type": "pubkey"
+          },
+          {
+            "name": "destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "fee",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TreasurySkrWithdrawn",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_skr_atoms",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TreasurySolWithdrawn",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TreasuryTaxed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "field",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "tax_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TreasuryWithdrawn",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ],
+  "instructionDiscriminators": {
+    "accept_authority": [
+      107,
+      86,
+      198,
+      91,
+      33,
+      12,
+      107,
+      160
+    ],
+    "apply_fertilizer": [
+      251,
+      59,
+      24,
+      165,
+      189,
+      54,
+      11,
+      74
+    ],
+    "batch_harvest": [
+      4,
+      237,
+      138,
+      197,
+      111,
+      142,
+      100,
+      91
+    ],
+    "buy_export_license": [
+      18,
+      110,
+      90,
+      198,
+      215,
+      125,
+      216,
+      153
+    ],
+    "buy_field_skr": [
+      122,
+      180,
+      144,
+      243,
+      2,
+      198,
+      171,
+      198
+    ],
+    "buy_field_sol": [
+      79,
+      250,
+      7,
+      76,
+      250,
+      36,
+      140,
+      254
+    ],
+    "cancel_order": [
+      95,
+      129,
+      237,
+      240,
+      8,
+      49,
+      223,
+      132
+    ],
+    "claim_achievement": [
+      107,
+      181,
+      102,
+      247,
+      207,
+      212,
+      251,
+      24
+    ],
+    "close_expired_order": [
+      205,
+      27,
+      199,
+      110,
+      149,
+      40,
+      220,
+      44
+    ],
+    "close_field": [
+      119,
+      228,
+      42,
+      234,
+      32,
+      28,
+      135,
+      20
+    ],
+    "create_field": [
+      237,
+      199,
+      252,
+      46,
+      43,
+      54,
+      21,
+      189
+    ],
+    "create_sell_order": [
+      53,
+      52,
+      255,
+      44,
+      191,
+      74,
+      171,
+      225
+    ],
+    "execute_transfer_hook": [
+      120,
+      157,
+      67,
+      141,
+      88,
+      144,
+      143,
+      220
+    ],
+    "fill_order": [
+      232,
+      122,
+      115,
+      25,
+      199,
+      143,
+      136,
+      162
+    ],
+    "grant_reward": [
+      202,
+      133,
+      123,
+      208,
+      124,
+      131,
+      147,
+      235
+    ],
+    "harvest": [
+      228,
+      241,
+      31,
+      182,
+      53,
+      169,
+      59,
+      199
+    ],
+    "init_compression_tree": [
+      155,
+      98,
+      251,
+      90,
+      21,
+      187,
+      173,
+      115
+    ],
+    "init_epoch": [
+      78,
+      81,
+      66,
+      76,
+      217,
+      113,
+      189,
+      109
+    ],
+    "init_presale": [
+      172,
+      248,
+      47,
+      226,
+      223,
+      52,
+      94,
+      217
+    ],
+    "initialize": [
+      175,
+      175,
+      109,
+      31,
+      13,
+      152,
+      155,
+      237
+    ],
+    "migrate_config": [
+      92,
+      131,
+      58,
+      105,
+      210,
+      154,
+      224,
+      193
+    ],
+    "migrate_epoch": [
+      45,
+      95,
+      197,
+      140,
+      11,
+      150,
+      183,
+      237
+    ],
+    "migrate_field": [
+      65,
+      252,
+      186,
+      179,
+      130,
+      96,
+      116,
+      7
+    ],
+    "migrate_presale_authority": [
+      166,
+      121,
+      233,
+      15,
+      93,
+      113,
+      192,
+      92
+    ],
+    "mint_compressed_field": [
+      127,
+      146,
+      178,
+      131,
+      75,
+      140,
+      76,
+      92
+    ],
+    "mint_core_field": [
+      114,
+      252,
+      228,
+      209,
+      142,
+      211,
+      218,
+      201
+    ],
+    "pay_tax": [
+      51,
+      5,
+      236,
+      118,
+      42,
+      113,
+      61,
+      53
+    ],
+    "propose_authority": [
+      20,
+      148,
+      236,
+      198,
+      76,
+      119,
+      99,
+      142
+    ],
+    "register_referrer": [
+      122,
+      229,
+      215,
+      169,
+      100,
+      145,
+      198,
+      120
+    ],
+    "repair_field": [
+      33,
+      255,
+      124,
+      190,
+      249,
+      44,
+      118,
+      18
+    ],
+    "roll_epoch": [
+      17,
+      54,
+      176,
+      59,
+      34,
+      11,
+      253,
+      90
+    ],
+    "set_paused": [
+      91,
+      60,
+      125,
+      192,
+      176,
+      225,
+      166,
+      218
+    ],
+    "update_config": [
+      29,
+      158,
+      252,
+      191,
+      10,
+      83,
+      219,
+      99
+    ],
+    "update_presale_price": [
+      140,
+      169,
+      214,
+      239,
+      57,
+      34,
+      66,
+      153
+    ],
+    "update_reward_signer": [
+      102,
+      45,
+      51,
+      194,
+      88,
+      49,
+      216,
+      254
+    ],
+    "update_skr_mint": [
+      64,
+      101,
+      7,
+      77,
+      194,
+      133,
+      77,
+      155
+    ],
+    "upgrade_field": [
+      94,
+      68,
+      2,
+      119,
+      6,
+      43,
+      1,
+      151
+    ],
+    "withdraw_skr_treasury": [
+      134,
+      137,
+      115,
+      105,
+      155,
+      191,
+      208,
+      164
+    ],
+    "withdraw_treasury": [
+      40,
+      63,
+      122,
+      158,
+      144,
+      216,
+      83,
+      96
+    ],
+    "withdraw_treasury_sol": [
+      183,
+      223,
+      87,
+      23,
+      30,
+      186,
+      126,
+      187
+    ]
+  }
+}

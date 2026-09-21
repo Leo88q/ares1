@@ -55,8 +55,11 @@ On-chain тесты подтвердили списание и уменьшен�
   `upkeepCosts.test.ts` проверяет все 50 уровней × 3 редкости для обеих услуг,
   переходы множителей, форматирование, source-wiring карточек и preflight.
   Это unit/source-guards, **не исполнение нового UI с реальным кошельком**.
-  Контрольный CI для этого frontend-пакета ещё предстоит; результаты предыдущего
-  CI выше относятся к `095c2f4`, а не к этим изменениям.
+- Контрольный [CI 35551306128](https://github.com/Leo88q/ares1/actions/runs/35551306128)
+  **PASS** для `38986dfdc82dd78d16f43e51b3cd867f65c423a3`: web/backend,
+  Docker, Rust units/SBF, localnet integration, legacy migrations и полный IDL gate.
+  [Secret scanning 35551306109](https://github.com/Leo88q/ares1/actions/runs/35551306109)
+  также **PASS** для той же ревизии; отзыв исторического RPC-ключа не подтверждён.
 
 ## Согласованные правила оплаты
 
@@ -157,6 +160,16 @@ On-chain тесты подтвердили списание и уменьшен�
 **GitHub CI**, а не к имитации локального исполнения. ABI-тесты браузера выполняются
 без кошелька/сети; localnet CI отдельно проверяет контракт, но не UI реального кошелька.
 
+## Отдельно согласованный пакет Watchtower
+
+После frontend upkeep владелец отдельно согласовал изолированный read-only exporter.
+Реализация и границы: [watchtower/README.md](../../watchtower/README.md).
+Контракт/экономика не изменены. Локально 69 проверок прошли без skips, включая
+PostgreSQL rollback/crash recovery и synthetic RPC → отдельный процесс → HTTP.
+Devnet RPC probe из sandbox не удался; реальные fixtures, deployment manifest
+и центральное подключение Games Watchtower **не подтверждены**. `lastVerifiedAt=null`.
+Этот пакет не снимает wallet/UI, credential rotation и live authority release gates.
+
 ## Оставшиеся release gates
 
 1. Провести wallet/UI-проверку перед бетой, отдельно от ABI/contract CI. Расчёты
@@ -180,6 +193,8 @@ On-chain тесты подтвердили списание и уменьшен�
   250k–750k. Reward signer делит бюджет с harvest. Формула/бюджеты не переписаны.
 - Реальные Core/compression/transfer-hook CPI вместо существующих заглушек.
 - Treasury timelock/multisig, новая политика вывода, новые валюты/цены рынка.
-- Production indexer, Watchtower, доставляемые alerts, внешний аудит и mainnet.
+- Production indexer, доставляемые alerts, внешний аудит и mainnet. Отдельно
+  согласованный read-only Watchtower exporter описан выше; production-подключение
+  этим отчётом не сертифицируется.
 
 Операционные команды, инциденты и восстановление: [OPERATIONS.md](OPERATIONS.md).

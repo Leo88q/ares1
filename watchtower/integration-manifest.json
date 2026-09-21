@@ -1,0 +1,19 @@
+{
+  "gameId": "ares1",
+  "name": "ARES-1",
+  "network": "devnet",
+  "programIds": [
+    "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf"
+  ],
+  "mintAddresses": [],
+  "treasuryAddresses": [],
+  "pdaAccounts": [],
+  "idlVersion": "0.2.0",
+  "idlSha256": "7df5d0668bb4e8dcbb901212f64671bb35c8ac94fc30ae2f90570f9646ff84b7",
+  "parserVersion": "ares1-v1",
+  "dataQuality": "partial",
+  "writes": false,
+  "lastVerifiedAt": null,
+  "deploymentVerified": false,
+  "addressProvenance": "repository_only_not_network_verified"
+}

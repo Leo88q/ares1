@@ -65,3 +65,9 @@ MIT - Zlata, 2026
 Current validation and remaining release blockers: [21 Sep 2026 status](game/docs/STABILIZATION-2026-09-21.md).
 Build, key handling, Docker and incident procedures: [Operations](game/docs/OPERATIONS.md).
 No real-funds/mainnet readiness is claimed.
+
+## Read-only Watchtower integration
+
+The isolated exporter, event decoder, PostgreSQL read-model and verification runbook
+are in [watchtower/](watchtower/README.md). No signing capability or game-rule changes.
+Devnet verification and central Games Watchtower connection are **not yet confirmed**.
