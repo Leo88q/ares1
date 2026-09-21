@@ -18,10 +18,15 @@
     "test:unit": "cargo test -p solana_potato --lib",
     "typecheck": "yarn workspace web exec tsc --noEmit && yarn workspace backend typecheck",
     "simulate": "python3 economy/simulate.py",
-    "ci:local": "./scripts/ci-local.sh"
+    "ci:local": "./scripts/ci-local.sh",
+    "build": "yarn build:web && yarn build:backend",
+    "test:offchain": "tsx --test tests/offchain/*.test.ts",
+    "check:contract": "node scripts/check-contract.mjs",
+    "typecheck:tools": "tsc -p tsconfig.tools.json",
+    "test:migrations": "tsx scripts/test-migrations-localnet.ts"
   },
   "devDependencies": {
-    "@coral-xyz/anchor": "^0.30.1",
+    "@coral-xyz/anchor": "0.30.1",
     "@solana/spl-token": "^0.4.8",
     "@solana/web3.js": "^1.95.3",
     "@types/chai": "^4.3.11",
@@ -41,5 +46,10 @@
     "@solana-mobile/wallet-adapter-mobile": "2.1.5",
     "@solana-mobile/mobile-wallet-adapter-protocol-web3js": "2.1.5",
     "@solana-mobile/mobile-wallet-adapter-protocol": "2.1.5"
+  },
+  "packageManager": "yarn@1.22.22",
+  "engines": {
+    "node": "22.22.3",
+    "yarn": "1.22.22"
   }
 }

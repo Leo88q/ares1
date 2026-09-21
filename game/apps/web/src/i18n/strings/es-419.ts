@@ -421,6 +421,15 @@ const es419: Record<string, string> = {
   'Запрос отклонён в кошельке': 'Solicitud rechazada en la billetera',
   'Не удалось подключить кошелёк': 'No se pudo conectar la billetera',
   'Подключение…': 'Conectando…',
+
+  'Купить за {price} SOL': 'Comprar por {price} SOL',
+  'Недостаточно SOL на комиссии сети или аренды аккаунта.': 'No hay SOL suficientes para la comisión de red o el alquiler de la cuenta.',
+  'ЦЕНА ДО, SOL': 'PRECIO HASTA, SOL',
+  'ЦЕНА ОТ, SOL': 'PRECIO DESDE, SOL',
+  'Цена за 1 POTATO (SOL)': 'Precio de 1 POTATO (SOL)',
+
+  'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'ORDEN MÍN.: 10 POTATO · MONTO DESDE 0.001 SOL',
+  'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Orden mínima: 10 POTATO y un monto desde 0.001 SOL. Sube el precio o la cantidad.',
 };
 
 export default es419;

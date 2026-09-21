@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ares1.invalid/watchtower/events/schema-v1.json",
+  "title": "ARES-1 Watchtower response envelope v1",
+  "type": "object",
+  "required": ["source", "commitment", "finalizedLag", "dataQuality", "confidence", "parserVersion", "nextCursor", "data"],
+  "additionalProperties": false,
+  "properties": {
+    "source": { "enum": ["native-rpc", "synthetic"] },
+    "commitment": { "const": "finalized" },
+    "finalizedLag": { "type": ["integer", "null"], "minimum": 0, "description": "Slots since fully scanned finalized watermark, not age of last game event. Null before catch-up or if heartbeat is stale." },
+    "dataQuality": { "enum": ["partial", "unavailable"] },
+    "confidence": { "enum": ["partial", "unavailable"] },
+    "parserVersion": { "const": "ares1-v1" },
+    "nextCursor": { "type": ["string", "null"] },
+    "data": {}
+  },
+  "definitions": {
+    "normalizedEvent": {
+      "type": "object",
+      "required": ["eventType", "onChainEvent", "category", "resource", "data", "parserVersion", "dataQuality", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "eventType": { "type": "string" },
+        "onChainEvent": { "type": ["string", "null"] },
+        "category": { "enum": ["gameplay", "economy", "security", "experimental", "unknown"] },
+        "resource": { "enum": ["POTATO", "SKR", "SOL", null] },
+        "data": { "type": "object", "additionalProperties": { "type": ["string", "integer", "boolean"] } },
+        "parserVersion": { "enum": ["ares1-v1", "ares1-raw-v1"] },
+        "dataQuality": { "const": "partial" },
+        "confidence": { "const": "partial" },
+        "reason": { "type": "string" }
+      }
+    },
+    "eventRow": {
+      "type": "object",
+      "required": ["id", "logIndex", "event", "signature", "slot", "instructionIndex", "innerIndex", "applied", "blockTime", "programId", "commitment"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[0-9]+$" },
+        "logIndex": { "type": "integer", "minimum": 0 },
+        "event": { "$ref": "#/definitions/normalizedEvent" },
+        "signature": { "type": "string" },
+        "slot": { "type": "string", "pattern": "^[0-9]+$" },
+        "instructionIndex": { "type": "integer", "minimum": 0 },
+        "innerIndex": { "type": "integer", "minimum": -1 },
+        "applied": { "type": "boolean" },
+        "blockTime": { "type": ["string", "null"] },
+        "programId": { "type": "string" },
+        "commitment": { "const": "finalized" }
+      }
+    }
+  }
+}

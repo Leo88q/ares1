@@ -421,6 +421,15 @@ const id: Record<string, string> = {
   'Запрос отклонён в кошельке': 'Permintaan ditolak di dompet',
   'Не удалось подключить кошелёк': 'Gagal menghubungkan dompet',
   'Подключение…': 'Menghubungkan…',
+
+  'Купить за {price} SOL': 'Beli seharga {price} SOL',
+  'Недостаточно SOL на комиссии сети или аренды аккаунта.': 'SOL tidak cukup untuk biaya jaringan atau sewa akun.',
+  'ЦЕНА ДО, SOL': 'HARGA SAMPAI, SOL',
+  'ЦЕНА ОТ, SOL': 'HARGA DARI, SOL',
+  'Цена за 1 POTATO (SOL)': 'Harga 1 POTATO (SOL)',
+
+  'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'ORDER MIN: 10 POTATO · NILAI DARI 0.001 SOL',
+  'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Order minimal: 10 POTATO dan nilai dari 0.001 SOL. Naikkan harga atau jumlahnya.',
 };
 
 export default id;

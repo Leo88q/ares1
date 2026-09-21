@@ -40,7 +40,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
  const { show } = useToast()
  const { connection, programId, publicKey } = useSolana()
  const [amount, setAmount] = useState('100')
- const [price, setPrice] = useState('0.05')
+ const [price, setPrice] = useState('')
  const [busy, setBusy] = useState(false)
  const [hasLicense, setHasLicense] = useState(false)
 
@@ -85,7 +85,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
    show({ type: 'warning', title: t('Минимум {amount} POTATO', { amount: MIN_ORDER_AMOUNT_POTATO }) })
    return
   }
-  if (priceNum <= 0) {
+  if (!Number.isFinite(priceNum) || priceNum <= 0) {
    show({ type: 'warning', title: t('Укажи цену за 1 POTATO в SOL') })
    return
   }
@@ -100,7 +100,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
   setBusy(false)
   if (ok) {
    setAmount('100')
-   setPrice('0.05')
+   setPrice('')
    onClose()
   }
  }
@@ -190,19 +190,19 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
 
        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <span className="pf-subtitle" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-         {t('Цена за 1 POTATO (SKR)')}
+         {t('Цена за 1 POTATO (SOL)')}
         </span>
         <input
          type="number"
          inputMode="decimal"
          value={price}
          min="0"
-         step="0.001"
+         step="0.000000001"
          onChange={(e) => setPrice(e.target.value)}
          onFocus={(e) => { e.target.style.borderColor = 'var(--pf-green)'; e.target.style.boxShadow = 'var(--pf-glow-green)' }}
          onBlur={(e) => { e.target.style.borderColor = 'rgba(124, 255, 107, 0.25)'; e.target.style.boxShadow = 'none' }}
          style={inputStyle}
-         placeholder="0.05"
+         placeholder="0.0001"
         />
        </label>
 
@@ -233,7 +233,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '1px solid rgba(124,255,107,0.15)', paddingTop: 6 }}>
          <span className="pf-subtitle" style={{ color: 'var(--pf-text-primary)' }}>{t("Получишь")}</span>
          <span className="pf-mono" style={{ color: 'var(--pf-green)', textShadow: 'var(--pf-glow-green)' }}>
-          ≈ {totalSol.toFixed(4)} SKR
+          ≈ {totalSol.toFixed(4)} SOL
          </span>
         </div>
        </div>

@@ -1,0 +1,45 @@
+name: Secret scanning
+on:
+  push:
+    branches: [main, 'arena/**']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      full_history:
+        description: 'Scan all fetched history (known historical leak is NOT allowlisted)'
+        type: boolean
+        default: true
+permissions:
+  contents: read
+jobs:
+  gitleaks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: ./game/scripts/install-gitleaks.sh "$RUNNER_TEMP/gitleaks-bin"
+      - run: echo "$RUNNER_TEMP/gitleaks-bin" >> "$GITHUB_PATH"
+      - name: Current source tree
+        run: ./game/scripts/scan-secrets.sh tree
+      - name: New commits (including secrets removed later in the PR)
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            RANGE="$PR_BASE..$PR_HEAD"
+          elif [[ "$BEFORE" != 0000000000000000000000000000000000000000 ]]; then
+            RANGE="$BEFORE..$AFTER"
+          else
+            RANGE="$AFTER^..$AFTER"
+          fi
+          gitleaks git . --config .gitleaks.toml --log-opts="$RANGE" --redact=100 --no-banner
+      - name: Full historical audit
+        if: (github.event_name == 'workflow_dispatch' && inputs.full_history) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[audit-history]'))
+        run: ./game/scripts/ci-run.sh ./game/scripts/scan-secrets.sh history

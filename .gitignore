@@ -17,3 +17,12 @@ Thumbs.db
 # Python
 __pycache__/
 *.pyc
+
+# All private environment variants; only credential-free examples are tracked.
+.env.*
+!.env.example
+!.env.*.example
+**/keys/
+*-keypair.json
+secrets/
+security-reports/

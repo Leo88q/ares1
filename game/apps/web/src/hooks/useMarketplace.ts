@@ -10,6 +10,7 @@ import {
  ixCreateSellOrder, ixFillOrder, ixCancelOrder,
 } from '../utils/anchorClient'
 import { MICRO } from '../utils/constants'
+import { lamportsToSol, solToLamports, marketTotalLamports } from '../utils/marketUnits'
 import { describeError } from '../utils/errors'
 import { randomU64, withRetry } from '../utils/rpc'
 import { usePolling } from './usePolling'
@@ -77,7 +78,7 @@ export function useMarketplace() {
      status: d.status === 'active' && now >= Number(d.expiresAt) ? 'expired' : d.status,
      createdAt: Number(d.createdAt),
      expiresAt: Number(d.expiresAt),
-     totalLamports: Math.floor((amountMicro * price) / MICRO),
+     totalLamports: marketTotalLamports(d.amountMicro, d.priceLamportsPerPotato),
      isOwn: publicKey ? d.seller.equals(publicKey) : false,
     }
    })
@@ -92,7 +93,7 @@ export function useMarketplace() {
     setStats({
      sellVolume24h: Number(s.sellVolume24hMicro) / MICRO,
      buyVolume24h: Number(s.buyVolume24hMicro) / MICRO,
-     totalSolVolume: Number(s.totalSolVolume) / 1e6,
+     totalSolVolume: lamportsToSol(s.totalSolVolume),
      totalTrades: Number(s.totalTrades),
     })
    }
@@ -129,7 +130,7 @@ export function useMarketplace() {
    setActionLoading('create')
    try {
     const amountMicro = BigInt(Math.floor(amountPotato * MICRO))
-    const priceLamports = BigInt(Math.floor(priceSolPerPotato * 1e6))
+    const priceLamports = solToLamports(priceSolPerPotato)
     const orderId = randomU64()
     const { config: configPda, order, escrow, sellerProfile, marketStats } = pdas(programId)
     const orderPda = order(orderId)
@@ -163,7 +164,7 @@ export function useMarketplace() {
     if (solBal < order.totalLamports + 3_000_000) {
      show({
       type: 'warning', title: t('Недостаточно SOL'),
-      message: t('Нужно {need} SOL + комиссия, у тебя {have} SOL.', { need: (order.totalLamports / 1e6).toFixed(4), have: (solBal / 1e6).toFixed(4) }),
+      message: t('Нужно {need} SOL + комиссия, у тебя {have} SOL.', { need: lamportsToSol(order.totalLamports).toFixed(4), have: lamportsToSol(solBal).toFixed(4) }),
      })
      return false
     }

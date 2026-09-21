@@ -1,7 +1,7 @@
 /**
  * Mirror of the on-chain constants in programs/solana_potato/src/lib.rs.
- * Keep the two files in sync — the unit test in tests/constants.test.ts
- * cross-checks a few reference values against the program's IDL build.
+ * Keep the two files in sync — tests/offchain/upkeepCosts.test.ts checks
+ * upkeep prices against the Rust source constants and integer formulas.
  */
 import { t } from '../i18n'
 
@@ -18,7 +18,7 @@ export const FERTILIZER_HOURS = 24
 export const MAX_FERTILIZER_PREPAY_DAYS = 7
 export const ORDER_TTL_HOURS = 24
 export const CANCEL_COOLDOWN_HOURS = 3
-export const MIN_ORDER_AMOUNT_POTATO = 0.1
+export const MIN_ORDER_AMOUNT_POTATO = 10
 export const FEE_BURN_PERCENT = 60
 export const EXPORT_LICENSE_PRICE_SKR_ATOMS = 500_000_000n // 500 SKR (6 decimals)
 export const UNPAID_TAX_YIELD_BPS = 5_000
@@ -77,8 +77,13 @@ export function scaledCostMicro(baseMicro: number, fieldType: number): number {
 }
 
 export const fieldPriceMicro = (fieldType: number) => scaledCostMicro(BASE_COST_MICRO.field, fieldType)
-export const taxCostMicro = (fieldType: number) => scaledCostMicro(BASE_COST_MICRO.tax, fieldType)
-export const repairCostMicro = (fieldType: number) => scaledCostMicro(BASE_COST_MICRO.repair, fieldType)
+/** Rust uses integer division: L1–2 → 1×, L3–4 → 2×, L49–50 → 25×. */
+export const taxCostMicro = (level: number, fieldType: number) =>
+ scaledCostMicro(BASE_COST_MICRO.tax, fieldType) * Math.floor((level + 1) / 2)
+
+/** Rust floors level / 3, then clamps to 1: L1–5 → 1×, L6–8 → 2×. */
+export const repairCostMicro = (level: number, fieldType: number) =>
+ scaledCostMicro(BASE_COST_MICRO.repair, fieldType) * Math.max(Math.floor(level / 3), 1)
 export const fertilizerCostMicro = (fieldType: number) => scaledCostMicro(BASE_COST_MICRO.fertilizer, fieldType)
 
 /** Cost of upgrading from `level` to `level + 1`. */
@@ -161,6 +166,16 @@ export function accumulatedMicro(
 }
 
 export const fmtPotato = (micro: number | bigint, decimals = 2) => (Number(micro) / MICRO).toFixed(decimals)
+/** Exact token amount for prices/balance warnings; never round away a micro POTATO. */
+export function fmtPotatoExact(micro: number | bigint): string {
+ const amount = BigInt(micro)
+ const sign = amount < 0n ? '-' : ''
+ const abs = amount < 0n ? -amount : amount
+ const unit = BigInt(MICRO)
+ const fraction = (abs % unit).toString().padStart(6, '0').replace(/0+$/, '')
+ return `${sign}${abs / unit}${fraction ? `.${fraction}` : ''}`
+}
+
 export const fmtSol = (lamports: number | bigint, decimals = 3) => (Number(lamports) / 1e9).toFixed(decimals)
 
 export const fmtSkr = (atoms: number | bigint, decimals = 2) => (Number(atoms) / 1e6).toFixed(decimals)

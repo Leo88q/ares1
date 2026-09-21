@@ -421,6 +421,15 @@ const tl: Record<string, string> = {
   'Запрос отклонён в кошельке': 'Tinanggihan ang request sa wallet',
   'Не удалось подключить кошелёк': 'Hindi maikonekta ang wallet',
   'Подключение…': 'Kumokonekta…',
+
+  'Купить за {price} SOL': 'Bilhin sa {price} SOL',
+  'Недостаточно SOL на комиссии сети или аренды аккаунта.': 'Kulang ang SOL para sa fee ng network o rent ng account.',
+  'ЦЕНА ДО, SOL': 'PRESYO HANGGANG, SOL',
+  'ЦЕНА ОТ, SOL': 'PRESYO MULA SA, SOL',
+  'Цена за 1 POTATO (SOL)': 'Presyo ng 1 POTATO (SOL)',
+
+  'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'MIN ORDER: 10 POTATO · HALAGA MULA SA 0.001 SOL',
+  'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Minimum order: 10 POTATO at halaga mula sa 0.001 SOL. Itaas ang presyo o dami.',
 };
 
 export default tl;
