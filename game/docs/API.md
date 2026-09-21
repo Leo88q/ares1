@@ -81,7 +81,7 @@ separate daily reward budget, timelock or governance-enforced withdrawal delay.
 - `create_sell_order`, `fill_order`, `cancel_order`, `close_expired_order`: current
   market settles in native SOL; minimum order 10 POTATO and total 0.001 SOL. Fees depend on tier
   and referral; 60% of fee burn / 40% treasury before referral adjustments.
-- `register_referrer`: one-time link, burn 50 POTATO, self-referral rejected.
+- `register_referrer`: one-time link, burn 5 POTATO (owner-confirmed registration price), self-referral rejected.
 - `claim_achievement`: on-chain proofs and bitmap, quest IDs 0–5; transfers existing
   tokens from quest treasury (does not mint new rewards). Duplicate field proofs rejected.
 - `init_presale`, `update_presale_price` (authority); `buy_field_sol`, `buy_field_skr`
