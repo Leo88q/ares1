@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { BN, BorshInstructionCoder, type Idl } from '@coral-xyz/anchor';
-import { PublicKey, SystemProgram, type TransactionInstruction } from '@solana/web3.js';
+import { PublicKey, SystemProgram, SYSVAR_SLOT_HASHES_PUBKEY, type TransactionInstruction } from '@solana/web3.js';
 import * as client from '../../apps/web/src/utils/anchorClient';
 
 // This is the genuine pinned-Anchor output, not a hand-written test ABI.
@@ -60,7 +60,13 @@ for (const [name, build, args] of cases) {
       assert('name' in account && !('accounts' in account), 'Flatten nested accounts explicitly');
       const a = account as { name: string; address?: string; writable?: boolean; signer?: boolean };
       const param = a.name === 'user_potato_ata' ? 'userAta' : a.name.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
-      const expected = a.address ? new PublicKey(a.address) : keys[param as keyof typeof keys];
+      // slot_hashes is an address-checked UncheckedAccount on-chain (Sysvar<SlotHashes> is
+      // UnsupportedSysvar, so it cannot be a typed Sysvar). Anchor does not emit its `address`
+      // into the IDL for UncheckedAccount, but the browser builder pins it to the sysvar, so
+      // the ABI test pins it here too instead of relying on a generated account key.
+      const expected = a.address ? new PublicKey(a.address)
+        : a.name === 'slot_hashes' ? SYSVAR_SLOT_HASHES_PUBKEY
+        : keys[param as keyof typeof keys];
       assert(expected, `Unmapped account ${name}.${a.name}`);
       assert.deepEqual(actual.keys[i], { pubkey: expected, isWritable: !!a.writable, isSigner: !!a.signer }, `${name}.${a.name}`);
     }
