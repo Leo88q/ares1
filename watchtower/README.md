@@ -255,6 +255,13 @@ binary/полный inventory и не включают флаг централь
 Повторный публичный RPC probe вернул `ECONNRESET`; live RPC/DB/token/exporter URL
 в окружении не настроены, `watchtower/.env` отсутствует. `lastVerifiedAt` не менялся.
 
+Контрольный commit `cd8cae9fe3c758a9e8145695a3914139ace5e00b`:
+[Watchtower CI 35556440719](https://github.com/Leo88q/ares1/actions/runs/35556440719),
+[общий CI 35556440813](https://github.com/Leo88q/ares1/actions/runs/35556440813) и
+[security 35556440772](https://github.com/Leo88q/ares1/actions/runs/35556440772)
+**PASS**. Watchtower suite выполнен с обязательной PostgreSQL 17, включая verifier
+CLI; общий CI подтвердил прежние web/backend/Docker/Anchor/localnet/migrations/IDL
+проверки. Эти результаты не означают live deployment или центральный handshake.
 
 ## Оставшиеся gates (не скрывать)
 

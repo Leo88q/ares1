@@ -176,6 +176,10 @@ Smoke verifier дополнительно усилен: полная идент�
 Локально 111 тестов без skips, types/build PASS; 42 проверки verifier плюс CLI через
 synthetic RPC и реальную локальную PostgreSQL. Повторный devnet probe: `ECONNRESET`.
 Live-конфигурация exporter не задана; это не доказательство devnet deployment.
+Для `cd8cae9fe3c758a9e8145695a3914139ace5e00b` прошли Watchtower CI `35556440719`
+(обязательная PostgreSQL 17), общий CI `35556440813` и security `35556440772`.
+Все три результата проверены для этой точной ревизии, не для предыдущего пакета.
+
 Этот пакет не снимает wallet/UI, credential rotation и live authority release gates.
 
 ## Оставшиеся release gates
