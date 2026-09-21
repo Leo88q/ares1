@@ -14,12 +14,12 @@ const names = ['config', 'epoch', 'field', 'owner', 'potatoMint', 'userPotato', 
   'seller', 'sellerProfile', 'order', 'marketStats', 'sellerPotato', 'escrow', 'buyer', 'buyerPotato',
   'presaleState', 'authority', 'buyerPresale', 'treasurySol', 'skrMint', 'buyerSkrAta', 'treasurySkrAta',
   'buybackSkrAta', 'license', 'payer', 'userSkrAta', 'referral', 'referrer', 'newSkrMint', 'newSigner',
-  'achievements', 'user', 'questTreasury', 'questAta', 'userAta'] as const;
+  'achievements', 'user', 'questTreasury', 'questAta', 'userAta', 'adminState'] as const;
 const keys = Object.fromEntries(names.map(name => [name, PublicKey.unique()])) as { [K in typeof names[number]]: PublicKey };
 const high = 0x8123456789abcdefn;
 const bn = new BN(high.toString());
 const p = { ...keys, fieldId: high, fieldType: 2, orderId: high, amountMicro: high, priceLamports: high,
-  cap: 0x12345678, fieldPks: [] as PublicKey[] };
+  maxTotalLamports: high, cap: 0x12345678, fieldPks: [] as PublicKey[] };
 const cases: [string, () => Promise<TransactionInstruction>, Record<string, unknown>][] = [
   ['create_field', () => client.ixCreateField(program, p), { field_id: bn, field_type: 2 }],
   ['harvest', () => client.ixHarvest(program, p), {}],
@@ -32,7 +32,7 @@ const cases: [string, () => Promise<TransactionInstruction>, Record<string, unkn
   ['cancel_order', () => client.ixCancelOrder(program, p), {}],
   ['init_presale', () => client.ixInitPresale(program, p), { cap: p.cap, price_lamports: bn }],
   ['update_presale_price', () => client.ixUpdatePresalePrice(program, p), { price_lamports: bn }],
-  ['buy_field_sol', () => client.ixBuyFieldSol(program, p), { field_id: bn, field_type: 2 }],
+  ['buy_field_sol', () => client.ixBuyFieldSol(program, p), { field_id: bn, field_type: 2, max_total_lamports: bn }],
   ['buy_field_skr', () => client.ixBuyFieldSkr(program, p), { field_id: bn }],
   ['buy_export_license', () => client.ixBuyExportLicense(program, p), {}],
   ['migrate_config', () => client.ixMigrateConfig(program, p), {}],
@@ -42,6 +42,9 @@ const cases: [string, () => Promise<TransactionInstruction>, Record<string, unkn
   ['batch_harvest', () => client.ixBatchHarvest(program, p), {}],
   ['close_field', () => client.ixCloseField(program, p), {}],
   ['update_skr_mint', () => client.ixUpdateSkrMint(program, p), { new_skr_mint: keys.newSkrMint }],
+  ['apply_pending_skr_mint', () => client.ixApplyPendingSkrMint(program, p), {}],
+  ['apply_pending_presale_price', () => client.ixApplyPendingPresalePrice(program, p), {}],
+  ['close_old_epoch', () => client.ixCloseOldEpoch(program, p), {}],
   ['update_reward_signer', () => client.ixUpdateRewardSigner(program, p), { new_signer: keys.newSigner }],
   ['claim_achievement', () => client.ixClaimAchievement(program, p, 3, []), { quest_id: 3 }],
 ];

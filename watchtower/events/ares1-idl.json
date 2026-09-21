@@ -6,7 +6,7 @@
     "spec": "0.1.0",
     "description": "Solana Potato game program"
   },
-  "sourceIdlSha256": "7df5d0668bb4e8dcbb901212f64671bb35c8ac94fc30ae2f90570f9646ff84b7",
+  "sourceIdlSha256": "6c4bf8927b1a4c67dba454c14afef0571942eae1e2b9108d487c9ab7cc798934",
   "events": [
     {
       "name": "AchievementClaimed",
@@ -61,32 +61,6 @@
       ]
     },
     {
-      "name": "CompressedFieldMinted",
-      "discriminator": [
-        44,
-        122,
-        95,
-        163,
-        5,
-        250,
-        231,
-        80
-      ]
-    },
-    {
-      "name": "CompressionTreeCreated",
-      "discriminator": [
-        23,
-        64,
-        108,
-        197,
-        186,
-        122,
-        173,
-        240
-      ]
-    },
-    {
       "name": "ConfigUpdated",
       "discriminator": [
         40,
@@ -97,19 +71,6 @@
         19,
         198,
         194
-      ]
-    },
-    {
-      "name": "CoreFieldMinted",
-      "discriminator": [
-        34,
-        72,
-        87,
-        200,
-        227,
-        200,
-        119,
-        107
       ]
     },
     {
@@ -386,19 +347,6 @@
       ]
     },
     {
-      "name": "TransferHookExecuted",
-      "discriminator": [
-        187,
-        164,
-        179,
-        224,
-        22,
-        91,
-        19,
-        0
-      ]
-    },
-    {
       "name": "TreasurySkrWithdrawn",
       "discriminator": [
         85,
@@ -525,46 +473,6 @@
       }
     },
     {
-      "name": "CompressedFieldMinted",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "pubkey"
-          },
-          {
-            "name": "field_id",
-            "type": "u64"
-          },
-          {
-            "name": "field_type",
-            "type": "u8"
-          },
-          {
-            "name": "leaf_index",
-            "type": "u32"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CompressionTreeCreated",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "type": "pubkey"
-          },
-          {
-            "name": "merkle_tree",
-            "type": "pubkey"
-          }
-        ]
-      }
-    },
-    {
       "name": "ConfigUpdated",
       "type": {
         "kind": "struct",
@@ -580,34 +488,6 @@
           {
             "name": "global_multiplier_bps",
             "type": "u16"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CoreFieldMinted",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "pubkey"
-          },
-          {
-            "name": "collection",
-            "type": "pubkey"
-          },
-          {
-            "name": "asset",
-            "type": "pubkey"
-          },
-          {
-            "name": "field_id",
-            "type": "u64"
-          },
-          {
-            "name": "field_type",
-            "type": "u8"
           }
         ]
       }
@@ -994,34 +874,6 @@
       }
     },
     {
-      "name": "TransferHookExecuted",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "mint",
-            "type": "pubkey"
-          },
-          {
-            "name": "source",
-            "type": "pubkey"
-          },
-          {
-            "name": "destination",
-            "type": "pubkey"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          },
-          {
-            "name": "fee",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
       "name": "TreasurySkrWithdrawn",
       "type": {
         "kind": "struct",
@@ -1115,6 +967,26 @@
       11,
       74
     ],
+    "apply_pending_presale_price": [
+      252,
+      130,
+      39,
+      3,
+      100,
+      60,
+      173,
+      190
+    ],
+    "apply_pending_skr_mint": [
+      4,
+      243,
+      141,
+      212,
+      147,
+      226,
+      168,
+      162
+    ],
     "batch_harvest": [
       4,
       237,
@@ -1195,6 +1067,16 @@
       135,
       20
     ],
+    "close_old_epoch": [
+      46,
+      219,
+      120,
+      23,
+      124,
+      144,
+      147,
+      125
+    ],
     "create_field": [
       237,
       199,
@@ -1214,16 +1096,6 @@
       74,
       171,
       225
-    ],
-    "execute_transfer_hook": [
-      120,
-      157,
-      67,
-      141,
-      88,
-      144,
-      143,
-      220
     ],
     "fill_order": [
       232,
@@ -1254,16 +1126,6 @@
       169,
       59,
       199
-    ],
-    "init_compression_tree": [
-      155,
-      98,
-      251,
-      90,
-      21,
-      187,
-      173,
-      115
     ],
     "init_epoch": [
       78,
@@ -1334,26 +1196,6 @@
       113,
       192,
       92
-    ],
-    "mint_compressed_field": [
-      127,
-      146,
-      178,
-      131,
-      75,
-      140,
-      76,
-      92
-    ],
-    "mint_core_field": [
-      114,
-      252,
-      228,
-      209,
-      142,
-      211,
-      218,
-      201
     ],
     "pay_tax": [
       51,

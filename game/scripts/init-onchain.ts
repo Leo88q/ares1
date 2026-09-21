@@ -1,8 +1,8 @@
 /**
  * One-time on-chain bootstrap after `anchor deploy` («тёплый старт»):
- *   1. creates the $POTATO mint (6 decimals, no freeze authority)
- *   2. hands mint authority to the config PDA
- *   3. calls `initialize` and `init_epoch`
+ *   1–3. ONE atomic transaction: create $POTATO mint (6 decimals, no freeze
+ *        authority) → hand mint authority to the config PDA → `initialize` →
+ *        `init_epoch` (no window where admin controls a live mint)
  *   4. initializes the presale (cap=500, SOL price=0.25 SOL; SKR price = 1053 SKR, program const)
  *   5. materializes the treasury_sol PDA vault (destination of buy_field_sol)
  *   6. materializes the quest_treasury PDA + ATA and funds the 550 🥔 achievement pool
@@ -24,10 +24,13 @@ import {
   TransactionInstruction, sendAndConfirmTransaction,
 } from "@solana/web3.js";
 import {
-  TOKEN_PROGRAM_ID,
+  AuthorityType,
   ASSOCIATED_TOKEN_PROGRAM_ID,
-  createMint,
-  getAccount, setAuthority, AuthorityType,
+  MINT_SIZE,
+  TOKEN_PROGRAM_ID,
+  createInitializeMintInstruction,
+  createSetAuthorityInstruction,
+  getAccount,
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 
@@ -134,14 +137,15 @@ async function main() {
     const balance = await connection.getBalance(admin.publicKey);
     if (balance < 0.1e9) throw new Error(`Admin balance too low (${(balance / 1e9).toFixed(4)} SOL). Need ≥0.1 SOL for rent + fees. (devnet airdrop: solana airdrop ${admin.publicKey.toBase58()})`);
 
-    console.log("\nCreating POTATO mint (6 decimals, no freeze authority)...");
-    mint = await createMint(connection, admin, admin.publicKey, null, 6);
-    console.log("Mint:     ", mint.toBase58());
-
-    console.log("Transferring mint authority to config PDA...");
-    await setAuthority(connection, admin, mint, admin.publicKey, AuthorityType.MintTokens, configPda);
-
-    console.log("Calling initialize + init_epoch...");
+    console.log("\nCreating POTATO mint + initialize + init_epoch in ONE atomic transaction...");
+    // AUDIT H-4: createMint/setAuthority/initialize отдельными транзакциями
+    // оставляли окно, в котором admin владеет mint authority живого митта
+    // (бесконечная эмиссия) и рискует осиротить минт при частичном сбое.
+    // Одна транзакция: createAccount → initializeMint(6, admin, no freeze) →
+    // setAuthority(→configPda) → initialize → init_epoch. All-or-nothing.
+    const mintKeypair = Keypair.generate();
+    mint = mintKeypair.publicKey;
+    const mintRent = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
     const initIx = new TransactionInstruction({
       programId: PROGRAM_ID,
       keys: [
@@ -162,7 +166,21 @@ async function main() {
       ],
       data: disc("init_epoch"),
     });
-    const sig = await send(initIx, epochIx);
+    const atomicTx = new Transaction().add(
+      SystemProgram.createAccount({
+        fromPubkey: admin.publicKey,
+        newAccountPubkey: mint,
+        lamports: mintRent,
+        space: MINT_SIZE,
+        programId: TOKEN_PROGRAM_ID,
+      }),
+      createInitializeMintInstruction(mint, 6, admin.publicKey, null),
+      createSetAuthorityInstruction(mint, admin.publicKey, AuthorityType.MintTokens, configPda),
+      initIx,
+      epochIx,
+    );
+    const sig = await sendAndConfirmTransaction(connection, atomicTx, [admin, mintKeypair]);
+    console.log("Mint:     ", mint.toBase58());
     console.log("tx:        ", sig);
     epochId = 0n;
   }

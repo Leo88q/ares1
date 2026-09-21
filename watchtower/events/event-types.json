@@ -4,10 +4,7 @@
     "AuthorityChanged",
     "AuthorityProposed",
     "BatchCropHarvested",
-    "CompressedFieldMinted",
-    "CompressionTreeCreated",
     "ConfigUpdated",
-    "CoreFieldMinted",
     "CropHarvested",
     "EpochRolled",
     "FertilizerApplied",
@@ -25,7 +22,6 @@
     "RewardClaimed",
     "RewardGranted",
     "TaxPaid",
-    "TransferHookExecuted",
     "TreasuryDeposited",
     "TreasuryWithdrawn",
     "Unknown"

@@ -44,7 +44,7 @@ for (const size of [41, 49]) {
     b[40] = 253;
     if (size === 49) b.writeBigUInt64LE(17n, 41);
     assert.deepEqual(decodeWebEpoch(b), decodeEpoch(b));
-    assert.equal(decodeEpoch(b).burnedMicro, size === 49 ? 17n : 0n);
+    assert.equal(decodeEpoch(b).grantedMicro, size === 49 ? 17n : 0n);
   });
 }
 test('backend rejects truncated accounts and wrong discriminators', () => {

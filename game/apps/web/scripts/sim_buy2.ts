@@ -2,7 +2,7 @@ import { Connection, PublicKey, Transaction } from '@solana/web3.js'
 import { createAssociatedTokenAccountIdempotentInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token'
 import {
   ixBuyFieldSkr, pdas, presaleStatePda, buyerPresalePda, treasurySolPda,
-  treasurySkrAta, buybackSkrAta, TEST_SKR_MINT,
+  treasurySkrAta, buybackSkrAta, SKR_MINT,
 } from '../src/utils/anchorClient'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -41,8 +41,8 @@ async function main() {
 
   // собираем транзакцию с authority из PresaleState
   const fieldId = 99999n
-  const buyerSkrAta = getAssociatedTokenAddressSync(TEST_SKR_MINT, buyer)
-  const ataIx = createAssociatedTokenAccountIdempotentInstruction(buyer, buyerSkrAta, buyer, TEST_SKR_MINT)
+  const buyerSkrAta = getAssociatedTokenAddressSync(SKR_MINT, buyer)
+  const ataIx = createAssociatedTokenAccountIdempotentInstruction(buyer, buyerSkrAta, buyer, SKR_MINT)
   const buyIx = await ixBuyFieldSkr(PROGRAM_ID, {
     config: configAddr,
     presaleState: presaleAddr,
@@ -51,10 +51,10 @@ async function main() {
     field: field(fieldId),
     buyer,
     treasurySol: treasurySolPda(PROGRAM_ID),
-    skrMint: TEST_SKR_MINT,
+    skrMint: SKR_MINT,
     buyerSkrAta,
-    treasurySkrAta: treasurySkrAta(PROGRAM_ID, TEST_SKR_MINT),
-    buybackSkrAta: buybackSkrAta(presaleAuthority, TEST_SKR_MINT),
+    treasurySkrAta: treasurySkrAta(PROGRAM_ID, SKR_MINT),
+    buybackSkrAta: buybackSkrAta(presaleAuthority, SKR_MINT),
     fieldId,
     fieldType: 0,
   })
