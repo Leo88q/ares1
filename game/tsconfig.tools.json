@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "noEmit": true
+  },
+  "include": [
+    "scripts/migrationClient.ts",
+    "scripts/migrate-v2.ts",
+    "scripts/init-onchain.ts",
+    "tests/offchain/**/*.ts",
+    "scripts/test-migrations-localnet.ts"
+  ]
+}

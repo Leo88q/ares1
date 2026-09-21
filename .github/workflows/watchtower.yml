@@ -1,0 +1,46 @@
+name: Watchtower exporter
+on:
+  push:
+    branches: [main, 'arena/**']
+    paths: ['watchtower/**', '.github/workflows/watchtower.yml', 'game/apps/web/src/idl.json']
+  pull_request:
+    paths: ['watchtower/**', '.github/workflows/watchtower.yml', 'game/apps/web/src/idl.json']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: watchtower-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  readonly-exporter:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: watchtower_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d watchtower_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Disposable CI-only service. Never point these destructive tests at game data.
+      WATCHTOWER_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/watchtower_test
+      WATCHTOWER_REQUIRE_TEST_DATABASE: 'true'
+    defaults:
+      run:
+        working-directory: watchtower
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: watchtower/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test

@@ -41,12 +41,14 @@ export function treasuryAuthority(): PublicKey {
 export async function fetchConfig(): Promise<GameConfig> {
   const info = await connection.getAccountInfo(configPda());
   if (!info) throw new Error("Config account not found — run initialize first");
+  if (!info.owner.equals(programId)) throw new Error("Config account has unexpected owner");
   return decodeGameConfig(info.data);
 }
 
 export async function fetchEpoch(epochId: bigint): Promise<EpochAccount> {
   const info = await connection.getAccountInfo(epochPda(epochId));
   if (!info) throw new Error(`Epoch ${epochId} account not found`);
+  if (!info.owner.equals(programId)) throw new Error("Epoch account has unexpected owner");
   return decodeEpoch(info.data);
 }
 

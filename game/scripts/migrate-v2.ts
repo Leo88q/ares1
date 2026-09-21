@@ -1,134 +1,67 @@
-/**
- * One-shot devnet v1 → v2 migration (run AFTER an in-place program upgrade).
- *
- * v1 → v2 account layout changes (append-only, realloc via program instructions):
- *   GameConfig  156 → 164 bytes  (+last_total_burned_micro)
- *   Epoch       41  → 49  bytes  (+burned_micro)
- *   Field       69  → 70  bytes  (+mutation_type)
- *
- * The script finds v1-sized accounts and calls migrate_config / migrate_epoch /
- * migrate_field (authority = GameConfig.authority = your deployer key) for each.
- * Idempotent: v2-sized accounts are skipped, so re-running is safe.
- *
- *   ADMIN_KEYPAIR_PATH=~/.config/solana/id.json RPC_URL=https://api.devnet.solana.com \
- *   PROGRAM_ID=<id> npm run migrate-v2
+/** Review-only by default. Execute ONLY after a tested program upgrade.
+ * RPC_URL and PROGRAM_ID are explicit; no implicit deploy wallet or cluster.
+ * --execute additionally requires ADMIN_KEYPAIR_PATH and EXPECTED_GENESIS_HASH.
+ * Rent is paid to each migrated account by the instruction, never to the program.
  */
-import fs from "node:fs";
-import crypto from "node:crypto";
-import {
-  Connection, Keypair, PublicKey, Transaction, TransactionInstruction, SystemProgram, sendAndConfirmTransaction,
-} from "@solana/web3.js";
+import fs from 'node:fs';
+import { Connection, Keypair, PublicKey, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
+import { anchorDiscriminator, decodeGameConfig } from '../apps/backend/src/anchorRaw';
+import { safeError } from '../apps/backend/src/security';
+import { migrationInstruction, migrationLayouts, validateMigrationAccount, type MigrationKind } from './migrationClient';
 
-const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
-// Дефолт — живой devnet-адрес программы. (48D2uN… — устаревший declare_id
-// из старых сборок; с ним PDA выводятся под чужим адресом и скрипт молча
-// «ничего не находит».)
-const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID || "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf");
-const ADMIN_KEYPAIR_PATH = (process.env.ADMIN_KEYPAIR_PATH || `${process.env.HOME}/.config/solana/id.json`).replace(/^~/, process.env.HOME || "");
-
-const CONFIG_V1 = 156, CONFIG_V2 = 164;
-const EPOCH_V1 = 41, EPOCH_V2 = 49;
-const FIELD_V1 = 69, FIELD_V2 = 70;
-
-const connection = new Connection(RPC_URL, "confirmed");
-const admin = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(ADMIN_KEYPAIR_PATH, "utf-8"))));
-
-const pda = (...seeds: (Buffer | Uint8Array)[]) => PublicKey.findProgramAddressSync(seeds, PROGRAM_ID)[0];
-const configPda = pda(Buffer.from("config"));
-const disc = (name: string) => crypto.createHash("sha256").update(`global:${name}`).digest().subarray(0, 8);
-
-async function send(...ixs: TransactionInstruction[]): Promise<string> {
-  return sendAndConfirmTransaction(connection, new Transaction().add(...ixs), [admin]);
+function required(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing explicit ${name}`);
+  return value;
 }
-
-function migrateIx(name: string, accounts: PublicKey[]): TransactionInstruction {
-  return new TransactionInstruction({
-    programId: PROGRAM_ID,
-    keys: accounts.map((pk, i) => ({ pubkey: pk, isSigner: i === accounts.length - 1, isWritable: i === 0 })),
-    data: disc(name),
-  });
-}
-
 async function main() {
-  console.log("Program:", PROGRAM_ID.toBase58());
-  console.log("Admin:  ", admin.publicKey.toBase58());
-
-  // ── GameConfig ──
-  const cfgInfo = await connection.getAccountInfo(configPda);
-  if (!cfgInfo) {
-    console.log("GameConfig not found — nothing to migrate (fresh deploy?).");
-    return;
+  const args = process.argv.slice(2);
+  if (args.some(a => a !== '--execute')) throw new Error('Usage: yarn migrate-v2 [--execute]');
+  const execute = args.includes('--execute');
+  const connection = new Connection(required('RPC_URL'), 'confirmed');
+  const programId = new PublicKey(required('PROGRAM_ID'));
+  // Require execution intent/credentials before any network operations, but do not print them.
+  const expectedGenesis = execute ? required('EXPECTED_GENESIS_HASH') : undefined;
+  const keyPath = execute ? required('ADMIN_KEYPAIR_PATH').replace(/^~/, process.env.HOME || '') : undefined;
+  const genesis = await connection.getGenesisHash();
+  if (execute && genesis !== expectedGenesis) throw new Error('Cluster genesis mismatch; refusing migration');
+  console.log('Mode:', execute ? 'EXECUTE' : 'READ-ONLY PLAN', 'Program:', programId.toBase58(), 'Genesis:', genesis);
+  const configPda = PublicKey.findProgramAddressSync([Buffer.from('config')], programId)[0];
+  const info = await connection.getAccountInfo(configPda);
+  if (!info) throw new Error('Config not found');
+  validateMigrationAccount('config', info, programId);
+  const config = decodeGameConfig(info.data);
+  const admin = keyPath ? Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(keyPath, 'utf8')))) : undefined;
+  if (admin && !admin.publicKey.equals(config.authority)) throw new Error('Signer is not the current game authority');
+  const plan: { kind: MigrationKind; key: PublicKey }[] = [];
+  if (info.data.length !== migrationLayouts.config.current) plan.push({ kind: 'config', key: configPda });
+  for (const kind of ['epoch', 'field'] as const) {
+    const layout = migrationLayouts[kind];
+    for (const size of layout.legacy) {
+      const accounts = await connection.getProgramAccounts(programId, { filters: [{ dataSize: size }] });
+      for (const { pubkey, account } of accounts) {
+        if (!account.data.subarray(0, 8).equals(anchorDiscriminator('account', layout.name))) continue;
+        validateMigrationAccount(kind, account, programId);
+        plan.push({ kind, key: pubkey });
+      }
+    }
   }
-  // Anchor AccountInfo::realloc берёт ренту под новые байты из аккаунта самой
-  // программы (обычно 0 lamports) → докладываем 0.001 SOL перед миграцией.
-  const progLamports = (await connection.getAccountInfo(PROGRAM_ID))?.lamports ?? 0;
-  if (progLamports < 0.0015e9) {
-    const sig = await send(SystemProgram.transfer({ fromPubkey: admin.publicKey, toPubkey: PROGRAM_ID, lamports: 0.001e9 }));
-    console.log(`Program lamports top-up 0.001 SOL (had ${progLamports}), tx:`, sig);
+  for (const { kind, key } of plan) {
+    const before = await connection.getAccountInfo(key);
+    if (!before) throw new Error('Planned account disappeared');
+    validateMigrationAccount(kind, before, programId);
+    const targetSize = migrationLayouts[kind].current;
+    const rent = await connection.getMinimumBalanceForRentExemption(targetSize);
+    console.log(kind, key.toBase58(), `${before.data.length} -> ${targetSize} bytes`, 'rent shortfall:', Math.max(0, rent - before.lamports));
+    if (admin && before.data.length !== targetSize) {
+      const tx = new Transaction().add(migrationInstruction(kind, programId, key, admin.publicKey));
+      const signature = await sendAndConfirmTransaction(connection, tx, [admin]);
+      const after = await connection.getAccountInfo(key);
+      if (!after || after.data.length !== targetSize || after.lamports < rent) throw new Error('Post-migration verification failed');
+      validateMigrationAccount(kind, after, programId);
+      console.log('Confirmed:', signature);
+    }
   }
-  if (cfgInfo.data.length === CONFIG_V1) {
-    console.log("Migrating GameConfig 156 → 164 ...");
-    const sig = await send(
-      migrateIx("migrate_config", [configPda, admin.publicKey, SystemProgram.programId]),
-    );
-    console.log("  tx:", sig);
-  } else if (cfgInfo.data.length === CONFIG_V2) {
-    console.log("GameConfig already v2 (164).");
-  } else {
-    throw new Error(`Unexpected GameConfig size: ${cfgInfo.data.length}`);
-  }
-
-  // ── Epochs (seeds ["epoch", id] — enumerate all program accounts of v1 size) ──
-  const epochs = await connection.getProgramAccounts(PROGRAM_ID, {
-    filters: [{ dataSize: EPOCH_V1 }],
-  });
-  console.log(`Epochs v1: ${epochs.length}`);
-  for (let i = 0; i < epochs.length; i += 5) {
-    const chunk = epochs.slice(i, i + 5);
-    // migrate_epoch keys = [epoch, config, authority, system];
-    // PDA не меняется между версиями (те же seeds и bump).
-    const ixs = chunk.map(({ pubkey }) =>
-      migrateIx("migrate_epoch", [pubkey, configPda, admin.publicKey, SystemProgram.programId]),
-    );
-    const sig = await send(...ixs);
-    console.log(`  epoch chunk ${i / 5 + 1}: tx ${sig}`);
-  }
-
-  // ── Fields (seeds ["field", id] — enumerate all v1-sized field accounts) ──
-  const fields = await connection.getProgramAccounts(PROGRAM_ID, {
-    filters: [{ dataSize: FIELD_V1 }],
-  });
-  console.log(`Fields v1: ${fields.length}`);
-  for (let i = 0; i < fields.length; i += 5) {
-    const chunk = fields.slice(i, i + 5);
-    const ixs = chunk.map(({ pubkey }) =>
-      migrateIx("migrate_field", [pubkey, configPda, admin.publicKey, SystemProgram.programId]),
-    );
-    const sig = await send(...ixs);
-    console.log(`  field chunk ${i / 5 + 1} (${chunk.length} accts): tx ${sig}`);
-  }
-
-  // ── verify ──
-  const leftover = await connection.getProgramAccounts(PROGRAM_ID, {
-    filters: [
-      { dataSize: CONFIG_V1 },
-    ],
-  });
-  const leftoverFields = await connection.getProgramAccounts(PROGRAM_ID, {
-    filters: [{ dataSize: FIELD_V1 }],
-  });
-  const leftoverEpochs = await connection.getProgramAccounts(PROGRAM_ID, {
-    filters: [{ dataSize: EPOCH_V1 }],
-  });
-  if (leftover.length || leftoverFields.length || leftoverEpochs.length) {
-    console.warn(`⚠ Leftover v1 accounts: config=${leftover.length} fields=${leftoverFields.length} epochs=${leftoverEpochs.length}`);
-    process.exitCode = 1;
-  } else {
-    console.log("✓ Migration complete: no v1-sized accounts left.");
-  }
+  console.log(execute ? 'Planned migrations verified; rerun read-only to inspect remaining legacy accounts.' : 'No transactions sent. Review the plan and deployed program before using --execute.');
 }
-
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main().catch(error => { console.error(safeError(error)); process.exitCode = 1; });

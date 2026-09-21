@@ -1,0 +1,15 @@
+title = "ARES-1 secret scanning"
+[extend]
+useDefault = true
+
+[[rules]]
+id = "rpc-url-credential"
+description = "Credential in RPC URL query string"
+regex = '''(?i)[?&](?:api[-_]?key|token|key)=([a-z0-9_-]{16,})'''
+secretGroup = 1
+keywords = ["api-key", "api_key", "token=", "key="]
+
+[[rules]]
+id = "solana-json-keypair"
+description = "Possible 64-byte Solana secret key array (review redacted finding)"
+regex = '''\[(?:\s*\d{1,3}\s*,){63}\s*\d{1,3}\s*\]'''

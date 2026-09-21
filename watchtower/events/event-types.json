@@ -1,0 +1,61 @@
+{
+  "supported": [
+    "AssetCreated",
+    "AuthorityChanged",
+    "AuthorityProposed",
+    "BatchCropHarvested",
+    "CompressedFieldMinted",
+    "CompressionTreeCreated",
+    "ConfigUpdated",
+    "CoreFieldMinted",
+    "CropHarvested",
+    "EpochRolled",
+    "FertilizerApplied",
+    "FieldClosed",
+    "FieldRepaired",
+    "FieldUpgraded",
+    "OrderCancelled",
+    "OrderCreated",
+    "OrderExpired",
+    "OrderFilled",
+    "PausedToggled",
+    "PurchaseCompleted",
+    "ReferralRewardPaid",
+    "ReferrerRegistered",
+    "RewardClaimed",
+    "RewardGranted",
+    "TaxPaid",
+    "TransferHookExecuted",
+    "TreasuryDeposited",
+    "TreasuryWithdrawn",
+    "Unknown"
+  ],
+  "unavailable": {
+    "requires_client_telemetry": [
+      "WalletConnected",
+      "PlayerJoined",
+      "SessionStarted",
+      "SessionEnded",
+      "FirstAction",
+      "RetentionDay1",
+      "RetentionDay3",
+      "RetentionDay7",
+      "RetentionDay14",
+      "RetentionDay30",
+      "ClientCrash",
+      "Device",
+      "IP",
+      "Onboarding",
+      "FunnelSteps"
+    ],
+    "requires_identity_service": [
+      "CrossGamePlayer"
+    ]
+  },
+  "reliabilityAudit": [
+    "IndexerGapDetected",
+    "IndexerGapHealed",
+    "RpcError",
+    "FinalizedReconciled"
+  ]
+}

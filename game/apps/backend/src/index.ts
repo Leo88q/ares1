@@ -1,3 +1,4 @@
+import { assertDedicatedPayer, safeError } from "./security.js";
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { env } from "./env.js";
@@ -49,6 +50,9 @@ async function main() {
   app.use(cors({ origin: env.corsOrigin === "*" ? true : env.corsOrigin.split(",").map((s) => s.trim()) }));
   app.use(express.json({ limit: "16kb" }));
 
+  app.get("/live", (_req, res) => res.json({ live: true }));
+  app.use(rateLimit(env.rateLimitPerMinute));
+
   // Health with detailed checks
   app.get("/health", async (_req, res) => {
     try {
@@ -67,7 +71,7 @@ async function main() {
         uptime: process.uptime(),
       });
     } catch (err) {
-      res.status(503).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+      res.status(503).json({ ok: false, error: "Dependency check failed" });
     }
   });
 
@@ -81,17 +85,18 @@ async function main() {
     }
   });
 
-  app.use("/api/config", rateLimit(env.rateLimitPerMinute), configRouter);
+  app.use("/api/config", configRouter);
 
   // 404
   app.use((_req, res) => res.status(404).json({ error: "Not found" }));
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-    console.error("[http] unhandled error:", err);
+    console.error("[http] unhandled error:", safeError(err));
     res.status(500).json({ error: "Internal error" });
   });
 
   const config = await fetchConfig();
+  assertDedicatedPayer(payerKeypair.publicKey, config);
   // Fail-fast: payer без баланса роллить эпохи не сможет (rent + fee ~0.01 SOL/эпоху с запасом)
   const payerBal = await connection.getBalance(payerKeypair.publicKey);
   if (payerBal < 10_000_000) {
@@ -106,14 +111,14 @@ async function main() {
   }
 
   startEpochRoller();
-  app.listen(env.port, () => {
+  app.listen(env.port, "0.0.0.0", () => {
     console.log(`[startup] Solana Potato backend on :${env.port}`);
-    console.log(`[startup] program=${programId.toBase58()} rpc=${env.rpcUrl}`);
+    console.log(`[startup] program=${programId.toBase58()}`);
     console.log(`[startup] epoch-payer=${payerKeypair.publicKey.toBase58()} epoch=${config.epochId}`);
   });
 }
 
 main().catch((err) => {
-  console.error("[startup] fatal:", err);
+  console.error("[startup] fatal:", safeError(err));
   process.exit(1);
 });

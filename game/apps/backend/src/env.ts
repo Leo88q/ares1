@@ -13,7 +13,7 @@ export const env = {
   /** Path to the JSON keypair of a DEDICATED low-privilege wallet (NOT the
    *  program authority!). roll_epoch принимает любого signera как payer —
    *  ключу нужны только lamports на rent/fee нового epoch-аккаунта (~0.0013 SOL
-   *  в эпоху). 0.1–0.2 SOL хватит на годы. AUDIT B4. */
+   *  в эпоху). 0.1–0.2 SOL примерно на 77–154 эпохи до учёта комиссий; мониторить баланс. */
   payerKeypairJson: required("PAYER_KEYPAIR_JSON"),
   corsOrigin: (() => {
     const v = process.env.CORS_ORIGIN;
@@ -23,6 +23,6 @@ export const env = {
     return v || "*"; // '*' only for local dev
   })(),
   epochRollCron: process.env.EPOCH_ROLL_CRON || "*/10 * * * *",
-  /** Requests per minute per IP on /api/*. */
+  /** Requests per minute per IP (all routes except /live). */
   rateLimitPerMinute: parseInt(process.env.RATE_LIMIT_PER_MINUTE || "30", 10),
 };

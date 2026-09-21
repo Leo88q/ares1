@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/target
+**/.env
+**/.env.*
+**/keys
+**/*-keypair.json
+**/*.pem
+**/*.log
+.anchor
+test-ledger
+security-reports

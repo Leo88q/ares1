@@ -1,14 +1,20 @@
-# Security Notes — Sep 2026
+# Security status — 21 September 2026
 
-## Audited
-- All instructions require proper Signer<'info>
-- CEI-pattern in fill_order (state update before SOL transfer)
-- PDA seeds tied to owner/buyer keys
-- Integer overflow protected (28 checked_add/saturating_add)
-- No unchecked system_instruction::transfer calls
+This repository is **not approved for mainnet or real funds**. Internal AI/code
+reviews are not independent security audits; earlier “Audited”/“Done” labels are
+not certifications. See [stabilization status](docs/STABILIZATION-2026-09-21.md).
 
-## Known transitive CVEs (Solana SDK, not on-chain code)
-- RUSTSEC-2024-0344: curve25519-dalek timing variability
-- RUSTSEC-2022-0093: ed25519-dalek oracle attack
-Source: anchor-lang 0.30.1 → solana-program 1.18.26
-Mitigation: upgrade to anchor 0.31+ before mainnet
+- A browser RPC credential was tracked in `.env.production`; the current file was
+  removed, but historical exposure and provider revocation remain open.
+- Epoch payer must differ from game authority/pending authority/reward signer.
+- Reward signer shares the harvest emission budget. Treasury has no timelock.
+- Upgrade authority and live game authorities have not been verified in this pass.
+- Dynamic epoch cap is not bounded by the admin `daily_mint_cap_micro` setting.
+- Legacy migrations and experimental compression/Core/hook instructions are not
+  certified. The latter contain placeholders, not full protocol integrations.
+- Committed IDL is stale; Rust build/localnet tests must pass before a deployment.
+
+Use Gitleaks with `.gitleaks.toml`; never post a credential in an issue or public
+log. Follow [the operational runbook](docs/OPERATIONS.md) for revocation, isolated
+payer storage, recovery and pause. Dependency vulnerabilities require an up-to-date
+scanner run; old transitive-CVE notes are not a current dependency audit.

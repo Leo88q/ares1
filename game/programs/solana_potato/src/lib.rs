@@ -6,8 +6,8 @@
 //! $POTATO for SOL on a built-in escrow marketplace.
 //!
 //! ## Economic guard rails
-//! * Emission happens only through `harvest` / `grant_reward` and is bounded by
-//!   a per-epoch mint cap (`Epoch.mint_cap_micro`, at most [`MAX_DAILY_CAP_MICRO`])
+//! * Emission through `harvest` / `batch_harvest` / `grant_reward` is bounded by
+//!   a per-epoch mint cap (`Epoch.mint_cap_micro`, dynamically 250k–750k after roll)
 //!   and by `GameConfig.max_supply_micro`.
 //! * Epochs are 24h long and are rolled permissionlessly via `roll_epoch`.
 //! * Every in-game spend is a burn; 60 % of marketplace fees are burned and the
@@ -20,6 +20,8 @@
 //!
 //! All amounts suffixed `_micro` are in 10^-6 $POTATO (the mint has 6 decimals).
 //! All `_bps` values are basis points (10_000 = 1.0×).
+
+mod migrations;
 
 use anchor_lang::prelude::*;
 use anchor_lang::AccountDeserialize;
@@ -44,8 +46,8 @@ pub const SECONDS_PER_DAY: i64 = 86_400;
 
 /// Epoch length. The mint cap resets every epoch.
 pub const EPOCH_DURATION: i64 = SECONDS_PER_DAY;
-/// Hard ceiling for the per-epoch mint cap: 250 000 $POTATO. Even the authority
-/// cannot raise `daily_mint_cap_micro` above this.
+/// Ceiling for the configured bootstrap cap, NOT for subsequent dynamic epochs.
+/// roll_epoch currently clamps its independent calculation to 250k–750k POTATO.
 pub const MAX_DAILY_CAP_MICRO: u64 = 250_000_000_000;
 /// Hard ceiling for a single off-chain reward: 1 000 $POTATO.
 pub const MAX_REWARD_MICRO: u64 = 1_000_000_000;
@@ -104,6 +106,8 @@ pub const SKR_MINT: Pubkey = pubkey!("Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA
 /// 1053 SKR (6 decimals) = 2000 RUB при курсе 1.90
 pub const PRESALE_PRICE_SKR_ATOMS: u64 = 1_053_000_000;
 pub const EXPORT_LICENSE_PRICE_SKR_ATOMS: u64 = 500_000_000; // 500 SKR / 30 дней
+/// One-time referral registration cost, confirmed by the game owner: 5 POTATO.
+pub const REFERRAL_REGISTRATION_COST_MICRO: u64 = 5_000_000;
 pub const BASE_TAX_MICRO: u64 = 6_000_000; // 6 $POTATO / week
 pub const BASE_REPAIR_MICRO: u64 = 15_000_000; // 15 $POTATO
 pub const BASE_FERTILIZER_MICRO: u64 = 10_000_000; // 10 $POTATO / 24h
@@ -115,10 +119,10 @@ pub const BASE_UPGRADE_MICRO: u64 = 100_000_000; // 100 $POTATO × level
 pub const ORDER_TTL: i64 = 24 * 3600;
 /// After cancelling an order a seller must wait this long before listing again.
 pub const CANCEL_COOLDOWN: i64 = 3 * 3600;
-/// Minimum order size: 0.1 $POTATO.
+/// Minimum order size: 10 $POTATO.
 pub const MIN_ORDER_AMOUNT_MICRO: u64 = 10_000_000; // 10 POTATO
 /// Minimum SOL an order must be worth so that rounding can never make it free.
-pub const MIN_ORDER_TOTAL_LAMPORTS: u64 = 1_000_000; // 1 SKR (6 dec)
+pub const MIN_ORDER_TOTAL_LAMPORTS: u64 = 1_000_000; // 0.001 SOL
 /// Share of the marketplace fee that is burned; the rest goes to the treasury.
 pub const FEE_BURN_PERCENT: u64 = 60;
 
@@ -1337,112 +1341,42 @@ pub mod solana_potato {
     }
     // ───────────────────────── Migration (devnet → v2) ───────────────────────────
     
-    /// Миграция GameConfig: realloc 156→164 (last_total_burned) →228 (skr_mint+reward_signer, +64).
-    /// Корректно сдвигает хвост (maxSupply..bump) на 64 байта вперёд, чтобы вставить skr/reward после potato_mint.
+    /// Upgrade supported legacy layouts, preserving existing fields and flags.
+    /// Authority pays only the target account's rent shortfall; retries are safe.
     pub fn migrate_config(ctx: Context<MigrateConfig>) -> Result<()> {
         let info = ctx.accounts.config.to_account_info();
-        require_keys_eq!(*info.owner, *ctx.program_id, GameError::Unauthorized);
-        let old_len = info.data_len();
-        let new_len = 8 + GameConfig::INIT_SPACE;
-        // Читаем authority и снапшот старых данных для проверки/копирования
-        let (stored_authority, old_data_snapshot) = {
+        let updated = {
             let data = info.try_borrow_data()?;
-            require!(data.len() >= 40, GameError::Unauthorized);
-            let v = Pubkey::new_from_array(data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
-            require_keys_eq!(v, ctx.accounts.authority.key(), GameError::Unauthorized);
-            (v, data.to_vec())
+            migrations::authority(&data, &ctx.accounts.authority.key())?;
+            migrations::config(&data)?
         };
-        if old_len < new_len {
-            // realloc, затем пересборка layout через Vec чтобы избежать overlapping borrow проблем
-            info.realloc(new_len, false)?;
-            let mut data = info.try_borrow_mut_data()?;
-            // Новая раскладка: disc(8) + authority(32) + pending(32) + potato(32) + skr(32) + reward(32) + tail
-            // Копируем префикс 104 байта (disc + 3 pubkeys) из снапшота
-            data[0..104].copy_from_slice(&old_data_snapshot[0..104.min(old_data_snapshot.len())]);
-            // Вставляем новые поля
-            data[104..136].copy_from_slice(&SKR_MINT.to_bytes());
-            data[136..168].copy_from_slice(&stored_authority.to_bytes());
-            // Копируем хвост (maxSupply..) который в старом лежал на 104..old_len
-            let tail_len = old_len.saturating_sub(104);
-            if tail_len > 0 {
-                data[168..168+tail_len].copy_from_slice(&old_data_snapshot[104..104+tail_len]);
-            }
-            // Остаток (new_len - (168+tail_len)) уже zero от realloc
-        } else if old_len == new_len {
-            // Уже новый размер, но поля могут быть zero (если realloc ранее был без инициализации) — заполнить если default
-            let mut data = info.try_borrow_mut_data()?;
-            if data.len() >= 168 {
-                let skr = Pubkey::new_from_array(data[104..136].try_into().unwrap());
-                if skr == Pubkey::default() {
-                    data[104..136].copy_from_slice(&SKR_MINT.to_bytes());
-                }
-                let rw = Pubkey::new_from_array(data[136..168].try_into().unwrap());
-                if rw == Pubkey::default() {
-                    data[136..168].copy_from_slice(&stored_authority.to_bytes());
-                }
-            }
-        }
-        Ok(())
+        write_migrated_account(&info, &ctx.accounts.authority, &ctx.accounts.system_program, &updated)
     }
 
-    /// Миграция Field: realloc 69 → 70 байт (добавляет mutation_type).
     pub fn migrate_field(ctx: Context<MigrateField>) -> Result<()> {
+        migrations::authority(&ctx.accounts.config.try_borrow_data()?, &ctx.accounts.authority.key())?;
         let info = ctx.accounts.field.to_account_info();
-        require_keys_eq!(*info.owner, *ctx.program_id, GameError::Unauthorized);
-        // Читаем authority из config (offset 8)
-        let cfg_info = ctx.accounts.config.to_account_info();
-        require_keys_eq!(*cfg_info.owner, *ctx.program_id, GameError::Unauthorized);
-        let cfg_data = cfg_info.try_borrow_data()?;
-        require!(cfg_data.len() >= 40, GameError::Unauthorized);
-        let stored_authority = Pubkey::new_from_array(cfg_data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
-        drop(cfg_data);
-        require_keys_eq!(stored_authority, ctx.accounts.authority.key(), GameError::Unauthorized);
-        // realloc
-        info.realloc(8 + Field::INIT_SPACE, false)?;
-        // Явно обнуляем последний байт (mutation_type = 0)
-        let mut data = info.try_borrow_mut_data()?;
-        let new_len = 8 + Field::INIT_SPACE;
-        if data.len() >= new_len {
-            data[new_len - 1] = 0;
-        }
-        Ok(())
+        let updated = migrations::field(&info.try_borrow_data()?)?;
+        write_migrated_account(&info, &ctx.accounts.authority, &ctx.accounts.system_program, &updated)
     }
 
-    /// Миграция Epoch: realloc 41 → 49 байт (добавляет burned_micro).
     pub fn migrate_epoch(ctx: Context<MigrateEpoch>) -> Result<()> {
+        migrations::authority(&ctx.accounts.config.try_borrow_data()?, &ctx.accounts.authority.key())?;
         let info = ctx.accounts.epoch.to_account_info();
-        require_keys_eq!(*info.owner, *ctx.program_id, GameError::Unauthorized);
-        // Читаем authority из config (offset 8)
-        let cfg_info = ctx.accounts.config.to_account_info();
-        require_keys_eq!(*cfg_info.owner, *ctx.program_id, GameError::Unauthorized);
-        let cfg_data = cfg_info.try_borrow_data()?;
-        require!(cfg_data.len() >= 40, GameError::Unauthorized);
-        let stored_authority = Pubkey::new_from_array(cfg_data[8..40].try_into().map_err(|_| GameError::Unauthorized)?);
-        drop(cfg_data);
-        require_keys_eq!(stored_authority, ctx.accounts.authority.key(), GameError::Unauthorized);
-        // realloc
-        info.realloc(8 + Epoch::INIT_SPACE, false)?;
-        // Явно обнуляем последние 8 байт (burned_micro = 0)
-        let mut data = info.try_borrow_mut_data()?;
-        let new_len = 8 + Epoch::INIT_SPACE;
-        if data.len() >= new_len {
-            for i in (new_len - 8)..new_len {
-                data[i] = 0;
-            }
-        }
-        Ok(())
+        let updated = migrations::epoch(&info.try_borrow_data()?)?;
+        let epoch = Epoch::try_deserialize(&mut &updated[..])?;
+        let (expected, _) = Pubkey::find_program_address(&[b"epoch", &epoch.id.to_le_bytes()], ctx.program_id);
+        require_keys_eq!(info.key(), expected, GameError::BadProof);
+        write_migrated_account(&info, &ctx.accounts.authority, &ctx.accounts.system_program, &updated)
     }
 
-    // ───────────────────────── Реферальная программа (п.8) ───────────────────────────
-    
-    /// Регистрация реферера: одноразовый burn 5 POTATO, запись `referrer` в PDA Referral.
-    /// PDA Referral создаётся один раз на кошелёк.
+    /// Registers a one-time referral relationship; burns the registration cost.
+
     pub fn register_referrer(ctx: Context<RegisterReferrer>, referrer: Pubkey) -> Result<()> {
         require!(referrer != ctx.accounts.owner.key(), GameError::Unauthorized);
         require!(referrer != Pubkey::default(), GameError::Unauthorized);
         
-        // Burn 50 POTATO (антиспам, повышено с 5 → 50 после аудита 2026-09-20:
-        // при награде 0.5% от сделки sybil с 5 POTATO окупался за 1 сделку 1k POTATO).
+        // One-time registration burns 5 POTATO; market referral rewards are unchanged.
         token::burn(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -1452,7 +1386,7 @@ pub mod solana_potato {
                     authority: ctx.accounts.owner.to_account_info(),
                 },
             ),
-            50_000_000, // 50 POTATO
+            REFERRAL_REGISTRATION_COST_MICRO,
         )?;
         
         ctx.accounts.referral.owner = ctx.accounts.owner.key();
@@ -1496,7 +1430,6 @@ pub mod solana_potato {
 
         // Первый проход: валидация + расчёт pending без мутации состояния
         // Собираем данные чтобы проверить лимиты до минта
-        let mut pending_list: Vec<(Pubkey, u64, u64, u64)> = Vec::new(); // (field_key, pending, player_yield, treasury)
         // Для защиты от дублей в батче
         for i in 0..ctx.remaining_accounts.len() {
             for j in (i+1)..ctx.remaining_accounts.len() {
@@ -1504,7 +1437,7 @@ pub mod solana_potato {
             }
         }
         for acc in ctx.remaining_accounts.iter() {
-            require!(acc.owner == ctx.program_id, GameError::BadProof);
+            require!(acc.owner == ctx.program_id && acc.is_writable, GameError::BadProof);
             let mut slice: &[u8] = &acc.try_borrow_data()?[..];
             let f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
             require!(f.owner == ctx.accounts.owner.key(), GameError::Unauthorized);
@@ -1517,7 +1450,6 @@ pub mod solana_potato {
             let player_yield = pending.saturating_sub(tax_amount);
             let treasury_share = tax_amount / 2;
             require!(player_yield > 0, GameError::NothingToHarvest);
-            pending_list.push((acc.key(), pending, player_yield, treasury_share));
             total_gross = total_gross.saturating_add(pending);
             total_player = total_player.saturating_add(player_yield);
             total_treasury = total_treasury.saturating_add(treasury_share);
@@ -1544,19 +1476,14 @@ pub mod solana_potato {
         ctx.accounts.epoch.minted_micro = ctx.accounts.epoch.minted_micro
             .saturating_add(scaled_player).saturating_add(scaled_treasury);
 
-        for (idx, acc) in ctx.remaining_accounts.iter().enumerate() {
-            // Перечитываем поле mutable через AccountLoader-подобный доступ:
-            // remaining_accounts — Unchecked, поэтому мутируем данные напрямую через try_borrow_mut_data + Field deserialization is unsafe.
-            // Вместо этого требуем чтобы поле было передано и как mutable remaining — мы обновляем через поле PDA seeds.
-            // Упрощение: ожидаем что поля уже проверены, и обновляем last_harvest/durability через CPI-подобный подход:
-            // Декодируем, модифицируем и сериализуем обратно.
+        for acc in ctx.remaining_accounts.iter() {
+            // All remaining accounts were validated before any state mutation.
             let mut data = acc.try_borrow_mut_data()?;
             let mut slice: &[u8] = &data;
             let mut f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
             // Пропорциональный consumed
-            let (_, pending, _, _) = pending_list[idx];
             let elapsed = now.saturating_sub(f.last_harvest).min(MAX_ACCRUAL_SECONDS);
-            let consumed: i64 = if scale_num == 1 {
+            let consumed: i64 = if scale_num == scale_den {
                 elapsed
             } else {
                 ((elapsed as u128) * scale_num / scale_den) as i64
@@ -1566,11 +1493,7 @@ pub mod solana_potato {
             let decay_interval = if f.mutation_type == 2 { DURABILITY_DECAY_INTERVAL * 2 } else { DURABILITY_DECAY_INTERVAL };
             let decay = (consumed / decay_interval).max(1).min(MAX_DURABILITY as i64) as u8;
             f.durability = f.durability.saturating_sub(decay);
-            // Сериализуем обратно
-            let mut out: Vec<u8> = Vec::new();
-            f.try_serialize(&mut out).map_err(|_| error!(GameError::MathOverflow))?;
-            // data[0..8] — discriminator, сохраняем
-            data[8..8+out.len()].copy_from_slice(&out);
+            write_field_account(&f, &mut data)?;
         }
 
         // Интеракция: минт
@@ -1689,6 +1612,13 @@ pub mod solana_potato {
         Ok(())
     }
 
+}
+
+/// Anchor AccountSerialize writes the discriminator AND payload. Remaining
+/// accounts must be written from offset zero, without reallocating the account.
+fn write_field_account(field: &Field, data: &mut [u8]) -> Result<()> {
+    require!(data.len() == 8 + Field::INIT_SPACE, GameError::BadProof);
+    field.try_serialize(&mut &mut data[..])
 }
 
 // ────────────────────────── Pure helpers ─────────────────────────
@@ -1856,36 +1786,60 @@ pub struct RegisterReferrer<'info> {
 
 #[derive(Accounts)]
 pub struct MigrateConfig<'info> {
-    /// CHECK: raw data, manual read of authority at offset 8
-    #[account(mut)]
+    /// CHECK: canonical PDA/owner here; exact layout, discriminator and authority in handler.
+    #[account(mut, seeds = [b"config"], bump, owner = crate::ID)]
     pub config: UncheckedAccount<'info>,
+    #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct MigrateField<'info> {
-    /// CHECK: raw data
-    #[account(mut)]
+    /// CHECK: program owner here; exact Field layout and discriminator in handler.
+    #[account(mut, owner = crate::ID)]
     pub field: UncheckedAccount<'info>,
-    /// CHECK: raw data for authority read
+    /// CHECK: canonical config PDA; legacy layout is validated in handler.
+    #[account(seeds = [b"config"], bump, owner = crate::ID)]
     pub config: UncheckedAccount<'info>,
+    #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct MigrateEpoch<'info> {
-    /// CHECK: raw data
-    #[account(mut)]
+    /// CHECK: program owner here; exact Epoch layout/discriminator and PDA in handler.
+    #[account(mut, owner = crate::ID)]
     pub epoch: UncheckedAccount<'info>,
-    /// CHECK: raw data for authority read
+    /// CHECK: canonical config PDA; legacy layout is validated in handler.
+    #[account(seeds = [b"config"], bump, owner = crate::ID)]
     pub config: UncheckedAccount<'info>,
+    #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
-
+fn write_migrated_account<'info>(
+    account: &AccountInfo<'info>,
+    authority: &Signer<'info>,
+    system_program: &Program<'info, System>,
+    data: &[u8],
+) -> Result<()> {
+    let shortfall = Rent::get()?.minimum_balance(data.len()).saturating_sub(account.lamports());
+    if shortfall > 0 {
+        anchor_lang::system_program::transfer(
+            CpiContext::new(system_program.to_account_info(), anchor_lang::system_program::Transfer {
+                from: authority.to_account_info(), to: account.clone(),
+            }), shortfall,
+        )?;
+    }
+    if account.data_len() != data.len() {
+        account.realloc(data.len(), true)?;
+    }
+    account.try_borrow_mut_data()?.copy_from_slice(data);
+    Ok(())
+}
 
 // ───────────────────────── CPI helpers ───────────────────────────
 
@@ -2506,6 +2460,7 @@ pub struct BatchHarvest<'info> {
 pub struct CloseField<'info> {
     #[account(mut, has_one = owner, close = owner)]
     pub field: Account<'info, Field>,
+    #[account(mut)]
     pub owner: Signer<'info>,
 }
 
@@ -3043,7 +2998,7 @@ pub enum GameError {
     InvalidMintDecimals, // 6024
     #[msg("Mint must not have a freeze authority")]
     MintHasFreezeAuthority, // 6025
-    #[msg("Order total is below the minimum of 10 000 lamports")]
+    #[msg("Order total is below the minimum of 1 000 000 lamports (0.001 SOL)")]
     OrderTotalTooSmall, // 6026
     #[msg("Prepay limit reached: tax up to 28 days, fertilizer up to 7 days ahead")]
     PrepayLimitReached, // 6027
@@ -3185,14 +3140,45 @@ mod tests {
     }
 
     #[test]
+    fn batch_field_serialization_round_trips_without_extra_discriminator() {
+        let mut original = field(3, 99, 1);
+        original.last_harvest = 123456;
+        let mut data = vec![0; 8 + Field::INIT_SPACE];
+        write_field_account(&original, &mut data).unwrap();
+        let restored = Field::try_deserialize(&mut &data[..]).unwrap();
+        assert_eq!(restored.owner, original.owner);
+        assert_eq!(restored.last_harvest, 123456);
+        assert_eq!(restored.durability, 99);
+        assert_eq!(restored.level, 3);
+        assert!(write_field_account(&original, &mut data[..69]).is_err());
+    }
+
+    #[test]
+    fn achievement_proofs_reject_duplicate_and_foreign_fields() {
+        let user = Pubkey::new_unique();
+        let program = crate::ID;
+        let key = Pubkey::new_unique();
+        let mut f = field(3, 100, 1);
+        f.owner = user;
+        let mut data = vec![0; 8 + Field::INIT_SPACE];
+        write_field_account(&f, &mut data).unwrap();
+        let mut lamports = 1;
+        let account = AccountInfo::new(&key, false, false, &mut lamports, &mut data, &program, false, 0);
+        assert!(verify_fields(&[account.clone()], &user, &program, 1, 3).is_ok());
+        assert!(verify_fields(&[account.clone(), account.clone()], &user, &program, 2, 0).is_err());
+        assert!(verify_fields(&[account.clone()], &Pubkey::new_unique(), &program, 1, 0).is_err());
+        assert!(verify_fields(&[account], &user, &Pubkey::new_unique(), 1, 0).is_err());
+    }
+
+    #[test]
     fn account_sizes_match_client_decoders() {
         assert_eq!(8 + Field::INIT_SPACE, 70);
         assert_eq!(8 + MarketOrder::INIT_SPACE, 83);
         // GameConfig: 32*5 (authority,pending,potato,skr,reward) + 8*4 +2+8*3+1+1
         assert_eq!(8 + GameConfig::INIT_SPACE, 8 + 32 * 5 + 8 * 4 + 2 + 8 * 3 + 1 + 1);
-        assert_eq!(8 + CompressionTree::INIT_SPACE, 32 + 32 + 4 + 1);
-        assert_eq!(8 + CoreCollection::INIT_SPACE, 32 + 1);
-        assert_eq!(8 + CoreAsset::INIT_SPACE, 32 + 32 + 8 + 1 + 1);
+        assert_eq!(8 + CompressionTree::INIT_SPACE, 8 + 32 + 32 + 4 + 1);
+        assert_eq!(8 + CoreCollection::INIT_SPACE, 8 + 32 + 1);
+        assert_eq!(8 + CoreAsset::INIT_SPACE, 8 + 32 + 32 + 8 + 1 + 1);
     }
 }
 

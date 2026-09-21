@@ -1,6 +1,6 @@
 import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction } from '@solana/web3.js'
 import { t } from '../i18n'
-import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
+import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
 
 export const SKR_MINT = new PublicKey('Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o')
 /** @deprecated — use SKR_MINT; kept for back-compat */
@@ -165,11 +165,14 @@ export async function ixFillOrder(programId: PublicKey, params: {
   { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
  ]
- // Позиции remaining_accounts зафиксированы программой: [0]=лицензия продавца
- if (params.sellerLicense) keys.push({ pubkey: params.sellerLicense, isSigner: false, isWritable: false })
- // [1]=реферальная PDA покупателя — передаём только вместе с [2]
- if (params.buyerReferral) keys.push({ pubkey: params.buyerReferral, isSigner: false, isWritable: false })
- // [2]=ATA реферера (получает 0.5 % из комиссии)
+ // Fixed positions must not shift when an earlier optional account is absent.
+ // System Program is a harmless, readonly placeholder (not a license/referral PDA).
+ if (params.sellerLicense || params.buyerReferral || params.referrerPotato) {
+  keys.push({ pubkey: params.sellerLicense ?? SystemProgram.programId, isSigner: false, isWritable: false })
+ }
+ if (params.buyerReferral || params.referrerPotato) {
+  keys.push({ pubkey: params.buyerReferral ?? SystemProgram.programId, isSigner: false, isWritable: false })
+ }
  if (params.referrerPotato) keys.push({ pubkey: params.referrerPotato, isSigner: false, isWritable: true })
  return new TransactionInstruction({ programId, keys, data })
 }
@@ -280,11 +283,12 @@ export function decodeEpoch(data: Buffer): DecodedEpoch {
  const mintedMicro = readU64(data, o); o = mintedMicro.next
  const startTime = readI64(data, o); o = startTime.next
  const bump = readU8(data, o); o = bump.next
- const burnedMicro = readU64(data, o)
+ const burnedMicro = data.length === 41 ? { value: 0n } : readU64(data, o)
  return { id: id.value, mintCapMicro: mintCapMicro.value, mintedMicro: mintedMicro.value, startTime: startTime.value, bump: bump.value, burnedMicro: burnedMicro.value }
 }
 
 export function decodeConfig(data: Buffer): DecodedConfig {
+ if (![156, 164, 228].includes(data.length)) throw new Error("Unsupported GameConfig layout")
  let o = 8
  const authority = readPubkey(data, o); o = authority.next
  const pendingAuthority = readPubkey(data, o); o = pendingAuthority.next
@@ -306,7 +310,7 @@ export function decodeConfig(data: Buffer): DecodedConfig {
  const fieldCount = readU64(data, o); o = fieldCount.next
  const epochId = readU64(data, o); o = epochId.next
  const totalBurnedMicro = readU64(data, o); o = totalBurnedMicro.next
- const lastTotalBurnedMicro = readU64(data, o); o = lastTotalBurnedMicro.next
+ const lastTotalBurnedMicro = data.length === 156 ? { value: 0n, next: o } : readU64(data, o); o = lastTotalBurnedMicro.next
  const paused = readBool(data, o)
  return {
   authority: authority.value, pendingAuthority: pendingAuthority.value, potatoMint: potatoMint.value,
@@ -469,7 +473,7 @@ export async function ixMigrateConfig(programId: PublicKey, params: {
   data,
   keys: [
    { pubkey: params.config, isSigner: false, isWritable: true },
-   { pubkey: params.authority, isSigner: true, isWritable: false },
+   { pubkey: params.authority, isSigner: true, isWritable: true },
    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ],
  })
@@ -485,7 +489,7 @@ export async function ixMigrateField(programId: PublicKey, params: {
   keys: [
    { pubkey: params.field, isSigner: false, isWritable: true },
    { pubkey: params.config, isSigner: false, isWritable: false },
-   { pubkey: params.authority, isSigner: true, isWritable: false },
+   { pubkey: params.authority, isSigner: true, isWritable: true },
    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ],
  })
@@ -501,7 +505,7 @@ export async function ixMigrateEpoch(programId: PublicKey, params: {
   keys: [
    { pubkey: params.epoch, isSigner: false, isWritable: true },
    { pubkey: params.config, isSigner: false, isWritable: false },
-   { pubkey: params.authority, isSigner: true, isWritable: false },
+   { pubkey: params.authority, isSigner: true, isWritable: true },
    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ],
  })
@@ -602,7 +606,7 @@ export async function ixRegisterReferrer(programId: PublicKey, params: {
     data,
     keys: [
       { pubkey: params.referral, isSigner: false, isWritable: true },
-      { pubkey: params.config, isSigner: false, isWritable: false },
+      { pubkey: params.config, isSigner: false, isWritable: true },
       { pubkey: params.potatoMint, isSigner: false, isWritable: true },
       { pubkey: params.userPotato, isSigner: false, isWritable: true },
       { pubkey: params.owner, isSigner: true, isWritable: true },
@@ -680,7 +684,7 @@ export async function ixCloseField(programId: PublicKey, params: {
 // ───────────────────────────────────────────────────────────────
 
 /** Token-2022 mint PDA — для mainnet migrated POTATO (hook+metadata) */
-export const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenzQdBNbLqP5VEhdkAS6FFYh-BRnj-LvaybEd')
+export { TOKEN_2022_PROGRAM_ID }
 export const BUBBLEGUM_PROGRAM_ID = new PublicKey('BGUMAp9Gq7iTEuapy4pqaxsQSKP9pRFw9tgo88Ruef4')
 export const MPL_CORE_PROGRAM_ID = new PublicKey('CoREENxT6tWLL37r42jwFW6dvSzpzy1gZb98F1QYn7R')
 export const COMPRESSION_PROGRAM_ID = new PublicKey('cmtDvXumGCrqC1Age74AVPhSRVXJMd8PJS91L8KbNCK')
@@ -828,7 +832,7 @@ export async function ixClaimAchievement(programId: PublicKey, params: {
    { pubkey: params.userAta, isSigner: false, isWritable: true },
    { pubkey: params.potatoMint, isSigner: false, isWritable: false },
    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-   { pubkey: SystemProgram.programId, isSigner: false, isWritable: true },
+   { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
    ...fieldPkas.map((pk) => ({ pubkey: pk, isSigner: false, isWritable: false })),
   ],
  });
