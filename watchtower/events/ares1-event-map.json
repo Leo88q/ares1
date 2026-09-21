@@ -1,0 +1,274 @@
+[
+  {
+    "on_chain_event": "AchievementClaimed",
+    "normalized_event": "RewardClaimed",
+    "category": "gameplay",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "AuthorityAccepted",
+    "normalized_event": "AuthorityChanged",
+    "category": "security",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "AuthorityProposed",
+    "normalized_event": "AuthorityProposed",
+    "category": "security",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "BatchHarvested",
+    "normalized_event": "BatchCropHarvested",
+    "category": "gameplay",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "CompressedFieldMinted",
+    "normalized_event": "CompressedFieldMinted",
+    "category": "experimental",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Emitted by experimental/stub handler; not evidence of real asset CPI."
+  },
+  {
+    "on_chain_event": "CompressionTreeCreated",
+    "normalized_event": "CompressionTreeCreated",
+    "category": "experimental",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Emitted by experimental/stub handler; not evidence of real asset CPI."
+  },
+  {
+    "on_chain_event": "ConfigUpdated",
+    "normalized_event": "ConfigUpdated",
+    "category": "security",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "CoreFieldMinted",
+    "normalized_event": "CoreFieldMinted",
+    "category": "experimental",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Emitted by experimental/stub handler; not evidence of real asset CPI."
+  },
+  {
+    "on_chain_event": "EpochRolled",
+    "normalized_event": "EpochRolled",
+    "category": "economy",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "ExportLicensePurchased",
+    "normalized_event": "PurchaseCompleted",
+    "category": "economy",
+    "resource": "SKR",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "FertilizerApplied",
+    "normalized_event": "FertilizerApplied",
+    "category": "gameplay",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "FieldClosed",
+    "normalized_event": "FieldClosed",
+    "category": "gameplay",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "FieldCreated",
+    "normalized_event": "AssetCreated",
+    "category": "gameplay",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "FieldRepaired",
+    "normalized_event": "FieldRepaired",
+    "category": "gameplay",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "FieldUpgraded",
+    "normalized_event": "FieldUpgraded",
+    "category": "gameplay",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "Harvested",
+    "normalized_event": "CropHarvested",
+    "category": "gameplay",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "OrderCancelled",
+    "normalized_event": "OrderCancelled",
+    "category": "economy",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "OrderCreated",
+    "normalized_event": "OrderCreated",
+    "category": "economy",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "OrderExpiredEvent",
+    "normalized_event": "OrderExpired",
+    "category": "economy",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "OrderFilled",
+    "normalized_event": "OrderFilled",
+    "category": "economy",
+    "resource": "SOL",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "PausedToggled",
+    "normalized_event": "PausedToggled",
+    "category": "security",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "PresaleAuthorityMigrated",
+    "normalized_event": "AuthorityChanged",
+    "category": "security",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "PresalePurchase",
+    "normalized_event": "PurchaseCompleted",
+    "category": "economy",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Currency is resolved from emitting instruction, never from sol_amount field name."
+  },
+  {
+    "on_chain_event": "ReferralRewardPaid",
+    "normalized_event": "ReferralRewardPaid",
+    "category": "economy",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "ReferrerRegistered",
+    "normalized_event": "ReferrerRegistered",
+    "category": "gameplay",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "RewardGranted",
+    "normalized_event": "RewardGranted",
+    "category": "economy",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "RewardSignerUpdated",
+    "normalized_event": "AuthorityChanged",
+    "category": "security",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "SkrMintUpdated",
+    "normalized_event": "ConfigUpdated",
+    "category": "security",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "TaxPaid",
+    "normalized_event": "TaxPaid",
+    "category": "economy",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "TransferHookExecuted",
+    "normalized_event": "TransferHookExecuted",
+    "category": "experimental",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Emitted by experimental/stub handler; not evidence of real asset CPI."
+  },
+  {
+    "on_chain_event": "TreasurySkrWithdrawn",
+    "normalized_event": "TreasuryWithdrawn",
+    "category": "economy",
+    "resource": "SKR",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "TreasurySolWithdrawn",
+    "normalized_event": "TreasuryWithdrawn",
+    "category": "economy",
+    "resource": "SOL",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "TreasuryTaxed",
+    "normalized_event": "TreasuryDeposited",
+    "category": "economy",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "TreasuryWithdrawn",
+    "normalized_event": "TreasuryWithdrawn",
+    "category": "economy",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "Observed program event; not a complete token accounting ledger."
+  }
+]

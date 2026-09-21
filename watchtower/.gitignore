@@ -1,0 +1,4 @@
+# Local read-model, probe output and temporary evidence; no DB dumps in Git.
+data/
+.runtime/
+*.evidence.json
