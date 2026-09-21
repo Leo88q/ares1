@@ -160,9 +160,13 @@ checkpoints/DB, and test restoration. The blockchain is not a backup of private 
 2. If mint/spend behavior is unsafe, authorized governance invokes `set_paused(true)`;
    verify the transaction and read back `config.paused`. No delay for emergency pause
    should be introduced without a separate governance decision.
-3. Pause is **not** a treasury freeze: `withdraw_*` is not blocked by it. Current
-   experimental instructions also do not consistently honor pause. `cancel_order`,
-   `close_expired_order`, `close_field` remain exit paths; test them on the target build.
+3. Pause is **not** a treasury freeze: `withdraw_*` is not blocked by it, but since
+   the 2026-09-21 remediation every withdrawal is rate-limited per rolling 24 h
+   window via the `AdminState` PDA (250 000 🥔 / 25 SOL / 100 000 SKR). To stop
+   presale inflows immediately use the kill switch `update_presale_price(0)`
+   (applies at once; raising the price back requires the 24 h timelock via
+   `apply_pending_presale_price`). `cancel_order`, `close_expired_order`,
+   `close_field` remain exit paths; test them on the target build.
 4. Preserve transaction signatures, slots and redacted diagnostics. Stop a compromised
    signer, rotate its permissions and investigate upgrade authority independently.
 5. Unpause only after a reviewed fix and localnet/devnet validation.

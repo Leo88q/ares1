@@ -1,8 +1,7 @@
-import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, TransactionInstruction } from '@solana/web3.js'
+import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_SLOT_HASHES_PUBKEY, TransactionInstruction } from '@solana/web3.js'
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
 
 export const SKR_MINT = new PublicKey('Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o')
-export const TEST_SKR_MINT = SKR_MINT
 
 async function sha256(input: string): Promise<Uint8Array> {
  const bytes = new TextEncoder().encode(input)
@@ -109,8 +108,20 @@ async function ixFieldAction(name: string, programId: PublicKey, params: {
 
 export const ixRepairField = (programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]) =>
  ixFieldAction('repair_field', programId, params)
-export const ixUpgradeField = (programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]) =>
- ixFieldAction('upgrade_field', programId, params)
+/** upgrade_field = field_spend_accounts + SlotHashes (энтропия мутаций). */
+export async function ixUpgradeField(programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('upgrade_field'))
+ const keys = [
+  { pubkey: params.field, isSigner: false, isWritable: true },
+  { pubkey: params.potatoMint, isSigner: false, isWritable: true },
+  { pubkey: params.userPotato, isSigner: false, isWritable: true },
+  { pubkey: params.config, isSigner: false, isWritable: true },
+  { pubkey: params.owner, isSigner: true, isWritable: false },
+  { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
 export const ixPayTax = (programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]) =>
  ixFieldAction('pay_tax', programId, params)
 export const ixApplyFertilizer = (programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]) =>
@@ -267,7 +278,9 @@ export interface DecodedConfig {
 
 export interface DecodedEpoch {
  id: bigint; mintCapMicro: bigint; mintedMicro: bigint; startTime: bigint
- bump: number; burnedMicro: bigint
+ bump: number
+ /** micro-POTATO выданные grant_reward в эту эпоху (квота 10% капа). НЕ burn. */
+ grantedMicro: bigint
 }
 
 export function decodeEpoch(data: Buffer): DecodedEpoch {
@@ -277,8 +290,8 @@ export function decodeEpoch(data: Buffer): DecodedEpoch {
  const mintedMicro = readU64(data, o); o = mintedMicro.next
  const startTime = readI64(data, o); o = startTime.next
  const bump = readU8(data, o); o = bump.next
- const burnedMicro = readU64(data, o)
- return { id: id.value, mintCapMicro: mintCapMicro.value, mintedMicro: mintedMicro.value, startTime: startTime.value, bump: bump.value, burnedMicro: burnedMicro.value }
+ const grantedMicro = readU64(data, o)
+ return { id: id.value, mintCapMicro: mintCapMicro.value, mintedMicro: mintedMicro.value, startTime: startTime.value, bump: bump.value, grantedMicro: grantedMicro.value }
 }
 
 export function decodeConfig(data: Buffer): DecodedConfig {
@@ -373,9 +386,11 @@ export async function ixUpdatePresalePrice(programId: PublicKey, params: {
 
 export async function ixBuyFieldSol(programId: PublicKey, params: {
  config: PublicKey; presaleState: PublicKey; authority: PublicKey; buyerPresale: PublicKey;
- field: PublicKey; buyer: PublicKey; treasurySol: PublicKey; fieldId: bigint; fieldType: number
+ field: PublicKey; buyer: PublicKey; treasurySol: PublicKey; fieldId: bigint; fieldType: number;
+ /** Slippage-guard: цена масштабируется типом поля (0.4× / 1× / 2× price_lamports). */
+ maxTotalLamports: bigint
 }): Promise<TransactionInstruction> {
- const data = concatBytes(await ixDiscriminator('buy_field_sol'), u64LE(params.fieldId), u8(params.fieldType))
+ const data = concatBytes(await ixDiscriminator('buy_field_sol'), u64LE(params.fieldId), u8(params.fieldType), u64LE(params.maxTotalLamports))
  const keys = [
   { pubkey: params.config, isSigner: false, isWritable: true },
   { pubkey: params.presaleState, isSigner: false, isWritable: true },
@@ -415,6 +430,8 @@ export async function ixBuyFieldSkr(programId: PublicKey, params: {
       { pubkey: params.buybackSkrAta, isSigner: false, isWritable: true },
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      // Энтропия drop-roll'а: SlotHashes[0] неизвестен покупателю при подписании.
+      { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
     ],
   })
 }
@@ -422,6 +439,7 @@ export async function ixBuyFieldSkr(programId: PublicKey, params: {
 export async function ixBuyExportLicense(programId: PublicKey, params: {
  config: PublicKey; license: PublicKey; payer: PublicKey;
  skrMint: PublicKey; userSkrAta: PublicKey;
+ treasurySol: PublicKey; treasurySkrAta: PublicKey;
 }): Promise<TransactionInstruction> {
  const data = concatBytes(await ixDiscriminator('buy_export_license'))
  return new TransactionInstruction({
@@ -433,8 +451,11 @@ export async function ixBuyExportLicense(programId: PublicKey, params: {
    { pubkey: params.payer, isSigner: true, isWritable: true },
    { pubkey: params.skrMint, isSigner: false, isWritable: false },
    { pubkey: params.userSkrAta, isSigner: false, isWritable: true },
+   { pubkey: params.treasurySol, isSigner: false, isWritable: true },
+   { pubkey: params.treasurySkrAta, isSigner: false, isWritable: true },
    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+   { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   ],
  })
 }

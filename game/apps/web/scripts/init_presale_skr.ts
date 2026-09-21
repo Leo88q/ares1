@@ -5,7 +5,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import {
   ixInitPresale, presaleStatePda, treasurySolPda, treasurySkrAta, buybackSkrAta,
-  TEST_SKR_MINT, pdas,
+  SKR_MINT, pdas,
 } from '../src/utils/anchorClient'
 
 async function main() {
@@ -23,19 +23,19 @@ async function main() {
   const { config } = pdas(PROGRAM_ID)
   const presaleState = presaleStatePda(PROGRAM_ID)
   const treasurySol = treasurySolPda(PROGRAM_ID)
-  const treasuryAta = treasurySkrAta(PROGRAM_ID, TEST_SKR_MINT)
-  const buybackAta = buybackSkrAta(payer.publicKey, TEST_SKR_MINT)
+  const treasuryAta = treasurySkrAta(PROGRAM_ID, SKR_MINT)
+  const buybackAta = buybackSkrAta(payer.publicKey, SKR_MINT)
 
   console.log('Создание ATA казны и buyback + инициализация пресейла (cap 500, 1053 SKR)...')
   const ixs = [
-    createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, treasuryAta, treasurySol, TEST_SKR_MINT),
-    createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, buybackAta, payer.publicKey, TEST_SKR_MINT),
+    createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, treasuryAta, treasurySol, SKR_MINT),
+    createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, buybackAta, payer.publicKey, SKR_MINT),
     await ixInitPresale(PROGRAM_ID, {
       config: config(),
       presaleState,
       authority: payer.publicKey,
       cap: 500,
-      priceLamports: 1_053_000_000n, // 1053 SKR (6 dec) = 2000 RUB
+      priceLamports: 250_000_000n, // базовая SOL-цена 0.25 SOL (тип масштабируется 0.4×/1×/2×; SKR-рельс — константа программы 1053 SKR)
     }),
   ]
 

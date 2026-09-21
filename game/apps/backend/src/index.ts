@@ -44,7 +44,9 @@ function securityHeaders(_req: Request, res: Response, next: NextFunction) {
 
 async function main() {
   const app = express();
-  app.set("trust proxy", 1);
+  // Env-driven (TRUST_PROXY): a hard-coded hop count mis-prices req.ip both
+  // behind deeper proxy chains and when the API is exposed without a proxy.
+  app.set("trust proxy", env.trustProxy);
   app.disable("x-powered-by");
   app.use(securityHeaders);
   app.use(cors({ origin: env.corsOrigin === "*" ? true : env.corsOrigin.split(",").map((s) => s.trim()) }));

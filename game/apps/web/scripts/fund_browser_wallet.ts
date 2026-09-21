@@ -7,18 +7,18 @@ import {
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { TEST_SKR_MINT } from '../src/utils/anchorClient'
+import { SKR_MINT } from '../src/utils/anchorClient'
 
 async function main() {
   const payer = Keypair.fromSecretKey(
     Uint8Array.from(JSON.parse(readFileSync(join(homedir(), '.config', 'solana', 'id.json'), 'utf8'))))
   const owner = new PublicKey('HPMr5r9sS5ApWsPNJytZRLbm2jz1veFxTn1wepjAhtho')
   const conn = new Connection('https://api.devnet.solana.com', 'confirmed')
-  const ata = getAssociatedTokenAddressSync(TEST_SKR_MINT, owner)
+  const ata = getAssociatedTokenAddressSync(SKR_MINT, owner)
 
   const tx = new Transaction().add(
-    createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, ata, owner, TEST_SKR_MINT),
-    createMintToInstruction(TEST_SKR_MINT, ata, payer.publicKey, 5_000_000_000n), // 5000 SKR (6 dec)
+    createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, ata, owner, SKR_MINT),
+    createMintToInstruction(SKR_MINT, ata, payer.publicKey, 5_000_000_000n), // 5000 SKR (6 dec)
   )
   const { blockhash } = await conn.getLatestBlockhash()
   tx.recentBlockhash = blockhash

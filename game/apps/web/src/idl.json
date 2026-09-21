@@ -114,6 +114,166 @@
       "args": []
     },
     {
+      "name": "apply_pending_presale_price",
+      "docs": [
+        "Step 2 of the presale price update: applies the pending proposal once",
+        "the admin timelock has expired. Authority only."
+      ],
+      "discriminator": [
+        252,
+        130,
+        39,
+        3,
+        100,
+        60,
+        173,
+        190
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "presale_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  101,
+                  115,
+                  97,
+                  108,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config",
+            "presale_state"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "apply_pending_skr_mint",
+      "docs": [
+        "Step 2 of the SKR mint migration: applies the pending mint once the",
+        "admin timelock has expired. Authority only."
+      ],
+      "discriminator": [
+        4,
+        243,
+        141,
+        212,
+        147,
+        226,
+        168,
+        162
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "batch_harvest",
       "docs": [
         "Дешёвая батч-чеканка: собирает урожай сразу с N полей за одну транзакцию.",
@@ -1013,6 +1173,12 @@
         {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "slot_hashes",
+          "docs": [
+            "Энтропия drop-roll'а: хеш последнего слота неизвестен покупателю при подписании."
+          ]
         }
       ],
       "args": [
@@ -1024,6 +1190,13 @@
     },
     {
       "name": "buy_field_sol",
+      "docs": [
+        "SOL presale purchase. The price scales with the field type exactly like",
+        "the POTATO prices do (type_cost_bps): type 0 pays 0.4×, type 1 pays 1×,",
+        "type 2 pays 2× of `presale.price_lamports`. `max_total_lamports` is the",
+        "buyer's slippage guard: the transaction reverts with InvalidPrice if the",
+        "authority raised the price after the buyer signed."
+      ],
       "discriminator": [
         79,
         250,
@@ -1175,6 +1348,10 @@
         {
           "name": "field_type",
           "type": "u8"
+        },
+        {
+          "name": "max_total_lamports",
+          "type": "u64"
         }
       ]
     },
@@ -1271,7 +1448,9 @@
     {
       "name": "claim_achievement",
       "docs": [
-        "Обновляет цену пресейла (только authority).已售-поля не затрагивает."
+        "Claim a quest reward once per player (bitmap in the `achv` PDA).",
+        "Field proofs arrive via `remaining_accounts` and are capped by",
+        "MAX_CLAIM_PROOFS to keep the O(n²) duplicate check inside CU limits."
       ],
       "discriminator": [
         107,
@@ -1635,6 +1814,25 @@
       ],
       "accounts": [
         {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "field",
           "writable": true
         },
@@ -1645,6 +1843,73 @@
           "relations": [
             "field"
           ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "close_old_epoch",
+      "docs": [
+        "Permissionless rent-reclaim crank: closes epoch PDAs older than",
+        "`current - KEEP_EPOCHS` (default: keeps the current and previous epoch).",
+        "Historical emission stats stay in events/`GameConfig` counters."
+      ],
+      "discriminator": [
+        46,
+        219,
+        120,
+        23,
+        124,
+        144,
+        147,
+        125
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "epoch.id",
+                "account": "Epoch"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
         }
       ],
       "args": []
@@ -1910,45 +2175,6 @@
         },
         {
           "name": "price_lamports_per_potato",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "execute_transfer_hook",
-      "docs": [
-        "Token-2022 Transfer Hook: валидирует налог 0.5% burn на каждый transfer POTATO.",
-        "Вызывается Token-2022 программой при `transfer_checked` с hook'ом.",
-        "Без этого вызова трансфер отклоняется. Здесь проверяем amount и эмитим событие."
-      ],
-      "discriminator": [
-        120,
-        157,
-        67,
-        141,
-        88,
-        144,
-        143,
-        220
-      ],
-      "accounts": [
-        {
-          "name": "mint"
-        },
-        {
-          "name": "source"
-        },
-        {
-          "name": "destination"
-        },
-        {
-          "name": "authority",
-          "signer": true
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
           "type": "u64"
         }
       ]
@@ -2468,71 +2694,6 @@
       "args": []
     },
     {
-      "name": "init_compression_tree",
-      "docs": [
-        "Инициализирует ConcurrentMerkleTree для ZK-сжатых полей (cNFT).",
-        "Хранилище: 1 PDA-дерево на игрока, ~10KB rent, вмещает 16K листов.",
-        "Экономия: поле как PDA = 0.0013 SOL, как лист = 0.000005 SOL (×260 дешевле).",
-        "В проде вызывает `spl_account_compression::init_empty_merkle_tree` через CPI;",
-        "здесь аллоцируем PDA-заглушку чтобы не тянуть зависимость в default фиче."
-      ],
-      "discriminator": [
-        155,
-        98,
-        251,
-        90,
-        21,
-        187,
-        173,
-        115
-      ],
-      "accounts": [
-        {
-          "name": "tree",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  109,
-                  101,
-                  114,
-                  107,
-                  108,
-                  101,
-                  45,
-                  116,
-                  114,
-                  101,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "authority"
-              }
-            ]
-          }
-        },
-        {
-          "name": "authority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "init_epoch",
       "docs": [
         "Bootstraps the epoch account for the current `config.epoch_id`.",
@@ -2943,190 +3104,6 @@
         }
       ],
       "args": []
-    },
-    {
-      "name": "mint_compressed_field",
-      "docs": [
-        "Минтит сжатое поле (cNFT через Bubblegum). Метаданные пишутся в лист,",
-        "а не в отдельный PDA. Стоимость минта ~0.000005 SOL против 0.0013 PDA.",
-        "Дерево — PDA игрока, проверяем что не переполнено (maxDepth 14 → 16384)."
-      ],
-      "discriminator": [
-        127,
-        146,
-        178,
-        131,
-        75,
-        140,
-        76,
-        92
-      ],
-      "accounts": [
-        {
-          "name": "tree",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  109,
-                  101,
-                  114,
-                  107,
-                  108,
-                  101,
-                  45,
-                  116,
-                  114,
-                  101,
-                  101
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "authority"
-              }
-            ]
-          }
-        },
-        {
-          "name": "authority",
-          "signer": true
-        },
-        {
-          "name": "leaf_owner"
-        },
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "bubblegum_program"
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "field_id",
-          "type": "u64"
-        },
-        {
-          "name": "field_type",
-          "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "mint_core_field",
-      "docs": [
-        "Минтит Metaplex Core ассет-поля (1 аккаунт вместо 4 в Token Metadata).",
-        "Экономия ~75% rent, нативные плагины Royalties/Freeze/Burn."
-      ],
-      "discriminator": [
-        114,
-        252,
-        228,
-        209,
-        142,
-        211,
-        218,
-        201
-      ],
-      "accounts": [
-        {
-          "name": "collection",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  108,
-                  108,
-                  101,
-                  99,
-                  116,
-                  105,
-                  111,
-                  110
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "authority"
-              }
-            ]
-          }
-        },
-        {
-          "name": "core_asset",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  114,
-                  101,
-                  45,
-                  97,
-                  115,
-                  115,
-                  101,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "collection"
-              },
-              {
-                "kind": "arg",
-                "path": "field_id"
-              }
-            ]
-          }
-        },
-        {
-          "name": "authority",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "payer",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "owner"
-        },
-        {
-          "name": "core_program"
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "field_id",
-          "type": "u64"
-        },
-        {
-          "name": "field_type",
-          "type": "u8"
-        }
-      ]
     },
     {
       "name": "pay_tax",
@@ -3590,6 +3567,14 @@
     },
     {
       "name": "update_presale_price",
+      "docs": [
+        "Updates the presale price (authority only). Two-step for safety:",
+        "* `price_lamports == 0` — EMERGENCY STOP: applies immediately and closes",
+        "both presale rails (SOL and SKR) until a new price is set.",
+        "* `price_lamports > 0` — proposal only: stored in `AdminState` and applied",
+        "by `apply_pending_presale_price` after the 24 h timelock, so a stolen",
+        "authority key cannot silently re-price the presale within one day."
+      ],
       "discriminator": [
         140,
         169,
@@ -3640,12 +3625,41 @@
           }
         },
         {
+          "name": "admin_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "authority",
+          "writable": true,
           "signer": true,
           "relations": [
             "config",
             "presale_state"
           ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -3708,7 +3722,11 @@
     {
       "name": "update_skr_mint",
       "docs": [
-        "S-01: обновляет SKR mint (mainnet миграция) — только authority."
+        "S-01: обновляет SKR mint (mainnet миграция) — только authority.",
+        "Двухшагово: здесь лишь ПРЕДЛОЖЕНИЕ (proposal) в AdminState; фактическая",
+        "замена происходит в `apply_pending_skr_mint` после 24-часового тимелокa.",
+        "Мгновенная подмена mint позволила бы угнанному ключу принимать платежи",
+        "в бесполезном токене уже в следующей транзакции."
       ],
       "discriminator": [
         64,
@@ -3723,7 +3741,6 @@
       "accounts": [
         {
           "name": "config",
-          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -3741,11 +3758,40 @@
           }
         },
         {
+          "name": "admin_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "authority",
+          "writable": true,
           "signer": true,
           "relations": [
             "config"
           ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -3815,6 +3861,9 @@
         {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "slot_hashes"
         }
       ],
       "args": []
@@ -3969,6 +4018,30 @@
           }
         },
         {
+          "name": "admin_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "authority",
           "writable": true,
           "signer": true,
@@ -4092,7 +4165,9 @@
     {
       "name": "withdraw_treasury",
       "docs": [
-        "Authority-only withdrawal from the treasury ATA."
+        "Authority-only withdrawal from the treasury ATA, rate-limited to",
+        "MAX_WITHDRAW_POTATO_MICRO_PER_WINDOW per rolling 24 h window so a stolen",
+        "authority key cannot drain the treasury in one transaction."
       ],
       "discriminator": [
         40,
@@ -4224,7 +4299,32 @@
           "writable": true
         },
         {
+          "name": "admin_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "authority",
+          "writable": true,
           "signer": true,
           "relations": [
             "config"
@@ -4233,6 +4333,10 @@
         {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -4246,7 +4350,7 @@
       "name": "withdraw_treasury_sol",
       "docs": [
         "Authority-only: withdraw SOL accumulated in the `treasury_sol` PDA vault",
-        "(SOL presale proceeds). Without this instruction the vault is a dead end."
+        "(SOL presale proceeds), rate-limited per rolling 24 h window."
       ],
       "discriminator": [
         183,
@@ -4303,6 +4407,30 @@
           }
         },
         {
+          "name": "admin_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  100,
+                  109,
+                  105,
+                  110,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "authority",
           "writable": true,
           "signer": true,
@@ -4338,6 +4466,19 @@
       ]
     },
     {
+      "name": "AdminState",
+      "discriminator": [
+        190,
+        42,
+        124,
+        96,
+        242,
+        52,
+        141,
+        28
+      ]
+    },
+    {
       "name": "BuyerPresaleCounter",
       "discriminator": [
         205,
@@ -4348,45 +4489,6 @@
         175,
         92,
         254
-      ]
-    },
-    {
-      "name": "CompressionTree",
-      "discriminator": [
-        124,
-        127,
-        63,
-        106,
-        78,
-        179,
-        171,
-        246
-      ]
-    },
-    {
-      "name": "CoreAsset",
-      "discriminator": [
-        140,
-        149,
-        163,
-        5,
-        138,
-        250,
-        205,
-        76
-      ]
-    },
-    {
-      "name": "CoreCollection",
-      "discriminator": [
-        134,
-        203,
-        102,
-        177,
-        246,
-        114,
-        70,
-        216
       ]
     },
     {
@@ -4561,32 +4663,6 @@
       ]
     },
     {
-      "name": "CompressedFieldMinted",
-      "discriminator": [
-        44,
-        122,
-        95,
-        163,
-        5,
-        250,
-        231,
-        80
-      ]
-    },
-    {
-      "name": "CompressionTreeCreated",
-      "discriminator": [
-        23,
-        64,
-        108,
-        197,
-        186,
-        122,
-        173,
-        240
-      ]
-    },
-    {
       "name": "ConfigUpdated",
       "discriminator": [
         40,
@@ -4597,19 +4673,6 @@
         19,
         198,
         194
-      ]
-    },
-    {
-      "name": "CoreFieldMinted",
-      "discriminator": [
-        34,
-        72,
-        87,
-        200,
-        227,
-        200,
-        119,
-        107
       ]
     },
     {
@@ -4886,19 +4949,6 @@
       ]
     },
     {
-      "name": "TransferHookExecuted",
-      "discriminator": [
-        187,
-        164,
-        179,
-        224,
-        22,
-        91,
-        19,
-        0
-      ]
-    },
-    {
       "name": "TreasurySkrWithdrawn",
       "discriminator": [
         85,
@@ -5124,6 +5174,36 @@
       "code": 6034,
       "name": "PresaleNotActive",
       "msg": "Presale is not active"
+    },
+    {
+      "code": 6035,
+      "name": "GrantQuotaExceeded",
+      "msg": "Manual grant quota exceeded (10% of the epoch cap)"
+    },
+    {
+      "code": 6036,
+      "name": "WithdrawWindowLimitExceeded",
+      "msg": "Withdrawal rate limit exceeded for the current 24h window"
+    },
+    {
+      "code": 6037,
+      "name": "BaseYieldTooHigh",
+      "msg": "Base yield too high (max 100 POTATO/day per reference field)"
+    },
+    {
+      "code": 6038,
+      "name": "TimelockNotExpired",
+      "msg": "Admin timelock has not expired yet"
+    },
+    {
+      "code": 6039,
+      "name": "NothingPending",
+      "msg": "No pending admin proposal to apply"
+    },
+    {
+      "code": 6040,
+      "name": "EpochTooRecent",
+      "msg": "Epoch is too recent to be closed"
     }
   ],
   "types": [
@@ -5155,6 +5235,64 @@
           {
             "name": "bitmap",
             "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AdminState",
+      "docs": [
+        "Admin safety state: withdrawal rate limits + timelocked update proposals.",
+        "Singleton PDA seeds: `[\"admin_state\"]`. Created on first use",
+        "(`init_if_needed`, payer = authority)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "window_start",
+            "docs": [
+              "Start of the current rolling withdrawal window (unix seconds)."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "withdrawn_potato_micro",
+            "type": "u64"
+          },
+          {
+            "name": "withdrawn_sol_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "withdrawn_skr_atoms",
+            "type": "u64"
+          },
+          {
+            "name": "pending_skr_mint",
+            "docs": [
+              "Proposed SKR mint; applied by `apply_pending_skr_mint` after the timelock."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "pending_skr_mint_at",
+            "type": "i64"
+          },
+          {
+            "name": "pending_presale_price",
+            "docs": [
+              "Proposed presale price (lamports); applied by `apply_pending_presale_price`."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "pending_presale_price_at",
+            "type": "i64"
           },
           {
             "name": "bump",
@@ -5239,73 +5377,6 @@
       }
     },
     {
-      "name": "CompressedFieldMinted",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "pubkey"
-          },
-          {
-            "name": "field_id",
-            "type": "u64"
-          },
-          {
-            "name": "field_type",
-            "type": "u8"
-          },
-          {
-            "name": "leaf_index",
-            "type": "u32"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CompressionTree",
-      "docs": [
-        "ZK Compression tree: PDA [b\"merkle-tree\", authority], вмещает до 16K cNFT-полей."
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "type": "pubkey"
-          },
-          {
-            "name": "merkle_tree",
-            "type": "pubkey"
-          },
-          {
-            "name": "next_leaf_index",
-            "type": "u32"
-          },
-          {
-            "name": "bump",
-            "type": "u8"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CompressionTreeCreated",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "type": "pubkey"
-          },
-          {
-            "name": "merkle_tree",
-            "type": "pubkey"
-          }
-        ]
-      }
-    },
-    {
       "name": "ConfigUpdated",
       "type": {
         "kind": "struct",
@@ -5321,84 +5392,6 @@
           {
             "name": "global_multiplier_bps",
             "type": "u16"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CoreAsset",
-      "docs": [
-        "Metaplex Core Asset: PDA [b\"core-asset\", collection, field_id]"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "pubkey"
-          },
-          {
-            "name": "collection",
-            "type": "pubkey"
-          },
-          {
-            "name": "field_id",
-            "type": "u64"
-          },
-          {
-            "name": "field_type",
-            "type": "u8"
-          },
-          {
-            "name": "bump",
-            "type": "u8"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CoreCollection",
-      "docs": [
-        "Metaplex Core Collection: PDA [b\"core-collection\"]"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "type": "pubkey"
-          },
-          {
-            "name": "bump",
-            "type": "u8"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CoreFieldMinted",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "pubkey"
-          },
-          {
-            "name": "collection",
-            "type": "pubkey"
-          },
-          {
-            "name": "asset",
-            "type": "pubkey"
-          },
-          {
-            "name": "field_id",
-            "type": "u64"
-          },
-          {
-            "name": "field_type",
-            "type": "u8"
           }
         ]
       }
@@ -5432,7 +5425,12 @@
             "type": "u8"
           },
           {
-            "name": "burned_micro",
+            "name": "granted_micro",
+            "docs": [
+              "micro-POTATO minted through `grant_reward` during this epoch.",
+              "Counts toward the manual-grant quota (GRANT_QUOTA_SHARE_BPS of the cap).",
+              "NOT a burn — the historical name was misleading; layout is unchanged."
+            ],
             "type": "u64"
           }
         ]
@@ -6146,34 +6144,6 @@
           },
           {
             "name": "cost_micro",
-            "type": "u64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "TransferHookExecuted",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "mint",
-            "type": "pubkey"
-          },
-          {
-            "name": "source",
-            "type": "pubkey"
-          },
-          {
-            "name": "destination",
-            "type": "pubkey"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          },
-          {
-            "name": "fee",
             "type": "u64"
           }
         ]
