@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program, BN } from "@coral-xyz/anchor";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, Transaction } from "@solana/web3.js";
+import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_SLOT_HASHES_PUBKEY, Transaction } from "@solana/web3.js";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   AuthorityType,
@@ -260,7 +260,8 @@ describe("solana_potato", () => {
 
     it("upgrade burns 100 × level and raises the level", async () => {
       const before = await ataBalance(adminAta);
-      await program.methods.upgradeField().accountsPartial(fieldSpendAccounts(field, admin.publicKey, adminAta)).rpc();
+      // UpgradeField — единственный field-spend ix с sysvar slot_hashes (энтропия мутации).
+      await program.methods.upgradeField().accountsPartial({ ...fieldSpendAccounts(field, admin.publicKey, adminAta), slotHashes: SYSVAR_SLOT_HASHES_PUBKEY }).rpc();
       expect(before - (await ataBalance(adminAta))).to.eq(100n * MICRO);
       expect((await program.account.field.fetch(field)).level).to.eq(2);
     });
@@ -722,6 +723,7 @@ describe("solana_potato", () => {
           buyer: player.publicKey, skrMint: wrongSkrMint, buyerSkrAta,
           treasurySol: treasurySolPda, treasurySkrAta, buybackSkrAta,
           tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+          slotHashes: SYSVAR_SLOT_HASHES_PUBKEY,
         }).signers([player]).rpc(),
         "InvalidMint",
       );
@@ -754,7 +756,8 @@ describe("solana_potato", () => {
       await buySol(buyerX, id0, admin.publicKey, 0, 20_000_000n);
       expect((await connection.getBalance(treasurySolPda)) - treasuryBefore).to.eq(20_000_000);
       expect((await program.account.field.fetch(fieldPda(id0))).fieldType).to.eq(0);
-      presaleFieldIds.push(id0);
+      // id0 принадлежит buyerX, а presaleFieldIds используется только как пруфы
+      // квестов для player (verify_fields проверяет f.owner == user) — не пушим.
 
       // type 2 = 2× базовой цены = 0.1 SOL; лимит покупателя 0.05 SOL —
       // InvalidPrice, поле не создаётся, SOL не списывается.

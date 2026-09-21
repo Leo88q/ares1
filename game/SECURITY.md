@@ -1,15 +1,18 @@
-# Security status — 21 September 2026 (post-remediation, pre-build)
+# Security status — 21 September 2026 (post-remediation, CI-verified)
 
 This repository is **not approved for mainnet or real funds**. Internal AI/code
 reviews are not independent security audits; earlier “Audited”/“Done” labels are
 not certifications. The 2026-09-21 remediation fixed every finding of
 [docs/AUDIT-INDEPENDENT-2026-09-21.md](docs/AUDIT-INDEPENDENT-2026-09-21.md)
-**in source**; none of it has been compiled or exercised on a validator yet.
+in source, and the pinned-toolchain CI gate compiles it and exercises it on a
+clean localnet (`anchor build` + `anchor test` + `yarn test:migrations` +
+`check:contract` full ABI equality + offchain/watchtower suites). It has **not**
+been deployed to devnet/mainnet, and the operational items below remain open.
 See [docs/FIXES-2026-09-21.md](docs/FIXES-2026-09-21.md) for the change list and
-the mandatory pre-deploy runbook, and
+the pre-deploy runbook, and
 [stabilization status](docs/STABILIZATION-2026-09-21.md) for the earlier pass.
 
-Fixed in source (pending `anchor build` + `anchor test` + localnet verification):
+Fixed and CI-verified on localnet (`anchor build` + `anchor test`):
 
 - Admin guard rails: sensitive updates (SKR mint, presale price raise) are
   two-step behind a 24 h timelock (`AdminState`); treasury withdrawals are
@@ -36,10 +39,12 @@ Still open / unchanged:
   removed, but historical exposure and provider revocation remain open.
 - Epoch payer must differ from game authority/pending authority/reward signer.
 - Upgrade authority and live game authorities have not been verified in this pass.
-- The committed `apps/web/src/idl.json` was rebuilt by hand alongside the source
-  edits — a genuine pinned-Anchor build MUST regenerate and replace it (plus the
-  watchtower snapshot) before any deployment; `yarn check:contract` currently
-  passes only the inventory/error comparison.
+- The committed `apps/web/src/idl.json` is now the **genuine pinned-Anchor build**
+  (Anchor 0.31.2) recovered from CI for the fixes revision; `yarn
+  check:contract target/idl/solana_potato.json` passes the full ABI comparison
+  (built == committed) and the watchtower snapshot is re-synced to it. Any future
+  program change must re-run `anchor build` → `check:contract` →
+  `watchtower/scripts/sync-idl.mjs` before deploy.
 - Legacy migrations remain uncertified against funded state.
 
 Use Gitleaks with `.gitleaks.toml`; never post a credential in an issue or public
