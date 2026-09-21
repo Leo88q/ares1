@@ -5,11 +5,9 @@ import {
   Connection,
   Keypair,
   PublicKey,
-  Transaction,
   TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
-  sendAndConfirmTransaction,
   SYSVAR_RENT_PUBKEY,
   SystemProgram,
 } from "@solana/web3.js";
@@ -36,6 +34,11 @@ export function epochPda(epochId: bigint): PublicKey {
 
 export function treasuryAuthority(): PublicKey {
   return configPda();
+}
+
+/** AdminState singleton PDA: withdrawal rate limits + timelocked proposals. */
+export function adminStatePda(): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from("admin_state")], programId)[0];
 }
 
 export async function fetchConfig(): Promise<GameConfig> {
@@ -72,10 +75,26 @@ export function buildGrantRewardIx(params: {
   return new TransactionInstruction({ programId, keys, data });
 }
 
-export function buildUpdateSkrMintIx(params: { config: PublicKey; authority: PublicKey; newSkrMint: PublicKey }): TransactionInstruction {
+/**
+ * Step 1 of the timelocked SKR mint migration: stores a proposal in AdminState.
+ * The config is NOT touched until buildApplyPendingSkrMintIx runs 24h later.
+ */
+export function buildUpdateSkrMintIx(params: { config: PublicKey; adminState: PublicKey; authority: PublicKey; newSkrMint: PublicKey }): TransactionInstruction {
   const data = Buffer.concat([anchorDiscriminator("global", "update_skr_mint"), params.newSkrMint.toBuffer()]);
   return new TransactionInstruction({ programId, data, keys: [
+    { pubkey: params.config, isSigner: false, isWritable: false },
+    { pubkey: params.adminState, isSigner: false, isWritable: true },
+    { pubkey: params.authority, isSigner: true, isWritable: true },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  ]});
+}
+
+/** Step 2 of the SKR mint migration (after the admin timelock expires). */
+export function buildApplyPendingSkrMintIx(params: { config: PublicKey; adminState: PublicKey; authority: PublicKey }): TransactionInstruction {
+  const data = anchorDiscriminator("global", "apply_pending_skr_mint");
+  return new TransactionInstruction({ programId, data, keys: [
     { pubkey: params.config, isSigner: false, isWritable: true },
+    { pubkey: params.adminState, isSigner: false, isWritable: true },
     { pubkey: params.authority, isSigner: true, isWritable: false },
   ]});
 }
@@ -145,11 +164,12 @@ export async function sendVersionedTx(
   }).compileToV0Message(opts?.lookupTables ?? []);
   const vtx = new VersionedTransaction(messageV0);
   vtx.sign([payerKeypair, ...(opts?.extraSigners ?? [])]);
-  // simulate для раннего отлова EpochNotOver/EpochCapExceeded
+  // Simulate is a hard gate: if the simulation fails, the real transaction
+  // would fail too — sending it anyway burns fees and hides bugs (AUDIT H-5).
   const sim = await connection.simulateTransaction(vtx, { sigVerify: false });
   if (sim.value.err) {
     const logs = (sim.value.logs ?? []).join("\n");
-    if (/EpochNotOver|EpochCapExceeded|custom program error/i.test(logs)) throw new Error(logs.slice(0, 500));
+    throw new Error(`Simulation failed: ${JSON.stringify(sim.value.err)} — ${logs.slice(0, 500)}`);
   }
   const sig = await connection.sendTransaction(vtx, { skipPreflight: false, maxRetries: 3 });
   const { lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
@@ -159,13 +179,11 @@ export async function sendVersionedTx(
 }
 
 export async function sendPayerTx(instructions: TransactionInstruction[]): Promise<string> {
-  // Пытаемся Versioned, фолбэк на legacy если RPC не поддерживает
-  try {
-    return await sendVersionedTx(instructions);
-  } catch {
-    const tx = new Transaction().add(...instructions);
-    return sendAndConfirmTransaction(connection, tx, [payerKeypair], { commitment: "confirmed" });
-  }
+  // NO legacy fallback: sendVersionedTx may throw AFTER the transaction was
+  // already sent (e.g. confirmation timeout). Re-sending as legacy would
+  // execute the same state change twice (AUDIT H-5: double roll_epoch).
+  // Versioned txs are supported by every modern RPC; if one is not, fail loudly.
+  return sendVersionedTx(instructions);
 }
 
 export { SYSVAR_RENT_PUBKEY, ASSOCIATED_TOKEN_PROGRAM_ID };

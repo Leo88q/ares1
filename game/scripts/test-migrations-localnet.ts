@@ -165,7 +165,7 @@ async function run(configSize: 156 | 164) {
     assert.equal(c.lastTotalBurnedMicro, configSize === 156 ? 0n : 9876n);
     assert.deepEqual(migrated.subarray(168, 218), config.subarray(104, 154));
     assert.deepEqual((await connection.getAccountInfo(fieldPda(100n)))!.data, Buffer.concat([field, Buffer.from([0])]));
-    assert.equal(decodeEpoch((await connection.getAccountInfo(epochPda(42n)))!.data).burnedMicro, 0n);
+    assert.equal(decodeEpoch((await connection.getAccountInfo(epochPda(42n)))!.data).grantedMicro, 0n);
 
     for (const [kind, key, size] of [['config', configPda, 228], ['field', fieldPda(100n), 70],
       ['field', fieldPda(101n), 70], ['epoch', epochPda(42n), 49], ['epoch', epochPda(43n), 49]] as const) {

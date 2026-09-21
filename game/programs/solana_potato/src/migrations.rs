@@ -121,7 +121,7 @@ mod tests {
         assert_eq!(migrated[69], 0);
         assert!(field(&bytes[..68]).is_err());
         let e = Epoch { id: 42, mint_cap_micro: 100, minted_micro: 9,
-            start_time: 123, bump: 255, burned_micro: 17 };
+            start_time: 123, bump: 255, granted_micro: 17 };
         bytes.clear(); e.try_serialize(&mut bytes).unwrap();
         assert_eq!(epoch(&bytes).unwrap(), bytes);
         let migrated = epoch(&bytes[..41]).unwrap();

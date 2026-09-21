@@ -8,7 +8,7 @@ import { useSolana, CLUSTER } from '../contexts/SolanaContext'
 import { useGame } from '../contexts/GameContext'
 
 import { fmtPotato, fmtSkr, EXPORT_LICENSE_PRICE_SKR_ATOMS } from '../utils/constants'
-import { pdas, decodeExportLicense, ixBuyExportLicense, treasurySolPda, treasurySkrAta, TEST_SKR_MINT } from '../utils/anchorClient'
+import { pdas, decodeExportLicense, ixBuyExportLicense, treasurySolPda, treasurySkrAta, SKR_MINT } from '../utils/anchorClient'
 import { getAssociatedTokenAddress } from '@solana/spl-token'
 import { CabinBay } from './ares/CabinBay'
 import AudioSettings from './AudioSettings'
@@ -46,11 +46,11 @@ function ProfileScreenInner() {
   setBuyingLicense(true)
   try {
    const p = pdas(programId)
-   const userSkrAta = await getAssociatedTokenAddress(TEST_SKR_MINT, publicKey)
+   const userSkrAta = await getAssociatedTokenAddress(SKR_MINT, publicKey)
    const ix = await ixBuyExportLicense(programId, {
     config: p.config(), license: p.exportLicense(publicKey), payer: publicKey,
-    skrMint: TEST_SKR_MINT, userSkrAta,
-    treasurySol: treasurySolPda(programId), treasurySkrAta: treasurySkrAta(programId, TEST_SKR_MINT),
+    skrMint: SKR_MINT, userSkrAta,
+    treasurySol: treasurySolPda(programId), treasurySkrAta: treasurySkrAta(programId, SKR_MINT),
    })
    await sendIx([ix])
    setLicense({ expiresAt: Math.floor(Date.now() / 1000) + 30 * 86400, active: true })

@@ -23,6 +23,17 @@ export const env = {
     return v || "*"; // '*' only for local dev
   })(),
   epochRollCron: process.env.EPOCH_ROLL_CRON || "*/10 * * * *",
+  /** Express "trust proxy" setting. Behind exactly one reverse proxy (the usual
+   *  k8s ingress / ALB setup) keep "1". Set "false"/0 when the API is exposed
+   *  directly, or the rate limiter can be bypassed via a spoofed X-Forwarded-For. */
+  trustProxy: (() => {
+    const v = process.env.TRUST_PROXY;
+    if (v === undefined) return 1;
+    if (v === "true") return true;
+    if (v === "false") return false;
+    const n = parseInt(v, 10);
+    return Number.isNaN(n) ? v : n;
+  })() as boolean | number | string,
   /** Requests per minute per IP (all routes except /live). */
   rateLimitPerMinute: parseInt(process.env.RATE_LIMIT_PER_MINUTE || "30", 10),
 };

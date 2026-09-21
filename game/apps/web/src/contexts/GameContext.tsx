@@ -11,7 +11,6 @@ import { useToast } from '../components/Toast'
  ixBuyFieldSkr, ixBatchHarvest, ixCloseField, SKR_MINT, treasurySkrAta, buybackSkrAta, presaleStatePda, buyerPresalePda, treasurySolPda,
  potatoAta,
  achievementsPda, questTreasuryPda, decodeAchievementsBitmap, ixClaimAchievement, QUEST_REWARDS_MICRO,
- ixInitCompressionTree, ixMintCompressedField, ixMintCoreField, compressionTreePda,
 } from '../utils/anchorClient'
 import {
  accumulatedMicro, fieldPriceMicro, fertilizerCostMicro, repairCostMicro, taxCostMicro, upgradeCostMicro, fmtPotato, fmtPotatoExact, MICRO,
@@ -57,8 +56,6 @@ export interface GameContextType {
  harvest: (field: PublicKey) => Promise<boolean>
  batchHarvest: (fields: PublicKey[]) => Promise<boolean>
  closeField: (field: PublicKey) => Promise<boolean>
- createCompressedField: (fieldType: number) => Promise<boolean>
- createCoreField: (fieldType: number) => Promise<boolean>
  ensureLut: () => Promise<string | null>
  purchaseField: (fieldType: number) => Promise<boolean>
  buyFieldPresale: () => Promise<number | null>
@@ -348,65 +345,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
   async (fieldPk: PublicKey) => {
    if (!config || !publicKey) return false
    return runTx(t('Не удалось закрыть поле'), async () => {
-    const ix = await ixCloseField(programId, { field: fieldPk, owner: publicKey })
+    const { config: configPda } = pdas(programId)
+    const ix = await ixCloseField(programId, { config: configPda, field: fieldPk, owner: publicKey })
     return [ix]
    })
   },
   [config, publicKey, runTx, programId, notify],
- )
-
- // ── ZK Compression / cNFT ──
- const createCompressedField = useCallback(
-  async (fieldType: number) => {
-   if (!config || !publicKey || !ready) {
-    notify('warning', t('Игра ещё загружается'), t('Подожди пару секунд.'))
-    return false
-   }
-   setPurchasing(true)
-   try {
-    return await runTx(t('Не удалось создать сжатое поле'), async () => {
-     const fieldId = randomU64()
-     const tree = compressionTreePda(publicKey, programId)
-     // Если дерева нет — сначала init (1 раз на игрока, ~0.01 SOL)
-     const treeInfo = await withRetry(() => connection.getAccountInfo(tree))
-     const ixs: TransactionInstruction[] = []
-     if (!treeInfo) {
-       ixs.push(await ixInitCompressionTree(programId, { tree, authority: publicKey, payer: publicKey }))
-     }
-     const mintIx = await ixMintCompressedField(programId, {
-       tree, authority: publicKey, leafOwner: publicKey, payer: publicKey, fieldId, fieldType
-     })
-     return [...ixs, mintIx]
-    })
-   } finally { setPurchasing(false) }
-  },
-  [config, publicKey, ready, runTx, programId, notify, connection],
- )
-
- // ── Metaplex Core ──
- const createCoreField = useCallback(
-  async (fieldType: number) => {
-   if (!config || !publicKey || !ready) {
-    notify('warning', t('Игра ещё загружается'), t('Подожди пару секунд.'))
-    return false
-   }
-   setPurchasing(true)
-   try {
-    return await runTx(t('Не удалось создать Core-поле'), async () => {
-     const fieldId = randomU64()
-     // Per-player Core collection: [b"collection", player] — каждый игрок владеет своей коллекцией полей
-     const collection = PublicKey.findProgramAddressSync([Buffer.from('collection'), publicKey.toBuffer()], programId)[0]
-     const assetPda = PublicKey.findProgramAddressSync([Buffer.from('core-asset'), collection.toBuffer(), (()=>{const b=Buffer.alloc(8); b.writeBigUInt64LE(fieldId,0); return b})()], programId)[0]
-     const ix = await ixMintCoreField(programId, {
-       collection, asset: assetPda, authority: publicKey, payer: publicKey, owner: publicKey, fieldId, fieldType
-     })
-     // assetKp нужен как signer — sendIx подпишет только wallet, поэтому добавляем как extraSigner через partialSign (обрабатывается в sendIx v2)
-     // Пока упрощаем: asset — PDA деривация, не keypair
-     return [ix]
-    })
-   } finally { setPurchasing(false) }
-  },
-  [config, publicKey, ready, runTx, programId, notify],
  )
 
  // ── LUT management (ALT) ──
@@ -524,10 +468,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
       potatoMint: config.potatoMint,
      },
      qid,
-     fields.map((f) => f.publicKey),
+     // Программа принимает не более MAX_CLAIM_PROOFS=12 пруфов (AUDIT M-5).
+     // Сортировка по уровню гарантирует, что квест «6 полей L3+» пройдёт, даже
+     // если у игрока больше 12 полей: самые прокачанные всегда в первых 12.
+     [...fields].sort((a, b) => b.level - a.level).slice(0, 12).map((f) => f.publicKey),
     )
-    const userAtaExists = (await connection.getAccountInfo(userAta)) !== null
-    const ataIx = userAtaExists ? [] : [createAssociatedTokenAccountInstruction(publicKey, userAta, publicKey, config.potatoMint)]
+    // Идемпотентная ATA-инструкция: параллельные вкладки/ретраи не роняют tx (AUDIT L-4).
+    const ataIx = [createAssociatedTokenAccountIdempotentInstruction(publicKey, userAta, publicKey, config.potatoMint)]
     await sendIx([...ataIx, ix])
     const amount = QUEST_REWARDS_MICRO[qid]
     setClaimed((c) => ({ ...c, [questId]: true }))
@@ -539,7 +486,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return false
    }
   },
-  [publicKey, ready, config, connection, programId, sendIx, fields, notify, loadFields],
+  [publicKey, ready, config, programId, sendIx, fields, notify, loadFields],
  )
 
  const airdropSol = useCallback(async (): Promise<boolean> => {
@@ -592,7 +539,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
    }
    const lamports = Math.floor(amount * 1e9)
    if (lamports <= 0) return false
-   return runTx(t('Не удалось отправить SKR'), async () => [
+   return runTx(t('Не удалось отправить SOL'), async () => [
     SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: toPub, lamports }),
    ])
   },
@@ -602,11 +549,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const value = useMemo<GameContextType>(
   () => ({
    fields, stats, solBalance, loading, purchasing, claimed,
-   harvest, batchHarvest, closeField, createCompressedField, createCoreField, ensureLut,
+   harvest, batchHarvest, closeField, ensureLut,
    purchaseField, buyFieldPresale, upgradeField, repairField, payTax, applyFertilizer,
    claimReward, airdropSol, sendPotato, sendSol, reload: loadFields,
   }),
-  [fields, stats, solBalance, loading, purchasing, claimed, harvest, batchHarvest, closeField, createCompressedField, createCoreField, ensureLut, purchaseField, upgradeField, repairField,
+  [fields, stats, solBalance, loading, purchasing, claimed, harvest, batchHarvest, closeField, ensureLut, purchaseField, upgradeField, repairField,
    payTax, applyFertilizer, claimReward, airdropSol, sendPotato, sendSol, loadFields],
  )
 

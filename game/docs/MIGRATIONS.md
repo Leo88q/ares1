@@ -9,7 +9,7 @@ reviewed SBF binary, generated IDL and localnet tests before a live upgrade.
 |---|---|---|
 | Config | 156 or 164 → 228 | Preserve authority, pending authority, mint, numeric fields, paused and bump. Insert SKR/reward signer; preserve existing burn snapshot, initialize absent snapshot to zero. |
 | Field | 69 → 70 | Preserve all 69 original bytes; new mutation byte starts at zero. |
-| Epoch | 41 → 49 | Preserve original epoch fields/bump; new burned counter starts at zero. |
+| Epoch | 41 → 49 | Preserve original epoch fields/bump; new grant-quota counter (`granted_micro`, renamed from the never-incremented `burned_micro` on 2026-09-21) starts at zero. |
 
 All handlers validate program ownership, exact supported size and discriminator.
 Config must be the canonical PDA; Epoch address must match its stored ID. The
@@ -18,7 +18,7 @@ System Program CPI before realloc. Never transfer rent to the executable program
 The authority meta is writable in every migration instruction.
 
 Already-current layouts are byte-for-byte unchanged: a retry must not clear a
-Field mutation, reset Epoch burn counters, or replace a custom SKR/reward signer.
+Field mutation, reset Epoch grant counters, or replace a custom SKR/reward signer.
 Unknown layouts/types fail rather than being resized or truncated. These changes
 do not alter the emission formula, administrative powers or treasury policy.
 
