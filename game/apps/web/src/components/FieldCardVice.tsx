@@ -8,7 +8,10 @@ import { HullPanel } from '../ui/HullPanel'
 import Button from './Button'
 import AnimatedNumber from './AnimatedNumber'
 import { Field } from '../contexts/GameContext'
-import { MICRO, HARVEST_THRESHOLD_MICRO, MAX_DURABILITY } from '../utils/constants'
+import {
+ MICRO, HARVEST_THRESHOLD_MICRO, MAX_DURABILITY,
+ upgradeCostMicro, repairCostMicro, taxCostMicro, fertilizerCostMicro, fmtPotatoExact,
+} from '../utils/constants'
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 
@@ -162,6 +165,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       style={{ fontSize: 11, padding: '10px 8px' }}
      >
       {t('Апгрейд модуля')}
+      <span style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{fmtPotatoExact(upgradeCostMicro(field.level, field.fieldType))} POTATO</span>
      </Button>
 
      <Button
@@ -171,6 +175,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       style={{ fontSize: 11, padding: '10px 8px' }}
      >
       {t('Полив')}
+      <span style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{fmtPotatoExact(repairCostMicro(field.level, field.fieldType))} POTATO</span>
      </Button>
 
      <Button
@@ -180,6 +185,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       style={{ fontSize: 11, padding: '10px 8px' }}
      >
       {t('Пошлина')}
+      <span style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{fmtPotatoExact(taxCostMicro(field.level, field.fieldType))} POTATO</span>
      </Button>
 
      <Button
@@ -189,6 +195,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       style={{ fontSize: 11, gridColumn: '1 / -1' }}
      >
       {fertActive ? t('Удобрено ') : t('Питание +50% · 24ч')}
+      <span style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{fmtPotatoExact(fertilizerCostMicro(field.fieldType))} POTATO</span>
      </Button>
     </div>
    </HullPanel>
