@@ -168,6 +168,14 @@ On-chain тесты подтвердили списание и уменьшен�
 PostgreSQL rollback/crash recovery и synthetic RPC → отдельный процесс → HTTP.
 Devnet RPC probe из sandbox не удался; реальные fixtures, deployment manifest
 и центральное подключение Games Watchtower **не подтверждены**. `lastVerifiedAt=null`.
+Для `c733fc8fdae082920b96afcf0c1b0899e40f40c1` прошли Watchtower CI `35553774523`
+(PostgreSQL 17, types/build/tests), общий game CI `35553774450` (включая Rust/SBF,
+localnet/migrations/full IDL/Docker) и current-tree/new-commit scan `35553774449`.
+Smoke verifier дополнительно усилен: полная идентичность событий и индексов,
+пагинация, safe config, фактический свежий readyz до/после, HTTPS для remote bearer.
+Локально 111 тестов без skips, types/build PASS; 42 проверки verifier плюс CLI через
+synthetic RPC и реальную локальную PostgreSQL. Повторный devnet probe: `ECONNRESET`.
+Live-конфигурация exporter не задана; это не доказательство devnet deployment.
 Этот пакет не снимает wallet/UI, credential rotation и live authority release gates.
 
 ## Оставшиеся release gates

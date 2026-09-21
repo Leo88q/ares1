@@ -214,6 +214,48 @@ auth/config privacy, JSON Schema, пагинация/фильтры, 40 concurre
 Локально 2026-09-21: 69 проверок прошли без skips на PostgreSQL **18.4**; отдельно
 прошли types/build. Это synthetic/local runtime, **не devnet evidence**.
 
+Для commit `c733fc8fdae082920b96afcf0c1b0899e40f40c1` подтверждены:
+- [Watchtower CI 35553774523](https://github.com/Leo88q/ares1/actions/runs/35553774523):
+  types, build и suite на PostgreSQL 17, включая fault/crash recovery и process smoke.
+- [Общий CI 35553774450](https://github.com/Leo88q/ares1/actions/runs/35553774450):
+  web/backend, Docker, Rust units/SBF, localnet integrations/migrations, full IDL gate.
+- [Security scan 35553774449](https://github.com/Leo88q/ares1/actions/runs/35553774449):
+  текущие файлы/новые коммиты; не отзыв исторического credential.
+- Локальный `npm audit`: 0 найденных уязвимостей в зависимостях exporter.
+
+
+## Усиленная проверка runtime smoke
+
+`verify:devnet` теперь проверяет не только совпадение payload:
+
+- genesis devnet, executable account и согласованность signature/slot/blockTime/error
+  транзакции с RPC-списком и finalized tip;
+- безопасный `/config` именно ARES-1/devnet с `writes=false`, а не чужой exporter;
+- фактический `ready=true`, mode=rpc, database=up, отсутствие gaps и свежесть
+  heartbeat **до и после** чтения событий; одного HTTP 200 недостаточно;
+- каждую запись целиком: programId/signature/slot, outer/inner/log indices,
+  applied, blockTime, commitment и декодированный payload, включая Unknown;
+- все страницы результата, строго возрастающие ID, прогресс cursor и отсутствие
+  пропусков/лишних событий. Если последняя успешная транзакция не испускает событий,
+  берётся следующая из ограниченного окна до 20 signatures, не выдуманный fixture.
+
+Bearer token передаётся только по HTTPS либо HTTP loopback (`localhost`,
+`127.0.0.1`, `[::1]`). `WATCHTOWER_VERIFY_EXPORTER_URL` — **origin** exporter без
+userinfo, path prefix, query и fragment. Redirects запрещены. HTTP-ответ ограничен
+2 MiB, действуют request timeout и общий CLI deadline 60 секунд.
+
+Тесты verifier используют только synthetic RPC/HTTP. Отдельно весь CLI проверяется
+через живые локальные HTTP-процессы и PostgreSQL, **без `--capture-fixture`**.
+Ни успешный synthetic тест, ни само совпадение событий не подтверждают deployed
+binary/полный inventory и не включают флаг центрального подключения.
+
+После этого изменения локально прошли **111 тестов без skips**, typecheck и build;
+в том числе 42 проверки verifier и запуск CLI против synthetic RPC, реальной
+локальной PostgreSQL и отдельного exporter-процесса. Это не новый devnet PASS.
+Повторный публичный RPC probe вернул `ECONNRESET`; live RPC/DB/token/exporter URL
+в окружении не настроены, `watchtower/.env` отсутствует. `lastVerifiedAt` не менялся.
+
+
 ## Оставшиеся gates (не скрывать)
 
 1. Разрешённый devnet RPC: проверить runtime и сохранить реальные fixtures:

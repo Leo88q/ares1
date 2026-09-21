@@ -10,7 +10,11 @@ node --env-file=.env --import tsx scripts/verify-devnet.ts --capture-fixture
 ```
 
 The tool checks the devnet genesis, executable program account, a finalized
-transaction, decoding, readyz, and the exporter's corresponding event payloads.
+transaction, decoding, safe config, fresh readyz before/after the sample, and every
+exported event's identity/indices/payload across pagination. HTTPS is required for
+a remote exporter; plaintext HTTP is allowed only on loopback. HTTP 200 alone,
+silent transactions or matching payloads attached to different signatures do not
+constitute a successful smoke.
 Only a successful smoke can create `<signature>.json` here, with provenance,
 collection time, slot, program ID, source IDL SHA-256 and the unmodified RPC
 transaction. It never records provider URLs or credentials. Review and scan any

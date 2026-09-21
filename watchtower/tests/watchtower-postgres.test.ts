@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import { Ajv } from 'ajv';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { spawn } from 'node:child_process';
+import { spawn, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { DEVNET_GENESIS } from '../src/rpc.js';
@@ -166,13 +167,14 @@ test('real PostgreSQL transactional/read-model/API integration', { skip: !databa
       const reserve = createServer(); await new Promise<void>(r => reserve.listen(0, '127.0.0.1', r));
       const port = (reserve.address() as AddressInfo).port;
       await new Promise<void>(r => reserve.close(() => r()));
-      const child = spawn(process.execPath, ['--import', 'tsx', 'src/watchtower-exporter.ts'], {
-        cwd: new URL('..', import.meta.url), env: { ...process.env, WATCHTOWER_ENABLE_WRITES: 'false',
+      const childEnv = { ...process.env, WATCHTOWER_ENABLE_WRITES: 'false',
           WATCHTOWER_EXPORTER_TOKEN: cfg.token, WATCHTOWER_DATABASE_URL: cfg.databaseUrl,
           WATCHTOWER_RPC_URL: `http://127.0.0.1:${(rpcServer.address() as AddressInfo).port}`,
           WATCHTOWER_RPC_FALLBACK_URL: '', WATCHTOWER_EVENT_PROVIDER: 'rpc', WATCHTOWER_CLUSTER: 'devnet',
           WATCHTOWER_EXPORTER_PORT: String(port), WATCHTOWER_POLL_MS: '1000', WATCHTOWER_PAGE_SIZE: '2', WATCHTOWER_PLAYER_HASH_SALT: '',
-        }, stdio: ['ignore', 'pipe', 'pipe'],
+      };
+      const child = spawn(process.execPath, ['--import', 'tsx', 'src/watchtower-exporter.ts'], {
+        cwd: new URL('..', import.meta.url), env: childEnv, stdio: ['ignore', 'pipe', 'pipe'],
       });
       let output = ''; child.stdout.on('data', d => { output += d; }); child.stderr.on('data', d => { output += d; });
       const exited = once(child, 'exit');
@@ -186,6 +188,17 @@ test('real PostgreSQL transactional/read-model/API integration', { skip: !databa
         assert(ready, 'synthetic local runtime caught up');
         const response = await fetch(`http://127.0.0.1:${port}/watchtower/events/${sig(32)}`, { headers: { Authorization: `Bearer ${cfg.token}` } });
         const events = await response.json(); assert.equal(events.data.events.length, 1);
+        // Exercise the actual CLI through real HTTP/PG, but never --capture-fixture:
+        // this RPC is synthetic, not evidence of a devnet deployment.
+        const probe = await promisify(execFile)(process.execPath, ['--import', 'tsx', 'scripts/verify-devnet.ts'], {
+          cwd: new URL('..', import.meta.url), timeout: 10000,
+          env: { ...childEnv, WATCHTOWER_VERIFY_EXPORTER_URL: `http://127.0.0.1:${port}` },
+        });
+        assert.equal(probe.stderr, '');
+        const evidence = JSON.parse(probe.stdout);
+        assert.equal(evidence.result, 'runtime_smoke_pass'); assert.equal(evidence.signature, sig(32));
+        assert.equal(evidence.events, 1); assert.equal(evidence.watchtowerConnected, false);
+        assert.equal(evidence.deploymentManifestVerified, false);
         child.kill('SIGTERM');
         const result = await Promise.race([exited, delay(5000).then(() => { throw new Error('shutdown timed out'); })]);
         assert.equal(result[0], 0); assert.equal(result[1], null);
