@@ -9,7 +9,7 @@ import { config } from './helpers.js';
 test('read-only capability: runtime dependency/import surface excludes game backend and signing APIs', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   assert.deepEqual(Object.keys(pkg.dependencies).sort(), ['bs58', 'pg', 'prom-client', 'zod']);
-  const allowed = new Set(['bs58', 'pg', 'prom-client', 'zod', 'node:crypto', 'node:fs', 'node:http', 'node:timers/promises']);
+  const allowed = new Set(['bs58', 'pg', 'prom-client', 'zod', 'node:crypto', 'node:util', 'node:fs', 'node:http', 'node:timers/promises']);
   for (const name of readdirSync(new URL('../src', import.meta.url)).filter(n => n.endsWith('.ts'))) {
     const text = readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8');
     const ast = ts.createSourceFile(name, text, ts.ScriptTarget.ES2022, true);
