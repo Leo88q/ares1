@@ -1010,7 +1010,7 @@ pub mod solana_potato {
             // Владелец аккаунта должен быть нашей программой: иначе атакующий
             // может подсунуть поддельный аккаунт со своими данными (discount).
             if lic_acc.key() == expected
-                && lic_acc.owner() == ctx.program_id
+                && lic_acc.owner == ctx.program_id
                 && !lic_acc.data_is_empty()
             {
                 let data = lic_acc.try_borrow_data()?;
@@ -1033,7 +1033,7 @@ pub mod solana_potato {
             // Владелец аккаунта должен быть нашей программой (см. license выше):
             // поддельный Referral-аккаунт позволил бы задать произвольного "реферера".
             if ref_acc.key() == expected_ref
-                && ref_acc.owner() == ctx.program_id
+                && ref_acc.owner == ctx.program_id
                 && !ref_acc.data_is_empty()
             {
                 let data = ref_acc.try_borrow_data()?;
@@ -1102,7 +1102,7 @@ pub mod solana_potato {
         let mut reward_claimed = false;
         if referrer_reward > 0 {
             if let Some(ata_acc) = ctx.remaining_accounts.get(2) {
-                let valid = if ata_acc.owner() == ctx.accounts.token_program.key()
+                let valid = if *ata_acc.owner == ctx.accounts.token_program.key()
                     && !ata_acc.data_is_empty()
                 {
                     let data = ata_acc.try_borrow_data()?;

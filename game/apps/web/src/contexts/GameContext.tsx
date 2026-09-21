@@ -346,7 +346,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
    if (!config || !publicKey) return false
    return runTx(t('Не удалось закрыть поле'), async () => {
     const { config: configPda } = pdas(programId)
-    const ix = await ixCloseField(programId, { config: configPda, field: fieldPk, owner: publicKey })
+    const ix = await ixCloseField(programId, { config: configPda(), field: fieldPk, owner: publicKey })
     return [ix]
    })
   },
