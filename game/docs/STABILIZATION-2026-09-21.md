@@ -1,135 +1,132 @@
 # Стабилизация ARES-1 — 21.09.2026
 
-## Статус
+## Статус и границы
 
-**Первый пакет выполнен частично. Mainnet/реальные средства не разрешены. CI целиком
-не объявляется зелёным.** Экономические параметры и управление в сети не менялись.
-Ничего не деплоилось, ключи не отзывались, история Git не переписывалась.
+Работа ведётся в `arena/01a0c0d9-ares1`. **Это не разрешение на mainnet или реальные
+средства.** В публичную сеть контракт не деплоился, миграции не выполнялись,
+полномочия не передавались, ключи не отзывались, история Git не переписывалась.
 
-Проверка исходного CI на `a271984`: запуск GitHub Actions `35533898275` от 20.09.2026.
-Web упал на двух неиспользуемых импортах, Rust — на разрешении зависимости `zeroize`.
-Backend typecheck прошёл. Полные логи/артефакты получить не удалось; причины падений
-получены из GitHub check annotations и воспроизведения frontend typecheck.
+В CI `35545805957` для `5ffdc0b` прошли Rust unit tests, SBF-сборка, интеграционный
+localnet, миграционные fixtures, web/backend и Docker. Единственное падение —
+проверка устаревшего клиентского IDL. Настоящий IDL из этой сборки получен, проверен
+по SHA-256 и синхронизирован; локальное полное сравнение ABI теперь проходит.
+Контрольный удалённый CI после синхронизации должен подтвердить весь набор вместе.
 
-## Уточнение экономики владельцем
+## Согласованные правила оплаты — без изменений
 
-- Лицензия: **500 SKR**; пресейл: **1053 SKR**.
+- Лицензия: **500 SKR**; пресейл `buy_field_skr`: **1053 SKR**.
 - Обычная покупка полей, налог, ремонт, улучшения, удобрения и регистрация реферера:
-  исходные платежи/сжигание **POTATO**.
-- Ошибочная общая замена игровых расходов на SKR отменена в исходниках и клиенте.
-  Восстановлен исходный интеграционный набор `tests/solana_potato.ts`.
-- По рынку восстановлено состояние до этой переделки; иной способ расчётов здесь
-  не считается согласованным. On-chain обновлений не выполнялось.
-- Исправления CI, транспорта настоящего IDL и изолированного тестового валидатора
-  сохранены отдельно от отката экономики; их новый полный CI ещё требуется проверить.
+  исходные платежи/сжигание **POTATO** с существующими ценами и множителями.
+- Ошибочная общая замена игровых расходов на SKR отменена коммитом `5ffdc0b`.
+  Исходный набор `tests/solana_potato.ts` восстановлен. Проверки
+  `economyRules.test.ts` защищают это разделение от повторной случайной замены.
+- Рынок оставлен в исходной реализации SOL/POTATO. Это описание текущего кода,
+  а не согласование нового способа расчётов. Старый SOL-пресейл также остаётся
+  в ABI; решение о его отключении отдельно не принималось.
+- Эмиссия, fee rates, распределение казны и административные полномочия не меняются
+  при синхронизации IDL/исправлении клиентских аккаунтов.
 
-## Изменения
+## Что исправлено
 
 ### Сборка и CI
-- Удалены два неиспользуемых импорта frontend.
-- Из Rust manifest удалены неиспользуемые experimental SDK и вводившая в заблуждение
-  feature `full`. Эти библиотеки не вызываются программой, но их optional-зависимости
-  участвуют в Cargo resolution. Восстановлен набор зависимостей до их добавления;
-  `Cargo.lock` оставлен неизменным. Исправление Rust-конфликта требует проверки сборкой.
-- Зафиксированы Node 22.22.3/Yarn 1.22.22 и локальный Rust toolchain. Anchor/Solana
-  оставлены на существующих версиях 0.31.2/4.2.2. JS Anchor отдельно закреплён на
-  ранее использовавшейся версии 0.30.1; это не заявление о совместимости новой ABI.
-- CI больше не пишет логи в Git-ветки/PR-комментарии; permissions сведены к чтению.
-- Добавлены off-chain tests, backend build, container build и проверка program IDs,
-  списка инструкций, ошибок и полного сгенерированного IDL. Проверка IDL не переписывает файл.
-- Anchor integration suite сохранён как clean-localnet deployment smoke; новые
-  off-chain тесты исключены из его glob.
 
-### Клиент и on-chain код
-- Тест импорта выявил невалидный Token-2022 program ID с дефисами. Вместо него
-  используется константа SPL SDK: исправлено исключение при загрузке клиента.
-- Переводы ошибок теперь привязаны к именам из IDL, а не неверным старым кодам.
-- Поддержано чтение старых Config 156/164 и Epoch 41 байт; backend проверяет
-  discriminator/допустимый размер и владельца on-chain аккаунта.
-- Исправлена запись Field в `batch_harvest`: Anchor сериализует discriminator вместе
-  с payload, поэтому запись с дополнительного offset 8 выходила за размер аккаунта.
-  Добавлены проверка writable и корректное сравнение коэффициента масштабирования.
-- `close_field`: получатель возвращаемой ренты явно writable в Anchor accounts.
-- Исправлены три ошибочных unit-assertion размеров experimental аккаунтов (не учитывали discriminator).
-- Добавлены Rust regression tests и integration cases: сериализация, duplicate proofs,
-  batch harvest, close/refund while paused, делегирование/отзыв reward signer,
-  запрет admin-операций этому signer, идемпотентность миграции **текущего** layout.
-  Эти chain-тесты ещё не запускались; старые layout migration fixtures ими не покрыты.
+- Зафиксированы Node 22.22.3, Yarn 1.22.22, Rust 1.97.1, Anchor 0.31.2 и Solana 4.2.2.
+  JS Anchor 0.30.1 сохранён намеренно; совместимость проверяется тестами.
+- Удалены неиспользуемые конфликтующие experimental SDK/feature, не реализующие
+  реальные CPI. `Cargo.lock` не менялся: SHA-256
+  `0d14dd5afc4fd02d7afad2d42d235ba4f2a46d8df0fbecf3888c05758d9abaf4`.
+- Сборка проверяет lockfile до/после Anchor; CI не пишет логи в Git и не получает
+  production keys. Ошибки выводятся ограниченными, редактированными annotations.
+- Anchor-тесты запускаются в отдельной группе процессов с таймаутом и cleanup
+  собственного валидатора, включая ошибочное завершение.
+- Миграционный harness использует отдельные порты, конечное HTTP-подтверждение
+  транзакций и уникальные сообщения для реального повторного выполнения миграций.
+  Нет бесконечного websocket reconnect после остановки тестового валидатора.
 
-### Секреты / backend
-- Удалён отслеживаемый `.env.production` с RPC credential; усилены Git/Docker exclusions.
-  Ни значение, ни новый ключ не записаны в отчёт.
-- Убрана печать RPC URL; добавлена редакция credential-bearing ошибок, generic HTTP
-  ошибки, тесты редакции и отдельности payer.
-- Backend отказывается запускаться/роллить эпоху, если payer совпал с game authority,
-  pending authority или reward signer. Это не заменяет проверку upgrade authority.
-- Добавлен `/live`, независимый от RPC. `/health` и `/ready` сохранены; внешнего
-  мониторинга/alert webhook в этом пакете пока нет.
-- Docker использует общий lockfile, Node 22.22.3, non-root и read-only secrets.
-  Нерабочий `bot` и неиспользуемый data volume убраны из Compose.
-- Добавлены Gitleaks config, pinned installer/checksum verification, локальные команды
-  и отдельный workflow: текущие файлы, новые коммиты, ручной полный исторический скан.
-- Обновлены API, SECURITY и [operations/incident/recovery runbook](OPERATIONS.md).
-  Старый production report помечен как исторический, не подтверждающий готовность.
+### Контракт и миграции
 
-## Что действительно проверено здесь
+- Исправлены сериализация `batch_harvest`, writable-проверки и возврат rent при
+  `close_field`. Эти исправления подтверждены интеграционным CI.
+- Миграции Config 156/164→228, Field 69→70 и Epoch 41→49 проверяют владельца,
+  discriminator, точный размер, authority и поддерживаемые PDA.
+- Authority оплачивает только недостающую rent целевого аккаунта. Текущие данные
+  сохраняются при повторе, включая SKR/reward signer, burn snapshot и mutation.
+- Реальные localnet fixtures проверяют успешные переходы, rent, повторные вызовы
+  и отказы для неверных полномочий/владельцев/типов/PDA. См. [MIGRATIONS.md](MIGRATIONS.md).
+- Миграционный CLI по умолчанию read-only; исполнение требует явных RPC, program ID,
+  genesis hash и приватного пути к admin key. Устаревший небезопасный скрипт отключён.
 
-| Проверка | Результат |
+### Настоящий ABI и клиент
+
+- `apps/web/src/idl.json` скопирован **из фактической Anchor-сборки** `5ffdc0b`,
+  CI `35545805957`, check `106171358913`. JSON не составлялся вручную.
+- IDL содержит 40 инструкций вместо 32, включая 8 ранее отсутствовавших. Ошибки
+  не перенумерованы; текст `OrderTotalTooSmall` теперь соответствует исходнику.
+- SHA-256 сгенерированного и клиентского JSON:
+  `7df5d0668bb4e8dcbb901212f64671bb35c8ac94fc30ae2f90570f9646ff84b7`.
+- Транспорт публичного IDL учитывает обрезание annotations до 4096 символов:
+  части по 3000, строгий Git SHA и checksum; восстановление пишет только в ignored
+  `target/idl`. Полное сравнение с новым build остаётся обязательным в CI.
+- 23 клиентские инструкции сравниваются с generated IDL по discriminator, бинарным
+  аргументам, порядку аккаунтов и signer/writable-флагам. Отдельно проверены
+  дополнительные аккаунты batch harvest/achievements и все 8 комбинаций market
+  license/referral accounts. Это не сертификация experimental Core/compression/hook.
+- Найдены и исправлены три клиентских несоответствия: readonly config при регистрации
+  реферера, лишний writable у System Program при claim achievement, сдвиг позиций
+  referral accounts при отсутствии seller license. Цены/ставки не менялись.
+
+### Backend и секреты
+
+- Удалён отслеживаемый `.env.production` с RPC credential; усилены Git/Docker
+  exclusions, убрана печать RPC URL, добавлена редакция секретов в диагностике.
+- Backend отказывается использовать authority/pending authority/reward signer как
+  epoch payer. Добавлен `/live`, сохранены `/health` и `/ready`.
+- Docker: общий lockfile, non-root, read-only mount ключа; нерабочий bot удалён
+  из Compose. Docker build подтверждён CI, production runtime здесь не проверялся.
+- Source-tree/new-commit secret scans проходят. **Историческая утечка не устранена
+  отзывом:** полный audit `35543363365` проверил 107 коммитов и нашёл 1 утечку.
+  Она не allowlisted. Удаление файла не делает старый ключ безопасным.
+
+## Проверки и происхождение результатов
+
+| Проверка | Подтверждённый результат |
 |---|---|
-| `yarn install --frozen-lockfile` | PASS |
-| Web + backend typecheck | PASS |
-| `yarn test:offchain` | PASS: 10 тестов |
-| `yarn build` (web + backend) | PASS; есть существующие предупреждения CSS/bundler |
-| `./scripts/ci-local.sh --skip-chain` | PASS; явно не сертифицирует on-chain часть |
-| YAML CI/security/Compose | Parse PASS; Docker runtime не проверен |
-| Shell syntax, `git diff --check` | PASS |
-| Integration TS syntax | PASS; не generated-IDL typecheck и не исполнение |
-| `yarn check:contract` | FAIL: committed IDL устарел — корректно обнаружено |
-| Rust/Anchor/localnet tests | NOT RUN: инструменты отсутствуют; загрузка toolchain блокируется сетью |
-| Docker build/runtime | NOT RUN: Docker отсутствует |
-| Gitleaks | NOT RUN: скачать бинарник не удалось; workflow подготовлен, но не исполнялся |
-| Проверка полномочий через devnet RPC | NOT VERIFIED: сетевой запрос недоступен |
-| Новый удалённый GitHub CI | NOT RUN: изменения не pushed; не заявляется green |
+| Rust host unit tests | PASS в CI `35545805957` / `5ffdc0b` |
+| Pinned SBF build | PASS в том же CI |
+| Anchor integration / deployment smoke | PASS на disposable localnet в том же CI |
+| Legacy migration fixtures | PASS в том же CI, оба Config layout |
+| Backend container build | PASS в том же CI |
+| Web/backend build и typechecks | PASS в том же CI |
+| Локальные web/backend/tools typechecks после ABI-sync | PASS |
+| Локальные off-chain tests после ABI-sync | **49/49 PASS** |
+| `check:contract target/idl/solana_potato.json` после ABI-sync | PASS, все 40 инструкций и полный JSON |
+| `git diff --check` | PASS |
+| Source/new-commit secrets | PASS `35545805922` / `5ffdc0b` |
+| Полная история | FAIL: 1 известная утечка, audit `35543363365` |
+| Отзыв RPC credential / live authority inventory | Не подтверждены |
+| Новый полный CI после ABI-sync | Ожидает контрольного запуска |
 
-## Секреты: границы проверки
+Локально Rust/Anchor/Solana/Docker отсутствуют: соответствующие PASS относятся к
+**GitHub CI**, а не к имитации локального исполнения. ABI-тесты браузера выполняются
+без кошелька/сети; localnet CI отдельно проверяет контракт, но не UI реального кошелька.
 
-Доступная история основной ветки была дозагружена без переключения рабочей ветки.
-Предварительный regex-поиск (не Gitleaks!) обнаружил credential-кандидат в одной
-исторической ревизии `game/apps/web/.env.production`. Текущие файлы очищены от этой
-находки. Это **не** полный аудит всех refs, локальных env/keypair, CI logs/artifacts
-или внешних deployment bundles. Артефакты CI скачать не удалось.
+## Оставшиеся release gates
 
-**Владелец должен отозвать ключ у RPC-провайдера.** Удаление файла/очистка истории
-не заменяет отзыв. Browser `VITE_*` значения публичны даже при хранении в CI Secrets.
-Полный history scan не содержит исключения для известной утечки.
+1. Подтвердить контрольный CI после синхронизации IDL и исправления raw builders.
+2. Владельцу отозвать исторически раскрытый RPC-ключ у провайдера; отдельно проверить
+   приватные env/keypair, deployment bundles/caches и политику browser/server RPC keys.
+   В чат ключи не передавать. Переписывание истории требует отдельного согласования.
+3. Проверить в целевой сети program upgrade authority, game authority, reward signer,
+   независимость payer, recovery и emergency pause. Это не выполнено локальным CI.
+4. Только после отдельного согласования — репетиция обновления и миграций в devnet
+   с проверенной сборкой, затем ограниченная бета без реальных средств.
 
-## Оставшиеся блокеры первого пакета
+## Решения не входят в этот пакет
 
-1. Запустить pinned Rust/Anchor/Solana в доступном окружении, проверить `cargo test
-   --locked`, SBF build, integration tests. Исправить любые следующие ошибки, не
-   отключая проверки. Удаление SDK — обоснованный патч, но не доказанная зелёная сборка.
-2. Сгенерировать настоящий IDL и сверить ABI. Сейчас отсутствуют:
-   `batch_harvest`, `close_field`, `execute_transfer_hook`, `init_compression_tree`,
-   `mint_compressed_field`, `mint_core_field`, `update_reward_signer`, `update_skr_mint`.
-   Структуры аккаунтов/события тоже требуют generated comparison. IDL вручную не подделывался.
-3. Прогнать Docker и Gitleaks, включая отдельно приватные env/keypair и скачанные CI artifacts.
-4. Подтвердить отзыв RPC-ключа, live upgrade/game authority, независимость signer и recovery.
-5. Проверить legacy migration fixtures: например, переход Config 156→228 копирует
-   старый хвост без явного перемещения paused/bump после нового snapshot-поля;
-   обработчики realloc также требуют проверки rent top-up. Без этой проверки не мигрировать
-   реальные аккаунты. Тест идемпотентности текущего layout этот риск не закрывает.
+- Семантика cap: bootstrap ≤250k, последующий `roll_epoch` независимо ограничен
+  250k–750k. Reward signer делит бюджет с harvest. Формула/бюджеты не переписаны.
+- Реальные Core/compression/transfer-hook CPI вместо существующих заглушек.
+- Treasury timelock/multisig, новая политика вывода, новые валюты/цены рынка.
+- Production indexer, Watchtower, доставляемые alerts, внешний аудит и mainnet.
 
-## Решения на отдельное согласование
-
-- `update_config.daily_mint_cap_micro` ограничен 250k, но следующий `roll_epoch`
-  вычисляет независимый лимит 250k–750k. Выбрать семантику: жёсткий admin ceiling
-  поверх динамики либо явно отдельный bootstrap-параметр. В этом пакете формула не менялась.
-- Отдельный reward budget: сейчас reward signer может израсходовать общий бюджет harvest.
-- Experimental compression/Core/hook — заглушки, не реальные заявленные CPI/burn.
-  Удаление неиспользуемых зависимостей не отключает соответствующие инструкции.
-  Решить: исключить их из beta surface либо отдельно реализовать и протестировать.
-- Treasury governance: game authority и upgrade authority, multisig/delay, быстрый
-  emergency pause и проверка всех обходных путей. В сети ничего не передавалось.
-
-Закрытая devnet-бета без реальных платежей — следующий этап после закрытия технических
-блокеров. Indexer/Watchtower, платный RPC и внешний аудит не выдаются за выполненные работы.
+Операционные команды, инциденты и восстановление: [OPERATIONS.md](OPERATIONS.md).

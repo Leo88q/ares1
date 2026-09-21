@@ -24,6 +24,9 @@ do not alter the emission formula, administrative powers or treasury policy.
 
 ## Tests
 
+Both legacy Config layouts and their Field/Epoch fixtures passed CI `35545805957`
+for `5ffdc0b`. This certifies that disposable localnet test, not a live migration.
+
 ```sh
 cd game
 cargo test --locked -p solana_potato --lib

@@ -114,6 +114,189 @@
       "args": []
     },
     {
+      "name": "batch_harvest",
+      "docs": [
+        "Дешёвая батч-чеканка: собирает урожай сразу с N полей за одну транзакцию.",
+        "Экономия: 1 подпись вместо N, 1 CU-оплата, 1 приоритетная комиссия.",
+        "Все поля проверяются: owner == signer, is_active, интервал, кроме того",
+        "агрегированный mint ограничен капом эпохи и max_supply.",
+        "Использует remaining_accounts как список Field PDAs."
+      ],
+      "discriminator": [
+        4,
+        237,
+        138,
+        197,
+        111,
+        142,
+        100,
+        91
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.epoch_id",
+                "account": "GameConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "potato_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "user_potato",
+          "writable": true
+        },
+        {
+          "name": "treasury_potato",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "config"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "potato_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "buy_export_license",
       "docs": [
         "Покупка лицензии экспорта: 500 SKR уходят в казну проекта",
@@ -180,8 +363,7 @@
           "signer": true
         },
         {
-          "name": "skr_mint",
-          "address": "Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o"
+          "name": "skr_mint"
         },
         {
           "name": "user_skr_ata",
@@ -527,8 +709,7 @@
           "signer": true
         },
         {
-          "name": "skr_mint",
-          "address": "Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o"
+          "name": "skr_mint"
         },
         {
           "name": "buyer_skr_ata",
@@ -1435,6 +1616,40 @@
       "args": []
     },
     {
+      "name": "close_field",
+      "docs": [
+        "Закрывает поле и возвращает ренту владельцу. Поле становится неактивным",
+        "навсегда (is_active=false) и больше не приносит урожай. Дешёвая \"де-чеканка\":",
+        "игрок возвращает ~0.001 SOL за каждое закрытое поле, что снижает",
+        "эффективную стоимость минта на 50% при выходе из игры."
+      ],
+      "discriminator": [
+        119,
+        228,
+        42,
+        234,
+        32,
+        28,
+        135,
+        20
+      ],
+      "accounts": [
+        {
+          "name": "field",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "field"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "create_field",
       "docs": [
         "Buys a new field of `field_type` (0 = Грядка, 1 = Луг, 2 = Поле) by",
@@ -1695,6 +1910,45 @@
         },
         {
           "name": "price_lamports_per_potato",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "execute_transfer_hook",
+      "docs": [
+        "Token-2022 Transfer Hook: валидирует налог 0.5% burn на каждый transfer POTATO.",
+        "Вызывается Token-2022 программой при `transfer_checked` с hook'ом.",
+        "Без этого вызова трансфер отклоняется. Здесь проверяем amount и эмитим событие."
+      ],
+      "discriminator": [
+        120,
+        157,
+        67,
+        141,
+        88,
+        144,
+        143,
+        220
+      ],
+      "accounts": [
+        {
+          "name": "mint"
+        },
+        {
+          "name": "source"
+        },
+        {
+          "name": "destination"
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
           "type": "u64"
         }
       ]
@@ -1997,10 +2251,10 @@
         },
         {
           "name": "authority",
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "docs": [
+            "S-03: может подписать как authority, так и reward_signer (low-priv backend)"
+          ],
+          "signer": true
         },
         {
           "name": "potato_mint",
@@ -2214,6 +2468,71 @@
       "args": []
     },
     {
+      "name": "init_compression_tree",
+      "docs": [
+        "Инициализирует ConcurrentMerkleTree для ZK-сжатых полей (cNFT).",
+        "Хранилище: 1 PDA-дерево на игрока, ~10KB rent, вмещает 16K листов.",
+        "Экономия: поле как PDA = 0.0013 SOL, как лист = 0.000005 SOL (×260 дешевле).",
+        "В проде вызывает `spl_account_compression::init_empty_merkle_tree` через CPI;",
+        "здесь аллоцируем PDA-заглушку чтобы не тянуть зависимость в default фиче."
+      ],
+      "discriminator": [
+        155,
+        98,
+        251,
+        90,
+        21,
+        187,
+        173,
+        115
+      ],
+      "accounts": [
+        {
+          "name": "tree",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  114,
+                  107,
+                  108,
+                  101,
+                  45,
+                  116,
+                  114,
+                  101,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "init_epoch",
       "docs": [
         "Bootstraps the epoch account for the current `config.epoch_id`.",
@@ -2419,7 +2738,8 @@
     {
       "name": "migrate_config",
       "docs": [
-        "Миграция GameConfig: realloc 156 → 164 байт (добавляет last_total_burned_micro)."
+        "Upgrade supported legacy layouts, preserving existing fields and flags.",
+        "Authority pays only the target account's rent shortfall; retries are safe."
       ],
       "discriminator": [
         92,
@@ -2434,10 +2754,26 @@
       "accounts": [
         {
           "name": "config",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "authority",
+          "writable": true,
           "signer": true
         },
         {
@@ -2449,9 +2785,6 @@
     },
     {
       "name": "migrate_epoch",
-      "docs": [
-        "Миграция Epoch: realloc 41 → 49 байт (добавляет burned_micro)."
-      ],
       "discriminator": [
         45,
         95,
@@ -2468,10 +2801,26 @@
           "writable": true
         },
         {
-          "name": "config"
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "authority",
+          "writable": true,
           "signer": true
         },
         {
@@ -2483,9 +2832,6 @@
     },
     {
       "name": "migrate_field",
-      "docs": [
-        "Миграция Field: realloc 69 → 70 байт (добавляет mutation_type)."
-      ],
       "discriminator": [
         65,
         252,
@@ -2502,10 +2848,26 @@
           "writable": true
         },
         {
-          "name": "config"
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "authority",
+          "writable": true,
           "signer": true
         },
         {
@@ -2581,6 +2943,190 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "mint_compressed_field",
+      "docs": [
+        "Минтит сжатое поле (cNFT через Bubblegum). Метаданные пишутся в лист,",
+        "а не в отдельный PDA. Стоимость минта ~0.000005 SOL против 0.0013 PDA.",
+        "Дерево — PDA игрока, проверяем что не переполнено (maxDepth 14 → 16384)."
+      ],
+      "discriminator": [
+        127,
+        146,
+        178,
+        131,
+        75,
+        140,
+        76,
+        92
+      ],
+      "accounts": [
+        {
+          "name": "tree",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  101,
+                  114,
+                  107,
+                  108,
+                  101,
+                  45,
+                  116,
+                  114,
+                  101,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "leaf_owner"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "bubblegum_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "field_id",
+          "type": "u64"
+        },
+        {
+          "name": "field_type",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "mint_core_field",
+      "docs": [
+        "Минтит Metaplex Core ассет-поля (1 аккаунт вместо 4 в Token Metadata).",
+        "Экономия ~75% rent, нативные плагины Royalties/Freeze/Burn."
+      ],
+      "discriminator": [
+        114,
+        252,
+        228,
+        209,
+        142,
+        211,
+        218,
+        201
+      ],
+      "accounts": [
+        {
+          "name": "collection",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  108,
+                  108,
+                  101,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "core_asset",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  114,
+                  101,
+                  45,
+                  97,
+                  115,
+                  115,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "collection"
+              },
+              {
+                "kind": "arg",
+                "path": "field_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "owner"
+        },
+        {
+          "name": "core_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "field_id",
+          "type": "u64"
+        },
+        {
+          "name": "field_type",
+          "type": "u8"
+        }
+      ]
     },
     {
       "name": "pay_tax",
@@ -2699,8 +3245,7 @@
     {
       "name": "register_referrer",
       "docs": [
-        "Регистрация реферера: одноразовый burn 5 POTATO, запись `referrer` в PDA Referral.",
-        "PDA Referral создаётся один раз на кошелёк."
+        "Registers a one-time referral relationship; burns the registration cost."
       ],
       "discriminator": [
         122,
@@ -3111,6 +3656,106 @@
       ]
     },
     {
+      "name": "update_reward_signer",
+      "docs": [
+        "S-03: обновляет reward_signer — только authority. Backend будет подписывать grant_reward этим ключом."
+      ],
+      "discriminator": [
+        102,
+        45,
+        51,
+        194,
+        88,
+        49,
+        216,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_signer",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_skr_mint",
+      "docs": [
+        "S-01: обновляет SKR mint (mainnet миграция) — только authority."
+      ],
+      "discriminator": [
+        64,
+        101,
+        7,
+        77,
+        194,
+        133,
+        77,
+        155
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_skr_mint",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "upgrade_field",
       "docs": [
         "Raises the field level by one for a burn of `BASE_UPGRADE × level × type`."
@@ -3332,8 +3977,7 @@
           ]
         },
         {
-          "name": "skr_mint",
-          "address": "Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o"
+          "name": "skr_mint"
         },
         {
           "name": "destination_ata",
@@ -3707,6 +4351,45 @@
       ]
     },
     {
+      "name": "CompressionTree",
+      "discriminator": [
+        124,
+        127,
+        63,
+        106,
+        78,
+        179,
+        171,
+        246
+      ]
+    },
+    {
+      "name": "CoreAsset",
+      "discriminator": [
+        140,
+        149,
+        163,
+        5,
+        138,
+        250,
+        205,
+        76
+      ]
+    },
+    {
+      "name": "CoreCollection",
+      "discriminator": [
+        134,
+        203,
+        102,
+        177,
+        246,
+        114,
+        70,
+        216
+      ]
+    },
+    {
       "name": "Epoch",
       "discriminator": [
         93,
@@ -3865,6 +4548,45 @@
       ]
     },
     {
+      "name": "BatchHarvested",
+      "discriminator": [
+        4,
+        7,
+        63,
+        176,
+        236,
+        104,
+        135,
+        143
+      ]
+    },
+    {
+      "name": "CompressedFieldMinted",
+      "discriminator": [
+        44,
+        122,
+        95,
+        163,
+        5,
+        250,
+        231,
+        80
+      ]
+    },
+    {
+      "name": "CompressionTreeCreated",
+      "discriminator": [
+        23,
+        64,
+        108,
+        197,
+        186,
+        122,
+        173,
+        240
+      ]
+    },
+    {
       "name": "ConfigUpdated",
       "discriminator": [
         40,
@@ -3875,6 +4597,19 @@
         19,
         198,
         194
+      ]
+    },
+    {
+      "name": "CoreFieldMinted",
+      "discriminator": [
+        34,
+        72,
+        87,
+        200,
+        227,
+        200,
+        119,
+        107
       ]
     },
     {
@@ -3914,6 +4649,19 @@
         157,
         255,
         160
+      ]
+    },
+    {
+      "name": "FieldClosed",
+      "discriminator": [
+        69,
+        247,
+        166,
+        250,
+        55,
+        225,
+        170,
+        27
       ]
     },
     {
@@ -4099,6 +4847,32 @@
       ]
     },
     {
+      "name": "RewardSignerUpdated",
+      "discriminator": [
+        4,
+        12,
+        80,
+        176,
+        14,
+        63,
+        174,
+        200
+      ]
+    },
+    {
+      "name": "SkrMintUpdated",
+      "discriminator": [
+        89,
+        214,
+        167,
+        69,
+        183,
+        148,
+        57,
+        131
+      ]
+    },
+    {
       "name": "TaxPaid",
       "discriminator": [
         4,
@@ -4109,6 +4883,19 @@
         46,
         212,
         238
+      ]
+    },
+    {
+      "name": "TransferHookExecuted",
+      "discriminator": [
+        187,
+        164,
+        179,
+        224,
+        22,
+        91,
+        19,
+        0
       ]
     },
     {
@@ -4306,7 +5093,7 @@
     {
       "code": 6028,
       "name": "OrderTotalTooSmall",
-      "msg": "Order total is below the minimum of 10 000 lamports"
+      "msg": "Order total is below the minimum of 1 000 000 lamports (0.001 SOL)"
     },
     {
       "code": 6029,
@@ -4405,6 +5192,30 @@
       }
     },
     {
+      "name": "BatchHarvested",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "field_count",
+            "type": "u8"
+          },
+          {
+            "name": "total_micro",
+            "type": "u64"
+          },
+          {
+            "name": "treasury_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "BuyerPresaleCounter",
       "docs": [
         "Счётчик купленных полей на кошелёк. PDA seeds: `[\"buyer_presale\", buyer_pubkey]`"
@@ -4428,6 +5239,73 @@
       }
     },
     {
+      "name": "CompressedFieldMinted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "field_id",
+            "type": "u64"
+          },
+          {
+            "name": "field_type",
+            "type": "u8"
+          },
+          {
+            "name": "leaf_index",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CompressionTree",
+      "docs": [
+        "ZK Compression tree: PDA [b\"merkle-tree\", authority], вмещает до 16K cNFT-полей."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "merkle_tree",
+            "type": "pubkey"
+          },
+          {
+            "name": "next_leaf_index",
+            "type": "u32"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CompressionTreeCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "merkle_tree",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
       "name": "ConfigUpdated",
       "type": {
         "kind": "struct",
@@ -4443,6 +5321,84 @@
           {
             "name": "global_multiplier_bps",
             "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CoreAsset",
+      "docs": [
+        "Metaplex Core Asset: PDA [b\"core-asset\", collection, field_id]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "collection",
+            "type": "pubkey"
+          },
+          {
+            "name": "field_id",
+            "type": "u64"
+          },
+          {
+            "name": "field_type",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CoreCollection",
+      "docs": [
+        "Metaplex Core Collection: PDA [b\"core-collection\"]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CoreFieldMinted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "collection",
+            "type": "pubkey"
+          },
+          {
+            "name": "asset",
+            "type": "pubkey"
+          },
+          {
+            "name": "field_id",
+            "type": "u64"
+          },
+          {
+            "name": "field_type",
+            "type": "u8"
           }
         ]
       }
@@ -4613,6 +5569,22 @@
       }
     },
     {
+      "name": "FieldClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "field",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
       "name": "FieldCreated",
       "type": {
         "kind": "struct",
@@ -4687,6 +5659,14 @@
           },
           {
             "name": "potato_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "skr_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_signer",
             "type": "pubkey"
           },
           {
@@ -5105,6 +6085,18 @@
       }
     },
     {
+      "name": "RewardSignerUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "new_signer",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
       "name": "SellerProfile",
       "docs": [
         "Per-seller anti-spam state. PDA seeds: `[\"seller\", seller_pubkey]`."
@@ -5128,6 +6120,18 @@
       }
     },
     {
+      "name": "SkrMintUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "new_skr_mint",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
       "name": "TaxPaid",
       "type": {
         "kind": "struct",
@@ -5142,6 +6146,34 @@
           },
           {
             "name": "cost_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TransferHookExecuted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "source",
+            "type": "pubkey"
+          },
+          {
+            "name": "destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "fee",
             "type": "u64"
           }
         ]
