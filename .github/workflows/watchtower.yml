@@ -2,9 +2,9 @@ name: Watchtower exporter
 on:
   push:
     branches: [main, 'arena/**']
-    paths: ['watchtower/**', '.github/workflows/watchtower.yml', 'game/apps/web/src/idl.json']
+    paths: ['watchtower/**', '.github/workflows/watchtower.yml', 'game/apps/web/src/idl.json', 'WATCHTOWER_INTEGRATION.md', 'WATCHTOWER_OS_V3_FINAL_REPORT.md']
   pull_request:
-    paths: ['watchtower/**', '.github/workflows/watchtower.yml', 'game/apps/web/src/idl.json']
+    paths: ['watchtower/**', '.github/workflows/watchtower.yml', 'game/apps/web/src/idl.json', 'WATCHTOWER_INTEGRATION.md', 'WATCHTOWER_OS_V3_FINAL_REPORT.md']
   workflow_dispatch:
 permissions:
   contents: read
@@ -44,3 +44,5 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm test
+      - run: npm run test:os
+      - run: npm run os:handoff:check

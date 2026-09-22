@@ -199,6 +199,33 @@ HMAC-SHA256(secret, canonical address) с `playerKeyVersion`; экспорт cro
 Пока endpoint возвращает unavailable и не раскрывает полные wallet addresses.
 Другие авторизованные on-chain event endpoints содержат публичные адреса из цепочки.
 
+## Watchtower OS v3 — идеальный бесплатный стек (33 компонента)
+
+Отдельная read-only поверхность `src/os/` (ESM JS, без npm-зависимостей, отдельный
+процесс от exporter): реестр **33 компонентов** ideal free stack ARES-1
+(v1 8 layers + v2 12 products + v3 13 best free, deduplicated; duplicates deprecated 3:
+create-solana-game→preset, aureus→ritarena, solshield→solguard), **19 control panels**
+и 43 GET-роута (`/api/os/config|health`, `/api/sdk/*`, `/api/infra/*`, `/api/ai/*`,
+`/api/security/*`, `/api/storage/*`, `/api/monetization/*`, `/api/testing/*`,
+`/api/privacy/*`, `/api/cross-chain/race`, `/api/assets/strategy`, `/api/game-signals/config`,
+`/api/payments/rust-api`). Stage=prototype, dataQuality=partial, writes=false; это
+декларативная конфигурация стека, не observed on-chain данные и не signing path.
+
+Генерируемый handoff: `WATCHTOWER_INTEGRATION.md` и `WATCHTOWER_OS_V3_FINAL_REPORT.md`
+(Final report 20 пунктов: v1 7 + v2 7 + v3 6) в корне репо — создаются
+`npm run os:handoff`, drift ловится `npm run os:handoff:check` (CI). Подробности:
+`docs/watchtower-os-v3.md`.
+
+```sh
+npm run test:os   # node:test suite (без сети/БД)
+npm run os        # node src/os/server.js → 0.0.0.0:$WATCHTOWER_OS_PORT (8791)
+```
+
+`WATCHTOWER_OS_TOKEN` (>=32, опционально) включает Bearer-закрытый режим как у exporter.
+Без токена — open read-only (данных с секретами нет: ENV names without values,
+program address values → null). Протокол запросов жёсткий: только GET, `gameId=ares1`,
+дубликаты/неизвестные query-параметры → 400, POST → 405.
+
 ## Проверки
 
 ```sh

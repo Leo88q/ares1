@@ -15,7 +15,11 @@
     "test": "tsx --test tests/*.test.ts",
     "test:integration": "WATCHTOWER_REQUIRE_TEST_DATABASE=true tsx --test tests/watchtower-postgres.test.ts",
     "verify:devnet": "tsx scripts/verify-devnet.ts",
-    "replay": "tsx scripts/replay.ts"
+    "replay": "tsx scripts/replay.ts",
+    "test:os": "node --test tests/os/*.test.mjs",
+    "os": "node src/os/server.js",
+    "os:handoff": "node src/os/handoff-v3.js --write",
+    "os:handoff:check": "node src/os/handoff-v3.js --check"
   },
   "dependencies": {
     "bs58": "6.0.0",
