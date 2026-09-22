@@ -35,11 +35,12 @@ libs/                       sentinel, solana-tx-guard — отдельные р�
 
 | Инструмент | Версия | Примечание |
 |---|---|---|
-| Rust | stable ≥ 1.79 | host-юниттесты |
-| Solana CLI (Agave) | **4.2.x** (platform-tools ≥ v1.5) | `Cargo.lock` v4; 1.18.x не соберёт |
-| Anchor | **0.30.1** через avm | `Anchor.toml [toolchain]` пинит `solana_version = "4.2.2"` — иначе avm подменит тулчейн на 1.18 |
-| Rust nightly для IDL | `nightly-2025-03-01` | Anchor 0.30.1 строит IDL каналом `nightly`; nightly новее апреля 2025 не имеет `proc_macro::SourceFile`. Установите датированный nightly и слинкуйте его как `nightly` (`ln -sfn ~/.rustup/toolchains/nightly-2025-03-01-* ~/.rustup/toolchains/nightly-<host>`). `proc-macro2` запинен в `Cargo.lock` на 1.0.94 по той же причине |
-| Node | 20+ и yarn 1.22 (corepack) | workspaces: web, backend |
+| Rust | **1.97.1** (`rust-toolchain.toml`) | host-юниттесты; CI гейтит точную версию |
+| Solana CLI (Agave) | **4.2.2** (platform-tools ≥ v1.5) | `Cargo.lock` v4; 1.18.x не соберёт |
+| Anchor | **0.31.2** (`Anchor.toml`, `Cargo.toml`) | `Anchor.toml [toolchain]` пинит `solana_version = "4.2.2"`; `ci-local.sh` требует ровно `anchor-cli 0.31.2` |
+| Rust nightly для IDL | `nightly-2025-03-01` | Anchor строит IDL каналом `nightly`; nightly новее апреля 2025 не имеет `proc_macro::SourceFile`. Установите датированный nightly и слинкуйте его как `nightly` (`ln -sfn ~/.rustup/toolchains/nightly-2025-03-01-* ~/.rustup/toolchains/nightly-<host>`). `proc-macro2` запинен в `Cargo.lock` на 1.0.94 по той же причине |
+| Node | **22.22.3** (`.node-version` / `.nvmrc`) | workspaces: web, backend; `ci-local.sh` требует точную версию |
+| Yarn | **1.22.22** (Yarn Classic, corepack) | не npm; `ci-local.sh` требует точную версию |
 | Python | 3.10+ | только для `economy/simulate.py` |
 
 ## Быстрый старт
