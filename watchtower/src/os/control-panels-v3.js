@@ -128,17 +128,17 @@ export const PANELS_V3 = Object.freeze([
 
 if (PANELS_V3.length !== 19) throw new Error('OS_V3_PANELS_MUST_BE_19');
 
-/** Сводка здоровья 19 слоёв для /api/os/health. */
+/** Сводка здоровья 19 слоёв для /api/os/health (layers — объект, ключ = panel id). */
 export function osHealth() {
-  return {
-    alive: true,
-    layerCount: PANELS_V3.length,
-    layers: PANELS_V3.map(p => ({
-      panel: p.id, title: p.title, status: p.status, dataQuality: p.dataQuality,
+  const layers = {};
+  for (const p of PANELS_V3) {
+    layers[p.id] = {
+      title: p.title, status: p.status, dataQuality: p.dataQuality,
       network: p.network, blockchainWritesEnabled: p.blockchainWritesEnabled,
-      components: p.components.length, checks: p.checks,
-    })),
-  };
+      components: p.components, checks: p.checks,
+    };
+  }
+  return { alive: true, layerCount: PANELS_V3.length, layers };
 }
 
 /** Валидация ссылок панелей на реестр (используется тестами и handoff check). */

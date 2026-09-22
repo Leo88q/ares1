@@ -8,6 +8,7 @@ import { realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import {
   API_ROUTES, GAME, OS_CONFIG, assetStrategy, componentOrError,
+  l2Router, marketplaceRouter,
 } from './stack-v3.js';
 import { PANELS_V3, osHealth } from './control-panels-v3.js';
 import { REPORT_STEPS_V3 } from './handoff-v3.js';
@@ -38,11 +39,14 @@ export function createOsServer(opts = {}) {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    const send = (status, data, quality = 'partial') => {
+    // spread=true кладёт поля data ещё и на верхний уровень ответа (внешние jq-чеки:
+    // /api/os/config → .tenants, /api/os/health → .layers).
+    const send = (status, data, quality = 'partial', spread = false) => {
       res.writeHead(status);
       res.end(JSON.stringify({
         osVersion: OS_CONFIG.version, gameId: GAME.gameId, network: GAME.network,
-        stage: GAME.stage, dataQuality: quality, blockchainWritesEnabled: false, data,
+        stage: GAME.stage, dataQuality: quality, blockchainWritesEnabled: false,
+        ...(spread && data && typeof data === 'object' ? data : {}), data,
       }));
     };
     try {
@@ -56,9 +60,17 @@ export function createOsServer(opts = {}) {
       if (parsed.error) return send(400, parsed, 'unavailable');
 
       if (url.pathname === '/api/os/config') {
-        return send(200, { ...OS_CONFIG, controlPanels: PANELS_V3, reportSteps: REPORT_STEPS_V3 });
+        return send(200, { ...OS_CONFIG, controlPanels: PANELS_V3, reportSteps: REPORT_STEPS_V3 }, 'partial', true);
       }
-      if (url.pathname === '/api/os/health') return send(200, { ...osHealth(), checkedAt: new Date().toISOString() });
+      if (url.pathname === '/api/os/health') return send(200, { ...osHealth(), checkedAt: new Date().toISOString() }, 'partial', true);
+      if (url.pathname === '/api/l2/router') {
+        const routed = l2Router(parsed.params.tps ?? 'low', parsed.params.ux ?? 'gasless');
+        return send(routed.error ? 400 : 200, routed, routed.error ? 'unavailable' : 'partial');
+      }
+      if (url.pathname === '/api/marketplace/router') {
+        const routed = marketplaceRouter(parsed.params.assetType ?? 'cnft');
+        return send(routed.error ? 400 : 200, routed, routed.error ? 'unavailable' : 'partial');
+      }
       if (url.pathname === '/api/assets/strategy') {
         const strategy = assetStrategy(parsed.params.itemType ?? 'common', parsed.params.rarity ?? 'common');
         return send(strategy.error ? 400 : 200, strategy, strategy.error ? 'unavailable' : 'partial');

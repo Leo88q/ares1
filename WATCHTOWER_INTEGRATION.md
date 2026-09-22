@@ -165,6 +165,8 @@ Verified v1/v2 deployment (integration-manifest.json): programId `DUUBiVvpbw5BbF
 | GET /api/testing/solana-slam | solana-slam |
 | GET /api/privacy/arcium | arcium |
 | GET /api/assets/strategy | cNFT $110/M + Core Attributes + Xandeum |
+| GET /api/l2/router | l2Router decision tree → e.g. MagicBlock ER + Arcium + PST + Xandeum |
+| GET /api/marketplace/router | marketplaceAggregator → e.g. Tensor + Access + idosgames |
 
 Notes: игровые POST-эндпоинты интеграций (`POST /api/ingest/solana`, `POST /api/campaigns/proposals`, `POST /api/webhooks/shyft/ares1`) объявлены в конфигурациях компонентов, но НЕ реализованы read-only Watchtower OS.
 

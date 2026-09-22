@@ -35,5 +35,5 @@
 
 - Компонентов: 33 (v1 8 + v2 12 + v3 13); duplicates deprecated 3: create-solana-game→preset, aureus→ritarena, solshield→solguard.
 - Control panels: 19 (ссылки на реестр: все валидны).
-- API routes: 43 GET (read-only), все продукты v3 доступны через /api/sdk|infra|ai|security|storage|monetization|testing|privacy.
+- API routes: 45 GET (read-only), все продукты v3 доступны через /api/sdk|infra|ai|security|storage|monetization|testing|privacy.
 - Тесты: `npm run test:os` (node:test, без сети/БД); docs drift guard: `npm run os:handoff:check`.

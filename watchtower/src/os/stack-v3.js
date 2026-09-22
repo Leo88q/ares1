@@ -498,6 +498,60 @@ export function assetStrategy(itemType = 'common', rarity = 'common') {
   };
 }
 
+const TPS_BANDS = ['low', 'high'];
+const UX_MODES = ['gasless', 'reads', 'declarative', 'l3'];
+
+/**
+ * /api/l2/router?gameId=ares1&tps&ux — l2Router(gameId, tps, ux) decision tree.
+ * tps=high(+isolation) → sonic-hypergrid; ux: reads→sorada, declarative→rush-ecs,
+ * l3→repla, gasless→magicblock-er. Companions всегда: Arcium + PST + Xandeum
+ * (ideal free L2 privacy storage bundle).
+ */
+export function l2Router(tps = 'low', ux = 'gasless') {
+  if (!TPS_BANDS.includes(tps) || !UX_MODES.includes(ux)) {
+    return { error: 'INVALID_L2_QUERY', allowed: { tps: TPS_BANDS, ux: UX_MODES } };
+  }
+  const primary = tps === 'high'
+    ? 'sonic-hypergrid'
+    : ({ gasless: 'magicblock-er', reads: 'sorada', declarative: 'rush-ecs', l3: 'repla', })[ux];
+  return {
+    tps, ux, primary,
+    companions: ['arcium', 'pst', 'xandeum'],
+    rationale: {
+      'sonic-hypergrid': 'tps>100 && isolation needed',
+      'sorada': 'need 5ms reads (30-40x)',
+      'rush-ecs': 'declarative world config',
+      repla: 'L3 CLI + Anchor settle (repla-cli)',
+      'magicblock-er': 'gasless auto triggers: delegate→executeGasless<10ms→commit_state + Magic Actions cron 5min (auto PvP, auto tournament, auto harvest)',
+      arcium: 'confidential payments / private state transitions (createRollup)',
+      pst: 'private verifiable commitments on-chain + encrypted off-chain',
+      xandeum: 'exabyte scalable storage layer',
+    },
+    tree: L2_ROUTER,
+  };
+}
+
+const MARKET_ASSET_TYPES = ['cnft', 'standard', 'usd'];
+
+/** /api/marketplace/router?gameId=ares1&assetType — marketplaceAggregator(gameId, assetType). */
+export function marketplaceRouter(assetType = 'cnft') {
+  if (!MARKET_ASSET_TYPES.includes(assetType)) {
+    return { error: 'INVALID_MARKETPLACE_QUERY', allowed: { assetType: MARKET_ASSET_TYPES } };
+  }
+  const base = {
+    assetType,
+    monetization: ['access-protocol (stake-to-access)', 'idosgames-wallet (EVM↔Solana RewardPool bridge)'],
+    escrows: ['shyft escrow-less in-app (stats API one call)'],
+  };
+  if (assetType === 'cnft') {
+    return { ...base, primary: 'tensor', routes: ['tensor', 'access-protocol', 'idosgames-wallet'], magicEden: 'deprecated for new cNFT' };
+  }
+  if (assetType === 'standard') {
+    return { ...base, primary: 'tensor', secondary: 'magic-eden (120 QPM Bearer, MCC+MT)', routes: ['tensor', 'magic-eden', 'access-protocol', 'idosgames-wallet'] };
+  }
+  return { ...base, primary: 'gameshift', routes: ['gameshift (USD, 170+ стран, 100% chargeback, gas abstraction)'] };
+}
+
 /** Индексы и помощники. */
 export const COMPONENTS_BY_ID = new Map(COMPONENTS.map(c => [c.id, c]));
 export const TRACKS = Object.freeze({
@@ -558,11 +612,19 @@ export const API_ROUTES = Object.freeze({
   'GET /api/testing/solana-slam': { component: 'solana-slam' },
   'GET /api/privacy/arcium': { component: 'arcium' },
   'GET /api/assets/strategy': { params: ['itemType', 'rarity'], note: 'cNFT $110/M + Core Attributes + Xandeum' },
+  'GET /api/l2/router': { params: ['tps', 'ux'], note: 'l2Router decision tree → e.g. MagicBlock ER + Arcium + PST + Xandeum' },
+  'GET /api/marketplace/router': { params: ['assetType'], note: 'marketplaceAggregator → e.g. Tensor + Access + idosgames' },
 });
+
+/** Тенанты OS (check: /api/os/config → .tenants содержит ares1). */
+export const TENANTS = Object.freeze([
+  Object.freeze({ tenant: 'ares1', gameId: 'ares1', genre: 'strategy farming', stack: 'watchtower-os v3' }),
+]);
 
 export const OS_CONFIG = Object.freeze({
   version: 'v3.0.0',
   game: GAME,
+  tenants: TENANTS,
   programs: PROGRAMS,
   verifiedDeployment: VERIFIED_DEPLOYMENT,
   counts: Object.freeze({

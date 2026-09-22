@@ -13,7 +13,7 @@
 | `src/os/stack-v3.js` | Single source of truth: 33 компонента (v1 8 layers + v2 12 products + v3 13 best free), duplicates deprecated 3, L2 router, prohibitions, API_ROUTES |
 | `src/os/control-panels-v3.js` | 19 control panels (операционные слои /api/os/health), валидация ссылок на реестр |
 | `src/os/handoff-v3.js` | Генератор `WATCHTOWER_INTEGRATION.md` + Final report 20 пунктов (v1 7 + v2 7 + v3 6), CLI `--write/--check` |
-| `src/os/server.js` | Read-only server: 43 GET routes, строгий query-parse, optional Bearer (WATCHTOWER_OS_TOKEN >=32) |
+| `src/os/server.js` | Read-only server: 45 GET routes, строгий query-parse, optional Bearer (WATCHTOWER_OS_TOKEN >=32) |
 | `tests/os/watchtower-os-v3.test.mjs` | node:test: состав стека, guard-проверки, весь HTTP contract, token mode |
 
 ## On-chain vs off-chain
