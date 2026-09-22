@@ -205,7 +205,7 @@ HMAC-SHA256(secret, canonical address) с `playerKeyVersion`; экспорт cro
 процесс от exporter): реестр **33 компонентов** ideal free stack ARES-1
 (v1 8 layers + v2 12 products + v3 13 best free, deduplicated; duplicates deprecated 3:
 create-solana-game→preset, aureus→ritarena, solshield→solguard), **19 control panels**
-и 43 GET-роута (`/api/os/config|health`, `/api/sdk/*`, `/api/infra/*`, `/api/ai/*`,
+и 45 GET-роутов (`/api/os/config|health`, `/api/sdk/*`, `/api/infra/*`, `/api/ai/*`,
 `/api/security/*`, `/api/storage/*`, `/api/monetization/*`, `/api/testing/*`,
 `/api/privacy/*`, `/api/cross-chain/race`, `/api/assets/strategy`, `/api/game-signals/config`,
 `/api/payments/rust-api`). Stage=prototype, dataQuality=partial, writes=false; это

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   API_ROUTES, COMPONENTS, COMPONENTS_BY_ID, DUPLICATES_DEPRECATED, GAME,
-  OS_CONFIG, assetStrategy,
+  OS_CONFIG, assetStrategy, l2Router, marketplaceRouter,
 } from '../../src/os/stack-v3.js';
 import { PANELS_V3, osHealth, validatePanelReferences } from '../../src/os/control-panels-v3.js';
 import {
@@ -36,8 +36,8 @@ test('19 control panels; ссылки на реестр валидны; health �
   assert.deepEqual(validatePanelReferences(), []);
   const h = osHealth();
   assert.equal(h.layerCount, 19);
-  assert.equal(h.layers.length, 19);
-  for (const l of h.layers) assert.equal(l.blockchainWritesEnabled, false);
+  assert.deepEqual(Object.keys(h.layers), PANELS_V3.map(p => p.id)); // jq .layers|keys → 19
+  for (const l of Object.values(h.layers)) assert.equal(l.blockchainWritesEnabled, false);
 });
 
 test('запреты: writes off, session-key scope, env names only, no secrets в реестре', () => {
@@ -109,8 +109,13 @@ test('api: все объявленные маршруты отвечают 200 �
     const cfg = await (await fetch(`${base}/api/os/config`)).json();
     assert.equal(cfg.data.counts.total, 33);
     assert.equal(cfg.data.controlPanels.length, 19);
+    // jq .tenants — top-level + data
+    assert.ok(cfg.tenants.some(t => t.gameId === 'ares1' && t.tenant === 'ares1'));
+    assert.ok(cfg.data.tenants.some(t => t.gameId === 'ares1'));
     const health = await (await fetch(`${base}/api/os/health`)).json();
     assert.equal(health.data.layerCount, 19);
+    assert.equal(Object.keys(health.layers).length, 19); // jq .layers | jq keys
+    assert.ok(Object.keys(health.layers).includes('infra-frameworks'));
   });
 });
 
@@ -138,6 +143,28 @@ test('api: token mode — 401 без Bearer, 200 с Bearer', async () => {
   }, { token: 't'.repeat(40) });
 });
 
+test('l2 router: tps=low&ux=gasless → MagicBlock ER + Arcium + PST + Xandeum', () => {
+  const r = l2Router('low', 'gasless');
+  assert.equal(r.primary, 'magicblock-er');
+  assert.deepEqual(r.companions, ['arcium', 'pst', 'xandeum']);
+  assert.equal(l2Router('high', 'gasless').primary, 'sonic-hypergrid');
+  assert.equal(l2Router('low', 'reads').primary, 'sorada');
+  assert.equal(l2Router('low', 'declarative').primary, 'rush-ecs');
+  assert.equal(l2Router('low', 'l3').primary, 'repla');
+  assert.equal(l2Router('max', 'gasless').error, 'INVALID_L2_QUERY');
+  assert.equal(l2Router('low', 'instant').error, 'INVALID_L2_QUERY');
+});
+
+test('marketplace router: assetType=cnft → Tensor + Access + idosgames', () => {
+  const r = marketplaceRouter('cnft');
+  assert.equal(r.primary, 'tensor');
+  assert.deepEqual(r.routes, ['tensor', 'access-protocol', 'idosgames-wallet']);
+  assert.equal(r.magicEden, 'deprecated for new cNFT');
+  assert.equal(marketplaceRouter('standard').secondary.startsWith('magic-eden'), true);
+  assert.equal(marketplaceRouter('usd').primary, 'gameshift');
+  assert.equal(marketplaceRouter('legacy').error, 'INVALID_MARKETPLACE_QUERY');
+});
+
 test('sdk endpoints v3: best-free rationale и ключевые поля', async () => {
   await withServer(async base => {
     const ritarena = await (await fetch(`${base}/api/sdk/ritarena?gameId=ares1`)).json();
@@ -156,5 +183,21 @@ test('sdk endpoints v3: best-free rationale и ключевые поля', async
     assert.deepEqual(race.data.component.key.chains, ['solana', 'evm']);
     const aureusWarn = await (await fetch(`${base}/api/sdk/security-auditing-skill?gameId=ares1`)).json();
     assert.equal(aureusWarn.data.component.key.categories.length, 9);
+  });
+});
+
+test('team api checks: exact curl contract (.tenants, .layers keys, routers)', async () => {
+  await withServer(async base => {
+    const cfg = await (await fetch(`${base}/api/os/config`)).json();
+    assert.ok(cfg.tenants.some(t => t.gameId === 'ares1'));
+    const health = await (await fetch(`${base}/api/os/health`)).json();
+    assert.equal(Object.keys(health.layers).length, 19);
+    const l2 = await (await fetch(`${base}/api/l2/router?gameId=ares1&tps=low&ux=gasless`)).json();
+    assert.equal(l2.data.primary, 'magicblock-er');
+    assert.deepEqual(l2.data.companions, ['arcium', 'pst', 'xandeum']);
+    const market = await (await fetch(`${base}/api/marketplace/router?gameId=ares1&assetType=cnft`)).json();
+    assert.deepEqual(market.data.routes, ['tensor', 'access-protocol', 'idosgames-wallet']);
+    assert.equal((await fetch(`${base}/api/l2/router?gameId=ares1&tps=max&ux=gasless`)).status, 400);
+    assert.equal((await fetch(`${base}/api/marketplace/router?gameId=ares1&assetType=legacy`)).status, 400);
   });
 });
