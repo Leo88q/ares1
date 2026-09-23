@@ -1,0 +1,229 @@
+{
+  "status": "partial_source_inventory_not_security_audit",
+  "scope": "game/programs/solana_potato/src/lib.rs",
+  "files_scanned": 1,
+  "files_parsed": 0,
+  "parse_failures": [],
+  "findings": [
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2195,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2255,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2276,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2296,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2312,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2365,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2381,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2459,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2500,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2573,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2625,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2646,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2668,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2679,
+        "column": 8
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2680,
+        "column": 15
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2717,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2757,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 2873,
+        "column": 7
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 3543,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    }
+  ],
+  "zero_findings_verified": false,
+  "scanner": "literal SW016 token inventory (includes comments; not AST or vulnerability proof)",
+  "required_checks_unverified": [
+    "SW002",
+    "SW013",
+    "SW009",
+    "SW010",
+    "SW024",
+    "SW008",
+    "SW027"
+  ]
+}
