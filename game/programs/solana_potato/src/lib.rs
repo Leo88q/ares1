@@ -83,6 +83,12 @@ pub const MAX_WITHDRAW_POTATO_MICRO_PER_WINDOW: u64 = 250_000_000_000;
 pub const MAX_WITHDRAW_SOL_LAMPORTS_PER_WINDOW: u64 = 25_000_000_000;
 /// 100 000 SKR per window.
 pub const MAX_WITHDRAW_SKR_ATOMS_PER_WINDOW: u64 = 100_000_000_000;
+
+/// F-02: исполнение предложенного вывода (`propose_withdrawal` → `withdraw_*`)
+/// разрешено не раньше чем через эту задержку. Окно — минуты, а не часы: главный
+/// контроль на mainnet — мультисиг authority (Squads) + guardian-пауза + алерты;
+/// короткий on-chain таймлок фиксирует двухшаговость и даёт окно на `cancel_withdrawal`.
+pub const WITHDRAW_TIMELOCK_SECONDS: i64 = 30;
 /// Hard cap on field proofs accepted by one `claim_achievement` call.
 pub const MAX_CLAIM_PROOFS: usize = 12;
 /// Epoch PDA retention: epochs older than `current - KEEP_EPOCHS` may be
@@ -425,6 +431,10 @@ pub mod solana_potato {
     /// покупки сдвигают `sold`, слот включения в блок неизвестен заранее).
     pub fn buy_field_skr(ctx: Context<BuyFieldSkr>, field_id: u64) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
+        // F-01: платный ролл тира — только на верхнем уровне транзакции.
+        // Без этой проверки CPI-обёртка могла бы повторять покупку до удачного
+        // ролла (revert-if-unlucky) и гарантированно получать EPIC.
+        assert_no_cpi_grind()?;
         let presale = &mut ctx.accounts.presale_state;
         require!(presale.sold < presale.cap, GameError::PresaleCapReached);
 
@@ -441,8 +451,9 @@ pub mod solana_potato {
         // ── On-chain drop roll ──
         // Энтропия: buyer ‖ sold ‖ slot ‖ последняя запись SlotHashes.
         // SlotHashes-хеш текущего слота не известен в момент подписания и не
-        // контролируется покупателем — grind "buy in slot N for guaranteed EPIC"
-        // больше не проходит.
+        // контролируется покупателем. Вместе с assert_no_cpi_grind() (верхний
+        // уровень транзакции) это закрывает и слотный grind, и revert-if-unlucky
+        // обёртку: повторить транзакцию до удачного ролла нельзя.
         let slot = Clock::get()?.slot;
         let mut roll_hash = anchor_lang::solana_program::keccak::hashv(&[
             ctx.accounts.buyer.key().as_ref(),
@@ -523,7 +534,7 @@ pub mod solana_potato {
             buyer: field.owner,
             field: field.key(),
             field_type,
-            sol_amount: total,
+            amount: total, // SKR-атомы (6 знаков) — currency см. instruction name
             roll: roll as u8,
         });
         emit!(FieldCreated { owner: field.owner, field: field.key(), field_type });
@@ -553,11 +564,11 @@ pub mod solana_potato {
         require!(buyer_presale.count < 5, GameError::PresaleWalletLimitReached);
 
         // Цена зависит от типа поля (иначе EPIC-поле стоило бы как Грядка).
-        let sol_amount = ((presale.price_lamports as u128)
+        let amount_lamports = ((presale.price_lamports as u128)
             .checked_mul(type_cost_bps(field_type))
             .ok_or(GameError::MathOverflow)?
             / BPS) as u64;
-        require!(sol_amount <= max_total_lamports, GameError::InvalidPrice);
+        require!(amount_lamports <= max_total_lamports, GameError::InvalidPrice);
 
         // SW003: typed CPI — the System program id is validated by the Rc
         // framework, so no confused-deputy via a caller-supplied program.
@@ -565,11 +576,11 @@ pub mod solana_potato {
             CpiContext::new(
                 ctx.accounts.system_program.to_account_info(),
                 anchor_lang::system_program::Transfer {
-                    from: ctx.accounts.buyer.to_account_info(),
-                    to: ctx.accounts.treasury_sol.to_account_info(),
+                from: ctx.accounts.buyer.to_account_info(),
+                to: ctx.accounts.treasury_sol.to_account_info(),
                 },
             ),
-            sol_amount,
+            amount_lamports,
         )?;
 
         // Создаём поле (логика идентична create_field)
@@ -600,7 +611,7 @@ pub mod solana_potato {
             buyer: field.owner,
             field: field.key(),
             field_type,
-            sol_amount,
+            amount: amount_lamports,
             // SOL-пресейл — явный тир, ролла нет (0 = без дропа)
             roll: 0,
         });
@@ -763,6 +774,9 @@ pub mod solana_potato {
     /// Raises the field level by one for a burn of `BASE_UPGRADE × level × type`.
     pub fn upgrade_field(ctx: Context<UpgradeField>) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
+        // F-01: мутация — платный шанс; запрещаем CPI-гранд (revert-if-unlucky),
+        // иначе 5 % превращаются в гарантированный Golden/Silicon за комиссию сети.
+        assert_no_cpi_grind()?;
         let field = &ctx.accounts.field;
         require!(field.level < MAX_FIELD_LEVEL, GameError::MaxLevelReached);
         let cost = upgrade_cost_micro(field.level, field.field_type)?;
@@ -780,8 +794,8 @@ pub mod solana_potato {
 
         // Шанс мутации при апгрейде (5% общий: 3% Golden, 2% Silicon)
         // Детерминированный рандом: keccak(field_key ‖ slot ‖ SlotHashes[0]).
-        // Хеш последнего слота из SlotHashes не известен в момент подписания —
-        // игрок не может grind'ить слот включения ради гарантированной мутации.
+        // assert_no_cpi_grind() выше гарантирует top-level вызов: слотный grind
+        // и CPI-повторы до удачного броска исключены.
         if field.mutation_type == 0 {
             let slot = Clock::get()?.slot;
             let mut seed = anchor_lang::solana_program::keccak::hashv(&[
@@ -1329,22 +1343,80 @@ pub mod solana_potato {
         Ok(())
     }
 
-    /// Authority-only withdrawal from the treasury ATA, rate-limited to
-    /// MAX_WITHDRAW_POTATO_MICRO_PER_WINDOW per rolling 24 h window so a stolen
-    /// authority key cannot drain the treasury in one transaction.
+    /// Step 1 (F-02): propose a treasury withdrawal. kind: 0=POTATO, 1=SOL,
+    /// 2=SKR. The rolling 24 h window budget is consumed HERE; execution in
+    /// `withdraw_*` becomes possible after `WITHDRAW_TIMELOCK_SECONDS` and can
+    /// be aborted in the meantime with `cancel_withdrawal` (budget stays spent).
+    pub fn propose_withdrawal(ctx: Context<ProposeWithdrawal>, kind: u8, amount: u64) -> Result<()> {
+        require!(amount > 0, GameError::InvalidAmount);
+        require!(kind <= 2, GameError::InvalidWithdrawKind);
+        let now = Clock::get()?.unix_timestamp;
+        let state = &mut ctx.accounts.admin_state;
+        state.roll_withdraw_window(now);
+        let (pending, _) = state.pending_withdraw(kind)?;
+        require!(pending == 0, GameError::WithdrawalAlreadyProposed);
+        let new_total = match kind {
+            0 => state
+                .withdrawn_potato_micro
+                .checked_add(amount)
+                .ok_or(GameError::MathOverflow)?,
+            1 => state
+                .withdrawn_sol_lamports
+                .checked_add(amount)
+                .ok_or(GameError::MathOverflow)?,
+            _ => state
+                .withdrawn_skr_atoms
+                .checked_add(amount)
+                .ok_or(GameError::MathOverflow)?,
+        };
+        let cap = match kind {
+            0 => MAX_WITHDRAW_POTATO_MICRO_PER_WINDOW,
+            1 => MAX_WITHDRAW_SOL_LAMPORTS_PER_WINDOW,
+            _ => MAX_WITHDRAW_SKR_ATOMS_PER_WINDOW,
+        };
+        require!(new_total <= cap, GameError::WithdrawWindowLimitExceeded);
+        match kind {
+            0 => state.withdrawn_potato_micro = new_total,
+            1 => state.withdrawn_sol_lamports = new_total,
+            _ => state.withdrawn_skr_atoms = new_total,
+        }
+        state.set_pending_withdraw(kind, amount, now)?;
+        msg!(
+            "Withdrawal proposed: kind={} amount={} execute_after={}",
+            kind,
+            amount,
+            now.saturating_add(WITHDRAW_TIMELOCK_SECONDS)
+        );
+        Ok(())
+    }
+
+    /// Cancels ALL pending withdrawal proposals. The window budget already
+    /// consumed by those proposals is intentionally NOT refunded.
+    pub fn cancel_withdrawal(ctx: Context<CancelWithdrawal>) -> Result<()> {
+        let state = &mut ctx.accounts.admin_state;
+        state.clear_pending_withdraw(0)?;
+        state.clear_pending_withdraw(1)?;
+        state.clear_pending_withdraw(2)?;
+        msg!("All pending withdrawal proposals cancelled");
+        Ok(())
+    }
+
+    /// Step 2 (F-02): execute the proposed POTATO withdrawal after the
+    /// timelock. The window budget was consumed by `propose_withdrawal`;
+    /// destination must be the authority's own ATA (same rule as SOL/SKR).
     pub fn withdraw_treasury(ctx: Context<WithdrawTreasury>, amount_micro: u64) -> Result<()> {
         require!(amount_micro > 0, GameError::InvalidAmount);
         let state = &mut ctx.accounts.admin_state;
-        state.roll_withdraw_window(Clock::get()?.unix_timestamp);
-        let new_total = state
-            .withdrawn_potato_micro
-            .checked_add(amount_micro)
-            .ok_or(GameError::MathOverflow)?;
+        let (pending, proposed_at) = state.pending_withdraw(0)?;
+        require!(pending > 0, GameError::NoPendingWithdrawal);
+        require!(pending == amount_micro, GameError::WithdrawAmountMismatch);
+        let now = Clock::get()?.unix_timestamp;
         require!(
-            new_total <= MAX_WITHDRAW_POTATO_MICRO_PER_WINDOW,
-            GameError::WithdrawWindowLimitExceeded
+            now >= proposed_at
+                .checked_add(WITHDRAW_TIMELOCK_SECONDS)
+                .ok_or(GameError::MathOverflow)?,
+            GameError::WithdrawTimelockNotExpired
         );
-        state.withdrawn_potato_micro = new_total;
         let bump = ctx.accounts.config.bump;
         let seeds: &[&[u8]] = &[b"config", &[bump]];
         let signer: &[&[&[u8]]] = &[seeds];
@@ -1360,35 +1432,34 @@ pub mod solana_potato {
             ),
             amount_micro,
         )?;
+        state.clear_pending_withdraw(0)?;
         emit!(TreasuryWithdrawn { destination: ctx.accounts.destination.key(), amount_micro });
         Ok(())
     }
 
-    /// Authority-only: withdraw SOL accumulated in the `treasury_sol` PDA vault
-    /// (SOL presale proceeds), rate-limited per rolling 24 h window.
+    /// Step 2 (F-02): execute the proposed SOL withdrawal after the timelock.
+    /// Balance is checked before the timelock so an over-large proposal fails
+    /// fast with `InvalidAmount` and can be cancelled without waiting.
     pub fn withdraw_treasury_sol(ctx: Context<WithdrawTreasurySol>, amount_lamports: u64) -> Result<()> {
         require!(amount_lamports > 0, GameError::InvalidAmount);
-        // Rate-limit BEFORE the balance check: the window cap is a policy
-        // ceiling, and checking it first keeps the error unambiguous.
         let state = &mut ctx.accounts.admin_state;
-        state.roll_withdraw_window(Clock::get()?.unix_timestamp);
-        let new_total = state
-            .withdrawn_sol_lamports
-            .checked_add(amount_lamports)
-            .ok_or(GameError::MathOverflow)?;
-        require!(
-            new_total <= MAX_WITHDRAW_SOL_LAMPORTS_PER_WINDOW,
-            GameError::WithdrawWindowLimitExceeded
-        );
-        state.withdrawn_sol_lamports = new_total;
+        let (pending, proposed_at) = state.pending_withdraw(1)?;
+        require!(pending > 0, GameError::NoPendingWithdrawal);
+        require!(pending == amount_lamports, GameError::WithdrawAmountMismatch);
         let current = ctx.accounts.treasury_sol.lamports();
         require!(amount_lamports <= current, GameError::InvalidAmount);
+        let now = Clock::get()?.unix_timestamp;
+        require!(
+            now >= proposed_at
+                .checked_add(WITHDRAW_TIMELOCK_SECONDS)
+                .ok_or(GameError::MathOverflow)?,
+            GameError::WithdrawTimelockNotExpired
+        );
         // PDA-казна — 0-байтовый системный аккаунт (data owner = System Program):
         // прямой write lamports рантайм запрещает ("spent from the balance of
         // an account it does not own") — переводим через System Program CPI,
         // подписанный seeds PDA (new_with_signer) — без этого `from` не
-        // считается подписантом и CPI отклоняется. Тот же паттерн, что в
-        // withdraw_treasury (POTATO), где он проходит тесты.
+        // считается подписантом и CPI отклоняется.
         let bump = ctx.bumps.treasury_sol;
         let seeds: &[&[u8]] = &[b"treasury_sol", &[bump]];
         let signer: &[&[&[u8]]] = &[seeds];
@@ -1402,26 +1473,27 @@ pub mod solana_potato {
             signer,
         );
         anchor_lang::system_program::transfer(cpi_context, amount_lamports)?;
+        state.clear_pending_withdraw(1)?;
         emit!(TreasurySolWithdrawn { destination: ctx.accounts.authority.key(), amount_lamports });
         Ok(())
     }
 
-    /// Authority-only: withdraw SKR from the treasury ATA (80 % of SKR presale
-    /// proceeds + export license payments) to the authority's own SKR ATA.
+    /// Step 2 (F-02): execute the proposed SKR withdrawal after the timelock
+    /// to the authority's own SKR ATA.
     pub fn withdraw_skr_treasury(ctx: Context<WithdrawSkrTreasury>, amount_skr_atoms: u64) -> Result<()> {
         require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
         require!(amount_skr_atoms > 0, GameError::InvalidAmount);
         let state = &mut ctx.accounts.admin_state;
-        state.roll_withdraw_window(Clock::get()?.unix_timestamp);
-        let new_total = state
-            .withdrawn_skr_atoms
-            .checked_add(amount_skr_atoms)
-            .ok_or(GameError::MathOverflow)?;
+        let (pending, proposed_at) = state.pending_withdraw(2)?;
+        require!(pending > 0, GameError::NoPendingWithdrawal);
+        require!(pending == amount_skr_atoms, GameError::WithdrawAmountMismatch);
+        let now = Clock::get()?.unix_timestamp;
         require!(
-            new_total <= MAX_WITHDRAW_SKR_ATOMS_PER_WINDOW,
-            GameError::WithdrawWindowLimitExceeded
+            now >= proposed_at
+                .checked_add(WITHDRAW_TIMELOCK_SECONDS)
+                .ok_or(GameError::MathOverflow)?,
+            GameError::WithdrawTimelockNotExpired
         );
-        state.withdrawn_skr_atoms = new_total;
         let (_, t_bump) = Pubkey::find_program_address(&[b"treasury_sol"], ctx.program_id);
         let seeds: &[&[u8]] = &[b"treasury_sol", &[t_bump]];
         let signer: &[&[&[u8]]] = &[seeds];
@@ -1437,6 +1509,7 @@ pub mod solana_potato {
             ),
             amount_skr_atoms,
         )?;
+        state.clear_pending_withdraw(2)?;
         emit!(TreasurySkrWithdrawn { destination: ctx.accounts.authority.key(), amount_skr_atoms });
         Ok(())
     }
@@ -1452,10 +1525,29 @@ pub mod solana_potato {
     }
 
     /// Emergency switch. Pausing blocks minting and new spends but never
-    /// refunds (`cancel_order`, `close_expired_order`).
+    /// refunds (`cancel_order`, `close_expired_order`). May be called by the
+    /// authority or by the guardian; the guardian may only PAUSE (set true),
+    /// never unpause.
     pub fn set_paused(ctx: Context<SetPaused>, paused: bool) -> Result<()> {
-        ctx.accounts.config.paused = paused;
-        emit!(PausedToggled { paused });
+        let signer = ctx.accounts.authority.key();
+        let config = &mut ctx.accounts.config;
+        if signer == config.authority {
+            config.paused = paused;
+        } else {
+            require!(config.guardian != Pubkey::default(), GameError::Unauthorized);
+            require!(signer == config.guardian, GameError::Unauthorized);
+            require!(paused, GameError::Unauthorized);
+            config.paused = true;
+        }
+        emit!(PausedToggled { paused: config.paused });
+        Ok(())
+    }
+
+    /// Sets (or clears, with Pubkey::default()) the guardian key that can only
+    /// pause the game. Authority only.
+    pub fn update_guardian(ctx: Context<UpdateConfig>, new_guardian: Pubkey) -> Result<()> {
+        ctx.accounts.config.guardian = new_guardian;
+        msg!("Guardian updated: {}", new_guardian);
         Ok(())
     }
 
@@ -1589,16 +1681,27 @@ pub mod solana_potato {
     pub fn migrate_epoch(ctx: Context<MigrateEpoch>) -> Result<()> {
         migrations::authority(&ctx.accounts.config.try_borrow_data()?, &ctx.accounts.authority.key())?;
         let info = ctx.accounts.epoch.to_account_info();
-        let updated = migrations::epoch(&info.try_borrow_data()?)?;
-        let epoch = Epoch::try_deserialize(&mut &updated[..])?;
+        let updated = migrations::epoch(&info.try_borrow_data()?)?;        let epoch = Epoch::try_deserialize(&mut &updated[..])?;
         let (expected, _) = Pubkey::find_program_address(&[b"epoch", &epoch.id.to_le_bytes()], ctx.program_id);
         require_keys_eq!(info.key(), expected, GameError::BadProof);
+        write_migrated_account(&info, &ctx.accounts.authority, &ctx.accounts.system_program, &updated)
+    }
+
+    /// F-02: normalizes a legacy AdminState (97 bytes) to the current layout
+    /// (145 bytes) after the two-step withdrawal fields were appended.
+    pub fn migrate_admin_state(ctx: Context<MigrateAdminState>) -> Result<()> {
+        migrations::authority(&ctx.accounts.config.try_borrow_data()?, &ctx.accounts.authority.key())?;
+        let info = ctx.accounts.admin_state.to_account_info();
+        let updated = migrations::admin_state(&info.try_borrow_data()?)?;
         write_migrated_account(&info, &ctx.accounts.authority, &ctx.accounts.system_program, &updated)
     }
 
     /// Registers a one-time referral relationship; burns the registration cost.
 
     pub fn register_referrer(ctx: Context<RegisterReferrer>, referrer: Pubkey) -> Result<()> {
+        // F-17: снятие 5 POTATO за регистрацию — трата, гейтим паузой как
+        // остальные расходные инструкции.
+        require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(referrer != ctx.accounts.owner.key(), GameError::Unauthorized);
         require!(referrer != Pubkey::default(), GameError::Unauthorized);
         
@@ -2619,7 +2722,13 @@ pub struct WithdrawTreasury<'info> {
     pub potato_mint: Account<'info, Mint>,
     #[account(mut, associated_token::mint = potato_mint, associated_token::authority = config)]
     pub treasury_potato: Account<'info, TokenAccount>,
-    #[account(mut, token::mint = potato_mint)]
+    // F-02: назначение вывода — только ATA authority (как у SOL/SKR), а не
+    // любой аккаунт с нужным mint.
+    #[account(
+        mut,
+        associated_token::mint = potato_mint,
+        associated_token::authority = authority
+    )]
     pub destination: Account<'info, TokenAccount>,
     #[account(
         init_if_needed,
@@ -2684,6 +2793,56 @@ pub struct WithdrawSkrTreasury<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
+/// F-02: step 1 — proposal for a two-step treasury withdrawal.
+#[derive(Accounts)]
+pub struct ProposeWithdrawal<'info> {
+    #[account(seeds = [b"config"], bump = config.bump, has_one = authority)]
+    pub config: Account<'info, GameConfig>,
+    #[account(
+        init_if_needed,
+        payer = authority,
+        space = 8 + AdminState::INIT_SPACE,
+        seeds = [b"admin_state"],
+        bump,
+    )]
+    pub admin_state: Account<'info, AdminState>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+/// F-02: cancels all pending withdrawal proposals (window budget stays spent).
+#[derive(Accounts)]
+pub struct CancelWithdrawal<'info> {
+    #[account(seeds = [b"config"], bump = config.bump, has_one = authority)]
+    pub config: Account<'info, GameConfig>,
+    #[account(
+        init_if_needed,
+        payer = authority,
+        space = 8 + AdminState::INIT_SPACE,
+        seeds = [b"admin_state"],
+        bump,
+    )]
+    pub admin_state: Account<'info, AdminState>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+/// F-02: pads a legacy AdminState to the current two-step-withdrawal layout (145 bytes).
+#[derive(Accounts)]
+pub struct MigrateAdminState<'info> {
+    /// CHECK: canonical admin_state PDA; layout/discriminator validated in handler.
+    #[account(mut, seeds = [b"admin_state"], bump, owner = crate::ID)]
+    pub admin_state: UncheckedAccount<'info>,
+    /// CHECK: canonical config PDA; authority check in handler.
+    #[account(seeds = [b"config"], bump, owner = crate::ID)]
+    pub config: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
 #[derive(Accounts)]
 pub struct MigratePresaleAuthority<'info> {
     #[account(seeds = [b"config"], bump = config.bump, has_one = authority)]
@@ -2696,7 +2855,9 @@ pub struct MigratePresaleAuthority<'info> {
 
 #[derive(Accounts)]
 pub struct SetPaused<'info> {
-    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = authority)]
+    // F-02: без has_one — хендлер пропускает authority ИЛИ guardian
+    // (guardian может только ставить паузу).
+    #[account(mut, seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, GameConfig>,
     pub authority: Signer<'info>,
 }
@@ -2814,6 +2975,9 @@ pub struct GameConfig {
     pub last_total_burned_micro: u64,  // для эластичного капа: значение total_burned на момент прошлого roll_epoch
     pub paused: bool,
     pub bump: u8,
+    /// F-02: guardian — ключ экстренной паузы, отделённый от authority.
+    /// Может только `set_paused(true)`; `Pubkey::default()` = не задан.
+    pub guardian: Pubkey,
 }
 
 
@@ -2886,6 +3050,14 @@ pub struct AdminState {
     pub pending_presale_price: u64,
     pub pending_presale_price_at: i64,
     pub bump: u8,
+    // F-02: двухшаговый вывод — предложение и срок исполнения per asset.
+    // kind: 0=POTATO, 1=SOL, 2=SKR; суммы в единицах актива.
+    pub pending_withdraw_potato: u64,
+    pub pending_withdraw_potato_at: i64,
+    pub pending_withdraw_sol: u64,
+    pub pending_withdraw_sol_at: i64,
+    pub pending_withdraw_skr: u64,
+    pub pending_withdraw_skr_at: i64,
 }
 
 impl AdminState {
@@ -2897,6 +3069,30 @@ impl AdminState {
             self.withdrawn_sol_lamports = 0;
             self.withdrawn_skr_atoms = 0;
         }
+    }
+
+    /// (amount, proposed_at) по активу kind: 0=POTATO, 1=SOL, 2=SKR.
+    pub fn pending_withdraw(&self, kind: u8) -> Result<(u64, i64)> {
+        match kind {
+            0 => Ok((self.pending_withdraw_potato, self.pending_withdraw_potato_at)),
+            1 => Ok((self.pending_withdraw_sol, self.pending_withdraw_sol_at)),
+            2 => Ok((self.pending_withdraw_skr, self.pending_withdraw_skr_at)),
+            _ => err!(GameError::InvalidWithdrawKind),
+        }
+    }
+
+    pub fn set_pending_withdraw(&mut self, kind: u8, amount: u64, at: i64) -> Result<()> {
+        match kind {
+            0 => { self.pending_withdraw_potato = amount; self.pending_withdraw_potato_at = at; }
+            1 => { self.pending_withdraw_sol = amount; self.pending_withdraw_sol_at = at; }
+            2 => { self.pending_withdraw_skr = amount; self.pending_withdraw_skr_at = at; }
+            _ => return err!(GameError::InvalidWithdrawKind),
+        }
+        Ok(())
+    }
+
+    pub fn clear_pending_withdraw(&mut self, kind: u8) -> Result<()> {
+        self.set_pending_withdraw(kind, 0, 0)
     }
 }
 
@@ -2988,8 +3184,9 @@ pub struct PresalePurchase {
     pub buyer: Pubkey,
     pub field: Pubkey,
     pub field_type: u8,
-    /// SKR atoms paid (6 decimals).
-    pub sol_amount: u64,
+    /// Amount in the currency of the EMITTING instruction, not a currency tag:
+    /// SKR atoms (6 decimals) from `buy_field_skr`, lamports from `buy_field_sol`.
+    pub amount: u64,
     /// On-chain drop roll, 0-99: <70 COMMON, <95 RARE, else EPIC.
     pub roll: u8,
 }
@@ -3262,6 +3459,18 @@ pub enum GameError {
     NothingPending, // 6039
     #[msg("Epoch is too recent to be closed")]
     EpochTooRecent, // 6040
+    #[msg("Paid RNG may only run at the top level of a transaction (CPI grind blocked)")]
+    CpiGrindNotAllowed, // 6041
+    #[msg("Withdrawal timelock has not expired yet")]
+    WithdrawTimelockNotExpired, // 6042
+    #[msg("No pending withdrawal proposal for this asset")]
+    NoPendingWithdrawal, // 6043
+    #[msg("Proposed amount does not match the pending withdrawal")]
+    WithdrawAmountMismatch, // 6044
+    #[msg("Invalid withdrawal kind: 0=POTATO, 1=SOL, 2=SKR")]
+    InvalidWithdrawKind, // 6045
+    #[msg("A withdrawal for this asset is already proposed; cancel it first")]
+    WithdrawalAlreadyProposed, // 6046
 }
 
 // ──────────────────────────── Tests ──────────────────────────────
@@ -3301,6 +3510,13 @@ mod tests {
         assert_eq!(field_price_micro(0), 100_000_000);
         assert_eq!(field_price_micro(1), 250_000_000);
         assert_eq!(field_price_micro(2), 500_000_000);
+    }
+
+    #[test]
+    fn cpi_grind_guard_passes_at_top_level_on_host() {
+        // cargo test: stack stub reports 0, which must satisfy the
+        // `<= TRANSACTION_LEVEL_STACK_HEIGHT` top-level check used on-chain.
+        assert_no_cpi_grind().expect("host top-level must be allowed");
     }
 
     #[test]
@@ -3477,9 +3693,9 @@ mod tests {
         assert_eq!(8 + Field::INIT_SPACE, 70);
         assert_eq!(8 + MarketOrder::INIT_SPACE, 83);
         // GameConfig: 32*5 (authority,pending,potato,skr,reward) + 8*4 +2+8*3+1+1
-        assert_eq!(8 + GameConfig::INIT_SPACE, 8 + 32 * 5 + 8 * 4 + 2 + 8 * 3 + 1 + 1);
+        assert_eq!(8 + GameConfig::INIT_SPACE, 8 + 32 * 6 + 8 * 4 + 2 + 8 * 3 + 1 + 1);
         // AdminState: i64 + 3*u64 + Pubkey + i64 + u64 + i64 + u8
-        assert_eq!(8 + AdminState::INIT_SPACE, 8 + 8 + 24 + 32 + 8 + 8 + 8 + 1);
+        assert_eq!(8 + AdminState::INIT_SPACE, 8 + 8 + 24 + 32 + 8 + 8 + 8 + 1 + 8 * 6);
     }
 }
 
@@ -3508,8 +3724,7 @@ fn verify_fields(accs: &[AccountInfo], user: &Pubkey, program: &Pubkey, min: usi
     Ok(())
 }
 
-/// Частичное чтение новейшей записи `(slot, hash)` из сырых данных sysvar SlotHashes.
-///
+/// Частичное чтение новейшей записи `(slot, hash)` из сырых данных sysvar SlotHashes.///
 /// Полный bincode-декод SlotHashes on-chain невозможен: `Sysvar<SlotHashes>`,
 /// `SlotHashes::from_account_info` и `SlotHashes::get` возвращают `UnsupportedSysvar`
 /// (sysvar слишком велик), поэтому sysvar прокидывается как `UncheckedAccount` с
@@ -3526,6 +3741,22 @@ fn recent_slot_hash(account: &UncheckedAccount) -> Option<(u64, [u8; 32])> {
     let mut hash = [0u8; 32];
     hash.copy_from_slice(&data[16..48]);
     Some((slot, hash))
+}
+
+/// F-01: платный рандом (тир поля в `buy_field_skr`, мутация в `upgrade_field`)
+/// выполняется только на верхнем уровне транзакции. Вызов через CPI даёт
+/// `get_stack_height() > TRANSACTION_LEVEL_STACK_HEIGHT`: обёртка могла бы
+/// повторять инструкцию до удачного ролла (revert-if-unlucky) и обнулять
+/// ожидаемую редкость. В host-тестах (cargo test) заглушка стека возвращает 0 —
+/// это тоже top-level. Сравнение `<=` не зависит от конкретного значения
+/// константы в версии solana-program.
+fn assert_no_cpi_grind() -> Result<()> {
+    let height = anchor_lang::solana_program::instruction::get_stack_height() as u64;
+    require!(
+        height <= anchor_lang::solana_program::instruction::TRANSACTION_LEVEL_STACK_HEIGHT as u64,
+        GameError::CpiGrindNotAllowed
+    );
+    Ok(())
 }
 
 #[account]

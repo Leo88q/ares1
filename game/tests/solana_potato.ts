@@ -172,7 +172,7 @@ describe("solana_potato", () => {
         expect((await program.account.epoch.fetch(epochPda(0))).mintedMicro.sub(before).toNumber()).to.eq(1);
         await expectFail(reward(0), "RewardTooLarge");
         await expectFail(reward(1_000_000_001), "RewardTooLarge");
-        await expectFail(program.methods.setPaused(true).accountsPartial({ config: configPda, authority: rewardSigner.publicKey }).signers([rewardSigner]).rpc(), "ConstraintHasOne");
+        await expectFail(program.methods.setPaused(true).accountsPartial({ config: configPda, authority: rewardSigner.publicKey }).signers([rewardSigner]).rpc(), "Unauthorized");
         await expectFail(program.methods.updateRewardSigner(player.publicKey).accountsPartial({ config: configPda, authority: rewardSigner.publicKey }).signers([rewardSigner]).rpc(), "ConstraintHasOne");
       } finally {
         await program.methods.updateRewardSigner(admin.publicKey).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
@@ -503,6 +503,16 @@ describe("solana_potato", () => {
 
     it("register_referrer burns exactly 5 POTATO and stores the link once", async () => {
       referrerAta = (await getOrCreateAssociatedTokenAccount(connection, player, mint, referrer.publicKey)).address;
+      // F-17: регистрация — трата, при паузе блокируется
+      await program.methods.setPaused(true).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      await expectFail(
+        program.methods.registerReferrer(referrer.publicKey).accountsPartial({
+          referral: playerReferralPda, config: configPda, potatoMint: mint, userPotato: playerAta,
+          owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        }).signers([player]).rpc(),
+        "Paused",
+      );
+      await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
       const before = await ataBalance(playerAta);
       const supplyBefore = (await getMint(connection, mint)).supply;
       await program.methods.registerReferrer(referrer.publicKey).accountsPartial({
@@ -1006,11 +1016,30 @@ describe("solana_potato", () => {
 
   describe("treasury withdrawals (SOL)", () => {
     const treasurySolPda = pda(Buffer.from("treasury_sol"));
+    const proposeSol = (lamports: string) => program.methods.proposeWithdrawal(1, new BN(lamports)).accountsPartial({
+      config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+    }).rpc();
+    const execSol = (lamports: string) => program.methods.withdrawTreasurySol(new BN(lamports)).accountsPartial({
+      config: configPda, treasurySol: treasurySolPda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+    }).rpc();
+    const cancelPending = () => program.methods.cancelWithdrawal().accountsPartial({
+      config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+    }).rpc();
+    const waitTimelock = () => new Promise((resolve) => setTimeout(resolve, 32_000));
 
-    it("withdraw_treasury_sol pays the authority; non-authority is rejected", async () => {
+    it("withdraw_treasury_sol pays the authority; non-authority is rejected", async function () {
+      this.timeout(90_000);
       const treasuryBefore = await connection.getBalance(treasurySolPda);
       const adminBefore = await connection.getBalance(admin.publicKey);
 
+      // Шаг 2 без шага 1 невозможен.
+      await expectFail(execSol("10000000"), "NoPendingWithdrawal");
+      await expectFail(
+        program.methods.proposeWithdrawal(1, new BN("10000000")).accountsPartial({
+          config: configPda, adminState: adminStatePda, authority: player.publicKey, systemProgram: SystemProgram.programId,
+        }).signers([player]).rpc(),
+        "ConstraintHasOne",
+      );
       await expectFail(
         program.methods.withdrawTreasurySol(new BN("10000000")).accountsPartial({
           config: configPda, treasurySol: treasurySolPda, authority: player.publicKey,
@@ -1019,49 +1048,41 @@ describe("solana_potato", () => {
         "ConstraintHasOne",
       );
 
-      await program.methods.withdrawTreasurySol(new BN("10000000")).accountsPartial({
-        config: configPda, treasurySol: treasurySolPda, authority: admin.publicKey,
-        systemProgram: SystemProgram.programId,
-      }).rpc();
+      await proposeSol("10000000");
+      await expectFail(proposeSol("10000000"), "WithdrawalAlreadyProposed");
+      await expectFail(execSol("10000000"), "WithdrawTimelockNotExpired");
+      await waitTimelock();
+      await execSol("10000000");
       const treasuryAfter = await connection.getBalance(treasurySolPda);
       expect(treasuryBefore - treasuryAfter).to.eq(10_000_000);
-      // admin: +10_000_000 lamports минус сетевая комиссия (5 000, без priority
-      // fee на localnet) => 9_995_000 +- пара lamports (факт: 9_995_008)
+      // admin: +10_000_000 минус 2 успешные подписи (propose+withdraw, 5_000 каждая)
       const adminDelta = (await connection.getBalance(admin.publicKey)) - adminBefore;
-      expect(adminDelta).to.be.within(9_990_000, 10_000_000);
+      expect(adminDelta).to.be.within(9_985_000, 10_000_000);
+      // pending очищен после исполнения
+      await expectFail(execSol("10000000"), "NoPendingWithdrawal");
     });
 
     it("rejects withdrawing more than the vault holds", async () => {
-      await expectFail(
-        program.methods.withdrawTreasurySol(new BN((10 * LAMPORTS_PER_SOL).toString())).accountsPartial({
-          config: configPda, treasurySol: treasurySolPda, authority: admin.publicKey,
-          systemProgram: SystemProgram.programId,
-        }).rpc(),
-        "InvalidAmount",
-      );
+      // Проверка баланса — на шаге 2 до таймлока: ошибка сразу, без ожидания.
+      await proposeSol((10 * LAMPORTS_PER_SOL).toString());
+      await expectFail(execSol((10 * LAMPORTS_PER_SOL).toString()), "InvalidAmount");
+      await cancelPending();
       // withdraw_skr_treasury на localnet не проверяется: SKR_MINT — константа
       // (devnet-mint Fotom…), создать его без ключа нельзя.
     });
 
     it("rate-limits SOL withdrawals per rolling 24h window", async () => {
-      // Лимит окна (25 SOL) проверяется ДО баланса хранилища: 26 SOL —
-      // это WithdrawWindowLimitExceeded, а не InvalidAmount.
-      await expectFail(
-        program.methods.withdrawTreasurySol(new BN((26 * LAMPORTS_PER_SOL).toString())).accountsPartial({
-          config: configPda, treasurySol: treasurySolPda, authority: admin.publicKey,
-          systemProgram: SystemProgram.programId,
-        }).rpc(),
-        "WithdrawWindowLimitExceeded",
-      );
-      // Отклонённая попытка не списывает окно: маленький вывод всё ещё проходит.
-      const treasuryBefore = await connection.getBalance(treasurySolPda);
-      await program.methods.withdrawTreasurySol(new BN("1000000")).accountsPartial({
-        config: configPda, treasurySol: treasurySolPda, authority: admin.publicKey,
-        systemProgram: SystemProgram.programId,
-      }).rpc();
-      expect(treasuryBefore - (await connection.getBalance(treasurySolPda))).to.eq(1_000_000);
+      // Бюджет окна списывается на шаге 1 (propose): 26 SOL > 25 SOL окна.
+      await expectFail(proposeSol((26 * LAMPORTS_PER_SOL).toString()), "WithdrawWindowLimitExceeded");
+      const afterFailed = await program.account.adminState.fetch(adminStatePda);
+      expect(afterFailed.pendingWithdrawSol.toNumber()).to.eq(0);
+      // Успешный propose фиксирует бюджет even без исполнения; cancel освобождает pending.
+      await proposeSol("1000000");
       const as = await program.account.adminState.fetch(adminStatePda);
       expect(as.withdrawnSolLamports.gte(new BN(1_000_000))).to.be.true;
+      await cancelPending();
+      const cleared = await program.account.adminState.fetch(adminStatePda);
+      expect(cleared.pendingWithdrawSol.toNumber()).to.eq(0);
     });
   });
 
@@ -1086,6 +1107,27 @@ describe("solana_potato", () => {
         "Paused",
       );
       await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+    });
+
+    it("guardian can pause but not unpause; strangers cannot toggle", async () => {
+      const guardian = Keypair.generate();
+      const pauseBy = (signer: Keypair, paused: boolean) =>
+        program.methods.setPaused(paused).accountsPartial({ config: configPda, authority: signer.publicKey }).signers([signer]).rpc();
+      // guardian ещё не задан
+      await expectFail(pauseBy(guardian, true), "Unauthorized");
+      await program.methods.updateGuardian(guardian.publicKey).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      await pauseBy(guardian, true);
+      expect((await program.account.gameConfig.fetch(configPda)).paused).to.be.true;
+      await expectFail(pauseBy(guardian, false), "Unauthorized");
+      await expectFail(pauseBy(player, false), "Unauthorized");
+      await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      // очистка guardian (Pubkey::default) возвращает переключателю обычный режим
+      await program.methods.updateGuardian(PublicKey.default).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      await expectFail(pauseBy(guardian, true), "Unauthorized");
+      await expectFail(
+        program.methods.updateGuardian(guardian.publicKey).accountsPartial({ config: configPda, authority: player.publicKey }).signers([player]).rpc(),
+        "ConstraintHasOne",
+      );
     });
 
     it("update_config enforces ceilings", async () => {
@@ -1115,29 +1157,56 @@ describe("solana_potato", () => {
       expect(cfg.globalMultiplierBps).to.eq(12_000);
     });
 
-    it("withdraw_treasury only for the authority", async () => {
+    it("withdraw_treasury is two-step, authority-only and window-capped", async function () {
+      this.timeout(90_000);
       // Финансируем казну: grant_reward минтит в treasury ATA (владелец митта — config PDA)
       await program.methods.grantReward(new BN(500_000)).accountsPartial({
         config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: treasuryAta, tokenProgram: TOKEN_PROGRAM_ID,
       }).rpc();
+      const proposePotato = (micro: string) => program.methods.proposeWithdrawal(0, new BN(micro)).accountsPartial({
+        config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+      }).rpc();
+      const execPotato = (micro: string) => program.methods.withdrawTreasury(new BN(micro)).accountsPartial({
+        config: configPda, potatoMint: mint, treasuryPotato: treasuryAta, destination: adminAta, authority: admin.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+      }).rpc();
+
+      await expectFail(execPotato("100000"), "NoPendingWithdrawal");
+      await expectFail(
+        program.methods.proposeWithdrawal(0, new BN("100000")).accountsPartial({
+          config: configPda, adminState: adminStatePda, authority: player.publicKey, systemProgram: SystemProgram.programId,
+        }).signers([player]).rpc(),
+        "ConstraintHasOne",
+      );
+      // destination теперь ATA authority: playerAta с authority=player проходит
+      // associated-проверку, но has_one отсекает не-authority.
       await expectFail(
         program.methods.withdrawTreasury(new BN(1)).accountsPartial({
           config: configPda, potatoMint: mint, treasuryPotato: treasuryAta, destination: playerAta, authority: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
         }).signers([player]).rpc(),
+        "ConstraintHasOne",
       );
-      // 251 000 🥔 > лимит окна (250 000 🥔 / 24 h). Rate-limit проверяется
-      // до перевода, поэтому ошибка deterministic даже при пустой казне.
-      await expectFail(
-        program.methods.withdrawTreasury(new BN("251000000000")).accountsPartial({
-          config: configPda, potatoMint: mint, treasuryPotato: treasuryAta, destination: adminAta, authority: admin.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
-        }).rpc(),
-        "WithdrawWindowLimitExceeded",
-      );
-      const before = await ataBalance(adminAta);
-      await program.methods.withdrawTreasury(new BN(100_000)).accountsPartial({
-        config: configPda, potatoMint: mint, treasuryPotato: treasuryAta, destination: adminAta, authority: admin.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+      // 251 000 🥔 > лимит окна (250 000 🥔 / 24 h) — падает уже на propose.
+      await expectFail(proposePotato("251000000000"), "WithdrawWindowLimitExceeded");
+      await proposePotato("100000");
+      await expectFail(proposePotato("100000"), "WithdrawalAlreadyProposed");
+      // Очередь SKR: propose пишет только окно/счётчик (исполнение требует митта).
+      await program.methods.proposeWithdrawal(2, new BN(1000)).accountsPartial({
+        config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
       }).rpc();
+      await expectFail(execPotato("100000"), "WithdrawTimelockNotExpired");
+      await new Promise((resolve) => setTimeout(resolve, 32_000));
+      const before = await ataBalance(adminAta);
+      await execPotato("100000");
       expect((await ataBalance(adminAta)) - before).to.eq(100_000n);
+      const as = await program.account.adminState.fetch(adminStatePda);
+      expect(as.pendingWithdrawPotato.toNumber()).to.eq(0);
+      expect(as.withdrawnSkrAtoms.gte(new BN(1000))).to.be.true;
+      await expectFail(execPotato("100000"), "NoPendingWithdrawal");
+      // cancel чистит оставшееся SKR-предложение
+      await program.methods.cancelWithdrawal().accountsPartial({
+        config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+      }).rpc();
+      expect((await program.account.adminState.fetch(adminStatePda)).pendingWithdrawSkr.toNumber()).to.eq(0);
     });
 
     it("two-step authority transfer", async () => {

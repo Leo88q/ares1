@@ -2,9 +2,10 @@ import { PublicKey, SystemProgram, TransactionInstruction, type AccountInfo } fr
 import { anchorDiscriminator } from '../apps/backend/src/anchorRaw';
 
 export const migrationLayouts = {
-  config: { name: 'GameConfig', legacy: [156, 164], current: 228 },
+  config: { name: 'GameConfig', legacy: [156, 164, 228], current: 260 },
   field: { name: 'Field', legacy: [69], current: 70 },
   epoch: { name: 'Epoch', legacy: [41], current: 49 },
+  admin_state: { name: 'AdminState', legacy: [97], current: 145 },
 } as const;
 export type MigrationKind = keyof typeof migrationLayouts;
 

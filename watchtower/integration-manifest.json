@@ -9,7 +9,7 @@
   "treasuryAddresses": [],
   "pdaAccounts": [],
   "idlVersion": "0.2.0",
-  "idlSha256": "b092c9742a80b6849f934461ed23454c1963889bd0a7da982d59c1dde6381177",
+  "idlSha256": "bee20b8f2b1d06bba41e435ca5eb7f6f76b5b70690573464d43c3e09efb499ac",
   "parserVersion": "ares1-v1",
   "dataQuality": "partial",
   "writes": false,

@@ -157,7 +157,7 @@
     "category": "economy",
     "resource": null,
     "confidence": "partial",
-    "notes": "Currency is resolved from emitting instruction, never from sol_amount field name."
+    "notes": "Currency is resolved from emitting instruction, never from the neutral `amount` field name."
   },
   {
     "on_chain_event": "ReferralRewardPaid",
