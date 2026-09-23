@@ -41,8 +41,10 @@ jobs:
           cache: npm
           cache-dependency-path: watchtower/package-lock.json
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test ../game/scripts/audit-init-if-needed.test.mjs
       - run: npm run typecheck
       - run: npm run build
       - run: npm test
+      - run: node --test tests/address-registry.test.mjs
       - run: npm run test:os
       - run: npm run os:handoff:check

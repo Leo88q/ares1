@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "network": "devnet",
+  "provenance": "repository_only_not_network_verified",
+  "programs": {
+    "solana_potato": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+    "cg_inventory": null,
+    "session_keys": null,
+    "treasury": null,
+    "core": null
+  },
+  "mints": [],
+  "treasuries": [],
+  "pdas": [],
+  "upgradeAuthorityMultisig": null,
+  "timelock": null,
+  "deploymentVerified": false,
+  "lastVerifiedAt": null
+}
