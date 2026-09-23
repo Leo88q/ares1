@@ -559,19 +559,17 @@ pub mod solana_potato {
             / BPS) as u64;
         require!(sol_amount <= max_total_lamports, GameError::InvalidPrice);
 
-        // Transfer SOL: buyer → treasury_sol PDA
-        let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
-            &ctx.accounts.buyer.key(),
-            &ctx.accounts.treasury_sol.key(),
-            sol_amount,
-        );
-        anchor_lang::solana_program::program::invoke(
-            &transfer_ix,
-            &[
-                ctx.accounts.buyer.to_account_info(),
-                ctx.accounts.treasury_sol.to_account_info(),
+        // SW003: typed CPI — the System program id is validated by the Rc
+        // framework, so no confused-deputy via a caller-supplied program.
+        anchor_lang::system_program::transfer(
+            CpiContext::new(
                 ctx.accounts.system_program.to_account_info(),
-            ],
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.treasury_sol.to_account_info(),
+                },
+            ),
+            sol_amount,
         )?;
 
         // Создаём поле (логика идентична create_field)
