@@ -280,7 +280,7 @@ export interface DecodedConfig {
  skrMint: PublicKey; rewardSigner: PublicKey
  maxSupplyMicro: bigint; dailyMintCapMicro: bigint; baseYieldMicroPerDay: bigint
  globalMultiplierBps: number; fieldCount: bigint; epochId: bigint; totalBurnedMicro: bigint
- lastTotalBurnedMicro: bigint; paused: boolean
+ lastTotalBurnedMicro: bigint; paused: boolean; guardian: PublicKey
 }
 
 export interface DecodedEpoch {
@@ -302,7 +302,7 @@ export function decodeEpoch(data: Buffer): DecodedEpoch {
 }
 
 export function decodeConfig(data: Buffer): DecodedConfig {
- if (![156, 164, 228].includes(data.length)) throw new Error("Unsupported GameConfig layout")
+ if (![156, 164, 228, 260].includes(data.length)) throw new Error("Unsupported GameConfig layout")
  let o = 8
  const authority = readPubkey(data, o); o = authority.next
  const pendingAuthority = readPubkey(data, o); o = pendingAuthority.next
@@ -325,14 +325,16 @@ export function decodeConfig(data: Buffer): DecodedConfig {
  const epochId = readU64(data, o); o = epochId.next
  const totalBurnedMicro = readU64(data, o); o = totalBurnedMicro.next
  const lastTotalBurnedMicro = data.length === 156 ? { value: 0n, next: o } : readU64(data, o); o = lastTotalBurnedMicro.next
- const paused = readBool(data, o)
+ const paused = readBool(data, o); o = paused.next + 1 // +1: skip bump (not part of DecodedConfig)
+ // F-02: guardian appended after bump (260-byte layout); older layouts have none.
+ const guardian = data.length >= 260 ? readPubkey(data, o).value : PublicKey.default
  return {
   authority: authority.value, pendingAuthority: pendingAuthority.value, potatoMint: potatoMint.value,
   skrMint, rewardSigner,
   maxSupplyMicro: maxSupplyMicro.value, dailyMintCapMicro: dailyMintCapMicro.value,
   baseYieldMicroPerDay: baseYieldMicroPerDay.value, globalMultiplierBps,
   fieldCount: fieldCount.value, epochId: epochId.value, totalBurnedMicro: totalBurnedMicro.value,
-  lastTotalBurnedMicro: lastTotalBurnedMicro.value, paused: paused.value,
+  lastTotalBurnedMicro: lastTotalBurnedMicro.value, paused: paused.value, guardian,
  }
 }
 
@@ -542,6 +544,23 @@ export async function ixMigrateEpoch(programId: PublicKey, params: {
   data,
   keys: [
    { pubkey: params.epoch, isSigner: false, isWritable: true },
+   { pubkey: params.config, isSigner: false, isWritable: false },
+   { pubkey: params.authority, isSigner: true, isWritable: true },
+   { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  ],
+ })
+}
+
+// ═══════════════════════════════════════════════════════════════
+export async function ixMigrateAdminState(programId: PublicKey, params: {
+ adminState: PublicKey; config: PublicKey; authority: PublicKey;
+}): Promise<TransactionInstruction> {
+ const data = Buffer.from(await ixDiscriminator('migrate_admin_state'))
+ return new TransactionInstruction({
+  programId,
+  data,
+  keys: [
+   { pubkey: params.adminState, isSigner: false, isWritable: true },
    { pubkey: params.config, isSigner: false, isWritable: false },
    { pubkey: params.authority, isSigner: true, isWritable: true },
    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },

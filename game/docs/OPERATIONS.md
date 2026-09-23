@@ -158,11 +158,21 @@ checkpoints/DB, and test restoration. The blockchain is not a backup of private 
 1. Confirm cluster and program ID. Check RPC from an independent provider before
    attributing an outage to the program.
 2. If mint/spend behavior is unsafe, authorized governance invokes `set_paused(true)`;
-   verify the transaction and read back `config.paused`. No delay for emergency pause
-   should be introduced without a separate governance decision.
-3. Pause is **not** a treasury freeze: `withdraw_*` is not blocked by it, but since
-   the 2026-09-21 remediation every withdrawal is rate-limited per rolling 24 h
-   window via the `AdminState` PDA (250 000 🥔 / 25 SOL / 100 000 SKR). To stop
+   verify the transaction and read back `config.paused`. The **guardian** key
+   (`config.guardian`, set via authority-only `update_guardian`) can also call
+   `set_paused(true)` — and only that: unpausing always requires the authority.
+   Pre-assign a guardian before an incident; `Pubkey::default()` means unset.
+   No delay for emergency pause should be introduced without a separate governance
+   decision.
+3. Pause is **not** a treasury freeze: `withdraw_*` is not gated by it. Treasury
+   withdrawals are two-step: `propose_withdrawal(kind, amount)` (kind 0=🥔, 1=SOL,
+   2=SKR) consumes the rolling 24 h window budget (250 000 🥔 / 25 SOL / 100 000 SKR
+   via the `AdminState` PDA) and starts a short on-chain timelock; only then can
+   `withdraw_*` execute, and only to the authority's own ATA/`authority` system
+   account. `cancel_withdrawal` aborts all pending proposals during the timelock
+   (the window budget is not refunded). The on-chain delay is intentionally short
+   for testability — production safety comes from a multisig authority (Squads),
+   the guardian key and external alerts, not from this constant. To stop
    presale inflows immediately use the kill switch `update_presale_price(0)`
    (applies at once; raising the price back requires the 24 h timelock via
    `apply_pending_presale_price`). `cancel_order`, `close_expired_order`,
