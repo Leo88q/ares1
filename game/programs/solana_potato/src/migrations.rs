@@ -102,10 +102,13 @@ mod tests {
             assert_eq!(legacy.len(), size);
             let result = config(&legacy).unwrap();
             let mut expected = current.clone();
-            expected[104..136].copy_from_slice(SKR_MINT.as_ref());
-            expected[136..168].copy_from_slice(&current[8..40]);
-            if size == 156 { expected[218..226].fill(0); }
-            if size != 228 { expected[228..260].fill(0); } // no guardian in legacy layouts
+            if size != 228 {
+                // 156/164 predate skr_mint/reward_signer: migration fills them.
+                expected[104..136].copy_from_slice(SKR_MINT.as_ref());
+                expected[136..168].copy_from_slice(&current[8..40]);
+                if size == 156 { expected[218..226].fill(0); }
+            }
+            expected[228..260].fill(0); // no guardian in any legacy layout (padded with default)
             assert_eq!(result, expected);
             assert_eq!(config(&result).unwrap(), result);
         }
@@ -142,7 +145,10 @@ mod tests {
         assert_eq!(&padded[..97], legacy);
         assert_eq!(&padded[97..], &[0u8; 48]);
         assert!(admin_state(&bytes[..96]).is_err());
-        assert!(admin_state(&bytes[..146]).is_err());
+        let mut too_long = bytes.clone();
+        too_long.push(0);
+        assert_eq!(too_long.len(), 146);
+        assert!(admin_state(&too_long).is_err());
         assert!(admin_state(&vec![0; 97]).is_err()); // bad discriminator
     }
 

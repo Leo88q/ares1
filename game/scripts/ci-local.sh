@@ -18,6 +18,7 @@ yarn install --frozen-lockfile --non-interactive
 yarn typecheck
 yarn typecheck:tools
 yarn test:offchain
+yarn test:economy
 VITE_SOLANA_CLUSTER=devnet VITE_RPC_URL=https://api.devnet.solana.com \
 VITE_PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf VITE_BACKEND_URL='' yarn build
 if [[ "$SKIP_CHAIN" == 0 ]]; then

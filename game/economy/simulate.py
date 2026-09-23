@@ -30,10 +30,16 @@ Solana Potato — 12-месячная симуляция экономики (п�
   S = продажи за день. Это не oracle-модель — ориентир,
   не прогноз; модельный пол 1e-8 — числовой, не ценовой.
 * сценарии — steady state: 10 / 1 000 / 100 000 активных, churn 15%/год.
+* цена: при устойчивом превышении спроса над продажами модель упирается в
+  дневной клэмп +20% и может «уйти в расхождение» (десятки порядков за год) —
+  это артефакт допущения клиринга, НЕ прогноз; отчёт помечает такие значения
+  как `модель разошлась` и не выдаёт их за прогноз цены.
 
 Запуск: python3 economy/simulate.py
+Проверка инвариантов (F-13): python3 economy/simulate.py --check
 """
 from __future__ import annotations
+import math
 
 # ───── on-chain константы (lib.rs) ─────
 BASE_YIELD = 6.0
@@ -316,9 +322,23 @@ def cross_scale() -> list:
     return rows
 
 
+def fmt_price(price: float) -> str:
+    """Report-only formatting: floor from below, flag the runaway artifact
+    from above (price above 10x the initial assumption = model divergence,
+    not a forecast). Never silently rewrites the computed value."""
+    if not math.isfinite(price):
+        return "модель разошлась"
+    if price > PRICE_POTATO_INIT * 10:
+        return f"{price:.1e} (модель разошлась)"
+    return f"{max(price, PRICE_FLOOR_REPORT):.1e}"
+
+
 def report() -> str:
     lines = [
         "# Симуляция экономики — 14.09.2026 (формулы lib.rs v2, когортная модель)",
+        "",
+        "Регенерация отчёта 23.09.2026: формулы не менялись, добавлена "
+        "пометка «модель разошлась» для цен вне модельного диапазона (F-08).",
         "",
     ]
     lines += [
@@ -332,7 +352,7 @@ def report() -> str:
             f"| {row['n']:,} | {row['burn_mint']:.2f} "
             f"({'дефляция' if row['burn_mint'] > 1 else 'инфляция'}) "
             f"| {'**режет**' if row['cap_hits'] else 'нет'} "
-            f"| {row['supply_m']:,.2f} | {max(row['price_end'], PRICE_FLOOR_REPORT):.1e} |")
+            f"| {row['supply_m']:,.2f} | {fmt_price(row['price_end'])} |")
     lines += ["", "---", ""]
     for n in (10, 1_000, 100_000):
         r = simulate(n)
@@ -362,8 +382,9 @@ def report() -> str:
             f"квесты — разовые {QUEST_POOL_ONE_TIME:.0f} 🥔, день 0, из капа эпохи)",
             f"- Казна 🥔: {t['treasury'] / 1e6:.2f} M за год "
             f"≈ {t['treasury'] * PRICE_POTATO_INIT:.0f} SOL по стартовой цене 1e-4",
-            f"- Цена (модель клиринга): 1.00e-04 → **{max(r['price_end'], PRICE_FLOOR_REPORT):.1e}** SOL/🥔 "
-            f"(динамика модели; пол отчёта {PRICE_FLOOR_REPORT:.0e} — числовой, не ценовой)",
+            f"- Цена (модель клиринга): 1.00e-04 → **{fmt_price(r['price_end'])}** SOL/🥔 "
+            f"(динамика модели; пол {PRICE_FLOOR_REPORT:.0e} — числовой, не ценовой; "
+            f"значения «модель разошлась» — артефакт допущения, не прогноз)",
             f"- **Порог стабильности цены:** нужно ≥{r['entrants_for_stability']:,.1f} новичков/день "
             f"= {r['entrants_for_stability'] * 365:,.0f}/год, т.е. "
             f"**×{r['entrants_for_stability'] / max(1e-9, r['new_per_day']):.0f}** к churn-заместителям "
@@ -374,5 +395,88 @@ def report() -> str:
     return "\n".join(lines)
 
 
+def check() -> int:
+    """F-13: CI invariant gate (python3 economy/simulate.py --check).
+
+    Проверяет саму симуляцию, а не пересчитывает её формулы тем же кодом:
+    - ожидаемый набор масштабов;
+    - конечность/диапазоны ключевых выходов;
+    - независимая перепроверка формулы налога относительно закреплённых
+      констант (TAX_* сверяются с формулой из заголовка = lib.rs);
+    - fmt_price честно помечает расхождение модели."""
+    failures: list[str] = []
+
+    rows = cross_scale()
+    scales = [row["n"] for row in rows]
+    expected_scales = [10, 100, 1_000, 5_000, 10_000, 50_000, 100_000]
+    if scales != expected_scales:
+        failures.append(f"scales {scales} != {expected_scales}")
+    for row in rows:
+        bm = row["burn_mint"]
+        if not math.isfinite(bm) or not (0.0 < bm <= 5.0):
+            failures.append(f"burn/mint out of band at n={row['n']}: {bm}")
+        sp = row["supply_m"]
+        if not math.isfinite(sp) or sp < 0 or sp * 1e6 > MAX_SUPPLY * 1.01:
+            failures.append(f"supply out of band at n={row['n']}: {sp}")
+
+    # Независимая проверка формулы (harvest_tax_bps возвращает ДОЛЮ, не bps):
+    # min(10 %, 2 % + 8 % · ratio²) — та же триада, что TAX_* = lib.rs.
+    for supply in (0.0, 1e6, 52_750_000.0, 353_553_391.0, 500e6, 1e9, 1.5e9):
+        ratio = supply / MAX_SUPPLY
+        expect = min(TAX_CAP_BPS / 10_000,
+                     (TAX_BASE_BPS + TAX_GROWTH_BPS * ratio * ratio) / 10_000)
+        got = harvest_tax_bps(supply)
+        if abs(expect - got) > 1e-12:
+            failures.append(f"tax drift at supply={supply}: formula={expect} fn={got}")
+    # Пороги «спящей кривой» (F-09): +1 п.п. только с ~35.4 % max supply.
+    if harvest_tax_bps(52_750_000.0) > 0.0203:
+        failures.append("realistic supply must stay ≈ base 2% (curve sleep check)")
+    if harvest_tax_bps(353_553_391.0) < 0.0299:
+        failures.append("+1pp threshold drifted (353.6M)")
+
+    # Константы модели — сверка с зафиксированными значениями lib.rs.
+    pinned = {
+        "BASE_YIELD": (BASE_YIELD, 6.0),
+        "MAX_SUPPLY": (MAX_SUPPLY, 1_000_000_000.0),
+        "CAP_MIN": (CAP_MIN, 250_000.0),
+        "CAP_MAX": (CAP_MAX, 750_000.0),
+        "TAX_BASE_BPS": (TAX_BASE_BPS, 200),
+        "TAX_GROWTH_BPS": (TAX_GROWTH_BPS, 800),
+        "TAX_CAP_BPS": (TAX_CAP_BPS, 1000),
+        "FEE_BURN_SHARE": (FEE_BURN_SHARE, 0.60),
+        "QUEST_POOL_ONE_TIME": (QUEST_POOL_ONE_TIME, 550.0),
+    }
+    for name, (got, want) in pinned.items():
+        if got != want:
+            failures.append(f"constant {name}={got} != pinned {want}")
+
+    # Детальные сценарии: конечность + корректность пометки расхождения.
+    for n in (10, 1_000, 100_000):
+        r = simulate(n)
+        pe = r["price_end"]
+        if not math.isfinite(pe):
+            failures.append(f"price_end not finite at n={n}")
+            continue
+        flagged = "модель разошлась" in fmt_price(pe)
+        should_flag = pe > PRICE_POTATO_INIT * 10
+        if flagged != should_flag:
+            failures.append(f"fmt_price flag mismatch at n={n}: pe={pe}")
+        t = r["totals"]
+        if not math.isfinite(t["mint"]) or t["mint"] <= 0:
+            failures.append(f"mint invalid at n={n}")
+
+    if failures:
+        print("ECONOMY SIMULATION CHECK FAILED:")
+        for f in failures:
+            print(" -", f)
+        return 1
+    print(f"ECONOMY SIMULATION CHECK OK: {len(expected_scales)} scales, "
+          f"tax formula, {len(pinned)} pinned constants, 3 scenarios.")
+    return 0
+
+
 if __name__ == "__main__":
+    import sys
+    if "--check" in sys.argv:
+        raise SystemExit(check())
     print(report())
