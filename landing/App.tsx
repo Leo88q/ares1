@@ -1075,7 +1075,7 @@ function Hero(): JSX.Element {
               <span>
                 {live.online ? t("данные с devnet-цепи") : t("ожидание ответа RPC")}
               </span>
-              <strong>{t("0.25 SOL · 1 053 SKR / модуль")}</strong>
+              <strong>{t("1 053 SKR / модуль")}</strong>
             </div>
             <Countdown />
           </Reveal>

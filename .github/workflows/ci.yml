@@ -35,6 +35,13 @@ jobs:
           cache-dependency-path: game/yarn.lock
       - run: npm install --global yarn@1.22.22
       - run: ./scripts/ci-local.sh --skip-chain
+      # F-11: advisory dependency audit (sandbox cannot reach the yarn audit
+      # endpoint; CI runners can). continue-on-error: advisories are a signal,
+      # not a merge gate — transitive @solana stack findings have no non-
+      # breaking fix yet (see docs/AUDIT_FIXES_2026-09-23.md).
+      - name: Dependency audit (advisory)
+        continue-on-error: true
+        run: yarn audit --groups dependencies --level high
 
   program:
     name: Anchor program (build + unit + integration tests)
