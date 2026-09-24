@@ -15,6 +15,11 @@ NODE_VERSION=$(cat ../.node-version)
 [[ "$(node --version)" == "v$NODE_VERSION" ]] || { echo "Use Node $NODE_VERSION" >&2; exit 1; }
 [[ "$(yarn --version)" == "1.22.22" ]] || { echo 'Use Yarn 1.22.22' >&2; exit 1; }
 yarn install --frozen-lockfile --non-interactive
+# F-16: tsconfig.tools.json typechecks tests/offchain/*.test.ts, and
+# layoutParity.test.ts imports landing sources — landing deps must exist
+# BEFORE yarn typecheck/tools run (this was the CI-only failure: TS2307
+# @solana/web3.js / @solana/spl-token with no landing/node_modules).
+(cd ../landing && npm ci --no-audit --no-fund)
 yarn typecheck
 yarn typecheck:tools
 yarn test:offchain
@@ -22,7 +27,8 @@ yarn test:economy
 # F-15: backend unit tests (security/alert helpers; no network).
 yarn workspace backend test
 # F-15: landing i18n parity tests + typecheck (via vite build).
-(cd ../landing && npm ci --no-audit --no-fund && npm test && npm run build)
+# deps already installed above; parity tests + typecheck(via build)
+(cd ../landing && npm test && npm run build)
 VITE_SOLANA_CLUSTER=devnet VITE_RPC_URL=https://api.devnet.solana.com \
 VITE_PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf VITE_BACKEND_URL='' yarn build
 if [[ "$SKIP_CHAIN" == 0 ]]; then
