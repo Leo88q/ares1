@@ -3,12 +3,12 @@ import { createAssociatedTokenAccountIdempotentInstruction, getAssociatedTokenAd
 import {
   ixBuyFieldSkr, pdas, presaleStatePda, buyerPresalePda, treasurySolPda,
   treasurySkrAta, buybackSkrAta, SKR_MINT,
-} from '../src/utils/anchorClient'
+} from '../../apps/web/src/utils/anchorClient'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 async function main() {
-  const toml = readFileSync(join(process.cwd(), '../../Anchor.toml'), 'utf8')
+  const toml = readFileSync(join(import.meta.dirname, '../../Anchor.toml'), 'utf8')
   const devnet = toml.match(/\[programs\.devnet\]([\s\S]*?)(\n\[|$)/)!
   const PROGRAM_ID = new PublicKey(devnet[1].match(/solana_potato\s*=\s*"([^"]+)"/)![1])
 

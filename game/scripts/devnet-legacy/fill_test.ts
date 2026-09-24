@@ -1,6 +1,6 @@
 import { Connection, Keypair, Transaction, PublicKey } from '@solana/web3.js'
 import { getAssociatedTokenAddressSync, createAssociatedTokenAccountIdempotentInstruction } from '@solana/spl-token'
-import { pdas, potatoAta, ixFillOrder, decodeMarketOrder, decodeConfig, SKR_MINT } from '../src/utils/anchorClient'
+import { pdas, potatoAta, ixFillOrder, decodeMarketOrder, decodeConfig, SKR_MINT } from '../../apps/web/src/utils/anchorClient'
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -8,12 +8,15 @@ import { join } from 'node:path'
 const ORDER_SIZE = 8 + 32 + 8 + 8 + 8 + 1 + 8 + 8 + 1 + 1
 
 async function main() {
-  const toml = readFileSync(join(process.cwd(), '../../Anchor.toml'), 'utf8')
+  const toml = readFileSync(join(import.meta.dirname, '../../Anchor.toml'), 'utf8')
   const devnet = toml.match(/\[programs\.devnet\]([\s\S]*?)(\n\[|$)/)!
   const PROGRAM_ID = new PublicKey(devnet[1].match(/solana_potato\s*=\s*"([^"]+)"/)![1])
   const conn = new Connection('https://api.devnet.solana.com', 'confirmed')
+  // F-19: key material always comes from a file path (env ANCHOR_WALLET or
+  // the operator solana CLI id.json) — never from literals in the repository.
+  const walletPath = process.env.ANCHOR_WALLET ?? join(homedir(), '.config', 'solana', 'id.json')
   const buyer = Keypair.fromSecretKey(
-    Uint8Array.from(JSON.parse(readFileSync(join(homedir(), '.config', 'solana', 'id.json'), 'utf8'))))
+    Uint8Array.from(JSON.parse(readFileSync(walletPath, 'utf8'))))
 
   const { config, escrow, marketStats } = pdas(PROGRAM_ID)
   const cfgAcc = await conn.getAccountInfo(config())

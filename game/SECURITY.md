@@ -57,3 +57,12 @@ Use Gitleaks with `.gitleaks.toml`; never post a credential in an issue or publi
 log. Follow [the operational runbook](docs/OPERATIONS.md) for revocation, isolated
 payer storage, recovery and pause. Dependency vulnerabilities require an up-to-date
 scanner run; old transitive-CVE notes are not a current dependency audit.
+
+## Reporting a vulnerability (F-23)
+
+Private channel: GitHub Security Advisories for this repository
+(`https://github.com/Leo88q/ares1/security/advisories/new`) — reports go only to
+repository administrators. No public issue for exploitable findings; no
+additional email address is published (requires human decision to add one).
+Include affected component, reproduction steps and impact; do not attach
+private keys or funded-wallet material to the report.

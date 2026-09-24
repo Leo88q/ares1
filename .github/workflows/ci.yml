@@ -91,6 +91,15 @@ jobs:
           key: solana-${{ env.SOLANA_VERSION }}-anchor-${{ env.ANCHOR_VERSION }}
       - name: Unit tests (host)
         run: ./scripts/ci-run.sh cargo test --locked -p solana_potato --lib
+      # F-18: lint gates were missing from CI. Sandbox has no Rust toolchain,
+      # so fmt/clippy start as advisory (continue-on-error): flip to hard
+      # gates after the first successful strict run on runners.
+      - name: cargo fmt check (advisory, F-18)
+        continue-on-error: true
+        run: ./scripts/ci-run.sh cargo fmt --all -- --check
+      - name: cargo clippy strict (advisory, F-18)
+        continue-on-error: true
+        run: ./scripts/ci-run.sh cargo clippy --locked -p solana_potato --all-targets -- -D warnings
       - name: Anchor build (lockfile verified)
         id: build_program
         run: ./scripts/ci-run.sh ./scripts/build-program.sh

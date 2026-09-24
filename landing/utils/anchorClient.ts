@@ -51,7 +51,9 @@ export function pdas(programId: PublicKey) {
  const marketStats = () => PublicKey.findProgramAddressSync([Buffer.from('market_stats')], programId)[0]
  const treasuryAuthority = () => config()
  const exportLicense = (owner: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from('license'), owner.toBuffer()], programId)[0]
- return { config, epoch, field, order, escrow, sellerProfile, marketStats, treasuryAuthority, exportLicense }
+ // Withdrawal rate limits + timelocked admin proposals (AdminState singleton) — web parity (F-16).
+ const adminState = () => PublicKey.findProgramAddressSync([Buffer.from('admin_state')], programId)[0]
+ return { config, epoch, field, order, escrow, sellerProfile, marketStats, treasuryAuthority, exportLicense, adminState }
 }
 
 export function potatoAta(owner: PublicKey, mint: PublicKey): PublicKey {
@@ -270,10 +272,12 @@ export function decodeMarketStats(data: Buffer): DecodedMarketStats {
 }
 
 export interface DecodedConfig {
- authority: PublicKey; pendingAuthority: PublicKey; potatoMint: PublicKey
- maxSupplyMicro: bigint; dailyMintCapMicro: bigint; baseYieldMicroPerDay: bigint
- globalMultiplierBps: number; fieldCount: bigint; epochId: bigint; totalBurnedMicro: bigint
- lastTotalBurnedMicro: bigint; paused: boolean
+ authority: PublicKey; pendingAuthority: PublicKey; potatoMint: PublicKey;
+ skrMint: PublicKey; rewardSigner: PublicKey;
+ maxSupplyMicro: bigint; dailyMintCapMicro: bigint; baseYieldMicroPerDay: bigint;
+ globalMultiplierBps: number; fieldCount: bigint; epochId: bigint;
+ totalBurnedMicro: bigint; lastTotalBurnedMicro: bigint; paused: boolean;
+ guardian: PublicKey
 }
 
 export interface DecodedEpoch {
@@ -290,15 +294,27 @@ export function decodeEpoch(data: Buffer): DecodedEpoch {
  const mintedMicro = readU64(data, o); o = mintedMicro.next
  const startTime = readI64(data, o); o = startTime.next
  const bump = readU8(data, o); o = bump.next
- const grantedMicro = readU64(data, o)
+ // legacy 41-byte Epoch has no granted counter (web/backend parity, F-16)
+ const grantedMicro = data.length === 41 ? { value: 0n } : readU64(data, o)
  return { id: id.value, mintCapMicro: mintCapMicro.value, mintedMicro: mintedMicro.value, startTime: startTime.value, bump: bump.value, grantedMicro: grantedMicro.value }
 }
 
 export function decodeConfig(data: Buffer): DecodedConfig {
+ // F-16: must stay byte-for-byte aligned with game/apps/web decodeConfig —
+ // sizes 156/164/228 (legacy) and 260 (current, guardian after bump).
+ if (![156, 164, 228, 260].includes(data.length)) throw new Error("Unsupported GameConfig layout")
  let o = 8
  const authority = readPubkey(data, o); o = authority.next
  const pendingAuthority = readPubkey(data, o); o = pendingAuthority.next
  const potatoMint = readPubkey(data, o); o = potatoMint.next
+ let skrMint: PublicKey, rewardSigner: PublicKey
+ if (data.length >= 8 + 32*5 + 8*4 + 2 + 8*3 + 1 + 1) {
+   const skr = readPubkey(data, o); o = skr.next; skrMint = skr.value
+   const rw = readPubkey(data, o); o = rw.next; rewardSigner = rw.value
+ } else {
+   skrMint = SKR_MINT
+   rewardSigner = authority.value
+ }
  const maxSupplyMicro = readU64(data, o); o = maxSupplyMicro.next
  const dailyMintCapMicro = readU64(data, o); o = dailyMintCapMicro.next
  const baseYieldMicroPerDay = readU64(data, o); o = baseYieldMicroPerDay.next
@@ -307,14 +323,17 @@ export function decodeConfig(data: Buffer): DecodedConfig {
  const fieldCount = readU64(data, o); o = fieldCount.next
  const epochId = readU64(data, o); o = epochId.next
  const totalBurnedMicro = readU64(data, o); o = totalBurnedMicro.next
- const lastTotalBurnedMicro = readU64(data, o); o = lastTotalBurnedMicro.next
- const paused = readBool(data, o)
+ let lastTotalBurnedMicro: bigint
+ if (data.length === 156) { lastTotalBurnedMicro = 0n } else { const v = readU64(data, o); o = v.next; lastTotalBurnedMicro = v.value }
+ const paused = readBool(data, o); o = paused.next + 1 // +1: skip bump
+ const guardian = data.length >= 260 ? readPubkey(data, o).value : PublicKey.default
  return {
   authority: authority.value, pendingAuthority: pendingAuthority.value, potatoMint: potatoMint.value,
+  skrMint, rewardSigner,
   maxSupplyMicro: maxSupplyMicro.value, dailyMintCapMicro: dailyMintCapMicro.value,
   baseYieldMicroPerDay: baseYieldMicroPerDay.value, globalMultiplierBps,
   fieldCount: fieldCount.value, epochId: epochId.value, totalBurnedMicro: totalBurnedMicro.value,
-  lastTotalBurnedMicro: lastTotalBurnedMicro.value, paused: paused.value,
+  lastTotalBurnedMicro, paused: paused.value, guardian,
  }
 }
 

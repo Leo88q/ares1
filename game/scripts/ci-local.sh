@@ -19,6 +19,10 @@ yarn typecheck
 yarn typecheck:tools
 yarn test:offchain
 yarn test:economy
+# F-15: backend unit tests (security/alert helpers; no network).
+yarn workspace backend test
+# F-15: landing i18n parity tests + typecheck (via vite build).
+(cd ../landing && npm ci --no-audit --no-fund && npm test && npm run build)
 VITE_SOLANA_CLUSTER=devnet VITE_RPC_URL=https://api.devnet.solana.com \
 VITE_PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf VITE_BACKEND_URL='' yarn build
 if [[ "$SKIP_CHAIN" == 0 ]]; then

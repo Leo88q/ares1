@@ -46,17 +46,20 @@ for (const [name, accs] of Object.entries(byType)) {
 }
 
 // Старые vs новые размеры
+// F-21/F-22: актуальные layout'ы (сверено с MIGRATIONS.md от 23.09.2026).
+// olds = устаревшие размеры, требующие миграции; current = целевой.
 const expected = {
-  'GameConfig': { old: 156, new: 164 },
-  'Field': { old: 69, new: 70 },
-  'Epoch': { old: 49, new: 57 },
-  'MarketOrder': { old: 83, new: 83 }, // не менялся
+  'GameConfig': { olds: [156, 164, 228], current: 260 },
+  'Field': { olds: [69], current: 70 },
+  'Epoch': { olds: [41], current: 49 },
+  'AdminState': { olds: [97], current: 145 },
+  'MarketOrder': { olds: [83], current: 83 }, // не менялся
 }
 console.log('\n═══════════════════════════════════════════════════')
 console.log('НУЖНА МИГРАЦИЯ:')
 for (const [name, accs] of Object.entries(byType)) {
-  if (expected[name] && accs.some(a => a.size === expected[name].old)) {
-    const oldCount = accs.filter(a => a.size === expected[name].old).length
-    console.log(`  ${name}: ${oldCount} шт. (${expected[name].old} → ${expected[name].new})`)
+  if (expected[name] && accs.some(a => expected[name].olds.includes(a.size))) {
+    const oldCount = accs.filter(a => expected[name].olds.includes(a.size)).length
+    console.log(`  ${name}: ${oldCount} шт. (${expected[name].olds.join('/')} → ${expected[name].current})`)
   }
 }
