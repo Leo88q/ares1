@@ -5,6 +5,14 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# F-14: security headers. CSP allows only self-hosted assets, Google Fonts
+# (style + font), and the configured Solana devnet RPC endpoint for the live
+# counters. No inline scripts (index.html loads /main.tsx as a module).
+[[headers]]
+  for = "/*"
+    [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.devnet.solana.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
 [[headers]]
   for = "/*"
   [headers.values]

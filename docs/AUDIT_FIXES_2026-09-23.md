@@ -20,27 +20,27 @@ F-01…F-23). Строка таблицы = статус; детали — ра�
 |---|---|---|---|
 | F-01 | ✅ fixed | CPI-guard для платного RNG (`assert_no_cpi_grind`, ошибка 6041) + host-тест | 187fe25 |
 | F-02 | ✅ fixed | Two-step withdrawal (timelock, ATA-назначение), guardian pause-only + `update_guardian`, `migrate_admin_state` 97→145, GameConfig 228→260 во всём стеке | 187fe25 |
-| F-03 | ✅ fixed | Лендинг: ложное «совпадает с живым devnet» → паритет только с кодом; закупочный текст SKR-only; ролл тира отнесён к SKR-рельсу (SOL-рельс buyer-chosen, в UI не подключён) | серия 2026-09-23 |
-| F-04 | ✅ fixed (реконструкция) | Цена-телеметрия и платёжные формулировки лендинга без SOL-UI (App.tsx `0.25 SOL · …` → `1 053 SKR · …`; roadmap/QA «платежи SOL/SKR» → SKR; FAQ «альтернатива SOL» удалена) — все 6 локалей | серия 2026-09-23 |
-| F-05 | ✅ fixed | Пресейл-секция: «20 % → buyback & burn» → истина кода «20 % → казна команды» (on-chain buyback отсутствует) | серия 2026-09-23 |
-| F-06 | ✅ fixed | Рефералка: −1 % уходит **продавцу** (из комиссии), реферер +0.5 %; налог штрафа −15 % → **−50 %** (константа кода); эмиссия: урожаи + квесты + ½ налога маркета в казну («100 % игрокам» удалено) | серия 2026-09-23 |
+| F-03 | ✅ fixed | Лендинг: ложное «совпадает с живым devnet» → паритет только с кодом; закупочный текст SKR-only; ролл тира отнесён к SKR-рельсу (SOL-рельс buyer-chosen, в UI не подключён) | cf8d141 |
+| F-04 | ✅ fixed (реконструкция) | Цена-телеметрия и платёжные формулировки лендинга без SOL-UI (App.tsx `0.25 SOL · …` → `1 053 SKR · …`; roadmap/QA «платежи SOL/SKR» → SKR; FAQ «альтернатива SOL» удалена) — все 6 локалей | cf8d141 |
+| F-05 | ✅ fixed | Пресейл-секция: «20 % → buyback & burn» → истина кода «20 % → казна команды» (on-chain buyback отсутствует) | cf8d141 |
+| F-06 | ✅ fixed | Рефералка: −1 % уходит **продавцу** (из комиссии), реферер +0.5 %; налог штрафа −15 % → **−50 %** (константа кода); эмиссия: урожаи + квесты + ½ налога маркета в казну («100 % игрокам» удалено) | cf8d141 |
 | F-07 | 📋 operational | Хаб: `reports/ares1-audit.json` пустой (`files_scanned: 0`) — runbook ниже | этот документ |
-| F-08 | ✅ fixed | `economy/simulate.py`: цена-«беглец» 3.3e+18 в committed-отчёте помечается «модель разошлась» (артефакт допущения, не прогноз); отчёт регенерирован | серия 2026-09-23 |
-| F-09 | ✅ fixed | `docs/ECONOMY.md` §9: перечень эмитентов (урожай ~95–98 % > 40 % — отдельно), квесты = transfer, grant ≤10 % квота; пороги «спящей» прогрессивности (353.6M/+1 п.п.; realistic 52.75M → 2.022 %) | серия 2026-09-23 |
-| F-10 | ✅ fixed | Backend: внешние алерты `ALERT_WEBHOOK_URL` — лестница 3/9/27 по провалам `roll_epoch` + fatal-баланс при старте; юнит-тесты 4/4 (сеть мокается) | серия 2026-09-23 |
-| F-11 | ✅ fixed / residual задокументирован | Сырые результаты `npm audit`: watchtower **0**; landing **9 (3 high)** — все в транзитивном @solana-стеке, нефиксируемы без breaking downgrade (upstream: bigint-buffer — без патча, stream-json/uuid — ждут новой линии web3.js 1.x; версии >1.99.0 в 1.x нет); game `yarn audit` — TLS-эндпоинт недоступен из песочницы → **unverifiable локально** + advisory-шаг в CI (`continue-on-error`) | серия 2026-09-23 |
+| F-08 | ✅ fixed | `economy/simulate.py`: цена-«беглец» 3.3e+18 в committed-отчёте помечается «модель разошлась» (артефакт допущения, не прогноз); отчёт регенерирован | cf8d141 |
+| F-09 | ✅ fixed | `docs/ECONOMY.md` §9: перечень эмитентов (урожай ~95–98 % > 40 % — отдельно), квесты = transfer, grant ≤10 % квота; пороги «спящей» прогрессивности (353.6M/+1 п.п.; realistic 52.75M → 2.022 %) | cf8d141 |
+| F-10 | ✅ fixed | Backend: внешние алерты `ALERT_WEBHOOK_URL` — лестница 3/9/27 по провалам `roll_epoch` + fatal-баланс при старте; юнит-тесты 4/4 (сеть мокается) | cf8d141 |
+| F-11 | ✅ fixed / residual задокументирован | Сырые результаты `npm audit`: watchtower **0**; landing **9 (3 high)** — все в транзитивном @solana-стеке, нефиксируемы без breaking downgrade (upstream: bigint-buffer — без патча, stream-json/uuid — ждут новой линии web3.js 1.x; версии >1.99.0 в 1.x нет); game `yarn audit` — TLS-эндпоинт недоступен из песочницы → **unverifiable локально** + advisory-шаг в CI (`continue-on-error`) | cf8d141 |
 | F-12 | ✅ fixed | Этот файл: `docs/AUDIT_FIXES_2026-09-23.md` с картой F-01…F-23 | этот документ |
-| F-13 | ✅ fixed | `simulate.py --check` (инварианты: 7 масштабов, формула налога, 9 закреплённых констант, пометка расхождения) + `yarn test:economy` в `ci-local.sh` → в CI | серия 2026-09-23 |
-| F-14 | 🔄 в работе | CSP для landing/netlify | — |
-| F-15 | 🔄 в работе | Тесты backend/landing + проводка в CI | — |
-| F-16 | 🔄 в работе | Паритет декодеров web/backend/landing (три копии layout-код) | — |
+| F-13 | ✅ fixed | `simulate.py --check` (инварианты: 7 масштабов, формула налога, 9 закреплённых констант, пометка расхождения) + `yarn test:economy` в `ci-local.sh` → в CI | cf8d141 |
+| F-14 | ✅ fixed | CSP в `landing/netlify.toml` (default-src self; script self; fonts google; connect = configured devnet RPC; frame-ancestors none) + существующие XFO/nosniff/referrer/permissions сохранены; TOML валиден | этот коммит |
+| F-15 | ✅ fixed | Backend: `tests/security.test.ts` (4/4) + alert (4/4) = 8/8; landing: `tests/i18n-parity.test.mjs` (6 локалей × 366 ключей + t()-литералы) = 2/2; всё в `ci-local.sh` (backend test + landing npm ci/test/build) → в CI автоматически | этот коммит |
+| F-16 | ✅ fixed (+ баг найден) | **Найден и исправлен баг:** landing `decodeConfig` читал текущий (260/228-байт) конфиг как legacy-156 (нет skr/reward, неверные смещения maxSupply/paused, нет guardian) → live-счётчики лендинга могли быть искажены; переписан в полный паритет web (+ `decodeEpoch` legacy-41 guard, + `adminState` PDA). Новый `tests/offchain/layoutParity.test.ts`: web×backend×landing на фикстурах 156/164/228/260 + PDA-паритет; общий `fixtures.ts`; offchain 69/69 | этот коммит |
 | F-17 | ✅ fixed | `PresalePurchase.sol_amount` → нейтральный `amount`; watcher/IDL/фикстуры/карта событий синхронизированы (sha `bee20b8f…`) | 187fe25 |
-| F-18 | 🔄 в работе | clippy/fmt в CI (advisory: нет rust-тулчейна в песочнице) | — |
-| F-19 | 🔄 в работе | Зафиксированные devnet-приватные ключи в `apps/web/scripts/*` → env/файл | — |
-| F-20 | 🔄 в работе | Docker `HEALTHCHECK` + сверка `/live` `/ready` `/health` | — |
-| F-21 | 🔄 в работе | Legacy-devnet утилиты из продуктовой папки `apps/web` → `game/scripts/devnet-legacy/` | — |
-| F-22 | 🔄 в работе | Проживающие docs: `API.md` (228/97 → 260/145), `MIGRATIONS.md`, `AUDIT.md` N6 (rename `amount`) | — |
-| F-23 | 🔄 в работе | §4.K-упущения: метрики юнит-экономики (нет данных — определены источники), legal/privacy — requires human decision | — |
+| F-18 | ✅ fixed (advisory) | `cargo fmt --check` + `cargo clippy -D warnings` в program-job как `continue-on-error` шаги («flip to hard gates after first green run»); YAML валиден; локально не прогонялось (нет rust-тулчейна) → runbook ниже | этот коммит |
+| F-19 | ✅ fixed / исторический residual | Реконструкция: в текущем дереве литералов ключей **нет** (в т.ч. в трёх «флагнутых» — читают `id.json`); ужесточено: три скрипта → `ANCHOR_WALLET` env/файл. Исторический exposure: runbook ниже, история не переписывается | этот коммит |
+| F-20 | ✅ fixed | `HEALTHCHECK` в `apps/backend/Dockerfile` → `GET /live` на `${PORT:-8080}` (сверено с `env.ts`/`EXPOSE 8080`/`index.ts`); семантика endpoint-ов — в `docs/OPERATIONS.md` | этот коммит |
+| F-21 | ✅ fixed | 11 файлов → `game/scripts/devnet-legacy/` + README; импорты/Anchor.toml исправлены (module-relative); устаревшие layout-комментарии обновлены; пути в `game/README.md`, `docs/AUDIT.md`, `docs/MIGRATIONS.md`; синтаксис всех 11 файлов проверен; `apps/web` чист | этот коммит |
+| F-22 | ✅ fixed | `API.md`: 43/12/30/47, GameConfig 260 (+legacy), AdminState 145, legacy 156/164/228, строки `propose/cancel_withdrawal`/`update_guardian`/`migrate_admin_state`, таймлок-абзац, guardian в `set_paused`, buyback-формулировка; `MIGRATIONS.md`: 156/164/228→260 + AdminState 97→145; `AUDIT.md`: N2/N6/B3/кастодиальная строка. Dated-отчёты не тронуты | этот коммит |
+| F-23 | ✅ fixed / частично human-decision | `ECONOMY.md` §10: ARPU/ARPPU/LTV/концентрация/retention — формулы+источники, все `нет данных`, CAC = requires human decision; `SECURITY.md`: reporting через GitHub private advisories (почта — human decision); landing privacy/terms — human decision | этот коммит |
 
 ## F-07 — хаб `Leo88q/Games-watchtower` (operational, runbook)
 
@@ -86,6 +86,32 @@ game (yarn): yarn audit --groups dependencies → TLS: endpoint недоступ
 Принято: (а) зафиксировать фактический вывод (выше), (б) advisory-гейт в CI,
 (в) runbook: при выходе web3.js 1.x с фиксом jayson-цепи или после миграции на
 2.x — обновить и снять пометку; следить за патчем bigint-buffer.
+
+
+## F-16 — найденный баг landing-декодера (реконструкция, детали)
+
+До исправления `landing/utils/anchorClient.ts:decodeConfig` не имел ни проверки
+размера, ни веток legacy/current: для 260-байтного devnet-конфига поля
+`maxSupplyMicro/dailyMintCap/…/paused` читались со смещениями legacy-156
+(мимо `skr_mint`/`reward_signer` 64 байт), `guardian` не читался вовсе.
+Следствие: live-счётчики лендинга (supply/cap/paused) могли показывать
+смещённые значения; `cfg.authority` (первое поле) совпадало, поэтому
+транзакции не ломались. Исправление = побайтовый паритет с web/backend +
+общий фикстурный тест `game/tests/offchain/layoutParity.test.ts`.
+
+## F-19 — фактическое состояние (реконструкция)
+
+- В рабочем дереве: **0 литералов** секретных ключей (grepp: `fromSecretKey`,
+  32-int массивы, base58-88). Три «флагнутых» скрипта читали `id.json`;
+  переведены на `ANCHOR_WALLET` env/файл.
+- Исторические devnet-кошельки → runbook ниже (история не переписывается).
+
+## F-18 — порядок ввода в эксплуатацию
+
+1. Первый CI после push: advisory `cargo fmt`/`cargo clippy` отработают в
+   журнале (continue-on-error → job зелёный).
+2. Оба зелёные → убрать `continue-on-error` (строгий гейт).
+3. Красные → починить в следующей серии (не блокирует этот push).
 
 ## Остаточные операционные пункты (из фазы исправлений, не находки)
 

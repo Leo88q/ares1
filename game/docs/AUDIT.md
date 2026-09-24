@@ -28,9 +28,9 @@
 
 | # | Слой | Находка | Что сделать |
 |---|---|---|---|
-| B1 | infra/web | **Старый program id `48D2…` закреплён во всех production-путях**, хотя живая программа — `DUUBi…`: закоммиченные `apps/web/.env.production` и `.env.example`, fallback `DEFAULT_PROGRAM_ID` в `apps/web/src/contexts/SolanaContext.tsx`, `Anchor.toml` (все 3 кластера), job `web` в `ci.yml` (env `VITE_PROGRAM_ID`), `apps/backend/.env.example`, `landing/content.ts`, `README.md`, `docs/API.md`, `apps/web/check-devnet*.mjs`. CF Pages собирает prod из `main` → продакшн-UI будет стучать в мёртвую программу. | Единым коммитом заменить id на `DUUBi…` (+ решить вопрос mainnet-айра, см. B3); удалить fallback из `SolanaContext` (fail-fast: нет `VITE_PROGRAM_ID` → ошибка, а не старый адрес) |
+| B1 | infra/web | **Старый program id `48D2…` закреплён во всех production-путях**, хотя живая программа — `DUUBi…`: закоммиченные `apps/web/.env.production` и `.env.example`, fallback `DEFAULT_PROGRAM_ID` в `apps/web/src/contexts/SolanaContext.tsx`, `Anchor.toml` (все 3 кластера), job `web` в `ci.yml` (env `VITE_PROGRAM_ID`), `apps/backend/.env.example`, `landing/content.ts`, `README.md`, `docs/API.md`, `scripts/devnet-legacy/check-devnet*.mjs` (перенесены 23.09, F-21). CF Pages собирает prod из `main` → продакшн-UI будет стучать в мёртвую программу. | Единым коммитом заменить id на `DUUBi…` (+ решить вопрос mainnet-айра, см. B3); удалить fallback из `SolanaContext` (fail-fast: нет `VITE_PROGRAM_ID` → ошибка, а не старый адрес) |
 | B2 | infra | **GitHub Actions отключены** (`/actions` → 404, запусков нет). `ci.yml` (build + 13 unit + `anchor test` + tsc + vite build + IDL-freshness) существует, но не работает — каждое изменение идёт без гейта. | Включить Actions (Settings → Actions → General), прогнать PR до зелёного; далее — обязательное условие любого мержа |
-| B3 | security | **Один authority-ключ = полный контроль игры** (`withdraw_treasury` без лимитов/таймлока, `set_paused`, `update_config`, `propose/accept_authority`, `grant_reward`), **внешний аудит не проводился**. | Squads-мультисиг на authority; лимит/таймлок на вывод казны (или отдельная инструкция `close_treasury_sol`, см. I6); внешний аудит (OtterSec/Sec3/Neodyme) до вывода реальных денег. Код-ревью агентом ≠ аудит |
+| B3 | security | **Один authority-ключ = полный контроль игры** (`set_paused`, `update_config`, `propose/accept_authority`, `grant_reward`). **Обновлено 23.09.2026:** выводы двухшаговые (`propose_withdrawal` → 30-сек. таймлок → `withdraw_*`, отменяемо) с оконными лимитами, есть guardian-пауза и алерты; **открыты** — Squads-мультисиг (операционно) и внешний аудит. | Squads-мультисиг на authority; лимит/таймлок на вывод казны (или отдельная инструкция `close_treasury_sol`, см. I6); внешний аудит (OtterSec/Sec3/Neodyme) до вывода реальных денег. Код-ревью агентом ≠ аудит |
 | B4 | security/backend | **Бэкенд держит тот же полный authority-ключ** (`AUTHORITY_KEYPAIR_JSON`) на сервере: компрометация сервера = вывод казны + пауза + смена authority. Ограничений у ключа нет (инструкции программы не разграничивают права). | Выделить «reward signer»: в v2 программы — отдельная роль (только `grant_reward`), на devnet — принять риск и держать ключ на отдельной VM/вolumes, доступ только под бэкендом |
 | B5 | infra | **Продакшн-сборка не функциональна из коробки:** `VITE_BACKEND_URL` пуст в `.env.production` (квесты/награды отключены), бэкенд никуда не задеплоен (инфраструктуры нет), `VITE_RPC_URL` = публичный devnet (429 при десятках игроков). | Задеплоить бэкенд (Fly.io/Render/CF Workers-не-пойдёт из-за keypair → VM), задать `VITE_BACKEND_URL`, платный RPC (Helius/Triton) для фронта и бэкенда |
 
@@ -58,11 +58,11 @@
 | # | Находка |
 |---|---|
 | N1 | `programs/solana_potato/src/lib.rs.bak`, `lib.rs.bak2` в гите — удалить (T7) |
-| N2 | Dev-скрипты в корне приложения: `apps/web/scripts/*` (sim_buy*, fund_browser_wallet, init_presale_skr, check_*, fill_test), `apps/web/check-devnet*.mjs`, `migrate-devnet.mjs` — перенести в `dev/` или вынести; часть содержит старый id |
+| N2 | ✅ закрыта (23.09.2026, F-21): все devnet-скрипты перенесены в `scripts/devnet-legacy/` (импорты/пути исправлены, `apps/web` без devnet-инструментов); ключи читаются только из файла/env (F-19) |
 | N3 | `TEST_SKR_MINT` в `anchorClient.ts` — вводящее в заблуждение имя (это реальный devnet-mint) → `SKR_MINT` |
 | N4 | `useGame() as any` в `PresaleSection.tsx` — убрать |
 | N5 | `migrate_config/field/epoch` — нужны только для legacy-state (48D2, не мигрирован; свежий деплой DUUBi создан сразу в v2-layout) — держать с явным доком «только для миграции старого devnet» или удалить в v2 |
-| N6 | `PresalePurchase.sol_amount` хранит SKR-атомы (L6, историческое имя) — не менять (совместимость логов) |
+| N6 | ✅ закрыта (23.09.2026, F-17): поле переименовано в `PresalePurchase.amount` (ABI-данные не менялись), IDL/watchtower/фикстуры синхронизированы |
 | N7 | `Epoch`-аккаунты накапливаются 49 B/день бессрочно (L2) — закрытие в v2 |
 | N8 | Прогрессивная комиссия (9→12 %) обходится дроблением ордера (L1, принято; решение — order book v2, roadmap M2) |
 | N9 | Ролл мутаций `keccak(field, slot)` предсказуем при известном слоте (M5, принято как казуальный риск 5 %) |
@@ -78,7 +78,7 @@
 | Актив | Где хранится | Кто может двигаться | Механизм | Статус |
 |---|---|---|---|---|
 | $POTATO (mint authority) | `config` PDA | Только программа | `harvest` / `grant_reward` / `claim_achievement`, всё в пределах эпок-капа (250–750k/день) и max supply (1B); freeze authority запрещён и проверен в `initialize` | ✓ корректно |
-| $POTATO казна (`treasury_potato` ATA, owner=config PDA) | on-chain | **Только `GameConfig.authority`** (один ключ) | `withdraw_treasury(amount)` — **без лимитов и таймлока** | ⚠ B3/I-часть |
+| $POTATO казна (`treasury_potato` ATA, owner=config PDA) | on-chain | **Только `GameConfig.authority`** (один ключ) | `propose_withdrawal` → таймлок 30 с → `withdraw_treasury(amount)` (оконные лимиты 250k 🥔 / 25 SOL / 100k SKR, guardian-пауза) | ⚠ B3 частично закрыта 23.09; Squads/аудит — операционно |
 | $POTATO квест-пул (550 🥔, owner=`quest_treasury` PDA) | on-chain | Только программа | `claim_achievement`, bitmap — одноразово на игрока, пул конечен | ✓ корректно |
 | $POTATO escrow | PDA `escrow` (владеет собой) | Только программа | `fill_order` / `cancel_order` / `close_expired_order`, всегда сливается в 0 (бухгалтерия проверена, C5 закрыта) | ✓ корректно |
 | SOL (`treasury_sol` PDA) | on-chain (0-байт System-аккаунт) | **Никто — выхода нет** | Приход: `buy_field_sol` (0.25 SOL/модуль). Вывода/закрытия инструкция **не существует** | ⚠ I6 |

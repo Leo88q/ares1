@@ -26,3 +26,4 @@ __pycache__/
 *-keypair.json
 secrets/
 security-reports/
+*.bundle
