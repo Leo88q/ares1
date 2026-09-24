@@ -6,7 +6,7 @@
     "spec": "0.1.0",
     "description": "Solana Potato game program"
   },
-  "sourceIdlSha256": "b092c9742a80b6849f934461ed23454c1963889bd0a7da982d59c1dde6381177",
+  "sourceIdlSha256": "bee20b8f2b1d06bba41e435ca5eb7f6f76b5b70690573464d43c3e09efb499ac",
   "events": [
     {
       "name": "AchievementClaimed",
@@ -758,9 +758,10 @@
             "type": "u8"
           },
           {
-            "name": "sol_amount",
+            "name": "amount",
             "docs": [
-              "SKR atoms paid (6 decimals)."
+              "Amount in the currency of the EMITTING instruction, not a currency tag:",
+              "SKR atoms (6 decimals) from `buy_field_skr`, lamports from `buy_field_sol`."
             ],
             "type": "u64"
           },
@@ -1037,6 +1038,16 @@
       223,
       132
     ],
+    "cancel_withdrawal": [
+      183,
+      104,
+      181,
+      250,
+      28,
+      128,
+      210,
+      70
+    ],
     "claim_achievement": [
       107,
       181,
@@ -1157,6 +1168,16 @@
       155,
       237
     ],
+    "migrate_admin_state": [
+      55,
+      221,
+      244,
+      177,
+      139,
+      100,
+      40,
+      73
+    ],
     "migrate_config": [
       92,
       131,
@@ -1217,6 +1238,16 @@
       99,
       142
     ],
+    "propose_withdrawal": [
+      24,
+      15,
+      80,
+      161,
+      146,
+      233,
+      1,
+      25
+    ],
     "register_referrer": [
       122,
       229,
@@ -1266,6 +1297,16 @@
       83,
       219,
       99
+    ],
+    "update_guardian": [
+      67,
+      64,
+      31,
+      60,
+      145,
+      93,
+      95,
+      51
     ],
     "update_presale_price": [
       140,

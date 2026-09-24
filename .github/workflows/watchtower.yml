@@ -1,4 +1,6 @@
 name: Watchtower exporter
+# Last verified: 2026-09-24 — local suite 99/99 + SW016 inventory 21/21
+# against reports/ares1-audit.{json,md} regenerated in cf8d141 (F-12/SW016 rule).
 on:
   push:
     branches: [main, 'arena/**']

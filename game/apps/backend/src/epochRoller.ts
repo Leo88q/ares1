@@ -10,6 +10,7 @@ import {
   fetchEpoch,
   sendPayerTx,
 } from "./solana.js";
+import { buildAlert, sendAlert, shouldAlert } from "./alert.js";
 
 const EPOCH_DURATION_SECONDS = 86_400;
 
@@ -55,9 +56,17 @@ export function startEpochRoller() {
       consecutiveFailures += 1;
       lastRollError = safeError(err);
       console.error(`[epoch-roller] failed (attempt ${consecutiveFailures}):`, safeError(err));
-      // Alert after 3 consecutive failures — need external webhook in prod
-      if (consecutiveFailures >= 3) {
-        console.error(`[epoch-roller] CRITICAL: 3 consecutive roll failures! Check RPC and payer balance.`);
+      // F-10: external alert ladder (3/9/27) — console line above already fired.
+      if (shouldAlert(consecutiveFailures)) {
+        console.error(`[epoch-roller] CRITICAL: ${consecutiveFailures} consecutive roll failures! Check RPC and payer balance.`);
+        void sendAlert(
+          env.alertWebhookUrl,
+          buildAlert(
+            "epoch_roll_failures",
+            `${consecutiveFailures} consecutive roll_epoch failures; check RPC and payer balance`,
+            consecutiveFailures,
+          ),
+        );
       }
     }
   });

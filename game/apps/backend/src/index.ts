@@ -5,6 +5,7 @@ import { env } from "./env.js";
 import { configRouter } from "./routes/config.js";
 import { startEpochRoller } from "./epochRoller.js";
 import { connection, fetchConfig, payerKeypair, programId } from "./solana.js";
+import { buildAlert, sendAlert } from "./alert.js";
 
 /** Minimal fixed-window rate limiter per IP with TTL pruning. */
 function rateLimit(perMinute: number) {
@@ -105,6 +106,13 @@ async function main() {
     console.error(
       `[startup] FATAL: PAYER_KEYPAIR_JSON (${payerKeypair.publicKey.toBase58()}) ` +
       `баланс ${(payerBal / 1e9).toFixed(4)} SOL < 0.01 — нечем платить rent/fee за epoch. Бэкенд не запускается.`,
+    );
+    await sendAlert(
+      env.alertWebhookUrl,
+      buildAlert(
+        "payer_balance_fatal",
+        `dedicated payer balance ${(payerBal / 1e9).toFixed(4)} SOL < 0.01 — epoch roller cannot pay rent/fee; backend refusing to start`,
+      ),
     );
     process.exit(1);
   }

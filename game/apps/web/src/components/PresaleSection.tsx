@@ -228,7 +228,7 @@ export default function PresaleSection() {
        {t('ВЫПАЛО: {label}', { label: PRESALE_DROP[lastDrop].label })}
       </div>
      )}
-     {t('80% SKR → казна · 20% → buyback & burn POTATO')}
+     {t('80% SKR → казна · 20% → казна команды')}
     </div>
    )}
   </motion.div>

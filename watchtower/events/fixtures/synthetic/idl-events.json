@@ -187,8 +187,8 @@
       "buyer": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
       "field": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
       "field_type": 7,
-      "sol_amount": "9007199254740993",
-      "roll": 7
+      "roll": 7,
+      "amount": "9007199254740993"
     }
   },
   {

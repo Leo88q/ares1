@@ -126,7 +126,7 @@ async function main() {
   const existing = await connection.getAccountInfo(configPda);
   if (existing) {
     validateMigrationAccount("config", existing, PROGRAM_ID);
-    if (existing.data.length !== 228) throw new Error("Legacy config: use the reviewed migration planner before bootstrap");
+    if (existing.data.length !== 260) throw new Error("Legacy config: use the reviewed migration planner before bootstrap");
     const config = decodeGameConfig(existing.data);
     if (!config.authority.equals(admin.publicKey)) throw new Error("Signer is not the current game authority");
     mint = config.potatoMint;

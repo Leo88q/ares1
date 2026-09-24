@@ -16,8 +16,14 @@ Fixed and CI-verified on localnet (`anchor build` + `anchor test`):
 
 - Admin guard rails: sensitive updates (SKR mint, presale price raise) are
   two-step behind a 24 h timelock (`AdminState`); treasury withdrawals are
-  rate-limited per rolling 24 h window; the presale kill switch (price = 0)
-  applies immediately.
+  two-step (`propose_withdrawal` → short on-chain timelock → `withdraw_*`,
+  cancellable via `cancel_withdrawal`) on top of the rolling 24 h window caps
+  (250 000 🥔 / 25 SOL / 100 000 SKR), and POTATO leaves only through the
+  authority's own ATA; the presale kill switch (price = 0) applies immediately.
+- Emergency pause can also be raised by a dedicated **guardian** key
+  (`update_guardian`); only the authority can unpause.
+- Paid RNG (`buy_field_skr` tier roll, `upgrade_field` mutation) rejects CPI
+  invocation (stack-height guard), closing the revert-if-unlucky grind.
 - Dynamic epoch cap is now clamped to `[daily_mint_cap_micro, 3×]` — the admin
   setting constrains `roll_epoch`.
 - Manual `grant_reward` mints are capped at 10 % of the epoch cap
@@ -51,3 +57,12 @@ Use Gitleaks with `.gitleaks.toml`; never post a credential in an issue or publi
 log. Follow [the operational runbook](docs/OPERATIONS.md) for revocation, isolated
 payer storage, recovery and pause. Dependency vulnerabilities require an up-to-date
 scanner run; old transitive-CVE notes are not a current dependency audit.
+
+## Reporting a vulnerability (F-23)
+
+Private channel: GitHub Security Advisories for this repository
+(`https://github.com/Leo88q/ares1/security/advisories/new`) — reports go only to
+repository administrators. No public issue for exploitable findings; no
+additional email address is published (requires human decision to add one).
+Include affected component, reproduction steps and impact; do not attach
+private keys or funded-wallet material to the report.

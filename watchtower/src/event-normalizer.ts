@@ -10,7 +10,7 @@ export function normalize(name: string, data: Fields, instructionName: string | 
   const entry = eventMap.find(x => x.on_chain_event === name);
   if (!entry) return unknown('unmapped_event');
   let resource = entry.resource;
-  // The legacy and SKR presale emit the SAME event; sol_amount is not a currency tag.
+  // The legacy and SKR presale emit the SAME event; `amount` is not a currency tag.
   if (name === 'PresalePurchase') {
     resource = instructionName === 'buy_field_skr' ? 'SKR' : instructionName === 'buy_field_sol' ? 'SOL' : null;
   }

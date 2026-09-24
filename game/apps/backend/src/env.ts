@@ -36,4 +36,8 @@ export const env = {
   })() as boolean | number | string,
   /** Requests per minute per IP (all routes except /live). */
   rateLimitPerMinute: parseInt(process.env.RATE_LIMIT_PER_MINUTE || "30", 10),
+  /** F-10: optional JSON webhook (Slack/Discord/ntfy) for critical alerts —
+   *  epoch-roller failure ladder (3/9/27) and fatal startup conditions.
+   *  Empty string disables external alerting (console logging stays). */
+  alertWebhookUrl: process.env.ALERT_WEBHOOK_URL || "",
 };
