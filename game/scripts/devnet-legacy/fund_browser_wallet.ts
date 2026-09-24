@@ -7,11 +7,14 @@ import {
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { SKR_MINT } from '../src/utils/anchorClient'
+import { SKR_MINT } from '../../apps/web/src/utils/anchorClient'
 
 async function main() {
+  // F-19: key material always comes from a file path (env ANCHOR_WALLET or
+  // the operator solana CLI id.json) — never from literals in the repository.
+  const walletPath = process.env.ANCHOR_WALLET ?? join(homedir(), '.config', 'solana', 'id.json')
   const payer = Keypair.fromSecretKey(
-    Uint8Array.from(JSON.parse(readFileSync(join(homedir(), '.config', 'solana', 'id.json'), 'utf8'))))
+    Uint8Array.from(JSON.parse(readFileSync(walletPath, 'utf8'))))
   const owner = new PublicKey('HPMr5r9sS5ApWsPNJytZRLbm2jz1veFxTn1wepjAhtho')
   const conn = new Connection('https://api.devnet.solana.com', 'confirmed')
   const ata = getAssociatedTokenAddressSync(SKR_MINT, owner)

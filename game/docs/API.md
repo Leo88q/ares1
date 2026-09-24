@@ -2,7 +2,7 @@
 
 **Not a statement about the deployed binary.** Anchor CLI/crates 0.31.2; source:
 `programs/solana_potato/src/lib.rs`. Committed `apps/web/src/idl.json` describes
-the remediated source (**39 instructions, 12 accounts, 30 events, 41 errors**);
+the remediated source (**43 instructions, 12 accounts, 30 events, 47 errors**);
 it was rebuilt together with the 2026-09-21 security fixes and must be
 re-verified against a real pinned-Anchor build before deploy: run `anchor build`,
 then `yarn check:contract target/idl/solana_potato.json` and copy the built IDL
@@ -35,7 +35,7 @@ Sizes include the 8-byte Anchor discriminator:
 
 | Account | Seeds | Current bytes |
 |---|---|---:|
-| GameConfig | `config` | 228 |
+| GameConfig | `config` | 260 (legacy: 156/164/228) |
 | Epoch | `epoch`, epoch ID u64 LE | 49 |
 | Field | `field`, field ID u64 LE | 70 |
 | MarketOrder | `order`, order ID u64 LE | 83 |
@@ -44,7 +44,7 @@ Sizes include the 8-byte Anchor discriminator:
 | PresaleState | `presale` | 57 |
 | BuyerPresaleCounter | `buyer_presale`, buyer pubkey | 42 |
 | Achievements | `achv`, user pubkey | 17 |
-| AdminState | `admin_state` | 97 |
+| AdminState | `admin_state` | 145 (legacy: 97) |
 | ExportLicense | `license`, holder pubkey | — |
 | Referral | `referral`, buyer pubkey | — |
 
@@ -53,7 +53,7 @@ Sizes include the 8-byte Anchor discriminator:
 unchanged (49 bytes), so no rent migration is needed; legacy accounts simply
 reinterpret the field (they hold 0).
 
-Config legacy layouts 156/164 and epoch legacy layout 41 are recognized by raw
+Config legacy layouts 156/164/228 and epoch legacy layout 41 are recognized by raw
 clients for reads. That does **not** certify on-chain migration safety. Field migration
 and legacy config migration have separate fixture tests; see [MIGRATIONS.md](MIGRATIONS.md)
 and the stabilization report for execution status.
@@ -75,11 +75,14 @@ builders in web/backend must match the generated IDL, not just its address.
 | `update_presale_price` | Authority; `price = 0` is the **kill switch** and applies immediately (closes both presale rails); `price > 0` is a proposal only |
 | `apply_pending_presale_price` | Authority; applies a pending price proposal after the 24 h timelock |
 | `update_config` | Authority; cap in `(0, 250k]`, multiplier ≤2×, `base_yield_micro_per_day` in `(0, 100 🥔/day]` (`BaseYieldTooHigh`) |
-| `set_paused` | Authority; does not freeze all instructions or treasury |
+| `set_paused` | Authority **or dedicated guardian key** (F-02); pause only — does not freeze all instructions or treasury; only authority unpauses |
 | `propose_authority`, `accept_authority` | Two-step game authority transfer, NOT program upgrade authority transfer |
 | `withdraw_treasury` | Authority; POTATO treasury ATA → destination token account of same mint; ≤ **250 000 🥔 per rolling 24 h** (`AdminState`) |
 | `withdraw_treasury_sol` | Authority; SOL vault PDA → authority; ≤ **25 SOL per rolling 24 h** |
 | `withdraw_skr_treasury` | Authority; configured SKR vault ATA → authority's SKR ATA; ≤ **100 000 SKR per rolling 24 h** |
+| `propose_withdrawal`, `cancel_withdrawal` | Authority; two-step gate for `withdraw_*`: proposal stores the destination/amount, execution allowed after `WITHDRAW_TIMELOCK_SECONDS` (30 s), cancelable while pending |
+| `update_guardian` | Authority; set/clear the emergency-pause guardian key in `GameConfig` (260-byte layout) |
+| `migrate_admin_state` | Authority; migrates `AdminState` 97 → 145 (proposed withdrawal fields appended), exact-size/discriminator checks like other migrations |
 | `migrate_config`, `migrate_epoch`, `migrate_field` | Authority; exact legacy/current layouts, discriminator/owner/PDA checks; rent shortfall paid to target; current data preserved on retry |
 | `migrate_presale_authority` | New game authority synchronizes presale authority after transfer |
 
@@ -87,7 +90,9 @@ The three `withdraw_*` instructions lazily create the `AdminState` PDA
 (`init_if_needed`, payer = authority), so the first withdrawal also passes the
 system program and authority rent. Withdrawal counters roll over once per 24 h
 window (`WITHDRAW_WINDOW_SECONDS`); exceeding a limit fails with
-`WithdrawWindowLimitExceeded` (6036).
+`WithdrawWindowLimitExceeded` (6036). Every `withdraw_*` call must follow a
+`propose_withdrawal` and observe the 30 s on-chain timelock (`CanceledBeforeTimelock`
+6041 if earlier); the proposal is cancellable via `cancel_withdrawal`.
 
 **Cap semantics:** `daily_mint_cap_micro` is now respected by `roll_epoch` as the
 floor of the dynamic clamp (upper bound = 3× the configured cap). Lowering it via
@@ -131,7 +136,9 @@ harvests.
   `price_lamports`); `max_total_lamports` is a slippage guard — the tx reverts
   with `InvalidPrice` if the price was raised after signing. Rarity roll mixes in
   `SlotHashes` (needs the `slotHashes` sysvar account).
-- `buy_field_skr` (buyer): 1053 SKR split 80 % treasury / 20 % buyback; global cap
+- `buy_field_skr` (buyer): 1053 SKR split 80 % team treasury ATA / 20 % `buyback_skr_ata`
+  (the account name is historical — there is **no** on-chain buyback/burn; the 20 % share
+  sits in the team wallet ATA and is managed off-chain); global cap
   and 5-field wallet cap; same `SlotHashes` rarity entropy (needs `slotHashes`).
 - `buy_export_license`: configured SKR payment; inspect source/current config for terms.
 

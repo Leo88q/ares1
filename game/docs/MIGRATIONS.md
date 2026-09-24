@@ -7,7 +7,8 @@ reviewed SBF binary, generated IDL and localnet tests before a live upgrade.
 
 | Account | Legacy → current | Invariants |
 |---|---|---|
-| Config | 156 or 164 → 228 | Preserve authority, pending authority, mint, numeric fields, paused and bump. Insert SKR/reward signer; preserve existing burn snapshot, initialize absent snapshot to zero. |
+| Config | 156 / 164 / 228 → 260 | Preserve authority, pending authority, mint, numeric fields, paused and bump. 156/164 insert SKR/reward signer (preserve burn snapshot; absent snapshot → zero); 228 appends guardian (`PublicKey.default`). |
+| AdminState | 97 → 145 | Preserve rate-limit counters and pending proposal fields (zeros on 97 → 145); proposed withdrawal destination/amount appended. |
 | Field | 69 → 70 | Preserve all 69 original bytes; new mutation byte starts at zero. |
 | Epoch | 41 → 49 | Preserve original epoch fields/bump; new grant-quota counter (`granted_micro`, renamed from the never-incremented `burned_micro` on 2026-09-21) starts at zero. |
 
@@ -42,7 +43,7 @@ the built program on loopback port 18899, and destroys each validator afterwards
 It refuses occupied test ports and checks the unique fixture config before sending
 transactions. It does not read a real wallet or contact devnet/mainnet.
 
-For both Config 156 and 164 it tests:
+For Config 156, 164 and 228 it tests:
 - wrong signer, foreign account owner, wrong discriminator/type, fake config PDA,
   and Epoch at the wrong address, including unchanged target state on rejection;
 - migration of Field while config is still legacy;
@@ -74,7 +75,7 @@ There is no implicit cluster or deploy wallet. `--execute` is an explicit opt-in
 all required values are validated before network work, and the observed genesis
 must match. This is not a substitute for governance/multisig signing before mainnet.
 
-The old web `migrate-devnet.mjs` now refuses to execute because it targeted an
+The old web `migrate-devnet.mjs` (now in `scripts/devnet-legacy/`, F-21) now refuses to execute because it targeted an
 obsolete program and duplicated unsafe migration code. Bootstrap (`init-onchain`)
 reads the supported current layout and **refuses legacy state** instead of silently
 performing migrations. Plan/review/migrate first, then rerun bootstrap as needed.

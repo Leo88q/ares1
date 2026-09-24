@@ -16,6 +16,7 @@ const program = path.resolve('target/deploy/solana_potato.so');
 const port = 18899;
 const rpc = `http://127.0.0.1:${port}`;
 const configPda = PublicKey.findProgramAddressSync([Buffer.from('config')], programId)[0];
+const adminStatePda = PublicKey.findProgramAddressSync([Buffer.from('admin_state')], programId)[0];
 const u64 = (value: bigint) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(value); return b; };
 const epochPda = (id: bigint) => PublicKey.findProgramAddressSync([Buffer.from('epoch'), u64(id)], programId)[0];
 const fieldPda = (id: bigint) => PublicKey.findProgramAddressSync([Buffer.from('field'), u64(id)], programId)[0];
@@ -68,6 +69,13 @@ async function run(configSize: 156 | 164) {
   const fakeConfig = Keypair.generate().publicKey;
   const foreignField = Keypair.generate().publicKey;
   const wrongEpochAddress = Keypair.generate().publicKey;
+  // F-02: legacy AdminState (97 bytes) at the canonical PDA + a copy at a
+  // non-canonical address to prove the seeds check.
+  const adminState = Buffer.alloc(97);
+  anchorDiscriminator('account', 'AdminState').copy(adminState);
+  adminState.writeBigInt64LE(1_700_000_000n, 8);
+  adminState.writeBigUInt64LE(11n, 16);
+  const wrongAdminStateAddress = Keypair.generate().publicKey;
   const fixtures = [
     { key: configPda, data: config, owner: programId },
     { key: fakeConfig, data: config, owner: programId },
@@ -77,6 +85,8 @@ async function run(configSize: 156 | 164) {
     { key: epochPda(42n), data: epoch, owner: programId },
     { key: epochPda(43n), data: currentEpoch, owner: programId },
     { key: wrongEpochAddress, data: epoch, owner: programId },
+    { key: adminStatePda, data: adminState, owner: programId },
+    { key: wrongAdminStateAddress, data: adminState, owner: programId },
   ];
   fs.mkdirSync('.anchor', { recursive: true });
   const dir = fs.mkdtempSync(path.resolve('.anchor/migration-'));
@@ -147,6 +157,7 @@ async function run(configSize: 156 | 164) {
     await reject(() => send('field', foreignField), 'ConstraintOwner', foreignField);
     await reject(() => send('field', configPda), 'BadProof', configPda);
     await reject(() => send('epoch', wrongEpochAddress), 'BadProof', wrongEpochAddress);
+    await reject(() => send('admin_state', wrongAdminStateAddress), 'ConstraintSeeds', wrongAdminStateAddress);
     const fakeIx = migrationInstruction('field', programId, fieldPda(100n), admin.publicKey);
     fakeIx.keys[1].pubkey = fakeConfig;
     await reject(() => sendTx(new Transaction().add(fakeIx), [admin]), 'ConstraintSeeds', fieldPda(100n));
@@ -155,6 +166,7 @@ async function run(configSize: 156 | 164) {
     await send('field', fieldPda(100n));
     await send('config', configPda);
     await send('epoch', epochPda(42n));
+    await send('admin_state', adminStatePda);
     const migrated = (await connection.getAccountInfo(configPda))!.data;
     const c = decodeGameConfig(migrated);
     assert.equal(c.paused, true); assert.equal(c.bump, config.at(-1));
@@ -163,12 +175,19 @@ async function run(configSize: 156 | 164) {
     assert.equal(c.rewardSigner.toBase58(), admin.publicKey.toBase58());
     assert.equal(c.epochId, 42n); assert.equal(c.totalBurnedMicro, 123_456n);
     assert.equal(c.lastTotalBurnedMicro, configSize === 156 ? 0n : 9876n);
+    assert.equal(c.guardian.toBase58(), PublicKey.default.toBase58()); // F-02 default = disabled
+    assert.equal(migrated.length, 260);
     assert.deepEqual(migrated.subarray(168, 218), config.subarray(104, 154));
     assert.deepEqual((await connection.getAccountInfo(fieldPda(100n)))!.data, Buffer.concat([field, Buffer.from([0])]));
     assert.equal(decodeEpoch((await connection.getAccountInfo(epochPda(42n)))!.data).grantedMicro, 0n);
+    const migratedAdmin = (await connection.getAccountInfo(adminStatePda))!.data;
+    assert.equal(migratedAdmin.length, 145);
+    assert.equal(migratedAdmin.readBigInt64LE(8), 1_700_000_000n); // legacy fields preserved
+    assert.equal(migratedAdmin.readBigUInt64LE(16), 11n);
 
-    for (const [kind, key, size] of [['config', configPda, 228], ['field', fieldPda(100n), 70],
-      ['field', fieldPda(101n), 70], ['epoch', epochPda(42n), 49], ['epoch', epochPda(43n), 49]] as const) {
+    for (const [kind, key, size] of [['config', configPda, 260], ['field', fieldPda(100n), 70],
+      ['field', fieldPda(101n), 70], ['epoch', epochPda(42n), 49], ['epoch', epochPda(43n), 49],
+      ['admin_state', adminStatePda, 145]] as const) {
       const before = (await connection.getAccountInfo(key))!;
       assert.equal(before.lamports, await connection.getMinimumBalanceForRentExemption(size));
       await send(kind, key);
@@ -177,7 +196,7 @@ async function run(configSize: 156 | 164) {
     }
     assert.deepEqual((await connection.getAccountInfo(fieldPda(101n)))!.data, currentField);
     assert.deepEqual((await connection.getAccountInfo(epochPda(43n)))!.data, currentEpoch);
-    console.log(`PASS: Config ${configSize}->228, Field 69->70, Epoch 41->49; rent, flags, idempotency and negative cases`);
+    console.log(`PASS: Config ${configSize}->260, Field 69->70, Epoch 41->49, AdminState 97->145; rent, flags, idempotency and negative cases`);
   } catch (error) {
     console.error(`Migration fixture ${configSize} failed:`, error);
     console.error('Validator output:', output);

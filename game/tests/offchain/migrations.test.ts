@@ -3,18 +3,20 @@ import assert from 'node:assert/strict';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
 import { migrationInstruction, validateMigrationAccount, migrationLayouts } from '../../scripts/migrationClient';
 import { anchorDiscriminator } from '../../apps/backend/src/anchorRaw';
-import { ixMigrateConfig, ixMigrateField, ixMigrateEpoch } from '../../apps/web/src/utils/anchorClient';
+import { ixMigrateConfig, ixMigrateField, ixMigrateEpoch, ixMigrateAdminState } from '../../apps/web/src/utils/anchorClient';
 const programId = new PublicKey('DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf');
 const authority = new PublicKey(Buffer.alloc(32, 3));
 const config = PublicKey.findProgramAddressSync([Buffer.from('config')], programId)[0];
+const adminState = PublicKey.findProgramAddressSync([Buffer.from('admin_state')], programId)[0];
 const target = new PublicKey(Buffer.alloc(32, 4));
-for (const kind of ['config', 'field', 'epoch'] as const) {
+for (const kind of ['config', 'field', 'epoch', 'admin_state'] as const) {
   test(`${kind} migration builder matches web, with only authority as writable signer`, async () => {
-    const key = kind === 'config' ? config : target;
+    const key = kind === 'config' ? config : kind === 'admin_state' ? adminState : target;
     const ix = migrationInstruction(kind, programId, key, authority);
     const web = kind === 'config' ? await ixMigrateConfig(programId, { config, authority }) :
       kind === 'field' ? await ixMigrateField(programId, { field: target, config, authority }) :
-      await ixMigrateEpoch(programId, { epoch: target, config, authority });
+      kind === 'epoch' ? await ixMigrateEpoch(programId, { epoch: target, config, authority }) :
+      await ixMigrateAdminState(programId, { adminState, config, authority });
     assert.deepEqual(ix, web);
     assert.deepEqual(ix.keys.filter(k => k.isSigner), [{ pubkey: authority, isSigner: true, isWritable: true }]);
     assert.deepEqual(ix.keys.at(-1), { pubkey: SystemProgram.programId, isSigner: false, isWritable: false });

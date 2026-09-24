@@ -6,10 +6,10 @@ import { join } from 'node:path'
 import {
   ixInitPresale, presaleStatePda, treasurySolPda, treasurySkrAta, buybackSkrAta,
   SKR_MINT, pdas,
-} from '../src/utils/anchorClient'
+} from '../../apps/web/src/utils/anchorClient'
 
 async function main() {
-  const toml = readFileSync(join(process.cwd(), '../../Anchor.toml'), 'utf8')
+  const toml = readFileSync(join(import.meta.dirname, '../../Anchor.toml'), 'utf8')
   const devnet = toml.match(/\[programs\.devnet\]([\s\S]*?)(\n\[|$)/)
   const m = devnet ? devnet[1].match(/solana_potato\s*=\s*"([^"]+)"/) : null
   if (!m) throw new Error('program id не найден в [programs.devnet]')

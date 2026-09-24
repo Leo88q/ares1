@@ -65,7 +65,7 @@ PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf yarn init-onchain
 
 `init-onchain` создаёт mint (6 decimals, без freeze authority), передаёт mint authority PDA `config`, вызывает `initialize` + `init_epoch`. Скрипт идемпотентен. `initialize` отклонит mint с чужим authority, другим числом decimals или freeze authority.
 
-Текущий devnet: программа `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf` (развёрнута 14.09.2026 через `scripts/warm-start-devnet.sh`), upgrade authority `HW4ekULcWHiVhDMfWpg8MwJwLqZHYskGMrue44WZ3vJ9` (ключ вне git). Инициализация: GameConfig PDA `9FDhkBwmcNx3gh8hSgShpiAVXHW9cZBnv4t1xyHGU39q`, $POTATO mint `HFEL9rBqmYwYDsZNxuV2ZonfS7adbjENUc3CdgbaiYxv` (6 decimals, без freeze authority, authority = config PDA), пресейл cap 500 / 0.25 SOL / 1053 SKR. Старый devnet-стейт программы `48D2…` (GameConfig `2W5Lxv…`) не мигрирован и abandoned — инструмент `apps/web/migrate-devnet.mjs` относится только к нему.
+Текущий devnet: программа `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf` (развёрнута 14.09.2026 через `scripts/warm-start-devnet.sh`), upgrade authority `HW4ekULcWHiVhDMfWpg8MwJwLqZHYskGMrue44WZ3vJ9` (ключ вне git). Инициализация: GameConfig PDA `9FDhkBwmcNx3gh8hSgShpiAVXHW9cZBnv4t1xyHGU39q`, $POTATO mint `HFEL9rBqmYwYDsZNxuV2ZonfS7adbjENUc3CdgbaiYxv` (6 decimals, без freeze authority, authority = config PDA), пресейл cap 500 / 0.25 SOL / 1053 SKR. Старый devnet-стейт программы `48D2…` (GameConfig `2W5Lxv…`) не мигрирован и abandoned — инструмент `scripts/devnet-legacy/migrate-devnet.mjs` относится только к нему.
 
 ### Фронтенд
 

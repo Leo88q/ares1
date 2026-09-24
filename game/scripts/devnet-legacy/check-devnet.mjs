@@ -9,7 +9,7 @@ const [cfg] = PublicKey.findProgramAddressSync([Buffer.from('config')], pid)
 const a = await conn.getAccountInfo(cfg)
 console.log('GameConfig существует:', !!a)
 if (a) {
-  console.log('  текущий размер:', a.data.length, '(старый: 156, новый: 164)')
+  console.log('  текущий размер:', a.data.length, '(поддерживаемые: 156/164/228/260; текущая: 260)')
 }
 
 const all = await conn.getProgramAccounts(pid, { dataSlice: { offset: 0, length: 0 } }).catch(e => { console.error('gpa error:', e.message); return [] })

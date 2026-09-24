@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from '@solana/web3.js'
-import { presaleStatePda, buyerPresalePda, SKR_MINT } from '../src/utils/anchorClient'
+import { presaleStatePda, buyerPresalePda, SKR_MINT } from '../../apps/web/src/utils/anchorClient'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -13,7 +13,7 @@ async function bal(conn: Connection, addr: string, label: string) {
 }
 
 async function main() {
-  const toml = readFileSync(join(process.cwd(), '../../Anchor.toml'), 'utf8')
+  const toml = readFileSync(join(import.meta.dirname, '../../Anchor.toml'), 'utf8')
   const devnet = toml.match(/\[programs\.devnet\]([\s\S]*?)(\n\[|$)/)!
   const PROGRAM_ID = new PublicKey(devnet[1].match(/solana_potato\s*=\s*"([^"]+)"/)![1])
   const conn = new Connection('https://api.devnet.solana.com', 'confirmed')

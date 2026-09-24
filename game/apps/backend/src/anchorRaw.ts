@@ -52,6 +52,8 @@ export interface GameConfig {
   lastTotalBurnedMicro: bigint;
   paused: boolean;
   bump: number;
+  /** F-02: emergency-pause key; PublicKey.default when unset (260-byte layout only). */
+  guardian: PublicKey;
 }
 
 function validateAccount(data: Buffer, name: string, sizes: number[]): void {
@@ -61,7 +63,7 @@ function validateAccount(data: Buffer, name: string, sizes: number[]): void {
 }
 
 export function decodeGameConfig(data: Buffer): GameConfig {
-  validateAccount(data, "GameConfig", [156, 164, 228]);
+  validateAccount(data, "GameConfig", [156, 164, 228, 260]);
   let o = 8; // skip account discriminator
   const authority = readPubkey(data, o); o = authority.next;
   const pendingAuthority = readPubkey(data, o); o = pendingAuthority.next;
@@ -83,7 +85,8 @@ export function decodeGameConfig(data: Buffer): GameConfig {
   const totalBurnedMicro = readU64(data, o); o = totalBurnedMicro.next;
   const lastTotalBurnedMicro = data.length === 156 ? { value: 0n, next: o } : readU64(data, o); o = lastTotalBurnedMicro.next;
   const paused = readBool(data, o); o = paused.next;
-  const bump = readU8(data, o);
+  const bump = readU8(data, o); o = bump.next;
+  const guardian = data.length >= 260 ? readPubkey(data, o).value : PublicKey.default;
   return {
     authority: authority.value,
     pendingAuthority: pendingAuthority.value,
@@ -100,6 +103,7 @@ export function decodeGameConfig(data: Buffer): GameConfig {
     lastTotalBurnedMicro: lastTotalBurnedMicro.value,
     paused: paused.value,
     bump: bump.value,
+    guardian,
   };
 }
 

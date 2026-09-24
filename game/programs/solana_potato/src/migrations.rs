@@ -10,11 +10,16 @@ fn check_layout(data: &[u8], discriminator: &[u8], sizes: &[usize]) -> Result<()
 }
 
 pub(crate) fn config(data: &[u8]) -> Result<Vec<u8>> {
-    check_layout(data, GameConfig::DISCRIMINATOR, &[156, 164, 228])?;
-    let result = if data.len() == 228 {
+    check_layout(data, GameConfig::DISCRIMINATOR, &[156, 164, 228, 260])?;
+    let result = if data.len() == 260 {
         data.to_vec()
+    } else if data.len() == 228 {
+        // F-02: guardian appended after bump; Pubkey::default() = no guardian.
+        let mut out = vec![0; 260];
+        out[..228].copy_from_slice(data);
+        out
     } else {
-        let mut out = vec![0; 228];
+        let mut out = vec![0; 260];
         out[..104].copy_from_slice(&data[..104]);
         out[104..136].copy_from_slice(SKR_MINT.as_ref());
         out[136..168].copy_from_slice(&data[8..40]); // initial reward signer = authority
@@ -23,10 +28,20 @@ pub(crate) fn config(data: &[u8]) -> Result<Vec<u8>> {
             out[218..226].copy_from_slice(&data[154..162]);
         } // v1 has no snapshot: initialize to zero, not from paused/bump bytes
         out[226..228].copy_from_slice(&data[data.len() - 2..]);
-        out
+        out // [228..260] guardian defaults to Pubkey::default()
     };
     GameConfig::try_deserialize(&mut &result[..])?;
     Ok(result)
+}
+
+/// F-02: pads the legacy 97-byte AdminState (pre two-step withdrawals) to the
+/// current 145-byte layout; new pending-withdraw fields default to zero.
+pub(crate) fn admin_state(data: &[u8]) -> Result<Vec<u8>> {
+    check_layout(data, AdminState::DISCRIMINATOR, &[97, 145])?;
+    let mut out = data.to_vec();
+    out.resize(145, 0);
+    AdminState::try_deserialize(&mut &out[..])?;
+    Ok(out)
 }
 
 pub(crate) fn authority(data: &[u8], signer: &Pubkey) -> Result<()> {
@@ -64,7 +79,7 @@ mod tests {
             daily_mint_cap_micro: 20_000, base_yield_micro_per_day: 6_000,
             global_multiplier_bps: 10_000, field_count: 7, epoch_id: 42,
             total_burned_micro: 123_456, last_total_burned_micro: 9_876,
-            paused: true, bump: 253,
+            paused: true, bump: 253, guardian: Pubkey::new_unique(),
         };
         let mut data = Vec::new();
         config.try_serialize(&mut data).unwrap();
@@ -74,22 +89,67 @@ mod tests {
     #[test]
     fn config_migrations_preserve_every_legacy_byte_and_are_idempotent() {
         let current = current_config();
-        for size in [156, 164] {
+        assert_eq!(current.len(), 260);
+        for size in [156, 164, 228] {
             let mut legacy = current[..104].to_vec();
             legacy.extend_from_slice(&current[168..218]);
             if size == 164 { legacy.extend_from_slice(&current[218..226]); }
-            legacy.extend_from_slice(&current[226..228]);
+            if size == 228 {
+                legacy = current[..228].to_vec();
+            } else {
+                legacy.extend_from_slice(&current[226..228]);
+            }
             assert_eq!(legacy.len(), size);
             let result = config(&legacy).unwrap();
             let mut expected = current.clone();
-            expected[104..136].copy_from_slice(SKR_MINT.as_ref());
-            expected[136..168].copy_from_slice(&current[8..40]);
-            if size == 156 { expected[218..226].fill(0); }
+            if size != 228 {
+                // 156/164 predate skr_mint/reward_signer: migration fills them.
+                expected[104..136].copy_from_slice(SKR_MINT.as_ref());
+                expected[136..168].copy_from_slice(&current[8..40]);
+                if size == 156 { expected[218..226].fill(0); }
+            }
+            expected[228..260].fill(0); // no guardian in any legacy layout (padded with default)
             assert_eq!(result, expected);
             assert_eq!(config(&result).unwrap(), result);
         }
-        // Preserve custom SKR/reward signer/snapshot in already-current accounts.
+        // Preserve custom SKR/reward signer/snapshot/guardian in already-current accounts.
         assert_eq!(config(&current).unwrap(), current);
+    }
+
+    #[test]
+    fn admin_state_migration_pads_legacy_layout() {
+        let state = AdminState {
+            window_start: 1_700_000_000,
+            withdrawn_potato_micro: 11,
+            withdrawn_sol_lamports: 22,
+            withdrawn_skr_atoms: 33,
+            pending_skr_mint: Pubkey::new_unique(),
+            pending_skr_mint_at: 44,
+            pending_presale_price: 55,
+            pending_presale_price_at: 66,
+            bump: 200,
+            pending_withdraw_potato: 77,
+            pending_withdraw_potato_at: 88,
+            pending_withdraw_sol: 99,
+            pending_withdraw_sol_at: 111,
+            pending_withdraw_skr: 222,
+            pending_withdraw_skr_at: 333,
+        };
+        let mut bytes = Vec::new();
+        state.try_serialize(&mut bytes).unwrap();
+        assert_eq!(bytes.len(), 145);
+        assert_eq!(admin_state(&bytes).unwrap(), bytes);
+        let legacy = &bytes[..97];
+        let padded = admin_state(legacy).unwrap();
+        assert_eq!(padded.len(), 145);
+        assert_eq!(&padded[..97], legacy);
+        assert_eq!(&padded[97..], &[0u8; 48]);
+        assert!(admin_state(&bytes[..96]).is_err());
+        let mut too_long = bytes.clone();
+        too_long.push(0);
+        assert_eq!(too_long.len(), 146);
+        assert!(admin_state(&too_long).is_err());
+        assert!(admin_state(&vec![0; 97]).is_err()); // bad discriminator
     }
 
     #[test]
@@ -98,8 +158,8 @@ mod tests {
         assert!(authority(&current, &Pubkey::new_unique()).is_err());
         let signer = Pubkey::new_from_array(current[8..40].try_into().unwrap());
         assert!(authority(&current, &signer).is_ok());
-        for size in [0, 8, 40, 104, 155, 157, 163, 165, 227, 229] {
-            assert!(config(&vec![0; size]).is_err());
+        for size in [0, 8, 40, 104, 155, 157, 163, 165, 227, 229, 259, 261] {
+            assert!(config(&vec![0; size]).is_err(), "size {size} must be rejected");
         }
         let mut corrupt = current.clone(); corrupt[0] ^= 1;
         assert!(config(&corrupt).is_err());
@@ -107,6 +167,7 @@ mod tests {
         assert!(config(&corrupt).is_err());
         assert!(field(&vec![0; 69]).is_err());
         assert!(epoch(&vec![0; 41]).is_err());
+        assert!(admin_state(&vec![0; 97]).is_err());
     }
 
     #[test]
