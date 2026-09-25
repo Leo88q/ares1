@@ -126,12 +126,13 @@ export default function InteractiveTutorial({ onComplete }: Props) {
      {/* Кнопка пропустить */}
      <button
       onClick={handleSkip}
+      aria-label={t('Пропустить')}
       style={{
        position: 'absolute',
        top: '12px',
        right: '12px',
-       width: '32px',
-       height: '32px',
+       width: '44px',
+       height: '44px',
        borderRadius: '6px',
        background: 'rgba(255,255,255,0.05)',
        border: '1px solid rgba(255,255,255,0.1)',

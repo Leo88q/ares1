@@ -477,6 +477,9 @@ const tl: Record<string, string> = {
 
   // Каюта: покупка лицензии
   'Не удалось купить лицензию': 'Nabigong bilhin ang lisensya',
+
+  // Призовое шоу
+  'Пропустить анимацию': 'Laktawan ang animation',
 };
 
 export default tl;

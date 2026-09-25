@@ -477,6 +477,9 @@ const es419: Record<string, string> = {
 
   // Каюта: покупка лицензии
   'Не удалось купить лицензию': 'No se pudo comprar la licencia',
+
+  // Призовое шоу
+  'Пропустить анимацию': 'Omitir animación',
 };
 
 export default es419;

@@ -477,6 +477,9 @@ const vi: Record<string, string> = {
 
   // Каюта: покупка лицензии
   'Не удалось купить лицензию': 'Không thể mua giấy phép',
+
+  // Призовое шоу
+  'Пропустить анимацию': 'Bỏ qua hoạt cảnh',
 };
 
 export default vi;

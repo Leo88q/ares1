@@ -477,6 +477,9 @@ const id: Record<string, string> = {
 
   // Каюта: покупка лицензии
   'Не удалось купить лицензию': 'Gagal membeli lisensi',
+
+  // Призовое шоу
+  'Пропустить анимацию': 'Lewati animasi',
 };
 
 export default id;

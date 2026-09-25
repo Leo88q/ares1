@@ -159,10 +159,11 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
          background: 'rgba(255,255,255,0.06)',
          border: '1px solid var(--pf-border-soft)',
          borderRadius: 10,
-         padding: 6,
+         padding: 14,
+         margin: -8,
          cursor: 'pointer',
          color: 'var(--pf-text-secondary)',
-         display: 'inline-flex',
+         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         }}
        >
         <X size={16} />

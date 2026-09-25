@@ -14,6 +14,7 @@ import { reportWalletError } from './utils/walletBus'
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
 import { clusterApiUrl } from '@solana/web3.js'
 import './i18n/dicts'
+import { t } from './i18n'
 import App from './App'
 import { SolanaProvider, CLUSTER } from './contexts/SolanaContext'
 import './theme/tokens.css'
@@ -76,7 +77,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
      <h1><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFB347" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "-4px", marginRight: 8 }}><path d="M12 3l10 18H2z"/><path d="M12 10v4"/><circle cx="12" cy="17.5" r="0.6" fill="#FFB347"/></svg>Игра упала</h1>
      <p>{this.state.error.message}</p>
      <pre style={{ fontSize: 11, opacity: 0.7 }}>{this.state.error.stack}</pre>
-     <button onClick={() => window.location.reload()}>Перезагрузить</button>
+     <button onClick={() => window.location.reload()}>{t('Перезагрузить')}</button>
     </div>
    )
   }
