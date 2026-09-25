@@ -453,6 +453,27 @@ const id: Record<string, string> = {
   'Награда уже получена.': 'Hadiah sudah diklaim.',
   'Не выполнены условия награды.': 'Syarat hadiah belum terpenuhi.',
   'Минимальный ордер — 10 POTATO.': 'Order minimum — 10 POTATO.',
+
+  // On-chain ошибки, часть 2 (errors.ts)
+  'Некорректный mint-авторитет токена.': 'Otoritas mint tidak valid.',
+  'Mint должен иметь 6 знаков после запятой.': 'Mint harus memiliki 6 desimal.',
+  'У mint не должно быть freeze-авторитета.': 'Mint tidak boleh punya otoritas freeze.',
+  'Пресеил распродан: все поля раскуплены.': 'Presale habis: semua lahan terjual.',
+  'Лимит пресеила: максимум 5 полей на кошелёк.': 'Batas presale: maks 5 lahan per dompet.',
+  'Пресеил неактивен.': 'Presale tidak aktif.',
+  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Kuota grant manual habis (10% dari batas harian).',
+  'Превышен лимит выводов на текущие 24 часа.': 'Batas penarikan 24 jam terlampaui.',
+  'Базовая урожайность слишком высока (макс. 100 POTATO/день).': 'Hasil dasar terlalu tinggi (maks 100 POTATO/hari).',
+  'Админский таймлок ещё не истёк.': 'Timelock admin belum kedaluwarsa.',
+  'Нет активного предложения администратора.': 'Tidak ada proposal admin yang tertunda.',
+  'Эпоха слишком свежая, её пока нельзя закрыть.': 'Epoch terlalu baru untuk ditutup.',
+  'Платный рандом доступен только напрямую, не через другие программы.': 'RNG berbayar hanya langsung, tidak via program lain.',
+  'Таймлок вывода ещё не истёк.': 'Timelock penarikan belum kedaluwarsa.',
+  'Нет активного предложения на вывод этого актива.': 'Tidak ada proposal penarikan untuk aset ini.',
+  'Сумма не совпадает с предложением на вывод.': 'Jumlah tidak cocok dengan proposal penarikan.',
+  'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Jenis penarikan tidak valid: 0=POTATO, 1=SOL, 2=SKR.',
+  'Вывод этого актива уже предложен — сначала отмени его.': 'Penarikan sudah diusulkan — batalkan dulu.',
+  'Нет связи с сетью. Проверь соединение и повтори.': 'Tidak ada koneksi jaringan. Periksa dan coba lagi.',
 };
 
 export default id;

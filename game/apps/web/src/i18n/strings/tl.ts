@@ -453,6 +453,27 @@ const tl: Record<string, string> = {
   'Награда уже получена.': 'Nakuha na ang gantimpala.',
   'Не выполнены условия награды.': 'Hindi pa natutugunan ang mga kondisyon.',
   'Минимальный ордер — 10 POTATO.': 'Minimum na order — 10 POTATO.',
+
+  // On-chain ошибки, часть 2 (errors.ts)
+  'Некорректный mint-авторитет токена.': 'Di-wastong mint authority.',
+  'Mint должен иметь 6 знаков после запятой.': 'Ang mint ay dapat may 6 decimals.',
+  'У mint не должно быть freeze-авторитета.': 'Ang mint ay hindi dapat may freeze authority.',
+  'Пресеил распродан: все поля раскуплены.': 'Ubusan ang presale: nabili na lahat.',
+  'Лимит пресеила: максимум 5 полей на кошелёк.': 'Limit ng presale: max 5 bukid kada wallet.',
+  'Пресеил неактивен.': 'Hindi aktibo ang presale.',
+  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Ubusan ang quota ng manual grant (10% ng daily cap).',
+  'Превышен лимит выводов на текущие 24 часа.': 'Lagpas na sa limit ng withdrawal sa 24 oras.',
+  'Базовая урожайность слишком высока (макс. 100 POTATO/день).': 'Masyadong mataas ang base yield (max 100 POTATO/araw).',
+  'Админский таймлок ещё не истёк.': 'Hindi pa nag-e-expire ang admin timelock.',
+  'Нет активного предложения администратора.': 'Walang nakabinbing admin proposal.',
+  'Эпоха слишком свежая, её пока нельзя закрыть.': 'Masyadong bago ang epoch para isara.',
+  'Платный рандом доступен только напрямую, не через другие программы.': 'Ang paid RNG ay direkta lang, hindi via ibang program.',
+  'Таймлок вывода ещё не истёк.': 'Hindi pa nag-e-expire ang withdrawal timelock.',
+  'Нет активного предложения на вывод этого актива.': 'Walang nakabinbing withdrawal para sa asset na ito.',
+  'Сумма не совпадает с предложением на вывод.': 'Hindi tugma ang halaga sa withdrawal proposal.',
+  'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Di-wastong uri ng withdrawal: 0=POTATO, 1=SOL, 2=SKR.',
+  'Вывод этого актива уже предложен — сначала отмени его.': 'Nakapropose na ang withdrawal — ikansela muna.',
+  'Нет связи с сетью. Проверь соединение и повтори.': 'Walang koneksyon sa network. Suriin at subukang muli.',
 };
 
 export default tl;

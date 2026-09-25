@@ -453,6 +453,27 @@ const es419: Record<string, string> = {
   'Награда уже получена.': 'Recompensa ya reclamada.',
   'Не выполнены условия награды.': 'No cumples las condiciones de la recompensa.',
   'Минимальный ордер — 10 POTATO.': 'Orden mínima — 10 POTATO.',
+
+  // On-chain ошибки, часть 2 (errors.ts)
+  'Некорректный mint-авторитет токена.': 'Autoridad de mint inválida.',
+  'Mint должен иметь 6 знаков после запятой.': 'El mint debe tener 6 decimales.',
+  'У mint не должно быть freeze-авторитета.': 'El mint no debe tener autoridad de congelamiento.',
+  'Пресеил распродан: все поля раскуплены.': 'Preventa agotada: todas las parcelas vendidas.',
+  'Лимит пресеила: максимум 5 полей на кошелёк.': 'Límite de preventa: máx. 5 parcelas por billetera.',
+  'Пресеил неактивен.': 'Preventa inactiva.',
+  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Cuota de créditos manuales agotada (10% del límite diario).',
+  'Превышен лимит выводов на текущие 24 часа.': 'Límite de retiros de 24h excedido.',
+  'Базовая урожайность слишком высока (макс. 100 POTATO/день).': 'Rendimiento base demasiado alto (máx. 100 POTATO/día).',
+  'Админский таймлок ещё не истёк.': 'El timelock de admin aún no expira.',
+  'Нет активного предложения администратора.': 'Sin propuesta de admin pendiente.',
+  'Эпоха слишком свежая, её пока нельзя закрыть.': 'Época demasiado reciente para cerrarla.',
+  'Платный рандом доступен только напрямую, не через другие программы.': 'RNG pagado solo directo, no vía otros programas.',
+  'Таймлок вывода ещё не истёк.': 'El timelock de retiro aún no expira.',
+  'Нет активного предложения на вывод этого актива.': 'Sin propuesta de retiro pendiente para este activo.',
+  'Сумма не совпадает с предложением на вывод.': 'El monto no coincide con la propuesta de retiro.',
+  'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Tipo de retiro inválido: 0=POTATO, 1=SOL, 2=SKR.',
+  'Вывод этого актива уже предложен — сначала отмени его.': 'Retiro ya propuesto — cancélalo primero.',
+  'Нет связи с сетью. Проверь соединение и повтори.': 'Sin conexión de red. Revisa y reintenta.',
 };
 
 export default es419;
