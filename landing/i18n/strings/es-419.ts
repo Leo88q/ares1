@@ -365,6 +365,17 @@ const es419: Record<string, string> = {
   'шанс выпадения': 'probabilidad',
   'Готово': 'Listo',
   'Гидропонный модуль {label}: {stage}': 'Módulo hidropónico {label}: {stage}',
+
+  // Блок «Наш продукт»
+  'НАШ ПРОДУКТ': 'NUESTRO PRODUCTO',
+  'ARES-1 — флагман студии': 'ARES-1 — insignia del estudio',
+  'Ончейн-ферма на Solana: выращивай картофель под куполами Марса, прокачивай делянки до 50 уровня, торгуй урожаем на живой бирже и собирай нашивки за достижения. Поля, рынок и награды — в смарт-контрактах: никакого офчейна.': 'Una granja on-chain en Solana: cultiva papas bajo domos marcianos, mejora parcelas hasta nivel 50, comercia la cosecha en una bolsa viva y colecciona insignias. Campos, mercado y recompensas en smart contracts — nada off-chain.',
+  '100% ончейн — экономика в программе Solana': '100% on-chain — economía en el programa Solana',
+  '3 тира модулей, мутации и прокачка': '3 tiers de módulos, mutaciones y mejoras',
+  'Биржа ордеров за SOL и пресеил': 'Bolsa de órdenes en SOL y preventa',
+  'Играть в ARES-1': 'Jugar ARES-1',
+  'Постер игры ARES-1: картофельная ферма под куполами Марса': 'Póster del juego ARES-1: granja de papas bajo domos marcianos',
+  'Продукт': 'Producto',
 };
 
 export default es419;

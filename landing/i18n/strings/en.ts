@@ -365,6 +365,17 @@ const en: Record<string, string> = {
   'шанс выпадения': 'drop chance',
   'Готово': 'Done',
   'Гидропонный модуль {label}: {stage}': 'Hydroponic module {label}: {stage}',
+
+  // Блок «Наш продукт»
+  'НАШ ПРОДУКТ': 'OUR PRODUCT',
+  'ARES-1 — флагман студии': 'ARES-1 — the studio flagship',
+  'Ончейн-ферма на Solana: выращивай картофель под куполами Марса, прокачивай делянки до 50 уровня, торгуй урожаем на живой бирже и собирай нашивки за достижения. Поля, рынок и награды — в смарт-контрактах: никакого офчейна.': 'An on-chain farm on Solana: grow potatoes under Martian domes, upgrade plots to level 50, trade harvest on a live order-book market and earn achievement patches. Fields, market and rewards live in smart contracts — no off-chain.',
+  '100% ончейн — экономика в программе Solana': '100% on-chain — economy in the Solana program',
+  '3 тира модулей, мутации и прокачка': '3 module tiers, mutations and upgrades',
+  'Биржа ордеров за SOL и пресеил': 'SOL order-book market and presale',
+  'Играть в ARES-1': 'Play ARES-1',
+  'Постер игры ARES-1: картофельная ферма под куполами Марса': 'ARES-1 game poster: a potato farm under Martian domes',
+  'Продукт': 'Product',
 };
 
 export default en;

@@ -365,6 +365,17 @@ const tl: Record<string, string> = {
   'шанс выпадения': 'chance ng drop',
   'Готово': 'Tapos',
   'Гидропонный модуль {label}: {stage}': 'Hydroponic module {label}: {stage}',
+
+  // Блок «Наш продукт»
+  'НАШ ПРОДУКТ': 'AMING PRODUKTO',
+  'ARES-1 — флагман студии': 'ARES-1 — flagship ng studio',
+  'Ончейн-ферма на Solana: выращивай картофель под куполами Марса, прокачивай делянки до 50 уровня, торгуй урожаем на живой бирже и собирай нашивки за достижения. Поля, рынок и награды — в смарт-контрактах: никакого офчейна.': 'Isang on-chain farm sa Solana: magtanim ng patatas sa ilalim ng Martian domes, i-upgrade ang mga bukid hanggang level 50, ikalakal ang ani sa buhay na merkado at kolektahin ang mga patch. Nasa smart contracts ang lahat — walang off-chain.',
+  '100% ончейн — экономика в программе Solana': '100% on-chain — ekonomiya sa Solana program',
+  '3 тира модулей, мутации и прокачка': '3 tier ng module, mutation at upgrade',
+  'Биржа ордеров за SOL и пресеил': 'SOL order-book market at presale',
+  'Играть в ARES-1': 'Laruin ang ARES-1',
+  'Постер игры ARES-1: картофельная ферма под куполами Марса': 'Poster ng larong ARES-1: bukid ng patatas sa ilalim ng Martian domes',
+  'Продукт': 'Produkto',
 };
 
 export default tl;

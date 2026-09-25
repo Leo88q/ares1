@@ -365,6 +365,17 @@ const ptBR: Record<string, string> = {
   'шанс выпадения': 'chance de sair',
   'Готово': 'Pronto',
   'Гидропонный модуль {label}: {stage}': 'Módulo hidropônico {label}: {stage}',
+
+  // Блок «Наш продукт»
+  'НАШ ПРОДУКТ': 'NOSSO PRODUTO',
+  'ARES-1 — флагман студии': 'ARES-1 — carro-chefe do estúdio',
+  'Ончейн-ферма на Solana: выращивай картофель под куполами Марса, прокачивай делянки до 50 уровня, торгуй урожаем на живой бирже и собирай нашивки за достижения. Поля, рынок и награды — в смарт-контрактах: никакого офчейна.': 'Uma fazenda on-chain na Solana: cultive batatas sob domos marcianos, evolua lotes até o nível 50, negocie a colheita numa bolsa viva e colecione insígnias. Campos, mercado e recompensas em smart contracts — nada off-chain.',
+  '100% ончейн — экономика в программе Solana': '100% on-chain — economia no programa Solana',
+  '3 тира модулей, мутации и прокачка': '3 tiers de módulos, mutações e upgrades',
+  'Биржа ордеров за SOL и пресеил': 'Bolsa de ordens em SOL e pré-venda',
+  'Играть в ARES-1': 'Jogar ARES-1',
+  'Постер игры ARES-1: картофельная ферма под куполами Марса': 'Pôster do jogo ARES-1: fazenda de batatas sob domos marcianos',
+  'Продукт': 'Produto',
 };
 
 export default ptBR;
