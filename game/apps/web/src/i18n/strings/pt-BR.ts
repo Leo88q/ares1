@@ -453,6 +453,27 @@ const ptBR: Record<string, string> = {
   'Награда уже получена.': 'Recompensa já resgatada.',
   'Не выполнены условия награды.': 'Condições da recompensa não cumpridas.',
   'Минимальный ордер — 10 POTATO.': 'Pedido mínimo — 10 POTATO.',
+
+  // On-chain ошибки, часть 2 (errors.ts)
+  'Некорректный mint-авторитет токена.': 'Autoridade de mint inválida.',
+  'Mint должен иметь 6 знаков после запятой.': 'O mint deve ter 6 casas decimais.',
+  'У mint не должно быть freeze-авторитета.': 'O mint não deve ter autoridade de congelamento.',
+  'Пресеил распродан: все поля раскуплены.': 'Pré-venda esgotada: todos os lotes vendidos.',
+  'Лимит пресеила: максимум 5 полей на кошелёк.': 'Limite da pré-venda: máx. 5 lotes por carteira.',
+  'Пресеил неактивен.': 'Pré-venda inativa.',
+  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Cota de créditos manuais esgotada (10% do limite diário).',
+  'Превышен лимит выводов на текущие 24 часа.': 'Limite de saques das últimas 24h excedido.',
+  'Базовая урожайность слишком высока (макс. 100 POTATO/день).': 'Rendimento base alto demais (máx. 100 POTATO/dia).',
+  'Админский таймлок ещё не истёк.': 'Timelock de admin ainda não expirou.',
+  'Нет активного предложения администратора.': 'Sem proposta de admin pendente.',
+  'Эпоха слишком свежая, её пока нельзя закрыть.': 'Época recente demais para encerrar.',
+  'Платный рандом доступен только напрямую, не через другие программы.': 'RNG pago só funciona direto, não via outros programas.',
+  'Таймлок вывода ещё не истёк.': 'Timelock de saque ainda não expirou.',
+  'Нет активного предложения на вывод этого актива.': 'Sem proposta de saque pendente para este ativo.',
+  'Сумма не совпадает с предложением на вывод.': 'Valor não confere com a proposta de saque.',
+  'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Tipo de saque inválido: 0=POTATO, 1=SOL, 2=SKR.',
+  'Вывод этого актива уже предложен — сначала отмени его.': 'Saque já proposto — cancele-o primeiro.',
+  'Нет связи с сетью. Проверь соединение и повтори.': 'Sem conexão de rede. Verifique e tente de novo.',
 };
 
 export default ptBR;

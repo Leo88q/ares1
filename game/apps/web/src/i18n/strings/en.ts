@@ -453,6 +453,27 @@ const en: Record<string, string> = {
   'Награда уже получена.': 'Reward already claimed.',
   'Не выполнены условия награды.': 'Reward conditions not met.',
   'Минимальный ордер — 10 POTATO.': 'Minimum order — 10 POTATO.',
+
+  // On-chain ошибки, часть 2 (errors.ts)
+  'Некорректный mint-авторитет токена.': 'Invalid token mint authority.',
+  'Mint должен иметь 6 знаков после запятой.': 'Mint must have 6 decimals.',
+  'У mint не должно быть freeze-авторитета.': 'Mint must not have a freeze authority.',
+  'Пресеил распродан: все поля раскуплены.': 'Presale sold out: all plots claimed.',
+  'Лимит пресеила: максимум 5 полей на кошелёк.': 'Presale limit: max 5 plots per wallet.',
+  'Пресеил неактивен.': 'Presale is not active.',
+  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Manual grant quota exhausted (10% of the daily cap).',
+  'Превышен лимит выводов на текущие 24 часа.': 'Withdrawal limit for the current 24h window exceeded.',
+  'Базовая урожайность слишком высока (макс. 100 POTATO/день).': 'Base yield too high (max 100 POTATO/day).',
+  'Админский таймлок ещё не истёк.': 'Admin timelock has not expired yet.',
+  'Нет активного предложения администратора.': 'No pending admin proposal.',
+  'Эпоха слишком свежая, её пока нельзя закрыть.': 'Epoch is too recent to close.',
+  'Платный рандом доступен только напрямую, не через другие программы.': 'Paid RNG only works top-level, not via other programs.',
+  'Таймлок вывода ещё не истёк.': 'Withdrawal timelock has not expired yet.',
+  'Нет активного предложения на вывод этого актива.': 'No pending withdrawal proposal for this asset.',
+  'Сумма не совпадает с предложением на вывод.': 'Amount does not match the pending withdrawal.',
+  'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Invalid withdrawal kind: 0=POTATO, 1=SOL, 2=SKR.',
+  'Вывод этого актива уже предложен — сначала отмени его.': 'Withdrawal already proposed — cancel it first.',
+  'Нет связи с сетью. Проверь соединение и повтори.': 'No network connection. Check it and retry.',
 };
 
 export default en;

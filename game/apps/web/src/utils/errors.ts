@@ -42,6 +42,24 @@ const RU: Record<string, string> = {
  PrepayLimitReached: 'Лимит предоплаты: налог до 28 дней, удобрение до 7 дней вперёд.',
  NothingToRepair: 'Целостность уже максимальная.',
  MaxSupplyReached: 'Достигнут максимальный supply $POTATO.',
+ InvalidMintAuthority: 'Некорректный mint-авторитет токена.',
+ InvalidMintDecimals: 'Mint должен иметь 6 знаков после запятой.',
+ MintHasFreezeAuthority: 'У mint не должно быть freeze-авторитета.',
+ PresaleCapReached: 'Пресеил распродан: все поля раскуплены.',
+ PresaleWalletLimitReached: 'Лимит пресеила: максимум 5 полей на кошелёк.',
+ PresaleNotActive: 'Пресеил неактивен.',
+ GrantQuotaExceeded: 'Квота ручных начислений исчерпана (10% от дневного лимита).',
+ WithdrawWindowLimitExceeded: 'Превышен лимит выводов на текущие 24 часа.',
+ BaseYieldTooHigh: 'Базовая урожайность слишком высока (макс. 100 POTATO/день).',
+ TimelockNotExpired: 'Админский таймлок ещё не истёк.',
+ NothingPending: 'Нет активного предложения администратора.',
+ EpochTooRecent: 'Эпоха слишком свежая, её пока нельзя закрыть.',
+ CpiGrindNotAllowed: 'Платный рандом доступен только напрямую, не через другие программы.',
+ WithdrawTimelockNotExpired: 'Таймлок вывода ещё не истёк.',
+ NoPendingWithdrawal: 'Нет активного предложения на вывод этого актива.',
+ WithdrawAmountMismatch: 'Сумма не совпадает с предложением на вывод.',
+ InvalidWithdrawKind: 'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.',
+ WithdrawalAlreadyProposed: 'Вывод этого актива уже предложен — сначала отмени его.',
 }
 
 /** Anchor built-in error codes we expect players to hit. */
@@ -57,8 +75,13 @@ export function isRateLimited(err: unknown): boolean {
  return /429|too many requests|rate limit/i.test(msg)
 }
 
+export function isOfflineError(err: unknown): boolean {
+ const msg = messageOf(err)
+ return /failed to fetch|network request failed|load failed|connection (closed|refused|reset)|websocket|socket hang up|econn|enotfound/i.test(msg)
+}
+
 export function isUserRejection(err: unknown): boolean {
- return /user rejected|rejected the request|отклон/i.test(messageOf(err))
+ return /user rejected|rejected the request|rejected by user|transaction rejected|user denied|user cancel|user closed|отклон|отмен/i.test(messageOf(err))
 }
 
 function messageOf(err: unknown): string {
@@ -72,11 +95,12 @@ export function describeError(err: unknown): string {
  const raw = messageOf(err)
  if (isUserRejection(err)) return t('Транзакция отклонена в кошельке.')
  if (isRateLimited(err)) return t('RPC перегружен (429). Подожди несколько секунд и повтори.')
+ if (isOfflineError(err)) return t('Нет связи с сетью. Проверь соединение и повтори.')
  if (/insufficient (lamports|funds)|Attempt to debit an account but found no record/i.test(raw)) {
   return t('Недостаточно SOL на комиссии сети или аренды аккаунта.')
  }
  if (/insufficient funds/i.test(raw) && /Token/i.test(raw)) return t('Недостаточно $POTATO.')
- if (/blockhash not found|block height exceeded/i.test(raw)) return t('Сеть не подтвердила транзакцию вовремя. Повтори.')
+ if (/blockhash not found|block height exceeded|was not confirmed|not confirmed in/i.test(raw)) return t('Сеть не подтвердила транзакцию вовремя. Повтори.')
 
  const custom = raw.match(/custom program error: 0x([0-9a-fA-F]+)/)
  const numbered = raw.match(/Error Number: (\d+)/)
