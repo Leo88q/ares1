@@ -64,7 +64,7 @@ const en: Record<string, string> = {
   'Аккаунт ещё не создан — нужен $POTATO-кошелёк (создаётся автоматически при первом сборе).': 'Account not created yet — a $POTATO wallet is needed (it is created automatically on your first harvest).',
   'Аккаунт не соответствует ожидаемому (проверь кошелёк и mint).': 'Account doesn’t match the expected one (check your wallet and mint).',
   'Активных ордеров': 'Active orders',
-  'Антиспам: 5 POTATO сгорает с баланса приглашённого, разово': 'Anti-spam: 5 POTATO burned from the invitee’s balance, one time only',
+  'Антиспам: 5 🥔 сгорает с баланса приглашённого, разово': 'Anti-spam: 5 🥔 burned from the invitee’s balance, one time only',
   'Апгрейд модуля': 'Upgrade module',
   'Апгрейд модуля до ур. {level} ({cost} POTATO)': 'Upgrade module to lvl {level} ({cost} POTATO)',
   'Базовая генетика': 'Base genetics',

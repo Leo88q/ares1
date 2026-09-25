@@ -54,7 +54,7 @@ const id: Record<string, string> = {
   'Аккаунт ещё не создан — нужен $POTATO-кошелёк (создаётся автоматически при первом сборе).': 'Akun belum dibuat — perlu dompet $POTATO (dibuat otomatis saat panen pertama).',
   'Аккаунт не соответствует ожидаемому (проверь кошелёк и mint).': 'Akun tidak cocok dengan yang diharapkan (periksa dompet dan mint).',
   'Активных ордеров': 'Order aktif',
-  'Антиспам: 5 POTATO сгорает с баланса приглашённого, разово': 'Anti-spam: 5 POTATO dibakar dari saldo yang diundang, sekali saja',
+  'Антиспам: 5 🥔 сгорает с баланса приглашённого, разово': 'Anti-spam: 5 🥔 dibakar dari saldo yang diundang, sekali saja',
   'Апгрейд модуля': 'Upgrade modul',
   'Апгрейд модуля до ур. {level} ({cost} POTATO)': 'Upgrade modul ke tingkat {level} ({cost} POTATO)',
   'Базовая генетика': 'Genetik dasar',

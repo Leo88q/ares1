@@ -54,7 +54,7 @@ const vi: Record<string, string> = {
   'Аккаунт ещё не создан — нужен $POTATO-кошелёк (создаётся автоматически при первом сборе).': 'Chưa tạo tài khoản — cần ví $POTATO (tự tạo ở lần thu hoạch đầu).',
   'Аккаунт не соответствует ожидаемому (проверь кошелёк и mint).': 'Tài khoản không khớp với mong đợi (kiểm tra ví và mint).',
   'Активных ордеров': 'Lệnh đang hoạt động',
-  'Антиспам: 5 POTATO сгорает с баланса приглашённого, разово': 'Chống spam: đốt 5 POTATO từ cân đối của người được mời, chỉ một lần',
+  'Антиспам: 5 🥔 сгорает с баланса приглашённого, разово': 'Chống spam: đốt 5 🥔 từ cân đối của người được mời, chỉ một lần',
   'Апгрейд модуля': 'Nâng cấp mô-đun',
   'Апгрейд модуля до ур. {level} ({cost} POTATO)': 'Nâng cấp mô-đun lên cấp {level} ({cost} POTATO)',
   'Базовая генетика': 'Gen di truyền gốc',

@@ -54,7 +54,7 @@ const tl: Record<string, string> = {
   'Аккаунт ещё не создан — нужен $POTATO-кошелёк (создаётся автоматически при первом сборе).': 'Hindi pa nakakalikha ng account — kailangan ng $POTATO wallet (awtomatikong malilikha sa unang ani).',
   'Аккаунт не соответствует ожидаемому (проверь кошелёк и mint).': 'Hindi tumutugma ang account sa inaasahan (surien ang wallet at mint).',
   'Активных ордеров': 'Mga aktibong order',
-  'Антиспам: 5 POTATO сгорает с баланса приглашённого, разово': 'Laban sa spam: 5 na POTATO ang aabutin mula sa balance ng tinawag, iisa lang',
+  'Антиспам: 5 🥔 сгорает с баланса приглашённого, разово': 'Laban sa spam: 5 na POTATO ang aabutin mula sa balance ng tinawag, iisa lang',
   'Апгрейд модуля': 'I-upgrade ang modyul',
   'Апгрейд модуля до ур. {level} ({cost} POTATO)': 'I-upgrade ang modyul hanggang antas {level} ({cost} POTATO)',
   'Базовая генетика': 'Pundasyong genetica',
