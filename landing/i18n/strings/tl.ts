@@ -282,7 +282,7 @@ const tl: Record<string, string> = {
   'ВЫРАСТИ ПЕРВУЮ КАРТОШКУ НА МАРСЕ': 'TUMUBO NG UNANG PATATAS SA MARS',
   'ARES-1 — ончейн-колония на Solana (devnet). Купи гидропонный модуль за 1 053 SKR, расти $POTATO под куполом и торгуй с колонистами. Всего 500 модулей в первой волне — цена и счётчик ниже живые, читаются с devnet.': 'Ang ARES-1 ay isang on-chain kolonya sa Solana (devnet). Bumili ng hydroponic module sa 1,053 SKR, tumubo ng $POTATO sa ilalim ng dome, at magtrade ng mga kolonis. Ang 500 module lamang sa unang alon — ang presyo at counter sa ibaba ay buhay, binabasa mula sa devnet.',
   'Купить модуль': 'Bumili ng module',
-  '◈ Открыть игру': '◈ Buksan ang laro',
+  'Открыть игру': 'Buksan ang laro',
   '0 / 500 модулей продано': '0 / 500 module na nabili',
   'Модули первой волны': 'Mga module ng unang alon',
   'Статус волны:': 'Katayuan ng alon:',

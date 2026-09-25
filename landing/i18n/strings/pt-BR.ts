@@ -282,7 +282,7 @@ const ptBR: Record<string, string> = {
   'ВЫРАСТИ ПЕРВУЮ КАРТОШКУ НА МАРСЕ': 'CULIVE A PRIMEIRA BATATA EM MARTE',
   'ARES-1 — ончейн-колония на Solana (devnet). Купи гидропонный модуль за 1 053 SKR, расти $POTATO под куполом и торгуй с колонистами. Всего 500 модулей в первой волне — цена и счётчик ниже живые, читаются с devnet.': 'ARES-1 é uma colônia on-chain na Solana (devnet). Compre um módulo hidropônico por 1.053 SKR, crie $POTATO sob a cúpula e negocie com os colonos. São só 500 módulos na primeira onda — o preço e a contagem abaixo são ao vivo, lidos do devnet.',
   'Купить модуль': 'Comprar módulo',
-  '◈ Открыть игру': '◈ Abrir o jogo',
+  'Открыть игру': 'Abrir o jogo',
   '0 / 500 модулей продано': '0 / 500 módulos vendidos',
   'Модули первой волны': 'Módulos da primeira onda',
   'Статус волны:': 'Status da onda:',
