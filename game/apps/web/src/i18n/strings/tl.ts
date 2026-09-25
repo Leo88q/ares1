@@ -73,6 +73,8 @@ const tl: Record<string, string> = {
   'Варим зелье...': 'Niluluto ang elixir…',
   'Варим зельье...': 'Niluluto ang elixir…',
   'Ветеран': 'Beterano',
+  'Стена нашивок': 'Pader ng mga patch',
+  'Награды экипажа из журнала. Серые — ещё не получены.': 'Mga gantimpala ng crew mula sa log. Ang mga abo ay hindi pa nakukuha.',
   'Вибрация': 'Pag-ibang',
   'Владей 5 полями': 'May-ari ng 5 na hilaw',
   'Владей 6 полями, хотя бы одно 3-го уровня': 'May-ari ng 6 na hilaw, isa man ay antas 3',

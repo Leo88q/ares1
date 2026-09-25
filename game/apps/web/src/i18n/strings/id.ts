@@ -73,6 +73,8 @@ const id: Record<string, string> = {
   'Варим зелье...': 'Memasak ramuan…',
   'Варим зельье...': 'Memasak ramuan…',
   'Ветеран': 'Veteran',
+  'Стена нашивок': 'Dinding patch',
+  'Награды экипажа из журнала. Серые — ещё не получены.': 'Penghargaan kru dari jurnal. Yang abu-abu belum didapat.',
   'Вибрация': 'Getaran',
   'Владей 5 полями': 'Miliki 5 bedeng',
   'Владей 6 полями, хотя бы одно 3-го уровня': 'Miliki 6 bedeng, minimal satu bertingkat 3',

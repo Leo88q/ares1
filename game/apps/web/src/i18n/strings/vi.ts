@@ -73,6 +73,8 @@ const vi: Record<string, string> = {
   'Варим зелье...': 'Đang pha chế phẩm…',
   'Варим зельье...': 'Đang pha chế phẩm…',
   'Ветеран': 'Thủ cựu',
+  'Стена нашивок': 'Tường phù hiệu',
+  'Награды экипажа из журнала. Серые — ещё не получены.': 'Phần thưởng phi hành đoàn từ nhật ký. Huy hiệu xám chưa đạt được.',
   'Вибрация': 'Rung',
   'Владей 5 полями': 'Sở hữu 5 mảnh đất',
   'Владей 6 полями, хотя бы одно 3-го уровня': 'Sở hữu 6 mảnh đất, ít nhất một mảnh cấp 3',
