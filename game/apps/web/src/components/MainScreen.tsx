@@ -157,7 +157,10 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
        }}
        style={{ padding: 10, borderRadius: 10, fontSize: 12, fontWeight: 600, display: 'flex', justifyContent: 'space-between', ...styles[type.id] }}
       >
-       <span><span className="ares-mono" style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.14em' }}>{RARE_LABELS[type.id]}</span> <span className="ares-mono" style={{ fontSize: 10, opacity: 0.75 }}>(×{(type.yieldBps / 10_000).toFixed(2)})</span></span>
+       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <img src={type.image} alt={RARE_LABELS[type.id]} width={26} height={30} loading="lazy" style={{ width: 26, height: 30, objectFit: 'contain' }} />
+        <span><span className="ares-mono" style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.14em' }}>{RARE_LABELS[type.id]}</span> <span className="ares-mono" style={{ fontSize: 10, opacity: 0.75 }}>(×{(type.yieldBps / 10_000).toFixed(2)})</span></span>
+       </span>
        <span>{fmtPotato(price, 0)} POTATO</span>
       </motion.button>
      )

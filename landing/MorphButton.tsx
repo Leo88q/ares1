@@ -190,7 +190,7 @@ export function MorphButton(props: MorphButtonProps): JSX.Element {
     fullWidth = false,
     className = "",
     loadingLabel = t("Загрузка…"),
-    successLabel = t("✓ Готово"),
+    successLabel = t("Готово"),
     ...nativeProps
   } = props;
 

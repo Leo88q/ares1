@@ -316,15 +316,13 @@
   min-width: 0;
 }
 
-/* Фото-капсулы: одна картинка, три кропа по третям кадра */
+/* Фото-капсулы: три отдельных WebP */
 .mini-hydro-img {
   width: 100%;
   max-width: 132px;
   margin-inline: auto;
   aspect-ratio: 0.74;
-  background-image: url('/ares/modules.png');
-  background-size: 300% 100%;
-  background-repeat: no-repeat;
+  object-fit: contain;
   border-radius: 6px;
   transition: transform 0.3s ease, filter 0.3s ease;
   /* фон фото растворяется в фоне панели */
@@ -334,17 +332,14 @@
 }
 
 .mini-hydro--common .mini-hydro-img {
-  background-position: 0% 0;
   filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 16px rgba(187, 212, 232, 0.22));
 }
 
 .mini-hydro--rare .mini-hydro-img {
-  background-position: 50% 0;
   filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 16px rgba(196, 108, 255, 0.28));
 }
 
 .mini-hydro--epic .mini-hydro-img {
-  background-position: 100% 0;
   filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 16px rgba(255, 210, 120, 0.28));
 }
 

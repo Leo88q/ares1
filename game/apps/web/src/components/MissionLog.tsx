@@ -15,9 +15,30 @@ interface Achievement {
  id: string
  title: string
  desc: string
+ patch: string
  progress: number
  target: number
  reward: number
+}
+
+function PatchImg({ src, title, done }: { src: string; title: string; done: boolean }): JSX.Element | null {
+ const [failed, setFailed] = useState(false)
+ if (failed) return null
+ return (
+  <img
+   src={src}
+   alt={title}
+   width={52}
+   height={52}
+   loading="lazy"
+   onError={() => setFailed(true)}
+   style={{
+    width: 52, height: 52, objectFit: 'contain', flexShrink: 0,
+    opacity: done ? 1 : 0.55,
+    filter: done ? 'drop-shadow(0 0 10px rgba(255,179,71,0.45))' : 'grayscale(0.6)',
+   }}
+  />
+ )
 }
 
 /**
@@ -29,12 +50,12 @@ interface Achievement {
 function getAchievements(stats: GameStats): Achievement[] {
  const potato = stats.potatoBalance / MICRO
  return [
-  { id: 'a1', title: t('Первый росток'), desc: t('Создай первое поле'), progress: Math.min(stats.totalFields, 1), target: 1, reward: 50 },
-  { id: 'a2', title: t('Первый урожай'), desc: t('Накопи на балансе 100 POTATO'), progress: Math.min(potato, 100), target: 100, reward: 50 },
-  { id: 'a3', title: t('Тысячник'), desc: t('Накопи на балансе 1 000 POTATO'), progress: Math.min(potato, 1000), target: 1000, reward: 100 },
-  { id: 'a4', title: t('Фермер-магнат'), desc: t('Владей 5 полями'), progress: Math.min(stats.totalFields, 5), target: 5, reward: 100 },
-  { id: 'a5', title: t('Картофельный барон'), desc: t('Накопи на балансе 10 000 POTATO'), progress: Math.min(potato, 10000), target: 10000, reward: 200 },
-  { id: 'a6', title: t('Ветеран'), desc: t('Владей 6 полями, хотя бы одно 3-го уровня'), progress: Math.min(stats.totalFields, 6), target: 6, reward: 50 },
+  { id: 'a1', title: t('Первый росток'), desc: t('Создай первое поле'), patch: '/ares/patch-sprout.webp', progress: Math.min(stats.totalFields, 1), target: 1, reward: 50 },
+  { id: 'a2', title: t('Первый урожай'), desc: t('Накопи на балансе 100 POTATO'), patch: '/ares/patch-harvest.webp', progress: Math.min(potato, 100), target: 100, reward: 50 },
+  { id: 'a3', title: t('Тысячник'), desc: t('Накопи на балансе 1 000 POTATO'), patch: '/ares/patch-thousand.webp', progress: Math.min(potato, 1000), target: 1000, reward: 100 },
+  { id: 'a4', title: t('Фермер-магнат'), desc: t('Владей 5 полями'), patch: '/ares/patch-magnat.webp', progress: Math.min(stats.totalFields, 5), target: 5, reward: 100 },
+  { id: 'a5', title: t('Картофельный барон'), desc: t('Накопи на балансе 10 000 POTATO'), patch: '/ares/patch-baron.webp', progress: Math.min(potato, 10000), target: 10000, reward: 200 },
+  { id: 'a6', title: t('Ветеран'), desc: t('Владей 6 полями, хотя бы одно 3-го уровня'), patch: '/ares/patch-veteran.webp', progress: Math.min(stats.totalFields, 6), target: 6, reward: 50 },
  ]
 }
 
@@ -95,6 +116,7 @@ export function MissionLog() {
       <motion.div key={ach.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
        className="pf-card hull-skin" style={{ padding: 16, borderRadius: 16, opacity: done ? 1 : 0.75 }}>
        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <PatchImg src={ach.patch} title={ach.title} done={done} />
         <div style={{ flex: 1 }}>
          <div className="ares-stencil" style={{ fontSize: 13, marginBottom: 2, color: 'var(--ares-hud-amber, #FFB347)', textShadow: '0 0 10px rgba(255,179,71,0.35)' }}>{ach.title}</div>
          <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 6 }}>{ach.desc}</div>

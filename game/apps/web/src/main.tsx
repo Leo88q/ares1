@@ -73,7 +73,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
   if (this.state.error) {
    return (
     <div style={{ padding: 20, color: '#fff', background: '#0a0a0f', minHeight: '100vh', fontFamily: 'monospace' }}>
-     <h1>💥 Игра упала</h1>
+     <h1><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FFB347" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: "-4px", marginRight: 8 }}><path d="M12 3l10 18H2z"/><path d="M12 10v4"/><circle cx="12" cy="17.5" r="0.6" fill="#FFB347"/></svg>Игра упала</h1>
      <p>{this.state.error.message}</p>
      <pre style={{ fontSize: 11, opacity: 0.7 }}>{this.state.error.stack}</pre>
      <button onClick={() => window.location.reload()}>Перезагрузить</button>

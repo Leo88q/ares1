@@ -31,14 +31,15 @@ export interface FieldTypeInfo {
  id: 0 | 1 | 2
  name: string
  emoji: string
+ image: string
  yieldBps: number
  costBps: number
 }
 
 export const FIELD_TYPES: readonly FieldTypeInfo[] = [
- { id: 0, name: 'Common', emoji: '', yieldBps: 3_500, costBps: 4_000 },
- { id: 1, name: 'Rare', emoji: 'POTATO', yieldBps: 10_000, costBps: 10_000 },
- { id: 2, name: 'Epic', emoji: '', yieldBps: 21_000, costBps: 20_000 },
+ { id: 0, name: 'Common', emoji: '', image: '/ares/cassette-common.webp', yieldBps: 3_500, costBps: 4_000 },
+ { id: 1, name: 'Rare', emoji: 'POTATO', image: '/ares/cassette-rare.webp', yieldBps: 10_000, costBps: 10_000 },
+ { id: 2, name: 'Epic', emoji: '', image: '/ares/cassette-epic.webp', yieldBps: 21_000, costBps: 20_000 },
 ]
 
 export function fieldTypeInfo(fieldType: number): FieldTypeInfo {
