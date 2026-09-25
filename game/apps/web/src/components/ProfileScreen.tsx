@@ -15,10 +15,11 @@ import AudioSettings from './AudioSettings'
 import { HullPanel } from '../ui/HullPanel'
 import { RollingNumber } from '../ui/RollingNumber'
 import { SparkProgress } from '../ui/SparkProgress'
+import { PatchWall } from './ares/PatchWall'
 
 function ProfileScreenInner() {
  const { connected, publicKey, ready, programId, connection, sendIx } = useSolana()
- const { stats } = useGame()
+ const { stats, claimed } = useGame()
  const [license, setLicense] = useState<{ expiresAt: number; active: boolean } | null>(null)
  const [buyingLicense, setBuyingLicense] = useState(false)
 
@@ -62,6 +63,15 @@ function ProfileScreenInner() {
  const licenseDays = license ? Math.max(0, Math.ceil((license.expiresAt - Math.floor(Date.now() / 1000)) / 86400)) : 0
 
  const fieldsToNext = 3 - (stats.totalFields % 3)
+
+ const patches = [
+  { id: 'a1', label: t('Первый росток'), imageSrc: '/ares/patch-sprout.webp', earned: Boolean(claimed.a1) },
+  { id: 'a2', label: t('Первый урожай'), imageSrc: '/ares/patch-harvest.webp', earned: Boolean(claimed.a2) },
+  { id: 'a3', label: t('Тысячник'), imageSrc: '/ares/patch-thousand.webp', earned: Boolean(claimed.a3) },
+  { id: 'a4', label: t('Фермер-магнат'), imageSrc: '/ares/patch-magnat.webp', earned: Boolean(claimed.a4) },
+  { id: 'a5', label: t('Картофельный барон'), imageSrc: '/ares/patch-baron.webp', earned: Boolean(claimed.a5) },
+  { id: 'a6', label: t('Ветеран'), imageSrc: '/ares/patch-veteran.webp', earned: Boolean(claimed.a6) },
+ ]
 
  return (
   <div style={{ padding: 20, paddingBottom: 140 }}>
@@ -147,6 +157,19 @@ function ProfileScreenInner() {
      <p style={{ fontSize: 12, color: 'var(--pf-text-secondary)' }}>
  {t('До ранга {next}: ещё {plots}. Ранг игрока растёт с каждыми 3 полями.', { next: stats.playerLevel + 1, plots: plural(fieldsToNext, { one: t('поле'), few: t('поля'), many: t('полей') }) })}
      </p>
+    </div>
+   </HullPanel>
+
+   <HullPanel style={{ marginBottom: 16 }}>
+    <div style={{ padding: 20 }}>
+     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+      <Trophy size={18} color="var(--pf-gold)" aria-hidden="true" />
+      <span style={{ fontSize: 16, fontWeight: 700 }}>{t('Стена нашивок')}</span>
+     </div>
+     <p style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8 }}>
+      {t('Награды экипажа из журнала. Серые — ещё не получены.')}
+     </p>
+     <PatchWall patches={patches} />
     </div>
    </HullPanel>
 

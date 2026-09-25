@@ -73,6 +73,8 @@ const ptBR: Record<string, string> = {
   'Варим зелье...': 'Preparando o elixir…',
   'Варим зельье...': 'Preparando o elixir…',
   'Ветеран': 'Veterano',
+  'Стена нашивок': 'Mural de insígnias',
+  'Награды экипажа из журнала. Серые — ещё не получены.': 'Condecorações da tripulação do diário. As cinzas ainda não foram ganhas.',
   'Вибрация': 'Vibração',
   'Владей 5 полями': 'Tenha 5 canteiros',
   'Владей 6 полями, хотя бы одно 3-го уровня': 'Tenha 6 canteiros, pelo menos um de nível 3',

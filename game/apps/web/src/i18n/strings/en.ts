@@ -82,6 +82,8 @@ const en: Record<string, string> = {
   'Валюта': 'Currency',
   'Варим зелье...': 'Brewing the elixir…',
   'Ветеран': 'Veteran',
+  'Стена нашивок': 'Patch wall',
+  'Награды экипажа из журнала. Серые — ещё не получены.': 'Crew decorations from the log. Grey ones are not earned yet.',
   'Вибрация': 'Vibration',
   'Владей 5 полями': 'Own 5 plots',
   'Владей 6 полями, хотя бы одно 3-го уровня': 'Own 6 plots, at least one at level 3',

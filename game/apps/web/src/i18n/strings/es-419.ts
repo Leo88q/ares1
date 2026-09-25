@@ -73,6 +73,8 @@ const es419: Record<string, string> = {
   'Варим зелье...': 'Preparando el elixir…',
   'Варим зельье...': 'Preparando el elixir…',
   'Ветеран': 'Veterano',
+  'Стена нашивок': 'Muro de parches',
+  'Награды экипажа из журнала. Серые — ещё не получены.': 'Condecoraciones de la tripulación del registro. Las grises aún no se obtienen.',
   'Вибрация': 'Vibración',
   'Владей 5 полями': 'Ten 5 parcelas',
   'Владей 6 полями, хотя бы одно 3-го уровня': 'Ten 6 parcelas, al menos una de nivel 3',
