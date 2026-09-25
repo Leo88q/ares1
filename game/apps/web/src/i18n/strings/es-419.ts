@@ -439,6 +439,20 @@ const es419: Record<string, string> = {
   'Пошлина просрочена: {n}': 'Impuesto vencido: {n}',
   'Техремонт требуется: {n}': 'Reparaciones necesarias: {n}',
   'Все системы в норме': 'Todos los sistemas en orden',
+
+  // Тосты транзакций (GameContext)
+  'LUT создана': 'LUT creada',
+  'Максимум 10 полей за один батч.': 'Máximo 10 parcelas por lote.',
+  'Не удалось закрыть поле': 'No se pudo cerrar la parcela',
+  'Не удалось отправить SOL': 'No se pudo enviar SOL',
+  'Не удалось собрать урожай батчем': 'Fallo en la cosecha por lote',
+  'Не удалось создать LUT': 'No se pudo crear la LUT',
+  'Слишком много полей': 'Demasiadas parcelas',
+
+  // On-chain ошибки (errors.ts)
+  'Награда уже получена.': 'Recompensa ya reclamada.',
+  'Не выполнены условия награды.': 'No cumples las condiciones de la recompensa.',
+  'Минимальный ордер — 10 POTATO.': 'Orden mínima — 10 POTATO.',
 };
 
 export default es419;

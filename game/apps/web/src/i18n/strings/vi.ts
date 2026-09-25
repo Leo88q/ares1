@@ -439,6 +439,20 @@ const vi: Record<string, string> = {
   'Пошлина просрочена: {n}': 'Thuế quá hạn: {n}',
   'Техремонт требуется: {n}': 'Cần sửa chữa: {n}',
   'Все системы в норме': 'Mọi hệ thống ổn định',
+
+  // Тосты транзакций (GameContext)
+  'LUT создана': 'Đã tạo LUT',
+  'Максимум 10 полей за один батч.': 'Tối đa 10 thửa mỗi đợt.',
+  'Не удалось закрыть поле': 'Không thể đóng thửa',
+  'Не удалось отправить SOL': 'Không thể gửi SOL',
+  'Не удалось собрать урожай батчем': 'Thu hoạch hàng loạt thất bại',
+  'Не удалось создать LUT': 'Không thể tạo LUT',
+  'Слишком много полей': 'Quá nhiều thửa',
+
+  // On-chain ошибки (errors.ts)
+  'Награда уже получена.': 'Phần thưởng đã được nhận.',
+  'Не выполнены условия награды.': 'Chưa đủ điều kiện nhận thưởng.',
+  'Минимальный ордер — 10 POTATO.': 'Lệnh tối thiểu — 10 POTATO.',
 };
 
 export default vi;
