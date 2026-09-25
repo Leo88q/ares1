@@ -54,7 +54,7 @@ const ptBR: Record<string, string> = {
   'Аккаунт ещё не создан — нужен $POTATO-кошелёк (создаётся автоматически при первом сборе).': 'Conta ainda não criada — é necessário uma carteira $POTATO (criada automaticamente na primeira colheita).',
   'Аккаунт не соответствует ожидаемому (проверь кошелёк и mint).': 'A conta não confere com a esperada (verifique sua carteira e o mint).',
   'Активных ордеров': 'Pedidos ativos',
-  'Антиспам: 5 POTATO сгорает с баланса приглашённого, разово': 'Antispam: 5 POTATO queimados do saldo do convidado, uma única vez',
+  'Антиспам: 5 🥔 сгорает с баланса приглашённого, разово': 'Antispam: 5 🥔 queimados do saldo do convidado, uma única vez',
   'Апгрейд модуля': 'Fazer upgrade do módulo',
   'Апгрейд модуля до ур. {level} ({cost} POTATO)': 'Upgrade do módulo para o nível {level} ({cost} POTATO)',
   'Базовая генетика': 'Genética base',

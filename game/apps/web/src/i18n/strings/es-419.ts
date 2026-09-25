@@ -54,7 +54,7 @@ const es419: Record<string, string> = {
   'Аккаунт ещё не создан — нужен $POTATO-кошелёк (создаётся автоматически при первом сборе).': 'Cuenta aún no creada — se necesita una billetera $POTATO (se crea automáticamente en la primera cosecha).',
   'Аккаунт не соответствует ожидаемому (проверь кошелёк и mint).': 'La cuenta no coincide con la esperada (revisa tu billetera y el mint).',
   'Активных ордеров': 'Órdenes activas',
-  'Антиспам: 5 POTATO сгорает с баланса приглашённого, разово': 'Antispam: 5 POTATO quemados del saldo del invitado, una sola vez',
+  'Антиспам: 5 🥔 сгорает с баланса приглашённого, разово': 'Antispam: 5 🥔 quemados del saldo del invitado, una sola vez',
   'Апгрейд модуля': 'Mejorar módulo',
   'Апгрейд модуля до ур. {level} ({cost} POTATO)': 'Mejorar módulo al nivel {level} ({cost} POTATO)',
   'Базовая генетика': 'Genética base',
