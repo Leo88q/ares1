@@ -6,6 +6,7 @@ import {
   AuthorityType,
   TOKEN_PROGRAM_ID,
   createMint,
+  createMintToInstruction,
   getAccount,
   getAssociatedTokenAddressSync,
   getMint,
@@ -1289,6 +1290,126 @@ describe("solana_potato", () => {
       await expectFail(grant(), "GrantQuotaExceeded");
       const ep = await program.account.epoch.fetch(epochPda(0));
       expect(ep.grantedMicro.lte(quota)).to.be.true;
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════════
+  // security checklist (аудит 2026-09-25): docs/SECURITY_CHECKLIST_AUDIT_2026-09-25.md
+  // Негативные проверки по пунктам чек-листа, не покрытые ранними сьютами.
+  // Запускаются последними: не используют grant_reward (квота исчерпана выше).
+  // ══════════════════════════════════════════════════════════════════
+  describe("security checklist (2026-09-25 audit)", () => {
+    it("A1/D24: PDA-подмена отклонена — чужой программный аккаунт не проходит как Field", async () => {
+      // epoch-аккаунт существует, принадлежит программе, но это не Field:
+      // констрейнты seeds+дискриминатор режут подстановку до хендлера.
+      await expectFail(
+        program.methods.payTax().accountsPartial(
+          fieldSpendAccounts(epochPda(0), admin.publicKey, adminAta),
+        ).rpc(),
+      );
+    });
+
+    it("A1: подмена epoch в harvest отклонена (seeds/bump от config.epochId)", async () => {
+      await expectFail(
+        program.methods.harvest().accountsPartial({
+          config: configPda, epoch: epochPda(999), field: fieldPda(presaleFieldIds[0]),
+          potatoMint: mint, userPotato: playerAta, owner: player.publicKey, treasuryPotato: treasuryAta,
+          tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        }).signers([player]).rpc(),
+      );
+    });
+
+    it("A3: списание без подписи владельца поля отклонено (signer-констрейнт)", async () => {
+      // owner=player есть в аккаунтах, но подписи player нет → tx-подпись/симуляция падает.
+      await expectFail(
+        program.methods.payTax().accountsPartial(
+          fieldSpendAccounts(fieldPda(presaleFieldIds[0]), player.publicKey, playerAta),
+        ).rpc(),
+      );
+    });
+
+    it("A4: поддельный system program отклонён (типизированный Program<'info, System>)", async () => {
+      // Кошелёк system-owned, но не executable: проверка типа аккаунта падает
+      // ДО хендлера — побочных эффектов нет.
+      await expectFail(
+        program.methods.proposeWithdrawal(0, new BN(1_000)).accountsPartial({
+          config: configPda, adminState: adminStatePda, authority: admin.publicKey,
+          systemProgram: admin.publicKey,
+        }).rpc(),
+      );
+    });
+
+    it("C11: прямой минт админом невозможен — mint authority навсегда у config PDA", async () => {
+      const ix = createMintToInstruction(mint, playerAta, admin.publicKey, 1_000);
+      await expectFail(provider.sendAndConfirm(new Transaction().add(ix), [admin]));
+    });
+
+    it("C18: batch_harvest ограничен 10 полями (InvalidAmount до любых чтений)", async () => {
+      const dummies = Array.from({ length: 11 }, () => ({
+        pubkey: PublicKey.unique(), isSigner: false, isWritable: true,
+      }));
+      await expectFail(
+        program.methods.batchHarvest().accountsPartial({
+          config: configPda, epoch: epochPda(0), potatoMint: mint, userPotato: playerAta,
+          treasuryPotato: treasuryAta, owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        }).signers([player]).remainingAccounts(dummies).rpc(),
+        "InvalidAmount",
+      );
+    });
+
+    it("E29: дубликат поля в батче отклонён (O(n²)-проверка, BadProof)", async () => {
+      const same = { pubkey: fieldPda(presaleFieldIds[0]), isSigner: false, isWritable: true };
+      await expectFail(
+        program.methods.batchHarvest().accountsPartial({
+          config: configPda, epoch: epochPda(0), potatoMint: mint, userPotato: playerAta,
+          treasuryPotato: treasuryAta, owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        }).signers([player]).remainingAccounts([same, { ...same }]).rpc(),
+        "BadProof",
+      );
+    });
+
+    it("B7/E28: купленный ордер нельзя купить второй раз — CEI + close обнуляют атаку", async () => {
+      const id = BigInt(Date.now() + 777);
+      const order = orderPda(id);
+      await program.methods.createSellOrder(new BN(id.toString()), new BN(10_000_000), new BN(1_000_000))
+        .accountsPartial(createOrderAccounts(id, admin.publicKey, adminAta)).rpc();
+      const fill = () => program.methods.fillOrder().accountsPartial({
+        buyer: player.publicKey, seller: admin.publicKey, config: configPda, potatoMint: mint,
+        marketStats: marketStatsPda, order, escrow: escrowPda(order), buyerPotato: playerAta,
+        sellerPotato: adminAta, treasuryPotato: treasuryAta, tokenProgram: TOKEN_PROGRAM_ID,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+      }).signers([player]).rpc();
+      await fill();
+      // Ордер и эскроу закрыты, рента — продавцу, повторный fill невозможен.
+      expect(await connection.getAccountInfo(order)).to.be.null;
+      expect(await connection.getAccountInfo(escrowPda(order))).to.be.null;
+      await expectFail(fill());
+    });
+
+    it("C16/C20: вывод казны привязан к сумме proposal, назначению ATA authority и тимлоку", async function () {
+      await program.methods.proposeWithdrawal(0, new BN(1_000)).accountsPartial({
+        config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+      }).rpc();
+      const exec = (micro: bigint, destination: PublicKey) =>
+        program.methods.withdrawTreasury(new BN(micro.toString())).accountsPartial({
+          config: configPda, potatoMint: mint, treasuryPotato: treasuryAta, destination,
+          authority: admin.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+        }).rpc();
+
+      // Сумма строго равна proposal — расхождение режется до тимлока.
+      await expectFail(exec(2_000n, adminAta), "WithdrawAmountMismatch");
+      // playerAta — валидный ATA того же mint, но authority = player:
+      // associated-констрейнт прибивает назначение к ATA(mint, authority).
+      await expectFail(exec(1_000n, playerAta), "ConstraintAssociatedToken");
+      await expectFail(exec(1_000n, adminAta), "WithdrawTimelockNotExpired");
+      await program.methods.cancelWithdrawal().accountsPartial({
+        config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+      }).rpc();
+      expect((await program.account.adminState.fetch(adminStatePda)).pendingWithdrawPotato.toNumber()).to.eq(0);
+      await expectFail(exec(1_000n, adminAta), "NoPendingWithdrawal");
     });
   });
 });

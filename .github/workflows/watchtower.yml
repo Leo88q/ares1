@@ -44,6 +44,8 @@ jobs:
           cache-dependency-path: watchtower/package-lock.json
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: node --test ../game/scripts/audit-init-if-needed.test.mjs
+      # Security-guard tripwire (docs/SECURITY_CHECKLIST_AUDIT_2026-09-25.md).
+      - run: node --test ../game/scripts/security-guards.test.mjs
       - run: npm run typecheck
       - run: npm run build
       - run: npm test
