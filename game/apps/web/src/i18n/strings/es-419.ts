@@ -431,6 +431,14 @@ const es419: Record<string, string> = {
 
   'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'ORDEN MÍN.: 10 POTATO · MONTO DESDE 0.001 SOL',
   'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Orden mínima: 10 POTATO y un monto desde 0.001 SOL. Sube el precio o la cantidad.',
+
+  // Задачи смены (каюта)
+  'Заложи первое поле': 'Funda tu primera parcela',
+  'Забери нашивку в журнале': 'Reclama una insignia en el diario',
+  'Собери урожай: {n} POTATO': 'Cosecha: {n} POTATO',
+  'Пошлина просрочена: {n}': 'Impuesto vencido: {n}',
+  'Техремонт требуется: {n}': 'Reparaciones necesarias: {n}',
+  'Все системы в норме': 'Todos los sistemas en orden',
 };
 
 export default es419;
