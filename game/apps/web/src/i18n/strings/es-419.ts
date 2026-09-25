@@ -10,8 +10,8 @@ const es419: Record<string, string> = {
   ' Пошлина истекает!': ' ¡La tasa está por vencer!',
   ' Пошлина оплачен: {d} дн.': ' Tasa pagada: {d} d.',
   ' Пошлина просрочен! Урожай −50%': ' ¡Tasa vencida! Cosecha −50%',
-  ' Растёт…': ' Creciendo…',
-  ' Сбор…': ' Cosechando…',
+  'Растёт…': ' Creciendo…',
+  'Сбор…': ' Cosechando…',
   ' Скопировать адрес': ' Copiar dirección',
   ' Тестовая сеть ({cluster}): получи 1 SOL из крана или отправь SOL на адрес выше.': ' Testnet ({cluster}): reclama 1 SOL en un faucet o envía SOL a la dirección de arriba.',
   ' Уведомления работают!': ' ¡Notificaciones funcionando!',
@@ -39,7 +39,6 @@ const es419: Record<string, string> = {
   'GameConfig не найден: программа не инициализирована на этом кластере.': 'GameConfig no encontrado: el programa no está inicializado en este clúster.',
   'Mint SKR не найден на этом кластере — пресейл за SKR сейчас отключён.': 'Mint de SKR no encontrado en este clúster — el presale con SKR está desactivado por ahora.',
   'On-chain дроп: {tier}': 'Drop on-chain: {tier}',
-  'POTATO Жатва': 'POTATO Cosecha',
   'POTATO ждёт жатвы на делянках': 'POTATO esperando cosecha en las parcelas',
   'POTATO к сбору': 'POTATO listo para cosechar',
   'RPC перегружен (429). Подожди несколько секунд и повтори.': 'RPC sobrecargado (429). Espera unos segundos e inténtalo de nuevo.',
@@ -74,6 +73,8 @@ const es419: Record<string, string> = {
   'Варим зелье...': 'Preparando el elixir…',
   'Варим зельье...': 'Preparando el elixir…',
   'Ветеран': 'Veterano',
+  'Стена нашивок': 'Muro de parches',
+  'Награды экипажа из журнала. Серые — ещё не получены.': 'Condecoraciones de la tripulación del registro. Las grises aún no se obtienen.',
   'Вибрация': 'Vibración',
   'Владей 5 полями': 'Ten 5 parcelas',
   'Владей 6 полями, хотя бы одно 3-го уровня': 'Ten 6 parcelas, al menos una de nivel 3',
@@ -395,13 +396,13 @@ const es419: Record<string, string> = {
   '{hours} часа': '{hours} horas',
   '{h} ч осталось': 'quedan {h} h',
   '{name}, уровень {level}. {action} действия': '{name}, nivel {level}. {action} acción',
-  '🌒 Растущая луна': '🌒 Luna creciente',
-  '🌓 Первая четверть': '🌓 Cuarto creciente',
-  '🌔 Прибывающая луна': '🌔 Luna gibosa creciente',
-  '🌕 Полнолуние (пик)': '🌕 Luna llena (pico)',
-  '🌖 Убывающая луна': '🌖 Luna menguante',
-  '🌗 Последняя четверть': '🌗 Cuarto menguante',
-  '🌘 Новолуние (дно)': '🌘 Luna nueva (mínimo)',
+  'Растущая луна': 'Luna creciente',
+  'Первая четверть': 'Cuarto creciente',
+  'Прибывающая луна': 'Luna gibosa creciente',
+  'Полнолуние (пик)': 'Luna llena (pico)',
+  'Убывающая луна': 'Luna menguante',
+  'Последняя четверть': 'Cuarto menguante',
+  'Новолуние (дно)': 'Luna nueva (mínimo)',
   'МОДУЛЬ': 'MÓDULO',
   'ИЗОЛЯЦИЯ': 'Aislamiento',
   'Закрыть подтверждение': 'Cerrar confirmación',
@@ -430,6 +431,55 @@ const es419: Record<string, string> = {
 
   'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'ORDEN MÍN.: 10 POTATO · MONTO DESDE 0.001 SOL',
   'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Orden mínima: 10 POTATO y un monto desde 0.001 SOL. Sube el precio o la cantidad.',
+
+  // Задачи смены (каюта)
+  'Заложи первое поле': 'Funda tu primera parcela',
+  'Забери нашивку в журнале': 'Reclama una insignia en el diario',
+  'Собери урожай: {n} POTATO': 'Cosecha: {n} POTATO',
+  'Пошлина просрочена: {n}': 'Impuesto vencido: {n}',
+  'Техремонт требуется: {n}': 'Reparaciones necesarias: {n}',
+  'Все системы в норме': 'Todos los sistemas en orden',
+
+  // Тосты транзакций (GameContext)
+  'LUT создана': 'LUT creada',
+  'Максимум 10 полей за один батч.': 'Máximo 10 parcelas por lote.',
+  'Не удалось закрыть поле': 'No se pudo cerrar la parcela',
+  'Не удалось отправить SOL': 'No se pudo enviar SOL',
+  'Не удалось собрать урожай батчем': 'Fallo en la cosecha por lote',
+  'Не удалось создать LUT': 'No se pudo crear la LUT',
+  'Слишком много полей': 'Demasiadas parcelas',
+
+  // On-chain ошибки (errors.ts)
+  'Награда уже получена.': 'Recompensa ya reclamada.',
+  'Не выполнены условия награды.': 'No cumples las condiciones de la recompensa.',
+  'Минимальный ордер — 10 POTATO.': 'Orden mínima — 10 POTATO.',
+
+  // On-chain ошибки, часть 2 (errors.ts)
+  'Некорректный mint-авторитет токена.': 'Autoridad de mint inválida.',
+  'Mint должен иметь 6 знаков после запятой.': 'El mint debe tener 6 decimales.',
+  'У mint не должно быть freeze-авторитета.': 'El mint no debe tener autoridad de congelamiento.',
+  'Пресеил распродан: все поля раскуплены.': 'Preventa agotada: todas las parcelas vendidas.',
+  'Лимит пресеила: максимум 5 полей на кошелёк.': 'Límite de preventa: máx. 5 parcelas por billetera.',
+  'Пресеил неактивен.': 'Preventa inactiva.',
+  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Cuota de créditos manuales agotada (10% del límite diario).',
+  'Превышен лимит выводов на текущие 24 часа.': 'Límite de retiros de 24h excedido.',
+  'Базовая урожайность слишком высока (макс. 100 POTATO/день).': 'Rendimiento base demasiado alto (máx. 100 POTATO/día).',
+  'Админский таймлок ещё не истёк.': 'El timelock de admin aún no expira.',
+  'Нет активного предложения администратора.': 'Sin propuesta de admin pendiente.',
+  'Эпоха слишком свежая, её пока нельзя закрыть.': 'Época demasiado reciente para cerrarla.',
+  'Платный рандом доступен только напрямую, не через другие программы.': 'RNG pagado solo directo, no vía otros programas.',
+  'Таймлок вывода ещё не истёк.': 'El timelock de retiro aún no expira.',
+  'Нет активного предложения на вывод этого актива.': 'Sin propuesta de retiro pendiente para este activo.',
+  'Сумма не совпадает с предложением на вывод.': 'El monto no coincide con la propuesta de retiro.',
+  'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Tipo de retiro inválido: 0=POTATO, 1=SOL, 2=SKR.',
+  'Вывод этого актива уже предложен — сначала отмени его.': 'Retiro ya propuesto — cancélalo primero.',
+  'Нет связи с сетью. Проверь соединение и повтори.': 'Sin conexión de red. Revisa y reintenta.',
+
+  // Каюта: покупка лицензии
+  'Не удалось купить лицензию': 'No se pudo comprar la licencia',
+
+  // Призовое шоу
+  'Пропустить анимацию': 'Omitir animación',
 };
 
 export default es419;

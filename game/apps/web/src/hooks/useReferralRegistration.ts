@@ -7,7 +7,7 @@ import { getRefFromUrl } from '../utils/referral'
 
 const REGISTERED_KEY = 'ares_ref_registered'
 
-// Не более одной попытки за страницу: иначе при неудаче (нет 5 🥔 на burn)
+// Не более одной попытки за страницу: иначе при неудаче (нет 5 POTATO на burn)
 // кошелёк будет просить подпись при каждом 30-сек опросе config.
 // При следующем открытии страницы — попробуем снова.
 let attemptDone = false

@@ -5,10 +5,10 @@ import { motion } from 'framer-motion';
 export type PanelTone = 'neutral' | 'amber' | 'magenta' | 'danger';
 
 const TONE_GLOW: Record<PanelTone, string> = {
- neutral: 'rgba(180, 220, 255, 0.18)',
+ neutral: 'rgba(180, 220, 255, 0.75)',
  amber: 'var(--ares-hud-amber, #FFB347)',
  magenta: 'var(--ares-grow-pink, #FF2E93)',
- danger: 'var(--ares-rust, #C1440E)',
+ danger: '#E8823F',
 };
 
 export interface RivetCornersProps {

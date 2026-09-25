@@ -3,13 +3,36 @@ import { motion, useScroll, useTransform } from 'framer-motion'
 
 interface FloatingElement {
  id: number
- emoji: string
+ shape: number
+ color: string
  x: number
  y: number
  size: number
  duration: number
  delay: number
  opacity: number
+}
+
+function FloatShape({ shape, color, size }: { shape: number; color: string; size: number }): JSX.Element {
+ if (shape === 1) {
+  return (
+   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
+    <circle cx="12" cy="12" r="8" />
+   </svg>
+  )
+ }
+ if (shape === 2) {
+  return (
+   <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" />
+   </svg>
+  )
+ }
+ return (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+   <circle cx="12" cy="12" r="5" />
+  </svg>
+ )
 }
 
 export default function ParallaxBackground() {
@@ -23,10 +46,11 @@ export default function ParallaxBackground() {
 
  useEffect(() => {
   // Генерируем случайные плавающие элементы
-  const emojis = ['', '', '', '', '', '', '', '']
+  const palette = ['#FFB347', '#B85CFF', '#12E7C4', '#6B93D6']
   const newElements: FloatingElement[] = Array.from({ length: 15 }, (_, i) => ({
    id: i,
-   emoji: emojis[Math.floor(Math.random() * emojis.length)],
+   shape: Math.floor(Math.random() * 3),
+   color: palette[i % palette.length],
    x: Math.random() * 100,
    y: Math.random() * 100,
    size: 16 + Math.random() * 24,
@@ -78,7 +102,7 @@ export default function ParallaxBackground() {
        filter: 'blur(1px)',
       }}
      >
-      {el.emoji}
+      <FloatShape shape={el.shape} color={el.color} size={el.size} />
      </motion.div>
     ))}
    </motion.div>
@@ -105,7 +129,7 @@ export default function ParallaxBackground() {
        filter: 'blur(0.5px)',
       }}
      >
-      {el.emoji}
+      <FloatShape shape={el.shape} color={el.color} size={el.size} />
      </motion.div>
     ))}
    </motion.div>
@@ -131,7 +155,7 @@ export default function ParallaxBackground() {
        fontSize: `${el.size * 0.6}px`,
       }}
      >
-      {el.emoji}
+      <FloatShape shape={el.shape} color={el.color} size={el.size} />
      </motion.div>
     ))}
    </motion.div>

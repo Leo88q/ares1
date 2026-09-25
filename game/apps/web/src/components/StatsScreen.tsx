@@ -22,7 +22,7 @@ import { LiquidBar } from './ares/LiquidBar'
 import { ConsolePanel } from './ares/panels'
 import { TelemetryStrip } from './ares/TelemetryStrip'
 import { describeError } from '../utils/errors'
-import { ErrorState } from '../ui/states'
+import { ErrorState, LoadingState } from '../ui/states'
 
 interface LeaderRow {
  address: string
@@ -113,7 +113,7 @@ function EconomySection({ data }: { data: EconomyData }) {
       t('Награды выдаёт только сервер от имени authority, не из клиента'),
      ].map((t, i) => (
       <div key={i} className="ares-mono" style={{ fontSize: 10, color: 'rgba(255,179,71,0.8)', padding: '3px 0', display: 'flex', gap: 6, lineHeight: 1.5 }}>
-       <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true">✓</span> {t}
+       <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span> {t}
       </div>
      ))}
     </div>
@@ -199,8 +199,8 @@ function StatsScreenInner() {
    return <ErrorState message={loadError} onRetry={() => void load()} />
   }
   return (
-   <div style={{ padding: 40, textAlign: 'center', color: 'var(--pf-text-secondary)' }} role="status">
-    {ready ? t('Загрузка журнала…') : t('Ждём подключения к блокчейну…')}
+   <div style={{ padding: 20, paddingBottom: 140 }}>
+    <LoadingState label={ready ? t('Загрузка журнала…') : t('Ждём подключения к блокчейну…')} />
    </div>
   )
  }

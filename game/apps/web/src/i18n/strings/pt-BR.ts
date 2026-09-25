@@ -10,8 +10,8 @@ const ptBR: Record<string, string> = {
   ' Пошлина истекает!': ' Taxa expirando!',
   ' Пошлина оплачен: {d} дн.': ' Taxa paga: {d} d.',
   ' Пошлина просрочен! Урожай −50%': ' Taxa vencida! Colheita −50%',
-  ' Растёт…': ' Crescendo…',
-  ' Сбор…': ' Colhendo…',
+  'Растёт…': ' Crescendo…',
+  'Сбор…': ' Colhendo…',
   ' Скопировать адрес': ' Copiar endereço',
   ' Тестовая сеть ({cluster}): получи 1 SOL из крана или отправь SOL на адрес выше.': ' Testnet ({cluster}): receba 1 SOL em um faucet ou envie SOL para o endereço acima.',
   ' Уведомления работают!': ' Notificações funcionando!',
@@ -39,7 +39,6 @@ const ptBR: Record<string, string> = {
   'GameConfig не найден: программа не инициализирована на этом кластере.': 'GameConfig não encontrado: o programa não foi inicializado neste cluster.',
   'Mint SKR не найден на этом кластере — пресейл за SKR сейчас отключён.': 'Mint do SKR não encontrado neste cluster — o presale em SKR está desativado no momento.',
   'On-chain дроп: {tier}': 'Drop on-chain: {tier}',
-  'POTATO Жатва': 'POTATO Colheita',
   'POTATO ждёт жатвы на делянках': 'POTATO aguardando colheita nos canteiros',
   'POTATO к сбору': 'POTATO pronto para colher',
   'RPC перегружен (429). Подожди несколько секунд и повтори.': 'RPC sobrecarregado (429). Aguarde alguns segundos e tente novamente.',
@@ -74,6 +73,8 @@ const ptBR: Record<string, string> = {
   'Варим зелье...': 'Preparando o elixir…',
   'Варим зельье...': 'Preparando o elixir…',
   'Ветеран': 'Veterano',
+  'Стена нашивок': 'Mural de insígnias',
+  'Награды экипажа из журнала. Серые — ещё не получены.': 'Condecorações da tripulação do diário. As cinzas ainda não foram ganhas.',
   'Вибрация': 'Vibração',
   'Владей 5 полями': 'Tenha 5 canteiros',
   'Владей 6 полями, хотя бы одно 3-го уровня': 'Tenha 6 canteiros, pelo menos um de nível 3',
@@ -395,13 +396,13 @@ const ptBR: Record<string, string> = {
   '{hours} часа': '{hours} horas',
   '{h} ч осталось': 'faltam {h} h',
   '{name}, уровень {level}. {action} действия': '{name}, nível {level}. {action} ação',
-  '🌒 Растущая луна': '🌒 Lua crescente',
-  '🌓 Первая четверть': '🌓 Quarto crescente',
-  '🌔 Прибывающая луна': '🌔 Lua gibosa crescente',
-  '🌕 Полнолуние (пик)': '🌕 Lua cheia (pico)',
-  '🌖 Убывающая луна': '🌖 Lua minguante',
-  '🌗 Последняя четверть': '🌗 Quarto minguante',
-  '🌘 Новолуние (дно)': '🌘 Lua nova (fundo)',
+  'Растущая луна': 'Lua crescente',
+  'Первая четверть': 'Quarto crescente',
+  'Прибывающая луна': 'Lua gibosa crescente',
+  'Полнолуние (пик)': 'Lua cheia (pico)',
+  'Убывающая луна': 'Lua minguante',
+  'Последняя четверть': 'Quarto minguante',
+  'Новолуние (дно)': 'Lua nova (fundo)',
   'МОДУЛЬ': 'MÓDULO',
   'ИЗОЛЯЦИЯ': 'ISOLAMENTO',
   'Закрыть подтверждение': 'Fechar confirmação',
@@ -430,6 +431,55 @@ const ptBR: Record<string, string> = {
 
   'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'PEDIDO MÍN.: 10 POTATO · VALOR A PARTIR DE 0.001 SOL',
   'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Pedido mínimo: 10 POTATO e valor a partir de 0.001 SOL. Aumente o preço ou a quantidade.',
+
+  // Задачи смены (каюта)
+  'Заложи первое поле': 'Funde seu primeiro lote',
+  'Забери нашивку в журнале': 'Resgate uma insígnia no diário',
+  'Собери урожай: {n} POTATO': 'Colha: {n} POTATO',
+  'Пошлина просрочена: {n}': 'Imposto vencido: {n}',
+  'Техремонт требуется: {n}': 'Reparos necessários: {n}',
+  'Все системы в норме': 'Todos os sistemas normais',
+
+  // Тосты транзакций (GameContext)
+  'LUT создана': 'LUT criada',
+  'Максимум 10 полей за один батч.': 'Máximo de 10 lotes por batch.',
+  'Не удалось закрыть поле': 'Falha ao encerrar o lote',
+  'Не удалось отправить SOL': 'Falha ao enviar SOL',
+  'Не удалось собрать урожай батчем': 'Falha na colheita em lote',
+  'Не удалось создать LUT': 'Falha ao criar a LUT',
+  'Слишком много полей': 'Lotes demais',
+
+  // On-chain ошибки (errors.ts)
+  'Награда уже получена.': 'Recompensa já resgatada.',
+  'Не выполнены условия награды.': 'Condições da recompensa não cumpridas.',
+  'Минимальный ордер — 10 POTATO.': 'Pedido mínimo — 10 POTATO.',
+
+  // On-chain ошибки, часть 2 (errors.ts)
+  'Некорректный mint-авторитет токена.': 'Autoridade de mint inválida.',
+  'Mint должен иметь 6 знаков после запятой.': 'O mint deve ter 6 casas decimais.',
+  'У mint не должно быть freeze-авторитета.': 'O mint não deve ter autoridade de congelamento.',
+  'Пресеил распродан: все поля раскуплены.': 'Pré-venda esgotada: todos os lotes vendidos.',
+  'Лимит пресеила: максимум 5 полей на кошелёк.': 'Limite da pré-venda: máx. 5 lotes por carteira.',
+  'Пресеил неактивен.': 'Pré-venda inativa.',
+  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Cota de créditos manuais esgotada (10% do limite diário).',
+  'Превышен лимит выводов на текущие 24 часа.': 'Limite de saques das últimas 24h excedido.',
+  'Базовая урожайность слишком высока (макс. 100 POTATO/день).': 'Rendimento base alto demais (máx. 100 POTATO/dia).',
+  'Админский таймлок ещё не истёк.': 'Timelock de admin ainda não expirou.',
+  'Нет активного предложения администратора.': 'Sem proposta de admin pendente.',
+  'Эпоха слишком свежая, её пока нельзя закрыть.': 'Época recente demais para encerrar.',
+  'Платный рандом доступен только напрямую, не через другие программы.': 'RNG pago só funciona direto, não via outros programas.',
+  'Таймлок вывода ещё не истёк.': 'Timelock de saque ainda não expirou.',
+  'Нет активного предложения на вывод этого актива.': 'Sem proposta de saque pendente para este ativo.',
+  'Сумма не совпадает с предложением на вывод.': 'Valor não confere com a proposta de saque.',
+  'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Tipo de saque inválido: 0=POTATO, 1=SOL, 2=SKR.',
+  'Вывод этого актива уже предложен — сначала отмени его.': 'Saque já proposto — cancele-o primeiro.',
+  'Нет связи с сетью. Проверь соединение и повтори.': 'Sem conexão de rede. Verifique e tente de novo.',
+
+  // Каюта: покупка лицензии
+  'Не удалось купить лицензию': 'Falha ao comprar a licença',
+
+  // Призовое шоу
+  'Пропустить анимацию': 'Pular animação',
 };
 
 export default ptBR;

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
@@ -17,14 +17,14 @@ interface Currency {
  id: CurrencyId
  name: string
  symbol: string
- icon: string
+ icon: ReactNode
  color: string
  min: number
 }
 
 const CURRENCIES: Currency[] = [
- { id: 'SOL', name: 'Solana', symbol: 'SOL', icon: '', color: 'var(--ares-grow-violet, #B85CFF)', min: 0.001 },
- { id: 'POTATO', name: 'Potato', symbol: 'POTATO', icon: '', color: 'var(--pf-gold)', min: 0.01 },
+ { id: 'SOL', name: 'Solana', symbol: 'SOL', icon: '◎', color: 'var(--ares-grow-violet, #B85CFF)', min: 0.001 },
+ { id: 'POTATO', name: 'Potato', symbol: 'POTATO', icon: <img src="/ares/potato-coin.png" alt="" width={22} height={22} style={{ width: 22, height: 22, borderRadius: '50%' }} />, color: 'var(--pf-gold)', min: 0.01 },
 ]
 
 /** Deposit / withdraw panel. The $POTATO mint comes from the on-chain GameConfig. */

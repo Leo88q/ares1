@@ -10,8 +10,8 @@ const tl: Record<string, string> = {
   ' Пошлина истекает!': ' Malapit mag-expire ang buwis!',
   ' Пошлина оплачен: {d} дн.': ' Bayad na ang buwis: {d} g.',
   ' Пошлина просрочен! Урожай −50%': ' Taguan ang buwis! Ani −50%',
-  ' Растёт…': ' Lumalaki…',
-  ' Сбор…': ' Nag-aani…',
+  'Растёт…': ' Lumalaki…',
+  'Сбор…': ' Nag-aani…',
   ' Скопировать адрес': ' Kopyahin ang address',
   ' Тестовая сеть ({cluster}): получи 1 SOL из крана или отправь SOL на адрес выше.': ' Testnet ({cluster}): kumuha ng 1 SOL sa faucet o magpadala ng SOL sa address sa itaas.',
   ' Уведомления работают!': ' Gumagana ang mga notification!',
@@ -39,7 +39,6 @@ const tl: Record<string, string> = {
   'GameConfig не найден: программа не инициализирована на этом кластере.': 'Hindi nakita ang GameConfig: hindi pa ininisyalize ang program sa cluster na ito.',
   'Mint SKR не найден на этом кластере — пресейл за SKR сейчас отключён.': 'Hindi nakita ang mint ng SKR sa cluster na ito — naka-disable ang presale ng SKR ngayon.',
   'On-chain дроп: {tier}': 'On-chain drop: {tier}',
-  'POTATO Жатва': 'POTATO Ani',
   'POTATO ждёт жатвы на делянках': 'Naghihintay ang POTATO ng ani sa mga hilaw',
   'POTATO к сбору': 'Handa na ang POTATO pang-anin',
   'RPC перегружен (429). Подожди несколько секунд и повтори.': 'Sobrang abala ang RPC (429). Maghintay ng ilang segundo at subukang muli.',
@@ -55,7 +54,7 @@ const tl: Record<string, string> = {
   'Аккаунт ещё не создан — нужен $POTATO-кошелёк (создаётся автоматически при первом сборе).': 'Hindi pa nakakalikha ng account — kailangan ng $POTATO wallet (awtomatikong malilikha sa unang ani).',
   'Аккаунт не соответствует ожидаемому (проверь кошелёк и mint).': 'Hindi tumutugma ang account sa inaasahan (surien ang wallet at mint).',
   'Активных ордеров': 'Mga aktibong order',
-  'Антиспам: 5 🥔 сгорает с баланса приглашённого, разово': 'Laban sa spam: 5 na 🥔 ang aabutin mula sa balance ng tinawag, iisa lang',
+  'Антиспам: 5 🥔 сгорает с баланса приглашённого, разово': 'Laban sa spam: 5 na POTATO ang aabutin mula sa balance ng tinawag, iisa lang',
   'Апгрейд модуля': 'I-upgrade ang modyul',
   'Апгрейд модуля до ур. {level} ({cost} POTATO)': 'I-upgrade ang modyul hanggang antas {level} ({cost} POTATO)',
   'Базовая генетика': 'Pundasyong genetica',
@@ -74,6 +73,8 @@ const tl: Record<string, string> = {
   'Варим зелье...': 'Niluluto ang elixir…',
   'Варим зельье...': 'Niluluto ang elixir…',
   'Ветеран': 'Beterano',
+  'Стена нашивок': 'Pader ng mga patch',
+  'Награды экипажа из журнала. Серые — ещё не получены.': 'Mga gantimpala ng crew mula sa log. Ang mga abo ay hindi pa nakukuha.',
   'Вибрация': 'Pag-ibang',
   'Владей 5 полями': 'May-ari ng 5 na hilaw',
   'Владей 6 полями, хотя бы одно 3-го уровня': 'May-ari ng 6 na hilaw, isa man ay antas 3',
@@ -395,13 +396,13 @@ const tl: Record<string, string> = {
   '{hours} часа': '{hours} oras',
   '{h} ч осталось': 'natitira {h} oras',
   '{name}, уровень {level}. {action} действия': '{name}, antas {level}. {action} aksyon',
-  '🌒 Растущая луна': '🌒 Bumabang buwan',
-  '🌓 Первая четверть': '🌓 Unang quarter',
-  '🌔 Прибывающая луна': '🌔 Bumabang na buwan (gibbous)',
-  '🌕 Полнолуние (пик)': '🌕 Puno ng buwan (peak)',
-  '🌖 Убывающая луна': '🌖 Bumababang buwan',
-  '🌗 Последняя четверть': '🌗 Huling quarter',
-  '🌘 Новолуние (дно)': '🌘 Bagong buwan (lowest)',
+  'Растущая луна': 'Bumabang buwan',
+  'Первая четверть': 'Unang quarter',
+  'Прибывающая луна': 'Bumabang na buwan (gibbous)',
+  'Полнолуние (пик)': 'Puno ng buwan (peak)',
+  'Убывающая луна': 'Bumababang buwan',
+  'Последняя четверть': 'Huling quarter',
+  'Новолуние (дно)': 'Bagong buwan (lowest)',
   'МОДУЛЬ': 'MODULE',
   'ИЗОЛЯЦИЯ': 'KUKUHIM',
   'Закрыть подтверждение': 'Isara ang kumpirmasyon',
@@ -430,6 +431,55 @@ const tl: Record<string, string> = {
 
   'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'MIN ORDER: 10 POTATO · HALAGA MULA SA 0.001 SOL',
   'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Minimum order: 10 POTATO at halaga mula sa 0.001 SOL. Itaas ang presyo o dami.',
+
+  // Задачи смены (каюта)
+  'Заложи первое поле': 'Itatag ang unang bukid',
+  'Забери нашивку в журнале': 'Kunin ang patch sa journal',
+  'Собери урожай: {n} POTATO': 'Anihan: {n} POTATO',
+  'Пошлина просрочена: {n}': 'Buwis paso na: {n}',
+  'Техремонт требуется: {n}': 'Kailangan ng pagkukumpuni: {n}',
+  'Все системы в норме': 'Normal ang lahat ng sistema',
+
+  // Тосты транзакций (GameContext)
+  'LUT создана': 'Nagawa ang LUT',
+  'Максимум 10 полей за один батч.': 'Max 10 bukid kada batch.',
+  'Не удалось закрыть поле': 'Nabigong isara ang bukid',
+  'Не удалось отправить SOL': 'Nabigong ipadala ang SOL',
+  'Не удалось собрать урожай батчем': 'Nabigo ang batch harvest',
+  'Не удалось создать LUT': 'Nabigong gawin ang LUT',
+  'Слишком много полей': 'Masyadong maraming bukid',
+
+  // On-chain ошибки (errors.ts)
+  'Награда уже получена.': 'Nakuha na ang gantimpala.',
+  'Не выполнены условия награды.': 'Hindi pa natutugunan ang mga kondisyon.',
+  'Минимальный ордер — 10 POTATO.': 'Minimum na order — 10 POTATO.',
+
+  // On-chain ошибки, часть 2 (errors.ts)
+  'Некорректный mint-авторитет токена.': 'Di-wastong mint authority.',
+  'Mint должен иметь 6 знаков после запятой.': 'Ang mint ay dapat may 6 decimals.',
+  'У mint не должно быть freeze-авторитета.': 'Ang mint ay hindi dapat may freeze authority.',
+  'Пресеил распродан: все поля раскуплены.': 'Ubusan ang presale: nabili na lahat.',
+  'Лимит пресеила: максимум 5 полей на кошелёк.': 'Limit ng presale: max 5 bukid kada wallet.',
+  'Пресеил неактивен.': 'Hindi aktibo ang presale.',
+  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Ubusan ang quota ng manual grant (10% ng daily cap).',
+  'Превышен лимит выводов на текущие 24 часа.': 'Lagpas na sa limit ng withdrawal sa 24 oras.',
+  'Базовая урожайность слишком высока (макс. 100 POTATO/день).': 'Masyadong mataas ang base yield (max 100 POTATO/araw).',
+  'Админский таймлок ещё не истёк.': 'Hindi pa nag-e-expire ang admin timelock.',
+  'Нет активного предложения администратора.': 'Walang nakabinbing admin proposal.',
+  'Эпоха слишком свежая, её пока нельзя закрыть.': 'Masyadong bago ang epoch para isara.',
+  'Платный рандом доступен только напрямую, не через другие программы.': 'Ang paid RNG ay direkta lang, hindi via ibang program.',
+  'Таймлок вывода ещё не истёк.': 'Hindi pa nag-e-expire ang withdrawal timelock.',
+  'Нет активного предложения на вывод этого актива.': 'Walang nakabinbing withdrawal para sa asset na ito.',
+  'Сумма не совпадает с предложением на вывод.': 'Hindi tugma ang halaga sa withdrawal proposal.',
+  'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Di-wastong uri ng withdrawal: 0=POTATO, 1=SOL, 2=SKR.',
+  'Вывод этого актива уже предложен — сначала отмени его.': 'Nakapropose na ang withdrawal — ikansela muna.',
+  'Нет связи с сетью. Проверь соединение и повтори.': 'Walang koneksyon sa network. Suriin at subukang muli.',
+
+  // Каюта: покупка лицензии
+  'Не удалось купить лицензию': 'Nabigong bilhin ang lisensya',
+
+  // Призовое шоу
+  'Пропустить анимацию': 'Laktawan ang animation',
 };
 
 export default tl;

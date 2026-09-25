@@ -13,9 +13,10 @@ import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 import { AgroBay } from './ares/AgroBay'
 import { FieldGestureLayer } from './ares/FieldGestureLayer'
+import { ErrorState } from '../ui/states'
 
 export default function MainScreen() {
- const { fields, stats, loading, purchasing, harvest, purchaseField, upgradeField, repairField, payTax, applyFertilizer } = useGame()
+ const { fields, stats, loading, fieldsError, reload, purchasing, harvest, purchaseField, upgradeField, repairField, payTax, applyFertilizer } = useGame()
  const { ready, rpcError, connected } = useSolana()
 
  return (
@@ -34,18 +35,27 @@ export default function MainScreen() {
 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
      <div
       data-tutorial="fields"
-      style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, marginTop: 20, alignItems: 'start' }}
+      style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 16, marginTop: 20, alignItems: 'start' }}
      >
       {!ready ? (
        <InitStatus error={rpcError} />
       ) : !connected ? (
        <ConnectHint />
+      ) : !loading && fieldsError && fields.length === 0 ? (
+       <div style={{ gridColumn: '1 / -1' }}>
+        <ErrorState message={fieldsError} onRetry={() => void reload()} />
+       </div>
       ) : loading && fields.length === 0 ? (
        Array.from({ length: 2 }).map((_, i) => (
         <div key={i} className="pf-card hull-skin shimmer" style={{ height: 320, borderRadius: 20 }} aria-hidden="true" />
        ))
       ) : (
        <>
+        {fieldsError && fields.length > 0 && (
+         <div style={{ gridColumn: '1 / -1' }}>
+          <ErrorState inline message={fieldsError} onRetry={() => void reload()} />
+         </div>
+        )}
         {fields.map((field, i) => (
          <FieldGestureLayer
           key={field.publicKey.toString()}
@@ -157,7 +167,10 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
        }}
        style={{ padding: 10, borderRadius: 10, fontSize: 12, fontWeight: 600, display: 'flex', justifyContent: 'space-between', ...styles[type.id] }}
       >
-       <span><span className="ares-mono" style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.14em' }}>{RARE_LABELS[type.id]}</span> <span className="ares-mono" style={{ fontSize: 10, opacity: 0.75 }}>(×{(type.yieldBps / 10_000).toFixed(2)})</span></span>
+       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <img src={type.image} alt={RARE_LABELS[type.id]} width={26} height={30} loading="lazy" style={{ width: 26, height: 30, objectFit: 'contain' }} />
+        <span><span className="ares-mono" style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.14em' }}>{RARE_LABELS[type.id]}</span> <span className="ares-mono" style={{ fontSize: 10, opacity: 0.75 }}>(×{(type.yieldBps / 10_000).toFixed(2)})</span></span>
+       </span>
        <span>{fmtPotato(price, 0)} POTATO</span>
       </motion.button>
      )

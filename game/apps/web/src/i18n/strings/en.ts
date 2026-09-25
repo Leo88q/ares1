@@ -8,8 +8,8 @@ const en: Record<string, string> = {
   ' Пошлина истекает!': ' Tax expiring!',
   ' Пошлина оплачен: {d} дн.': ' Tax paid: {d} d.',
   ' Пошлина просрочен! Урожай −50%': ' Tax overdue! Harvest −50%',
-  ' Растёт…': ' Growing…',
-  ' Сбор…': ' Harvesting…',
+  'Растёт…': ' Growing…',
+  'Сбор…': ' Harvesting…',
   ' Скопировать адрес': ' Copy address',
   ' Тестовая сеть ({cluster}): получи 1 SOL из крана или отправь SOL на адрес выше.': ' Testnet ({cluster}): claim 1 SOL from a faucet or send SOL to the address above.',
   ' Уведомления работают!': ' Notifications work!',
@@ -36,7 +36,6 @@ const en: Record<string, string> = {
   'GameConfig не найден: программа не инициализирована на этом кластере.': 'GameConfig not found: the program is not initialized on this cluster.',
   'Mint SKR не найден на этом кластере — пресейл за SKR сейчас отключён.': 'SKR mint not found on this cluster — the SKR presale is currently disabled.',
   'On-chain дроп: {tier}': 'On-chain drop: {tier}',
-  'POTATO Жатва': 'POTATO Harvest',
   'POTATO ждёт жатвы на делянках': 'POTATO is waiting to be harvested on your plots',
   'POTATO к сбору': 'POTATO ready to harvest',
   'RPC перегружен (429). Подожди несколько секунд и повтори.': 'RPC is overloaded (429). Wait a few seconds and try again.',
@@ -83,6 +82,8 @@ const en: Record<string, string> = {
   'Валюта': 'Currency',
   'Варим зелье...': 'Brewing the elixir…',
   'Ветеран': 'Veteran',
+  'Стена нашивок': 'Patch wall',
+  'Награды экипажа из журнала. Серые — ещё не получены.': 'Crew decorations from the log. Grey ones are not earned yet.',
   'Вибрация': 'Vibration',
   'Владей 5 полями': 'Own 5 plots',
   'Владей 6 полями, хотя бы одно 3-го уровня': 'Own 6 plots, at least one at level 3',
@@ -395,13 +396,13 @@ const en: Record<string, string> = {
   'поле': 'plot',
   'поля': 'plots',
   'полей': 'plots',
-  '🌒 Растущая луна': '🌒 Waxing moon',
-  '🌓 Первая четверть': '🌓 First quarter',
-  '🌔 Прибывающая луна': '🌔 Waxing gibbous',
-  '🌕 Полнолуние (пик)': '🌕 Full moon (peak)',
-  '🌖 Убывающая луна': '🌖 Waning moon',
-  '🌗 Последняя четверть': '🌗 Last quarter',
-  '🌘 Новолуние (дно)': '🌘 New moon (bottom)',
+  'Растущая луна': 'Waxing moon',
+  'Первая четверть': 'First quarter',
+  'Прибывающая луна': 'Waxing gibbous',
+  'Полнолуние (пик)': 'Full moon (peak)',
+  'Убывающая луна': 'Waning moon',
+  'Последняя четверть': 'Last quarter',
+  'Новолуние (дно)': 'New moon (bottom)',
   'МОДУЛЬ': 'MODULE',
   'ИЗОЛЯЦИЯ': 'ISOLATION',
   'Закрыть подтверждение': 'Close confirmation',
@@ -430,6 +431,55 @@ const en: Record<string, string> = {
 
   'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'MIN ORDER: 10 POTATO · AMOUNT FROM 0.001 SOL',
   'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Minimum order: 10 POTATO and an amount from 0.001 SOL. Raise the price or the quantity.',
+
+  // Задачи смены (каюта)
+  'Заложи первое поле': 'Found your first plot',
+  'Забери нашивку в журнале': 'Claim a patch in the journal',
+  'Собери урожай: {n} POTATO': 'Harvest: {n} POTATO',
+  'Пошлина просрочена: {n}': 'Tax overdue: {n}',
+  'Техремонт требуется: {n}': 'Repairs needed: {n}',
+  'Все системы в норме': 'All systems nominal',
+
+  // Тосты транзакций (GameContext)
+  'LUT создана': 'LUT created',
+  'Максимум 10 полей за один батч.': 'Max 10 plots per batch.',
+  'Не удалось закрыть поле': 'Failed to close the plot',
+  'Не удалось отправить SOL': 'Failed to send SOL',
+  'Не удалось собрать урожай батчем': 'Failed to batch-harvest',
+  'Не удалось создать LUT': 'Failed to create LUT',
+  'Слишком много полей': 'Too many plots',
+
+  // On-chain ошибки (errors.ts)
+  'Награда уже получена.': 'Reward already claimed.',
+  'Не выполнены условия награды.': 'Reward conditions not met.',
+  'Минимальный ордер — 10 POTATO.': 'Minimum order — 10 POTATO.',
+
+  // On-chain ошибки, часть 2 (errors.ts)
+  'Некорректный mint-авторитет токена.': 'Invalid token mint authority.',
+  'Mint должен иметь 6 знаков после запятой.': 'Mint must have 6 decimals.',
+  'У mint не должно быть freeze-авторитета.': 'Mint must not have a freeze authority.',
+  'Пресеил распродан: все поля раскуплены.': 'Presale sold out: all plots claimed.',
+  'Лимит пресеила: максимум 5 полей на кошелёк.': 'Presale limit: max 5 plots per wallet.',
+  'Пресеил неактивен.': 'Presale is not active.',
+  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Manual grant quota exhausted (10% of the daily cap).',
+  'Превышен лимит выводов на текущие 24 часа.': 'Withdrawal limit for the current 24h window exceeded.',
+  'Базовая урожайность слишком высока (макс. 100 POTATO/день).': 'Base yield too high (max 100 POTATO/day).',
+  'Админский таймлок ещё не истёк.': 'Admin timelock has not expired yet.',
+  'Нет активного предложения администратора.': 'No pending admin proposal.',
+  'Эпоха слишком свежая, её пока нельзя закрыть.': 'Epoch is too recent to close.',
+  'Платный рандом доступен только напрямую, не через другие программы.': 'Paid RNG only works top-level, not via other programs.',
+  'Таймлок вывода ещё не истёк.': 'Withdrawal timelock has not expired yet.',
+  'Нет активного предложения на вывод этого актива.': 'No pending withdrawal proposal for this asset.',
+  'Сумма не совпадает с предложением на вывод.': 'Amount does not match the pending withdrawal.',
+  'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Invalid withdrawal kind: 0=POTATO, 1=SOL, 2=SKR.',
+  'Вывод этого актива уже предложен — сначала отмени его.': 'Withdrawal already proposed — cancel it first.',
+  'Нет связи с сетью. Проверь соединение и повтори.': 'No network connection. Check it and retry.',
+
+  // Каюта: покупка лицензии
+  'Не удалось купить лицензию': 'Failed to buy the license',
+
+  // Призовое шоу
+  'Пропустить анимацию': 'Skip animation',
 };
 
 export default en;

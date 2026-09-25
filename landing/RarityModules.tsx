@@ -3,12 +3,6 @@ import { t } from "./i18n";
 import { moduleTiers } from "./content";
 import "./living-engineering.css";
 
-const PHOTO_POS: Record<string, string> = {
-  common: "0% 0",
-  rare: "50% 0",
-  epic: "100% 0",
-};
-
 const TINT: Record<string, string> = {
   common: "#BBD4E8",
   rare: "#C36CFF",
@@ -29,14 +23,14 @@ export function RarityModules(): JSX.Element {
             <span className="hydro-module-index">0{index + 1}</span>
           </div>
 
-          <div
+          <img
             className={`hydro-module-photo hydro-module-photo--${tier.id}`}
-            style={{ "--photo-pos": PHOTO_POS[tier.id] } as CSSProperties}
-            role="img"
-            aria-label={t("Гидропонный модуль {label}: {stage}", {
+            src={`/ares/cassette-${tier.id}.webp`}
+            alt={t("Гидропонный модуль {label}: {stage}", {
               label: tier.label,
               stage: index === 0 ? t("росток") : index === 1 ? t("каскад") : t("гелиос"),
             })}
+            loading="lazy"
           />
 
           <div className="hydro-module-data">
