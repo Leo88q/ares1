@@ -439,6 +439,20 @@ const ptBR: Record<string, string> = {
   'Пошлина просрочена: {n}': 'Imposto vencido: {n}',
   'Техремонт требуется: {n}': 'Reparos necessários: {n}',
   'Все системы в норме': 'Todos os sistemas normais',
+
+  // Тосты транзакций (GameContext)
+  'LUT создана': 'LUT criada',
+  'Максимум 10 полей за один батч.': 'Máximo de 10 lotes por batch.',
+  'Не удалось закрыть поле': 'Falha ao encerrar o lote',
+  'Не удалось отправить SOL': 'Falha ao enviar SOL',
+  'Не удалось собрать урожай батчем': 'Falha na colheita em lote',
+  'Не удалось создать LUT': 'Falha ao criar a LUT',
+  'Слишком много полей': 'Lotes demais',
+
+  // On-chain ошибки (errors.ts)
+  'Награда уже получена.': 'Recompensa já resgatada.',
+  'Не выполнены условия награды.': 'Condições da recompensa não cumpridas.',
+  'Минимальный ордер — 10 POTATO.': 'Pedido mínimo — 10 POTATO.',
 };
 
 export default ptBR;

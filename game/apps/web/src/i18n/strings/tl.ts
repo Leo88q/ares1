@@ -439,6 +439,20 @@ const tl: Record<string, string> = {
   'Пошлина просрочена: {n}': 'Buwis paso na: {n}',
   'Техремонт требуется: {n}': 'Kailangan ng pagkukumpuni: {n}',
   'Все системы в норме': 'Normal ang lahat ng sistema',
+
+  // Тосты транзакций (GameContext)
+  'LUT создана': 'Nagawa ang LUT',
+  'Максимум 10 полей за один батч.': 'Max 10 bukid kada batch.',
+  'Не удалось закрыть поле': 'Nabigong isara ang bukid',
+  'Не удалось отправить SOL': 'Nabigong ipadala ang SOL',
+  'Не удалось собрать урожай батчем': 'Nabigo ang batch harvest',
+  'Не удалось создать LUT': 'Nabigong gawin ang LUT',
+  'Слишком много полей': 'Masyadong maraming bukid',
+
+  // On-chain ошибки (errors.ts)
+  'Награда уже получена.': 'Nakuha na ang gantimpala.',
+  'Не выполнены условия награды.': 'Hindi pa natutugunan ang mga kondisyon.',
+  'Минимальный ордер — 10 POTATO.': 'Minimum na order — 10 POTATO.',
 };
 
 export default tl;

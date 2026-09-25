@@ -439,6 +439,20 @@ const en: Record<string, string> = {
   'Пошлина просрочена: {n}': 'Tax overdue: {n}',
   'Техремонт требуется: {n}': 'Repairs needed: {n}',
   'Все системы в норме': 'All systems nominal',
+
+  // Тосты транзакций (GameContext)
+  'LUT создана': 'LUT created',
+  'Максимум 10 полей за один батч.': 'Max 10 plots per batch.',
+  'Не удалось закрыть поле': 'Failed to close the plot',
+  'Не удалось отправить SOL': 'Failed to send SOL',
+  'Не удалось собрать урожай батчем': 'Failed to batch-harvest',
+  'Не удалось создать LUT': 'Failed to create LUT',
+  'Слишком много полей': 'Too many plots',
+
+  // On-chain ошибки (errors.ts)
+  'Награда уже получена.': 'Reward already claimed.',
+  'Не выполнены условия награды.': 'Reward conditions not met.',
+  'Минимальный ордер — 10 POTATO.': 'Minimum order — 10 POTATO.',
 };
 
 export default en;

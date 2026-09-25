@@ -439,6 +439,20 @@ const id: Record<string, string> = {
   'Пошлина просрочена: {n}': 'Pajak menunggak: {n}',
   'Техремонт требуется: {n}': 'Perlu perbaikan: {n}',
   'Все системы в норме': 'Semua sistem normal',
+
+  // Тосты транзакций (GameContext)
+  'LUT создана': 'LUT dibuat',
+  'Максимум 10 полей за один батч.': 'Maks 10 lahan per batch.',
+  'Не удалось закрыть поле': 'Gagal menutup lahan',
+  'Не удалось отправить SOL': 'Gagal mengirim SOL',
+  'Не удалось собрать урожай батчем': 'Gagal panen batch',
+  'Не удалось создать LUT': 'Gagal membuat LUT',
+  'Слишком много полей': 'Terlalu banyak lahan',
+
+  // On-chain ошибки (errors.ts)
+  'Награда уже получена.': 'Hadiah sudah diklaim.',
+  'Не выполнены условия награды.': 'Syarat hadiah belum terpenuhi.',
+  'Минимальный ордер — 10 POTATO.': 'Order minimum — 10 POTATO.',
 };
 
 export default id;
