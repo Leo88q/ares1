@@ -13,9 +13,10 @@ import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 import { AgroBay } from './ares/AgroBay'
 import { FieldGestureLayer } from './ares/FieldGestureLayer'
+import { ErrorState } from '../ui/states'
 
 export default function MainScreen() {
- const { fields, stats, loading, purchasing, harvest, purchaseField, upgradeField, repairField, payTax, applyFertilizer } = useGame()
+ const { fields, stats, loading, fieldsError, reload, purchasing, harvest, purchaseField, upgradeField, repairField, payTax, applyFertilizer } = useGame()
  const { ready, rpcError, connected } = useSolana()
 
  return (
@@ -40,12 +41,21 @@ export default function MainScreen() {
        <InitStatus error={rpcError} />
       ) : !connected ? (
        <ConnectHint />
+      ) : !loading && fieldsError && fields.length === 0 ? (
+       <div style={{ gridColumn: '1 / -1' }}>
+        <ErrorState message={fieldsError} onRetry={() => void reload()} />
+       </div>
       ) : loading && fields.length === 0 ? (
        Array.from({ length: 2 }).map((_, i) => (
         <div key={i} className="pf-card hull-skin shimmer" style={{ height: 320, borderRadius: 20 }} aria-hidden="true" />
        ))
       ) : (
        <>
+        {fieldsError && fields.length > 0 && (
+         <div style={{ gridColumn: '1 / -1' }}>
+          <ErrorState inline message={fieldsError} onRetry={() => void reload()} />
+         </div>
+        )}
         {fields.map((field, i) => (
          <FieldGestureLayer
           key={field.publicKey.toString()}

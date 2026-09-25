@@ -474,6 +474,9 @@ const es419: Record<string, string> = {
   'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Tipo de retiro inválido: 0=POTATO, 1=SOL, 2=SKR.',
   'Вывод этого актива уже предложен — сначала отмени его.': 'Retiro ya propuesto — cancélalo primero.',
   'Нет связи с сетью. Проверь соединение и повтори.': 'Sin conexión de red. Revisa y reintenta.',
+
+  // Каюта: покупка лицензии
+  'Не удалось купить лицензию': 'No se pudo comprar la licencia',
 };
 
 export default es419;

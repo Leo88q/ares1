@@ -474,6 +474,9 @@ const ptBR: Record<string, string> = {
   'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Tipo de saque inválido: 0=POTATO, 1=SOL, 2=SKR.',
   'Вывод этого актива уже предложен — сначала отмени его.': 'Saque já proposto — cancele-o primeiro.',
   'Нет связи с сетью. Проверь соединение и повтори.': 'Sem conexão de rede. Verifique e tente de novo.',
+
+  // Каюта: покупка лицензии
+  'Не удалось купить лицензию': 'Falha ao comprar a licença',
 };
 
 export default ptBR;

@@ -51,6 +51,7 @@ export interface GameContextType {
  stats: GameStats
  solBalance: number
  loading: boolean
+ fieldsError: string | null
  purchasing: boolean
  claimed: Record<string, boolean>
  harvest: (field: PublicKey) => Promise<boolean>
@@ -84,6 +85,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const [ataExists, setAtaExists] = useState(false)
  const [solBalance, setSolBalance] = useState(0)
  const [loading, setLoading] = useState(true)
+ const [fieldsError, setFieldsError] = useState<string | null>(null)
  const [purchasing, setPurchasing] = useState(false)
  const [claimed, setClaimed] = useState<Record<string, boolean>>({})
  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000))
@@ -144,6 +146,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
      })
      .sort((a, b) => a.lastHarvest - b.lastHarvest),
    )
+   setFieldsError(null)
+  } catch (err) {
+   // Не пробрасываем: поллинг продолжится, экран покажет ErrorState с ретраем,
+   // а успешные операции (claim/airdrop) не превратятся в ложные тосты ошибок.
+   setFieldsError(describeError(err))
   } finally {
    setLoading(false)
   }
@@ -548,12 +555,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
  const value = useMemo<GameContextType>(
   () => ({
-   fields, stats, solBalance, loading, purchasing, claimed,
+   fields, stats, solBalance, loading, fieldsError, purchasing, claimed,
    harvest, batchHarvest, closeField, ensureLut,
    purchaseField, buyFieldPresale, upgradeField, repairField, payTax, applyFertilizer,
    claimReward, airdropSol, sendPotato, sendSol, reload: loadFields,
   }),
-  [fields, stats, solBalance, loading, purchasing, claimed, harvest, batchHarvest, closeField, ensureLut, purchaseField, upgradeField, repairField,
+  [fields, stats, solBalance, loading, fieldsError, purchasing, claimed, harvest, batchHarvest, closeField, ensureLut, purchaseField, upgradeField, repairField,
    payTax, applyFertilizer, claimReward, airdropSol, sendPotato, sendSol, loadFields],
  )
 

@@ -474,6 +474,9 @@ const vi: Record<string, string> = {
   'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Loại rút không hợp lệ: 0=POTATO, 1=SOL, 2=SKR.',
   'Вывод этого актива уже предложен — сначала отмени его.': 'Đã có đề xuất rút — hãy hủy trước.',
   'Нет связи с сетью. Проверь соединение и повтори.': 'Mất kết nối mạng. Kiểm tra và thử lại.',
+
+  // Каюта: покупка лицензии
+  'Не удалось купить лицензию': 'Không thể mua giấy phép',
 };
 
 export default vi;
