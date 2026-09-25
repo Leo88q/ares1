@@ -477,6 +477,9 @@ const ptBR: Record<string, string> = {
 
   // Каюта: покупка лицензии
   'Не удалось купить лицензию': 'Falha ao comprar a licença',
+
+  // Призовое шоу
+  'Пропустить анимацию': 'Pular animação',
 };
 
 export default ptBR;

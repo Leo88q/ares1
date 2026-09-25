@@ -484,7 +484,7 @@ function PrizeScene({
         className="prize-skip"
         onClick={onComplete}
       >
-        Пропустить анимацию
+        {t('Пропустить анимацию')}
       </button>
     </motion.div>
   );

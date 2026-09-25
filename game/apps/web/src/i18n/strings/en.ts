@@ -477,6 +477,9 @@ const en: Record<string, string> = {
 
   // Каюта: покупка лицензии
   'Не удалось купить лицензию': 'Failed to buy the license',
+
+  // Призовое шоу
+  'Пропустить анимацию': 'Skip animation',
 };
 
 export default en;
