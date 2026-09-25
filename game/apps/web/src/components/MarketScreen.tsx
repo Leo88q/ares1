@@ -55,7 +55,7 @@ function MarketScreenInner() {
 
  return (
   <div style={{ padding: 20, paddingBottom: 140 }}>
-   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
      <div>
       <h1 style={{ fontSize: 28, fontWeight: 700 }}>{t("СНАБЖЕНИЕ")}</h1>

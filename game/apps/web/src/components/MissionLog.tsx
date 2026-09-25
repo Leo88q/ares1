@@ -117,7 +117,7 @@ export function MissionLog() {
        className="pf-card hull-skin" style={{ padding: 16, borderRadius: 16, opacity: done ? 1 : 0.75 }}>
        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <PatchImg src={ach.patch} title={ach.title} done={done} />
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
          <div className="ares-stencil" style={{ fontSize: 13, marginBottom: 2, color: 'var(--ares-hud-amber, #FFB347)', textShadow: '0 0 10px rgba(255,179,71,0.35)' }}>{ach.title}</div>
          <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 6 }}>{ach.desc}</div>
          <LiquidBar value={pct} label={ach.title} />

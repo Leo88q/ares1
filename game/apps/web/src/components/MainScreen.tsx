@@ -34,7 +34,7 @@ export default function MainScreen() {
 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
      <div
       data-tutorial="fields"
-      style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, marginTop: 20, alignItems: 'start' }}
+      style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 16, marginTop: 20, alignItems: 'start' }}
      >
       {!ready ? (
        <InitStatus error={rpcError} />

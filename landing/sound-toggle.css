@@ -64,6 +64,18 @@
     --morph-padding-inline: 9px;
     --morph-font-size: 10px;
   }
+
+  .header-play {
+    display: none;
+  }
+
+  .lang-switcher__button span {
+    display: none;
+  }
+
+  .lang-switcher__button {
+    padding: 8px 10px;
+  }
 }
 
 @media (max-width: 359px) {
