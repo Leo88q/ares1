@@ -524,7 +524,7 @@ function WalletButton(): JSX.Element {
             fontFamily: '"JetBrains Mono", ui-monospace, monospace',
           }}
         >
-          <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 10, wordBreak: "break-all" }}>{addr}</div>
+          <div style={{ fontSize: 11, opacity: 0.85, marginBottom: 10, wordBreak: "break-all" }}>{addr}</div>
           <button
             onClick={() => { void disconnect(); setMenuOpen(false); }}
             style={{
