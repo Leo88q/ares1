@@ -16,6 +16,7 @@
     "migrate-v2": "tsx scripts/migrate-v2.ts",
     "test": "anchor test",
     "test:unit": "cargo test -p solana_potato --lib",
+    "test:guards": "node --test scripts/security-guards.test.mjs",
     "typecheck": "yarn workspace web exec tsc --noEmit && yarn workspace backend typecheck",
     "simulate": "python3 economy/simulate.py",
     "ci:local": "./scripts/ci-local.sh",
