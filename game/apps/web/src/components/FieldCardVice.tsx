@@ -84,9 +84,9 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       loading="lazy"
       style={{ width: 48, height: 56, objectFit: 'contain', flexShrink: 0, filter: `drop-shadow(0 0 12px ${RARE_COLOR[rare]}66)` }}
      />
-     <div style={{ flex: 1 }}>
+     <div style={{ flex: 1, minWidth: 0 }}>
       <div className="pf-h2" style={{ fontSize: 18 }}>{t("РАСТЕНИЕ")}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, rowGap: 4, marginTop: 4, flexWrap: 'wrap' }}>
        <span className="ares-mono" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', padding: '2px 8px', borderRadius: 4, color: RARE_COLOR[rare], border: `1px solid ${RARE_COLOR[rare]}66`, background: `${RARE_COLOR[rare]}1a`, textShadow: `0 0 8px ${RARE_COLOR[rare]}55` }}>
         {RARE_LABEL[rare]}
        </span>

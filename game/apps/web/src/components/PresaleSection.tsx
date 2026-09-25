@@ -125,6 +125,8 @@ export default function PresaleSection() {
     display: 'flex',
     alignItems: 'baseline',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 10,
    }}>
     <div>
