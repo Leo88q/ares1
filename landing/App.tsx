@@ -1226,6 +1226,53 @@ function TiltCard({ children, xpKey }: TiltCardProps): JSX.Element {
     </motion.article>
   );
 }
+function Product(): JSX.Element {
+  useI18n();
+  return (
+    <Section id="product" speed={0.5}>
+      <SectionHeading
+        id="product-title"
+        eyebrow={t("НАШ ПРОДУКТ")}
+        title={t("ARES-1 — флагман студии")}
+        text={t("Ончейн-ферма на Solana: выращивай картофель под куполами Марса, прокачивай делянки до 50 уровня, торгуй урожаем на живой бирже и собирай нашивки за достижения. Поля, рынок и награды — в смарт-контрактах: никакого офчейна.")}
+      />
+
+      <div className="product-grid">
+        <Reveal className="product-poster" delay={0.1}>
+          <img
+            src="/ares/product-poster.jpg"
+            alt={t("Постер игры ARES-1: картофельная ферма под куполами Марса")}
+            width={1376}
+            height={768}
+            loading="lazy"
+            decoding="async"
+          />
+        </Reveal>
+        <Reveal className="product-points" delay={0.2}>
+          <ul>
+            <li>
+              <Check size={18} aria-hidden="true" />
+              <span>{t("100% ончейн — экономика в программе Solana")}</span>
+            </li>
+            <li>
+              <Check size={18} aria-hidden="true" />
+              <span>{t("3 тира модулей, мутации и прокачка")}</span>
+            </li>
+            <li>
+              <Check size={18} aria-hidden="true" />
+              <span>{t("Биржа ордеров за SOL и пресеил")}</span>
+            </li>
+          </ul>
+          <Action href={PC.url} target="_blank" rel="noopener noreferrer">
+            {t("Играть в ARES-1")}
+            <ArrowUpRight size={16} aria-hidden="true" />
+          </Action>
+        </Reveal>
+      </div>
+    </Section>
+  );
+}
+
 function Mechanics(): JSX.Element {
   useI18n();
   return (
@@ -2333,6 +2380,7 @@ export default function App(): JSX.Element {
       <Header notify={notify} />
       <main id="main-content" tabIndex={-1}>
         <Hero />
+        <Product />
         <Problem />
         <Mechanics />
         <Mascot />

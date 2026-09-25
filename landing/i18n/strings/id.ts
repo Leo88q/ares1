@@ -365,6 +365,17 @@ const id: Record<string, string> = {
   'шанс выпадения': 'peluang drop',
   'Готово': 'Selesai',
   'Гидропонный модуль {label}: {stage}': 'Modul hidroponik {label}: {stage}',
+
+  // Блок «Наш продукт»
+  'НАШ ПРОДУКТ': 'PRODUK KAMI',
+  'ARES-1 — флагман студии': 'ARES-1 — flagship studio',
+  'Ончейн-ферма на Solana: выращивай картофель под куполами Марса, прокачивай делянки до 50 уровня, торгуй урожаем на живой бирже и собирай нашивки за достижения. Поля, рынок и награды — в смарт-контрактах: никакого офчейна.': 'Game tani on-chain di Solana: tanam kentang di bawah kubah Mars, upgrade lahan hingga level 50, dagangkan panen di bursa yang hidup, dan kumpulkan lencana. Lahan, pasar, dan hadiah ada di smart contract — tanpa off-chain.',
+  '100% ончейн — экономика в программе Solana': '100% on-chain — ekonomi di program Solana',
+  '3 тира модулей, мутации и прокачка': '3 tier modul, mutasi, dan upgrade',
+  'Биржа ордеров за SOL и пресеил': 'Bursa order SOL dan presale',
+  'Играть в ARES-1': 'Mainkan ARES-1',
+  'Постер игры ARES-1: картофельная ферма под куполами Марса': 'Poster game ARES-1: kebun kentang di bawah kubah Mars',
+  'Продукт': 'Produk',
 };
 
 export default id;

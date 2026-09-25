@@ -552,6 +552,7 @@ export const siteContent = {
   header: {
     logo: "POTATO · ARES-1",
     navigation: [
+      { label: "Продукт", href: "#product" },
       { label: "Механики", href: "#mechanics" },
       { label: "Токеномика", href: "#tokenomics" },
       { label: "Дорожная карта", href: "#roadmap" },

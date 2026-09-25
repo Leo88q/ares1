@@ -365,6 +365,17 @@ const vi: Record<string, string> = {
   'шанс выпадения': 'tỷ lệ rơi',
   'Готово': 'Xong',
   'Гидропонный модуль {label}: {stage}': 'Module thủy canh {label}: {stage}',
+
+  // Блок «Наш продукт»
+  'НАШ ПРОДУКТ': 'SẢN PHẨM CỦA CHÚNG TÔI',
+  'ARES-1 — флагман студии': 'ARES-1 — sản phẩm chủ lực của studio',
+  'Ончейн-ферма на Solana: выращивай картофель под куполами Марса, прокачивай делянки до 50 уровня, торгуй урожаем на живой бирже и собирай нашивки за достижения. Поля, рынок и награды — в смарт-контрактах: никакого офчейна.': 'Trang trại on-chain trên Solana: trồng khoai tây dưới mái vòm sao Hỏa, nâng cấp thửa đất đến cấp 50, giao dịch vụ mùa trên sàn sống và sưu tầm huy hiệu. Ruộng, chợ và phần thưởng đều nằm trong smart contract — không off-chain.',
+  '100% ончейн — экономика в программе Solana': '100% on-chain — kinh tế trong chương trình Solana',
+  '3 тира модулей, мутации и прокачка': '3 bậc module, đột biến và nâng cấp',
+  'Биржа ордеров за SOL и пресеил': 'Sàn lệnh SOL và presale',
+  'Играть в ARES-1': 'Chơi ARES-1',
+  'Постер игры ARES-1: картофельная ферма под куполами Марса': 'Poster game ARES-1: trang trại khoai tây dưới vòm sao Hỏa',
+  'Продукт': 'Sản phẩm',
 };
 
 export default vi;
