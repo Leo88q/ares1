@@ -474,6 +474,9 @@ const en: Record<string, string> = {
   'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Invalid withdrawal kind: 0=POTATO, 1=SOL, 2=SKR.',
   'Вывод этого актива уже предложен — сначала отмени его.': 'Withdrawal already proposed — cancel it first.',
   'Нет связи с сетью. Проверь соединение и повтори.': 'No network connection. Check it and retry.',
+
+  // Каюта: покупка лицензии
+  'Не удалось купить лицензию': 'Failed to buy the license',
 };
 
 export default en;

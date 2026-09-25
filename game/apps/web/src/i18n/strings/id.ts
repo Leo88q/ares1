@@ -474,6 +474,9 @@ const id: Record<string, string> = {
   'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Jenis penarikan tidak valid: 0=POTATO, 1=SOL, 2=SKR.',
   'Вывод этого актива уже предложен — сначала отмени его.': 'Penarikan sudah diusulkan — batalkan dulu.',
   'Нет связи с сетью. Проверь соединение и повтори.': 'Tidak ada koneksi jaringan. Periksa dan coba lagi.',
+
+  // Каюта: покупка лицензии
+  'Не удалось купить лицензию': 'Gagal membeli lisensi',
 };
 
 export default id;

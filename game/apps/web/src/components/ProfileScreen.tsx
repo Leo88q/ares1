@@ -19,11 +19,14 @@ import { HullPanel } from '../ui/HullPanel'
 import { RollingNumber } from '../ui/RollingNumber'
 import { SparkProgress } from '../ui/SparkProgress'
 import { PatchWall } from './ares/PatchWall'
+import { useToast } from './Toast'
+import { describeError } from '../utils/errors'
 
 function ProfileScreenInner() {
  const { connected, publicKey, ready, programId, connection, sendIx } = useSolana()
  const { stats, claimed, fields } = useGame()
  const navigate = useNavigate()
+ const { show } = useToast()
  const [license, setLicense] = useState<{ expiresAt: number; active: boolean } | null>(null)
  const [buyingLicense, setBuyingLicense] = useState(false)
 
@@ -61,6 +64,7 @@ function ProfileScreenInner() {
    setLicense({ expiresAt: Math.floor(Date.now() / 1000) + 30 * 86400, active: true })
   } catch (err) {
    console.error('buyLicense', err)
+   show({ type: 'error', title: t('Не удалось купить лицензию'), message: describeError(err) })
   } finally { setBuyingLicense(false) }
  }
 

@@ -22,7 +22,7 @@ import { LiquidBar } from './ares/LiquidBar'
 import { ConsolePanel } from './ares/panels'
 import { TelemetryStrip } from './ares/TelemetryStrip'
 import { describeError } from '../utils/errors'
-import { ErrorState } from '../ui/states'
+import { ErrorState, LoadingState } from '../ui/states'
 
 interface LeaderRow {
  address: string
@@ -199,8 +199,8 @@ function StatsScreenInner() {
    return <ErrorState message={loadError} onRetry={() => void load()} />
   }
   return (
-   <div style={{ padding: 40, textAlign: 'center', color: 'var(--pf-text-secondary)' }} role="status">
-    {ready ? t('Загрузка журнала…') : t('Ждём подключения к блокчейну…')}
+   <div style={{ padding: 20, paddingBottom: 140 }}>
+    <LoadingState label={ready ? t('Загрузка журнала…') : t('Ждём подключения к блокчейну…')} />
    </div>
   )
  }

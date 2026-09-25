@@ -474,6 +474,9 @@ const tl: Record<string, string> = {
   'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Di-wastong uri ng withdrawal: 0=POTATO, 1=SOL, 2=SKR.',
   'Вывод этого актива уже предложен — сначала отмени его.': 'Nakapropose na ang withdrawal — ikansela muna.',
   'Нет связи с сетью. Проверь соединение и повтори.': 'Walang koneksyon sa network. Suriin at subukang muli.',
+
+  // Каюта: покупка лицензии
+  'Не удалось купить лицензию': 'Nabigong bilhin ang lisensya',
 };
 
 export default tl;
