@@ -223,7 +223,7 @@ function MarketScreenInner() {
 
    <AnimatePresence>
     {cancelInfo && (
-     <Modal onClose={() => setCancelInfo(false)} title={t("Ордер отменён")} emoji="">
+     <Modal onClose={() => setCancelInfo(false)} title={t("Ордер отменён")}>
       <div style={{ padding: 14, borderRadius: 14, background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
        <p style={{ fontSize: 13, color: 'var(--pf-gold)', lineHeight: 1.5 }}>
         {t('Токены возвращены на баланс. Новый ордер можно выставить через')} <b>{t('{hours} часа', { hours: CANCEL_COOLDOWN_HOURS })}</b>{t(' — так мы защищаем рынок от спама.')}
@@ -248,7 +248,7 @@ export function Row({ label, value, valueColor = 'white' }: { label: string; val
  )
 }
 
-function Modal({ title, emoji, children, onClose }: { title: string; emoji?: string; children: ReactNode; onClose: () => void }) {
+function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
  return (
   <motion.div
    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -262,7 +262,7 @@ function Modal({ title, emoji, children, onClose }: { title: string; emoji?: str
     className="pf-card hull-skin"
     style={{ width: '100%', maxWidth: 340, padding: 28, borderRadius: 24, textAlign: 'center', background: '#1a1a2e' }}
    >
-    {emoji && <div style={{ fontSize: 48, marginBottom: 12 }} aria-hidden="true">{emoji}</div>}
+    <div style={{ marginBottom: 12, color: 'var(--pf-teal)' }} aria-hidden="true"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5.5"/></svg></div>
     <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{title}</h3>
     {children}
    </motion.div>

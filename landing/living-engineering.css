@@ -270,10 +270,8 @@
   width: min(100%, 340px);
   aspect-ratio: 0.74;
   margin: 10px auto 0;
-  background-image: url('/ares/modules.png');
-  background-size: 300% 100%;
-  background-repeat: no-repeat;
-  background-position: var(--photo-pos, 0% 0);
+  display: block;
+  object-fit: contain;
   mix-blend-mode: screen;
   -webkit-mask-image: radial-gradient(ellipse 74% 70% at 50% 50%, #000 60%, transparent 97%);
   mask-image: radial-gradient(ellipse 74% 70% at 50% 50%, #000 60%, transparent 97%);

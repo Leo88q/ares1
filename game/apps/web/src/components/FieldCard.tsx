@@ -86,7 +86,14 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
     >
      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-       <span style={{ fontSize: 32 }} aria-hidden="true">{type.emoji}</span>
+       <img
+        src={type.image}
+        alt={type.name}
+        width={48}
+        height={56}
+        loading="lazy"
+        style={{ width: 48, height: 56, objectFit: 'contain', flexShrink: 0 }}
+       />
        <div>
         <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)' }}>{type.name}</div>
         <div style={{ fontSize: 11, color: 'var(--pf-text-muted)' }}>×{(type.yieldBps / 10_000).toFixed(2)} {t('урожай')}</div>
@@ -155,7 +162,7 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
      className={canHarvest ? 'gradient-gold shadow-glow-gold' : ''}
      style={{ width: '100%', padding: 12, borderRadius: 12, fontSize: 14, fontWeight: 600, marginTop: 12, background: canHarvest ? undefined : 'rgba(255,255,255,0.1)' }}
     >
-     {harvesting ? t(' Сбор…') : canHarvest ? t('POTATO Жатва') : t(' Растёт…')}
+     {harvesting ? t('Сбор…') : canHarvest ? t('Жатва') : t('Растёт…')}
     </motion.button>
 
     <AnimatePresence>

@@ -86,12 +86,12 @@ export function ReferralSection() {
      {[
       t('Ссылка бесплатна — приглашающий платит ничего'),
       t('Приглашённый открывает ссылку с ?ref= — регистрируется автоматически (on-chain, одноразово)'),
-      t('Антиспам: 5 🥔 сгорает с баланса приглашённого, разово'),
+      t('Антиспам: 5 POTATO сгорает с баланса приглашённого, разово'),
       t('−1 % продавцу на сделках приглашённого — на каждой покупке'),
       t('Твоя награда: 0.5 % от комиссии маркета по его сделкам'),
      ].map((t, i) => (
       <div key={i} style={{ display: 'flex', gap: 6, padding: '2px 0', fontSize: 11, color: 'var(--pf-text-secondary)', lineHeight: 1.5 }}>
-       <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true">✓</span> {t}
+       <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span> {t}
       </div>
      ))}
     </div>

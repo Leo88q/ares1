@@ -15,10 +15,10 @@ export interface Tuber9Props {
 }
 
 const MOOD_IMAGE: Record<TuberMood, string> = {
- happy: '/ares/tuber9-happy.png',
- warn: '/ares/tuber9-warn.png',
- sleep: '/ares/tuber9-sleep.png',
- jump: '/ares/tuber9-jump.png',
+ happy: '/ares/tuber9-happy.webp',
+ warn: '/ares/tuber9-warn.webp',
+ sleep: '/ares/tuber9-sleep.webp',
+ jump: '/ares/tuber9-jump.webp',
 };
 
 const VISOR_COLOR: Record<TuberMood, string> = {

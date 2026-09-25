@@ -551,13 +551,13 @@ export function getLunarMultiplier(epochId: number): number {
 
 export function getLunarPhase(epochId: number): string {
   const day = epochId % 28;
-  if (day <= 3) return '🌒 Растущая луна';
-  if (day <= 7) return '🌓 Первая четверть';
-  if (day <= 10) return '🌔 Прибывающая луна';
-  if (day <= 14) return '🌕 Полнолуние (пик)';
-  if (day <= 17) return '🌖 Убывающая луна';
-  if (day <= 21) return '🌗 Последняя четверть';
-  return '🌘 Новолуние (дно)';
+  if (day <= 3) return 'Растущая луна';
+  if (day <= 7) return 'Первая четверть';
+  if (day <= 10) return 'Прибывающая луна';
+  if (day <= 14) return 'Полнолуние (пик)';
+  if (day <= 17) return 'Убывающая луна';
+  if (day <= 21) return 'Последняя четверть';
+  return 'Новолуние (дно)';
 }
 
 // ───────────────────────────────────────────────────────────────

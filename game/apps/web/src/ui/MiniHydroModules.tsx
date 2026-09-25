@@ -1,14 +1,14 @@
 import { t, useI18n } from '../i18n'
+import { FIELD_TYPES } from '../utils/constants'
 
 const TIERS = [
- { id: 'common', tint: '#BBD4E8', label: 'COMMON' },
- { id: 'rare', tint: '#C36CFF', label: 'RARE' },
- { id: 'epic', tint: '#FFD278', label: 'EPIC' },
+ { id: 'common', typeId: 0, tint: '#BBD4E8', label: 'COMMON' },
+ { id: 'rare', typeId: 1, tint: '#C36CFF', label: 'RARE' },
+ { id: 'epic', typeId: 2, tint: '#FFD278', label: 'EPIC' },
 ] as const;
 
 /**
- * Одно фото с тремя капсулами нарезается на три независимых модуля:
- * каждая капсула занимает свою треть кадра (background-position 0/50/100%).
+ * Три отдельные лёгкие WebP-кассеты (раньше — один тяжёлый спрайт modules.png).
  */
 export function MiniHydroModules(): JSX.Element {
  useI18n()
@@ -16,10 +16,11 @@ export function MiniHydroModules(): JSX.Element {
   <div className="mini-hydro-row">
    {TIERS.map((tier) => (
     <div key={tier.id} className={`mini-hydro mini-hydro--${tier.id}`}>
-     <div
+     <img
       className="mini-hydro-img"
-      role="img"
-      aria-label={t('Гидропонный модуль {id}', { id: tier.label })}
+      src={FIELD_TYPES[tier.typeId].image}
+      alt={t('Гидропонный модуль {id}', { id: tier.label })}
+      loading="lazy"
      />
      <span className="mini-hydro-label" style={{ color: tier.tint }}>{tier.label}</span>
     </div>

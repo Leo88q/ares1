@@ -1,4 +1,4 @@
-import { PRESALE_DROP } from '../utils/constants'
+import { FIELD_TYPES, PRESALE_DROP } from '../utils/constants'
 import { t } from '../i18n'
 
 import { useEffect, useState } from 'react'
@@ -113,6 +113,13 @@ export default function PresaleSection() {
     </div>
    </div>
 
+   {/* Кассеты трёх тиров */}
+   <div style={{ display: 'flex', justifyContent: 'center', gap: 6, margin: '2px 0 14px' }} aria-hidden="true">
+    {FIELD_TYPES.map((ft) => (
+     <img key={ft.id} src={ft.image} alt="" loading="lazy" style={{ width: 76, height: 88, objectFit: 'contain', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.5))' }} />
+    ))}
+   </div>
+
    {/* Счётчик оставшихся */}
    <div style={{
     display: 'flex',
@@ -224,8 +231,18 @@ export default function PresaleSection() {
       ))}
      </div>
      {lastDrop !== null && (
-      <div className="ares-mono" style={{ marginTop: 0, textAlign: 'center', fontSize: 11, color: PRESALE_DROP[lastDrop].color, letterSpacing: '0.1em' }}>
-       {t('ВЫПАЛО: {label}', { label: PRESALE_DROP[lastDrop].label })}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, marginTop: 4 }}>
+       <motion.img
+        initial={{ scale: 0.4, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+        src={FIELD_TYPES[lastDrop].image}
+        alt={PRESALE_DROP[lastDrop].label}
+        style={{ width: 88, height: 100, objectFit: 'contain', filter: `drop-shadow(0 0 18px ${PRESALE_DROP[lastDrop].color}88)` }}
+       />
+       <div className="ares-mono" style={{ textAlign: 'center', fontSize: 11, color: PRESALE_DROP[lastDrop].color, letterSpacing: '0.1em' }}>
+        {t('ВЫПАЛО: {label}', { label: PRESALE_DROP[lastDrop].label })}
+       </div>
       </div>
      )}
      {t('80% SKR → казна · 20% → казна команды')}
