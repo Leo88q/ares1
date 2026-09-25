@@ -10,8 +10,8 @@ const vi: Record<string, string> = {
   ' Пошлина истекает!': ' Thuế sắp hết hạn!',
   ' Пошлина оплачен: {d} дн.': ' Đã đóng thuế: {d} ngày.',
   ' Пошлина просрочен! Урожай −50%': ' Hết hạn thuế! Thu hoạch −50%',
-  ' Растёт…': ' Đang lớn…',
-  ' Сбор…': ' Đang thu hoạch…',
+  'Растёт…': ' Đang lớn…',
+  'Сбор…': ' Đang thu hoạch…',
   ' Скопировать адрес': ' Sao chép địa chỉ',
   ' Тестовая сеть ({cluster}): получи 1 SOL из крана или отправь SOL на адрес выше.': ' Testnet ({cluster}): nhận 1 SOL từ faucet hoặc gửi SOL tới địa chỉ phía trên.',
   ' Уведомления работают!': ' Thông báo đang hoạt động!',
@@ -39,7 +39,6 @@ const vi: Record<string, string> = {
   'GameConfig не найден: программа не инициализирована на этом кластере.': 'Không tìm thấy GameConfig: chương trình chưa được khởi tạo trên cụm này.',
   'Mint SKR не найден на этом кластере — пресейл за SKR сейчас отключён.': 'Không tìm thấy mint SKR trên cụm này — presale bằng SKR hiện đang tắt.',
   'On-chain дроп: {tier}': 'Drop on-chain: {tier}',
-  'POTATO Жатва': 'POTATO Thu hoạch',
   'POTATO ждёт жатвы на делянках': 'POTATO đang chờ thu hoạch trên các mảnh đất',
   'POTATO к сбору': 'POTATO sẵn sàng thu hoạch',
   'RPC перегружен (429). Подожди несколько секунд и повтори.': 'RPC đang quá tải (429). Chờ vài giây rồi thử lại.',
@@ -74,6 +73,8 @@ const vi: Record<string, string> = {
   'Варим зелье...': 'Đang pha chế phẩm…',
   'Варим зельье...': 'Đang pha chế phẩm…',
   'Ветеран': 'Thủ cựu',
+  'Стена нашивок': 'Tường phù hiệu',
+  'Награды экипажа из журнала. Серые — ещё не получены.': 'Phần thưởng phi hành đoàn từ nhật ký. Huy hiệu xám chưa đạt được.',
   'Вибрация': 'Rung',
   'Владей 5 полями': 'Sở hữu 5 mảnh đất',
   'Владей 6 полями, хотя бы одно 3-го уровня': 'Sở hữu 6 mảnh đất, ít nhất một mảnh cấp 3',
@@ -395,13 +396,13 @@ const vi: Record<string, string> = {
   '{hours} часа': '{hours} giờ',
   '{h} ч осталось': 'còn {h} giờ',
   '{name}, уровень {level}. {action} действия': '{name}, cấp {level}. {action} thao tác',
-  '🌒 Растущая луна': '🌒 Trăng non',
-  '🌓 Первая четверть': '🌓 Thượng tuần trăng',
-  '🌔 Прибывающая луна': '🌔 Trăng khuyết trên',
-  '🌕 Полнолуние (пик)': '🌕 Trăng tròn (đỉnh)',
-  '🌖 Убывающая луна': '🌖 Trăng già',
-  '🌗 Последняя четверть': '🌗 Hạ tuần trăng',
-  '🌘 Новолуние (дно)': '🌘 Trăng mới (đáy)',
+  'Растущая луна': 'Trăng non',
+  'Первая четверть': 'Thượng tuần trăng',
+  'Прибывающая луна': 'Trăng khuyết trên',
+  'Полнолуние (пик)': 'Trăng tròn (đỉnh)',
+  'Убывающая луна': 'Trăng già',
+  'Последняя четверть': 'Hạ tuần trăng',
+  'Новолуние (дно)': 'Trăng mới (đáy)',
   'МОДУЛЬ': 'MODULE',
   'ИЗОЛЯЦИЯ': 'CÁCH LY',
   'Закрыть подтверждение': 'Đóng xác nhận',
@@ -430,6 +431,55 @@ const vi: Record<string, string> = {
 
   'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'LỆNH TỐI THIỂU: 10 POTATO · SỐ TIỀN TỪ 0.001 SOL',
   'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Lệnh tối thiểu: 10 POTATO và số tiền từ 0.001 SOL. Tăng giá hoặc số lượng lên.',
+
+  // Задачи смены (каюта)
+  'Заложи первое поле': 'Lập thửa đầu tiên',
+  'Забери нашивку в журнале': 'Nhận huy hiệu trong nhật ký',
+  'Собери урожай: {n} POTATO': 'Thu hoạch: {n} POTATO',
+  'Пошлина просрочена: {n}': 'Thuế quá hạn: {n}',
+  'Техремонт требуется: {n}': 'Cần sửa chữa: {n}',
+  'Все системы в норме': 'Mọi hệ thống ổn định',
+
+  // Тосты транзакций (GameContext)
+  'LUT создана': 'Đã tạo LUT',
+  'Максимум 10 полей за один батч.': 'Tối đa 10 thửa mỗi đợt.',
+  'Не удалось закрыть поле': 'Không thể đóng thửa',
+  'Не удалось отправить SOL': 'Không thể gửi SOL',
+  'Не удалось собрать урожай батчем': 'Thu hoạch hàng loạt thất bại',
+  'Не удалось создать LUT': 'Không thể tạo LUT',
+  'Слишком много полей': 'Quá nhiều thửa',
+
+  // On-chain ошибки (errors.ts)
+  'Награда уже получена.': 'Phần thưởng đã được nhận.',
+  'Не выполнены условия награды.': 'Chưa đủ điều kiện nhận thưởng.',
+  'Минимальный ордер — 10 POTATO.': 'Lệnh tối thiểu — 10 POTATO.',
+
+  // On-chain ошибки, часть 2 (errors.ts)
+  'Некорректный mint-авторитет токена.': 'Quyền mint không hợp lệ.',
+  'Mint должен иметь 6 знаков после запятой.': 'Mint phải có 6 chữ số thập phân.',
+  'У mint не должно быть freeze-авторитета.': 'Mint không được có quyền đóng băng.',
+  'Пресеил распродан: все поля раскуплены.': 'Presale đã bán hết.',
+  'Лимит пресеила: максимум 5 полей на кошелёк.': 'Giới hạn presale: tối đa 5 thửa mỗi ví.',
+  'Пресеил неактивен.': 'Presale chưa hoạt động.',
+  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Đã hết hạn mức cộng tay (10% giới hạn ngày).',
+  'Превышен лимит выводов на текущие 24 часа.': 'Vượt giới hạn rút trong 24h.',
+  'Базовая урожайность слишком высока (макс. 100 POTATO/день).': 'Sản lượng cơ sở quá cao (tối đa 100 POTATO/ngày).',
+  'Админский таймлок ещё не истёк.': 'Timelock admin chưa hết hạn.',
+  'Нет активного предложения администратора.': 'Không có đề xuất admin nào.',
+  'Эпоха слишком свежая, её пока нельзя закрыть.': 'Epoch còn quá mới để đóng.',
+  'Платный рандом доступен только напрямую, не через другие программы.': 'RNG trả phí chỉ chạy trực tiếp, không qua chương trình khác.',
+  'Таймлок вывода ещё не истёк.': 'Timelock rút tiền chưa hết hạn.',
+  'Нет активного предложения на вывод этого актива.': 'Không có đề xuất rút nào cho tài sản này.',
+  'Сумма не совпадает с предложением на вывод.': 'Số tiền không khớp với đề xuất rút.',
+  'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Loại rút không hợp lệ: 0=POTATO, 1=SOL, 2=SKR.',
+  'Вывод этого актива уже предложен — сначала отмени его.': 'Đã có đề xuất rút — hãy hủy trước.',
+  'Нет связи с сетью. Проверь соединение и повтори.': 'Mất kết nối mạng. Kiểm tra và thử lại.',
+
+  // Каюта: покупка лицензии
+  'Не удалось купить лицензию': 'Không thể mua giấy phép',
+
+  // Призовое шоу
+  'Пропустить анимацию': 'Bỏ qua hoạt cảnh',
 };
 
 export default vi;

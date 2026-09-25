@@ -1,13 +1,16 @@
 import { CheckCircle, XCircle, Trophy } from 'lucide-react'
 import { t, plural } from '../i18n'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import WalletManagement from './WalletManagement'
 import { ReferralSection } from './ReferralSection'
 import { useSolana, CLUSTER } from '../contexts/SolanaContext'
 import { useGame } from '../contexts/GameContext'
+import { getAchievements } from '../utils/achievements'
+import { ShiftTasksList, type ShiftTask } from './ares/ShiftTasksList'
 
-import { fmtPotato, fmtSkr, EXPORT_LICENSE_PRICE_SKR_ATOMS } from '../utils/constants'
+import { fmtPotato, fmtSkr, EXPORT_LICENSE_PRICE_SKR_ATOMS, HARVEST_THRESHOLD_MICRO, MAX_DURABILITY } from '../utils/constants'
 import { pdas, decodeExportLicense, ixBuyExportLicense, treasurySolPda, treasurySkrAta, SKR_MINT } from '../utils/anchorClient'
 import { getAssociatedTokenAddress } from '@solana/spl-token'
 import { CabinBay } from './ares/CabinBay'
@@ -15,10 +18,15 @@ import AudioSettings from './AudioSettings'
 import { HullPanel } from '../ui/HullPanel'
 import { RollingNumber } from '../ui/RollingNumber'
 import { SparkProgress } from '../ui/SparkProgress'
+import { PatchWall } from './ares/PatchWall'
+import { useToast } from './Toast'
+import { describeError } from '../utils/errors'
 
 function ProfileScreenInner() {
  const { connected, publicKey, ready, programId, connection, sendIx } = useSolana()
- const { stats } = useGame()
+ const { stats, claimed, fields } = useGame()
+ const navigate = useNavigate()
+ const { show } = useToast()
  const [license, setLicense] = useState<{ expiresAt: number; active: boolean } | null>(null)
  const [buyingLicense, setBuyingLicense] = useState(false)
 
@@ -56,12 +64,55 @@ function ProfileScreenInner() {
    setLicense({ expiresAt: Math.floor(Date.now() / 1000) + 30 * 86400, active: true })
   } catch (err) {
    console.error('buyLicense', err)
+   show({ type: 'error', title: t('Не удалось купить лицензию'), message: describeError(err) })
   } finally { setBuyingLicense(false) }
  }
 
  const licenseDays = license ? Math.max(0, Math.ceil((license.expiresAt - Math.floor(Date.now() / 1000)) / 86400)) : 0
 
  const fieldsToNext = 3 - (stats.totalFields % 3)
+
+ const patches = [
+  { id: 'a1', label: t('Первый росток'), imageSrc: '/ares/patch-sprout.webp', earned: Boolean(claimed.a1) },
+  { id: 'a2', label: t('Первый урожай'), imageSrc: '/ares/patch-harvest.webp', earned: Boolean(claimed.a2) },
+  { id: 'a3', label: t('Тысячник'), imageSrc: '/ares/patch-thousand.webp', earned: Boolean(claimed.a3) },
+  { id: 'a4', label: t('Фермер-магнат'), imageSrc: '/ares/patch-magnat.webp', earned: Boolean(claimed.a4) },
+  { id: 'a5', label: t('Картофельный барон'), imageSrc: '/ares/patch-baron.webp', earned: Boolean(claimed.a5) },
+  { id: 'a6', label: t('Ветеран'), imageSrc: '/ares/patch-veteran.webp', earned: Boolean(claimed.a6) },
+ ]
+
+ // Задачи смены — живой чеклист из состояния игры: показываем только то,
+ // что требует действия прямо сейчас. Тап ведёт на нужный экран.
+ const tasks: ShiftTask[] = useMemo(() => {
+  const list: ShiftTask[] = []
+  if (stats.totalFields === 0) {
+   list.push({ id: 'buy-first', title: t('Заложи первое поле'), done: false, rewardLabel: 'LVL 1' })
+  }
+  const readyPatch = getAchievements(stats).find(a => a.progress >= a.target && !claimed[a.id])
+  if (readyPatch) {
+   list.push({ id: 'claim-patch', title: t('Забери нашивку в журнале'), done: false, rewardLabel: `+${readyPatch.reward} POTATO` })
+  }
+  if (stats.pendingHarvest >= HARVEST_THRESHOLD_MICRO) {
+   list.push({ id: 'harvest', title: t('Собери урожай: {n} POTATO', { n: fmtPotato(stats.pendingHarvest, 1) }), done: false })
+  }
+  const nowSec = Math.floor(Date.now() / 1000)
+  const taxDue = fields.filter(f => f.isActive && f.taxPaidUntil < nowSec).length
+  if (taxDue > 0) {
+   list.push({ id: 'pay-tax', title: t('Пошлина просрочена: {n}', { n: taxDue }), done: false, rewardLabel: `×${taxDue}` })
+  }
+  const worn = fields.filter(f => f.isActive && f.durability < MAX_DURABILITY).length
+  if (worn > 0) {
+   list.push({ id: 'repair', title: t('Техремонт требуется: {n}', { n: worn }), done: false, rewardLabel: `×${worn}` })
+  }
+  if (list.length === 0) {
+   list.push({ id: 'all-clear', title: t('Все системы в норме'), done: true })
+  }
+  return list
+ }, [stats, claimed, fields])
+
+ const handleTaskComplete = (id: string) => {
+  navigate(id === 'claim-patch' ? '/stats' : '/')
+ }
 
  return (
   <div style={{ padding: 20, paddingBottom: 140 }}>
@@ -130,6 +181,10 @@ function ProfileScreenInner() {
     </div>
    </HullPanel>
 
+   <div style={{ marginBottom: 16 }}>
+    <ShiftTasksList tasks={tasks} onComplete={handleTaskComplete} />
+   </div>
+
    <HullPanel style={{ marginBottom: 16 }}>
     <div style={{ padding: 20 }}>
      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -147,6 +202,19 @@ function ProfileScreenInner() {
      <p style={{ fontSize: 12, color: 'var(--pf-text-secondary)' }}>
  {t('До ранга {next}: ещё {plots}. Ранг игрока растёт с каждыми 3 полями.', { next: stats.playerLevel + 1, plots: plural(fieldsToNext, { one: t('поле'), few: t('поля'), many: t('полей') }) })}
      </p>
+    </div>
+   </HullPanel>
+
+   <HullPanel style={{ marginBottom: 16 }}>
+    <div style={{ padding: 20 }}>
+     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+      <Trophy size={18} color="var(--pf-gold)" aria-hidden="true" />
+      <span style={{ fontSize: 16, fontWeight: 700 }}>{t('Стена нашивок')}</span>
+     </div>
+     <p style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8 }}>
+      {t('Награды экипажа из журнала. Серые — ещё не получены.')}
+     </p>
+     <PatchWall patches={patches} />
     </div>
    </HullPanel>
 

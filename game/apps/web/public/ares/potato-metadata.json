@@ -1,0 +1,7 @@
+{
+  "name": "Potato",
+  "symbol": "POTATO",
+  "description": "Utility token of Potato Farm: ARES-1 — on-chain potato colony on Solana. Grown under Martian domes, traded on the colony market.",
+  "image": "/ares/potato-coin.png",
+  "decimals": 6
+}

@@ -589,13 +589,13 @@ export function getLunarMultiplier(epochId: number): number {
 
 export function getLunarPhase(epochId: number): string {
   const day = epochId % 28;
-  if (day <= 3) return t('🌒 Растущая луна');
-  if (day <= 7) return t('🌓 Первая четверть');
-  if (day <= 10) return t('🌔 Прибывающая луна');
-  if (day <= 14) return t('🌕 Полнолуние (пик)');
-  if (day <= 17) return t('🌖 Убывающая луна');
-  if (day <= 21) return t('🌗 Последняя четверть');
-  return t('🌘 Новолуние (дно)');
+  if (day <= 3) return t('Растущая луна');
+  if (day <= 7) return t('Первая четверть');
+  if (day <= 10) return t('Прибывающая луна');
+  if (day <= 14) return t('Полнолуние (пик)');
+  if (day <= 17) return t('Убывающая луна');
+  if (day <= 21) return t('Последняя четверть');
+  return t('Новолуние (дно)');
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -697,7 +697,7 @@ export function decodeAchievementsBitmap(data: Buffer): number {
 
 /**
  * claim_achievement(quest_id) — верификация прогресса в программе:
- *  0: ≥1 поле · 1: ≥100 🥔 · 2: ≥1000 🥔 · 3: ≥5 полей · 4: ≥10 000 🥔 · 5: ≥6 полей, ≥3-го уровня одно.
+ *  0: ≥1 поле · 1: ≥100 POTATO · 2: ≥1000 POTATO · 3: ≥5 полей · 4: ≥10 000 POTATO · 5: ≥6 полей, ≥3-го уровня одно.
  * Поля игрока передаются в remaining_accounts (proof by ownership).
  */
 

@@ -341,7 +341,7 @@ function PrizeScene({
       <div ref={stageRef} className="prize-static">
         <div className="prize-static-card">
           <div className="prize-static-mark" aria-hidden="true">
-            ✓
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5.5"/></svg>
           </div>
           <div>
             <p className="prize-result-title">{title}</p>
@@ -484,7 +484,7 @@ function PrizeScene({
         className="prize-skip"
         onClick={onComplete}
       >
-        Пропустить анимацию
+        {t('Пропустить анимацию')}
       </button>
     </motion.div>
   );

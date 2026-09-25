@@ -10,8 +10,8 @@ const id: Record<string, string> = {
   ' Пошлина истекает!': ' Pajak hampir jatuh tempo!',
   ' Пошлина оплачен: {d} дн.': ' Pajak dibayar: {d} h.',
   ' Пошлина просрочен! Урожай −50%': ' Pajak lewat waktu! Panen −50%',
-  ' Растёт…': ' Tumbuh…',
-  ' Сбор…': ' Memanen…',
+  'Растёт…': ' Tumbuh…',
+  'Сбор…': ' Memanen…',
   ' Скопировать адрес': ' Salin alamat',
   ' Тестовая сеть ({cluster}): получи 1 SOL из крана или отправь SOL на адрес выше.': ' Testnet ({cluster}): klaim 1 SOL dari faucet atau kirim SOL ke alamat di atas.',
   ' Уведомления работают!': ' Notifikasi berjalan!',
@@ -39,7 +39,6 @@ const id: Record<string, string> = {
   'GameConfig не найден: программа не инициализирована на этом кластере.': 'GameConfig tidak ditemukan: program belum diinisialisasi di cluster ini.',
   'Mint SKR не найден на этом кластере — пресейл за SKR сейчас отключён.': 'Mint SKR tidak ditemukan di cluster ini — presale dengan SKR sedang nonaktif.',
   'On-chain дроп: {tier}': 'Drop on-chain: {tier}',
-  'POTATO Жатва': 'POTATO Panen',
   'POTATO ждёт жатвы на делянках': 'POTATO menunggu panen di bedeng',
   'POTATO к сбору': 'POTATO siap dipanen',
   'RPC перегружен (429). Подожди несколько секунд и повтори.': 'RPC kewalahan (429). Tunggu beberapa detik lalu coba lagi.',
@@ -74,6 +73,8 @@ const id: Record<string, string> = {
   'Варим зелье...': 'Memasak ramuan…',
   'Варим зельье...': 'Memasak ramuan…',
   'Ветеран': 'Veteran',
+  'Стена нашивок': 'Dinding patch',
+  'Награды экипажа из журнала. Серые — ещё не получены.': 'Penghargaan kru dari jurnal. Yang abu-abu belum didapat.',
   'Вибрация': 'Getaran',
   'Владей 5 полями': 'Miliki 5 bedeng',
   'Владей 6 полями, хотя бы одно 3-го уровня': 'Miliki 6 bedeng, minimal satu bertingkat 3',
@@ -395,13 +396,13 @@ const id: Record<string, string> = {
   '{hours} часа': '{hours} jam',
   '{h} ч осталось': 'sisa {h} jam',
   '{name}, уровень {level}. {action} действия': '{name}, tingkat {level}. {action} aksi',
-  '🌒 Растущая луна': '🌒 Bulan sabit',
-  '🌓 Первая четверть': '🌓 Kuartal pertama',
-  '🌔 Прибывающая луна': '🌒 Bulan separuh',
-  '🌕 Полнолуние (пик)': '🌕 Purnama (puncak)',
-  '🌖 Убывающая луна': '🌗 Bulan surut',
-  '🌗 Последняя четверть': '🌘 Kuartal terakhir',
-  '🌘 Новолуние (дно)': '🌑 Bulan baru (dasar)',
+  'Растущая луна': 'Bulan sabit',
+  'Первая четверть': 'Kuartal pertama',
+  'Прибывающая луна': 'Bulan separuh',
+  'Полнолуние (пик)': 'Purnama (puncak)',
+  'Убывающая луна': 'Bulan surut',
+  'Последняя четверть': 'Kuartal terakhir',
+  'Новолуние (дно)': 'Bulan baru (dasar)',
   'МОДУЛЬ': 'MODUL',
   'ИЗОЛЯЦИЯ': 'ISOLASI',
   'Закрыть подтверждение': 'Tutup konfirmasi',
@@ -430,6 +431,55 @@ const id: Record<string, string> = {
 
   'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'ORDER MIN: 10 POTATO · NILAI DARI 0.001 SOL',
   'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Order minimal: 10 POTATO dan nilai dari 0.001 SOL. Naikkan harga atau jumlahnya.',
+
+  // Задачи смены (каюта)
+  'Заложи первое поле': 'Buka lahan pertamamu',
+  'Забери нашивку в журнале': 'Klaim lencana di jurnal',
+  'Собери урожай: {n} POTATO': 'Panen: {n} POTATO',
+  'Пошлина просрочена: {n}': 'Pajak menunggak: {n}',
+  'Техремонт требуется: {n}': 'Perlu perbaikan: {n}',
+  'Все системы в норме': 'Semua sistem normal',
+
+  // Тосты транзакций (GameContext)
+  'LUT создана': 'LUT dibuat',
+  'Максимум 10 полей за один батч.': 'Maks 10 lahan per batch.',
+  'Не удалось закрыть поле': 'Gagal menutup lahan',
+  'Не удалось отправить SOL': 'Gagal mengirim SOL',
+  'Не удалось собрать урожай батчем': 'Gagal panen batch',
+  'Не удалось создать LUT': 'Gagal membuat LUT',
+  'Слишком много полей': 'Terlalu banyak lahan',
+
+  // On-chain ошибки (errors.ts)
+  'Награда уже получена.': 'Hadiah sudah diklaim.',
+  'Не выполнены условия награды.': 'Syarat hadiah belum terpenuhi.',
+  'Минимальный ордер — 10 POTATO.': 'Order minimum — 10 POTATO.',
+
+  // On-chain ошибки, часть 2 (errors.ts)
+  'Некорректный mint-авторитет токена.': 'Otoritas mint tidak valid.',
+  'Mint должен иметь 6 знаков после запятой.': 'Mint harus memiliki 6 desimal.',
+  'У mint не должно быть freeze-авторитета.': 'Mint tidak boleh punya otoritas freeze.',
+  'Пресеил распродан: все поля раскуплены.': 'Presale habis: semua lahan terjual.',
+  'Лимит пресеила: максимум 5 полей на кошелёк.': 'Batas presale: maks 5 lahan per dompet.',
+  'Пресеил неактивен.': 'Presale tidak aktif.',
+  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Kuota grant manual habis (10% dari batas harian).',
+  'Превышен лимит выводов на текущие 24 часа.': 'Batas penarikan 24 jam terlampaui.',
+  'Базовая урожайность слишком высока (макс. 100 POTATO/день).': 'Hasil dasar terlalu tinggi (maks 100 POTATO/hari).',
+  'Админский таймлок ещё не истёк.': 'Timelock admin belum kedaluwarsa.',
+  'Нет активного предложения администратора.': 'Tidak ada proposal admin yang tertunda.',
+  'Эпоха слишком свежая, её пока нельзя закрыть.': 'Epoch terlalu baru untuk ditutup.',
+  'Платный рандом доступен только напрямую, не через другие программы.': 'RNG berbayar hanya langsung, tidak via program lain.',
+  'Таймлок вывода ещё не истёк.': 'Timelock penarikan belum kedaluwarsa.',
+  'Нет активного предложения на вывод этого актива.': 'Tidak ada proposal penarikan untuk aset ini.',
+  'Сумма не совпадает с предложением на вывод.': 'Jumlah tidak cocok dengan proposal penarikan.',
+  'Неверный тип вывода: 0=POTATO, 1=SOL, 2=SKR.': 'Jenis penarikan tidak valid: 0=POTATO, 1=SOL, 2=SKR.',
+  'Вывод этого актива уже предложен — сначала отмени его.': 'Penarikan sudah diusulkan — batalkan dulu.',
+  'Нет связи с сетью. Проверь соединение и повтори.': 'Tidak ada koneksi jaringan. Periksa dan coba lagi.',
+
+  // Каюта: покупка лицензии
+  'Не удалось купить лицензию': 'Gagal membeli lisensi',
+
+  // Призовое шоу
+  'Пропустить анимацию': 'Lewati animasi',
 };
 
 export default id;

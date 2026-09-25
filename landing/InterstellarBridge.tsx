@@ -593,7 +593,7 @@ function PlanetCard({
         >
           {copy.benefits.map((benefit) => (
             <li key={benefit}>
-              <span aria-hidden="true">✦</span>
+              <span aria-hidden="true" style={{ color: "var(--ares-hud-amber, #FFB347)", display: "inline-flex" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg></span>
               {benefit}
             </li>
           ))}

@@ -9,7 +9,7 @@ import Button from './Button'
 import AnimatedNumber from './AnimatedNumber'
 import { Field } from '../contexts/GameContext'
 import {
- MICRO, HARVEST_THRESHOLD_MICRO, MAX_DURABILITY,
+ fieldTypeInfo, MICRO, HARVEST_THRESHOLD_MICRO, MAX_DURABILITY,
  upgradeCostMicro, repairCostMicro, taxCostMicro, fertilizerCostMicro, fmtPotatoExact,
 } from '../utils/constants'
 import { sounds } from '../utils/sounds'
@@ -41,6 +41,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
 
  const now = Math.floor(Date.now() / 1000)
  const rare = TIER_BY_TYPE[field.fieldType] ?? 'basic'
+ const cassette = fieldTypeInfo(field.fieldType)
  const accumulated = field.accumulated / MICRO
  const canHarvest = field.accumulated >= HARVEST_THRESHOLD_MICRO
  const durability = field.durability
@@ -75,9 +76,17 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
      gap: 12,
      borderBottom: '1px solid var(--pf-border-soft)',
     }}>
-     <div style={{ flex: 1 }}>
+     <img
+      src={cassette.image}
+      alt={RARE_LABEL[rare]}
+      width={48}
+      height={56}
+      loading="lazy"
+      style={{ width: 48, height: 56, objectFit: 'contain', flexShrink: 0, filter: `drop-shadow(0 0 12px ${RARE_COLOR[rare]}66)` }}
+     />
+     <div style={{ flex: 1, minWidth: 0 }}>
       <div className="pf-h2" style={{ fontSize: 18 }}>{t("РАСТЕНИЕ")}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, rowGap: 4, marginTop: 4, flexWrap: 'wrap' }}>
        <span className="ares-mono" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', padding: '2px 8px', borderRadius: 4, color: RARE_COLOR[rare], border: `1px solid ${RARE_COLOR[rare]}66`, background: `${RARE_COLOR[rare]}1a`, textShadow: `0 0 8px ${RARE_COLOR[rare]}55` }}>
         {RARE_LABEL[rare]}
        </span>

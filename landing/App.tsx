@@ -482,7 +482,7 @@ function WalletButton(): JSX.Element {
     return (
       <button className="morph-button morph-button--header" disabled>
         <span className="wallet-full">{t("Подключение…")}</span>
-        <span className="wallet-short">⬡ …</span>
+        <span className="wallet-short"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 2l8.7 5v10L12 22l-8.7-5V7z"/></svg> …</span>
       </button>
     );
   }
@@ -491,7 +491,7 @@ function WalletButton(): JSX.Element {
     return (
       <button onClick={() => { void connect(); }} className="morph-button morph-button--header">
         <span className="wallet-full">{t("Подключить кошелёк")}</span>
-        <span className="wallet-short">⬡ {t("Кошелёк")}</span>
+        <span className="wallet-short"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 2l8.7 5v10L12 22l-8.7-5V7z"/></svg> {t("Кошелёк")}</span>
       </button>
     );
   }
@@ -524,7 +524,7 @@ function WalletButton(): JSX.Element {
             fontFamily: '"JetBrains Mono", ui-monospace, monospace',
           }}
         >
-          <div style={{ fontSize: 11, opacity: 0.65, marginBottom: 10, wordBreak: "break-all" }}>{addr}</div>
+          <div style={{ fontSize: 11, opacity: 0.85, marginBottom: 10, wordBreak: "break-all" }}>{addr}</div>
           <button
             onClick={() => { void disconnect(); setMenuOpen(false); }}
             style={{
@@ -1034,6 +1034,7 @@ function Hero(): JSX.Element {
               {PC.label}
             </a>
             <Action href={SC.hero.primaryHref}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 6 }}><path d="M13 2L4.5 13.5H11L10 22l8.5-11.5H12z"/></svg>
               {SC.hero.primaryCta}
             </Action>
             <Action
@@ -1225,6 +1226,53 @@ function TiltCard({ children, xpKey }: TiltCardProps): JSX.Element {
     </motion.article>
   );
 }
+function Product(): JSX.Element {
+  useI18n();
+  return (
+    <Section id="product" speed={0.5}>
+      <SectionHeading
+        id="product-title"
+        eyebrow={t("НАШ ПРОДУКТ")}
+        title={t("ARES-1 — флагман студии")}
+        text={t("Ончейн-ферма на Solana: выращивай картофель под куполами Марса, прокачивай делянки до 50 уровня, торгуй урожаем на живой бирже и собирай нашивки за достижения. Поля, рынок и награды — в смарт-контрактах: никакого офчейна.")}
+      />
+
+      <div className="product-grid">
+        <Reveal className="product-poster" delay={0.1}>
+          <img
+            src="/ares/product-poster.jpg"
+            alt={t("Постер игры ARES-1: картофельная ферма под куполами Марса")}
+            width={1376}
+            height={768}
+            loading="lazy"
+            decoding="async"
+          />
+        </Reveal>
+        <Reveal className="product-points" delay={0.2}>
+          <ul>
+            <li>
+              <Check size={18} aria-hidden="true" />
+              <span>{t("100% ончейн — экономика в программе Solana")}</span>
+            </li>
+            <li>
+              <Check size={18} aria-hidden="true" />
+              <span>{t("3 тира модулей, мутации и прокачка")}</span>
+            </li>
+            <li>
+              <Check size={18} aria-hidden="true" />
+              <span>{t("Биржа ордеров за SOL и пресеил")}</span>
+            </li>
+          </ul>
+          <Action href={PC.url} target="_blank" rel="noopener noreferrer">
+            {t("Играть в ARES-1")}
+            <ArrowUpRight size={16} aria-hidden="true" />
+          </Action>
+        </Reveal>
+      </div>
+    </Section>
+  );
+}
+
 function Mechanics(): JSX.Element {
   useI18n();
   return (
@@ -2029,7 +2077,7 @@ function PacksSection(): JSX.Element {
                 onClick={() => { void buyPack(); }}
                 disabled={purchasing || !balanceOk || soldOut}
               >
-                ⚡ {purchasing ? t("Отправка транзакции…") : soldOut ? t("Волна распродана") : t("Купить модуль · 1053 SKR")}
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 6 }}><path d="M13 2L4.5 13.5H11L10 22l8.5-11.5H12z"/></svg>{purchasing ? t("Отправка транзакции…") : soldOut ? t("Волна распродана") : t("Купить модуль · 1053 SKR")}
               </button>
               {soldOut && (
                 <p className="pack-note">{t("Все {n} модулей первой волны проданы.", { n: live.cap })}</p>
@@ -2045,7 +2093,7 @@ function PacksSection(): JSX.Element {
                 onClick={() => { void connect(); }}
                 disabled={connecting}
               >
-                {connecting ? t("Подключение…") : "⚡ " + t("Подключить кошелёк")}
+                {connecting ? t("Подключение…") : (<span><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 6 }}><path d="M13 2L4.5 13.5H11L10 22l8.5-11.5H12z"/></svg>{t("Подключить кошелёк")}</span>)}
               </button>
               <p className="pack-note">
                 {t("Phantom или Solflare. После подключения кнопка покупки станет активной.")}
@@ -2107,7 +2155,7 @@ function SuccessModal({ tx, tier, onClose }: { tx: string; tier: number; onClose
             textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 44, marginBottom: 14 }} aria-hidden="true">🥔</div>
+          <img src={`/ares/cassette-${tier}.webp`} alt="" aria-hidden="true" style={{ width: 110, height: 128, objectFit: "contain", marginBottom: 14, filter: "drop-shadow(0 10px 24px rgba(0,0,0,0.5))" }} />
           <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 10, color: COLORS[tier], letterSpacing: "0.06em" }}>
             {TIERS[tier]} · {t("МОДУЛЬ КУПЛЕН")}
           </h2>
@@ -2332,6 +2380,7 @@ export default function App(): JSX.Element {
       <Header notify={notify} />
       <main id="main-content" tabIndex={-1}>
         <Hero />
+        <Product />
         <Problem />
         <Mechanics />
         <Mascot />

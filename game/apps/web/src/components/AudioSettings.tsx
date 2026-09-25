@@ -68,7 +68,7 @@ export default function AudioSettings() {
       >
        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h2 id="settings-title" style={{ fontSize: 20 }}>{t("НАСТРОЙКИ")}</h2>
-        <button onClick={() => setIsOpen(false)} aria-label={t("Закрыть")} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(160, 82, 40, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <button onClick={() => setIsOpen(false)} aria-label={t("Закрыть")} style={{ width: 44, height: 44, margin: -6, borderRadius: 8, background: 'rgba(160, 82, 40, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
          <X size={16} color="var(--pf-text-secondary)" />
         </button>
        </div>

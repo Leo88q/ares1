@@ -545,19 +545,19 @@ export const interstellarContent = {
   reserveNotice:
     "Это назначение существующей доли ликвидности, а не дополнительная эмиссия. Реализация и условия использования резерва требуют подтверждения в опубликованных правилах проекта.",
   transferSuccess:
-    "✓ Квантовый мост активирован. Твои $POTATO уже на полях Age of Farming.",
+    "Квантовый мост активирован. Твои $POTATO уже на полях Age of Farming.",
 } as const;
 
 export const siteContent = {
   header: {
     logo: "POTATO · ARES-1",
     navigation: [
+      { label: "Продукт", href: "#product" },
       { label: "Механики", href: "#mechanics" },
       { label: "Токеномика", href: "#tokenomics" },
       { label: "Дорожная карта", href: "#roadmap" },
       { label: "FAQ", href: "#faq" },
     ],
-    wallet: "⬡ Подключить кошелёк",
     openMenu: "Открыть меню",
     closeMenu: "Закрыть меню",
     navigationLabel: "Основная навигация",
@@ -569,9 +569,9 @@ export const siteContent = {
     title: "ВЫРАСТИ ПЕРВУЮ КАРТОШКУ НА МАРСЕ",
     subtitle:
       "ARES-1 — ончейн-колония на Solana (devnet). Купи гидропонный модуль за 1 053 SKR, расти $POTATO под куполом и торгуй с колонистами. Всего 500 модулей в первой волне — цена и счётчик ниже живые, читаются с devnet.",
-    primaryCta: "⚡ Купить модуль",
+    primaryCta: "Купить модуль",
     primaryHref: "#packs",
-    secondaryCta: "◈ Открыть игру",
+    secondaryCta: "Открыть игру",
     secondaryHref: "https://ares1-play.pages.dev",
     soldLabel: "0 / 500 модулей продано",
     progressLabel: "Модули первой волны",
