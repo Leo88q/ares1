@@ -282,7 +282,7 @@ const vi: Record<string, string> = {
   'ВЫРАСТИ ПЕРВУЮ КАРТОШКУ НА МАРСЕ': 'TRỒNG CÂY KHOAI ĐẦU TIÊN TRÊN SAO HOÀ',
   'ARES-1 — ончейн-колония на Solana (devnet). Купи гидропонный модуль за 1 053 SKR, расти $POTATO под куполом и торгуй с колонистами. Всего 500 модулей в первой волне — цена и счётчик ниже живые, читаются с devnet.': 'ARES-1 là khu định cư on-chain trên Solana (devnet). Mua một module thủy canh với 1.053 SKR, trồng $POTATO dưới mái vòm và giao dịch với các định cư dân. Chỉ có 500 module trong đợt đầu — giá và bộ đếm bên dưới là số liệu thật, đọc từ devnet.',
   'Купить модуль': 'Mua module',
-  '◈ Открыть игру': '◈ Mở game',
+  'Открыть игру': 'Mở game',
   '0 / 500 модулей продано': '0 / 500 module đã bán',
   'Модули первой волны': 'Module đợt đầu',
   'Статус волны:': 'Trạng thái đợt:',

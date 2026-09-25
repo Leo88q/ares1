@@ -282,7 +282,7 @@ const en: Record<string, string> = {
   'ВЫРАСТИ ПЕРВУЮ КАРТОШКУ НА МАРСЕ': 'GROW THE FIRST POTATO ON MARS',
   'ARES-1 — ончейн-колония на Solana (devnet). Купи гидропонный модуль за 1 053 SKR, расти $POTATO под куполом и торгуй с колонистами. Всего 500 модулей в первой волне — цена и счётчик ниже живые, читаются с devnet.': 'ARES-1 is an on-chain colony on Solana (devnet). Buy a hydroponic module for 1,053 SKR, grow $POTATO under the dome and trade with colonists. Only 500 modules in the first wave — the price and counter below are live, read from devnet.',
   'Купить модуль': 'Buy a module',
-  '◈ Открыть игру': '◈ Open the game',
+  'Открыть игру': 'Open the game',
   '0 / 500 модулей продано': '0 / 500 modules sold',
   'Модули первой волны': 'First wave modules',
   'Статус волны:': 'Wave status:',

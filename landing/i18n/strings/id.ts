@@ -282,7 +282,7 @@ const id: Record<string, string> = {
   'ВЫРАСТИ ПЕРВУЮ КАРТОШКУ НА МАРСЕ': 'TUMBuhkan KENTANG PERTAMA DI MARS',
   'ARES-1 — ончейн-колония на Solana (devnet). Купи гидропонный модуль за 1 053 SKR, расти $POTATO под куполом и торгуй с колонистами. Всего 500 модулей в первой волне — цена и счётчик ниже живые, читаются с devnet.': 'ARES-1 adalah koloni on-chain di Solana (devnet). Beli modul hidroponik seharga 1.053 SKR, tanam $POTATO di bawah kubah, dan berdagang dengan para kolonis. Hanya 500 modul di gelombang pertama — harga dan penghitung di bawah ini data langsung, dibaca dari devnet.',
   'Купить модуль': 'Beli modul',
-  '◈ Открыть игру': '◈ Buka permainan',
+  'Открыть игру': 'Buka permainan',
   '0 / 500 модулей продано': '0 / 500 modul terjual',
   'Модули первой волны': 'Modul gelombang pertama',
   'Статус волны:': 'Status gelombang:',

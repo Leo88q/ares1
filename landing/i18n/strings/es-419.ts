@@ -282,7 +282,7 @@ const es419: Record<string, string> = {
   'ВЫРАСТИ ПЕРВУЮ КАРТОШКУ НА МАРСЕ': 'CULTIVA LA PRIMERA PAPA EN MARTE',
   'ARES-1 — ончейн-колония на Solana (devnet). Купи гидропонный модуль за 1 053 SKR, расти $POTATO под куполом и торгуй с колонистами. Всего 500 модулей в первой волне — цена и счётчик ниже живые, читаются с devnet.': 'ARES-1 es una colonia on-chain en Solana (devnet). Compra un módulo hidropónico por 1,053 SKR, cultiva $POTATO bajo el cúpula y comercia con los colonos. Solo 500 módulos en la primera oleada — el precio y el contador de abajo son en vivo, leídos del devnet.',
   'Купить модуль': 'Comprar módulo',
-  '◈ Открыть игру': '◈ Abrir el juego',
+  'Открыть игру': 'Abrir el juego',
   '0 / 500 модулей продано': '0 / 500 módulos vendidos',
   'Модули первой волны': 'Módulos de la primera oleada',
   'Статус волны:': 'Estado de la oleada:',
