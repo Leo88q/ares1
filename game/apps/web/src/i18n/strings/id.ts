@@ -431,6 +431,14 @@ const id: Record<string, string> = {
 
   'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'ORDER MIN: 10 POTATO · NILAI DARI 0.001 SOL',
   'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Order minimal: 10 POTATO dan nilai dari 0.001 SOL. Naikkan harga atau jumlahnya.',
+
+  // Задачи смены (каюта)
+  'Заложи первое поле': 'Buka lahan pertamamu',
+  'Забери нашивку в журнале': 'Klaim lencana di jurnal',
+  'Собери урожай: {n} POTATO': 'Panen: {n} POTATO',
+  'Пошлина просрочена: {n}': 'Pajak menunggak: {n}',
+  'Техремонт требуется: {n}': 'Perlu perbaikan: {n}',
+  'Все системы в норме': 'Semua sistem normal',
 };
 
 export default id;

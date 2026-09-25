@@ -431,6 +431,14 @@ const vi: Record<string, string> = {
 
   'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'LỆNH TỐI THIỂU: 10 POTATO · SỐ TIỀN TỪ 0.001 SOL',
   'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Lệnh tối thiểu: 10 POTATO và số tiền từ 0.001 SOL. Tăng giá hoặc số lượng lên.',
+
+  // Задачи смены (каюта)
+  'Заложи первое поле': 'Lập thửa đầu tiên',
+  'Забери нашивку в журнале': 'Nhận huy hiệu trong nhật ký',
+  'Собери урожай: {n} POTATO': 'Thu hoạch: {n} POTATO',
+  'Пошлина просрочена: {n}': 'Thuế quá hạn: {n}',
+  'Техремонт требуется: {n}': 'Cần sửa chữa: {n}',
+  'Все системы в норме': 'Mọi hệ thống ổn định',
 };
 
 export default vi;

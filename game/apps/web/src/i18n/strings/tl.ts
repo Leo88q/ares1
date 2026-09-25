@@ -431,6 +431,14 @@ const tl: Record<string, string> = {
 
   'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'MIN ORDER: 10 POTATO · HALAGA MULA SA 0.001 SOL',
   'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Minimum order: 10 POTATO at halaga mula sa 0.001 SOL. Itaas ang presyo o dami.',
+
+  // Задачи смены (каюта)
+  'Заложи первое поле': 'Itatag ang unang bukid',
+  'Забери нашивку в журнале': 'Kunin ang patch sa journal',
+  'Собери урожай: {n} POTATO': 'Anihan: {n} POTATO',
+  'Пошлина просрочена: {n}': 'Buwis paso na: {n}',
+  'Техремонт требуется: {n}': 'Kailangan ng pagkukumpuni: {n}',
+  'Все системы в норме': 'Normal ang lahat ng sistema',
 };
 
 export default tl;

@@ -431,6 +431,14 @@ const ptBR: Record<string, string> = {
 
   'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'PEDIDO MÍN.: 10 POTATO · VALOR A PARTIR DE 0.001 SOL',
   'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Pedido mínimo: 10 POTATO e valor a partir de 0.001 SOL. Aumente o preço ou a quantidade.',
+
+  // Задачи смены (каюта)
+  'Заложи первое поле': 'Funde seu primeiro lote',
+  'Забери нашивку в журнале': 'Resgate uma insígnia no diário',
+  'Собери урожай: {n} POTATO': 'Colha: {n} POTATO',
+  'Пошлина просрочена: {n}': 'Imposto vencido: {n}',
+  'Техремонт требуется: {n}': 'Reparos necessários: {n}',
+  'Все системы в норме': 'Todos os sistemas normais',
 };
 
 export default ptBR;

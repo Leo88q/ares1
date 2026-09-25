@@ -431,6 +431,14 @@ const en: Record<string, string> = {
 
   'МИН. ОРДЕР: 10 POTATO · СУММА ОТ 0.001 SOL': 'MIN ORDER: 10 POTATO · AMOUNT FROM 0.001 SOL',
   'Минимальный ордер: 10 POTATO и сумма от 0.001 SOL. Подними цену или количество.': 'Minimum order: 10 POTATO and an amount from 0.001 SOL. Raise the price or the quantity.',
+
+  // Задачи смены (каюта)
+  'Заложи первое поле': 'Found your first plot',
+  'Забери нашивку в журнале': 'Claim a patch in the journal',
+  'Собери урожай: {n} POTATO': 'Harvest: {n} POTATO',
+  'Пошлина просрочена: {n}': 'Tax overdue: {n}',
+  'Техремонт требуется: {n}': 'Repairs needed: {n}',
+  'Все системы в норме': 'All systems nominal',
 };
 
 export default en;
