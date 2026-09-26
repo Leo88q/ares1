@@ -1718,7 +1718,6 @@ pub mod solana_potato {
     }
 
     /// Registers a one-time referral relationship; burns the registration cost.
-
     pub fn register_referrer(ctx: Context<RegisterReferrer>, referrer: Pubkey) -> Result<()> {
         // F-17: снятие 5 POTATO за регистрацию — трата, гейтим паузой как
         // остальные расходные инструкции.
@@ -2434,7 +2433,6 @@ pub struct BuyExportLicense<'info> {
 
 #[derive(Accounts)]
 #[instruction(order_id: u64)]
-
 pub struct CreateSellOrder<'info> {
     #[account(mut)]
     pub seller: Signer<'info>,
@@ -3206,18 +3204,13 @@ pub struct SellerProfile {
     pub bump: u8,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, Default, InitSpace)]
 pub enum OrderStatus {
+    #[default]
     Active,
     Filled,
     Cancelled,
     Expired,
-}
-
-impl Default for OrderStatus {
-    fn default() -> Self {
-        OrderStatus::Active
-    }
 }
 
 // ─────────────────────────── Events ──────────────────────────────
@@ -3638,9 +3631,11 @@ mod tests {
 
     #[test]
     fn admin_withdraw_window_resets_after_24h() {
-        let mut s = AdminState::default();
-        s.window_start = 100;
-        s.withdrawn_sol_lamports = 5;
+        let mut s = AdminState {
+            window_start: 100,
+            withdrawn_sol_lamports: 5,
+            ..Default::default()
+        };
         s.roll_withdraw_window(100 + WITHDRAW_WINDOW_SECONDS - 1);
         assert_eq!(s.withdrawn_sol_lamports, 5);
         s.roll_withdraw_window(100 + WITHDRAW_WINDOW_SECONDS);
@@ -3735,9 +3730,10 @@ mod tests {
         write_field_account(&f, &mut data).unwrap();
         let mut lamports = 1;
         let account = AccountInfo::new(&key, false, false, &mut lamports, &mut data, &program, false, 0);
-        assert!(verify_fields(&[account.clone()], &user, &program, 1, 3).is_ok());
+        let accounts = [account.clone()];
+        assert!(verify_fields(&accounts, &user, &program, 1, 3).is_ok());
         assert!(verify_fields(&[account.clone(), account.clone()], &user, &program, 2, 0).is_err());
-        assert!(verify_fields(&[account.clone()], &Pubkey::new_unique(), &program, 1, 0).is_err());
+        assert!(verify_fields(&accounts, &Pubkey::new_unique(), &program, 1, 0).is_err());
         assert!(verify_fields(&[account], &user, &Pubkey::new_unique(), 1, 0).is_err());
     }
 

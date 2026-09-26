@@ -37,10 +37,17 @@ def collect(stream):
         if message.get('reason') != 'compiler-message':
             continue
         diagnostic = message.get('message') or {}
-        code = (diagnostic.get('code') or {}).get('code') or ''
-        if not code.startswith('clippy::'):
+        if diagnostic.get('level') not in ('warning', 'error'):
             continue
-        lint = code.split('::', 1)[1]
+        text = diagnostic.get('message') or ''
+        # Сводки cargo/rustc ("could not compile ... due to N previous errors",
+        # "aborting due to N previous errors") — не отдельные находки.
+        if 'previous error' in text or text.startswith('aborting'):
+            continue
+        code = (diagnostic.get('code') or {}).get('code') or '(no code)'
+        # Считаем и rustc-линты: `-D warnings` превращает их в ошибки сборки
+        # точно так же, как clippy-линты, поэтому в долг они входят на равных.
+        lint = code.split('::', 1)[1] if code.startswith('clippy::') else code
         counts[lint] += 1
         spans = diagnostic.get('spans') or []
         primary = [s for s in spans if s.get('is_primary')] or spans
