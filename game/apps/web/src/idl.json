@@ -269,6 +269,9 @@
           "relations": [
             "config"
           ]
+        },
+        {
+          "name": "skr_mint"
         }
       ],
       "args": []
@@ -4070,6 +4073,9 @@
           ]
         },
         {
+          "name": "new_skr_mint"
+        },
+        {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
@@ -5601,6 +5607,16 @@
       "code": 6046,
       "name": "WithdrawalAlreadyProposed",
       "msg": "A withdrawal for this asset is already proposed; cancel it first"
+    },
+    {
+      "code": 6047,
+      "name": "InvalidMintSupply",
+      "msg": "Bootstrap mint must have zero supply: pre-minted tokens would bypass the epoch cap"
+    },
+    {
+      "code": 6048,
+      "name": "InvalidSkrDecimals",
+      "msg": "SKR mint must have 6 decimals: all SKR prices are quoted in 10^-6 atoms"
     }
   ],
   "types": [

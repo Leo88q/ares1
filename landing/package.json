@@ -11,8 +11,8 @@
     "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
-    "@solana/spl-token": "^0.4.15",
-    "@solana/web3.js": "^1.99.0",
+    "@solana/spl-token": "0.4.15",
+    "@solana/web3.js": "1.99.0",
     "buffer": "^6.0.3",
     "canvas-confetti": "^1.9.3",
     "framer-motion": "^11.18.2",

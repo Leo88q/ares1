@@ -36,6 +36,12 @@ export const env = {
   })() as boolean | number | string,
   /** Requests per minute per IP (all routes except /live). */
   rateLimitPerMinute: parseInt(process.env.RATE_LIMIT_PER_MINUTE || "30", 10),
+  /** Checklist item 43: exposure ceiling for the online hot wallet, in
+   *  lamports. The epoch payer only needs rent + fees for a few epochs, so
+   *  anything above this is unnecessary exposure of a key that lives on the
+   *  server. The backend warns and alerts — it does not refuse to start,
+   *  because a topped-up wallet is not an emergency (an empty one is). */
+  payerMaxLamports: parseInt(process.env.PAYER_MAX_LAMPORTS || "500000000", 10),
   /** F-10: optional JSON webhook (Slack/Discord/ntfy) for critical alerts —
    *  epoch-roller failure ladder (3/9/27) and fatal startup conditions.
    *  Empty string disables external alerting (console logging stays). */
