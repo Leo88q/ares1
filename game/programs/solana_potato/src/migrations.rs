@@ -102,7 +102,9 @@ mod tests {
         for size in [156, 164, 228] {
             let mut legacy = current[..104].to_vec();
             legacy.extend_from_slice(&current[168..218]);
-            if size == 164 { legacy.extend_from_slice(&current[218..226]); }
+            if size == 164 {
+                legacy.extend_from_slice(&current[218..226]);
+            }
             if size == 228 {
                 legacy = current[..228].to_vec();
             } else {
@@ -115,7 +117,9 @@ mod tests {
                 // 156/164 predate skr_mint/reward_signer: migration fills them.
                 expected[104..136].copy_from_slice(SKR_MINT.as_ref());
                 expected[136..168].copy_from_slice(&current[8..40]);
-                if size == 156 { expected[218..226].fill(0); }
+                if size == 156 {
+                    expected[218..226].fill(0);
+                }
             }
             expected[228..260].fill(0); // no guardian in any legacy layout (padded with default)
             assert_eq!(result, expected);
