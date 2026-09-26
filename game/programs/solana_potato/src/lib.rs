@@ -2028,7 +2028,9 @@ pub fn split_harvest(gross_micro: u64, tax_bps: u64) -> Result<(u64, u64)> {
         .checked_mul(tax_bps.min(10_000) as u128)
         .ok_or(GameError::MathOverflow)?
         / 10_000;
-    let tax = u64::try_from(tax).map_err(|_| GameError::MathOverflow.into())?;
+    // Тип ошибки указан явно: `.into()` здесь не выводится (E0283 — в `?`
+    // подходит несколько типов, для которых есть `From<_> for Error`).
+    let tax = u64::try_from(tax).map_err(|_| GameError::MathOverflow)?;
     let player = gross_micro.saturating_sub(tax);
     Ok((player, tax / 2))
 }
