@@ -26,6 +26,7 @@ MAX_LOCS_PER_LINT = 40
 def collect(stream):
     counts = collections.Counter()
     locations = collections.defaultdict(list)
+    samples = {}
     for raw in stream:
         raw = raw.strip()
         if not raw.startswith('{'):
@@ -49,12 +50,15 @@ def collect(stream):
         # точно так же, как clippy-линты, поэтому в долг они входят на равных.
         lint = code.split('::', 1)[1] if code.startswith('clippy::') else code
         counts[lint] += 1
+        # Первое сообщение линта — по нему видно, какой именно cfg/элемент
+        # ругается (например `unexpected cfg condition value: idl-build`).
+        samples.setdefault(lint, ' '.join(text.split())[:120])
         spans = diagnostic.get('spans') or []
         primary = [s for s in spans if s.get('is_primary')] or spans
         if primary and len(locations[lint]) < MAX_LOCS_PER_LINT:
             span = primary[0]
             locations[lint].append(f"{span.get('file_name', '?')}:{span.get('line_start', 0)}")
-    return counts, locations
+    return counts, locations, samples
 
 
 def chunk(lines):
@@ -77,7 +81,7 @@ def escape(text):
 
 
 def main():
-    counts, locations = collect(sys.stdin)
+    counts, locations, samples = collect(sys.stdin)
     total = sum(counts.values())
     if not total:
         print('::notice title=clippy inventory::clean: no clippy diagnostics')
@@ -87,7 +91,7 @@ def main():
     )
     print('::notice title=clippy inventory::' + escape(summary))
     lines = [
-        f'{lint} x{counts[lint]}: ' + ' '.join(locations[lint])
+        f'{lint} x{counts[lint]} [{samples.get(lint, "")}]: ' + ' '.join(locations[lint])
         for lint, _ in counts.most_common()
     ]
     for index, page in enumerate(chunk(lines), start=1):
