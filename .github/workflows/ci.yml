@@ -104,6 +104,16 @@ jobs:
       - name: cargo fmt check (advisory, F-18)
         continue-on-error: true
         run: ./scripts/ci-run.sh cargo fmt --all -- --check
+      # Тот же диагностический канал, что и для clippy: excerpt от ci-run.sh
+      # показывает только хвост diff'а, поэтому долг из нескольких ханков
+      # выглядит как одна обрезанная строка. Шаг всегда зелёный.
+      - name: fmt diff (bounded annotation, F-18)
+        if: ${{ !cancelled() }}
+        run: |
+          set +e
+          cargo fmt --all -- --check > /tmp/fmt-diff.txt 2>&1
+          python3 scripts/fmt-inventory.py < /tmp/fmt-diff.txt
+          exit 0
       - name: cargo clippy strict (advisory, F-18)
         continue-on-error: true
         run: ./scripts/ci-run.sh cargo clippy --locked -p solana_potato --all-targets -- -D warnings

@@ -73,13 +73,22 @@ mod tests {
 
     fn current_config() -> Vec<u8> {
         let config = GameConfig {
-            authority: Pubkey::new_unique(), pending_authority: Pubkey::new_unique(),
-            potato_mint: Pubkey::new_unique(), skr_mint: Pubkey::new_unique(),
-            reward_signer: Pubkey::new_unique(), max_supply_micro: 1_000_000,
-            daily_mint_cap_micro: 20_000, base_yield_micro_per_day: 6_000,
-            global_multiplier_bps: 10_000, field_count: 7, epoch_id: 42,
-            total_burned_micro: 123_456, last_total_burned_micro: 9_876,
-            paused: true, bump: 253, guardian: Pubkey::new_unique(),
+            authority: Pubkey::new_unique(),
+            pending_authority: Pubkey::new_unique(),
+            potato_mint: Pubkey::new_unique(),
+            skr_mint: Pubkey::new_unique(),
+            reward_signer: Pubkey::new_unique(),
+            max_supply_micro: 1_000_000,
+            daily_mint_cap_micro: 20_000,
+            base_yield_micro_per_day: 6_000,
+            global_multiplier_bps: 10_000,
+            field_count: 7,
+            epoch_id: 42,
+            total_burned_micro: 123_456,
+            last_total_burned_micro: 9_876,
+            paused: true,
+            bump: 253,
+            guardian: Pubkey::new_unique(),
         };
         let mut data = Vec::new();
         config.try_serialize(&mut data).unwrap();
@@ -161,9 +170,11 @@ mod tests {
         for size in [0, 8, 40, 104, 155, 157, 163, 165, 227, 229, 259, 261] {
             assert!(config(&vec![0; size]).is_err(), "size {size} must be rejected");
         }
-        let mut corrupt = current.clone(); corrupt[0] ^= 1;
+        let mut corrupt = current.clone();
+        corrupt[0] ^= 1;
         assert!(config(&corrupt).is_err());
-        corrupt = current; corrupt[226] = 2; // invalid Borsh boolean
+        corrupt = current;
+        corrupt[226] = 2; // invalid Borsh boolean
         assert!(config(&corrupt).is_err());
         assert!(field(&[0u8; 69]).is_err());
         assert!(epoch(&[0u8; 41]).is_err());
@@ -172,18 +183,35 @@ mod tests {
 
     #[test]
     fn field_and_epoch_migrations_preserve_nonzero_current_extensions() {
-        let f = Field { owner: Pubkey::new_unique(), level: 3, durability: 74,
-            last_harvest: 100, tax_paid_until: 200, fertilizer_until: 150,
-            is_active: true, field_type: 2, bump: 254, mutation_type: 2 };
-        let mut bytes = Vec::new(); f.try_serialize(&mut bytes).unwrap();
+        let f = Field {
+            owner: Pubkey::new_unique(),
+            level: 3,
+            durability: 74,
+            last_harvest: 100,
+            tax_paid_until: 200,
+            fertilizer_until: 150,
+            is_active: true,
+            field_type: 2,
+            bump: 254,
+            mutation_type: 2,
+        };
+        let mut bytes = Vec::new();
+        f.try_serialize(&mut bytes).unwrap();
         assert_eq!(field(&bytes).unwrap(), bytes);
         let migrated = field(&bytes[..69]).unwrap();
         assert_eq!(&migrated[..69], &bytes[..69]);
         assert_eq!(migrated[69], 0);
         assert!(field(&bytes[..68]).is_err());
-        let e = Epoch { id: 42, mint_cap_micro: 100, minted_micro: 9,
-            start_time: 123, bump: 255, granted_micro: 17 };
-        bytes.clear(); e.try_serialize(&mut bytes).unwrap();
+        let e = Epoch {
+            id: 42,
+            mint_cap_micro: 100,
+            minted_micro: 9,
+            start_time: 123,
+            bump: 255,
+            granted_micro: 17,
+        };
+        bytes.clear();
+        e.try_serialize(&mut bytes).unwrap();
         assert_eq!(epoch(&bytes).unwrap(), bytes);
         let migrated = epoch(&bytes[..41]).unwrap();
         assert_eq!(&migrated[..41], &bytes[..41]);

@@ -182,10 +182,27 @@
     (найдено по аннотациям CI). Теперь no-op невозможен; трипваер №25 фиксирует это в тестах.
     Плюс шаг `Clippy inventory` публикует lint-инвентарь (`scripts/clippy-inventory.py`) в аннотациях:
     лог-архив джобы из API-only окружений не скачивается, а excerpt от `ci-run.sh` обрезан,
-    поэтому без него долг из 60+ замечаний невозможно разобрать. `cargo fmt --check` — чист.
+    поэтому без него долг из 114 замечаний невозможно разобрать. Аналогичный канал добавлен и для
+    `cargo fmt` (`scripts/fmt-inventory.py`): excerpt от `ci-run.sh` показывает только хвост diff'а.
 15. `reports/ares1-audit.json` перегенерирован (`node scripts/audit-init-if-needed.mjs`): инвентарь SW016
     хранит номера строк, поэтому любая правка `lib.rs` требует регенерации, иначе падает
     тест `committed SW016 evidence matches current Rust source` в watchtower-джобе.
+
+**Разбор lint-долга, который вскрыл заработавший гейт (114 → шум макросов)**
+16. `lib.rs` / `migrations.rs` — исправлено 15 замечаний: `useless_vec` x4 в тестах миграций
+    (`&vec![0; N]` → `&[0u8; N]`), `derivable_impls` (`impl Default for OrderStatus` → `#[derive(Default)]`),
+    `field_reassign_with_default` (`..Default::default()`), `cloned_ref_to_slice_refs` x2,
+    `empty_line_after_outer_attr` x4, `deprecated` `AccountInfo::realloc` → `resize()` (весь буфер
+    следом перезаписывается, поэтому zero-init не нужен).
+17. `unexpected_cfgs` x102 — полностью из макроexpansion `entrypoint!` (feature `custom-heap`) и
+    макросов Anchor (`anchor-debug`); своих `cfg`-условий в программе нет, поэтому линт погашен
+    на уровне крейта с объяснением. Точечный `check-cfg` через `[lints.rust]` отвергнут: он требует
+    rustc ≥ 1.80 и в CI-тулчейне, и в платформенном rustc от `cargo build-sbf`.
+18. `unused_variables` x8 — аргументы `field_id` (`create_field`, `buy_field_skr`, `buy_field_sol`)
+    и `order_id` (`create_sell_order`). **Проверено: не баг.** Каждый связывает PDA через
+    `seeds = [b"field"|b"order", <arg>…]` и потребляется макросом аккаунтов, поэтому в теле функции
+    не читается; переименование в `_arg` изменило бы имя аргумента в IDL, т.е. ABI.
+    Помечены `#[allow(unused_variables)]` с пояснением.
 
 **Новые артефакты**
 16. `game/scripts/check-invariants.ts` — ончейн-мониторинг инвариантов (пп. 49/53).
@@ -204,7 +221,7 @@
 | R10 | Симуляция fail-closed может отказывать при кратковременном рассинхроне состояния (ордер успели купить) | низкий | Ошибка понятна игроку, повтор безопасен (идемпотентность по PDA-nonce) |
 | R11 | Post-sign сверка отклоняет транзакцию, если кошелёк изменил инструкции | низкий | Это целевое поведение (drainer). Совместимость проверена с Phantom/Solflare/MWA-путём: инструкции не меняются |
 | R12 | DNS/хостинг игрового фронтенда вне репозитория (п. 67) | средний | DNSSEC + hardware key у регистратора + мониторинг CT-логов (гейт §G-4) |
-| R13 | `cargo fmt` / `cargo clippy -D warnings` (F-18) остаются advisory: компоненты теперь ставятся и шаги реально исполняются, но результат не блокирует мердж. `fmt` чист; clippy даёт 60 замечаний в `lib` и 67 в `lib test` (видимая часть: `useless_vec`, `clone_on_ref_ptr`, `derivable_impls`, `field_reassign_with_default`, неиспользуемая переменная) — это pre-existing долг, не уязвимости | низкий | Разобрать по инвентарю из аннотации `clippy inventory`, поправить механические линты, затем снять `continue-on-error` и сделать гейтом |
+| R13 | `cargo fmt` / `cargo clippy -D warnings` (F-18) остаются advisory. Clippy-долг разобран полностью (114 → 0 своих, осталось 2 `deprecated` внутри макроexpansion `#[program]` самого Anchor 0.31.2 — убирается только обновлением Anchor). `cargo fmt` имеет pre-existing долг в тестах `migrations.rs` (скомканные структурные литералы и по два statement'а в строке): он не был виден, пока компонент rustfmt не установили в CI, — правлю по diff'у из аннотации `fmt diff` | низкий | Допривести `migrations.rs` к rustfmt, затем снять `continue-on-error` у fmt/clippy и сделать оба гейта жёсткими |
 
 ## Методология и ограничения
 
@@ -217,4 +234,9 @@
 - Верификация «ручного» IDL: CI-джоба публикует sha256 собранного `target/idl/solana_potato.json` аннотацией
   (`ares-public-idl-sha256`). После правки docs хеш committing-файла совпал с собранным: `107c6e2a…` —
   то есть committed IDL и ABI programs совпадают побайтово, а не «похожи».
+- Что показал CI (PR №14): `Anchor program` — unit-тесты, интеграционный прогон на чистом localnet,
+  миграционные фикстуры, полное сравнение ABI и сборка — зелёные; `Web + backend`, `Backend container build`,
+  `readonly-exporter` (watchtower), `gitleaks`, Cloudflare Pages — зелёные.
+- Логи джоб из песочницы недоступны (TLS к `blob.core.windows.net`), поэтому ошибки CI читались через
+  `gh api .../check-runs/<id>/annotations`; оттуда же бралась инвентаризация линтов.
 - Внешний аудит (OtterSec/Sec3) по-прежнему рекомендуется до mainnet — автоматические проверки не заменяют ревью бизнес-логики человеком.
