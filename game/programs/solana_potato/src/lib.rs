@@ -2182,7 +2182,11 @@ fn write_migrated_account<'info>(
         )?;
     }
     if account.data_len() != data.len() {
-        account.realloc(data.len(), true)?;
+        // `realloc(len, true)` помечен deprecated в solana-program 2.x в пользу
+        // `resize(len)`. zero-init здесь не нужен: сразу после этого весь
+        // буфер (ровно data.len() байт) перезаписывается copy_from_slice,
+        // поэтому неинициализированных байт не остаётся.
+        account.resize(data.len())?;
     }
     account.try_borrow_mut_data()?.copy_from_slice(data);
     Ok(())
