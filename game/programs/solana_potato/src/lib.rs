@@ -26,6 +26,16 @@
 //! All amounts suffixed `_micro` are in 10^-6 $POTATO (the mint has 6 decimals).
 //! All `_bps` values are basis points (10_000 = 1.0×).
 
+// Линт `unexpected_cfgs` (Rust 1.80+) срабатывает на макроexpansion зависимостей:
+// `entrypoint!` из solana-program-entrypoint проверяет `feature = "custom-heap"`,
+// макросы Anchor — `feature = "anchor-debug"`, и ни одна из этих фич не объявлена
+// в нашем [features] (102 предупреждения на пустом месте). Своих cfg-условий в
+// крейте нет — только два `#[cfg(test)]` — поэтому allow ничего не скрывает.
+// Точечный `check-cfg` через `[lints.rust]` потребовал бы rustc ≥ 1.80 и в
+// CI-тулчейне, и в платформенном rustc от `cargo build-sbf`; ради косметического
+// линта рисковать блокирующей сборкой не стали.
+#![allow(unexpected_cfgs)]
+
 mod migrations;
 
 use anchor_lang::prelude::*;
@@ -297,6 +307,10 @@ pub mod solana_potato {
 
     /// Buys a new field of `field_type` (0 = Грядка, 1 = Луг, 2 = Поле) by
     /// burning its price. `field_id` is a client-chosen nonce for the PDA.
+    // `field_id` не читается в теле: он связывает PDA через
+    // `seeds = [b"field", field_id...]`, т.е. потребляется макросом аккаунтов.
+    // Переименование в `_field_id` изменило бы имя аргумента в IDL (ABI).
+    #[allow(unused_variables)]
     pub fn create_field(ctx: Context<CreateField>, field_id: u64, field_type: u8) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(field_type < FIELD_TYPE_COUNT, GameError::InvalidFieldType);
@@ -438,6 +452,8 @@ pub mod solana_potato {
     /// это закрывает обход, при котором покупатель всегда забирал EPIC за цену дропа.
     /// `sold` и `slot` покупатель не контролирует в момент подписания (конкурентные
     /// покупки сдвигают `sold`, слот включения в блок неизвестен заранее).
+    // `field_id` связывает PDA поля через seeds, в теле не читается.
+    #[allow(unused_variables)]
     pub fn buy_field_skr(ctx: Context<BuyFieldSkr>, field_id: u64) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
         // F-01: платный ролл тира — только на верхнем уровне транзакции.
@@ -558,6 +574,8 @@ pub mod solana_potato {
     /// type 2 pays 2× of `presale.price_lamports`. `max_total_lamports` is the
     /// buyer's slippage guard: the transaction reverts with InvalidPrice if the
     /// authority raised the price after the buyer signed.
+    // `field_id` связывает PDA поля через seeds, в теле не читается.
+    #[allow(unused_variables)]
     pub fn buy_field_sol(
         ctx: Context<BuyFieldSol>,
         field_id: u64,
@@ -930,6 +948,9 @@ pub mod solana_potato {
 
     /// Lists `amount_micro` $POTATO for sale at `price_lamports_per_potato`
     /// (lamports per whole $POTATO). Amount + fee move into an escrow PDA.
+    // `order_id` связывает PDA ордера через `seeds = [b"order", order_id...]`
+    // и в теле не читается; переименование изменило бы имя аргумента в IDL.
+    #[allow(unused_variables)]
     pub fn create_sell_order(
         ctx: Context<CreateSellOrder>,
         order_id: u64,
