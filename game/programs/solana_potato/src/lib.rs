@@ -3697,6 +3697,153 @@ mod tests {
         // AdminState: i64 + 3*u64 + Pubkey + i64 + u64 + i64 + u8
         assert_eq!(8 + AdminState::INIT_SPACE, 8 + 8 + 24 + 32 + 8 + 8 + 8 + 1 + 8 * 6);
     }
+
+    // ─────────────── Security checklist 2026-09-25 ───────────────
+    // docs/SECURITY_CHECKLIST_AUDIT_2026-09-25.md; each test cites the
+    // checklist item it pins. Removing a guard below must fail CI.
+
+    #[test]
+    fn fee_is_never_greater_than_amount_in_any_tier() {
+        // Пп. 13–15: floor-округление и инвариант fee <= amount на всех
+        // границах тиров и во всём диапазоне u64.
+        for amount in [
+            MIN_ORDER_AMOUNT_MICRO,
+            MIN_ORDER_AMOUNT_MICRO + 1,
+            999_999_999,
+            1_000_000_000,
+            9_999_999_999,
+            10_000_000_000,
+            99_999_999_999,
+            100_000_000_000,
+            u64::MAX,
+        ] {
+            let fee = order_fee_micro(amount).expect("fee must be computable for every u64 amount");
+            assert!(fee <= amount, "fee {fee} exceeds amount {amount}");
+            let expected = (amount as u128 * calculate_fee_bps(amount) as u128 / BPS) as u64;
+            assert_eq!(fee, expected, "floor rounding broken at {amount}");
+        }
+    }
+
+    #[test]
+    fn fee_bps_stay_within_nine_and_twelve_percent() {
+        // П. 15: прогрессия тиров 9–12 % без выбросов на границах диапазона.
+        for amount in [0u64, 1, MIN_ORDER_AMOUNT_MICRO, u64::MAX] {
+            let bps = calculate_fee_bps(amount);
+            assert!((900u16..=1_200).contains(&bps), "tier {bps} out of range at {amount}");
+        }
+    }
+
+    #[test]
+    fn compute_pending_yield_never_panics_on_extreme_inputs() {
+        // Пп. 13–14: checked-цепочка + потолок u64; отрицательный elapsed
+        // зажимается, а не паникует.
+        let f = field(MAX_FIELD_LEVEL, MAX_DURABILITY, 2);
+        let y = compute_pending_yield(u64::MAX, u16::MAX, &f, MAX_ACCRUAL_SECONDS, 1, u64::MAX)
+            .expect("checked math must not overflow-panic");
+        assert_eq!(y, u64::MAX, "extreme yield is capped at u64::MAX, never panics");
+        assert_eq!(compute_pending_yield(u64::MAX, u16::MAX, &f, 0, 0, 0).unwrap(), 0);
+        assert_eq!(compute_pending_yield(6_000_000, 10_000, &f, -1, 0, 0).unwrap(), 0);
+    }
+
+    #[test]
+    fn upgrade_cost_is_checked_at_every_level_and_type() {
+        // П. 13: u128-промежуточные и checked-конверсии на границах уровней.
+        for level in [1u8, MAX_FIELD_LEVEL, u8::MAX] {
+            for t in 0..FIELD_TYPE_COUNT {
+                let cost = upgrade_cost_micro(level, t).expect("checked, not panicking");
+                assert!(cost > 0);
+            }
+        }
+        assert_eq!(upgrade_cost_micro(u8::MAX, 2).unwrap(), 51_000_000_000);
+    }
+
+    #[test]
+    fn lunar_weighted_bps_stays_within_table_extremes() {
+        // П. 10: взвешенный лунный множитель всегда внутри [8500, 11500] —
+        // межэпохальный арбитраж перед/после roll_epoch невозможен.
+        let mut min = u128::MAX;
+        let mut max = 0u128;
+        for epoch in 0..2_000u64 {
+            for elapsed in [0i64, 1, 3_600, SECONDS_PER_DAY, 2 * SECONDS_PER_DAY, MAX_ACCRUAL_SECONDS] {
+                let w = lunar_weighted_bps(elapsed, epoch);
+                min = min.min(w);
+                max = max.max(w);
+            }
+        }
+        assert!(min >= 8_500, "min {min}");
+        assert!(max <= 11_500, "max {max}");
+    }
+
+    #[test]
+    fn withdrawal_slots_are_independent_per_asset() {
+        // Пп. 16, 20: propose/execute/cancel одного актива не задевает другие;
+        // неизвестный kind отвергается на обоих методах.
+        let mut s = AdminState::default();
+        s.set_pending_withdraw(0, 100, 1_000).unwrap();
+        s.set_pending_withdraw(1, 200, 2_000).unwrap();
+        assert_eq!(s.pending_withdraw(0).unwrap(), (100, 1_000));
+        assert_eq!(s.pending_withdraw(1).unwrap(), (200, 2_000));
+        assert_eq!(s.pending_withdraw(2).unwrap(), (0, 0));
+        s.clear_pending_withdraw(0).unwrap();
+        assert_eq!(s.pending_withdraw(0).unwrap(), (0, 0));
+        assert_eq!(s.pending_withdraw(1).unwrap(), (200, 2_000));
+        assert!(s.pending_withdraw(3).is_err());
+        assert!(s.set_pending_withdraw(7, 1, 1).is_err());
+    }
+
+    #[test]
+    fn parse_slot_hash_ignores_truncated_sysvar_data() {
+        // П. 30: частичный парсинг SlotHashes — fail-safe (None), не panic.
+        assert!(parse_slot_hash(&[]).is_none());
+        assert!(parse_slot_hash(&[0u8; 47]).is_none());
+        let mut data = vec![0u8; 48];
+        data[..8].copy_from_slice(&42u64.to_le_bytes());
+        data[16..48].copy_from_slice([7u8; 32].as_slice());
+        assert_eq!(parse_slot_hash(&data), Some((42, [7u8; 32])));
+    }
+
+    #[test]
+    fn achievement_proof_cap_is_enforced() {
+        // П. 18: (MAX_CLAIM_PROOFS + 1)-е доказательство отклоняется капом
+        // до O(n²)-проверки; ровно кап проходит.
+        let user = Pubkey::new_unique();
+        let program = crate::ID;
+        let mut f = field(1, 100, 1);
+        f.owner = user;
+        let mut data = vec![0; 8 + Field::INIT_SPACE];
+        write_field_account(&f, &mut data).unwrap();
+        let mut accounts: Vec<AccountInfo> = Vec::new();
+        for _ in 0..(MAX_CLAIM_PROOFS + 1) {
+            let key: &'static Pubkey = Box::leak(Box::new(Pubkey::new_unique()));
+            let lamports: &'static mut u64 = Box::leak(Box::new(1u64));
+            let acc_data: &'static mut Vec<u8> = Box::leak(Box::new(data.clone()));
+            accounts.push(AccountInfo::new(key, false, false, lamports, acc_data, &program, false, 0));
+        }
+        assert!(verify_fields(&accounts, &user, &program, 1, 0).is_err());
+        accounts.pop();
+        assert!(verify_fields(&accounts, &user, &program, 1, 0).is_ok());
+    }
+
+    #[test]
+    fn economic_rails_are_pinned() {
+        // Пп. 16, 20: константы рельсов audита — их изменение меняет
+        // гарантии (тимлоки, окна, квоты, капы) и должно проходить ревью.
+        assert_eq!(ADMIN_UPDATE_TIMELOCK_SECONDS, 86_400);
+        assert_eq!(WITHDRAW_TIMELOCK_SECONDS, 30);
+        assert_eq!(WITHDRAW_WINDOW_SECONDS, 86_400);
+        assert_eq!(MAX_WITHDRAW_POTATO_MICRO_PER_WINDOW, MAX_DAILY_CAP_MICRO);
+        assert_eq!(MAX_WITHDRAW_SOL_LAMPORTS_PER_WINDOW, 25_000_000_000);
+        assert_eq!(MAX_WITHDRAW_SKR_ATOMS_PER_WINDOW, 100_000_000_000);
+        assert_eq!(MAX_CLAIM_PROOFS, 12);
+        assert_eq!(MAX_REWARD_MICRO, 1_000_000_000);
+        assert_eq!(GRANT_QUOTA_SHARE_BPS, 1_000);
+        assert_eq!(FEE_BURN_PERCENT, 60);
+        assert_eq!(MIN_ORDER_AMOUNT_MICRO, 10_000_000);
+        assert_eq!(MIN_ORDER_TOTAL_LAMPORTS, 1_000_000);
+        assert_eq!(EPOCH_DURATION, SECONDS_PER_DAY);
+        assert_eq!(MAX_ACCRUAL_SECONDS, 7 * SECONDS_PER_DAY);
+        assert_eq!(LUNAR_TABLE.len(), 28);
+    }
 }
 
 fn verify_fields(accs: &[AccountInfo], user: &Pubkey, program: &Pubkey, min: usize, min_level: u8) -> Result<()> {
@@ -3734,6 +3881,12 @@ fn verify_fields(accs: &[AccountInfo], user: &Pubkey, program: &Pubkey, min: usi
 /// тогда энтропия опирается на оставшиеся компоненты сида.
 fn recent_slot_hash(account: &UncheckedAccount) -> Option<(u64, [u8; 32])> {
     let data = account.try_borrow_data().ok()?;
+    parse_slot_hash(&data)
+}
+
+/// Host-testable core of [`recent_slot_hash`]: fail-safe (None) on any
+/// truncated/malformed sysvar payload instead of panicking.
+fn parse_slot_hash(data: &[u8]) -> Option<(u64, [u8; 32])> {
     if data.len() < 48 {
         return None;
     }

@@ -23,6 +23,8 @@ yarn install --frozen-lockfile --non-interactive
 yarn typecheck
 yarn typecheck:tools
 yarn test:offchain
+# Security-guard tripwire (checklist 2026-09-25), zero-dep.
+yarn test:guards
 yarn test:economy
 # F-15: backend unit tests (security/alert helpers; no network).
 yarn workspace backend test
