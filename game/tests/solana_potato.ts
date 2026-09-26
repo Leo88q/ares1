@@ -1403,7 +1403,7 @@ describe("solana_potato", () => {
       await expectFail(exec(2_000n, adminAta), "WithdrawAmountMismatch");
       // playerAta — валидный ATA того же mint, но authority = player:
       // associated-констрейнт прибивает назначение к ATA(mint, authority).
-      await expectFail(exec(1_000n, playerAta), "ConstraintAssociatedToken");
+      await expectFail(exec(1_000n, playerAta), "ConstraintTokenOwner");
       await expectFail(exec(1_000n, adminAta), "WithdrawTimelockNotExpired");
       await program.methods.cancelWithdrawal().accountsPartial({
         config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
