@@ -3797,7 +3797,8 @@ mod tests {
         assert!(parse_slot_hash(&[]).is_none());
         assert!(parse_slot_hash(&[0u8; 47]).is_none());
         let mut data = vec![0u8; 48];
-        data[..8].copy_from_slice(&42u64.to_le_bytes());
+        data[..8].copy_from_slice(&1u64.to_le_bytes()); // one SlotHashes entry
+        data[8..16].copy_from_slice(&42u64.to_le_bytes());
         data[16..48].copy_from_slice([7u8; 32].as_slice());
         assert_eq!(parse_slot_hash(&data), Some((42, [7u8; 32])));
     }
