@@ -149,7 +149,7 @@ mod tests {
         too_long.push(0);
         assert_eq!(too_long.len(), 146);
         assert!(admin_state(&too_long).is_err());
-        assert!(admin_state(&vec![0; 97]).is_err()); // bad discriminator
+        assert!(admin_state(&[0u8; 97]).is_err()); // bad discriminator
     }
 
     #[test]
@@ -165,9 +165,9 @@ mod tests {
         assert!(config(&corrupt).is_err());
         corrupt = current; corrupt[226] = 2; // invalid Borsh boolean
         assert!(config(&corrupt).is_err());
-        assert!(field(&vec![0; 69]).is_err());
-        assert!(epoch(&vec![0; 41]).is_err());
-        assert!(admin_state(&vec![0; 97]).is_err());
+        assert!(field(&[0u8; 69]).is_err());
+        assert!(epoch(&[0u8; 41]).is_err());
+        assert!(admin_state(&[0u8; 97]).is_err());
     }
 
     #[test]
