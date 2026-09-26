@@ -26,6 +26,16 @@
 //! All amounts suffixed `_micro` are in 10^-6 $POTATO (the mint has 6 decimals).
 //! All `_bps` values are basis points (10_000 = 1.0×).
 
+// Линт `unexpected_cfgs` (Rust 1.80+) срабатывает на макроexpansion зависимостей:
+// `entrypoint!` из solana-program-entrypoint проверяет `feature = "custom-heap"`,
+// макросы Anchor — `feature = "anchor-debug"`, и ни одна из этих фич не объявлена
+// в нашем [features] (102 предупреждения на пустом месте). Своих cfg-условий в
+// крейте нет — только два `#[cfg(test)]` — поэтому allow ничего не скрывает.
+// Точечный `check-cfg` через `[lints.rust]` потребовал бы rustc ≥ 1.80 и в
+// CI-тулчейне, и в платформенном rustc от `cargo build-sbf`; ради косметического
+// линта рисковать блокирующей сборкой не стали.
+#![allow(unexpected_cfgs)]
+
 mod migrations;
 
 use anchor_lang::prelude::*;
@@ -144,6 +154,12 @@ pub const BASE_FIELD_PRICE_MICRO: u64 = 250_000_000; // 250 $POTATO
 pub const SKR_MINT: Pubkey = pubkey!("Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o");
 /// 1053 SKR (6 decimals) = 2000 RUB при курсе 1.90
 pub const PRESALE_PRICE_SKR_ATOMS: u64 = 1_053_000_000;
+/// Every SKR amount in this program is priced in 10^-6 atoms
+/// (`PRESALE_PRICE_SKR_ATOMS`, `EXPORT_LICENSE_PRICE_SKR_ATOMS`,
+/// `MAX_WITHDRAW_SKR_ATOMS_PER_WINDOW`). A mint with any other decimals would
+/// silently re-price every rail by 10^k — the guard is fail-closed, so a bad
+/// mint bricks the rail instead of selling fields for ~0.
+pub const SKR_DECIMALS: u8 = 6;
 pub const EXPORT_LICENSE_PRICE_SKR_ATOMS: u64 = 500_000_000; // 500 SKR / 30 дней
 /// One-time referral registration cost, confirmed by the game owner: 5 POTATO.
 pub const REFERRAL_REGISTRATION_COST_MICRO: u64 = 5_000_000;
@@ -182,6 +198,9 @@ pub mod solana_potato {
         );
         require!(mint.decimals == 6, GameError::InvalidMintDecimals);
         require!(mint.freeze_authority.is_none(), GameError::MintHasFreezeAuthority);
+        // R2 (аудит 2026-09-25) → закрыто: до этой проверки деплойер мог наминтить
+        // запас до передачи authority конфиг-PDA, обойдя кап эпохи и max_supply.
+        require!(mint.supply == 0, GameError::InvalidMintSupply);
 
         let config = &mut ctx.accounts.config;
         config.authority = ctx.accounts.authority.key();
@@ -288,6 +307,10 @@ pub mod solana_potato {
 
     /// Buys a new field of `field_type` (0 = Грядка, 1 = Луг, 2 = Поле) by
     /// burning its price. `field_id` is a client-chosen nonce for the PDA.
+    // `field_id` не читается в теле: он связывает PDA через
+    // `seeds = [b"field", field_id...]`, т.е. потребляется макросом аккаунтов.
+    // Переименование в `_field_id` изменило бы имя аргумента в IDL (ABI).
+    #[allow(unused_variables)]
     pub fn create_field(ctx: Context<CreateField>, field_id: u64, field_type: u8) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(field_type < FIELD_TYPE_COUNT, GameError::InvalidFieldType);
@@ -429,6 +452,8 @@ pub mod solana_potato {
     /// это закрывает обход, при котором покупатель всегда забирал EPIC за цену дропа.
     /// `sold` и `slot` покупатель не контролирует в момент подписания (конкурентные
     /// покупки сдвигают `sold`, слот включения в блок неизвестен заранее).
+    // `field_id` связывает PDA поля через seeds, в теле не читается.
+    #[allow(unused_variables)]
     pub fn buy_field_skr(ctx: Context<BuyFieldSkr>, field_id: u64) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
         // F-01: платный ролл тира — только на верхнем уровне транзакции.
@@ -442,6 +467,8 @@ pub mod solana_potato {
         require!(buyer_presale.count < 5, GameError::PresaleWalletLimitReached);
 
         require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
+        // П.40: цены SKR зафиксированы в 10^-6 атомах — decimals минта обязаны совпадать.
+        require_skr_mint(&ctx.accounts.skr_mint)?;
         // PresaleState.price_lamports — цена SOL-пресейла (buy_field_sol);
         // цена SKR-пресейла зафиксирована константой 1053 SKR (PRESALE_PRICE_SKR_ATOMS).
         // price_lamports == 0 означает аварийную остановку пресейла (kill switch):
@@ -547,6 +574,8 @@ pub mod solana_potato {
     /// type 2 pays 2× of `presale.price_lamports`. `max_total_lamports` is the
     /// buyer's slippage guard: the transaction reverts with InvalidPrice if the
     /// authority raised the price after the buyer signed.
+    // `field_id` связывает PDA поля через seeds, в теле не читается.
+    #[allow(unused_variables)]
     pub fn buy_field_sol(
         ctx: Context<BuyFieldSol>,
         field_id: u64,
@@ -663,9 +692,7 @@ pub mod solana_potato {
         require!(gross_mint > 0, GameError::EpochCapExceeded);
 
         // Применяем налог: игрок получает (1 - tax), treasury получает tax/2, остальное burn
-        let tax_amount = (gross_mint as u128 * base_tax_bps as u128 / 10_000) as u64;
-        let player_yield = gross_mint.saturating_sub(tax_amount);
-        let treasury_share = tax_amount / 2; // половина налога в treasury, половина burn
+        let (player_yield, treasury_share) = split_harvest(gross_mint, base_tax_bps)?;
         require!(player_yield > 0, GameError::NothingToHarvest);
 
         // ── Effects ──
@@ -885,6 +912,8 @@ pub mod solana_potato {
     pub fn buy_export_license(ctx: Context<BuyExportLicense>) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
+        // П.40: 500 SKR — это 500 × 10^6 атомов; минта с другими decimals не принимается.
+        require_skr_mint(&ctx.accounts.skr_mint)?;
         let now = Clock::get()?.unix_timestamp;
         let thirty_days = 30i64 * 86400;
 
@@ -919,6 +948,9 @@ pub mod solana_potato {
 
     /// Lists `amount_micro` $POTATO for sale at `price_lamports_per_potato`
     /// (lamports per whole $POTATO). Amount + fee move into an escrow PDA.
+    // `order_id` связывает PDA ордера через `seeds = [b"order", order_id...]`
+    // и в теле не читается; переименование изменило бы имя аргумента в IDL.
+    #[allow(unused_variables)]
     pub fn create_sell_order(
         ctx: Context<CreateSellOrder>,
         order_id: u64,
@@ -1482,6 +1514,8 @@ pub mod solana_potato {
     /// to the authority's own SKR ATA.
     pub fn withdraw_skr_treasury(ctx: Context<WithdrawSkrTreasury>, amount_skr_atoms: u64) -> Result<()> {
         require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
+        // П.40: лимит окна задан в атомах — вывод по минту с другими decimals запрещён.
+        require_skr_mint(&ctx.accounts.skr_mint)?;
         require!(amount_skr_atoms > 0, GameError::InvalidAmount);
         let state = &mut ctx.accounts.admin_state;
         let (pending, proposed_at) = state.pending_withdraw(2)?;
@@ -1616,6 +1650,10 @@ pub mod solana_potato {
     /// в бесполезном токене уже в следующей транзакции.
     pub fn update_skr_mint(ctx: Context<UpdateSkrMint>, new_skr_mint: Pubkey) -> Result<()> {
         require!(new_skr_mint != Pubkey::default(), GameError::InvalidMint);
+        // П.40: миграция на минт с другими decimals переоценила бы все SKR-цены
+        // на 10^k, поэтому минт проверяется уже на шаге предложения.
+        require!(ctx.accounts.new_skr_mint.key() == new_skr_mint, GameError::InvalidMint);
+        require_skr_mint(&ctx.accounts.new_skr_mint)?;
         let state = &mut ctx.accounts.admin_state;
         state.pending_skr_mint = new_skr_mint;
         state.pending_skr_mint_at = Clock::get()?.unix_timestamp;
@@ -1643,6 +1681,10 @@ pub mod solana_potato {
             GameError::TimelockNotExpired
         );
         let new_skr_mint = state.pending_skr_mint;
+        // П.40: применяется ровно тот минт, что проверен на шаге предложения,
+        // и его decimals обязаны совпадать с SKR_DECIMALS.
+        require!(ctx.accounts.skr_mint.key() == new_skr_mint, GameError::InvalidMint);
+        require_skr_mint(&ctx.accounts.skr_mint)?;
         ctx.accounts.config.skr_mint = new_skr_mint;
         state.pending_skr_mint = Pubkey::default();
         state.pending_skr_mint_at = 0;
@@ -1697,7 +1739,6 @@ pub mod solana_potato {
     }
 
     /// Registers a one-time referral relationship; burns the registration cost.
-
     pub fn register_referrer(ctx: Context<RegisterReferrer>, referrer: Pubkey) -> Result<()> {
         // F-17: снятие 5 POTATO за регистрацию — трата, гейтим паузой как
         // остальные расходные инструкции.
@@ -1775,9 +1816,8 @@ pub mod solana_potato {
             require!(elapsed >= MIN_HARVEST_INTERVAL, GameError::HarvestTooSoon);
             let pending = compute_pending_yield(base_yield, global_bps, &f, elapsed, now, epoch_id)?;
             require!(pending > 0, GameError::NothingToHarvest);
-            let tax_amount = (pending as u128 * base_tax_bps as u128 / 10_000) as u64;
-            let player_yield = pending.saturating_sub(tax_amount);
-            let treasury_share = tax_amount / 2;
+            // Тот же split, что и в одиночном harvest (инвариант чек-листа п. 53).
+            let (player_yield, treasury_share) = split_harvest(pending, base_tax_bps)?;
             require!(player_yield > 0, GameError::NothingToHarvest);
             total_gross = total_gross.saturating_add(pending);
             total_player = total_player.saturating_add(player_yield);
@@ -1999,6 +2039,22 @@ pub fn order_total_lamports(amount_micro: u64, price_lamports_per_potato: u64) -
     u64::try_from(total).map_err(|_| GameError::MathOverflow.into())
 }
 
+/// Splits a gross emission into `(player, treasury)`; whatever is left is never
+/// minted (the implicit burn). Single source of truth for `harvest` and
+/// `batch_harvest` so the two can never disagree on rounding, and so the
+/// invariant `player + treasury <= gross` is host-testable (checklist item 53).
+pub fn split_harvest(gross_micro: u64, tax_bps: u64) -> Result<(u64, u64)> {
+    let tax = (gross_micro as u128)
+        .checked_mul(tax_bps.min(10_000) as u128)
+        .ok_or(GameError::MathOverflow)?
+        / 10_000;
+    // Тип ошибки указан явно: `.into()` здесь не выводится (E0283 — в `?`
+    // подходит несколько типов, для которых есть `From<_> for Error`).
+    let tax = u64::try_from(tax).map_err(|_| GameError::MathOverflow)?;
+    let player = gross_micro.saturating_sub(tax);
+    Ok((player, tax / 2))
+}
+
 /// Extends a deadline by `period`, starting from `max(current, now)`.
 fn extend_timer(current: i64, now: i64, period: i64) -> Result<i64> {
     current.max(now).checked_add(period).ok_or(GameError::MathOverflow.into())
@@ -2147,13 +2203,26 @@ fn write_migrated_account<'info>(
         )?;
     }
     if account.data_len() != data.len() {
-        account.realloc(data.len(), true)?;
+        // `realloc(len, true)` помечен deprecated в solana-program 2.x в пользу
+        // `resize(len)`. zero-init здесь не нужен: сразу после этого весь
+        // буфер (ровно data.len() байт) перезаписывается copy_from_slice,
+        // поэтому неинициализированных байт не остаётся.
+        account.resize(data.len())?;
     }
     account.try_borrow_mut_data()?.copy_from_slice(data);
     Ok(())
 }
 
 // ───────────────────────── CPI helpers ───────────────────────────
+
+/// Checklist item 40 (decimals desync): every instruction that prices SKR in
+/// atoms asserts `decimals == SKR_DECIMALS` **before** any token movement. The
+/// mint key alone is not enough — a mint with 9 decimals would make 1053 atoms
+/// worth 1000× less and the presale effectively free.
+fn require_skr_mint(mint: &Account<'_, Mint>) -> Result<()> {
+    require!(mint.decimals == SKR_DECIMALS, GameError::InvalidSkrDecimals);
+    Ok(())
+}
 
 fn burn_from_user<'info>(
     token_program: &Program<'info, Token>,
@@ -2389,7 +2458,6 @@ pub struct BuyExportLicense<'info> {
 
 #[derive(Accounts)]
 #[instruction(order_id: u64)]
-
 pub struct CreateSellOrder<'info> {
     #[account(mut)]
     pub seller: Signer<'info>,
@@ -2884,6 +2952,8 @@ pub struct UpdateSkrMint<'info> {
     pub admin_state: Account<'info, AdminState>,
     #[account(mut)]
     pub authority: Signer<'info>,
+    /// П.40: минт, который предлагается на замену, — проверяется по decimals до записи в AdminState.
+    pub new_skr_mint: Account<'info, Mint>,
     pub system_program: Program<'info, System>,
 }
 
@@ -2895,6 +2965,8 @@ pub struct ApplyPendingSkrMint<'info> {
     #[account(mut, seeds = [b"admin_state"], bump)]
     pub admin_state: Account<'info, AdminState>,
     pub authority: Signer<'info>,
+    /// П.40: минт из предложения — decimals сверяются повторно в момент применения.
+    pub skr_mint: Account<'info, Mint>,
 }
 
 #[derive(Accounts)]
@@ -3157,18 +3229,13 @@ pub struct SellerProfile {
     pub bump: u8,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, Default, InitSpace)]
 pub enum OrderStatus {
+    #[default]
     Active,
     Filled,
     Cancelled,
     Expired,
-}
-
-impl Default for OrderStatus {
-    fn default() -> Self {
-        OrderStatus::Active
-    }
 }
 
 // ─────────────────────────── Events ──────────────────────────────
@@ -3471,6 +3538,10 @@ pub enum GameError {
     InvalidWithdrawKind, // 6045
     #[msg("A withdrawal for this asset is already proposed; cancel it first")]
     WithdrawalAlreadyProposed, // 6046
+    #[msg("Bootstrap mint must have zero supply: pre-minted tokens would bypass the epoch cap")]
+    InvalidMintSupply, // 6047
+    #[msg("SKR mint must have 6 decimals: all SKR prices are quoted in 10^-6 atoms")]
+    InvalidSkrDecimals, // 6048
 }
 
 // ──────────────────────────── Tests ──────────────────────────────
@@ -3585,9 +3656,11 @@ mod tests {
 
     #[test]
     fn admin_withdraw_window_resets_after_24h() {
-        let mut s = AdminState::default();
-        s.window_start = 100;
-        s.withdrawn_sol_lamports = 5;
+        let mut s = AdminState {
+            window_start: 100,
+            withdrawn_sol_lamports: 5,
+            ..Default::default()
+        };
         s.roll_withdraw_window(100 + WITHDRAW_WINDOW_SECONDS - 1);
         assert_eq!(s.withdrawn_sol_lamports, 5);
         s.roll_withdraw_window(100 + WITHDRAW_WINDOW_SECONDS);
@@ -3682,9 +3755,10 @@ mod tests {
         write_field_account(&f, &mut data).unwrap();
         let mut lamports = 1;
         let account = AccountInfo::new(&key, false, false, &mut lamports, &mut data, &program, false, 0);
-        assert!(verify_fields(&[account.clone()], &user, &program, 1, 3).is_ok());
+        let accounts = [account.clone()];
+        assert!(verify_fields(&accounts, &user, &program, 1, 3).is_ok());
         assert!(verify_fields(&[account.clone(), account.clone()], &user, &program, 2, 0).is_err());
-        assert!(verify_fields(&[account.clone()], &Pubkey::new_unique(), &program, 1, 0).is_err());
+        assert!(verify_fields(&accounts, &Pubkey::new_unique(), &program, 1, 0).is_err());
         assert!(verify_fields(&[account], &user, &Pubkey::new_unique(), 1, 0).is_err());
     }
 
@@ -3844,6 +3918,166 @@ mod tests {
         assert_eq!(EPOCH_DURATION, SECONDS_PER_DAY);
         assert_eq!(MAX_ACCRUAL_SECONDS, 7 * SECONDS_PER_DAY);
         assert_eq!(LUNAR_TABLE.len(), 28);
+    }
+
+    // ─────────────── Extended checklist 2026-09-26 (пп. 31-70) ───────────────
+    // Property-based tests on a deterministic xorshift (no external RNG crate:
+    // the program builds against a pinned dependency set). Every loop is
+    // reproducible in CI and bounded — no flakiness, no unbounded compute.
+
+    struct Rng(u64);
+
+    impl Rng {
+        fn new(seed: u64) -> Self {
+            Rng(seed | 1)
+        }
+        fn next_u64(&mut self) -> u64 {
+            let mut x = self.0;
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            self.0 = x;
+            x
+        }
+        fn below(&mut self, n: u64) -> u64 {
+            self.next_u64() % n
+        }
+    }
+
+    #[test]
+    fn fee_invariants_hold_for_pseudo_random_amounts() {
+        // Пп. 13–15: floor-округление, инвариант fee <= amount и границы тиров
+        // проверяются не только на границах диапазона, но и на 5 000 случайных
+        // суммах (property-based вместо единственного happy-path).
+        let mut rng = Rng::new(0x2545_F491_4F6C_DD1D);
+        for _ in 0..5_000 {
+            let amount = rng.next_u64();
+            let fee = order_fee_micro(amount).expect("fee computable for every u64 amount");
+            let bps = calculate_fee_bps(amount) as u128;
+            assert!(fee <= amount, "fee {fee} exceeds amount {amount}");
+            assert_eq!(fee, (amount as u128 * bps / BPS) as u64, "rounding at {amount}");
+            assert!((900..=1_200).contains(&(bps as u16)), "tier {bps} at {amount}");
+        }
+    }
+
+    #[test]
+    fn harvest_split_never_mints_more_than_the_gross_emission() {
+        // П. 53: инвариант «выплаченное <= начисленное» на случайных входах,
+        // включая налоги выше потолка (защита от опечатки в конфиге).
+        let mut rng = Rng::new(0x9E37_79B9_7F4A_7C15);
+        for _ in 0..5_000 {
+            let gross = rng.next_u64();
+            let tax_bps = rng.below(15_000);
+            let (player, treasury) = split_harvest(gross, tax_bps).expect("checked split");
+            assert!(player <= gross, "player {player} > gross {gross}");
+            assert!(
+                player.saturating_add(treasury) <= gross,
+                "emission invariant broken at gross={gross} tax_bps={tax_bps}"
+            );
+            if gross > 0 {
+                assert!(treasury < gross, "treasury share must stay below the gross");
+            }
+        }
+        assert_eq!(split_harvest(1_000_000, 0).unwrap(), (1_000_000, 0));
+        assert_eq!(split_harvest(1_000_000, 1_000).unwrap(), (900_000, 50_000));
+        assert_eq!(split_harvest(1_000_000, 10_000).unwrap(), (0, 500_000));
+        // Потолок налога: >100 % зажимается, а не обнуляет плеера сверх меры.
+        assert_eq!(split_harvest(1_000_000, 60_000).unwrap(), split_harvest(1_000_000, 10_000).unwrap());
+    }
+
+    #[test]
+    fn supply_tax_curve_stays_between_two_and_ten_percent() {
+        // П. 58: кривая налога 2 % → 10 % обязана быть монотонной по supply и
+        // никогда не выходить за потолок (иначе harvest стал бы источником
+        // непредсказуемой эмиссии в казну).
+        let max_supply = DEFAULT_MAX_SUPPLY_MICRO;
+        let curve = |supply: u64| -> u64 {
+            let ratio_bps = ((supply as u128) * 10_000 / (max_supply as u128)) as u64;
+            (200 + (800 * ratio_bps * ratio_bps / 100_000_000)).min(1_000)
+        };
+        let mut rng = Rng::new(0xDEAD_BEEF_CAFE_1234);
+        for _ in 0..2_000 {
+            // supply всегда <= max_supply (этот инвариант держит программа).
+            let supply = rng.below(max_supply + 1);
+            assert!((200..=1_000).contains(&curve(supply)), "tax {} at supply {}", curve(supply), supply);
+        }
+        let mut previous = 0u64;
+        for step in 0..200u64 {
+            let tax = curve(max_supply / 200 * step);
+            assert!(tax >= previous, "tax curve must be non-decreasing in supply");
+            previous = tax;
+        }
+    }
+
+    #[test]
+    fn pending_yield_never_panics_and_grows_with_accrual_time() {
+        // Пп. 13/52: checked-цепочка не паникует на случайных полях, а доход
+        // не может уменьшиться от того, что игрок ждал дольше (иначе выгодно
+        // «стричь» поле по секундам — мёртвый груз для сети).
+        let mut rng = Rng::new(0x0123_4567_89AB_CDEF);
+        for _ in 0..1_000 {
+            let f = Field {
+                owner: Pubkey::default(),
+                level: (rng.below(MAX_FIELD_LEVEL as u64) + 1) as u8,
+                durability: rng.below(MAX_DURABILITY as u64 + 1) as u8,
+                last_harvest: 0,
+                tax_paid_until: rng.below(1_000_000_000) as i64,
+                fertilizer_until: rng.below(1_000_000_000) as i64,
+                is_active: true,
+                field_type: rng.below(FIELD_TYPE_COUNT as u64) as u8,
+                bump: 0,
+                mutation_type: rng.below(3) as u8,
+            };
+            let base = rng.below(MAX_BASE_YIELD_MICRO_PER_DAY) + 1;
+            let global = rng.below(MAX_GLOBAL_MULTIPLIER_BPS as u64 + 1) as u16;
+            let now = rng.below(1_000_000_000) as i64;
+            let epoch = rng.next_u64();
+            let mut previous = 0u64;
+            for day in 1..=MAX_ACCRUAL_SECONDS / SECONDS_PER_DAY {
+                let y = compute_pending_yield(base, global, &f, day * SECONDS_PER_DAY, now, epoch)
+                    .expect("checked chain must not panic");
+                assert!(y >= previous, "yield shrank after waiting longer (day {day})");
+                previous = y;
+            }
+        }
+    }
+
+    #[test]
+    fn withdrawal_window_never_resets_early_for_random_clocks() {
+        // Пп. 16/20: окно лимита сбрасывается ровно через 24 ч — раньше сброс
+        // дал бы бесконечный вывод в обход рейт-лимита.
+        let mut s = AdminState::default();
+        let mut rng = Rng::new(0xA5A5_5A5A_1234_5678);
+        s.window_start = rng.below(1_000_000) as i64;
+        for _ in 0..1_000 {
+            s.withdrawn_sol_lamports = 42;
+            let start = s.window_start;
+            let now = start + rng.below(WITHDRAW_WINDOW_SECONDS as u64 * 2) as i64;
+            s.roll_withdraw_window(now);
+            if now.saturating_sub(start) >= WITHDRAW_WINDOW_SECONDS {
+                assert_eq!(s.withdrawn_sol_lamports, 0, "window must reset after 24h");
+                assert_eq!(s.window_start, now);
+            } else {
+                assert_eq!(s.withdrawn_sol_lamports, 42, "window must not reset early");
+            }
+        }
+    }
+
+    #[test]
+    fn current_layouts_are_the_terminal_entry_of_every_migration_whitelist() {
+        // П. 68: размер аккаунта == версия его раскладки. migrations.rs
+        // принимает только размеры из белого списка и дополняет до текущего —
+        // эти числа обязаны быть ПОСЛЕДНИМИ элементами списков, иначе миграция
+        // «улучшит» актуальный аккаунт до устаревшего размера.
+        assert_eq!(8 + Field::INIT_SPACE, 70);
+        assert_eq!(8 + Epoch::INIT_SPACE, 49);
+        assert_eq!(8 + AdminState::INIT_SPACE, 145);
+        assert_eq!(8 + GameConfig::INIT_SPACE, 260);
+        // П. 40: единая точка правды по цене SKR — decimals зафиксированы.
+        assert_eq!(SKR_DECIMALS, 6);
+        assert_eq!(PRESALE_PRICE_SKR_ATOMS, 1_053 * (MICRO as u64));
+        assert_eq!(EXPORT_LICENSE_PRICE_SKR_ATOMS, 500 * (MICRO as u64));
+        assert_eq!(MAX_WITHDRAW_SKR_ATOMS_PER_WINDOW, 100_000 * (MICRO as u64));
     }
 }
 
