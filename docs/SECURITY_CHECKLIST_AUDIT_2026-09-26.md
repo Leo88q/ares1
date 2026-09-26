@@ -168,14 +168,26 @@
 
 **Зависимости и CI**
 10. Точные пины `@solana/web3.js` / `@solana/spl-token` в четырёх манифестах + lockfile с integrity (п. 66).
-11. `scripts/security-guards.test.mjs`: +6 трипваер-тестов (18 → 24).
+11. `scripts/security-guards.test.mjs`: +7 трипваер-тестов (18 → 25).
 12. `tests/offchain/txSafety.test.ts` — 5 новых тестов; `tests/offchain/invariants.test.ts` — 5 новых тестов;
     `tests/solana_potato.ts` — 1 новый интеграционный тест (`initialize` rejects a pre-minted supply) и обновлённый тест миграции SKR-минта (передача минта аккаунтом + отказ по decimals).
+13. `apps/web/src/idl.json` — в IDL добавлены `docs` новых аккаунтов `update_skr_mint.new_skr_mint` и
+    `apply_pending_skr_mint.skr_mint`: Anchor включает doc-комментарии полей в ABI, из-за их отсутствия
+    гейт `check:contract target/idl/solana_potato.json` падал на полном сравнении ABI.
+    После правки файл байт-в-байт совпадает с собранным CI (`sha256 107c6e2a…`).
+14. `.github/workflows/ci.yml` — `dtolnay/rust-toolchain` теперь ставит `components: clippy, rustfmt`,
+    а шаг `Verify toolchain` жёстко проверяет `cargo fmt --version` / `cargo clippy --version`.
+    F-18: шаги линтеров идут с `continue-on-error`, поэтому раньше отсутствие компонента давало
+    `error: 'cargo-clippy' is not installed` и **зелёный** шаг — гейт не работал, но выглядел работающим
+    (найдено по аннотациям CI). Теперь no-op невозможен; трипваер №25 фиксирует это в тестах.
+15. `reports/ares1-audit.json` перегенерирован (`node scripts/audit-init-if-needed.mjs`): инвентарь SW016
+    хранит номера строк, поэтому любая правка `lib.rs` требует регенерации, иначе падает
+    тест `committed SW016 evidence matches current Rust source` в watchtower-джобе.
 
 **Новые артефакты**
-13. `game/scripts/check-invariants.ts` — ончейн-мониторинг инвариантов (пп. 49/53).
-14. `game/scripts/preflight-mainnet.sh` — автоматические проверки перед mainnet-деплоем (пп. 44/45/63/64).
-15. `game/docs/MAINNET_LAUNCH_GATE.md` — гейты запуска, ротация ключей, инцидент-плейбук.
+16. `game/scripts/check-invariants.ts` — ончейн-мониторинг инвариантов (пп. 49/53).
+17. `game/scripts/preflight-mainnet.sh` — автоматические проверки перед mainnet-деплоем (пп. 44/45/63/64).
+18. `game/docs/MAINNET_LAUNCH_GATE.md` — гейты запуска, ротация ключей, инцидент-плейбук.
 
 ---
 
@@ -189,12 +201,17 @@
 | R10 | Симуляция fail-closed может отказывать при кратковременном рассинхроне состояния (ордер успели купить) | низкий | Ошибка понятна игроку, повтор безопасен (идемпотентность по PDA-nonce) |
 | R11 | Post-sign сверка отклоняет транзакцию, если кошелёк изменил инструкции | низкий | Это целевое поведение (drainer). Совместимость проверена с Phantom/Solflare/MWA-путём: инструкции не меняются |
 | R12 | DNS/хостинг игрового фронтенда вне репозитория (п. 67) | средний | DNSSEC + hardware key у регистратора + мониторинг CT-логов (гейт §G-4) |
+| R13 | `cargo fmt` / `cargo clippy -D warnings` (F-18) остаются advisory: компоненты теперь ставятся и шаги реально исполняются, но результат не блокирует мердж | низкий | После первого «зелёного» строгого прогона на раннерах снять `continue-on-error` и сделать гейтом |
 
 ## Методология и ограничения
 
 - Прочитаны целиком: `lib.rs` (4 176 строк), `migrations.rs`, `apps/backend/src/*`, `SolanaContext.tsx`, `anchorClient.ts`, `useMarketplace.ts`, `lut.ts`, `token2022.ts`, CI-воркфлоу, `ci-local.sh`, `check-contract.mjs`, `tests/offchain/*`, `economy/simulate.py`.
-- Исполнено локально: `node --test scripts/security-guards.test.mjs` (24/24), `yarn test:offchain` (79/79), `yarn typecheck` (web+backend), `yarn typecheck:tools`, `yarn test:economy`, `yarn install --frozen-lockfile`,
-  `npm ci` (landing), полный `./scripts/ci-local.sh --skip-chain` (typecheck → offchain → guards → economy →
-  backend → landing build → web build → backend build) — зелёный.
+- Исполнено локально: `node --test scripts/security-guards.test.mjs` (25/25), `yarn test:offchain` (79/79), `yarn typecheck` (web+backend), `yarn typecheck:tools`, `yarn test:economy`, `yarn install --frozen-lockfile`,
+  `npm ci` (landing, watchtower), полный `./scripts/ci-local.sh --skip-chain` (typecheck → offchain → guards → economy →
+  backend → landing build → web build → backend build) — зелёный; watchtower: `npm test` (99 pass/1 skip),
+  `typecheck`, `build`, `test:os` (14/14), `os:handoff:check`, `audit-init-if-needed.test.mjs` (2/2).
 - **Не исполнялось** (в песочнице нет Rust/Anchor-тулчейна и localnet-валидатора): `cargo test -p solana_potato --lib`, `anchor test`, `check:contract` со свежесобранным IDL. Они прогоняются CI-джобой `program`; IDL обновлён вручную под те же конструкции Anchor и сверяется CI на полное совпадение.
+- Верификация «ручного» IDL: CI-джоба публикует sha256 собранного `target/idl/solana_potato.json` аннотацией
+  (`ares-public-idl-sha256`). После правки docs хеш committing-файла совпал с собранным: `107c6e2a…` —
+  то есть committed IDL и ABI programs совпадают побайтово, а не «похожи».
 - Внешний аудит (OtterSec/Sec3) по-прежнему рекомендуется до mainnet — автоматические проверки не заменяют ревью бизнес-логики человеком.
