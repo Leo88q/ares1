@@ -107,6 +107,15 @@ jobs:
       - name: cargo clippy strict (advisory, F-18)
         continue-on-error: true
         run: ./scripts/ci-run.sh cargo clippy --locked -p solana_potato --all-targets -- -D warnings
+      # Диагностический шаг: лог-архив джобы недоступен из API-only окружений,
+      # а excerpt от ci-run.sh обрезан — без этой инвентаризации pre-existing
+      # lint-долг невозможно разобрать. Шаг всегда зелёный, данные идут в
+      # аннотации (пути и имена линтов, без исходников).
+      - name: Clippy inventory (bounded annotation, F-18)
+        if: ${{ !cancelled() }}
+        run: |
+          set +e -o pipefail
+          cargo clippy --locked -p solana_potato --all-targets --message-format=json -- -D warnings | python3 scripts/clippy-inventory.py
       - name: Anchor build (lockfile verified)
         id: build_program
         run: ./scripts/ci-run.sh ./scripts/build-program.sh
