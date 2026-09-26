@@ -85,17 +85,21 @@ export function buildUpdateSkrMintIx(params: { config: PublicKey; adminState: Pu
     { pubkey: params.config, isSigner: false, isWritable: false },
     { pubkey: params.adminState, isSigner: false, isWritable: true },
     { pubkey: params.authority, isSigner: true, isWritable: true },
+    // Checklist item 40: the program asserts decimals == 6 on the proposed mint.
+    { pubkey: params.newSkrMint, isSigner: false, isWritable: false },
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ]});
 }
 
 /** Step 2 of the SKR mint migration (after the admin timelock expires). */
-export function buildApplyPendingSkrMintIx(params: { config: PublicKey; adminState: PublicKey; authority: PublicKey }): TransactionInstruction {
+export function buildApplyPendingSkrMintIx(params: { config: PublicKey; adminState: PublicKey; authority: PublicKey; skrMint: PublicKey }): TransactionInstruction {
   const data = anchorDiscriminator("global", "apply_pending_skr_mint");
   return new TransactionInstruction({ programId, data, keys: [
     { pubkey: params.config, isSigner: false, isWritable: true },
     { pubkey: params.adminState, isSigner: false, isWritable: true },
     { pubkey: params.authority, isSigner: true, isWritable: false },
+    // Checklist item 40: decimals are re-checked at apply time.
+    { pubkey: params.skrMint, isSigner: false, isWritable: false },
   ]});
 }
 export function buildUpdateRewardSignerIx(params: { config: PublicKey; authority: PublicKey; newSigner: PublicKey }): TransactionInstruction {

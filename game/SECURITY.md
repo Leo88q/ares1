@@ -12,6 +12,22 @@ See [docs/FIXES-2026-09-21.md](docs/FIXES-2026-09-21.md) for the change list and
 the pre-deploy runbook, and
 [stabilization status](docs/STABILIZATION-2026-09-21.md) for the earlier pass.
 
+## Extended checklist audit — 26 September 2026
+
+A second pass covered checklist items **31–70** (Anchor/Solana specifics, tokenomics,
+infrastructure, supply chain): [docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md](../docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md).
+
+Four real defects were found and fixed in source — client-side double execution
+(same instructions re-sent after a V0 send), missing SKR `decimals` validation on
+the timelocked mint migration, "whitelist-only" transaction simulation and the
+absence of any instruction allowlist / post-sign verification. A pre-minted supply
+at `initialize` is now rejected as well.
+
+Operational items (upgrade authority multisig, reproducible build, key rotation,
+DNSSEC, external audit) are **not code** and remain open until the
+[mainnet launch gate](docs/MAINNET_LAUNCH_GATE.md) is signed off;
+`scripts/preflight-mainnet.sh` machine-checks the parts that can be checked.
+
 Fixed and CI-verified on localnet (`anchor build` + `anchor test`):
 
 - Admin guard rails: sensitive updates (SKR mint, presale price raise) are

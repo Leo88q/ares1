@@ -11,6 +11,7 @@ import {
   getAssociatedTokenAddressSync,
   getMint,
   getOrCreateAssociatedTokenAccount,
+  mintTo,
   setAuthority,
   transfer,
 } from "@solana/spl-token";
@@ -88,6 +89,22 @@ describe("solana_potato", () => {
           config: configPda, potatoMint: wrongMint, authority: admin.publicKey, systemProgram: SystemProgram.programId,
         }).rpc(),
         "InvalidMintAuthority",
+      );
+    });
+
+    it("rejects a mint that was pre-minted before the handover (чек-лист п. 11)", async () => {
+      // Аудит 2026-09-26: supply обязан быть нулевым в момент initialize — иначе
+      // деплойер может наминтить запас до передачи authority конфиг-PDA и обойти
+      // кап эпохи/max_supply. Проверяется ДО создания config (init неуникален).
+      const preminted = await createMint(connection, admin, admin.publicKey, null, 6);
+      const adminPremintAta = (await getOrCreateAssociatedTokenAccount(connection, admin, preminted, admin.publicKey)).address;
+      await mintTo(connection, admin, preminted, adminPremintAta, admin, 1_000_000);
+      await setAuthority(connection, admin, preminted, admin.publicKey, AuthorityType.MintTokens, configPda);
+      await expectFail(
+        program.methods.initialize().accountsPartial({
+          config: configPda, potatoMint: preminted, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+        }).rpc(),
+        "InvalidMintSupply",
       );
     });
 
@@ -1230,9 +1247,13 @@ describe("solana_potato", () => {
     });
 
     it("update_skr_mint is a timelocked proposal, not an instant swap", async () => {
-      const newSkr = Keypair.generate().publicKey;
+      // Чек-лист п. 40: миграция минта принимает только SKR с 6 decimals —
+      // иначе все цены (1053 SKR за модуль, 500 SKR за лицензию) изменились бы
+      // на 10^k. Минт передаётся аккаунтом и проверяется на оба шага.
+      const newSkr = await createMint(connection, admin, admin.publicKey, null, 6);
       await program.methods.updateSkrMint(newSkr).accountsPartial({
-        config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+        config: configPda, adminState: adminStatePda, authority: admin.publicKey,
+        newSkrMint: newSkr, systemProgram: SystemProgram.programId,
       }).rpc();
       // config.skrMint НЕ изменился — только предложение в AdminState.
       const cfg = await program.account.gameConfig.fetch(configPda);
@@ -1242,20 +1263,39 @@ describe("solana_potato", () => {
       expect(as.pendingSkrMintAt.gt(new BN(0))).to.be.true;
       await expectFail(
         program.methods.applyPendingSkrMint().accountsPartial({
-          config: configPda, adminState: adminStatePda, authority: admin.publicKey,
+          config: configPda, adminState: adminStatePda, authority: admin.publicKey, skrMint: newSkr,
         }).rpc(),
         "TimelockNotExpired",
       );
+      // Нулевой pubkey в аргументе отклоняется (аккаунт минта при этом валидный —
+      // иначе Anchor упадёт раньше на AccountNotInitialized, а не на InvalidMint).
       await expectFail(
         program.methods.updateSkrMint(PublicKey.default).accountsPartial({
-          config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+          config: configPda, adminState: adminStatePda, authority: admin.publicKey,
+          newSkrMint: newSkr, systemProgram: SystemProgram.programId,
         }).rpc(),
         "InvalidMint",
+      );
+      // Минт с 9 decimals не пройдёт ни на шаге предложения, ни на шаге применения.
+      const badDecimals = await createMint(connection, admin, admin.publicKey, null, 9);
+      await expectFail(
+        program.methods.updateSkrMint(badDecimals).accountsPartial({
+          config: configPda, adminState: adminStatePda, authority: admin.publicKey,
+          newSkrMint: badDecimals, systemProgram: SystemProgram.programId,
+        }).rpc(),
+        "InvalidSkrDecimals",
+      );
+      await expectFail(
+        program.methods.applyPendingSkrMint().accountsPartial({
+          config: configPda, adminState: adminStatePda, authority: admin.publicKey, skrMint: badDecimals,
+        }).rpc(),
+        "TimelockNotExpired",
       );
       // Не-authority не может предложить подмену митта.
       await expectFail(
         program.methods.updateSkrMint(newSkr).accountsPartial({
-          config: configPda, adminState: adminStatePda, authority: player.publicKey, systemProgram: SystemProgram.programId,
+          config: configPda, adminState: adminStatePda, authority: player.publicKey,
+          newSkrMint: newSkr, systemProgram: SystemProgram.programId,
         }).signers([player]).rpc(),
         "ConstraintHasOne",
       );

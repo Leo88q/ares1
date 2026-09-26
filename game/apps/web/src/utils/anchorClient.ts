@@ -776,15 +776,19 @@ export async function ixUpdateSkrMint(programId: PublicKey, params: { config: Pu
     { pubkey: params.config, isSigner: false, isWritable: false },
     { pubkey: params.adminState, isSigner: false, isWritable: true },
     { pubkey: params.authority, isSigner: true, isWritable: true },
+    // Чек-лист п.40: программа сверяет decimals предлагаемого минта (SKR_DECIMALS = 6).
+    { pubkey: params.newSkrMint, isSigner: false, isWritable: false },
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ]})
 }
-export async function ixApplyPendingSkrMint(programId: PublicKey, params: { config: PublicKey; adminState: PublicKey; authority: PublicKey }): Promise<TransactionInstruction> {
+export async function ixApplyPendingSkrMint(programId: PublicKey, params: { config: PublicKey; adminState: PublicKey; authority: PublicKey; skrMint: PublicKey }): Promise<TransactionInstruction> {
   const data = concatBytes(await ixDiscriminator('apply_pending_skr_mint'))
   return new TransactionInstruction({ programId, data, keys: [
     { pubkey: params.config, isSigner: false, isWritable: true },
     { pubkey: params.adminState, isSigner: false, isWritable: true },
     { pubkey: params.authority, isSigner: true, isWritable: false },
+    // Чек-лист п.40: decimals минта из предложения проверяются повторно при применении.
+    { pubkey: params.skrMint, isSigner: false, isWritable: false },
   ]})
 }
 export async function ixUpdateRewardSigner(programId: PublicKey, params: { config: PublicKey; authority: PublicKey; newSigner: PublicKey }): Promise<TransactionInstruction> {

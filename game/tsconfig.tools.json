@@ -13,6 +13,7 @@
     "scripts/migrate-v2.ts",
     "scripts/init-onchain.ts",
     "tests/offchain/**/*.ts",
-    "scripts/test-migrations-localnet.ts"
+    "scripts/test-migrations-localnet.ts",
+    "scripts/check-invariants.ts"
   ]
 }

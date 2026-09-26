@@ -63,6 +63,7 @@ MIT - Zlata, 2026
 ## Stabilization / beta readiness
 
 Current validation and remaining release blockers: [21 Sep 2026 status](game/docs/STABILIZATION-2026-09-21.md).
+Security: [checklist audit 1–30](docs/SECURITY_CHECKLIST_AUDIT_2026-09-25.md), [extended audit 31–70](docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md), [mainnet launch gate](game/docs/MAINNET_LAUNCH_GATE.md).
 Build, key handling, Docker and incident procedures: [Operations](game/docs/OPERATIONS.md).
 No real-funds/mainnet readiness is claimed.
 
