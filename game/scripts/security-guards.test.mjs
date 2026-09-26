@@ -207,3 +207,138 @@ test('SW016-инвентарь: init_if_needed по-прежнему 21 и со�
   assert.equal(live, 21);
   assert.equal(report.findings.length, live, 'reports/ares1-audit.json разошёлся с сорцами');
 });
+
+// ══════════════════════════════════════════════════════════════════════════
+// Часть 1 / 2 чек-листа (аудит 2026-09-26): docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md
+// Трипваер закрепляет защиты, добавленные этой проверкой. Удаление любой из
+// них ломает CI — сдвигать пин можно только осознанным diff с описанием why.
+// ══════════════════════════════════════════════════════════════════════════
+
+const webPkg = JSON.parse(read('../apps/web/package.json'));
+const backendPkg = JSON.parse(read('../apps/backend/package.json'));
+const rootPkg = JSON.parse(read('../package.json'));
+const landingPkg = JSON.parse(read('../../landing/package.json'));
+const landingLock = JSON.parse(read('../../landing/package-lock.json'));
+
+test('П.40: SKR decimals проверяются на каждом рельсе, где цена задана в атомах', () => {
+  assert.ok(libRs.includes('pub const SKR_DECIMALS: u8 = 6;'));
+  assert.ok(libRs.includes('fn require_skr_mint(mint: &Account<\'_, Mint>)'));
+  // 1 объявление + 5 вызовов: presale(SKR), license, withdraw SKR, propose, apply.
+  // 4 рельса с существующим config.skr_mint + 1 шаг предложения (new_skr_mint).
+  assert.equal(count(libRs, 'require_skr_mint(&ctx.accounts.skr_mint)'), 4);
+  assert.equal(count(libRs, 'require_skr_mint(&ctx.accounts.new_skr_mint)'), 1);
+  // Обе инструкции миграции минта получают сам минт аккаунтом (проверка до записи).
+  for (const name of ['update_skr_mint', 'apply_pending_skr_mint']) {
+    const ix = idl.instructions.find((i) => i.name === name);
+    assert.ok(ix, `IDL: нет инструкции ${name}`);
+    assert.ok(
+      ix.accounts.some((a) => a.name === (name === 'update_skr_mint' ? 'new_skr_mint' : 'skr_mint')),
+      `${name}: минт не передан аккаунтом — decimals нечем проверить`,
+    );
+  }
+});
+
+test('П.11/R2: bootstrap-минт обязан иметь нулевой supply', () => {
+  assert.ok(libRs.includes('require!(mint.supply == 0, GameError::InvalidMintSupply);'));
+  const last = idl.errors.at(-1);
+  assert.equal(idl.errors.find((e) => e.code === 6047)?.name, 'InvalidMintSupply');
+  assert.equal(idl.errors.find((e) => e.code === 6048)?.name, 'InvalidSkrDecimals');
+  assert.ok(last && last.code >= 6047, 'коды ошибок дописываются только в конец (клиенты матчатся на них)');
+});
+
+test('Пп. 50/51: клиент подписывает только разрешённые программы и сверяет подписанное', () => {
+  const ctx = read('../apps/web/src/contexts/SolanaContext.tsx');
+  assert.ok(ctx.includes("from '../utils/txSafety'"));
+  assert.ok(ctx.includes('assertInstructionsAllowed(priorityIxs, PROGRAM_ID)'), 'нет pre-sign allowlist');
+  assert.ok(ctx.includes('assertSignedInstructionsMatch(signed, priorityIxs, PROGRAM_ID)'), 'нет post-sign сверки V0');
+  assert.ok(
+    ctx.includes('assertSignedLegacyInstructionsMatch(signed, priorityIxs, PROGRAM_ID)'),
+    'нет post-sign сверки legacy-пути',
+  );
+  const safety = read('../apps/web/src/utils/txSafety.ts');
+  assert.ok(safety.includes('TOKEN_PROGRAM_ID'), 'SPL Token должен быть в allowlist');
+  assert.ok(!/TOKEN_2022_PROGRAM_ID,\s*$/m.test(safety.split('export const ALLOWED_PROGRAMS')[1].split(']')[0]), 'Token-2022 не должен быть в allowlist (transfer hook/permanent delegate)');
+});
+
+test('Пп. 55/56: никакого повторного исполнения после отправленной транзакции', () => {
+  const ctx = read('../apps/web/src/contexts/SolanaContext.tsx');
+  assert.ok(ctx.includes('let v0Sent = false'));
+  assert.ok(ctx.includes('v0Sent = true'));
+  assert.ok(ctx.includes('if (v0Sent) {'), 'legacy-фолбэк после sendTransaction = двойное действие');
+  // Fail-closed симуляция: любая ошибка preflight останавливает отправку.
+  assert.equal(count(ctx, 'sim.value.err'), 2); // V0: условие + текст ошибки
+  assert.equal(count(ctx, 'sim2.value.err'), 2); // legacy-путь: тот же fail-closed
+});
+
+test('П.66: solana-зависимости запинены точно, lockfile хранит integrity', () => {
+  const pinned = ['@solana/web3.js', '@solana/spl-token'];
+  for (const [label, pkg] of [['game', rootPkg], ['web', webPkg], ['backend', backendPkg], ['landing', landingPkg]]) {
+    for (const dep of pinned) {
+      const spec = pkg.dependencies?.[dep] ?? pkg.devDependencies?.[dep];
+      assert.ok(spec, `${label}: нет зависимости ${dep}`);
+      assert.match(spec, /^\d+\.\d+\.\d+$/, `${label}.${dep} = ${spec} — диапазон недопустим (supply chain, п. 66)`);
+    }
+  }
+  // Известно скомпрометированные релизы web3.js (декабрь 2024).
+  const compromised = new Set(['1.95.6', '1.95.7']);
+  const yarnLock = read('../yarn.lock');
+  const entry = parseYarnEntry(yarnLock, '@solana/web3.js@1.98.4');
+  assert.ok(entry, 'yarn.lock не содержит точный pin @solana/web3.js');
+  assert.ok(!compromised.has(entry.version), `скомпрометированная версия web3.js ${entry.version}`);
+  assert.match(entry.version, /^1\.(9[6-9]|\d{2,})\./, `web3.js ${entry.version} старше 1.95.8`);
+  assert.ok(entry.integrity?.startsWith('sha512-'), 'нет integrity-хеша для web3.js');
+  assert.ok(entry.resolved?.startsWith('https://registry.npmjs.org/'), 'неожидаемый реестр');
+  // Landing (npm): точный pin + integrity в lockfile v3.
+  for (const dep of pinned) {
+    const pkg = landingLock.packages[`node_modules/${dep}`];
+    assert.ok(pkg, `landing lock: нет ${dep}`);
+    assert.equal(pkg.version, landingPkg.dependencies[dep]);
+    assert.ok(pkg.integrity?.startsWith('sha512-'), `landing lock: нет integrity для ${dep}`);
+    assert.ok(!compromised.has(pkg.version));
+  }
+});
+
+test('П.66: CI ставит зависимости только из lockfile (--frozen-lockfile / npm ci)', () => {
+  const ciLocal = read('./ci-local.sh');
+  assert.ok(ciLocal.includes('yarn install --frozen-lockfile'), 'CI должен падать на рассинхроне lockfile');
+  assert.ok(ciLocal.includes('npm ci'), 'landing должен ставиться через npm ci');
+  const audit = read('../../.github/workflows/ci.yml');
+  assert.ok(audit.includes('yarn install --frozen-lockfile'));
+  assert.ok(audit.includes('yarn audit'), ' advisory-аудит зависимостей должен оставаться в CI');
+});
+
+test('F-18: advisory-гейты fmt/clippy не могут «проходить» без установленных компонентов', () => {
+  const ci = read('../../.github/workflows/ci.yml');
+  // Шаги fmt/clippy идут с continue-on-error, поэтому отсутствие компонента
+  // давало `error: 'cargo-clippy' is not installed` и зелёный шаг: гейта нет,
+  // а выглядит как работающая проверка. Компоненты обязаны ставиться явно.
+  assert.ok(/components:\s*clippy, rustfmt/.test(ci), 'dtolnay/rust-toolchain должен ставить clippy и rustfmt');
+  const verify = ci.split('name: Verify toolchain')[1]?.split('\n      - name:')[0] ?? '';
+  assert.ok(verify.includes('cargo fmt --version'), 'жёсткая проверка версии rustfmt');
+  assert.ok(verify.includes('cargo clippy --version'), 'жёсткая проверка версии clippy');
+});
+
+/** Разбирает запись yarn.lock v1 по одному из её spec-шаблонов. */
+function parseYarnEntry(lockText, spec) {
+  const lines = lockText.split('\n');
+  let current = null;
+  for (const line of lines) {
+    if (line.startsWith('#') || !line.trim()) continue;
+    if (!line.startsWith(' ')) {
+      const patterns = line.replace(/:$/, '').split(', ').map((s) => s.replace(/^"|"$/g, ''));
+      current = { patterns, version: null, resolved: null, integrity: null };
+      if (patterns.includes(spec)) return finalize(lines, lines.indexOf(line), current);
+    }
+  }
+  return null;
+}
+
+function finalize(lines, start, current) {
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.startsWith(' ')) break;
+    const m = /^\s{2}(\w+)\s+"?([^"]+?)"?$/.exec(line);
+    if (m) current[m[1]] = m[2];
+  }
+  return current;
+}

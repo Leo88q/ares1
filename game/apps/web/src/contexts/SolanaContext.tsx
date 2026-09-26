@@ -17,6 +17,12 @@ import { describeError } from '../utils/errors'
 import { withRetry } from '../utils/rpc'
 import { usePolling } from '../hooks/usePolling'
 import { getLookupTable } from '../utils/lut'
+import {
+  assertInstructionsAllowed,
+  assertSignedInstructionsMatch,
+  assertSignedLegacyInstructionsMatch,
+  describeInstructions,
+} from '../utils/txSafety'
 
 // Fail-fast: без VITE_PROGRAM_ID сборка не должна молча указывать на старый адрес.
 const rawProgramId = import.meta.env.VITE_PROGRAM_ID
@@ -118,9 +124,19 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
         ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }),
         ...ixs,
       ]
+      // Чек-лист пп. 50/51: ни одна инструкция не уходит в кошелёк, если она
+      // не нашей программе и не системной (drainer-payload отсекается до подписи).
+      assertInstructionsAllowed(priorityIxs, PROGRAM_ID)
+      // Человекочитаемое превью того, что уйдёт на подпись (без секретов/ключей).
+      console.info('[potato] signing:', describeInstructions(priorityIxs).join(' → '))
       const luts = (opts?.lookupTables ?? (lookupTable ? [lookupTable] : [])).filter(Boolean) as AddressLookupTableAccount[]
 
       // ── Основной путь: VersionedTransaction V0 с LUT (60% меньше байт, дешевле) ──
+      // Чек-лист пп. 55/56: флаг «V0 уже ушёл в сеть». Повторная отправка тех же
+      // инструкций (legacy-фолбэк) после отправленной V0 = двойное списание
+      // (два harvest, два ордера, двойной craft), поэтому после sendTransaction
+      // фолбэка нет никогда — только честная ошибка.
+      let v0Sent = false
       try {
         const { blockhash, lastValidBlockHeight } = await withRetry(() => connection.getLatestBlockhash('confirmed'))
         const messageV0 = new TransactionMessage({
@@ -129,13 +145,15 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
           instructions: priorityIxs,
         }).compileToV0Message(luts)
         const vtx = new VersionedTransaction(messageV0)
-        // Preflight simulate — ранний отлов кастомных ошибок программы
+        // Preflight simulate — FAIL CLOSED (чек-лист п. 51): если симуляция
+        // упала, транзакция на сети тоже упадёт. Раньше отправлялись только
+        // «узнаваемые» ошибки, остальные доходили до кошелька и сжигали комиссию.
         const sim = await connection.simulateTransaction(vtx as unknown as VersionedTransaction, { sigVerify: false })
         if (sim.value.err) {
           const logs = (sim.value.logs ?? []).join('\n')
-          if (/custom program error|AlreadyClaimed|BadProof|Paused|HarvestTooSoon|EpochCapExceeded|InsufficientFunds/i.test(logs)) {
-            throw new Error(logs.slice(0, 600))
-          }
+          throw new Error(
+            `${t('Транзакция не пройдёт на сети:')} ${JSON.stringify(sim.value.err)}\n${logs.slice(0, 600)}`,
+          )
         }
         let signed: VersionedTransaction = await (wallet.signTransaction as (tx: VersionedTransaction) => Promise<VersionedTransaction>)(vtx)
         const needSig = signed.message.header.numRequiredSignatures
@@ -156,16 +174,28 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
             throw new Error(`${MISSING_SIG} (${walletName})`)
           }
         }
+        // Чек-лист пп. 50/51: сверяем подписанное с тем, что просили подписать.
+        // Кошелёк, подменяющий инструкции (drainer), не дождётся отправки.
+        assertSignedInstructionsMatch(signed, priorityIxs, PROGRAM_ID)
+        v0Sent = true
         const sig = await connection.sendTransaction(signed, { skipPreflight: false, maxRetries: 3 })
         const res = await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed')
         if (res.value.err) throw new Error(t('Транзакция отклонена сетью: {err}', { err: JSON.stringify(res.value.err) }))
         return sig
       } catch (e) {
+        // Пп. 55/56: после отправленной транзакции фолбэка быть не может —
+        // повтор тех же инструкций = двойное действие (двойной harvest/ордер).
+        if (v0Sent) {
+          throw new Error(
+            t('Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.'),
+          )
+        }
         const msg = describeError(e)
-        // Кастомные ошибки программы — пробрасываем без фолбэка
-        if (/custom program error|AlreadyClaimed|BadProof|Paused|HarvestTooSoon|EpochCapExceeded|InsufficientFunds/i.test(msg) && msg.length < 800) {
-          // Но если это именно наша кастомная ошибка из simulate — не делаем fallback
-          if (msg.includes('custom program error') || msg.includes('AlreadyClaimed') || msg.includes('Paused')) throw new Error(msg)
+        // Кастомные ошибки программы и любая упавшая симуляция — пробрасываем
+        // без фолбэка: состояние игры не изменится от смены формата транзакции,
+        // а повторная отправка тех же инструкций = двойное действие (пп. 55/56).
+        if (/InstructionError|custom program error|AlreadyClaimed|BadProof|Paused|HarvestTooSoon|EpochCapExceeded|InsufficientFunds|BlockhashNotFound|block height exceeded/i.test(msg)) {
+          throw new Error(msg)
         }
         if (/Signature verification failed|Missing signature/i.test(msg)) {
           dumpDiag([msg])
@@ -208,16 +238,21 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
           dumpDiag(missing)
           throw new Error(`${MISSING_SIG} (${walletName})`)
         }
+        // Чек-лист пп. 50/51: та же сверка подписанного, что и в V0-пути.
+        assertSignedLegacyInstructionsMatch(signed, priorityIxs, PROGRAM_ID)
         let raw: Buffer
         try {
           raw = signed.serialize()
         } catch {
           throw new Error(MISSING_SIG)
         }
+        // Тот же fail-closed preflight, что и в V0-пути (чек-лист п. 51).
         const sim2 = await connection.simulateTransaction(signed)
         if (sim2.value.err) {
           const logs = (sim2.value.logs ?? []).join('\n')
-          if (/custom program error|AlreadyClaimed|BadProof|Paused|HarvestTooSoon|EpochCapExceeded/i.test(logs)) throw new Error(logs.slice(0, 400))
+          throw new Error(
+            `${t('Транзакция не пройдёт на сети:')} ${JSON.stringify(sim2.value.err)}\n${logs.slice(0, 600)}`,
+          )
         }
         const sig = await connection.sendRawTransaction(raw, { skipPreflight: false, maxRetries: 3 })
         const res = await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed')
