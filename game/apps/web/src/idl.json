@@ -271,7 +271,10 @@
           ]
         },
         {
-          "name": "skr_mint"
+          "name": "skr_mint",
+          "docs": [
+            "П.40: минт из предложения — decimals сверяются повторно в момент применения."
+          ]
         }
       ],
       "args": []
@@ -4073,7 +4076,10 @@
           ]
         },
         {
-          "name": "new_skr_mint"
+          "name": "new_skr_mint",
+          "docs": [
+            "П.40: минт, который предлагается на замену, — проверяется по decimals до записи в AdminState."
+          ]
         },
         {
           "name": "system_program",

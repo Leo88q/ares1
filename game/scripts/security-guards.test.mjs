@@ -307,6 +307,17 @@ test('П.66: CI ставит зависимости только из lockfile (
   assert.ok(audit.includes('yarn audit'), ' advisory-аудит зависимостей должен оставаться в CI');
 });
 
+test('F-18: advisory-гейты fmt/clippy не могут «проходить» без установленных компонентов', () => {
+  const ci = read('../../.github/workflows/ci.yml');
+  // Шаги fmt/clippy идут с continue-on-error, поэтому отсутствие компонента
+  // давало `error: 'cargo-clippy' is not installed` и зелёный шаг: гейта нет,
+  // а выглядит как работающая проверка. Компоненты обязаны ставиться явно.
+  assert.ok(/components:\s*clippy, rustfmt/.test(ci), 'dtolnay/rust-toolchain должен ставить clippy и rustfmt');
+  const verify = ci.split('name: Verify toolchain')[1]?.split('\n      - name:')[0] ?? '';
+  assert.ok(verify.includes('cargo fmt --version'), 'жёсткая проверка версии rustfmt');
+  assert.ok(verify.includes('cargo clippy --version'), 'жёсткая проверка версии clippy');
+});
+
 /** Разбирает запись yarn.lock v1 по одному из её spec-шаблонов. */
 function parseYarnEntry(lockText, spec) {
   const lines = lockText.split('\n');
