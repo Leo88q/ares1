@@ -116,6 +116,24 @@ async function main() {
     );
     process.exit(1);
   }
+  // Checklist item 43: a hot wallet holding more than the operating ceiling is
+  // unnecessary blast radius. Alert (not fatal) — the operator tops up in small
+  // tranches and keeps the rest of the float in the treasury multisig.
+  if (payerBal > env.payerMaxLamports) {
+    const solBalance = (payerBal / 1e9).toFixed(4);
+    const solCeiling = (env.payerMaxLamports / 1e9).toFixed(4);
+    console.warn(
+      `[startup] WARNING: epoch payer holds ${solBalance} SOL > PAYER_MAX_LAMPORTS ceiling ${solCeiling} SOL — ` +
+      `sweep the surplus back to the treasury (checklist item 43: hot-wallet exposure).`,
+    );
+    await sendAlert(
+      env.alertWebhookUrl,
+      buildAlert(
+        "payer_balance_above_ceiling",
+        `epoch payer ${payerKeypair.publicKey.toBase58()} holds ${solBalance} SOL, above the ${solCeiling} SOL hot-wallet ceiling; sweep the surplus`,
+      ),
+    );
+  }
   if (env.corsOrigin === "*" && process.env.NODE_ENV === "production") {
     console.warn("[startup] WARNING: CORS_ORIGIN='*' in production — restrict to your dApp domain!");
   }

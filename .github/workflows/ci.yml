@@ -52,6 +52,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: '1.97.1'
+          # F-18: без этих компонентов шаги fmt/clippy завершаются «успехом»
+          # (continue-on-error) с `error: 'cargo-clippy' is not installed`,
+          # создавая иллюзию работающего гейта. Компоненты обязательны.
+          components: clippy, rustfmt
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
@@ -84,6 +88,9 @@ jobs:
           test "$(rustc --version | awk '{print $2}')" = '1.97.1'
           test "$(solana --version | awk '{print $2}')" = "$SOLANA_VERSION"
           test "$(anchor --version | awk '{print $2}')" = "$ANCHOR_VERSION"
+          # Жёсткая проверка: advisory-шаги ниже не должны silently no-op'ить.
+          cargo fmt --version
+          cargo clippy --version
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: game
@@ -97,9 +104,31 @@ jobs:
       - name: cargo fmt check (advisory, F-18)
         continue-on-error: true
         run: ./scripts/ci-run.sh cargo fmt --all -- --check
+      # Тот же диагностический канал, что и для clippy: excerpt от ci-run.sh
+      # показывает только хвост diff'а, поэтому долг из нескольких ханков
+      # выглядит как одна обрезанная строка. Шаг всегда зелёный.
+      - name: fmt diff (bounded annotation, F-18)
+        if: ${{ !cancelled() }}
+        run: |
+          set +e
+          cargo fmt --all -- --check > /tmp/fmt-diff.txt 2>&1
+          python3 scripts/fmt-inventory.py < /tmp/fmt-diff.txt
+          exit 0
       - name: cargo clippy strict (advisory, F-18)
         continue-on-error: true
         run: ./scripts/ci-run.sh cargo clippy --locked -p solana_potato --all-targets -- -D warnings
+      # Диагностический шаг: лог-архив джобы недоступен из API-only окружений,
+      # а excerpt от ci-run.sh обрезан — без этой инвентаризации pre-existing
+      # lint-долг невозможно разобрать. Шаг всегда зелёный, данные идут в
+      # аннотации (пути и имена линтов, без исходников).
+      - name: Clippy inventory (bounded annotation, F-18)
+        if: ${{ !cancelled() }}
+        run: |
+          # Шаг диагностический: clippy с -D warnings всегда выходит 101 на
+          # текущем долге, поэтому errexit снимаем, а exit-код фиксируем сами.
+          set +e -o pipefail
+          cargo clippy --locked -p solana_potato --all-targets --message-format=json -- -D warnings | python3 scripts/clippy-inventory.py
+          exit 0
       - name: Anchor build (lockfile verified)
         id: build_program
         run: ./scripts/ci-run.sh ./scripts/build-program.sh

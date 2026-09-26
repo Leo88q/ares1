@@ -17,6 +17,7 @@
     "test": "anchor test",
     "test:unit": "cargo test -p solana_potato --lib",
     "test:guards": "node --test scripts/security-guards.test.mjs",
+    "check:invariants": "tsx scripts/check-invariants.ts",
     "typecheck": "yarn workspace web exec tsc --noEmit && yarn workspace backend typecheck",
     "simulate": "python3 economy/simulate.py",
     "ci:local": "./scripts/ci-local.sh",
@@ -29,8 +30,8 @@
   },
   "devDependencies": {
     "@coral-xyz/anchor": "0.30.1",
-    "@solana/spl-token": "^0.4.8",
-    "@solana/web3.js": "^1.95.3",
+    "@solana/spl-token": "0.4.15",
+    "@solana/web3.js": "1.98.4",
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.14.10",
