@@ -20,6 +20,8 @@
     "test:mutation": "node scripts/mutation-probe.mjs",
     "check:unicode": "node scripts/check-invisible-unicode.mjs",
     "test:unicode": "node --test scripts/check-invisible-unicode.test.mjs",
+    "verify:sqlite": "node scripts/verify-sqlite-immutability.mjs",
+    "test:sqlite": "node --test scripts/verify-sqlite-immutability.test.mjs",
     "check:invariants": "tsx scripts/check-invariants.ts",
     "typecheck": "yarn workspace web exec tsc --noEmit && yarn workspace backend typecheck",
     "simulate": "python3 economy/simulate.py",
