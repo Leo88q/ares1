@@ -95,4 +95,4 @@
 
 - Прочитаны: `lib.rs` (полностью), `migrations.rs`, `Anchor.toml`, `Cargo.toml`, `tsconfig*`, CI-воркфлоу, `tests/solana_potato.ts`, `tests/offchain/*`, скрипты `ci-local.sh`/`ci-run.sh`, `check-contract.mjs`.
 - Интеграционные и host-тесты в этой песочнице не исполнялись (нет Rust/Anchor-тулчейна и localnet-валидатора) — они прогоняются CI-джобами `program` (cargo test + anchor test) и `offchain`; guard-tripwire исполнен локально: `node --test game/scripts/security-guards.test.mjs`.
-- Внешний аудит зависимостей и секретов — отдельно (gitleaks + npm audit, см. `docs/AUDIT_FIXES_2026-09-23.md`, F-11/F-19): новых расхождений не найдено.
+- Внешний аудит зависимостей и секретов — отдельно (gitleaks + npm audit, см. `docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md`, F-11/F-19): новых расхождений не найдено.

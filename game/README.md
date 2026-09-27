@@ -4,7 +4,7 @@ On-chain фарм-игра на Solana с реальной экономикой:
 
 Монорепо: Anchor-программа · React/Vite dApp (PWA) · Express-бэкенд эпох и конфига · релиз в Solana dApp Store.
 
-> Это игра, а не инвестиционный продукт. Перед mainnet обязателен внешний аудит (см. [docs/AUDIT.md](docs/AUDIT.md)).
+> Это игра, а не инвестиционный продукт. Перед mainnet обязателен внешний аудит (см. [../reports/ares1-audit.md](../reports/ares1-audit.md)).
 
 ## Структура
 
@@ -19,7 +19,7 @@ docs/                       AUDIT · ECONOMY · API · USER_GUIDE · MARKETING �
 libs/                       sentinel, solana-tx-guard — отдельные репозитории (gitlinks), не часть сборки
 ```
 
-Документы: [Независимый аудит 21.09.2026](docs/AUDIT-INDEPENDENT-2026-09-21.md) · [Исправления аудита + pre-deploy runbook](docs/FIXES-2026-09-21.md) · [Аудит безопасности (архив)](docs/AUDIT.md) · [Экономика и симуляция](docs/ECONOMY.md) · [API программы и бэкенда](docs/API.md) · [Руководство игрока](docs/USER_GUIDE.md) · [Маркетинг](docs/MARKETING.md) · [Roadmap на 6 месяцев](docs/ROADMAP.md).
+Документы: [Независимый аудит 21.09.2026](../reports/ares1-audit.md) · [Исправления аудита + pre-deploy runbook](../reports/ares1-audit.md) · [Аудит безопасности (архив)](../reports/ares1-audit.md) · [Экономика и симуляция](docs/ECONOMY.md) · [API программы и бэкенда](docs/API.md) · [Руководство игрока](docs/USER_GUIDE.md) · [Маркетинг](docs/MARKETING.md) · [Roadmap на 6 месяцев](docs/ROADMAP.md).
 
 ## Как это работает
 
@@ -112,11 +112,11 @@ cd game
 * Все токен-аккаунты и mint проверяются (`token::mint`, `token::authority`, `has_one = potato_mint`); PDA с сохранёнными bump.
 * Двухшаговая передача authority; пауза блокирует минт и траты, но не возвраты.
 * Ключ authority живёт только на сервере; клиент не может вызвать `grant_reward`.
-* Таймлоки admin-изменений и суточные лимиты выводов реализованы 21.09.2026 ([docs/FIXES-2026-09-21.md](docs/FIXES-2026-09-21.md)). Открытые пункты до mainnet: сборка/тесты по runbook, мультисиг (Squads) для game+upgrade authority, отзыв утёкшего RPC-ключа, эмиссионная политика SKR, внешний аудит.
+* Таймлоки admin-изменений и суточные лимиты выводов реализованы 21.09.2026 ([../reports/ares1-audit.md](../reports/ares1-audit.md)). Открытые пункты до mainnet: сборка/тесты по runbook, мультисиг (Squads) для game+upgrade authority, отзыв утёкшего RPC-ключа, эмиссионная политика SKR, внешний аудит.
 
 ## Проверено (04.09.2026)
 
-> Историческая таблица: все строки относятся к сборке **до** исправлений 21.09.2026. Актуальный статус проверок — в runbook [docs/FIXES-2026-09-21.md](docs/FIXES-2026-09-21.md).
+> Историческая таблица: все строки относятся к сборке **до** исправлений 21.09.2026. Актуальный статус проверок — в runbook [../reports/ares1-audit.md](../reports/ares1-audit.md).
 
 | Проверка | Результат |
 |---|---|

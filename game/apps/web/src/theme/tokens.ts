@@ -1,7 +1,7 @@
 /**
  * TS-зеркало дизайн-токенов (единый источник — theme/tokens.css).
  * Для inline-стилей: использовать `t.color.orange`, `t.space.md` и т.п.
- * Сырые hex/rgba в inline-стилях — баг (docs/UI-AUDIT-2026-09-14.md).
+ * Сырые hex/rgba в inline-стилях — баг (docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md).
  */
 const v = (name: string) => `var(${name})`
 

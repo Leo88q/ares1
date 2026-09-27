@@ -3,14 +3,14 @@
 This repository is **not approved for mainnet or real funds**. Internal AI/code
 reviews are not independent security audits; earlier “Audited”/“Done” labels are
 not certifications. The 2026-09-21 remediation fixed every finding of
-[docs/AUDIT-INDEPENDENT-2026-09-21.md](docs/AUDIT-INDEPENDENT-2026-09-21.md)
+[../reports/ares1-audit.md](../reports/ares1-audit.md)
 in source, and the pinned-toolchain CI gate compiles it and exercises it on a
 clean localnet (`anchor build` + `anchor test` + `yarn test:migrations` +
 `check:contract` full ABI equality + offchain/watchtower suites). It has **not**
 been deployed to devnet/mainnet, and the operational items below remain open.
-See [docs/FIXES-2026-09-21.md](docs/FIXES-2026-09-21.md) for the change list and
+See [../reports/ares1-audit.md](../reports/ares1-audit.md) for the change list and
 the pre-deploy runbook, and
-[stabilization status](docs/STABILIZATION-2026-09-21.md) for the earlier pass.
+[stabilization status](../reports/ares1-audit.md) for the earlier pass.
 
 ## Extended checklist audit — 26 September 2026
 

@@ -53,7 +53,7 @@ For Config 156, 164 and 228 it tests:
 
 Rust unit fixtures independently compare all legacy/current bytes. Off-chain tests
 check the raw builder against the browser builder and prohibit a signer flag on
-System Program. See STABILIZATION-2026-09-21.md for actual execution status.
+System Program. See ../../reports/ares1-audit.md for actual execution status.
 
 ## Operator flow (read-only first)
 
