@@ -29,6 +29,9 @@ yarn test:guards
 # юникод в коде/доках запрещён; сканер имеет собственные фикстуры.
 yarn test:unicode
 yarn check:unicode
+# Приёмочные проверки SQLite-слоя (append-only/audit/HMAC/Merkle): самопроверка
+# инструмента на синтетических БД с заведомо посаженными дырами.
+yarn test:sqlite
 yarn test:economy
 # F-15: backend unit tests (security/alert helpers; no network).
 yarn workspace backend test
