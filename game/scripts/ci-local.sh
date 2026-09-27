@@ -25,6 +25,10 @@ yarn typecheck:tools
 yarn test:offchain
 # Security-guard tripwire (checklist 2026-09-25), zero-dep.
 yarn test:guards
+# Item 76: скрытые инструкции для ИИ-аудитора невидимы в диффе — невидимый
+# юникод в коде/доках запрещён; сканер имеет собственные фикстуры.
+yarn test:unicode
+yarn check:unicode
 yarn test:economy
 # F-15: backend unit tests (security/alert helpers; no network).
 yarn workspace backend test

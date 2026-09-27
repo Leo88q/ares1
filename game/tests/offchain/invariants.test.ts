@@ -58,3 +58,15 @@ test('treasuries can never exceed the circulating supply', () => {
     ['treasuries_within_supply'],
   )
 })
+
+test('границы включены: ровно по капу supply и казна == supply — не нарушения', () => {
+  // Мутационный прогон 2026-09-27: без этих проверок `<=` → `<` в мониторе
+  // выживал — инвариант молча становился строже и мог дать ложную тревогу.
+  assert.deepEqual(failed({ ...healthy(), supply: healthy().maxSupplyMicro }), [])
+  assert.deepEqual(
+    failed({ ...healthy(), supply: 100n, treasuryBalanceMicro: 60n, questPoolBalanceMicro: 40n }),
+    [],
+  )
+  // И на один атом больше — уже нарушение.
+  assert.deepEqual(failed({ ...healthy(), supply: 100n, treasuryBalanceMicro: 60n, questPoolBalanceMicro: 41n }), ['treasuries_within_supply'])
+})
