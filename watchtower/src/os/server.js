@@ -99,14 +99,25 @@ export function createOsServer(opts = {}) {
   return server;
 }
 
-/** Запуск: WATCHTOWER_OS_PORT (default 8791), WATCHTOWER_OS_TOKEN (optional >=32). */
+/**
+ * Запуск: WATCHTOWER_OS_PORT (default 8791), WATCHTOWER_OS_HOST (default 127.0.0.1),
+ * WATCHTOWER_OS_TOKEN (>=32 символов).
+ *
+ * Fail-closed (чек-лист 80: «любой публичный dev/admin-инструмент — за VPN/allowlist»):
+ * панель по умолчанию слушает только loopback, а bind на не-loopback адрес без токена
+ * запрещён — иначе инвентаризацию стека и тенантов мог бы прочитать любой, кто дотянется
+ * до порта.
+ */
 export function main(env = process.env) {
   const port = Number.parseInt(env.WATCHTOWER_OS_PORT ?? '8791', 10);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('INVALID_OS_PORT');
+  const host = env.WATCHTOWER_OS_HOST ?? '127.0.0.1';
   const token = env.WATCHTOWER_OS_TOKEN && env.WATCHTOWER_OS_TOKEN.length >= 32 ? env.WATCHTOWER_OS_TOKEN : null;
+  const loopback = host === '127.0.0.1' || host === '::1' || host === 'localhost';
+  if (!loopback && !token) throw new Error('OPEN_BINDING_REQUIRES_TOKEN');
   const server = createOsServer({ token });
-  server.listen(port, '0.0.0.0', () => {
-    console.log(`watchtower-os v3 listening 0.0.0.0:${port} (${Object.keys(API_ROUTES).length} GET routes, token=${token ? 'required' : 'open'}, writes=false)`);
+  server.listen(port, host, () => {
+    console.log(`watchtower-os v3 listening ${host}:${port} (${Object.keys(API_ROUTES).length} GET routes, token=${token ? 'required' : 'open-loopback-only'}, writes=false)`);
   });
   const shutdown = () => server.close(() => process.exit(0));
   process.on('SIGINT', shutdown);
