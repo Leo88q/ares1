@@ -11,7 +11,7 @@
 модели (NFT, DAO, таск-маркетплейс, оффчейн-скоринг) — по каждому такому пункту
 ниже указано, **что должно быть сделано до включения этой функциональности**.
 Организационные пункты (44, 45, 62–65, 67) сведены в
-[MAINNET_LAUNCH_GATE.md](game/docs/MAINNET_LAUNCH_GATE.md) и автоматизированы
+[MAINNET_LAUNCH_GATE.md](../game/docs/MAINNET_LAUNCH_GATE.md) и автоматизированы
 скриптом `game/scripts/preflight-mainnet.sh`.
 
 ---
@@ -208,7 +208,7 @@
 **Новые артефакты**
 16. `game/scripts/check-invariants.ts` — ончейн-мониторинг инвариантов (пп. 49/53).
 17. `game/scripts/preflight-mainnet.sh` — автоматические проверки перед mainnet-деплоем (пп. 44/45/63/64).
-18. `game/docs/MAINNET_LAUNCH_GATE.md` — гейты запуска, ротация ключей, инцидент-плейбук.
+18. `../game/docs/MAINNET_LAUNCH_GATE.md` — гейты запуска, ротация ключей, инцидент-плейбук.
 
 ---
 

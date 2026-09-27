@@ -1,6 +1,6 @@
 # Operations — closed devnet beta
 
-Status: **not approved for real funds or mainnet**. See [STABILIZATION-2026-09-21.md](STABILIZATION-2026-09-21.md).
+Status: **not approved for real funds or mainnet**. See [../../reports/ares1-audit.md](../../reports/ares1-audit.md).
 No key, mnemonic, secret JSON, private RPC URL or admin token belongs in this document.
 
 ## Reproducible checks
