@@ -78,7 +78,7 @@
 
 **T-14 → T0 (devnet-бета)**
 * Закрытая бета 200 игроков из Solana-сообществ (dApp Store, Superteam, Discord/X), feedback — issue в репозитории.
-* Публикация аудита контракта (docs/AUDIT.md) и экономической модели — прозрачность как маркетинг.
+* Публикация аудита контракта (../../reports/ares1-audit.md) и экономической модели — прозрачность как маркетинг.
 * Заявка в Solana Mobile dApp Store (пайплайн в docs/dapp-store-release.md).
 
 **T0 (mainnet)**
