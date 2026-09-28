@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { t } from '../i18n'
 
 import { Copy, Check, Users, Gift, Share2 } from 'lucide-react'
@@ -14,6 +14,18 @@ import { haptics } from '../utils/haptic'
  * рефереру — 0.5 % от суммы сделки (не больше burn-доли комиссии).
  * Без Telegram и backend: идентичность — кошелёк, ссылка — ?ref=<wallet>.
  */
+
+/** Заменяет маркер 🥔 в строках локализации на иконку монеты (эмодзи в UI запрещены). */
+function coinText(text: string): ReactNode {
+ const parts = text.split('🥔')
+ if (parts.length === 1) return text
+ return parts.map((p, i) => (
+  <Fragment key={i}>
+   {i > 0 && <img src="/ares/potato-coin.png" alt="POTATO" width={13} height={13} style={{ verticalAlign: '-2px', margin: '0 2px' }} />}
+   {p}
+  </Fragment>
+ ))}
+
 export function ReferralSection() {
  const { publicKey } = useSolana()
  const { show } = useToast()
@@ -82,16 +94,16 @@ export function ReferralSection() {
     </div>
 
     {/* Правила: кто и что платит (раньше было отдельным блоком в «Журнале») */}
-    <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)' }}>
+    <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'var(--s-subtle-bg)', border: '1px solid var(--s-subtle-border)' }}>
      {[
       t('Ссылка бесплатна — приглашающий платит ничего'),
       t('Приглашённый открывает ссылку с ?ref= — регистрируется автоматически (on-chain, одноразово)'),
       t('Антиспам: 5 🥔 сгорает с баланса приглашённого, разово'),
       t('−1 % продавцу на сделках приглашённого — на каждой покупке'),
       t('Твоя награда: 0.5 % от комиссии маркета по его сделкам'),
-     ].map((t, i) => (
+     ].map((rule, i) => (
       <div key={i} style={{ display: 'flex', gap: 6, padding: '2px 0', fontSize: 11, color: 'var(--pf-text-secondary)', lineHeight: 1.5 }}>
-       <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span> {t}
+       <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span> <span>{coinText(rule)}</span>
       </div>
      ))}
     </div>
