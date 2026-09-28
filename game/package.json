@@ -31,7 +31,14 @@
     "test:economy": "python3 economy/simulate.py --check",
     "check:contract": "node scripts/check-contract.mjs",
     "typecheck:tools": "tsc -p tsconfig.tools.json",
-    "test:migrations": "tsx scripts/test-migrations-localnet.ts"
+    "test:migrations": "tsx scripts/test-migrations-localnet.ts",
+    "db:migrate": "tsx scripts/db-migrate.ts",
+    "db:roles": "tsx scripts/db-roles.ts",
+    "db:verify": "tsx scripts/db-verify.ts",
+    "db:bench": "tsx scripts/db-bench.ts",
+    "db:mutate": "tsx scripts/db-mutate.ts",
+    "test:db": "tsx --test tests/db/*.test.ts",
+    "test:db:unit": "tsx --test tests/db/gameops-unit.test.ts"
   },
   "devDependencies": {
     "@coral-xyz/anchor": "0.30.1",
