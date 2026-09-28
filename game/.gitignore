@@ -1,5 +1,8 @@
 target/
 node_modules/
+# Артефакт нагрузочного стенда (см. docs/DB_RUNBOOK.md § 6): цифры кладутся в
+# артефакты CI, а не в репозиторий.
+db-bench.json
 .vite/
 dist/
 *.log

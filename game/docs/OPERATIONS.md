@@ -149,9 +149,14 @@ Probes:
 Use external alerts for unavailable readiness, stale epochs, low payer SOL and
 repeated roll failures. Current worker logs alone are **not delivered alerts**.
 Do not restart-loop a healthy process just because the RPC is briefly down.
-The backend currently has no persistent history/database; no unused data volume is
-needed. Back up deployment configuration (encrypted if secrets), future indexer
-checkpoints/DB, and test restoration. The blockchain is not a backup of private keys.
+The backend has no persistent game-state history: `localStorage` + the chain cover
+gameplay. The optional rewards layer (`game_ops`, enabled only with
+`GAME_OPS_DATABASE_URL`) does use PostgreSQL — its deploy, verification, incident
+playbooks and measured load are in `docs/DB_RUNBOOK.md`. Back up deployment
+configuration (encrypted if secrets), indexer checkpoints, the `game_ops` database,
+and test restoration. The blockchain is not a backup of private keys; a database
+dump is not a proof of immutability either — that proof is the hash-chain plus the
+on-chain Merkle anchor.
 
 ## Incident / emergency pause
 

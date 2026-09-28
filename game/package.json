@@ -17,6 +17,11 @@
     "test": "anchor test",
     "test:unit": "cargo test -p solana_potato --lib",
     "test:guards": "node --test scripts/security-guards.test.mjs",
+    "test:mutation": "node scripts/mutation-probe.mjs",
+    "check:unicode": "node scripts/check-invisible-unicode.mjs",
+    "test:unicode": "node --test scripts/check-invisible-unicode.test.mjs",
+    "verify:sqlite": "node scripts/verify-sqlite-immutability.mjs",
+    "test:sqlite": "node --test scripts/verify-sqlite-immutability.test.mjs",
     "check:invariants": "tsx scripts/check-invariants.ts",
     "typecheck": "yarn workspace web exec tsc --noEmit && yarn workspace backend typecheck",
     "simulate": "python3 economy/simulate.py",
@@ -26,7 +31,14 @@
     "test:economy": "python3 economy/simulate.py --check",
     "check:contract": "node scripts/check-contract.mjs",
     "typecheck:tools": "tsc -p tsconfig.tools.json",
-    "test:migrations": "tsx scripts/test-migrations-localnet.ts"
+    "test:migrations": "tsx scripts/test-migrations-localnet.ts",
+    "db:migrate": "tsx scripts/db-migrate.ts",
+    "db:roles": "tsx scripts/db-roles.ts",
+    "db:verify": "tsx scripts/db-verify.ts",
+    "db:bench": "tsx scripts/db-bench.ts",
+    "db:mutate": "tsx scripts/db-mutate.ts",
+    "test:db": "tsx --test --test-concurrency=1 tests/db/*.test.ts",
+    "test:db:unit": "tsx --test tests/db/gameops-unit.test.ts"
   },
   "devDependencies": {
     "@coral-xyz/anchor": "0.30.1",

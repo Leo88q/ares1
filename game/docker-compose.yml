@@ -1,4 +1,52 @@
+name: ares1-backend
 services:
+  # Слой данных наград. Порт НЕ публикуется наружу: БД доступна только сервисам
+  # compose-сети (защита от «случайно открыли 5432 в интернет»).
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ares1
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${GAME_OPS_POSTGRES_PASSWORD:?set GAME_OPS_POSTGRES_PASSWORD in .env}
+      # pgcrypto/расширения намеренно не требуются: hash-chain считает приложение.
+    volumes:
+      - gameops-data:/var/lib/postgresql/data
+    # Только loopback: с хоста работают psql/бэкапы/`yarn db:roles`/`db:verify`,
+    # но в интернет порт не публикуется.
+    ports:
+      - "127.0.0.1:${GAME_OPS_POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ares1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+    # Никаких `ports:` — только внутренняя сеть.
+
+  # Одноразовый шаг выкатки: применяет миграции, сверяет контрольные суммы и
+  # завершается. Бэкенд стартует ТОЛЬКО после его успеха
+  # (depends_on: service_completed_successfully) — «сервис поднялся на
+  # неприменённой схеме» невозможно.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    command: ["node", "apps/backend/dist/db-migrate.js"]
+    environment:
+      GAME_OPS_MIGRATIONS_DIR: /app/migrations/game_ops
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?set MIGRATION_DATABASE_URL (migrator role) in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
   backend:
     build:
       context: .
@@ -11,8 +59,16 @@ services:
       - ./apps/backend/.env
     environment:
       PAYER_KEYPAIR_JSON: /app/keys/epoch-payer.json
+      # Рантайм-роль: у неё нет прав на DDL и на правку журнала/аудита (см.
+      # migrations/game_ops/0003_roles.sql и yarn db:verify).
+      GAME_OPS_DB_ROLE: game_ops_writer
     volumes:
       - ./apps/backend/keys:/app/keys:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     read_only: true
     tmpfs:
       - /tmp
@@ -26,3 +82,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+volumes:
+  gameops-data:
