@@ -200,37 +200,59 @@ test('сверка: drift = 0 при совпадении, drift ≠ 0 при р
   const pool = makePool();
   try {
     const streamId = `test:${runId}`;
-    const head = await pool.query<{ last_slot: string; last_id: string }>('SELECT last_slot, last_id FROM game_ops.ledger_chain_head WHERE chain_id = $1', [chainId]);
+    // Сверка проверяется на ОТДЕЛЬНОЙ цепочке: иначе «сумма зеркала» зависит от
+    // того, не дописал ли строку соседний процесс между двумя чтениями (и тест
+    // падал бы не из-за ошибки в коде, а из-за гонки с писателем).
+    const driftChain = `t_${runId}`;
+    await appendBatch(pool, [0, 1, 2].map(index => ({
+      recipientAta: ata(`reconcile:${runId}:${index}`),
+      amountMicro: BigInt(1_000 + index),
+      signature: signature(`reconcile:${runId}:${index}`),
+      slot: BigInt(700_000_000 + index),
+      blockTime: new Date('2026-09-27T12:00:00.000Z'),
+      chainId: driftChain,
+    })), actor, driftChain);
+
+    const head = await pool.query<{ last_slot: string; last_id: string }>('SELECT last_slot, last_id FROM game_ops.ledger_chain_head WHERE chain_id = $1', [driftChain]);
     const lastSlot = BigInt(head.rows[0]?.last_slot ?? '0');
     const fromSlot = lastSlot > 10n ? lastSlot - 10n : 0n;
 
     const ledger = await pool.query<{ total: string }>(
       'SELECT coalesce(sum(amount_micro), 0)::text AS total FROM game_ops.reward_ledger WHERE chain_id = $1 AND slot > $2 AND slot <= $3',
-      [chainId, String(fromSlot), String(lastSlot)],
+      [driftChain, String(fromSlot), String(lastSlot)],
     );
     const granted = BigInt(ledger.rows[0]!.total);
+    assert.equal(granted, 3_003n, 'сумма зеркала на своей цепочке предсказуема');
 
-    const clean = await recordReconciliation(pool, { streamId, finalizedSlot: lastSlot, epochId: 1n, fromSlot, grantedMicro: granted, chainId, actor });
+    const clean = await recordReconciliation(pool, { streamId, finalizedSlot: lastSlot, epochId: 1n, fromSlot, grantedMicro: granted, chainId: driftChain, actor });
     assert.equal(clean.drift_micro, '0');
 
-    const dirty = await recordReconciliation(pool, { streamId, finalizedSlot: lastSlot, epochId: 1n, fromSlot, grantedMicro: granted + 7n, chainId, actor });
-    assert.equal(dirty.drift_micro, '7');
+    try {
+      const dirty = await recordReconciliation(pool, { streamId, finalizedSlot: lastSlot, epochId: 1n, fromSlot, grantedMicro: granted + 7n, chainId: driftChain, actor });
+      assert.equal(dirty.drift_micro, '7');
 
-    const summary = await driftSummary(pool);
-    assert.ok(summary.driftingStreams.includes(streamId), 'поток с расхождением обязан появиться в сводке');
-    assert.ok(summary.worstDriftMicro >= 7n);
-    const latest = await latestReconciliation(pool);
-    assert.equal(latest.find(row => row.stream_id === streamId)?.drift_micro, '7');
+      const summary = await driftSummary(pool);
+      assert.ok(summary.driftingStreams.includes(streamId), 'поток с расхождением обязан появиться в сводке');
+      assert.ok(summary.worstDriftMicro >= 7n);
+      const latest = await latestReconciliation(pool);
+      assert.equal(latest.find(row => row.stream_id === streamId)?.drift_micro, '7');
 
-    // «Исправление» расхождения — НОВАЯ строка сверки, а не правка прежней:
-    // история инцидента остаётся, а действующее состояние снова drift = 0.
-    const resolved = await recordReconciliation(pool, { streamId, finalizedSlot: lastSlot, epochId: 1n, fromSlot, grantedMicro: granted, chainId, actor });
-    assert.equal(resolved.drift_micro, '0');
-    const afterResolution = await latestReconciliation(pool);
-    assert.equal(afterResolution.find(row => row.stream_id === streamId)?.drift_micro, '0', 'новая сверка обязана заменить действующее состояние');
-    const history = await reconciliationHistory(pool, streamId, 10);
-    assert.ok(history.length >= 2, 'история расхождения должна сохраниться (append-only)');
-    assert.equal(history.filter(entry => entry.drift_micro === '7').length, 1, 'строка с расхождением не должна исчезать');
+      // «Исправление» расхождения — НОВАЯ строка сверки, а не правка прежней:
+      // история инцидента остаётся, а действующее состояние снова drift = 0.
+      const resolved = await recordReconciliation(pool, { streamId, finalizedSlot: lastSlot, epochId: 1n, fromSlot, grantedMicro: granted, chainId: driftChain, actor });
+      assert.equal(resolved.drift_micro, '0');
+      const afterResolution = await latestReconciliation(pool);
+      assert.equal(afterResolution.find(row => row.stream_id === streamId)?.drift_micro, '0', 'новая сверка обязана заменить действующее состояние');
+      const history = await reconciliationHistory(pool, streamId, 10);
+      assert.ok(history.length >= 2, 'история расхождения должна сохраниться (append-only)');
+      assert.equal(history.filter(entry => entry.drift_micro === '7').length, 1, 'строка с расхождением не должна исчезнуть');
+    } finally {
+      // Дрейф, оставленный упавшим тестом, выглядел бы для db:verify и readiness
+      // как настоящий инцидент на стенде (и «отравлял» бы приёмку следующим
+      // шагом). Разрешение — новая строка сверки, ровно как в плейбуке.
+      await recordReconciliation(pool, { streamId, finalizedSlot: lastSlot, epochId: 1n, fromSlot, grantedMicro: granted, chainId: driftChain, actor })
+        .catch(() => undefined);
+    }
   } finally {
     await pool.end();
   }
@@ -295,7 +317,9 @@ test('readiness: отчёт содержит все проверки и чест
     }
     const drift = report.checks.find(check => check.name === 'reconciliation_drift')!;
     assert.equal(drift.status, before.streams === 0 ? 'ok' : 'fail');
-    assert.equal(report.ready, drift.status === 'ok' && report.checks.every(check => check.status !== 'fail'));
+    // ready — это «нет ни одного fail», а не «drift ok»: свежесть сверки тоже
+    // входит в готовность (долго не сверялись — значит, доказательства нет).
+    assert.equal(report.ready, report.checks.every(check => check.status !== 'fail'));
     const ledger = report.checks.find(check => check.name === 'ledger_chain')!;
     assert.equal(ledger.status, 'ok', `цепочка должна сходиться: ${ledger.detail}`);
   } finally {

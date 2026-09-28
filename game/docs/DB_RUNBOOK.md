@@ -96,7 +96,15 @@ http://127.0.0.1:8080/api/gameops/ready` — `ready: true` и все прове�
 yarn db:verify --url="$MIGRATOR_URL"                        # полная приёмка
 yarn db:verify --url="$URL" --skip-privileges               # managed-база без ролей
 yarn db:mutate --url="$URL" --anchor=/secure/audit.json     # мутационные пробы
+GAME_OPS_TEST_URL="$URL" GAME_OPS_TEST_ROLE=game_ops_writer yarn test:db
 ```
+
+Тесты слоя делят один стенд, поэтому `test:db` запускает файлы последовательно
+(`--test-concurrency=1`), а пробы, которые нарочно создают «инцидент» (дрейф
+сверки), пишут разрешающую строку в `finally` — упавший тест не должен оставлять
+на стенде состояние, которое `db:verify` справедливо посчитает расхождением.
+Сам тест сверки работает на отдельной цепочке (`t_<runId>`), чтобы его результат
+не зависел от того, кто ещё пишет в журнал в этот момент.
 
 `db:verify` проверяет 21 факт, разбитый на группы:
 

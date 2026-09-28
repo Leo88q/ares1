@@ -87,7 +87,22 @@ jobs:
           # репликах ломается на второй.
           yarn db:migrate --url="$GAME_OPS_TEST_URL"
       - name: Интеграционные и мутационные тесты + приёмка
-        run: GAME_OPS_TEST_URL="$GAME_OPS_TEST_URL" yarn test:db
+        # `yarn test:db` идёт с --test-concurrency=1: файлы делят ОДНУ базу, а часть
+        # проб нарочно меняет глобальное состояние (дрейф сверки, права, триггеры).
+        # Параллельный запуск давал ложные падения соседнего файла — это общий
+        # стенд, а не изоляция БД.
+        run: |
+          set +e
+          GAME_OPS_TEST_URL="$GAME_OPS_TEST_URL" yarn test:db 2>&1 | tee /tmp/db-tests.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            # Логи job недоступны из API-окружений, а аннотации читаются: строки
+            # падений уходят в аннотацию, чтобы причину было видно без скачивания.
+            grep -E '^(not ok|# fail|# tests|error:|AssertionError)' /tmp/db-tests.log | head -20 | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+            exit 1
+          fi
       - name: Приёмка слоя данных (db:verify)
         run: yarn db:verify --url="$GAME_OPS_TEST_URL"
       - name: Нагрузочный стенд (артефакт с цифрами)
