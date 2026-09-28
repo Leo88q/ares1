@@ -225,6 +225,13 @@ function Divider(): JSX.Element {
   );
 }
 
+// Живописный фон секции (арт-интерьеры колонии)
+const ART_BY_SECTION: Record<string, string> = {
+  mechanics: "/ares/bg-reactor.jpg",
+  mascot: "/ares/bg-cargo.jpg",
+  faq: "/ares/bg-maproom.jpg",
+};
+
 function Section({
   id,
   children,
@@ -251,7 +258,18 @@ function Section({
       id={id}
       aria-labelledby={`${id}-title`}
       className={`section ${className}`}
+      data-bg-art={ART_BY_SECTION[id] ? "" : undefined}
+      style={
+        ART_BY_SECTION[id]
+          ? ({
+              "--section-bg": `url('${ART_BY_SECTION[id]}')`,
+            } as React.CSSProperties)
+          : undefined
+      }
     >
+      {ART_BY_SECTION[id] && (
+        <span className="section-bg-art" aria-hidden="true" />
+      )}
       <motion.div className="section-orbit" style={{ y }} aria-hidden="true" />
       <div className="container">{children}</div>
       <Divider />

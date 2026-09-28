@@ -3180,3 +3180,19 @@ input:focus-visible {
   user-select: none;
   filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.55));
 }
+
+/* ── Живописные фоны секций ── */
+.section { position: relative; }
+.section-bg-art {
+  position: absolute;
+  inset: 0;
+  background-image: var(--section-bg);
+  background-size: cover;
+  background-position: center;
+  opacity: 0.28;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  pointer-events: none;
+}
+.section-bg-art + .section-orbit { opacity: 0.5; }
+.section .container { position: relative; z-index: 1; }
