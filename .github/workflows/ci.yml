@@ -272,6 +272,13 @@ jobs:
     name: Build output gate (no secrets, maps or CDN in dist/)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    # The workflow-level default is `game`; this job needs the repository root
+    # because it inspects two build directories. Without this override every
+    # step below ran in game/ and `node scripts/...` failed with
+    # "Cannot find module" — the exact failure seen in run 36374174162.
+    defaults:
+      run:
+        working-directory: .
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -291,8 +298,10 @@ jobs:
           yarn install --frozen-lockfile --non-interactive
           yarn workspace web build
       - name: Inspect the build output
+        working-directory: .
         run: node scripts/check-release-artifacts.mjs landing/dist game/apps/web/dist
       - name: Secret-scan the build output (§1.3.5)
+        working-directory: .
         run: |
           node scripts/secret-scan.mjs --root landing/dist
           node scripts/secret-scan.mjs --root game/apps/web/dist
