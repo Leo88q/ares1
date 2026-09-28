@@ -70,7 +70,12 @@ body {
   min-width: 320px;
   overflow-x: clip;
   color: var(--ares-ink);
-  background: var(--ares-space);
+  background:
+    linear-gradient(180deg, rgba(7, 4, 2, 0.82), rgba(7, 4, 2, 0.9)),
+    url('/ares/bg-plates.jpg');
+  background-size: auto, 512px 512px;
+  background-repeat: no-repeat, repeat;
+  background-attachment: fixed;
   font-family: var(--body);
   font-size: 16px;
   line-height: 1.7;
@@ -815,7 +820,8 @@ input:focus-visible {
   inset: 0;
   background:
     radial-gradient(ellipse at 88% 48%, #7399d22b, transparent 37%),
-    linear-gradient(180deg, #0c0913 3%, #2b1828 38%, #643e47 65%, #8e492e 88%);
+    linear-gradient(180deg, rgba(12, 9, 19, 0.25) 3%, rgba(43, 24, 40, 0.3) 38%, rgba(100, 62, 71, 0.35) 65%, rgba(142, 73, 46, 0.4) 88%),
+    url('/ares/bg-mars.jpg') center / cover no-repeat;
 }
 
 .star-field {
