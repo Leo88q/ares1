@@ -3,7 +3,6 @@ import { t } from '../../i18n'
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { ParticleBurst } from './effects';
-import { IconEarth } from './icons';
 
 export type TuberMood = 'happy' | 'warn' | 'sleep' | 'jump';
 
@@ -21,12 +20,6 @@ const MOOD_IMAGE: Record<TuberMood, string> = {
  jump: '/ares/tuber9-jump.webp',
 };
 
-const VISOR_COLOR: Record<TuberMood, string> = {
- happy: 'var(--ares-bio-green, #7CFF6B)',
- warn: 'var(--ares-hud-amber, #FFB347)',
- sleep: 'rgba(180,220,255,0.35)',
- jump: 'var(--ares-grow-pink, #FF2E93)',
-};
 
 const JUMP_OVERRIDE_MS = 480;
 const TAP_WINDOW_MS = 1500;
@@ -38,30 +31,13 @@ interface TuberFallbackProps {
 }
 
 function TuberFallback({ mood, size }: TuberFallbackProps): JSX.Element {
- const visor = VISOR_COLOR[mood];
- const bounce = mood === 'jump';
- const asleep = mood === 'sleep';
-
+ void mood
+ // SVG-фолбэк заменён эмблемой арт-сета
  return (
-  <svg
-   width={size}
-   height={size}
-   viewBox="0 0 64 64"
-   style={{ transform: bounce ? 'translateY(-4px)' : undefined }}
-  >
-   <ellipse cx="32" cy="40" rx="18" ry="15" fill="#FFB347" />
-   <circle cx="26" cy="36" r="1.6" fill="#8A2E08" />
-   <circle cx="36" cy="38" r="1.4" fill="#8A2E08" />
-   <circle cx="30" cy="44" r="1.4" fill="#8A2E08" />
-   <circle cx="32" cy="34" r="20" fill="rgba(180,220,255,0.16)" stroke="rgba(180,220,255,0.5)" strokeWidth="1.5" />
-   <circle cx="24" cy="26" r="3" fill="rgba(255,255,255,0.4)" />
-   {asleep ? (
-    <text x="40" y="18" fontSize="10" fill={visor}>Z</text>
-   ) : (
-    <circle cx="32" cy="34" r="4" fill={visor} opacity={0.9} />
-   )}
-  </svg>
- );
+  <span style={{ width: size, height: size, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+   <img src="/ares/icons/sprout.webp" alt="" aria-hidden="true" width={Math.round(size * 0.7)} height={Math.round(size * 0.7)} style={{ objectFit: 'contain' }} />
+  </span>
+ )
 }
 
 export const Tuber9 = memo(function Tuber9({
@@ -191,7 +167,7 @@ export const HomeBeacon = memo(function HomeBeacon({
     color: 'var(--ares-blueset, #6B93D6)',
    }}
   >
-   <IconEarth size={size} accent="var(--ares-blueset, #6B93D6)" glow={visible} />
+   <img src="/ares/dome-colony.webp" alt="" aria-hidden="true" width={size} height={size} style={{ objectFit: 'contain' }} />
    <AnimatePresence>
     {visible ? (
      <motion.span

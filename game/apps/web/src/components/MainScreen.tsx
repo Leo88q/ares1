@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { t } from '../i18n'
 
 import { MiniHydroModules } from '../ui/MiniHydroModules'
-import { Loader2, WifiOff } from 'lucide-react'
+import { Emblem } from '../ui/Emblem'
 import { useGame } from '../contexts/GameContext'
 import { useSolana } from '../contexts/SolanaContext'
 import FieldCardVice from './FieldCardVice'
@@ -47,7 +47,7 @@ export default function MainScreen() {
        </div>
       ) : loading && fields.length === 0 ? (
        Array.from({ length: 2 }).map((_, i) => (
-        <div key={i} className="pf-card hull-skin shimmer" style={{ height: 320, borderRadius: 20 }} aria-hidden="true" />
+        <div key={i} className="pf-card hull-skin shimmer" style={{ height: 320 }} aria-hidden="true" />
        ))
       ) : (
        <>
@@ -92,14 +92,14 @@ function InitStatus({ error }: { error: string | null }) {
   <div role="status" style={{ gridColumn: '1 / -1', padding: '60px 20px', textAlign: 'center' }}>
    {error ? (
     <>
-     <WifiOff size={48} color="var(--pf-red)" style={{ marginBottom: 20 }} />
+     <Emblem name="flame" size={48} style={{ marginBottom: 20 }} />
      <h2 style={{ fontSize: 20, marginBottom: 12 }}>{t("Нет связи с блокчейном")}</h2>
      <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{error}</p>
      <p style={{ color: 'var(--pf-text-muted)', fontSize: 12, marginTop: 8 }}>{t("Повторяем автоматически…")}</p>
     </>
    ) : (
     <>
-     <Loader2 size={48} color="var(--pf-teal)" style={{ marginBottom: 20, animation: 'spin 1s linear infinite' }} />
+     <Emblem name="gear" size={48} style={{ marginBottom: 20, animation: 'spin 3s linear infinite' }} />
      <h2 style={{ fontSize: 20, marginBottom: 12 }}>{t("Инициализация игры…")}</h2>
      <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{t("Подключаемся к блокчейну")}</p>
     </>
@@ -138,7 +138,7 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
    initial={{ opacity: 0, y: 20 }}
    animate={{ opacity: 1, y: 0 }}
    className="pf-card hull-skin"
-   style={{ padding: 20, borderRadius: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 320, border: '1px dashed rgba(160, 82, 40, 0.7)', boxShadow: '0 0 0 1px rgba(0,0,0,0.45), 0 0 26px -6px rgba(193,68,14,0.6), 0 0 60px -20px rgba(255,179,71,0.35), inset 0 0 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,214,170,0.08)' }}
+   style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}
   >
    <div className="ares-stencil" style={{ fontSize: 13, color: 'var(--ares-hud-amber, #FFB347)', marginBottom: 10, textShadow: '0 0 10px rgba(255,179,71,0.4)' }}>{t("КУПИ РАСТЕНИЕ")}</div>
    <MiniHydroModules />

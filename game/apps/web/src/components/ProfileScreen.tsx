@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, Trophy } from 'lucide-react'
+import { Glyph, Emblem } from '../ui/Emblem'
 import { t, plural } from '../i18n'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -189,7 +189,7 @@ function ProfileScreenInner() {
     <div style={{ padding: 20 }}>
      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-       <Trophy size={18} color="var(--pf-gold)" aria-hidden="true" />
+       <Emblem name="trophy" size={18} aria-hidden="true" />
        <span style={{ fontSize: 16, fontWeight: 700 }}>{t('Ранг')} {stats.playerLevel}</span>
       </div>
       <span className="ares-mono" style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>
@@ -208,7 +208,7 @@ function ProfileScreenInner() {
    <HullPanel style={{ marginBottom: 16 }}>
     <div style={{ padding: 20 }}>
      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-      <Trophy size={18} color="var(--pf-gold)" aria-hidden="true" />
+      <Emblem name="trophy" size={18} aria-hidden="true" />
       <span style={{ fontSize: 16, fontWeight: 700 }}>{t('Стена нашивок')}</span>
      </div>
      <p style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8 }}>
@@ -231,9 +231,9 @@ function ProfileScreenInner() {
 
 function StatusRow({ label, ok, value }: { label: string; ok: boolean; value: string }) {
  return (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--pf-border-soft)' }}>
    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-    {ok ? <CheckCircle size={16} color="var(--pf-teal)" aria-hidden="true" /> : <XCircle size={16} color="var(--pf-red)" aria-hidden="true" />}
+    {ok ? <Glyph name="check" size={16} aria-hidden="true" /> : <Glyph name="x" size={16} style={{ opacity: 0.85 }} aria-hidden="true" />}
     <span style={{ fontSize: 14 }}>{label}</span>
    </div>
    <span style={{ fontSize: 13, color: ok ? 'var(--pf-teal)' : 'var(--pf-red)' }}>{value}</span>

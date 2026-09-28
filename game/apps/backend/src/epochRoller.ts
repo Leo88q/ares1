@@ -1,16 +1,22 @@
 import { assertDedicatedPayer, safeError } from "./security.js";
 import cron from "node-cron";
+import { Connection } from "@solana/web3.js";
 import { env } from "./env.js";
 import {
   payerKeypair,
   buildRollEpochIx,
   configPda,
   epochPda,
-  fetchConfig,
-  fetchEpoch,
   sendPayerTx,
+  programId,
 } from "./solana.js";
 import { buildAlert, sendAlert, shouldAlert } from "./alert.js";
+import {
+  DataSourceMismatchError,
+  SigningSnapshot,
+  fetchSigningSnapshot,
+  verifySnapshotConsistency,
+} from "./policy.js";
 
 const EPOCH_DURATION_SECONDS = 86_400;
 
@@ -20,10 +26,33 @@ export let lastRollSuccess: number | null = null;
 export let lastRollError: string | null = null;
 export let consecutiveFailures = 0;
 
+/**
+ * Checklist item 103 (audit 2026-09-28): the signing decision is made ONLY on
+ * a snapshot that (a) is read at `finalized` commitment and (b) matches the
+ * same snapshot fetched from a second, independent RPC provider.
+ *
+ * KelpDAO precedent: the off-chain signer read a poisoned source while the
+ * monitoring saw honest data. Here the monitoring (watchtower) and the signer
+ * are separate processes already; in addition the signer itself refuses to act
+ * on a single-source view when REQUIRE_SECONDARY_RPC is set (default: on in
+ * production). A mismatch aborts the roll and fires the alert ladder — it is
+ * an incident, not a transient RPC error.
+ */
+async function verifiedSnapshot(): Promise<SigningSnapshot> {
+  const primary = await fetchSigningSnapshot(new Connection(env.rpcUrl, "finalized"), programId);
+  let secondary: SigningSnapshot | null = null;
+  if (env.secondaryRpcUrl) {
+    secondary = await fetchSigningSnapshot(new Connection(env.secondaryRpcUrl, "finalized"), programId);
+  }
+  verifySnapshotConsistency(primary, secondary, env.requireSecondaryRpc);
+  return primary;
+}
+
 export async function tryRollEpoch(): Promise<string | null> {
-  const config = await fetchConfig();
+  const snapshot = await verifiedSnapshot();
+  const config = snapshot.config;
   assertDedicatedPayer(payerKeypair.publicKey, config);
-  const current = await fetchEpoch(config.epochId);
+  const current = snapshot.epoch;
   const now = Math.floor(Date.now() / 1000);
 
   if (now < Number(current.startTime) + EPOCH_DURATION_SECONDS) {
@@ -40,8 +69,24 @@ export async function tryRollEpoch(): Promise<string | null> {
   return sendPayerTx([ix]);
 }
 
+/** Missing/secondary-source problems must be loud: item 103 treats them as incidents. */
+async function reportDataSourceProblem(err: unknown): Promise<void> {
+  console.error(`[epoch-roller] DATA SOURCE INCIDENT: ${safeError(err)}`);
+  void sendAlert(
+    env.alertWebhookUrl,
+    buildAlert(
+      "data_source_mismatch",
+      `epoch roller refused to sign: ${safeError(err)}`,
+      consecutiveFailures,
+    ),
+  );
+}
+
 export function startEpochRoller() {
-  console.log(`[epoch-roller] schedule=${env.epochRollCron}`);
+  console.log(
+    `[epoch-roller] schedule=${env.epochRollCron} secondaryRpc=${env.secondaryRpcUrl ? "configured" : "none"} ` +
+      `requireSecondary=${env.requireSecondaryRpc}`,
+  );
   cron.schedule(env.epochRollCron, async () => {
     lastRollAttempt = Date.now();
     try {
@@ -56,6 +101,12 @@ export function startEpochRoller() {
       consecutiveFailures += 1;
       lastRollError = safeError(err);
       console.error(`[epoch-roller] failed (attempt ${consecutiveFailures}):`, safeError(err));
+      // Checklist item 103: disagreement between data sources is not retried
+      // silently — it goes to the alert channel on the FIRST occurrence.
+      if (err instanceof DataSourceMismatchError) {
+        await reportDataSourceProblem(err);
+        return;
+      }
       // F-10: external alert ladder (3/9/27) — console line above already fired.
       if (shouldAlert(consecutiveFailures)) {
         console.error(`[epoch-roller] CRITICAL: ${consecutiveFailures} consecutive roll failures! Check RPC and payer balance.`);
@@ -77,7 +128,8 @@ export function startEpochRoller() {
       const sig = await tryRollEpoch();
       if (sig) console.log(`[epoch-roller] startup roll, tx=${sig}`);
     } catch (err) {
-      console.error("[epoch-roller] startup check failed:", safeError(err));
+      if (err instanceof DataSourceMismatchError) await reportDataSourceProblem(err);
+      else console.error("[epoch-roller] startup check failed:", safeError(err));
     }
   }, 5000);
 }

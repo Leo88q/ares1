@@ -15,8 +15,20 @@ export default function ProgressBar({ label, value, max, color }: Props) {
     <span style={{ color: 'var(--pf-text-secondary)' }}>{label}</span>
     <span style={{ color, fontWeight: '600' }}>{value}%</span>
    </div>
-   <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
-    <motion.div initial={{ width: 0 }} animate={{ width: `${percentage}%` }} transition={{ duration: 1, ease: 'easeOut' }} style={{ height: '100%', background: color, borderRadius: '4px' }} />
+   <div style={{ position: 'relative', height: '22px', borderStyle: 'solid', borderWidth: 8, borderImage: "url('/ares/kit/track.webp') 34 fill / 8px", background: 'none', overflow: 'hidden' }}>
+    <motion.div
+     initial={{ width: 0 }}
+     animate={{ width: `${percentage}%` }}
+     transition={{ duration: 1, ease: 'easeOut' }}
+     style={{
+      height: '100%',
+      borderRadius: 3,
+      background: `linear-gradient(to right, ${color}CC, ${color}88), url('/ares/kit/fill.webp')`,
+      backgroundSize: 'auto, 120px 100%',
+      backgroundRepeat: 'no-repeat, repeat-x',
+      boxShadow: `inset 0 0 6px -1px ${color}AA`,
+     }}
+    />
    </div>
   </div>
  )

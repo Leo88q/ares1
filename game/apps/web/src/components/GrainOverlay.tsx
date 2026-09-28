@@ -1,10 +1,10 @@
 /**
- * SVG-шум поверх всего приложения для текстуры.
+ * Зернистая текстура поверх всего приложения (сгенерированный шумовой тайл).
  * Opacity низкий (5%), не мешает взаимодействию (pointer-events: none).
  */
 export default function GrainOverlay() {
  return (
-  <svg
+  <div
    className="pf-grain"
    aria-hidden="true"
    style={{
@@ -16,13 +16,9 @@ export default function GrainOverlay() {
     zIndex: 1,
     opacity: 0.05,
     mixBlendMode: 'overlay',
+    backgroundImage: 'url(/ares/grain.png)',
+    backgroundRepeat: 'repeat',
    }}
-  >
-   <filter id="grain">
-    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="42" />
-    <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0" />
-   </filter>
-   <rect width="100%" height="100%" filter="url(#grain)" />
-  </svg>
+  />
  )
 }

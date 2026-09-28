@@ -1,7 +1,7 @@
 import { ReactNode } from 'react'
 import { t as tr } from '../i18n'
 
-import { AlertTriangle, Inbox, RefreshCw, type LucideIcon } from 'lucide-react'
+import { Emblem, type EmblemName, Glyph } from './Emblem'
 import { t } from '../theme/tokens'
 
 /**
@@ -66,7 +66,7 @@ interface ErrorStateProps {
 export function ErrorState({ title = undefined, message, onRetry, inline = false }: ErrorStateProps) {
   const body = (
     <>
-      <AlertTriangle size={inline ? 18 : 40} color={t.color.danger} style={{ marginBottom: inline ? 0 : 12, flexShrink: 0 }} aria-hidden="true" />
+      <Glyph name="warning" size={inline ? 18 : 40} style={{ marginBottom: inline ? 0 : 12, flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <h3 style={{ fontSize: inline ? 14 : 18, color: t.color.textPrimary, margin: inline ? 0 : '0 0 4px' }}>{title ?? tr('Не удалось загрузить')}</h3>
         <p style={{ color: t.color.textSecondary, fontSize: 'var(--pf-text-md)', margin: 0, wordBreak: 'break-word' }}>{message}</p>
@@ -83,7 +83,7 @@ export function ErrorState({ title = undefined, message, onRetry, inline = false
             minHeight: t.touchMin,
           }}
         >
-          <RefreshCw size={16} aria-hidden="true" />
+          <Spinner size={16} />
           {tr('Повторить')}
         </button>
       )}
@@ -109,16 +109,16 @@ export function ErrorState({ title = undefined, message, onRetry, inline = false
 }
 
 interface EmptyStateProps {
-  icon?: LucideIcon
+  icon?: EmblemName
   title: string
   hint?: string
   action?: ReactNode
 }
 
-export function EmptyState({ icon: Icon = Inbox, title, hint, action }: EmptyStateProps) {
+export function EmptyState({ icon = 'crate', title, hint, action }: EmptyStateProps) {
   return (
     <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-      <Icon size={48} color={t.color.textSecondary} style={{ marginBottom: 16, opacity: 0.5 }} aria-hidden="true" />
+      <Emblem name={icon} size={48} style={{ marginBottom: 16, opacity: 0.5 }} />
       <h3 style={{ fontSize: 18, marginBottom: 8, color: t.color.textPrimary }}>{title ?? tr('Не удалось загрузить')}</h3>
       {hint && <p style={{ color: t.color.textSecondary, fontSize: 'var(--pf-text-md)' }}>{hint}</p>}
       {action && <div style={{ marginTop: 16 }}>{action}</div>}

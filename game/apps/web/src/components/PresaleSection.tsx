@@ -3,7 +3,7 @@ import { t } from '../i18n'
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp  } from 'lucide-react'
+import { Glyph } from '../ui/Emblem'
 import { useGame } from '../contexts/GameContext'
 import { useSolana, PROGRAM_ID } from '../contexts/SolanaContext'
 import { sounds } from '../utils/sounds'
@@ -87,14 +87,18 @@ export default function PresaleSection() {
   >
 
    {/* Бейдж "LIMITED" */}
-   <div className="gradient-gold" style={{
+   <div style={{
     position: 'absolute',
-    top: 16,
-    right: 16,
+    top: 14,
+    right: 14,
     fontSize: 10,
     fontWeight: 800,
-    padding: '4px 10px',
-    borderRadius: 999,
+    padding: '2px 12px',
+    borderStyle: 'solid',
+    borderWidth: 8,
+    borderImage: "url('/ares/kit/btn-primary.webp') 40 fill / 8px",
+    color: '#2B1403',
+    textShadow: '0 1px 0 rgba(255,220,150,0.55)',
     letterSpacing: '0.1em',
     textTransform: 'uppercase',
    }}>
@@ -153,8 +157,8 @@ export default function PresaleSection() {
    {/* Прогресс-бар */}
    <div style={{
     height: 6,
-    background: 'rgba(255,255,255,0.08)',
-    borderRadius: 999,
+    background: 'var(--s-subtle-bg)',
+    borderRadius: 'var(--pf-radius-pill)',
     overflow: 'hidden',
     marginBottom: 18,
    }}>
@@ -208,7 +212,7 @@ export default function PresaleSection() {
      t('Подключи кошелёк')
     ) : (
      <>
-      <TrendingUp size={18} />
+      <Glyph name="arrow-up-right" size={18} />
        {t('Купить растения за {price} SKR', { price: PRESALE_PRICE_SKR })}
      </>
     )}

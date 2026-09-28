@@ -21,16 +21,18 @@
   width: min(34rem, 100%);
   max-height: min(80vh, 40rem);
   overflow-y: auto;
-  background: #10141e;
-  color: #efe9e3;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 0.9rem;
-  padding: 1.1rem 1.15rem 1rem;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  background: none;
+  color: #EFE4D2;
+  border-style: solid;
+  border-width: 16px;
+  border-image: url('/ares/kit/panel-bronze.webp') 88 fill / 16px;
+  border-radius: 0;
+  padding: 0.6rem 0.75rem 0.75rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.7);
   font-size: 0.9rem;
   line-height: 1.55;
   /* Respect the OS safe area on notched devices. */
-  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
 }
 
 .consent__title {

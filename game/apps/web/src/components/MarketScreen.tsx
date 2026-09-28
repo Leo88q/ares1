@@ -2,13 +2,14 @@ import { ReactNode, useState, useMemo } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, Clock, User, Loader2 } from 'lucide-react'
+import { Glyph } from '../ui/Emblem'
 import BigPurchaseEffect from './BigPurchaseEffect'
 import CreateOrderModal from './CreateOrderModal'
 import { haptics } from '../utils/haptic'
 import { useMarketplace, MarketOrder } from '../hooks/useMarketplace'
 import { useGame } from '../contexts/GameContext'
 import { fmtPotato, fmtSol, MICRO, CANCEL_COOLDOWN_HOURS } from '../utils/constants'
+import { Panel } from '../ui/kit'
 import { SupplyBay } from './ares/SupplyBay';
 import { HullPanel } from '../ui/HullPanel';
 import { ErrorState, EmptyState as SharedEmptyState, LoadingState } from '../ui/states'
@@ -65,10 +66,9 @@ function MarketScreenInner() {
     <motion.button
      whileTap={{ scale: 0.95 }}
      onClick={() => { haptics.tap(); setShowCreate(true) }}
-     className="gradient-gold"
-     style={{ padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
+     style={{ padding: '8px 16px', borderStyle: 'solid', borderWidth: 14, borderImage: "url('/ares/kit/btn-primary.webp') 40 fill / 14px", background: 'none', color: '#2B1403', textShadow: '0 1px 0 rgba(255,220,150,0.55)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
     >
-     <Plus size={18} aria-hidden="true" /> {t('Отгрузить')}
+     <Glyph name="plus" size={18} aria-hidden="true" /> {t('Отгрузить')}
     </motion.button>
    </div>
 
@@ -196,13 +196,13 @@ function MarketScreenInner() {
    <AnimatePresence>
     {cancelTarget && (
      <Modal onClose={() => setCancelTarget(null)} title={t("Отозвать ордер?")}>
-      <div style={{ padding: 14, borderRadius: 14, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', marginBottom: 20 }}>
+      <Panel variant="chip" style={{ padding: 10, marginBottom: 20 }}>
        <p style={{ fontSize: 13, color: 'var(--pf-red)', lineHeight: 1.5 }}>
         {t('Груз вернётся на склад сразу, но новые ордера — только через')} <b>{t('{hours} часа', { hours: CANCEL_COOLDOWN_HOURS })}</b>.
        </p>
-      </div>
+      </Panel>
       <div style={{ display: 'flex', gap: 10 }}>
-       <button onClick={() => setCancelTarget(null)} style={{ flex: 1, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
+       <button onClick={() => setCancelTarget(null)} style={{ flex: 1, padding: 10, borderStyle: 'solid', borderWidth: 14, borderImage: "url('/ares/kit/btn-secondary.webp') 40 fill / 14px", background: 'none', color: '#E9DBC4', fontSize: 14, fontWeight: 600, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
         {t('Оставить')}
        </button>
        <motion.button
@@ -212,8 +212,7 @@ function MarketScreenInner() {
          setCancelTarget(null)
          if (ok) setCancelInfo(true)
         }}
-        style={{ flex: 1, padding: 12, borderRadius: 12, background: 'var(--pf-red)', color: 'white', fontSize: 14, fontWeight: 700 }}
-       >
+        style={{ flex: 1, padding: 10, borderStyle: 'solid', borderWidth: 14, borderImage: "url('/ares/kit/btn-primary.webp') 40 fill / 14px", background: 'none', color: '#2B1403', fontSize: 14, fontWeight: 700, textShadow: '0 1px 0 rgba(255,220,150,0.55)', filter: 'hue-rotate(-32deg) saturate(1.3)' }}>
         {t('Отменить')}
        </motion.button>
       </div>
@@ -224,12 +223,12 @@ function MarketScreenInner() {
    <AnimatePresence>
     {cancelInfo && (
      <Modal onClose={() => setCancelInfo(false)} title={t("Ордер отменён")}>
-      <div style={{ padding: 14, borderRadius: 14, background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+      <Panel variant="chip" style={{ padding: 10 }}>
        <p style={{ fontSize: 13, color: 'var(--pf-gold)', lineHeight: 1.5 }}>
         {t('Токены возвращены на баланс. Новый ордер можно выставить через')} <b>{t('{hours} часа', { hours: CANCEL_COOLDOWN_HOURS })}</b>{t(' — так мы защищаем рынок от спама.')}
        </p>
-      </div>
-      <button onClick={() => setCancelInfo(false)} style={{ marginTop: 20, width: '100%', padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
+      </Panel>
+      <button onClick={() => setCancelInfo(false)} style={{ marginTop: 20, width: '100%', padding: 10, borderStyle: 'solid', borderWidth: 14, borderImage: "url('/ares/kit/btn-secondary.webp') 40 fill / 14px", background: 'none', color: '#E9DBC4', fontSize: 14, fontWeight: 600, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
        {t('Понятно')}
       </button>
      </Modal>
@@ -253,16 +252,16 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
   <motion.div
    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
    onClick={onClose}
-   style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+   style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 'var(--s-z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
   >
    <motion.div
     role="dialog" aria-modal="true" aria-label={title}
     initial={{ scale: 0.9 }} animate={{ scale: 1 }}
     onClick={(e) => e.stopPropagation()}
-    className="pf-card hull-skin"
-    style={{ width: '100%', maxWidth: 340, padding: 28, borderRadius: 24, textAlign: 'center', background: '#1a1a2e' }}
+    className="k-panel k-panel--pop"
+    style={{ width: '100%', maxWidth: 340, padding: 28, textAlign: 'center' }}
    >
-    <div style={{ marginBottom: 12, color: 'var(--pf-teal)' }} aria-hidden="true"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5.5"/></svg></div>
+    <div style={{ marginBottom: 12, color: 'var(--pf-teal)' }} aria-hidden="true"><Glyph name="check" size={48} /></div>
     <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{title}</h3>
     {children}
    </motion.div>
@@ -274,7 +273,7 @@ const instrument = (v: string) => v.replace(/^(\d+)/, (_m, d: string) => d.padSt
 
 function StatCard({ icon, label, value }: { icon?: ReactNode; label: string; value: string }) {
  return (
-  <div className="pf-card hull-skin" style={{ padding: 14, borderRadius: 14 }}>
+  <div className="pf-card" style={{ padding: 14, borderImage: "url('/ares/kit/card-bronze-small.webp') 20 fill / 16px", borderWidth: 16, borderStyle: 'solid' }}>
    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
     <span aria-hidden="true">{icon}</span>
     <span style={{ fontSize: 12, color: 'var(--pf-text-secondary)', textAlign: 'center' }}>{label}</span>
@@ -300,12 +299,12 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
  return (
   <motion.div
    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 8) * 0.05 }}
-   className="pf-card hull-skin" style={{ padding: 16, borderRadius: 16 }}
+   className="pf-card hull-skin" style={{ padding: 16 }}
   >
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-     <div style={{ width: 36, height: 36, borderRadius: 10, background: order.isOwn ? 'rgba(59, 130, 246, 0.2)' : 'rgba(193, 68, 14, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
-      {order.isOwn ? <User size={18} color="var(--ares-blueset, #6B93D6)" /> : null }
+     <div style={{ width: 36, height: 36, borderRadius: 'var(--s-radius-chip)', background: order.isOwn ? 'rgba(59, 130, 246, 0.2)' : 'rgba(193, 68, 14, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
+      {order.isOwn ? <Glyph name="person" size={18} /> : null }
      </div>
      <div>
       <div className="ares-mono" style={{ fontSize: 15, fontWeight: 700, textAlign: 'center', color: 'transparent', background: 'var(--ares-action)', WebkitBackgroundClip: 'text', backgroundClip: 'text' }}>{fmtPotato(order.amountMicro)} POTATO</div>
@@ -323,19 +322,19 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
    </div>
    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, fontSize: 11 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--pf-text-secondary)' }}>
-     <Clock size={12} aria-hidden="true" /> {t('{h} ч осталось', { h: hoursLeft })}
+     <Glyph name="clock" size={12} aria-hidden="true" /> {t('{h} ч осталось', { h: hoursLeft })}
     </div>
     <div style={{ color: 'var(--pf-gold)' }}>{t('Комиссия продавца')}: {((order.feeMicro / order.amountMicro) * 100).toFixed(1)}%</div>
    </div>
    {order.isOwn ? (
     <motion.button whileTap={{ scale: 0.95 }} onClick={onCancel} disabled={busy}
-     style={{ width: '100%', padding: 12, borderRadius: 10, background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--pf-red)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-     {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <X size={16} />} {t('Отменить ордер')}
+     style={{ width: '100%', padding: 10, borderStyle: 'solid', borderWidth: 14, borderImage: "url('/ares/kit/btn-primary.webp') 40 fill / 14px", background: 'none', color: '#2B1403', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, textShadow: '0 1px 0 rgba(255,220,150,0.55)', filter: 'hue-rotate(-32deg) saturate(1.3)' }}>
+     {busy ? <Glyph name="clock" size={16} style={{ animation: 'spin 2s linear infinite' }} /> : <Glyph name="x" size={16} />} {t('Отменить ордер')}
     </motion.button>
    ) : (
     <motion.button whileTap={{ scale: 0.95 }} onClick={onBuy} disabled={busy} className="gradient-primary"
      style={{ width: '100%', padding: 12, borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-     {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null  } {t('Купить за {price} SOL', { price: fmtSol(order.totalLamports, 4) })}
+     {busy ? <Glyph name="clock" size={16} style={{ animation: 'spin 2s linear infinite' }} /> : null  } {t('Купить за {price} SOL', { price: fmtSol(order.totalLamports, 4) })}
     </motion.button>
    )}
   </motion.div>

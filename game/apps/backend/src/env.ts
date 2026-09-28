@@ -46,4 +46,17 @@ export const env = {
    *  epoch-roller failure ladder (3/9/27) and fatal startup conditions.
    *  Empty string disables external alerting (console logging stays). */
   alertWebhookUrl: process.env.ALERT_WEBHOOK_URL || "",
+  /** Checklist item 103 (audit 2026-09-28): an INDEPENDENT second RPC provider
+   *  used to cross-check every fact the signing bot acts on (config/epoch).
+   *  Must be a different provider than RPC_URL — same-vendor backup endpoints
+   *  do not count as independence (one poisoned vendor would poison both). */
+  secondaryRpcUrl: process.env.RPC_URL_SECONDARY || "",
+  /** Fail closed by default when NODE_ENV=production: the epoch roller refuses
+   *  to sign without a verified second data source. Set REQUIRE_SECONDARY_RPC=0
+   *  to consciously downgrade (documented decision, never silence). */
+  requireSecondaryRpc: (() => {
+    if (process.env.REQUIRE_SECONDARY_RPC === "1") return true;
+    if (process.env.REQUIRE_SECONDARY_RPC === "0") return false;
+    return process.env.NODE_ENV === "production";
+  })(),
 };

@@ -3,7 +3,7 @@ import { t } from '../../i18n'
 
 import { motion } from 'framer-motion';
 import { ConsolePanel } from './panels';
-import { IconWrench } from './icons';
+import { Emblem } from '../../ui/Emblem';
 
 export interface ShiftTask {
  id: string;
@@ -47,10 +47,7 @@ const ShiftTaskRow = memo(function ShiftTaskRow({ task, onComplete }: ShiftTaskR
    }}
   >
    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-    <IconWrench
-     size={14}
-     accent={task.done ? 'var(--ares-bio-green, #7CFF6B)' : 'var(--ares-hud-amber, #FFB347)'}
-    />
+    <Emblem name="gear" size={14} />
     <span
      style={{
       fontSize: 12,

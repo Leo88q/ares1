@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Glyph } from "./Glyph";
 import type {
   AnchorHTMLAttributes,
   ButtonHTMLAttributes,
@@ -152,31 +153,19 @@ function SuccessMark({
   readonly reducedMotion: boolean;
 }): JSX.Element {
   return (
-    <svg
-      width="27"
-      height="27"
-      viewBox="0 0 28 28"
-      fill="none"
-      aria-hidden="true"
+    <motion.span
+      className="morph-success-mark"
+      style={{ display: "inline-flex" }}
+      initial={reducedMotion ? false : { scale: 0.4, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{
+        duration: reducedMotion ? 0 : 0.35,
+        delay: reducedMotion ? 0 : 0.12,
+        ease: metalEase,
+      }}
     >
-      <motion.path
-        d="M6 14.5 11.5 20 22 8"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        initial={{
-          pathLength: reducedMotion ? 1 : 0,
-          opacity: reducedMotion ? 1 : 0,
-        }}
-        animate={{ pathLength: 1, opacity: 1 }}
-        transition={{
-          duration: reducedMotion ? 0 : 0.35,
-          delay: reducedMotion ? 0 : 0.12,
-          ease: metalEase,
-        }}
-      />
-    </svg>
+      <Glyph name="check" size={27} />
+    </motion.span>
   );
 }
 

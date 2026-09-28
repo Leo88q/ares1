@@ -342,3 +342,110 @@ function finalize(lines, start, current) {
   }
   return current;
 }
+
+// ============================================================================
+// Аудит 2026-09-28: машинные гейты по инцидентам 94–130 (часть 5–6 каталога).
+// Каждый тест ниже — «предохранитель» против тихого отката защиты, закрытой
+// в этой проверке. Формат: инцидент → что закрепляем.
+// ============================================================================
+
+test('П.115 (Truebit): overflow-checks остаётся включённым в release-сборке', () => {
+  const profile = cargoToml.split('[profile.release]')[1] ?? '';
+  assert.ok(profile.length > 0, 'в workspace Cargo.toml должен быть [profile.release]');
+  assert.match(profile, /overflow-checks\s*=\s*true/, 'release-профиль без overflow-checks молча заворачивает арифметику');
+});
+
+test('П.116 (Rain card): anchor-крейты запинены точно (=), а не диапазоном', () => {
+  const pkg = read('../programs/solana_potato/Cargo.toml');
+  assert.match(pkg, /anchor-lang\s*=\s*\{\s*version\s*=\s*"=0\.31\.2"/, 'anchor-lang должен быть запинен точно');
+  assert.match(pkg, /anchor-spl\s*=\s*\{\s*version\s*=\s*"=0\.31\.2"/, 'anchor-spl должен быть запинен точно');
+});
+
+test('П.107 (JetBrains/ChainDrop): ни один package.json не запускает lifecycle-скрипты', () => {
+  const manifests = [
+    '../package.json',
+    '../apps/web/package.json',
+    '../apps/backend/package.json',
+    '../../landing/package.json',
+    '../../watchtower/package.json',
+  ];
+  const LIFECYCLE = ['preinstall', 'postinstall', 'prepare'];
+  for (const rel of manifests) {
+    let raw;
+    try {
+      raw = JSON.parse(read(rel));
+    } catch (e) {
+      // watchtower/landing обязаны существовать; отсутствие — ошибка конфигурации
+      throw new Error(`Не удалось прочитать ${rel}: ${e.message}`);
+    }
+    const scripts = raw.scripts ?? {};
+    for (const hook of LIFECYCLE) {
+      assert.ok(
+        !(hook in scripts),
+        `${rel}: найден lifecycle-скрипт "${hook}" — прием new-версий с авто-скриптами запрещён (ChainDrop). Если он ОЧЕНЬ нужен, добавь пакет в allowlist этого теста с записью why в diff`,
+      );
+    }
+  }
+});
+
+test('П.100 (Taiko): gitignore не пропускает keypair/.env, сканеры секретов на месте', () => {
+  const gitignore = read('../../.gitignore');
+  for (const pattern of [/\.env/, /keypair/, /id\.json/, /secret/i]) {
+    assert.ok(pattern.test(gitignore), `.gitignore не содержит паттерн ${pattern}`);
+  }
+  assert.ok(read('../../.gitleaks.toml').length > 50, 'конфиг gitleaks не должен быть пустым');
+});
+
+test('П.104 (Polymarket): CSP «script-src self» на лендинге; внешних <script> нет', () => {
+  const headers = read('../../landing/public/_headers');
+  const cspLine = headers.split('\n').find((l) => l.includes('Content-Security-Policy:'));
+  assert.ok(cspLine, 'в _headers должна быть CSP-строка');
+  assert.match(cspLine, /script-src 'self'/, 'script-src обязан быть только self');
+  const html = read('../../landing/index.html');
+  for (const m of html.matchAll(/<script[^>]*\bsrc="([^"]+)"/g)) {
+    assert.ok(
+      m[1].startsWith('/') || m[1].startsWith('#'),
+      `внешний скрипт на лендинге запрещён: ${m[1]} (CSP script-src 'self' — SRI не спасёт от вендора, п. 104)`,
+    );
+  }
+});
+
+test('Пп. 103/108/114/127 (Kelp/jaredfromsubway): policy-слой подписанта подключён', () => {
+  const solana = read('../apps/backend/src/solana.ts');
+  assert.match(solana, /assertPayerInstructionsAllowed\(instructions, programId\)/, 'sendVersionedTx обязан проверять allowlist инструкций перед подписью');
+  assert.match(solana, /import \{ assertPayerInstructionsAllowed \} from "\.\/policy\.js"/);
+  const roller = read('../apps/backend/src/epochRoller.ts');
+  assert.match(roller, /fetchSigningSnapshot/, 'решение о подписи — только по снапшоту');
+  assert.match(roller, /verifySnapshotConsistency/, 'снапшот обязан сверяться со вторым источником');
+  assert.match(roller, /DataSourceMismatchError/, 'расхождение источников — инцидент, не ретрай');
+  assert.match(roller, /"finalized"/, 'решение о подписи — только по finalized');
+  const env = read('../apps/backend/src/env.ts');
+  assert.match(env, /RPC_URL_SECONDARY/, 'в env должен быть второй независимый RPC-источник');
+  assert.match(env, /requireSecondaryRpc/, 'прод-окружение обязано требовать второй источник');
+});
+
+test('П.98 (Raydium legacy): реестр ончейн-программ существует и валиден', () => {
+  const inventory = JSON.parse(read('../program-inventory.json'));
+  assert.equal(inventory.schemaVersion, 1);
+  assert.ok(Array.isArray(inventory.programs) && inventory.programs.length >= 1, 'в реестре должна быть минимум одна запись');
+  const known = new Set(JSON.parse(read('../../watchtower/address-registry.json')).programs ? Object.values(JSON.parse(read('../../watchtower/address-registry.json')).programs) : []);
+  for (const p of inventory.programs) {
+    assert.match(p.id, /^[1-9A-HJ-NP-Za-km-z]{32,44}$/, `id не похож на base58 pubkey: ${p.id}`);
+    assert.ok(['active', 'deprecated', 'retired'].includes(p.status), `неизвестный статус: ${p.status}`);
+    assert.ok(typeof p.role === 'string' && p.role.length > 0, 'у записи должен быть role');
+    if (p.status === 'deprecated') {
+      assert.ok(p.expectedUpgradeAuthority === null, 'deprecated-программа обязана быть immutable (upgrade authority = None)');
+    }
+    if (p.expectedUpgradeAuthority !== null && p.expectedUpgradeAuthority !== undefined) {
+      assert.match(p.expectedUpgradeAuthority, /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+    }
+  }
+  // Программа из address-registry (если проставлена) должна быть в реестре.
+  const mainId = JSON.parse(read('../../watchtower/address-registry.json')).programs?.solana_potato;
+  if (typeof mainId === 'string') {
+    assert.ok(
+      inventory.programs.some((p) => p.id === mainId),
+      'программа solana_potato из address-registry отсутствует в program-inventory.json',
+    );
+  }
+});

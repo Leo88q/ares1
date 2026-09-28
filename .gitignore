@@ -105,7 +105,12 @@ pnpm-debug.log*
 .DS_Store
 **/.DS_Store
 Thumbs.db
-.vscode/
+# П. 106/107 (аудит 2026-09-28): allowlist-рекомендации расширений и защитные
+# workspace-настройки — часть политики проекта, коммитятся; остальное (.vscode/*)
+# — личный шум и остаётся вне git.
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
 .idea/
 *.swp
 *~

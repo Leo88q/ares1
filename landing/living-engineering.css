@@ -299,3 +299,25 @@
     width: min(100%, 260px);
   }
 }
+
+/* ── CSS-диал реактора (SVG заменён слоями-градиентами) ── */
+.reactor-dial{position:relative;width:500px;height:500px;margin:0 auto}
+.reactor-field{position:absolute;inset:-8px;border-radius:50%;background:radial-gradient(circle,rgba(255,46,147,.18) 0%,rgba(130,79,255,.04) 70%,rgba(130,79,255,0) 100%)}
+.reactor-shell{position:absolute;inset:8px;border-radius:50%;background:#080811;border:1px solid #413447}
+.reactor-sectors{position:absolute;inset:54px;border-radius:50%;background:#20202C;border:1px solid #6C5A76;overflow:hidden}
+.reactor-sectors::before{content:"";position:absolute;inset:64px;border-radius:50%;background:#080C15;border:3px solid #090711;box-shadow:0 0 0 1px rgba(108,90,118,.6)}
+.reactor-sector-glow{position:absolute;inset:54px;border-radius:50%;-webkit-mask:radial-gradient(circle at center,transparent 116px,#000 117px);mask:radial-gradient(circle at center,transparent 116px,#000 117px)}
+.reactor-ring{position:absolute;border-radius:50%;pointer-events:none}
+.reactor-ring--outer{inset:26px;border:1px dashed rgba(156,108,181,.3)}
+.reactor-ring--outer::after{content:"";position:absolute;top:-2px;left:50%;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:#DFC2FF}
+.reactor-ring--inner{inset:105px;border:1px dashed rgba(255,124,197,.45)}
+.reactor-ring--inner::after{content:"";position:absolute;top:-1.5px;left:18%;width:3px;height:3px;border-radius:50%;background:#FFF1FC}
+.reactor-tick{position:absolute;top:50%;left:50%;width:8px;height:14px;margin:-7px 0 0 -4px;border-radius:1px;background:#161520;border:1px solid #8D7A99}
+.reactor-tick::after{content:"";position:absolute;inset:6px 2px;background:#DED2E5}
+.reactor-core{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:258px;height:258px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:radial-gradient(circle,#482048 0%,#191729 55%,#070C15 100%);border:1px solid rgba(160,136,181,.5);text-align:center}
+.reactor-core::before{content:"";position:absolute;inset:10px;border-radius:50%;border:1px dashed rgba(93,70,104,.8)}
+.reactor-hex{width:52px;height:45px;margin-bottom:4px;background:#301729;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);filter:drop-shadow(0 0 4px rgba(255,128,197,.6))}
+.reactor-core strong{font-family:'JetBrains Mono',monospace;font-size:26px;color:#FFF0F8}
+.reactor-core small{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:2px;color:#C2B8D6}
+.reactor-core i{width:68px;height:2px;background:rgba(124,255,107,.7)}
+@media (prefers-reduced-motion: reduce){.reactor-ring,.reactor-sector-glow{animation:none!important}}

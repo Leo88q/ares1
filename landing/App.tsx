@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useId,
   useRef,
   useState,
 } from "react";
@@ -46,11 +45,8 @@ import {
 import { LiquidPanelBorder } from "./LiquidPanel";
 import type { LiquidPanelVariant } from "./LiquidPanel";
 import { MorphButton } from "./MorphButton";
+import { Glyph, Emblem } from "./Glyph";
 import { InterstellarSection } from "./InterstellarBridge";
-import {
-  DomeHabitatInterior,
-  DomeHabitatHardware,
-} from "./DomeHabitat";
 import { LivingPhobos } from "./LivingPhobos";
 import { RarityModules } from "./RarityModules";
 import { TokenReactor } from "./TokenReactor";
@@ -144,73 +140,40 @@ const PC = tr(playConfig);
 
 function Mark({ className = "" }: { readonly className?: string }): JSX.Element {
   return (
-    <svg
+    <img
       className={className}
-      width="36"
-      height="40"
-      viewBox="0 0 36 40"
-      fill="none"
+      src="/ares/glyphs/check.webp"
+      alt=""
       aria-hidden="true"
-    >
-      <path
-        d="M18 2 34 11v18L18 38 2 29V11L18 2Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path
-        d="m9 27 9-17 9 17M13 21h10"
-        stroke="currentColor"
-        strokeWidth="2.3"
-      />
-      <path d="M15 30h6" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
+      width="34"
+      height="34"
+      style={{ objectFit: "contain" }}
+    />
+  )
+}
+
+
+const FEATURE_EMBLEM: Record<FeatureIconName, string> = {
+  sprout: "sprout",
+  "sun-phobos": "moon",
+  scales: "percent",
+  helmets: "shield",
+};
+
+function FeatureIcon({ name }: { readonly name: FeatureIconName }): JSX.Element {
+  // эмблема единого арт-сета ARES-1 (бронза/янтарь) вместо generic line-иконки
+  return (
+    <img
+      src={`/ares/icons/${FEATURE_EMBLEM[name]}.webp`}
+      alt=""
+      aria-hidden="true"
+      width={48}
+      height={48}
+      style={{ width: 48, height: 48, objectFit: "contain", display: "block" }}
+    />
   );
 }
 
-function FeatureIcon({ name }: { readonly name: FeatureIconName }): JSX.Element {
-  return (
-    <svg
-      width="48"
-      height="48"
-      viewBox="0 0 48 48"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {name === "sprout" && (
-        <>
-          <path d="M17 6h14M19 6v11L10 34a5 5 0 0 0 4 8h20a5 5 0 0 0 4-8l-9-17V6" />
-          <path d="M15 31h18M24 32V21M24 26c-7 0-9-5-9-5s8-2 9 5ZM24 23c0-7 8-9 8-9s0 8-8 9Z" />
-          <path d="M19 36h1m8 0h1" />
-        </>
-      )}
-      {name === "sun-phobos" && (
-        <>
-          <circle cx="21" cy="22" r="10" />
-          <path d="M21 4v4m0 28v4M3 22h4m28 0h4M8 9l3 3m20 20 3 3M8 35l3-3M31 12l3-3" />
-          <path d="m34 29 7 3 2 7-6 5-7-3-1-7 5-5Z" />
-          <path d="m35 35 3 2" />
-        </>
-      )}
-      {name === "scales" && (
-        <>
-          <path d="M24 7v33M16 41h16M9 15h30M24 7l-3 4h6l-3-4ZM10 16 4 29h12l-6-13ZM38 16l-6 13h12l-6-13Z" />
-          <path d="M4 29c1 7 11 7 12 0M32 29c1 7 11 7 12 0" />
-        </>
-      )}
-      {name === "helmets" && (
-        <>
-          <path d="M4 26v-5a10 10 0 0 1 20 0v5M4 26v10h20V26M24 18a10 10 0 0 1 20 3v15H29" />
-          <rect x="8" y="19" width="12" height="9" rx="4" />
-          <path d="M29 19h7a4 4 0 0 1 0 9h-7M9 32h10m12 0h8M13 15h2m18 0h2" />
-        </>
-      )}
-    </svg>
-  );
-}
 
 function Reveal({
   children,
@@ -249,25 +212,25 @@ function Divider(): JSX.Element {
   const reduced = usePrefersReducedMotion();
 
   return (
-    <svg
+    <motion.img
       className="section-divider"
-      viewBox="0 0 1200 32"
-      preserveAspectRatio="none"
+      src="/ares/divider-strip.webp"
+      alt=""
       aria-hidden="true"
-    >
-      <motion.path
-        d="M0 16H440L458 4H530L549 28H650L670 16H1200"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1"
-        initial={{ pathLength: reduced ? 1 : 0 }}
-        whileInView={{ pathLength: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: reduced ? 0 : 1.8, ease: "easeInOut" }}
-      />
-    </svg>
+      initial={reduced ? false : { opacity: 0, scaleX: 0.6 }}
+      whileInView={{ opacity: 1, scaleX: 1 }}
+      viewport={{ once: true }}
+      transition={{ duration: reduced ? 0 : 1.2, ease: "easeInOut" }}
+    />
   );
 }
+
+// Живописный фон секции (арт-интерьеры колонии)
+const ART_BY_SECTION: Record<string, string> = {
+  mechanics: "/ares/bg-reactor.jpg",
+  mascot: "/ares/bg-cargo.jpg",
+  faq: "/ares/bg-maproom.jpg",
+};
 
 function Section({
   id,
@@ -295,7 +258,18 @@ function Section({
       id={id}
       aria-labelledby={`${id}-title`}
       className={`section ${className}`}
+      data-bg-art={ART_BY_SECTION[id] ? "" : undefined}
+      style={
+        ART_BY_SECTION[id]
+          ? ({
+              "--section-bg": `url('${ART_BY_SECTION[id]}')`,
+            } as React.CSSProperties)
+          : undefined
+      }
     >
+      {ART_BY_SECTION[id] && (
+        <span className="section-bg-art" aria-hidden="true" />
+      )}
       <motion.div className="section-orbit" style={{ y }} aria-hidden="true" />
       <div className="container">{children}</div>
       <Divider />
@@ -483,7 +457,7 @@ function WalletButton(): JSX.Element {
     return (
       <button className="morph-button morph-button--header" disabled>
         <span className="wallet-full">{t("Подключение…")}</span>
-        <span className="wallet-short"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 2l8.7 5v10L12 22l-8.7-5V7z"/></svg> …</span>
+        <span className="wallet-short"><Glyph name="wallet" size={13} /> …</span>
       </button>
     );
   }
@@ -492,7 +466,7 @@ function WalletButton(): JSX.Element {
     return (
       <button onClick={() => { void connect(); }} className="morph-button morph-button--header">
         <span className="wallet-full">{t("Подключить кошелёк")}</span>
-        <span className="wallet-short"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 2l8.7 5v10L12 22l-8.7-5V7z"/></svg> {t("Кошелёк")}</span>
+        <span className="wallet-short"><Glyph name="wallet" size={13} /> {t("Кошелёк")}</span>
       </button>
     );
   }
@@ -654,7 +628,6 @@ function MarsScene({
 }): JSX.Element {
   useI18n();
   const reduced = usePrefersReducedMotion();
-  const id = useId().replace(/:/g, "");
   const { scrollYProgress } = useScroll({
     target,
     offset: ["start start", "end start"],
@@ -690,154 +663,41 @@ function MarsScene({
         <LivingPhobos />
       </motion.div>
 
-      <motion.svg
+      <motion.div
         className="terrain terrain--far"
-        viewBox="0 0 1600 600"
-        preserveAspectRatio="none"
         style={{ y: farY }}
+        aria-hidden="true"
       >
-        <defs>
-          <linearGradient id={`${id}-far`} x2="0" y2="1">
-            <stop stopColor="#704657" />
-            <stop offset="1" stopColor="#1e121c" />
-          </linearGradient>
-        </defs>
-        <path
-          d="M0 270 100 250 190 290 320 155 430 182 570 100 690 144 780 80 900 140 1020 120 1190 260 1340 210 1460 260 1600 225V600H0Z"
-          fill={`url(#${id}-far)`}
+        <span
+          style={{
+            display: 'block', position: 'absolute', inset: 0,
+            background:
+              'linear-gradient(to bottom, rgba(112,70,87,0) 0%, rgba(112,70,87,0.9) 12%, #1e121c 45%), radial-gradient(60% 100% at 25% 100%, #704657 0 30%, transparent 31%), radial-gradient(50% 90% at 70% 100%, #5d3a4b 0 36%, transparent 37%)',
+          }}
         />
-        <path
-          d="m320 155 110 27 140-82 120 44 90-64 120 60 120-20"
-          fill="none"
-          stroke="#a6818b"
-          strokeOpacity=".4"
-        />
-      </motion.svg>
+      </motion.div>
 
-      <motion.svg
+      <motion.div
         className="terrain terrain--mid"
-        viewBox="0 0 1600 600"
-        preserveAspectRatio="none"
         style={{ y: midY }}
+        aria-hidden="true"
       >
-        <defs>
-          <linearGradient id={`${id}-mid`} x2=".2" y2="1">
-            <stop stopColor="#9c492f" />
-            <stop offset="1" stopColor="#291018" />
-          </linearGradient>
-        </defs>
-        <path
-          d="M0 240 180 280 270 245 440 310 600 275 810 340 990 295 1150 270 1310 190 1490 210 1600 170V600H0Z"
-          fill={`url(#${id}-mid)`}
+        <span
+          style={{
+            display: 'block', position: 'absolute', inset: 0,
+            background:
+              'linear-gradient(to bottom, rgba(156,73,47,0) 0%, rgba(156,73,47,0.85) 14%, #291018 50%), radial-gradient(55% 100% at 18% 100%, #9c492f 0 34%, transparent 35%), radial-gradient(70% 110% at 60% 100%, #7d3a28 0 40%, transparent 41%), radial-gradient(45% 90% at 92% 100%, #8a4230 0 32%, transparent 33%)',
+          }}
         />
-        <g fill="none" stroke="#d78355" strokeOpacity=".18">
-          <path d="m0 280 210 46 180-13 230 70 440-37 250-90 290-7" />
-          <path d="m0 355 190 24 260-9 295 62 340-16 250-90 265-15" />
-          <path d="m0 425 265 18 225-4 240 40 370-17 300-63 200 5" />
-        </g>
-      </motion.svg>
+      </motion.div>
 
       <motion.div className="dome-layer" style={{ y: domeY }}>
-        <svg viewBox="0 0 820 620" className="dome-art">
-          <defs>
-            <linearGradient id={`${id}-glass`} x1="0" y1="0" x2=".8" y2="1">
-              <stop stopColor="#B5D9F5" stopOpacity=".13" />
-              <stop offset=".4" stopColor="#6B93D6" stopOpacity=".025" />
-              <stop offset="1" stopColor="#FF2E93" stopOpacity=".075" />
-            </linearGradient>
-            <radialGradient id={`${id}-grow`}>
-              <stop stopColor="#ff2e93" stopOpacity=".65" />
-              <stop offset="1" stopColor="#ff2e93" stopOpacity="0" />
-            </radialGradient>
-            <linearGradient id={`${id}-base`} x2="0" y2="1">
-              <stop stopColor="#77707d" />
-              <stop offset=".25" stopColor="#2a2531" />
-              <stop offset="1" stopColor="#100b15" />
-            </linearGradient>
-            <clipPath id={`${id}-inside`}>
-              <path d="M120 420a290 290 0 0 1 580 0c-142 60-438 60-580 0Z" />
-            </clipPath>
-          </defs>
-
-          <ellipse cx="410" cy="490" rx="360" ry="66" fill="#08060c" opacity=".55" />
-          <ellipse
-            cx="410"
-            cy="410"
-            rx="350"
-            ry="160"
-            fill={`url(#${id}-grow)`}
-          />
-
-          <path
-            d="M116 420v33c142 70 446 70 588 0v-33"
-            fill={`url(#${id}-base)`}
-            stroke="#938295"
-            strokeOpacity=".4"
-          />
-          <ellipse cx="410" cy="420" rx="294" ry="67" fill="#170e21" />
-
-          <g clipPath={`url(#${id}-inside)`}>
-            <DomeHabitatInterior />
-            <motion.ellipse
-              cx="400"
-              cy="272"
-              rx="290"
-              ry="250"
-              fill={`url(#${id}-glass)`}
-              animate={
-                reduced ? { opacity: 0.35 } : { opacity: [0.22, 0.4, 0.22] }
-              }
-              transition={{
-                duration: reduced ? 0.15 : 6,
-                repeat: reduced ? 0 : Infinity,
-                ease: "easeInOut",
-              }}
-            />
-          </g>
-
-          <path
-            d="M120 420a290 290 0 0 1 580 0c-142 60-438 60-580 0Z"
-            fill={`url(#${id}-glass)`}
-            stroke="#b8c8e5"
-            strokeWidth="2"
-            strokeOpacity=".8"
-          />
-          <g fill="none" stroke="#afbeda" strokeOpacity=".5">
-            <path d="M410 130v338M410 130c-161 92-200 203-167 328M410 130c161 92 200 203 167 328" />
-            <path d="M410 130c-78 126-94 236-72 337M410 130c78 126 94 236 72 337" />
-            <path d="M169 257c132 47 350 47 482 0M126 360c145 63 423 63 568 0" />
-            <path d="M231 194c101 33 257 33 358 0" />
-          </g>
-          <path
-            d="M180 293c27-59 68-103 120-130"
-            stroke="#e4f2ff"
-            strokeOpacity=".58"
-            strokeWidth="5"
-            strokeLinecap="round"
-            fill="none"
-          />
-
-          <DomeHabitatHardware />
-
-          <g transform="translate(353 428)">
-            <path d="M0 0h113v78H0Z" fill="#332832" stroke="#a08c90" />
-            <path d="M13 13h87v66H13Z" fill="#0b0911" stroke="#6f6878" />
-            <path d="M23 23h67v54H23Z" fill="#352139" />
-            <path d="M23 23h67" stroke="#7cff6b" strokeWidth="3" />
-            <path d="M56 25v50" stroke="#ae819b" />
-            <circle cx="80" cy="44" r="3" fill="#7cff6b" />
-            <path d="M-10 79h133l22 13H-31Z" fill="#53414b" />
-          </g>
-
-          <g fill="#ffb347">
-            <circle cx="171" cy="449" r="3" />
-            <circle cx="227" cy="465" r="3" />
-            <circle cx="596" cy="465" r="3" />
-            <circle cx="651" cy="449" r="3" />
-          </g>
-          <path d="M665 371v-112m-12 15h25" stroke="#8f8496" strokeWidth="3" />
-          <circle cx="665" cy="259" r="4" fill="#7cff6b" />
-        </svg>
+        <img
+          src="/ares/dome-colony.webp"
+          className="dome-art"
+          alt=""
+          aria-hidden="true"
+        />
 
         <div className="dome-callout">
           <span className="status-dot" />
@@ -847,18 +707,14 @@ function MarsScene({
       </motion.div>
 
       <motion.div className="dust-layer" style={{ y: dustY }}>
-        <svg viewBox="0 0 1600 280" preserveAspectRatio="none">
-          <path
-            d="M0 80 220 120 450 105 650 160 950 175 1200 118 1430 130 1600 65V280H0Z"
-            fill="#1b0d14"
-          />
-          <path
-            d="m0 82 220 41 230-16 200 55 300 16 250-57 230 12 170-66"
-            stroke="#b16443"
-            strokeOpacity=".3"
-            fill="none"
-          />
-        </svg>
+        <span
+          aria-hidden="true"
+          style={{
+            display: 'block', position: 'absolute', inset: 0,
+            background:
+              'radial-gradient(120% 140% at 12% 130%, #1b0d14 0 58%, transparent 59%), radial-gradient(90% 120% at 45% 140%, #22101a 0 52%, transparent 53%), radial-gradient(110% 130% at 85% 135%, #1b0d14 0 60%, transparent 61%), linear-gradient(to top, rgba(177,100,67,0.22) 0, transparent 14%)',
+          }}
+        />
         {Array.from({ length: 14 }, (_, index) => (
           <motion.i
             key={index}
@@ -1035,7 +891,7 @@ function Hero(): JSX.Element {
               {PC.label}
             </a>
             <Action href={SC.hero.primaryHref}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 6 }}><path d="M13 2L4.5 13.5H11L10 22l8.5-11.5H12z"/></svg>
+              <Emblem name="flame" size={15} style={{ marginRight: 6 }} />
               {SC.hero.primaryCta}
             </Action>
             <Action
@@ -1335,70 +1191,15 @@ function Mechanics(): JSX.Element {
 }
 
 function TuberArt(): JSX.Element {
-  const id = useId().replace(/:/g, "");
-
   return (
-    <svg
-      viewBox="0 0 420 460"
-      width="420"
-      height="460"
+    <img
+      src="/ares/tuber9-happy.webp"
       className="tuber-art"
+      width={420}
+      height={460}
+      alt=""
       aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id={`${id}-suit`} x1="0" y1="0" x2="1" y2="1">
-          <stop stopColor="#ffbd62" />
-          <stop offset=".45" stopColor="#f47c23" />
-          <stop offset="1" stopColor="#b63e16" />
-        </linearGradient>
-        <radialGradient id={`${id}-visor`} cx="35%" cy="20%">
-          <stop stopColor="#434367" />
-          <stop offset="1" stopColor="#0b0d20" />
-        </radialGradient>
-        <linearGradient id={`${id}-potato`} x2=".8" y2="1">
-          <stop stopColor="#efc689" />
-          <stop offset="1" stopColor="#bb7e49" />
-        </linearGradient>
-      </defs>
-
-      <rect x="102" y="193" width="215" height="152" rx="40" fill="#57343a" stroke="#ab6953" strokeWidth="7" />
-      <path d="M139 326 127 400c-2 27 58 31 61 6l18-70M222 336l16 67c7 30 65 18 57-7l-22-74" fill={`url(#${id}-suit)`} stroke="#6c352b" strokeWidth="5" />
-      <path d="M123 393c-30 25-9 41 38 33l28-9-4-27M236 395l4 23c24 15 77 13 69-9l-17-21" fill="#292b38" stroke="#6f6671" strokeWidth="5" />
-      <path d="M128 226c-27-4-43 17-57 45l-24 29c-15 21 15 45 35 27l31-32 29-37M290 226c21-5 35-28 42-48l7-22c8-24 43-12 38 12l-9 37c-11 42-35 71-65 74" fill={`url(#${id}-suit)`} stroke="#6c352b" strokeWidth="5" />
-      <path d="m46 292-9 13c-17 25 12 46 34 27l13-12M337 162l-1-18c0-20 29-28 40-10l8 15c10 18-1 32-12 35" fill="#30323f" stroke="#74707b" strokeWidth="5" />
-
-      <path d="M128 211c-12 24-20 86-2 122 17 35 136 40 166 0 18-25 8-99-8-122Z" fill={`url(#${id}-suit)`} stroke="#6c352b" strokeWidth="6" />
-      <path d="M160 233v105m100-105v105" stroke="#ffc686" strokeWidth="8" />
-      <path d="M126 302h170" stroke="#4b3a44" strokeWidth="15" />
-      <rect x="174" y="250" width="72" height="69" rx="10" fill="#333341" stroke="#d2b3a0" strokeWidth="4" />
-      <rect x="186" y="262" width="47" height="18" rx="3" fill="#102522" />
-      <path d="M190 272h7l4-5 7 9 5-6h16" fill="none" stroke="#7cff6b" strokeWidth="2" />
-      <circle cx="190" cy="297" r="5" fill="#7cff6b" />
-      <circle cx="209" cy="297" r="5" fill="#ffb347" />
-      <circle cx="229" cy="297" r="5" fill="#ff2e93" />
-
-      <circle cx="207" cy="158" r="108" fill="#e1d8d4" stroke="#71636d" strokeWidth="7" />
-      <circle cx="207" cy="158" r="92" fill={`url(#${id}-visor)`} stroke="#2d2b3e" strokeWidth="7" />
-      <path d="M159 169c-14-63 30-94 63-75 24 12 44 43 43 76-1 43-91 54-106-1Z" fill={`url(#${id}-potato)`} />
-      <g fill="#a66b42" opacity=".6">
-        <ellipse cx="180" cy="123" rx="4" ry="3" />
-        <ellipse cx="244" cy="170" rx="4" ry="5" />
-        <ellipse cx="183" cy="182" rx="3" ry="4" />
-        <ellipse cx="219" cy="110" rx="3" ry="2" />
-      </g>
-      <ellipse cx="190" cy="150" rx="7" ry="10" fill="#241728" />
-      <ellipse cx="229" cy="150" rx="7" ry="10" fill="#241728" />
-      <circle cx="192" cy="147" r="2" fill="white" />
-      <circle cx="231" cy="147" r="2" fill="white" />
-      <path d="M195 177q15 17 30-2" fill="none" stroke="#6a3536" strokeWidth="4" strokeLinecap="round" />
-      <path d="M151 117c13-26 32-36 54-37" stroke="white" strokeOpacity=".5" strokeWidth="9" strokeLinecap="round" fill="none" />
-
-      <rect x="94" y="137" width="21" height="46" rx="8" fill="#827b87" />
-      <rect x="300" y="137" width="21" height="46" rx="8" fill="#827b87" />
-      <path d="M310 135V75" stroke="#bab0bc" strokeWidth="5" />
-      <circle cx="310" cy="70" r="7" fill="#7cff6b" />
-      <path d="m133 252 12-20 12 20m-18-7h12" fill="none" stroke="#51232a" strokeWidth="3" />
-    </svg>
+    />
   );
 }
 
@@ -2078,7 +1879,7 @@ function PacksSection(): JSX.Element {
                 onClick={() => { void buyPack(); }}
                 disabled={purchasing || !balanceOk || soldOut}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 6 }}><path d="M13 2L4.5 13.5H11L10 22l8.5-11.5H12z"/></svg>{purchasing ? t("Отправка транзакции…") : soldOut ? t("Волна распродана") : t("Купить модуль · 1053 SKR")}
+                <Emblem name="flame" size={15} style={{ marginRight: 6 }} />{purchasing ? t("Отправка транзакции…") : soldOut ? t("Волна распродана") : t("Купить модуль · 1053 SKR")}
               </button>
               {soldOut && (
                 <p className="pack-note">{t("Все {n} модулей первой волны проданы.", { n: live.cap })}</p>
@@ -2094,7 +1895,7 @@ function PacksSection(): JSX.Element {
                 onClick={() => { void connect(); }}
                 disabled={connecting}
               >
-                {connecting ? t("Подключение…") : (<span><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 6 }}><path d="M13 2L4.5 13.5H11L10 22l8.5-11.5H12z"/></svg>{t("Подключить кошелёк")}</span>)}
+                {connecting ? t("Подключение…") : (<span><Emblem name="flame" size={15} style={{ marginRight: 6 }} />{t("Подключить кошелёк")}</span>)}
               </button>
               <p className="pack-note">
                 {t("Phantom или Solflare. После подключения кнопка покупки станет активной.")}
