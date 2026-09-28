@@ -179,3 +179,8 @@ translateY(2px) + затемнение); disabled — обесцвечивани
 - `.k-tag` шильдики → btn-secondary slice 6px
 - лендинг: `.cta-play`, `.header-play` → btn-primary; `.lang-switcher__button` →
   btn-secondary slice 8px; hover = brightness вместо фоновых подкрасок
+
+### Кит-4: паки и модальные инпуты (2026-09-28)
+
+- лендинг `.pack-card` → card-bronze-small; `.pack-buy` → btn-primary
+- игра CreateOrderModal: поля цены/количества → input.webp ниша

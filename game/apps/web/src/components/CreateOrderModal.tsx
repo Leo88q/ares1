@@ -21,16 +21,18 @@ interface Props {
 
 const inputStyle: CSSProperties = {
  width: '100%',
- padding: '12px 14px',
- borderRadius: 'var(--s-radius-chip)',
- border: '1px solid var(--s-subtle-border)',
- background: 'var(--s-subtle-bg)',
+ padding: '10px 16px',
+ borderRadius: 0,
+ borderStyle: 'solid',
+ borderWidth: 9,
+ borderImage: "url('/ares/kit/input.webp') 30 fill / 9px",
+ background: 'none',
  color: 'var(--pf-text-primary)',
  fontSize: 15,
  fontFamily: 'var(--pf-font-mono)',
  fontWeight: 700,
  outline: 'none',
- transition: 'border-color 0.2s, box-shadow 0.2s',
+ transition: 'filter 0.2s, box-shadow 0.2s',
 }
 
 /**
