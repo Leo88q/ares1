@@ -103,7 +103,7 @@ export function MissionLog() {
           <Glyph name="check" size={22} aria-label={t("Получено")} />
          ) : done ? (
           <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleClaim(ach.id)} disabled={claiming === ach.id || !questsAvailable}
-           style={{ padding: '8px 12px', borderRadius: 10, background: 'linear-gradient(135deg, var(--pf-gold), var(--pf-orange))', color: 'white', fontSize: 11, fontWeight: 700 }}>
+           style={{ padding: '4px 14px', borderStyle: 'solid', borderWidth: 11, borderImage: "url('/ares/kit/btn-primary.webp') 40 fill / 11px", background: 'none', color: '#2B1403', fontSize: 11, fontWeight: 700, textShadow: '0 1px 0 rgba(255,220,150,0.55)' }}>
            {claiming === ach.id ? '…' : `+${ach.reward} POTATO`}
           </motion.button>
          ) : (
@@ -120,7 +120,7 @@ export function MissionLog() {
     {earlyAch && (
      <Overlay onClose={() => setEarlyAch(null)}>
       <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{t('Ещё рано получать награду')}</h3>
-      <div style={{ padding: 14, borderRadius: 14, background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', marginBottom: 16 }}>
+      <div style={{ padding: 10, borderStyle: 'solid', borderWidth: 12, borderImage: "url('/ares/kit/btn-secondary.webp') 40 fill / 12px", background: 'none', marginBottom: 16, color: 'var(--pf-gold)' }}>
        <p style={{ fontSize: 13, color: 'var(--pf-gold)', lineHeight: 1.5 }}>{t('Приходи, когда индикатор заполнится.', { desc: earlyAch.desc })}</p>
        <div style={{ marginTop: 10 }}><LiquidBar value={(earlyAch.progress / earlyAch.target) * 100} /></div>
        <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', marginTop: 6 }}>{formatProgress(earlyAch.progress)} / {formatProgress(earlyAch.target)}</div>

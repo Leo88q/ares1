@@ -197,13 +197,13 @@ function MarketScreenInner() {
    <AnimatePresence>
     {cancelTarget && (
      <Modal onClose={() => setCancelTarget(null)} title={t("Отозвать ордер?")}>
-      <Panel variant="chip" style={{ padding: 14, background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', marginBottom: 20 }}>
+      <Panel variant="chip" style={{ padding: 10, marginBottom: 20 }}>
        <p style={{ fontSize: 13, color: 'var(--pf-red)', lineHeight: 1.5 }}>
         {t('Груз вернётся на склад сразу, но новые ордера — только через')} <b>{t('{hours} часа', { hours: CANCEL_COOLDOWN_HOURS })}</b>.
        </p>
       </Panel>
       <div style={{ display: 'flex', gap: 10 }}>
-       <button onClick={() => setCancelTarget(null)} style={{ flex: 1, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
+       <button onClick={() => setCancelTarget(null)} style={{ flex: 1, padding: 10, borderStyle: 'solid', borderWidth: 14, borderImage: "url('/ares/kit/btn-secondary.webp') 40 fill / 14px", background: 'none', color: '#E9DBC4', fontSize: 14, fontWeight: 600, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
         {t('Оставить')}
        </button>
        <motion.button
@@ -213,8 +213,7 @@ function MarketScreenInner() {
          setCancelTarget(null)
          if (ok) setCancelInfo(true)
         }}
-        style={{ flex: 1, padding: 12, borderRadius: 12, background: 'var(--pf-red)', color: 'white', fontSize: 14, fontWeight: 700 }}
-       >
+        style={{ flex: 1, padding: 10, borderStyle: 'solid', borderWidth: 14, borderImage: "url('/ares/kit/btn-primary.webp') 40 fill / 14px", background: 'none', color: '#2B1403', fontSize: 14, fontWeight: 700, textShadow: '0 1px 0 rgba(255,220,150,0.55)', filter: 'hue-rotate(-32deg) saturate(1.3)' }}>
         {t('Отменить')}
        </motion.button>
       </div>
@@ -225,12 +224,12 @@ function MarketScreenInner() {
    <AnimatePresence>
     {cancelInfo && (
      <Modal onClose={() => setCancelInfo(false)} title={t("Ордер отменён")}>
-      <Panel variant="chip" style={{ padding: 14, background: 'rgba(245, 158, 11, 0.1)', borderColor: 'rgba(245, 158, 11, 0.3)' }}>
+      <Panel variant="chip" style={{ padding: 10 }}>
        <p style={{ fontSize: 13, color: 'var(--pf-gold)', lineHeight: 1.5 }}>
         {t('Токены возвращены на баланс. Новый ордер можно выставить через')} <b>{t('{hours} часа', { hours: CANCEL_COOLDOWN_HOURS })}</b>{t(' — так мы защищаем рынок от спама.')}
        </p>
       </Panel>
-      <button onClick={() => setCancelInfo(false)} style={{ marginTop: 20, width: '100%', padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
+      <button onClick={() => setCancelInfo(false)} style={{ marginTop: 20, width: '100%', padding: 10, borderStyle: 'solid', borderWidth: 14, borderImage: "url('/ares/kit/btn-secondary.webp') 40 fill / 14px", background: 'none', color: '#E9DBC4', fontSize: 14, fontWeight: 600, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
        {t('Понятно')}
       </button>
      </Modal>
@@ -330,7 +329,7 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
    </div>
    {order.isOwn ? (
     <motion.button whileTap={{ scale: 0.95 }} onClick={onCancel} disabled={busy}
-     style={{ width: '100%', padding: 12, borderRadius: 10, background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--pf-red)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+     style={{ width: '100%', padding: 10, borderStyle: 'solid', borderWidth: 14, borderImage: "url('/ares/kit/btn-primary.webp') 40 fill / 14px", background: 'none', color: '#2B1403', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, textShadow: '0 1px 0 rgba(255,220,150,0.55)', filter: 'hue-rotate(-32deg) saturate(1.3)' }}>
      {busy ? <Glyph name="clock" size={16} style={{ animation: 'spin 2s linear infinite' }} /> : <Glyph name="x" size={16} />} {t('Отменить ордер')}
     </motion.button>
    ) : (

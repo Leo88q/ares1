@@ -184,3 +184,13 @@ translateY(2px) + затемнение); disabled — обесцвечивани
 
 - лендинг `.pack-card` → card-bronze-small; `.pack-buy` → btn-primary
 - игра CreateOrderModal: поля цены/количества → input.webp ниша
+
+### Кит-5: модалки, действия, рефералы (2026-09-28)
+
+- кнопки модалок биржи: Оставить/Понятно → btn-secondary; Отменить/ошибка →
+  btn-primary с hue-rotate в багровый
+- MissionLog: кнопка награды → btn-primary mini; инфо-блок → btn-secondary
+- FieldCard: actionStyle (апгрейд/ремонт/налог/удобрение) → btn-secondary
+  с цветным текстом действия; «Жатва» → btn-primary (не готова — btn-secondary)
+- ReferralSection строки и pack-wallet-line → card-bronze-small
+- лендинг boarding-pass → card-bone-small (костяной талон)

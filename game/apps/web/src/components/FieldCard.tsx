@@ -64,8 +64,8 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
  }
 
  const actionStyle = (color: string): React.CSSProperties => ({
-  padding: 10, borderRadius: 10, background: `${color}33`, border: `1px solid ${color}4d`, color,
-  fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+  padding: 8, borderRadius: 0, borderStyle: 'solid', borderWidth: 13, borderImage: "url('/ares/kit/btn-secondary.webp') 40 fill / 13px", background: 'none', color,
+  fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, textShadow: '0 1px 2px rgba(0,0,0,0.8)',
  })
 
  return (
@@ -158,8 +158,8 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
      onClick={handleHarvest}
      disabled={!canHarvest || harvesting}
      data-tutorial={index === 0 ? 'harvest-button' : undefined}
-     className={canHarvest ? 'gradient-gold shadow-glow-gold' : ''}
-     style={{ width: '100%', padding: 12, borderRadius: 12, fontSize: 14, fontWeight: 600, marginTop: 12, background: canHarvest ? undefined : 'rgba(255,255,255,0.1)' }}
+     className=""
+     style={{ width: '100%', padding: 10, fontSize: 14, fontWeight: 600, marginTop: 12, borderStyle: 'solid', borderWidth: 15, borderImage: canHarvest ? "url('/ares/kit/btn-primary.webp') 40 fill / 15px" : "url('/ares/kit/btn-secondary.webp') 40 fill / 15px", background: 'none', color: canHarvest ? '#2B1403' : '#B9A98F', textShadow: canHarvest ? '0 1px 0 rgba(255,220,150,0.55)' : '0 1px 2px rgba(0,0,0,0.8)' }}
     >
      {harvesting ? t('Сбор…') : canHarvest ? t('Жатва') : t('Растёт…')}
     </motion.button>
