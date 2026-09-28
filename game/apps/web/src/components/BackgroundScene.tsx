@@ -17,6 +17,13 @@ export default function BackgroundScene({ variant = 'farm', children }: Props) {
  const y1 = useTransform(scrollY, [0, 1000], [0, -50])
  const y2 = useTransform(scrollY, [0, 1000], [0, -100])
 
+ const artByVariant: Record<Variant, string> = {
+  farm: '/ares/bg-colony.jpg',
+  market: '/ares/bg-market.jpg',
+  profile: '/ares/bg-cabin.jpg',
+  stats: '/ares/bg-engine.jpg',
+ }
+
  const gradients: Record<Variant, { bg: string; blob1: string; blob2: string }> = {
   farm: {
    bg: 'linear-gradient(135deg, #0B0714 0%, #1A0E2E 50%, #2D0B3D 100%)',
@@ -58,11 +65,13 @@ export default function BackgroundScene({ variant = 'farm', children }: Props) {
     style={{
      position: 'absolute',
      inset: 0,
-     backgroundImage: 'url(/ares/bg-colony.jpg)',
+     backgroundImage: `url(${artByVariant[variant]})`,
      backgroundSize: 'cover',
      backgroundPosition: 'center',
      opacity: 0.5,
+     transition: 'opacity 0.6s ease',
     }}
+    key={variant}
    />
    {/* Тёплая виньетка поверх арта */}
    <div
