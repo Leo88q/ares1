@@ -1,133 +1,21 @@
-# ARES-1 landing — Netlify build and production headers.
+# ARES-1 landing — build configuration.
 #
 # §2.1: `publish = "dist"` — only the build output is deployed. The repository
 # root (docs, scripts, .github, the game workspace) is never served.
+#
+# HEADERS AND REDIRECTS DO NOT LIVE HERE — see public/_headers and
+# public/_redirects.
+#
+# This site is actually deployed by Cloudflare Pages (the "Cloudflare Pages:
+# ares1" check runs on every PR), and Cloudflare Pages ignores netlify.toml
+# completely. Header and redirect rules that lived only in this file were
+# therefore silently never applied. `_headers` and `_redirects` in the published
+# directory are understood by BOTH platforms, so they are now the single source
+# of truth. This file keeps only what is genuinely Netlify-specific: the build
+# command, the publish directory and the Node version.
 [build]
   command = "npm run build"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "22"
-
-# ---------------------------------------------------------------------------
-# Security headers (§3.1, §3.2).
-#
-# Verification after deploy:
-#   curl -sI https://ares1.is-a.dev | grep -iE 'strict-transport|content-security|x-frame|x-content-type|referrer|permissions'
-#   https://securityheaders.com  → target grade A
-#   https://observatory.mozilla.org
-#
-# CSP notes:
-#   * No third-party font CDN origin any more: webfonts are
-#     self-hosted from @fontsource (§4.6). Re-adding a CDN font here would
-#     reintroduce an IP disclosure to a third party before consent.
-#   * `style-src 'unsafe-inline'` is the single deliberate exception — runtime
-#     CSS injection by framer-motion. Scripts stay 'self' only, which is what
-#     actually stops injected markup from executing.
-#   * connect-src lists the devnet RPC only. If you point the app at another
-#     RPC, add it here or every chain read fails with a CSP error.
-# ---------------------------------------------------------------------------
-[[headers]]
-  for = "/*"
-    [headers.values]
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' https://api.devnet.solana.com; media-src 'self' data: blob:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; upgrade-insecure-requests"
-    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-    X-Frame-Options = "DENY"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), midi=(), xr-spatial-tracking=()"
-    Cross-Origin-Opener-Policy = "same-origin"
-    Cross-Origin-Resource-Policy = "same-origin"
-    Origin-Agent-Cluster = "?1"
-    # The SPA shell must be revalidated: a cached shell after a deploy requests
-    # asset hashes that no longer exist.
-    Cache-Control = "no-cache, must-revalidate"
-
-# Hashed build assets never change content: cache them for a year.
-[[headers]]
-  for = "/assets/*"
-    [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-# Legal documents must always be current, but may be cached briefly.
-[[headers]]
-  for = "/legal/*"
-    [headers.values]
-    Cache-Control = "public, max-age=3600"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-
-[[headers]]
-  for = "/.well-known/security.txt"
-    [headers.values]
-    Content-Type = "text/plain; charset=utf-8"
-    Cache-Control = "public, max-age=604800"
-
-# ---------------------------------------------------------------------------
-# Hard 404s for paths that must never resolve (§2.2).
-#
-# The catch-all below answers 200 + index.html for any unknown path, so
-# /.git/HEAD would otherwise "look alive" to a scanner. These rules run first
-# and force a real 404. They are not the protection — the protection is that
-# only dist/ is published — but they keep the scan honest and give a clean
-# signal in scripts/check-public-exposure.sh.
-# ---------------------------------------------------------------------------
-[[redirects]]
-  from = "/.git/*"
-  to = "/404.html"
-  status = 404
-
-[[redirects]]
-  from = "/.env*"
-  to = "/404.html"
-  status = 404
-
-[[redirects]]
-  from = "/*.map"
-  to = "/404.html"
-  status = 404
-
-[[redirects]]
-  from = "/package.json"
-  to = "/404.html"
-  status = 404
-
-[[redirects]]
-  from = "/package-lock.json"
-  to = "/404.html"
-  status = 404
-
-[[redirects]]
-  from = "/.github/*"
-  to = "/404.html"
-  status = 404
-
-[[redirects]]
-  from = "/docs/*"
-  to = "/404.html"
-  status = 404
-
-[[redirects]]
-  from = "/scripts/*"
-  to = "/404.html"
-  status = 404
-
-[[redirects]]
-  from = "/game/*"
-  to = "/404.html"
-  status = 404
-
-[[redirects]]
-  from = "/watchtower/*"
-  to = "/404.html"
-  status = 404
-
-# ---------------------------------------------------------------------------
-# SPA fallback (§2.2). Every remaining unknown path serves the shell — which is
-# exactly why the exposure check compares response CONTENT and not just the
-# status code: a 200 here means nothing on its own.
-# ---------------------------------------------------------------------------
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200

@@ -1,0 +1,34 @@
+# ---------------------------------------------------------------------------
+# ARES-1 landing — redirects and hard 404s.
+# Checklist §2.2 (nothing sensitive is served), §8.3 (a real 404 page).
+#
+# Format: `_redirects` — understood by Cloudflare Pages AND by Netlify. This is
+# the portable counterpart of the `[[redirects]]` blocks that used to live in
+# netlify.toml; Cloudflare Pages ignores netlify.toml entirely, so rules kept
+# only there were dead.
+#
+# ORDER MATTERS: the first matching rule wins. The hard 404s must stay above the
+# SPA catch-all, otherwise the catch-all returns 200 + index.html for
+# /.git/HEAD and a scanner sees a live path that does not exist.
+# ---------------------------------------------------------------------------
+
+# Paths that must never resolve (§2.2).
+# These are not the protection — the protection is that only dist/ is
+# published — but they give an honest 404 and a clean signal in
+# scripts/check-public-exposure.sh.
+/.git/*              /404.html   404
+/.env*               /404.html   404
+/*.map               /404.html   404
+/package.json        /404.html   404
+/package-lock.json   /404.html   404
+/yarn.lock           /404.html   404
+/.npmrc              /404.html   404
+/.github/*           /404.html   404
+/docs/*              /404.html   404
+/scripts/*           /404.html   404
+/game/*              /404.html   404
+/watchtower/*        /404.html   404
+
+# SPA fallback. Every remaining unknown path serves the shell — which is exactly
+# why the exposure check compares response CONTENT and not just the status code.
+/*                   /index.html 200

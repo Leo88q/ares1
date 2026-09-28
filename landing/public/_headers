@@ -1,0 +1,69 @@
+# ---------------------------------------------------------------------------
+# ARES-1 landing — production HTTP headers.
+# Checklist: §2.1 (only the build output is published), §2.6, §3.1, §3.2.
+#
+# WHY THIS FILE AND NOT netlify.toml
+# ----------------------------------
+# This site is deployed by Cloudflare Pages (the `Cloudflare Pages: ares1`
+# check on every PR), and Cloudflare Pages does not read netlify.toml. Header
+# rules that lived only there were silently never applied — the live site had
+# none of them.
+#
+# `_headers` in the published directory is understood by BOTH Cloudflare Pages
+# and Netlify, so this file is the single source of truth. Vite copies it from
+# public/ to dist/ on build. nginx / Caddy / Express equivalents: see
+# docs/PRODUCTION_HEADERS.md.
+#
+# READ THIS BEFORE EDITING
+# ------------------------
+# * connect-src must list EVERY host the browser talks to. If you point the app
+#   at a different RPC, add its origin here or every chain read fails with a
+#   CSP error and nothing else.
+# * frame-ancestors 'none' is deliberate: transaction confirmation screens must
+#   never be embeddable (clickjacking on a wallet signature).
+# * The only 'unsafe-inline' is on style-src (runtime CSS injection by
+#   framer-motion). Scripts are 'self' only — that is what actually stops
+#   injected markup from executing.
+# ---------------------------------------------------------------------------
+
+/*
+  # --- Transport security (§3.1.2) ---
+  # Add `preload` only after verifying HTTPS works on every subdomain;
+  # preload is effectively irreversible for months.
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  # --- Clickjacking (§3.2.1) ---
+  X-Frame-Options: DENY
+  # --- Device permissions (§3.2.2) ---
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), midi=(), xr-spatial-tracking=()
+  # --- Cross-origin isolation (defence in depth) ---
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  Origin-Agent-Cluster: ?1
+  # --- Caching ---
+  # The SPA shell must be revalidated: a cached shell after a deploy requests
+  # asset hashes that no longer exist.
+  Cache-Control: no-cache, must-revalidate
+  # --- Content-Security-Policy (§3.2.1) ---
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' https://api.devnet.solana.com; media-src 'self' data: blob:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; upgrade-insecure-requests
+
+# Hashed build assets never change content — cache them for a year.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Legal documents must always be current, but may be cached briefly.
+/legal/*
+  Cache-Control: public, max-age=3600
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+
+/.well-known/security.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=604800
+
+/robots.txt
+  Content-Type: text/plain; charset=utf-8
+
+/sitemap.xml
+  Content-Type: application/xml; charset=utf-8
