@@ -94,7 +94,7 @@ export default function PresaleSection() {
     fontSize: 10,
     fontWeight: 800,
     padding: '4px 10px',
-    borderRadius: 999,
+    borderRadius: 'var(--pf-radius-pill)',
     letterSpacing: '0.1em',
     textTransform: 'uppercase',
    }}>
@@ -153,8 +153,8 @@ export default function PresaleSection() {
    {/* Прогресс-бар */}
    <div style={{
     height: 6,
-    background: 'rgba(255,255,255,0.08)',
-    borderRadius: 999,
+    background: 'var(--s-subtle-bg)',
+    borderRadius: 'var(--pf-radius-pill)',
     overflow: 'hidden',
     marginBottom: 18,
    }}>

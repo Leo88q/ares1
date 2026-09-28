@@ -46,13 +46,13 @@ export default function Header({ stats }: Props) {
      <div data-tutorial="balance" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div>
         <div className="ares-mono" style={{ fontSize: 9, letterSpacing: '0.16em', color: 'rgba(255,179,71,0.75)', marginBottom: 3, textAlign: 'center' }}>POTATO</div>
-        <motion.div whileHover={{ scale: 1.03 }} className="pf-card hull-skin" style={{ padding: '10px 12px', borderRadius: 12, minWidth: 150, display: 'flex', justifyContent: 'center', border: '1px solid rgba(160, 82, 40, 0.65)' }} aria-label={t("Баланс POTATO")}>
+        <motion.div whileHover={{ scale: 1.03 }} className="pf-card hull-skin" style={{ padding: '10px 12px', minWidth: 150, display: 'flex', justifyContent: 'center' }} aria-label={t("Баланс POTATO")}>
           <RollingNumber value={stats.potatoBalance / MICRO} decimals={2} className="hud-balance" />
         </motion.div>
       </div>
       <div>
         <div className="ares-mono" style={{ fontSize: 9, letterSpacing: '0.16em', color: 'rgba(255,179,71,0.75)', marginBottom: 3, textAlign: 'center' }}>SKR</div>
-        <motion.div whileHover={{ scale: 1.03 }} className="pf-card hull-skin" style={{ padding: '10px 12px', borderRadius: 12, minWidth: 150, display: 'flex', justifyContent: 'center', border: '1px solid rgba(160, 82, 40, 0.65)' }} aria-label={t("Баланс SKR")}>
+        <motion.div whileHover={{ scale: 1.03 }} className="pf-card hull-skin" style={{ padding: '10px 12px', minWidth: 150, display: 'flex', justifyContent: 'center' }} aria-label={t("Баланс SKR")}>
           <RollingNumber value={stats.skrBalance} decimals={3} className="hud-balance" />
         </motion.div>
       </div>
@@ -104,7 +104,7 @@ export default function Header({ stats }: Props) {
 
 function StatCard({ label, value }: { label: string; value: number }) {
  return (
-  <div className="pf-card hull-skin" style={{ padding: 16, borderRadius: 16, textAlign: 'center' }}>
+  <div className="pf-card hull-skin" style={{ padding: 16, textAlign: 'center' }}>
    <div className="ares-mono" style={{ fontSize: String(value).length > 6 ? 14 : String(value).length > 4 ? 17 : 22, fontWeight: 700, marginBottom: 6, color: 'var(--ares-hud-amber, #FFB347)', textShadow: '0 0 12px rgba(255,179,71,0.4)', overflowWrap: 'anywhere', lineHeight: 1.2 }}>{value}</div>
    <div className="ares-stencil" style={{ fontSize: 10, color: 'rgba(255,179,71,0.8)' }}>{label}</div>
   </div>

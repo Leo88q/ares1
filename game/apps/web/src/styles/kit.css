@@ -65,6 +65,11 @@
   box-shadow: var(--s-pop-shadow);
 }
 
+/* чип: мелкий вложенный бокс (инфо-строки, предупреждения) */
+.k-panel--chip {
+  border-radius: var(--s-radius-chip);
+}
+
 /* ── Шильдик: трафаретная надпись-метка ── */
 .k-tag {
   display: inline-block;

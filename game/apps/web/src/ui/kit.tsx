@@ -14,11 +14,12 @@ import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
  *  4. Сырой hex в компонентах — баг (см. docs/FRONTEND_AUDIT_2026-09-28.md).
  */
 
-export type PanelVariant = 'default' | 'quiet' | 'pop' | 'rare'
+export type PanelVariant = 'default' | 'quiet' | 'pop' | 'rare' | 'chip'
 
 const PANEL_CLASS: Record<PanelVariant, string> = {
   default: 'k-panel',
   quiet: 'k-panel k-panel--quiet',
+  chip: 'k-panel k-panel--quiet k-panel--chip',
   pop: 'k-panel k-panel--pop',
   rare: 'k-panel k-panel--rare',
 }

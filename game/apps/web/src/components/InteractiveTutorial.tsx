@@ -134,7 +134,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
        width: '44px',
        height: '44px',
        borderRadius: '6px',
-       background: 'rgba(255,255,255,0.05)',
+       background: 'var(--s-subtle-bg)',
        border: '1px solid rgba(255,255,255,0.1)',
        display: 'flex',
        alignItems: 'center',
@@ -164,14 +164,14 @@ export default function InteractiveTutorial({ onComplete }: Props) {
         height: 4,
         borderRadius: 2,
         overflow: 'hidden',
-        background: 'rgba(255,255,255,0.05)',
+        background: 'var(--s-subtle-bg)',
        }}>
         {TUTORIAL_STEPS.map((_, i) => (
          <div
           key={i}
           style={{
            flex: 1,
-           background: i <= currentStep ? 'var(--pf-teal)' : 'rgba(255,255,255,0.08)',
+           background: i <= currentStep ? 'var(--pf-teal)' : 'var(--s-subtle-bg)',
            transition: 'background 0.3s',
           }}
          />
@@ -222,7 +222,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
           padding: '12px 16px',
           borderRadius: 8,
           border: '1px solid rgba(255,255,255,0.15)',
-          background: 'rgba(255,255,255,0.05)',
+          background: 'var(--s-subtle-bg)',
           color: 'var(--pf-text-secondary)',
           fontSize: 13,
           fontWeight: 600,
