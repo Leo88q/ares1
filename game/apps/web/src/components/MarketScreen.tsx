@@ -275,7 +275,7 @@ const instrument = (v: string) => v.replace(/^(\d+)/, (_m, d: string) => d.padSt
 
 function StatCard({ icon, label, value }: { icon?: ReactNode; label: string; value: string }) {
  return (
-  <div className="pf-card hull-skin" style={{ padding: 14 }}>
+  <div className="pf-card" style={{ padding: 14, borderImage: "url('/ares/kit/card-bronze-small.webp') 20 fill / 16px", borderWidth: 16, borderStyle: 'solid' }}>
    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
     <span aria-hidden="true">{icon}</span>
     <span style={{ fontSize: 12, color: 'var(--pf-text-secondary)', textAlign: 'center' }}>{label}</span>

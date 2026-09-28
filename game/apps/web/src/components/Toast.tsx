@@ -50,16 +50,16 @@ function ToastItem({ toast, index, onClose }: { toast: ToastData; index: number;
    role={toast.type === 'error' ? 'alert' : 'status'}
    onClick={onClose}
    style={{
-    marginTop: '10px', padding: '14px 16px', borderRadius: '14px', cursor: 'pointer',
-    background: config.bg, border: `1px solid ${config.border}`,
-    backdropFilter: 'blur(20px)',
+    marginTop: '10px', padding: '12px 16px', cursor: 'pointer',
+    borderStyle: 'solid', borderWidth: 14, borderImage: "url('/ares/kit/card-bronze-small.webp') 20 fill / 14px",
+    background: 'none',
     display: 'flex', alignItems: 'flex-start', gap: '12px',
-    pointerEvents: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+    pointerEvents: 'auto', boxShadow: '0 14px 34px -12px rgba(0,0,0,0.9)',
    }}>
    <div style={{ color: config.color, marginTop: '2px' }}>{config.icon}</div>
    <div style={{ flex: 1 }}>
-    <div style={{ fontSize: '14px', fontWeight: '700', color: 'white', marginBottom: toast.message ? '4px' : 0 }}>{toast.title}</div>
-    {toast.message && <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: 1.5 }}>{toast.message}</div>}
+    <div style={{ fontSize: '14px', fontWeight: '700', color: config.color, textShadow: '0 0 10px -2px currentColor', marginBottom: toast.message ? '4px' : 0 }}>{toast.title}</div>
+    {toast.message && <div style={{ fontSize: '12px', color: '#E6D8C4', lineHeight: 1.5 }}>{toast.message}</div>}
    </div>
   </motion.div>
  )
