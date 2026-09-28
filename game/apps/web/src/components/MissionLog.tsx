@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle } from 'lucide-react'
+import { Glyph } from '../ui/Emblem'
 import { PrizeRevealShow } from '../ui/PrizeRevealShow'
 import { LiquidBar } from './ares/LiquidBar'
 import { haptics } from '../utils/haptic'
@@ -100,7 +100,7 @@ export function MissionLog() {
         </div>
         <div style={{ textAlign: 'right' }}>
          {isClaimed ? (
-          <CheckCircle size={22} color="var(--pf-teal)" aria-label={t("Получено")} />
+          <Glyph name="check" size={22} aria-label={t("Получено")} />
          ) : done ? (
           <motion.button whileTap={{ scale: 0.9 }} onClick={() => handleClaim(ach.id)} disabled={claiming === ach.id || !questsAvailable}
            style={{ padding: '8px 12px', borderRadius: 10, background: 'linear-gradient(135deg, var(--pf-gold), var(--pf-orange))', color: 'white', fontSize: 11, fontWeight: 700 }}>

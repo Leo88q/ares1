@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { t } from '../i18n'
 
-import { Wallet } from 'lucide-react'
+import { Glyph } from '../ui/Emblem'
 import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { RollingNumber } from '../ui/RollingNumber'
@@ -87,7 +87,7 @@ export default function Header({ stats }: Props) {
       disabled={connecting}
       style={{ width: '100%', padding: 12, borderRadius: 12, background: 'linear-gradient(135deg, var(--pf-teal), var(--pf-teal))', color: 'white', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 20px rgba(193, 68, 14, 0.45)', opacity: connecting ? 0.7 : 1 }}
      >
-      <Wallet size={18} aria-hidden="true" />
+      <Glyph name="wallet" size={18} aria-hidden="true" />
       {connecting ? t('Подключение…') : t('Подключить кошелёк')}
      </motion.button>
     )}

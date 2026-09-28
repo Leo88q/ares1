@@ -1,4 +1,4 @@
-import { Volume2, VolumeX } from "lucide-react";
+import { Glyph } from "./Glyph";
 import { t } from "./i18n";
 import { MotionIcon } from "./MicroMotion";
 import { useSounds } from "./useSounds";
@@ -34,9 +34,9 @@ export function SoundToggle(): JSX.Element {
     >
       <MotionIcon active={!muted}>
         {muted ? (
-          <VolumeX size={18} aria-hidden="true" />
+          <Glyph name="speaker" size={18} style={{ opacity: 0.45 }} aria-hidden="true" />
         ) : (
-          <Volume2 size={18} aria-hidden="true" />
+          <Glyph name="speaker" size={18} aria-hidden="true" />
         )}
       </MotionIcon>
     </button>

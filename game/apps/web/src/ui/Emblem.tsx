@@ -36,3 +36,36 @@ export function Emblem({ name, size = 16, className, style }: {
   />
  )
 }
+
+/* ── Управленческие глифы (сгенерированные, тот же тёплый стиль) ──
+   Вместо line-SVG: крестик, шевроны, копирование, стрелки, часы и т.д. */
+export const GLYPHS = [
+ 'x', 'chevron-down', 'chevron-up', 'chevron-right', 'check',
+ 'copy', 'plus', 'clock', 'person', 'share',
+ 'deposit', 'arrow-up-right', 'wallet', 'bell', 'music',
+ 'speaker', 'vibrate', 'warning', 'globe', 'menu',
+] as const
+
+export type GlyphName = (typeof GLYPHS)[number]
+
+export function Glyph({ name, size = 16, className, style }: {
+ name: GlyphName
+ size?: number
+ className?: string
+ style?: React.CSSProperties
+}) {
+ const [failed, setFailed] = useState(false)
+ if (failed) return <span aria-hidden="true" style={{ display: 'inline-block', width: size, height: size, ...style }} className={className} />
+ return (
+  <img
+   src={`/ares/glyphs/${name}.webp`}
+   alt=""
+   aria-hidden="true"
+   width={size}
+   height={size}
+   onError={() => setFailed(true)}
+   className={className}
+   style={{ width: size, height: size, objectFit: 'contain', verticalAlign: '-3px', flexShrink: 0, ...style }}
+  />
+ )
+}

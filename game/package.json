@@ -68,5 +68,10 @@
   "engines": {
     "node": "22.22.3",
     "yarn": "1.22.22"
+  },
+  "dependencies": {
+    "@solana-mobile/mobile-wallet-adapter-protocol": "^2.1.5",
+    "@solana-mobile/mobile-wallet-adapter-protocol-web3js": "^2.1.5",
+    "@solana-mobile/wallet-adapter-mobile": "^2.1.5"
   }
 }

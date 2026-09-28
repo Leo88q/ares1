@@ -1,7 +1,7 @@
 // Компактный селектор языка: глобус в шапке + выпадающий список.
 // Использует useI18n, чтобы перерисовываться при смене языка.
 import { useEffect, useRef, useState } from 'react'
-import { Globe, Check } from 'lucide-react'
+import { Glyph } from '../ui/Emblem'
 import { LANGS, useI18n } from '../i18n'
 
 export default function LangSwitcher({ compact = false }: { compact?: boolean }) {
@@ -48,7 +48,7 @@ export default function LangSwitcher({ compact = false }: { compact?: boolean })
      letterSpacing: '0.08em',
     }}
    >
-    <Globe size={compact ? 13 : 15} aria-hidden="true" />
+    <Glyph name="globe" size={compact ? 13 : 15} aria-hidden="true" />
     <span className="ares-mono">{(current?.label || 'English').split(' ')[0].toUpperCase().slice(0, 6)}</span>
    </button>
    {open && (
@@ -76,7 +76,7 @@ export default function LangSwitcher({ compact = false }: { compact?: boolean })
        }}
       >
        <span>{l.native}</span>
-       {l.code === lang && <Check size={14} aria-hidden="true" />}
+       {l.code === lang && <Glyph name="check" size={14} aria-hidden="true" />}
       </button>
      ))}
     </div>

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ChevronRight } from 'lucide-react'
+import { Glyph } from '../ui/Emblem'
 import { HullPanel } from '../ui/HullPanel'
 
 interface TutorialStep {
@@ -143,7 +143,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
        zIndex: 10,
       }}
      >
-      <X size={16} color="var(--pf-text-muted)" />
+      <Glyph name="x" size={16} style={{ opacity: 0.7 }} />
      </button>
 
      <HullPanel style={{ padding: '24px 20px' }}>
@@ -250,7 +250,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
         }}
        >
         {isLast ? t('Завершить') : t('Далее')}
-        {!isLast && <ChevronRight size={16} />}
+        {!isLast && <Glyph name="chevron-right" size={16} />}
        </button>
       </div>
      </HullPanel>

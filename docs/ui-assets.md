@@ -93,12 +93,14 @@ crate, clipboard, license, bunk, wallet, gift. Стиль: литая бронз
 - функциональные глифы (X закрыть, шевроны, копирование) остаются line-иконками —
   это контуры управления, не декор
 
-## Иллюстрации-сцены (2026-09-28, третий арт-проход)
+## Управленческие глифы (2026-09-28, третий арт-проход)
 
-Сгенерированные картинки вместо крупных SVG-сцен:
-- `dome-colony.webp` (900) — купол-герой лендинга (была SVG-сцена ~170 строк); игра получила копию в public/ares
-- `phobos.webp` (360) — живой Фобос (дрейф+вращение сохранены, LivingPhobos)
-- `planet-interstellar.webp` (420) — планета интерстишл-секции (не-марсианские миры тонируются hue-rotate)
-- `gauge-face.webp` (280) — эмблема панели «Цикл токена» (стрелка рисовалась бы поверх)
-Сознательно НЕ тронуты (данные/анимация, не декор): TokenReactor (интерактивный донат),
-BubblingFlask (анимация уровня), RankGauge (стрелка по реальному прогрессу), terrain-слои (параллакс-рельеф).
+Спрайт-лист 20 UI-глифов → `public/ares/glyphs/*.webp` (96×96 alpha, кремовая кость
+с бронзовой обводкой): x, chevron-down/up/right, check, copy, plus, clock, person,
+share, deposit, arrow-up-right, wallet, bell, music, speaker, vibrate, warning,
+globe, menu. Заменяют ВСЕ line-SVG-иконки управления в игре и на лендинге
+(lucide-react выведен из рендера UI; компоненты: Glyph в ui/Emblem.tsx / landing/Glyph.tsx).
+
+Сохранены как исключения (не иконки): анимированный check-success в MorphButton
+(pathLength-анимация), иллюстрации (dome-art, tuber-art, TokenReactor, InterstellarBridge),
+декоративные рамки AresHullFrame/LiquidPanel.
