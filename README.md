@@ -63,7 +63,8 @@ MIT - Zlata, 2026
 ## Stabilization / beta readiness
 
 Current validation and remaining release blockers: [21 Sep 2026 status](reports/ares1-audit.md).
-Security: [checklist audit 1–30](docs/SECURITY_CHECKLIST_AUDIT_2026-09-25.md), [extended audit 31–70](docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md), [mainnet launch gate](game/docs/MAINNET_LAUNCH_GATE.md).
+Security: [checklist audit 1–30](docs/SECURITY_CHECKLIST_AUDIT_2026-09-25.md), [extended audit 31–70](docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md), [AI-agents / audit poisoning / durable nonce 71–82](docs/SECURITY_CHECKLIST_AUDIT_2026-09-27.md), [mainnet launch gate](game/docs/MAINNET_LAUNCH_GATE.md).
+Data: [database design recommendation](game/docs/DATABASE_DESIGN.md), [test runs and capacity](docs/DATA_TESTS_AND_CAPACITY_2026-09-27.md), [reference storage example reviewed](docs/STORAGE_REFERENCE_EXAMPLE_2026-09-27.md).
 Build, key handling, Docker and incident procedures: [Operations](game/docs/OPERATIONS.md).
 No real-funds/mainnet readiness is claimed.
 

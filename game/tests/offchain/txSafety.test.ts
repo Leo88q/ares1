@@ -141,3 +141,17 @@ test('legacy (non-versioned) transactions get the same post-sign verification', 
     /modified the payload/,
   )
 })
+
+test('инструкция, чья программа пришла из lookup table, не подписывается', () => {
+  // Item 50: если кошелёк/подмена решили программу инструкции через address
+  // lookup table, статические ключи её не содержат — такие транзакции
+  // отказаны до отправки (иначе allowlist проверять нечего).
+  const payer = Keypair.generate().publicKey
+  const expected = [computeIx(), harvestIx()]
+  const signed = new VersionedTransaction(
+    new TransactionMessage({ payerKey: payer, recentBlockhash: PublicKey.default.toBase58(), instructions: expected }).compileToV0Message(),
+  )
+  assert.doesNotThrow(() => assertSignedInstructionsMatch(signed, expected, game))
+  signed.message.compiledInstructions[0].programIdIndex = signed.message.staticAccountKeys.length
+  assert.throws(() => assertSignedInstructionsMatch(signed, expected, game), /lookup table/)
+})

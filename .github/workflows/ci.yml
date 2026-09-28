@@ -43,6 +43,85 @@ jobs:
         continue-on-error: true
         run: yarn audit --groups dependencies --level high
 
+  # Слой данных game_ops. Без этого джоба «append-only», «аудит» и «сверка»
+  # остаются словами: здесь схема применяется на настоящем PostgreSQL, права
+  # проверяются по факту, мутации (подмена строки, откат головы, снятие
+  # триггера, расширение прав) обязаны быть пойманы детекторами, а нагрузочный
+  # стенд печатает измеримые цифры в артефакт.
+  gameops-db:
+    name: game_ops DB (migrations, privileges, mutations, load)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ares1_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ares1_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      GAME_OPS_TEST_URL: postgres://postgres:postgres@localhost:5432/ares1_test
+      GAME_OPS_TEST_ROLE: game_ops_writer
+      GAME_OPS_RUN_ID: ${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: yarn
+          cache-dependency-path: game/yarn.lock
+      - run: npm install --global yarn@1.22.22
+      - run: yarn install --frozen-lockfile --non-interactive
+      - name: Unit layer (без БД)
+        run: yarn test:db:unit
+      - name: Миграции, роли и реестр версий
+        run: |
+          yarn db:migrate --url="$GAME_OPS_TEST_URL"
+          # Повторный запуск обязан быть идемпотентным — иначе выкатка в двух
+          # репликах ломается на второй.
+          yarn db:migrate --url="$GAME_OPS_TEST_URL"
+      - name: Интеграционные и мутационные тесты + приёмка
+        # `yarn test:db` идёт с --test-concurrency=1: файлы делят ОДНУ базу, а часть
+        # проб нарочно меняет глобальное состояние (дрейф сверки, права, триггеры).
+        # Параллельный запуск давал ложные падения соседнего файла — это общий
+        # стенд, а не изоляция БД.
+        run: |
+          set +e
+          GAME_OPS_TEST_URL="$GAME_OPS_TEST_URL" yarn test:db 2>&1 | tee /tmp/db-tests.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            # Логи job недоступны из API-окружений, а аннотации читаются: строки
+            # падений уходят в аннотацию, чтобы причину было видно без скачивания.
+            grep -E '^(not ok|# fail|# tests|error:|AssertionError)' /tmp/db-tests.log | head -20 | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+            exit 1
+          fi
+      - name: Приёмка слоя данных (db:verify)
+        run: yarn db:verify --url="$GAME_OPS_TEST_URL"
+      - name: Нагрузочный стенд (артефакт с цифрами)
+        run: |
+          yarn db:bench --url="$GAME_OPS_TEST_URL" --rows=5000 --concurrency=8 --json=db-bench.json
+      - name: Мутации с внешним якорем аудита
+        run: |
+          yarn db:mutate --url="$GAME_OPS_TEST_URL" --anchor=/tmp/audit-anchor.json --write-anchor
+          yarn db:mutate --url="$GAME_OPS_TEST_URL" --anchor=/tmp/audit-anchor.json
+      - name: Финальная приёмка после нагрузок
+        run: yarn db:verify --url="$GAME_OPS_TEST_URL"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: gameops-db-bench
+          retention-days: 14
+          if-no-files-found: warn
+          path: game/db-bench.json
+
   program:
     name: Anchor program (build + unit + integration tests)
     runs-on: ubuntu-24.04

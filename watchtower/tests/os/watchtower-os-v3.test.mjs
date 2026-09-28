@@ -9,7 +9,7 @@ import { PANELS_V3, osHealth, validatePanelReferences } from '../../src/os/contr
 import {
   REPORT_STEPS_V3, handoffTargets, integrationMarkdown, reportMarkdown,
 } from '../../src/os/handoff-v3.js';
-import { createOsServer } from '../../src/os/server.js';
+import { createOsServer, main } from '../../src/os/server.js';
 
 test('config: ровно 33 компонента (v1 8 + v2 12 + v3 13), ids уникальны', () => {
   assert.equal(COMPONENTS.length, 33);
@@ -200,4 +200,17 @@ test('team api checks: exact curl contract (.tenants, .layers keys, routers)', a
     assert.equal((await fetch(`${base}/api/l2/router?gameId=ares1&tps=max&ux=gasless`)).status, 400);
     assert.equal((await fetch(`${base}/api/marketplace/router?gameId=ares1&assetType=legacy`)).status, 400);
   });
+});
+
+test('os: bind на не-loopback без токена запрещён (fail-closed, чек-лист 80)', async () => {
+  assert.throws(
+    () => main({ WATCHTOWER_OS_HOST: '0.0.0.0', WATCHTOWER_OS_PORT: '8795' }),
+    /OPEN_BINDING_REQUIRES_TOKEN/,
+  );
+  const server = main({
+    WATCHTOWER_OS_HOST: '0.0.0.0', WATCHTOWER_OS_PORT: '8795', WATCHTOWER_OS_TOKEN: 't'.repeat(40),
+  });
+  await new Promise(resolve => (server.listening ? resolve() : server.once('listening', resolve)));
+  assert.equal(server.address().address, '0.0.0.0');
+  await new Promise(resolve => server.close(resolve));
 });
