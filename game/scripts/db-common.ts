@@ -6,9 +6,10 @@
  * провале. Так их можно ставить в CI и в runbook без адаптеров.
  */
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import pg from 'pg';
+import { checksumOf, loadMigrations as loadMigrationsCore, type MigrationFile } from '../apps/backend/src/gameops/migrate.js';
 
 /**
  * Каталог миграций ищется от рабочей директории (все команды запускаются из
@@ -28,12 +29,6 @@ function detectMigrationsDir(): string {
 
 export const MIGRATIONS_DIR = detectMigrationsDir();
 
-export interface MigrationFile {
-  version: number;
-  fileName: string;
-  sql: string;
-  checksum: string;
-}
 
 /**
  * Запущен ли файл как CLI (tsx/node), а не импортирован тестом.
@@ -68,20 +63,16 @@ export function resolveDatabaseUrl(options: Map<string, string>, env: NodeJS.Pro
   return url;
 }
 
-/** Контрольная сумма файла: правка уже применённой миграции — инцидент, не «мелочь». */
-export function checksumOf(sql: string): string {
-  return createHash('sha256').update(sql).digest('hex');
-}
+/**
+ * Контрольная сумма и загрузка миграций делегируются ядру
+ * (apps/backend/src/gameops/migrate.ts), чтобы скрипты, тесты и контейнерный
+ * раннер применяли одни и те же файлы одним и тем же кодом.
+ */
+export { checksumOf };
+export type { MigrationFile };
 
-/** Лексикографический порядок файлов = порядок применения (0001, 0002, …). */
 export function loadMigrations(dir: string = MIGRATIONS_DIR): MigrationFile[] {
-  return readdirSync(dir)
-    .filter(name => /^\d{4}_.+\.sql$/.test(name))
-    .sort()
-    .map(fileName => {
-      const sql = readFileSync(path.join(dir, fileName), 'utf8');
-      return { version: Number.parseInt(fileName.slice(0, 4), 10), fileName, sql, checksum: checksumOf(sql) };
-    });
+  return loadMigrationsCore(dir);
 }
 
 const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';

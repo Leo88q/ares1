@@ -56,6 +56,29 @@ yarn db:verify --url="$MIGRATOR_URL"          # 21 проверка, ненул�
 yarn workspace backend start
 ```
 
+### Выкатка в контейнерах (docker-compose.yml)
+
+```bash
+# .env рядом с docker-compose.yml:
+#   GAME_OPS_POSTGRES_PASSWORD=<сильный пароль>
+#   MIGRATION_DATABASE_URL=postgres://postgres:<пароль>@postgres:5432/ares1
+docker compose up -d --build
+
+# Логины приложения (один раз, из хоста: порт публикуется только на 127.0.0.1)
+GAME_OPS_WRITER_PASSWORD=… GAME_OPS_READER_PASSWORD=… \
+  yarn db:roles --url="postgres://postgres:<пароль>@127.0.0.1:5432/ares1"
+# В apps/backend/.env: GAME_OPS_DATABASE_URL=postgres://ares1_backend:<пароль>@postgres:5432/ares1
+```
+
+Что происходит: поднимается `postgres` (порт только на loopback), затем
+одноразовый сервис `migrate` применяет миграции из образа
+(`node apps/backend/dist/db-migrate.js`, тот же код, что и `yarn db:migrate`) и
+завершается; `backend` стартует только после его успеха
+(`depends_on: service_completed_successfully`) под ролью `game_ops_writer`
+(`GAME_OPS_DB_ROLE`), то есть без прав на DDL и без права править журнал.
+Проверка после выкатки: `curl -H "Authorization: Bearer $ADMIN_API_TOKEN" \
+http://127.0.0.1:8080/api/gameops/ready` — `ready: true` и все проверки `ok`.
+
 Особенности, которые важно знать при выкатке:
 
 - `db:migrate` **падает** (`MIGRATION_CHECKSUM_MISMATCH`), если применённый файл
