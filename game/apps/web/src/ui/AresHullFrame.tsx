@@ -54,7 +54,7 @@ const skins = {
   default: {
     accent: "#D4A576",
     trace: "#E5C7A5",
-    plate: "МОДУЛЬ",
+    plate: "",
     surface: "#191E2A",
     inner: "#10141E",
     caution: "#B17C4F",
@@ -647,7 +647,7 @@ export function AresHullFrame({
             strokeWidth="2"
           />
 
-          {!compact && (
+          {!compact && variant === "danger" && (
             <>
               <rect
                 x={size.width - 11}
@@ -698,36 +698,42 @@ export function AresHullFrame({
           danger={variant === "danger"}
         />
 
-        <motion.path
-          d={geometry.topBracket}
-          fill="none"
-          stroke={skin.accent}
-          strokeWidth="2.2"
-          strokeLinecap="square"
-          vectorEffect="non-scaling-stroke"
-          style={{ x: reducedMotion ? 0 : pressure }}
-        />
+        {variant !== "default" && (
+          <motion.path
+            d={geometry.topBracket}
+            fill="none"
+            stroke={skin.accent}
+            strokeWidth={variant === "danger" ? 2.2 : 1.6}
+            strokeLinecap="square"
+            vectorEffect="non-scaling-stroke"
+            style={{ x: reducedMotion ? 0 : pressure }}
+          />
+        )}
 
-        <motion.path
-          d={geometry.bottomBracket}
-          fill="none"
-          stroke={skin.accent}
-          strokeWidth="2.2"
-          strokeLinecap="square"
-          vectorEffect="non-scaling-stroke"
-          style={{ y: reducedMotion ? 0 : latch }}
-        />
+        {variant === "danger" && (
+          <motion.path
+            d={geometry.bottomBracket}
+            fill="none"
+            stroke={skin.accent}
+            strokeWidth="2.2"
+            strokeLinecap="square"
+            vectorEffect="non-scaling-stroke"
+            style={{ y: reducedMotion ? 0 : latch }}
+          />
+        )}
 
-        <path
-          d={geometry.rightBracket}
-          fill="none"
-          stroke="#C9B9A8"
-          strokeOpacity="0.45"
-          strokeWidth="1.3"
-          vectorEffect="non-scaling-stroke"
-        />
+        {variant === "danger" && (
+          <path
+            d={geometry.rightBracket}
+            fill="none"
+            stroke="#C9B9A8"
+            strokeOpacity="0.45"
+            strokeWidth="1.3"
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
 
-        {geometry.servicePath && (
+        {variant !== "default" && geometry.servicePath && (
           <motion.path
             d={geometry.servicePath}
             fill="none"
@@ -738,7 +744,7 @@ export function AresHullFrame({
           />
         )}
 
-        {size.width >= 180 && !compact && (
+        {size.width >= 180 && !compact && skin.plate !== "" && (
           <g transform="translate(36 1)">
             <path d="M0 0H80L75 12H0Z" fill="#2E292B" stroke="#82716B" strokeWidth="0.7" />
             <rect x="5" y="3" width="2" height="6" fill={skin.accent} />

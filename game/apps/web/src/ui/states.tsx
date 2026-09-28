@@ -1,8 +1,9 @@
 import { ReactNode } from 'react'
 import { t as tr } from '../i18n'
 
-import { AlertTriangle, Inbox, RefreshCw, type LucideIcon } from 'lucide-react'
+import { AlertTriangle, RefreshCw, type LucideIcon } from 'lucide-react'
 import { t } from '../theme/tokens'
+import { Tuber9 } from '../components/ares/mascot'
 
 /**
  * Единые состояния данных (Stage 4): загрузка / ошибка / пусто.
@@ -40,10 +41,9 @@ export function LoadingState({ label = undefined, rows = 3, compact = false }: L
       {Array.from({ length: rows }).map((_, i) => (
         <div
           key={i}
-          className="pf-card hull-skin shimmer"
+          className="mk-skel"
           style={{
             height: compact ? 84 : 120,
-            borderRadius: '16px',
             marginBottom: 12,
           }}
         />
@@ -115,12 +115,21 @@ interface EmptyStateProps {
   action?: ReactNode
 }
 
-export function EmptyState({ icon: Icon = Inbox, title, hint, action }: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, hint, action }: EmptyStateProps) {
   return (
-    <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-      <Icon size={48} color={t.color.textSecondary} style={{ marginBottom: 16, opacity: 0.5 }} aria-hidden="true" />
-      <h3 style={{ fontSize: 18, marginBottom: 8, color: t.color.textPrimary }}>{title ?? tr('Не удалось загрузить')}</h3>
-      {hint && <p style={{ color: t.color.textSecondary, fontSize: 'var(--pf-text-md)' }}>{hint}</p>}
+    <div
+      className="mk-plate mk-plate--quiet"
+      style={{ padding: '34px 20px', textAlign: 'center', marginBottom: 12 }}
+    >
+      {Icon ? (
+        <Icon size={44} color={t.color.textSecondary} style={{ marginBottom: 14, opacity: 0.55 }} aria-hidden="true" />
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
+          <Tuber9 mood={hint ? 'sleep' : 'happy'} size={64} />
+        </div>
+      )}
+      <h3 style={{ fontSize: 17, marginBottom: 8, color: t.color.textPrimary, fontFamily: 'var(--ares-font-stencil)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{title ?? tr('Не удалось загрузить')}</h3>
+      {hint && <p style={{ color: t.color.textSecondary, fontSize: 'var(--pf-text-md)', maxWidth: 320, margin: '0 auto' }}>{hint}</p>}
       {action && <div style={{ marginTop: 16 }}>{action}</div>}
     </div>
   )
