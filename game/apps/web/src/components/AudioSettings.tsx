@@ -65,7 +65,7 @@ export default function AudioSettings() {
        initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
        onClick={(e) => e.stopPropagation()}
        className="pf-card hull-skin"
-       style={{ width: '100%', maxWidth: 360, borderRadius: 24, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,214,170,0.1)' }}
+       style={{ width: '100%', maxWidth: 360, padding: 28 }}
       >
        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h2 id="settings-title" style={{ fontSize: 20 }}>{t("НАСТРОЙКИ")}</h2>
@@ -74,17 +74,17 @@ export default function AudioSettings() {
         </button>
        </div>
 
-       <SettingRow icon={<Glyph name="music" size={18} />} title={t("Фоновая музыка")} subtitle={t("Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0")} on={musicOn} color="var(--pf-teal)" onToggle={toggleMusic} />
+       <SettingRow icon={<Glyph name="music" size={18} />} title={t("Фоновая музыка")} subtitle={t("Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0")} on={musicOn} onToggle={toggleMusic} />
        {musicOn && (
         <label style={{ display: 'block', margin: '-8px 0 20px 28px' }}>
          <span style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8, display: 'block' }}> {t("Громкость")}: {Math.round(musicVolume * 100)}%</span>
-         <input type="range" min="0" max="1" step="0.05" value={musicVolume} onChange={(e) => changeVolume(parseFloat(e.target.value))} style={{ width: '100%' }} />
+         <input type="range" className="ares-range" min="0" max="1" step="0.05" value={musicVolume} onChange={(e) => changeVolume(parseFloat(e.target.value))} style={{ width: '100%' }} aria-label={t("Громкость музыки")} />
         </label>
        )}
-       <SettingRow icon={soundsOn ? <Glyph name="speaker" size={18} /> : <Glyph name="speaker" size={18} style={{ opacity: 0.45 }} />} title={t("Звуковые эффекты")} subtitle={t("Сбор урожая, покупки, достижения")} on={soundsOn} color="var(--ares-hud-amber, #FFB347)" onToggle={toggleSfx} />
-       <SettingRow icon={<Glyph name="vibrate" size={18} />} title={t("Вибрация")} subtitle={t("Тактильный отклик (Web Vibration API)")} on={hapticOn} color="#FF2E93" onToggle={toggleHaptic} />
+       <SettingRow icon={soundsOn ? <Glyph name="speaker" size={18} /> : <Glyph name="speaker" size={18} style={{ opacity: 0.45 }} />} title={t("Звуковые эффекты")} subtitle={t("Сбор урожая, покупки, достижения")} on={soundsOn} onToggle={toggleSfx} />
+       <SettingRow icon={<Glyph name="vibrate" size={18} />} title={t("Вибрация")} subtitle={t("Тактильный отклик (Web Vibration API)")} on={hapticOn} onToggle={toggleHaptic} />
        <SettingRow
-        icon={<Glyph name="bell" size={18} />} title={t("Уведомления")} color="var(--pf-gold)"
+        icon={<Glyph name="bell" size={18} />} title={t("Уведомления")}
         subtitle={permissionGranted ? t('Урожай готов, истекает налог, низкая прочность') : t('Браузер попросит разрешение')}
         on={notificationsEnabled && permissionGranted} onToggle={() => void toggleNotifications()}
        />
@@ -110,11 +110,10 @@ interface RowProps {
  title: string
  subtitle: string
  on: boolean
- color: string
  onToggle: () => void
 }
 
-function SettingRow({ icon, title, subtitle, on, color, onToggle }: RowProps) {
+function SettingRow({ icon, title, subtitle, on, onToggle }: RowProps) {
  return (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -127,10 +126,16 @@ function SettingRow({ icon, title, subtitle, on, color, onToggle }: RowProps) {
    <button
     role="switch" aria-checked={on} aria-label={title}
     onClick={onToggle}
-    style={{ width: 48, height: 26, borderRadius: 13, background: on ? color : 'rgba(255,255,255,0.1)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
+    style={{ width: 52, height: 26, borderRadius: 0, borderStyle: 'solid', borderWidth: 6, borderImage: "url('/ares/kit/input.webp') 30 fill / 6px", background: on ? 'linear-gradient(90deg, rgba(255,150,30,0.55), rgba(255,179,71,0.2))' : 'rgba(0,0,0,0.55)', position: 'relative', transition: 'background 0.25s', flexShrink: 0 }}
    >
-    <motion.div animate={{ x: on ? 22 : 2 }} transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-     style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--ares-parchment, #F2E8DA)', position: 'absolute', top: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.5)' }} />
+    <motion.img
+     src="/ares/kit/knob.webp"
+     alt=""
+     aria-hidden="true"
+     animate={{ x: on ? 22 : 2, rotate: on ? 150 : 0 }}
+     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+     style={{ width: 22, height: 22, position: 'absolute', top: -1, filter: on ? 'drop-shadow(0 0 6px rgba(255,150,30,0.6))' : 'none' }}
+    />
    </button>
   </div>
  )
