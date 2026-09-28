@@ -47,10 +47,6 @@ import { LiquidPanelBorder } from "./LiquidPanel";
 import type { LiquidPanelVariant } from "./LiquidPanel";
 import { MorphButton } from "./MorphButton";
 import { InterstellarSection } from "./InterstellarBridge";
-import {
-  DomeHabitatInterior,
-  DomeHabitatHardware,
-} from "./DomeHabitat";
 import { LivingPhobos } from "./LivingPhobos";
 import { RarityModules } from "./RarityModules";
 import { TokenReactor } from "./TokenReactor";
@@ -715,106 +711,14 @@ function MarsScene({
       </motion.svg>
 
       <motion.div className="dome-layer" style={{ y: domeY }}>
-        <svg viewBox="0 0 820 620" className="dome-art">
-          <defs>
-            <linearGradient id={`${id}-glass`} x1="0" y1="0" x2=".8" y2="1">
-              <stop stopColor="#B5D9F5" stopOpacity=".13" />
-              <stop offset=".4" stopColor="#6B93D6" stopOpacity=".025" />
-              <stop offset="1" stopColor="#FF2E93" stopOpacity=".075" />
-            </linearGradient>
-            <radialGradient id={`${id}-grow`}>
-              <stop stopColor="#ff2e93" stopOpacity=".65" />
-              <stop offset="1" stopColor="#ff2e93" stopOpacity="0" />
-            </radialGradient>
-            <linearGradient id={`${id}-base`} x2="0" y2="1">
-              <stop stopColor="#77707d" />
-              <stop offset=".25" stopColor="#2a2531" />
-              <stop offset="1" stopColor="#100b15" />
-            </linearGradient>
-            <clipPath id={`${id}-inside`}>
-              <path d="M120 420a290 290 0 0 1 580 0c-142 60-438 60-580 0Z" />
-            </clipPath>
-          </defs>
-
-          <ellipse cx="410" cy="490" rx="360" ry="66" fill="#08060c" opacity=".55" />
-          <ellipse
-            cx="410"
-            cy="410"
-            rx="350"
-            ry="160"
-            fill={`url(#${id}-grow)`}
-          />
-
-          <path
-            d="M116 420v33c142 70 446 70 588 0v-33"
-            fill={`url(#${id}-base)`}
-            stroke="#938295"
-            strokeOpacity=".4"
-          />
-          <ellipse cx="410" cy="420" rx="294" ry="67" fill="#170e21" />
-
-          <g clipPath={`url(#${id}-inside)`}>
-            <DomeHabitatInterior />
-            <motion.ellipse
-              cx="400"
-              cy="272"
-              rx="290"
-              ry="250"
-              fill={`url(#${id}-glass)`}
-              animate={
-                reduced ? { opacity: 0.35 } : { opacity: [0.22, 0.4, 0.22] }
-              }
-              transition={{
-                duration: reduced ? 0.15 : 6,
-                repeat: reduced ? 0 : Infinity,
-                ease: "easeInOut",
-              }}
-            />
-          </g>
-
-          <path
-            d="M120 420a290 290 0 0 1 580 0c-142 60-438 60-580 0Z"
-            fill={`url(#${id}-glass)`}
-            stroke="#b8c8e5"
-            strokeWidth="2"
-            strokeOpacity=".8"
-          />
-          <g fill="none" stroke="#afbeda" strokeOpacity=".5">
-            <path d="M410 130v338M410 130c-161 92-200 203-167 328M410 130c161 92 200 203 167 328" />
-            <path d="M410 130c-78 126-94 236-72 337M410 130c78 126 94 236 72 337" />
-            <path d="M169 257c132 47 350 47 482 0M126 360c145 63 423 63 568 0" />
-            <path d="M231 194c101 33 257 33 358 0" />
-          </g>
-          <path
-            d="M180 293c27-59 68-103 120-130"
-            stroke="#e4f2ff"
-            strokeOpacity=".58"
-            strokeWidth="5"
-            strokeLinecap="round"
-            fill="none"
-          />
-
-          <DomeHabitatHardware />
-
-          <g transform="translate(353 428)">
-            <path d="M0 0h113v78H0Z" fill="#332832" stroke="#a08c90" />
-            <path d="M13 13h87v66H13Z" fill="#0b0911" stroke="#6f6878" />
-            <path d="M23 23h67v54H23Z" fill="#352139" />
-            <path d="M23 23h67" stroke="#7cff6b" strokeWidth="3" />
-            <path d="M56 25v50" stroke="#ae819b" />
-            <circle cx="80" cy="44" r="3" fill="#7cff6b" />
-            <path d="M-10 79h133l22 13H-31Z" fill="#53414b" />
-          </g>
-
-          <g fill="#ffb347">
-            <circle cx="171" cy="449" r="3" />
-            <circle cx="227" cy="465" r="3" />
-            <circle cx="596" cy="465" r="3" />
-            <circle cx="651" cy="449" r="3" />
-          </g>
-          <path d="M665 371v-112m-12 15h25" stroke="#8f8496" strokeWidth="3" />
-          <circle cx="665" cy="259" r="4" fill="#7cff6b" />
-        </svg>
+        {/* MK-art: сгенерированная иллюстрация купола вместо SVG-сцены */}
+        <img
+          src="/ares/dome-colony.webp"
+          alt=""
+          aria-hidden="true"
+          className="dome-art dome-art-img"
+          draggable={false}
+        />
 
         <div className="dome-callout">
           <span className="status-dot" />
@@ -1592,6 +1496,22 @@ function Tokenomics(): JSX.Element {
             <span className="panel-label">{t("ЦИКЛ ТОКЕНА")}</span>
             <span className="small-code">MINT → FLOW → BURN</span>
           </div>
+          <img
+            src="/ares/gauge-face.webp"
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            style={{
+              position: "absolute",
+              right: 14,
+              top: 10,
+              width: 56,
+              height: 56,
+              objectFit: "contain",
+              opacity: 0.5,
+              pointerEvents: "none",
+            }}
+          />
           <div className="cycle-columns">
             {[TC.birth, TC.flow, TC.death].map((col) => (
               <div key={col.title} className="cycle-column">

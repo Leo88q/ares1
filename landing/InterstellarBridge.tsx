@@ -136,148 +136,26 @@ function StaticPlanetArt({
   planet,
   className = "",
 }: PlanetArtProps): JSX.Element {
-  const id = useId().replace(/:/g, "");
   const mars = planet === "mars";
 
   return (
-    <svg
-      className={`interstellar-planet-art ${className}`}
-      width="300"
-      height="300"
-      viewBox="0 0 300 300"
-      fill="none"
-      aria-hidden="true"
-    >
-      <defs>
-        <radialGradient id={`${id}-atmosphere`}>
-          <stop
-            offset="65%"
-            stopColor={mars ? "#C1440E" : "#6B93D6"}
-            stopOpacity="0"
-          />
-          <stop
-            offset="77%"
-            stopColor={mars ? "#E0A183" : "#12E7C4"}
-            stopOpacity="0.2"
-          />
-          <stop
-            offset="100%"
-            stopColor={mars ? "#C1440E" : "#6B93D6"}
-            stopOpacity="0"
-          />
-        </radialGradient>
-
-        <radialGradient id={`${id}-surface`} cx="30%" cy="25%" r="80%">
-          <stop offset="0%" stopColor={mars ? "#E5AA82" : "#7AB6DB"} />
-          <stop offset="40%" stopColor={mars ? "#C1440E" : "#276C9F"} />
-          <stop offset="78%" stopColor={mars ? "#61220D" : "#13354F"} />
-          <stop offset="100%" stopColor="#090711" />
-        </radialGradient>
-
-        <linearGradient id={`${id}-shadow`} x1="0" y1="0" x2="1" y2="0.5">
-          <stop offset="20%" stopColor="#050308" stopOpacity="0" />
-          <stop offset="100%" stopColor="#050308" stopOpacity="0.85" />
-        </linearGradient>
-
-        <clipPath id={`${id}-clip`}>
-          <circle cx="150" cy="150" r="101" />
-        </clipPath>
-      </defs>
-
-      <circle cx="150" cy="150" r="144" fill={`url(#${id}-atmosphere)`} />
-      <circle
-        cx="150"
-        cy="150"
-        r="118"
-        stroke={mars ? "#E0A183" : "#6B93D6"}
-        strokeOpacity="0.14"
-        strokeDasharray="2 10"
+    <div className={`interstellar-planet-art ${className}`} aria-hidden="true">
+      {/* MK-art: сгенерированная планета вместо SVG-градиентов.
+          Не-марсианские миры тонируются в холодный стальной оттенок. */}
+      <img
+        src="/ares/planet-interstellar.webp"
+        alt=""
+        draggable={false}
+        style={{
+          width: 300,
+          height: 300,
+          objectFit: "contain",
+          display: "block",
+          userSelect: "none",
+          filter: mars ? undefined : "hue-rotate(160deg) saturate(0.7) brightness(0.9)",
+        }}
       />
-
-      <circle cx="150" cy="150" r="101" fill={`url(#${id}-surface)`} />
-
-      <g clipPath={`url(#${id}-clip)`}>
-        {mars ? (
-          <>
-            <path
-              d="M48 102 90 85 123 102 156 98 197 119 237 102"
-              stroke="#8A2E08"
-              strokeWidth="13"
-              strokeOpacity="0.45"
-            />
-            <path
-              d="m63 155 39-16 27 12 25-8 36 24 44-7"
-              stroke="#53230F"
-              strokeWidth="8"
-              strokeOpacity="0.65"
-            />
-            <path
-              d="m59 183 39-12 24 10 35-1 32 17 45-4"
-              stroke="#EA9A6A"
-              strokeWidth="4"
-              strokeOpacity="0.4"
-            />
-            <ellipse cx="112" cy="109" rx="17" ry="11" fill="#943612" opacity="0.6" />
-            <ellipse cx="181" cy="185" rx="24" ry="17" fill="#67270F" opacity="0.4" />
-            <ellipse cx="87" cy="182" rx="11" ry="8" fill="#EEB68C" opacity="0.25" />
-            <path
-              d="m129 157 18-3 11 7 23-2"
-              stroke="#F4C2A1"
-              strokeWidth="1.5"
-              strokeOpacity="0.6"
-            />
-            <circle cx="150" cy="157" r="4" fill="#FF2E93" />
-            <circle cx="150" cy="157" r="9" stroke="#FF2E93" strokeOpacity="0.5" />
-          </>
-        ) : (
-          <>
-            <path
-              d="m79 71 30 3 13 16-8 18 9 19-12 16-20-1-5 18-18-9-10-27 7-29Z"
-              fill="#63AF78"
-            />
-            <path
-              d="m108 147 24 6 9 25-10 20-1 28-16 13-8-30-13-20Z"
-              fill="#3E8F60"
-            />
-            <path
-              d="m159 66 39 11 20 16 27 2 12 29-25 13-20-8-10 17-25-11-5-22-22-8Z"
-              fill="#75B879"
-            />
-            <path
-              d="m169 137 26 8 11 22-13 31-13 5-17-24-9-24Z"
-              fill="#509B64"
-            />
-            <path
-              d="m217 199 20-4 19 18-15 13-25-4Z"
-              fill="#76AD78"
-            />
-            <g stroke="#E4F7FF" strokeOpacity="0.55" strokeLinecap="round">
-              <path d="M68 113c25-17 44-14 63-7" strokeWidth="5" />
-              <path d="M135 76c24-8 50 0 62 9" strokeWidth="4" />
-              <path d="M134 210c27 12 63 5 82-10" strokeWidth="6" />
-              <path d="M180 124c26 5 37 17 44 33" strokeWidth="4" />
-            </g>
-          </>
-        )}
-
-        <circle cx="150" cy="150" r="101" fill={`url(#${id}-shadow)`} />
-      </g>
-
-      <circle
-        cx="150"
-        cy="150"
-        r="101"
-        stroke={mars ? "#E0A183" : "#B4DEFA"}
-        strokeOpacity="0.42"
-      />
-      <path
-        d="M68 102a100 100 0 0 1 93-53"
-        stroke={mars ? "#F3C2A2" : "#D6F6FF"}
-        strokeWidth="2"
-        strokeOpacity="0.65"
-        strokeLinecap="round"
-      />
-    </svg>
+    </div>
   );
 }
 
