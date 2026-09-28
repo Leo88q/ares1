@@ -117,7 +117,7 @@ function ProfileScreenInner() {
  return (
   <div style={{ padding: 20, paddingBottom: 140 }}>
    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-    <h1 className="pf-h1" style={{ fontSize: 24 }}>{t("КАЮТА")}</h1>
+    <h1 className="pf-h1" style={{ fontSize: 26 }}>{t("КАЮТА")}</h1>
     <AudioSettings />
    </div>
 
@@ -140,10 +140,11 @@ function ProfileScreenInner() {
       <button
        onClick={buyLicense}
        disabled={buyingLicense || !publicKey}
+       className="mk-key mk-key--paint"
        style={{
-        background: 'var(--pf-gold)', color: '#1a1208', border: 'none', cursor: 'pointer',
-        padding: '8px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
-        fontFamily: 'ui-monospace, monospace', opacity: buyingLicense || !publicKey ? 0.6 : 1, width: '100%',
+        cursor: 'pointer',
+        padding: '9px 14px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
+        opacity: buyingLicense || !publicKey ? 0.6 : 1, width: '100%',
        }}
       >
        {buyingLicense ? t('ОТПРАВКА…') : t('ПРОДЛИТЬ ЛИЦЕНЗИЮ')}
@@ -157,10 +158,11 @@ function ProfileScreenInner() {
       <button
        onClick={buyLicense}
        disabled={buyingLicense || !publicKey}
+       className="mk-key mk-key--paint"
        style={{
-        background: 'var(--pf-gold)', color: '#1a1208', border: 'none', cursor: 'pointer',
-        padding: '8px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
-        fontFamily: 'ui-monospace, monospace', opacity: buyingLicense || !publicKey ? 0.6 : 1, width: '100%',
+        cursor: 'pointer',
+        padding: '9px 14px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
+        opacity: buyingLicense || !publicKey ? 0.6 : 1, width: '100%',
        }}
       >
        {buyingLicense ? t('ОТПРАВКА…') : t('ПРИОБРЕСТИ ЛИЦЕНЗИЮ')}
@@ -169,9 +171,9 @@ function ProfileScreenInner() {
     )}
    </HullPanel>
 
-   <HullPanel variant="accent" style={{ marginBottom: 16 }}>
+   <HullPanel variant="primary" style={{ marginBottom: 16 }}>
     <div style={{ padding: 20, textAlign: 'center' }}>
-     <div className="ares-mono" style={{ fontSize: 10, letterSpacing: '0.14em', color: 'rgba(255,179,71,0.8)', marginBottom: 8 }}>{t('ПАЁК НА СКЛАДЕ')}</div>
+     <div className="mk-tag" style={{ marginBottom: 10 }}>{t('ПАЁК НА СКЛАДЕ')}</div>
      <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--pf-gold)' }}>
       <RollingNumber value={stats.potatoBalance / 1000000} decimals={2} /> POTATO
      </div>

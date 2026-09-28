@@ -58,7 +58,7 @@ export function ReferralSection() {
    {/* Заголовок секции */}
    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
     <Users size={20} color="var(--pf-teal)" />
-    <h2 className="ares-stencil" style={{ fontSize: 16, margin: 0, color: 'var(--ares-hud-amber, #FFB347)', textShadow: '0 0 10px rgba(255,179,71,0.35)' }}>{t("ВЫЗОВ ПОСЕЛЕНЦЕВ")}</h2>
+    <h2 className="ares-stencil" style={{ fontSize: 16, margin: 0, color: 'var(--ares-hud-amber, #FFB347)' }}>{t("ВЫЗОВ ПОСЕЛЕНЦЕВ")}</h2>
    </div>
 
    {/* Карточка с описанием */}
