@@ -43,3 +43,99 @@ jobs:
       - name: Full historical audit
         if: (github.event_name == 'workflow_dispatch' && inputs.full_history) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[audit-history]'))
         run: ./game/scripts/ci-run.sh ./game/scripts/scan-secrets.sh history
+
+  # Second net, no binary required.
+  #
+  # gitleaks is the pinned scanner, but its release asset is hosted on a CDN
+  # that is unreachable from some networks — including sandboxes where an audit
+  # agent runs. scripts/secret-scan.mjs covers the patterns the deploy
+  # checklist names explicitly (§1.1.3) with zero dependencies, so the gate
+  # exists even when the download fails. Both scanners run: they use different
+  # rule sets and disagree usefully.
+  secret-scan-node:
+    name: Secret scan, dependency-free (checklist §1.1)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Working tree
+        run: node scripts/secret-scan.mjs
+      - name: Staged-content mode still works (pre-commit path)
+        run: |
+          # The pre-commit hook feeds NUL-separated paths on stdin; if that
+          # code path rots, every clone silently loses its local gate.
+          git ls-files -z | head -c 4000 | node scripts/secret-scan.mjs --stdin
+      # Known finding S-01 (a Helius devnet key committed in 55ba9d9..87eb954
+      # and deleted later) is NOT allowlisted on purpose. This job is expected
+      # to stay red until the key is rotated and history is rewritten — that is
+      # the point: a gate that is green while a secret sits in history is
+      # reporting nothing useful.
+      - name: Full history (advisory until S-01 is remediated)
+        continue-on-error: true
+        id: history
+        run: node scripts/secret-scan-history.mjs
+      - name: Annotate historical findings
+        if: steps.history.outcome == 'failure'
+        run: |
+          echo "::warning::Historical secret scan reported findings. See docs/PRODUCTION_DEPLOY_CHECKLIST.md (finding S-01). Rotate the credential BEFORE rewriting history."
+
+  deploy-readiness:
+    name: Deploy readiness (checklist §2, §7)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      # §7.1/§7.2: the legal pages and security.txt are generated artifacts;
+      # if someone edits the HTML directly, the next generator run would wipe
+      # the change, so the generated output must always match the source.
+      - name: Legal pages are in sync with the generator
+        run: node scripts/build-legal-pages.mjs --check
+      # §2.3: source maps off in both bundlers. A silent Vite/framework upgrade
+      # must not re-enable them.
+      - name: Source maps disabled in both builds
+        run: |
+          grep -q 'sourcemap: false' game/apps/web/vite.config.ts
+          grep -q 'sourcemap: false' landing/vite.config.ts
+      # §4.6: no third-party font or script CDN in first-party source. Fonts
+      # are self-hosted from @fontsource; a re-added CDN link is a privacy
+      # regression.
+      - name: No third-party font CDN in source
+        run: |
+          if grep -rIn --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist \
+              -e 'fonts.googleapis.com' -e 'fonts.gstatic.com' \
+              landing game/apps/web watchtower 2>/dev/null; then
+            echo "::error::A third-party font CDN reference is back in the source. Self-host it (see landing/fonts.ts, game/apps/web/src/fonts.ts)."
+            exit 1
+          fi
+      # §1.3.1: .gitignore must keep its coverage. A regression here is how a
+      # .env ends up in a commit.
+      - name: .gitignore covers secrets, keys and dumps
+        run: |
+          for p in '.env' '.env.*' '*.pem' '*.key' '*-keypair.json' 'keypair*.json' \
+                   'wallet*.json' 'serviceAccount*.json' '*.p12' '*.sqlite' '*.dump' \
+                   '*.bak' 'keys/' 'secrets/' '**/.DS_Store'; do
+            grep -qxF "$p" .gitignore || { echo "::error::.gitignore is missing: $p"; exit 1; }
+          done
+      - name: No ignored secret path is tracked
+        run: |
+          tracked="$(git ls-files --cached --ignored --exclude-standard | grep -vE '\.env\.example$|^\.secret-scan-allowlist|^watchtower/config\.example\.env$' || true)"
+          if [[ -n "$tracked" ]]; then
+            echo "::error::Tracked files match .gitignore: $tracked"
+            exit 1
+          fi
+      # §1.3.4: anything with a public prefix is public by definition, so it
+      # must never look like a credential.
+      - name: No secret-shaped public env var
+        run: |
+          if grep -rInE '(VITE_|NEXT_PUBLIC_|REACT_APP_|EXPO_PUBLIC_)[A-Z_]*(SECRET|PRIVATE_KEY|MNEMONIC|API_KEY|TOKEN)[A-Z_]*=' \
+              --exclude-dir=node_modules --exclude-dir=.git \
+              landing game/apps/web 2>/dev/null; then
+            echo "::error::A public-prefixed variable looks like a credential. These are shipped to the browser."
+            exit 1
+          fi

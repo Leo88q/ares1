@@ -1,3 +1,4 @@
+import { getItem, setItem } from './utils/consent'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import InteractiveTutorial from './components/InteractiveTutorial'
@@ -18,6 +19,7 @@ import { LandingSequence } from './components/ares/loading'
 import './ui/hull-ui.css'
 import './ui/prize-reveal.css'
 import { HullSkinMounter } from './ui/HullSkinMounter'
+import { CookieConsent } from './components/CookieConsent'
 
 // Route-level code splitting: each screen is its own chunk.
 const MainScreen = lazy(() => import('./components/MainScreen'))
@@ -29,8 +31,8 @@ type Screen = 'farm' | 'market' | 'stats' | 'profile'
 
 export default function App() {
  const { lang } = useI18n()
- const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('potato_tutorial_done'))
- const [booted, setBooted] = useState(() => localStorage.getItem('potato_landed') === '1')
+ const [showTutorial, setShowTutorial] = useState(() => !getItem("functional", "potato_tutorial_done"))
+ const [booted, setBooted] = useState(() => getItem("functional", "potato_landed") === "1")
  useReferralRegistration()
 
  // Фоновая музыка глобальная: запускается один раз на всю игру,
@@ -59,6 +61,9 @@ export default function App() {
     <ErrorBoundary>
      <ToastProvider>
       <WalletErrorReporter />
+      {/* Consent UI: mounted last so it paints above the game chrome. The
+          banner is not a modal — rejecting must not block play (§4.3). */}
+      <CookieConsent />
       <GameProvider>
        {showTutorial && <InteractiveTutorial onComplete={() => setShowTutorial(false)} />}
        {booted ? (
@@ -67,7 +72,7 @@ export default function App() {
         <div style={{ minHeight: '100vh' }}>
          <LandingSequence
           onLanded={() => {
-           localStorage.setItem('potato_landed', '1')
+           setItem("functional", "potato_landed", "1")
            setBooted(true)
           }}
          />

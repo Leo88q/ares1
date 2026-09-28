@@ -1,0 +1,54 @@
+# ---------------------------------------------------------------------------
+# ARES-1 game client — production HTTP headers
+# Checklist: §2.1 (only the build output is published), §2.6, §3.1, §3.2.
+#
+# Format: Netlify `_headers` — also understood by Cloudflare Pages.
+# This file lives in public/, so `vite build` copies it to dist/_headers.
+# For nginx / Caddy / Express equivalents see docs/PRODUCTION_HEADERS.md.
+#
+# READ THIS BEFORE EDITING
+# -----------------------
+# * connect-src must list EVERY host the browser talks to. If you point
+#   VITE_RPC_URL at a paid RPC provider, add its origin here or the app will
+#   fail with a CSP error in the console and nothing else.
+# * frame-ancestors 'none' is deliberate: the transaction confirmation screens
+#   must never be embeddable (clickjacking on a wallet signature).
+# * The only 'unsafe-inline' is on style-src (runtime CSS injection by
+#   framer-motion and the wallet-adapter modal). Scripts are 'self' only.
+#   Moving styles to a nonce is tracked as an improvement, not a blocker.
+# ---------------------------------------------------------------------------
+
+/*
+  # --- Transport security (§3.1.2) -------------------------------------
+  # Enable `preload` only after you have verified the site works on HTTPS
+  # for every subdomain; preload is effectively irreversible for months.
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  # --- Clickjacking (§3.2.1) -------------------------------------------
+  X-Frame-Options: DENY
+  # --- Device permissions (§3.2.2) -------------------------------------
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), midi=(), xr-spatial-tracking=()
+  # --- Cross-origin isolation (defence in depth) ------------------------
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  Cross-Origin-Embedder-Policy: unsafe-none
+  Origin-Agent-Cluster: ?1
+  # --- Caching / fingerprinting ----------------------------------------
+  # The SPA shell must never be cached long: a stale shell after a deploy
+  # serves old asset hashes. Hashed assets are immutable (see below).
+  Cache-Control: no-cache, must-revalidate
+  # --- Content-Security-Policy (§3.2.1) --------------------------------
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self' https://api.devnet.solana.com https://api.mainnet-beta.solana.com wss://api.devnet.solana.com wss://api.mainnet-beta.solana.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; upgrade-insecure-requests
+
+# Hashed build assets are immutable — cache them for a year.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Security contact (§7.2). Served from /.well-known/ on most platforms.
+/.well-known/security.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=604800
+
+/robots.txt
+  Content-Type: text/plain; charset=utf-8

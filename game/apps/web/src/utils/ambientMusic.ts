@@ -1,3 +1,4 @@
+import { getItem, setItem } from './consent'
 // Фоновый трек ARES-1: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0.
 // https://creativecommons.org/licenses/by/4.0/ — свободное использование
 // с указанием автора (атрибуция в UI настроек и README).
@@ -49,7 +50,7 @@ const loadTrack = async (): Promise<AudioBuffer | null> => {
 
 const readOn = (): boolean => {
  try {
-  return localStorage.getItem(ON_KEY) === 'on'
+  return getItem("functional", ON_KEY) === "on"
  } catch {
   return false
  }
@@ -57,7 +58,7 @@ const readOn = (): boolean => {
 
 const readVolume = (): number => {
  try {
-  const v = parseFloat(localStorage.getItem(VOL_KEY) || '0.15')
+  const v = parseFloat(getItem("functional", VOL_KEY) || "0.15")
   return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.15
  } catch {
   return 0.15
@@ -115,7 +116,7 @@ export const ambientMusic = {
 
  setOn: (on: boolean) => {
   try {
-   localStorage.setItem(ON_KEY, on ? 'on' : 'off')
+   setItem("functional", ON_KEY, on ? "on" : "off")
   } catch {
    // приватный режим
   }
@@ -126,7 +127,7 @@ export const ambientMusic = {
  setVolume: (v: number) => {
   volume = Math.max(0, Math.min(1, v))
   try {
-   localStorage.setItem(VOL_KEY, volume.toString())
+   setItem("functional", VOL_KEY, volume.toString())
   } catch {
    // приватный режим
   }

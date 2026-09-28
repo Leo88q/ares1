@@ -1,3 +1,4 @@
+import { getItem, setItem, removeItem } from './consent'
 /**
  * Реферальная ссылка — ?ref=<wallet> (dApp Store / любой браузер).
  * Регистрация происходит on-chain (register_referrer), без Telegram и backend.
@@ -26,7 +27,7 @@ export function getRefFromUrl(): string | null {
 
 export function saveRefLink(refLink: string): void {
  try {
-  localStorage.setItem(REF_LINK_STORAGE_KEY, refLink)
+  setItem("functional", REF_LINK_STORAGE_KEY, refLink)
  } catch {
   /* ignore */
  }
@@ -34,7 +35,7 @@ export function saveRefLink(refLink: string): void {
 
 export function getSavedRefLink(): string | null {
  try {
-  return localStorage.getItem(REF_LINK_STORAGE_KEY)
+  return getItem("functional", REF_LINK_STORAGE_KEY)
  } catch {
   return null
  }
@@ -42,7 +43,7 @@ export function getSavedRefLink(): string | null {
 
 export function clearRefLink(): void {
  try {
-  localStorage.removeItem(REF_LINK_STORAGE_KEY)
+  removeItem("functional", REF_LINK_STORAGE_KEY)
  } catch {
   /* ignore */
  }

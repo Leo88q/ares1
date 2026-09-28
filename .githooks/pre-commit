@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Pre-commit secret gate (production-deploy checklist §1.3.6).
+#
+# Install once per clone:
+#   ./scripts/install-git-hooks.sh
+#
+# What it does
+#   1. Blocks a commit that introduces a secret-shaped string (scripts/secret-scan.mjs).
+#      Only STAGED files are scanned, so pre-existing findings cannot block work;
+#      the full-tree and full-history gates live in CI.
+#   2. Runs the pinned gitleaks binary when it is installed (game/scripts/
+#      install-gitleaks.sh). Optional: the Node scanner is the guaranteed gate.
+#   3. Refuses to commit files that .gitignore is supposed to keep out (§1.3.1).
+#
+# Bypass (emergency only):
+#   SKIP_SECRET_SCAN=1 git commit ...
+# There is no --no-verify shortcut by design; if you bypass, file a follow-up.
+set -uo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root" || exit 1
+
+if [[ "${SKIP_SECRET_SCAN:-0}" == "1" ]]; then
+  echo "pre-commit: SKIP_SECRET_SCAN=1 — secret scan bypassed. Remember to run it before pushing." >&2
+  exit 0
+fi
+
+# --- 1. Rule: never commit ignored secret/artifact paths ---------------------
+# `git check-ignore` respects .gitignore; a file can still be staged with -f.
+if [[ -n "$(git diff --cached --name-only --diff-filter=ACM)" ]]; then
+  ignored=""
+  while IFS= read -r -d '' f; do
+    if git check-ignore -q --no-index -- "$f"; then
+      ignored+="  $f"$'\n'
+    fi
+  done < <(git diff --cached --name-only --diff-filter=ACM -z)
+  if [[ -n "$ignored" ]]; then
+    cat >&2 <<EOF
+pre-commit: refusing to commit paths that .gitignore excludes.
+
+$ignored
+These paths are excluded on purpose (secrets, keys, dumps, build artifacts).
+If a file here is genuinely source code, fix .gitignore instead of using -f.
+EOF
+    exit 1
+  fi
+fi
+
+# --- 2. Node secret scanner on staged content -------------------------------
+node scripts/secret-scan.mjs --stdin < <(git diff --cached --name-only --diff-filter=ACM -z)
+scan_status=$?
+if [[ $scan_status -ne 0 ]]; then
+  cat >&2 <<'EOF'
+
+pre-commit: secret scan found matches in staged content.
+
+If a match is a false positive (a test fixture, a public transaction signature,
+a localhost example), add it to .secret-scan-allowlist.json WITH a reason and
+commit the allowlist in the same change — never silently.
+
+If it is a real secret: stop. Rotate the credential first (checklist §1.2.4 —
+rotation comes BEFORE any history rewrite), then remove the value from the file.
+EOF
+  exit 1
+fi
+
+# --- 3. Optional: pinned gitleaks -------------------------------------------
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks protect --staged --config .gitleaks.toml --redact=100 --no-banner; then
+    echo "pre-commit: gitleaks reported findings on staged content." >&2
+    exit 1
+  fi
+else
+  echo "pre-commit: gitleaks not installed (optional). Install with ./game/scripts/install-gitleaks.sh ~/.local/bin" >&2
+fi
+
+exit 0

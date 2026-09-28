@@ -3045,3 +3045,62 @@ input:focus-visible {
 @media (max-width: 900px) {
   .product-grid { grid-template-columns: 1fr; }
 }
+
+/* ---------------------------------------------------------------------------
+ * Footer legal navigation (production-deploy checklist §7.1, §4.3).
+ *
+ * Requirements this block exists to satisfy:
+ *   - Privacy, Terms, Cookie Policy, Risk Disclosure and the operator's
+ *     contact are reachable from every page, with no JavaScript needed.
+ *   - "Cookie settings" is a real button, not a link to a settings page that
+ *     does not exist: withdrawing consent must be one click from anywhere.
+ * --------------------------------------------------------------------------- */
+.footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
+  align-items: center;
+  padding: 1rem 0 0.25rem;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  margin-top: 1.25rem;
+  font-size: 0.8rem;
+}
+
+.footer-legal a,
+.footer-legal__button {
+  color: var(--pf-text-secondary, #b8b8c8);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-legal a:hover,
+.footer-legal__button:hover {
+  color: #ffb347;
+  text-decoration: underline;
+}
+
+.footer-legal__button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  /* WCAG 2.5.5: keep the touch target usable even though the text is small. */
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.footer-contact {
+  font-size: 0.8rem;
+  color: var(--pf-text-secondary, #b8b8c8);
+}
+
+/*
+ * Unfilled operator detail. Loud on purpose: shipping "[OPERATOR LEGAL NAME]"
+ * to production is a compliance defect, not a cosmetic one.
+ */
+.todo-inline {
+  color: #ff8f6b;
+  border-bottom: 1px dashed #ff8f6b;
+}

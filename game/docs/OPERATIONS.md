@@ -82,6 +82,33 @@ Pinned scanner: Gitleaks 8.30.1 with default rules plus RPC URL and numeric Sola
 keypair rules in `.gitleaks.toml`. Numeric-array detection is heuristic, not proof
 that a file is a valid/invalid keypair. Treat findings as sensitive even when redacted.
 
+Dependency-free scanners from the repository root — these cover the patterns the
+production-deploy checklist names explicitly and work where the gitleaks release
+asset cannot be downloaded (§1.1, §1.2.1 of
+[docs/PRODUCTION_DEPLOY_CHECKLIST.md](../../docs/PRODUCTION_DEPLOY_CHECKLIST.md)):
+
+```sh
+node scripts/secret-scan.mjs                  # working tree
+node scripts/secret-scan.mjs --root dist      # a build output directory
+git ls-files -z | node scripts/secret-scan.mjs --stdin   # what the pre-commit hook does
+node scripts/secret-scan-history.mjs          # all fetched history (needs git fetch --unshallow)
+```
+
+Allowlisted findings live in `.secret-scan-allowlist.json`; every entry must carry a
+written reason and must not contain credential-shaped literals (the file is scanned
+too). The known historical Helius key leak is deliberately **not** allowlisted: the
+history scan is expected to stay red until the key is rotated.
+
+Build-output gate — run after every build, before publishing:
+
+```sh
+node scripts/check-release-artifacts.mjs landing/dist game/apps/web/dist
+```
+
+It fails on source maps, `sourceMappingURL`, `.env*`/key/dump files inside `dist/`,
+a `.git` directory, third-party font or script CDN references, and hard-coded
+loopback URLs.
+
 ```sh
 ./game/scripts/install-gitleaks.sh "$HOME/.local/bin"
 export PATH="$HOME/.local/bin:$PATH"

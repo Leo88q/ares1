@@ -1,29 +1,121 @@
-node_modules/
-target/
-dist/
-.anchor/
-test-ledger/
-*.log
-*.tsbuildinfo
-keys/*.json
-*.pem
-.env
-.env.local
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
+# ---------------------------------------------------------------------------
+# ARES-1 — repository-wide ignore rules (production-deploy checklist §1.3.1).
+#
+# Rule of thumb for this repo: only credential-free examples are tracked
+# (.env.example, .env.*.example). Every other environment file, key, wallet,
+# dump and build artifact stays out — even in a private repository, because
+# everything committed is one `git push` away from being public.
+#
+# Verify with:
+#   git ls-files | grep -E '(^|/)\.env|\.pem$|\.key$|-keypair\.json$|\.p12$|\.sqlite'
+#   (expected: only *.example files)
+# ---------------------------------------------------------------------------
 
-# Python
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+.yarn/install-state.gz
+
+# Python (economy simulations, tooling)
 __pycache__/
 *.pyc
+.venv/
+venv/
 
-# All private environment variants; only credential-free examples are tracked.
+# Build output / caches
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+.vite/
+.turbo/
+.parcel-cache/
+coverage/
+*.tsbuildinfo
+
+# Solana / Anchor
+target/
+.anchor/
+test-ledger/
+
+# ---------------------------------------------------------------------------
+# Secrets — the whole point of this file
+# ---------------------------------------------------------------------------
+# Environment files (all variants). Only examples are re-included below.
+.env
 .env.*
+.envrc
+*.env
 !.env.example
+!.env.sample
+!.env.template
 !.env.*.example
-**/keys/
+# watchtower/config.example.env is a tracked credential-free template
+!*.example.env
+
+# Private key material
+*.pem
+*.key
+*.p8
+*.pfx
+*.p12
+*.keystore
+*.jks
 *-keypair.json
+keypair*.json
+id.json
+wallet*.json
+serviceAccount*.json
+**/keys/
+keys/
 secrets/
 security-reports/
 *.bundle
+
+# Credential-ish names (broad on purpose: these must never land in Git)
+credentials
+credentials.*
+*credentials*.json
+*credentials*.yaml
+*credentials*.yml
+
+# Database dumps and backups (schema migrations are source code, not dumps,
+# so *.sql is deliberately NOT ignored — only dump/backup artefacts are)
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.bak
+*.sql.gz
+*.sql.xz
+*.tar.gz
+*.tgz
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor noise
+.DS_Store
+**/.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# Deployment platform state
+.vercel/
+.netlify/
+.firebase/
+
+# Infrastructure state (never commit Terraform state: it contains secrets)
+*.tfstate
+*.tfstate.*
+.terraform/

@@ -376,6 +376,11 @@ const tl: Record<string, string> = {
   'Играть в ARES-1': 'Laruin ang ARES-1',
   'Постер игры ARES-1: картофельная ферма под куполами Марса': 'Poster ng larong ARES-1: bukid ng patatas sa ilalim ng Martian domes',
   'Продукт': 'Produkto',
+
+  // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
+  'Правовые документы': 'Mga legal na dokumento',
+  'Настройки cookies': 'Mga setting ng cookie',
+  'Оператор': 'Operator',
 };
 
 export default tl;

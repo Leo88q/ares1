@@ -1,3 +1,4 @@
+import { getItem, setItem } from "../utils/consent"
 /**
  * i18n ядро: язык хранится в module-level сторе (доступно из контекстов/хуков
  * без React), React-реактивность — через useSyncExternalStore.
@@ -27,7 +28,7 @@ const STORAGE_KEY = "ares1_lang";
 
 function detect(): Lang {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = getItem("functional", STORAGE_KEY);
     if (saved && LANGS.some((l) => l.code === saved)) return saved as Lang;
   } catch {
     /* приватный режим */
@@ -83,7 +84,7 @@ export function setLang(lang: Lang): void {
   if (lang === current) return;
   current = lang;
   try {
-    localStorage.setItem(STORAGE_KEY, lang);
+    setItem("functional", STORAGE_KEY, lang);
   } catch {
     /* ignore */
   }

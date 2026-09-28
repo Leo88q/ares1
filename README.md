@@ -60,6 +60,27 @@ Deploy contract:
 
 MIT - Zlata, 2026
 
+## Production deploy readiness
+
+Website and app preparation for a production deploy: [checklist audit and remediation](docs/PRODUCTION_DEPLOY_CHECKLIST.md)
+(secrets and history, source exposure, OWASP, cookies/GDPR, legal pages, operability).
+
+Run locally before pushing:
+
+```sh
+./scripts/install-git-hooks.sh        # once per clone: pre-commit secret gate
+node scripts/secret-scan.mjs          # working tree (§1.1)
+node scripts/secret-scan-history.mjs  # all fetched history (§1.2.1)
+node scripts/build-legal-pages.mjs --check
+
+# after building both apps:
+node scripts/check-release-artifacts.mjs landing/dist game/apps/web/dist
+
+# against a live deployment (needs network access to the host):
+./scripts/check-headers.sh https://ares1.is-a.dev
+./scripts/check-public-exposure.sh https://ares1.is-a.dev
+```
+
 ## Stabilization / beta readiness
 
 Current validation and remaining release blockers: [21 Sep 2026 status](reports/ares1-audit.md).
