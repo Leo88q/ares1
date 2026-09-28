@@ -58,8 +58,8 @@ function MarketScreenInner() {
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
      <div>
-      <h1 className="pf-h1" style={{ fontSize: 26 }}>{t("СНАБЖЕНИЕ")}</h1>
-      <p className="pf-subtitle" style={{ marginTop: 4 }}>{t("Приём и отгрузка грузов колонии")}</p>
+      <h1 style={{ fontSize: 28, fontWeight: 700 }}>{t("СНАБЖЕНИЕ")}</h1>
+      <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{t("Приём и отгрузка грузов колонии")}</p>
      </div>
     </div>
     <motion.button
@@ -73,7 +73,7 @@ function MarketScreenInner() {
    </div>
 
    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
-    <StatCard primary label={t("ГРУЗООБОРОТ ЗА СОЛ")} value={`${stats.sellVolume24h.toFixed(0)} POTATO`} />
+    <StatCard label={t("Грузооборот за сол")} value={`${stats.sellVolume24h.toFixed(0)} POTATO`} />
     <StatCard label={t("Оборот рынка")} value={`${stats.totalSolVolume.toFixed(2)} SOL`} />
     <StatCard label={t("Всего операций")} value={stats.totalTrades.toString()} />
     <StatCard label={t("Активных ордеров")} value={orders.length.toString()} />
@@ -88,8 +88,8 @@ function MarketScreenInner() {
        role="tab"
        aria-selected={active}
        onClick={() => setFilter(f)}
-        className={`mk-key${active ? ' mk-key--engaged' : ''}`}
-        style={{ flex: 1, padding: '13px 10px', color: active ? 'var(--ares-hud-amber, #FFB347)' : 'rgba(255,179,71,0.6)', fontSize: 12, fontFamily: 'var(--ares-font-stencil)', letterSpacing: '0.14em', fontWeight: 600, cursor: 'pointer' }}
+        className={`ares-stencil market-tab${active ? ' market-tab--active' : ''}`}
+        style={{ flex: 1, padding: '13px 10px', background: 'transparent', border: 'none', color: active ? 'var(--ares-hud-amber, #FFB347)' : 'rgba(255,179,71,0.6)', fontSize: 12, letterSpacing: '0.12em', cursor: 'pointer' }}
       >
        {f === 'all' ? t('Все грузы') : t('Мои ордера ({count})', { count: myOrders.length })}
       </button>
@@ -260,7 +260,7 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
     initial={{ scale: 0.9 }} animate={{ scale: 1 }}
     onClick={(e) => e.stopPropagation()}
     className="pf-card hull-skin"
-    style={{ width: '100%', maxWidth: 340, padding: 28, textAlign: 'center' }}
+    style={{ width: '100%', maxWidth: 340, padding: 28, borderRadius: 24, textAlign: 'center', background: '#1a1a2e' }}
    >
     <div style={{ marginBottom: 12, color: 'var(--pf-teal)' }} aria-hidden="true"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5.5"/></svg></div>
     <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{title}</h3>
@@ -272,16 +272,15 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
 
 const instrument = (v: string) => v.replace(/^(\d+)/, (_m, d: string) => d.padStart(4, '0'))
 
-function StatCard({ icon, label, value, primary = false }: { icon?: ReactNode; label: string; value: string; primary?: boolean }) {
+function StatCard({ icon, label, value }: { icon?: ReactNode; label: string; value: string }) {
  return (
-  <div className={primary ? 'mk-plate mk-plate--primary' : 'mk-plate mk-plate--quiet'} style={{ padding: primary ? 16 : 12 }}>
-   <div className="mk-tag" style={{ fontSize: 10, marginBottom: 8, display: primary ? undefined : 'none' }}>{label}</div>
-   <div style={{ display: primary ? 'none' : 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', marginBottom: 6 }}>
+  <div className="pf-card hull-skin" style={{ padding: 14, borderRadius: 14 }}>
+   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
     <span aria-hidden="true">{icon}</span>
-    <span style={{ fontSize: 11, color: 'var(--pf-text-secondary)', textAlign: 'center' }}>{label}</span>
+    <span style={{ fontSize: 12, color: 'var(--pf-text-secondary)', textAlign: 'center' }}>{label}</span>
    </div>
    <div style={{ textAlign: 'center' }}>
-     <span className="ares-mono lcd-readout" style={{ display: 'block', fontSize: primary ? 22 : 16, fontWeight: 700 }}>{instrument(value)}</span>
+     <span className="ares-mono lcd-readout" style={{ fontSize: 18, fontWeight: 700 }}>{instrument(value)}</span>
     </div>
   </div>
  )
@@ -305,7 +304,7 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
   >
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-     <div style={{ width: 36, height: 36, borderRadius: 10, background: order.isOwn ? 'rgba(201, 161, 118, 0.16)' : 'rgba(0, 0, 0, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
+     <div style={{ width: 36, height: 36, borderRadius: 10, background: order.isOwn ? 'rgba(59, 130, 246, 0.2)' : 'rgba(193, 68, 14, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
       {order.isOwn ? <User size={18} color="var(--ares-blueset, #6B93D6)" /> : null }
      </div>
      <div>
@@ -318,7 +317,7 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
      <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>{t("за 1 POTATO")}</div>
     </div>
    </div>
-   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid rgba(255,214,170,0.08)', borderBottom: '1px solid rgba(255,214,170,0.08)', marginBottom: 12, fontSize: 12 }}>
+   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: 12, fontSize: 12 }}>
     <span style={{ color: 'var(--pf-text-secondary)' }}>{t('Итого к оплате')}:</span>
     <span style={{ fontWeight: 700, color: 'white' }}>{fmtSol(order.totalLamports, 4)} SOL</span>
    </div>

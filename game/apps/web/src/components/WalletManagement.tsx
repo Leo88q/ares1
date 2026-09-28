@@ -104,7 +104,7 @@ export default function WalletManagement() {
  }
 
  const inputStyle: React.CSSProperties = {
-  width: '100%', padding: 12, borderRadius: 4, background: 'rgba(0,0,0,0.28)',
+  width: '100%', padding: 12, borderRadius: 10, background: 'rgba(255,255,255,0.05)',
   border: '1px solid rgba(160,82,40,0.5)', color: 'white', fontSize: 13, outline: 'none', marginBottom: 10,
  }
 
@@ -133,7 +133,7 @@ export default function WalletManagement() {
     {isOpen && (
      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} style={{ overflow: 'hidden' }}>
       <div style={{ padding: 16, marginTop: 8 }} className="pf-card hull-skin">
-       <div style={{ padding: 12, borderRadius: 4, background: 'rgba(0,0,0,0.22)', marginBottom: 16, border: '1px solid rgba(0,0,0,0.4)' }}>
+       <div style={{ padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.03)', marginBottom: 16 }}>
         <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', marginBottom: 6 }}>{t('Твой адрес для получения')}:</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
          <code style={{ flex: 1, fontSize: 11, color: 'var(--ares-parchment, #F2E8DA)', fontFamily: 'var(--ares-font-mono, monospace)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -154,7 +154,7 @@ export default function WalletManagement() {
           return (
            <motion.button key={c.id} role="radio" aria-checked={active} whileTap={{ scale: 0.95 }}
             onClick={() => { setSelected(c.id); sounds.click(); haptics.tap() }}
-            style={{ padding: '12px 8px', borderRadius: 3, background: active ? `${c.color}20` : 'rgba(0,0,0,0.22)', border: active ? `2px solid ${c.color}` : '1px solid rgba(255,214,170,0.12)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, color: '#F2E8DA' }}>
+            style={{ padding: '12px 8px', borderRadius: 10, background: active ? `${c.color}20` : 'rgba(255,255,255,0.03)', border: active ? `2px solid ${c.color}` : '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, color: 'white' }}>
             <span style={{ fontSize: 20 }} aria-hidden="true">{c.icon}</span>
             <div style={{ fontSize: 11, fontWeight: 600 }}>{c.name}</div>
            </motion.button>
@@ -218,7 +218,7 @@ export default function WalletManagement() {
 function ActionToggle({ active, color, onClick, icon, label }: { active: boolean; color: string; onClick: () => void; icon: React.ReactNode; label: string }) {
  return (
   <motion.button whileTap={{ scale: 0.95 }} onClick={onClick} aria-pressed={active}
-   style={{ padding: 12, borderRadius: 3, background: active ? color : `${color}33`, border: `1px solid ${color}66`, color: active ? '#2A1206' : color, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+   style={{ padding: 12, borderRadius: 10, background: active ? color : `${color}33`, border: `1px solid ${color}66`, color: active ? 'white' : color, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
    <span aria-hidden="true">{icon}</span>
    {label}
   </motion.button>

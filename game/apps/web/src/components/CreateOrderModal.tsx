@@ -23,7 +23,7 @@ const inputStyle: CSSProperties = {
  padding: '12px 14px',
  borderRadius: 12,
  border: '1px solid rgba(124, 255, 107, 0.25)',
- background: 'rgba(10, 6, 3, 0.68)',
+ background: 'rgba(11, 7, 20, 0.6)',
  color: 'var(--pf-text-primary)',
  fontSize: 15,
  fontFamily: 'var(--pf-font-mono)',
@@ -116,7 +116,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
      style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(14, 9, 5, 0.92)',
+      background: 'rgba(11, 7, 20, 0.75)',
       backdropFilter: 'blur(10px)',
       WebkitBackdropFilter: 'blur(10px)',
       zIndex: 100,
@@ -156,7 +156,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
         onClick={onClose}
         aria-label={t("Закрыть")}
         style={{
-         background: 'rgba(0,0,0,0.28)',
+         background: 'rgba(255,255,255,0.06)',
          border: '1px solid var(--pf-border-soft)',
          borderRadius: 10,
          padding: 14,
@@ -211,7 +211,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
        <div style={{
         borderRadius: 12,
         border: '1px solid rgba(124, 255, 107, 0.2)',
-        background: 'rgba(159, 190, 122, 0.08)',
+        background: 'rgba(124, 255, 107, 0.06)',
         padding: '12px 14px',
         display: 'flex',
         flexDirection: 'column',

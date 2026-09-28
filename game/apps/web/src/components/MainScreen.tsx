@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { t } from '../i18n'
 
 import { MiniHydroModules } from '../ui/MiniHydroModules'
+import { Loader2, WifiOff } from 'lucide-react'
 import { useGame } from '../contexts/GameContext'
 import { useSolana } from '../contexts/SolanaContext'
 import FieldCardVice from './FieldCardVice'
@@ -13,7 +14,6 @@ import { haptics } from '../utils/haptic'
 import { AgroBay } from './ares/AgroBay'
 import { FieldGestureLayer } from './ares/FieldGestureLayer'
 import { ErrorState } from '../ui/states'
-import { Tuber9 } from './ares/mascot'
 
 export default function MainScreen() {
  const { fields, stats, loading, fieldsError, reload, purchasing, harvest, purchaseField, upgradeField, repairField, payTax, applyFertilizer } = useGame()
@@ -47,7 +47,7 @@ export default function MainScreen() {
        </div>
       ) : loading && fields.length === 0 ? (
        Array.from({ length: 2 }).map((_, i) => (
-        <div key={i} className="mk-skel" style={{ height: 320 }} aria-hidden="true" />
+        <div key={i} className="pf-card hull-skin shimmer" style={{ height: 320, borderRadius: 20 }} aria-hidden="true" />
        ))
       ) : (
        <>
@@ -92,14 +92,14 @@ function InitStatus({ error }: { error: string | null }) {
   <div role="status" style={{ gridColumn: '1 / -1', padding: '60px 20px', textAlign: 'center' }}>
    {error ? (
     <>
-     <span className="po-lamp" style={{ width: 18, height: 18, marginBottom: 22 }} aria-hidden="true" />
+     <WifiOff size={48} color="var(--pf-red)" style={{ marginBottom: 20 }} />
      <h2 style={{ fontSize: 20, marginBottom: 12 }}>{t("Нет связи с блокчейном")}</h2>
      <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{error}</p>
      <p style={{ color: 'var(--pf-text-muted)', fontSize: 12, marginTop: 8 }}>{t("Повторяем автоматически…")}</p>
     </>
    ) : (
     <>
-     <span className="po-lamp po-lamp--off" style={{ width: 18, height: 18, marginBottom: 22 }} aria-hidden="true" />
+     <Loader2 size={48} color="var(--pf-teal)" style={{ marginBottom: 20, animation: 'spin 1s linear infinite' }} />
      <h2 style={{ fontSize: 20, marginBottom: 12 }}>{t("Инициализация игры…")}</h2>
      <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{t("Подключаемся к блокчейну")}</p>
     </>
@@ -110,14 +110,10 @@ function InitStatus({ error }: { error: string | null }) {
 
 function ConnectHint() {
  return (
-  <div style={{ gridColumn: '1 / -1' }}>
-   <div className="po-card" style={{ padding: '36px 24px', textAlign: 'center' }}>
-    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-     <Tuber9 mood="sleep" size={96} />
-    </div>
-    <h2 style={{ fontSize: 19, marginBottom: 8, fontFamily: 'var(--ares-font-stencil)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{t("Подключи кошелёк")}</h2>
-    <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{t("Поля хранятся on-chain — чтобы увидеть ферму, нажми «Подключить кошелёк» сверху.")}</p>
-   </div>
+  <div style={{ gridColumn: '1 / -1', padding: '40px 20px', textAlign: 'center' }}>
+   <div style={{ fontSize: 56, marginBottom: 12 }}>POTATO</div>
+   <h2 style={{ fontSize: 20, marginBottom: 8 }}>{t("Подключи кошелёк")}</h2>
+   <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{t("Поля хранятся on-chain — чтобы увидеть ферму, нажми «Подключить кошелёк» сверху.")}</p>
   </div>
  )
 }
@@ -133,18 +129,18 @@ const RARE_LABELS = ['COMMON', 'RARE', 'EPIC']
 
 function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyProps) {
  const styles = [
-  { background: 'rgba(0,0,0,0.28)', border: '1px solid rgba(138, 74, 34, 0.6)', color: 'var(--ares-dust, #E0A183)' },
-  { background: 'linear-gradient(180deg, #7E2E56, #571F3C)', color: '#F2D3E4', borderColor: 'rgba(0,0,0,0.5)' },
-  { background: 'linear-gradient(180deg, #E8B45A, #B97F24)', color: '#2A1A06', borderColor: 'rgba(0,0,0,0.45)' },
+  { background: 'rgba(193, 68, 14, 0.12)', border: '1px solid rgba(160, 82, 40, 0.65)', color: 'var(--pf-teal)' },
+  { background: 'var(--ares-btn-bg)', color: 'var(--ares-btn-text)', boxShadow: '0 0 14px rgba(184,92,255,0.45)' },
+  { background: 'linear-gradient(135deg, var(--pf-gold) 0%, var(--pf-orange) 100%)', color: 'white' },
  ]
  return (
   <motion.div
    initial={{ opacity: 0, y: 20 }}
    animate={{ opacity: 1, y: 0 }}
-   className="po-card"
-   style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}
+   className="pf-card hull-skin"
+   style={{ padding: 20, borderRadius: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 320, border: '1px dashed rgba(160, 82, 40, 0.7)', boxShadow: '0 0 0 1px rgba(0,0,0,0.45), 0 0 26px -6px rgba(193,68,14,0.6), 0 0 60px -20px rgba(255,179,71,0.35), inset 0 0 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,214,170,0.08)' }}
   >
-   <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', color: '#B3946A', textTransform: 'uppercase', marginBottom: 12 }}>{t("КУПИ РАСТЕНИЕ")}</div>
+   <div className="ares-stencil" style={{ fontSize: 13, color: 'var(--ares-hud-amber, #FFB347)', marginBottom: 10, textShadow: '0 0 10px rgba(255,179,71,0.4)' }}>{t("КУПИ РАСТЕНИЕ")}</div>
    <MiniHydroModules />
    <p style={{ fontSize: 14, color: 'var(--pf-text-secondary)', marginBottom: 4, textAlign: 'center' }}>
     {firstField ? t('Заложи первую делянку') : t('Заложи новую жизнь')}

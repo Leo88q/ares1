@@ -36,9 +36,9 @@ export function useToast() {
 
 function ToastItem({ toast, index, onClose }: { toast: ToastData; index: number; onClose: () => void }) {
  const config = {
-  success: { icon: <CheckCircle size={20} />, color: 'var(--pf-teal)', bg: 'rgba(159, 190, 122, 0.14)', border: 'rgba(193, 68, 14, 0.45)' },
-  error:  { icon: <X size={20} />,     color: 'var(--pf-red)', bg: 'rgba(224, 108, 90, 0.13)', border: 'rgba(224, 108, 90, 0.45)' },
-  warning: { icon: <AlertTriangle size={20} />, color: 'var(--pf-gold)', bg: 'rgba(255, 179, 71, 0.13)', border: 'rgba(245, 158, 11, 0.4)' },
+  success: { icon: <CheckCircle size={20} />, color: 'var(--pf-teal)', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(193, 68, 14, 0.45)' },
+  error:  { icon: <X size={20} />,     color: 'var(--pf-red)', bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.4)' },
+  warning: { icon: <AlertTriangle size={20} />, color: 'var(--pf-gold)', bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.4)' },
   info:  { icon: <Info size={20} />,    color: 'var(--ares-blueset, #6B93D6)', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.4)' },
  }[toast.type]
 

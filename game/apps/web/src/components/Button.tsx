@@ -1,5 +1,5 @@
 import { ReactNode, CSSProperties } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion } from 'framer-motion'
 
 type Variant = 'primary' | 'secondary' | 'ghost'
 type Glow = 'orange' | 'pink' | 'teal' | 'gold' | 'purple' | 'green' | 'none'
@@ -16,13 +16,7 @@ interface Props {
 }
 
 /**
- * Клавиша пульта ARES-1 (MK-редизайн представления, 2026-09-28).
- * Физическое поведение: клавиша имеет ход — при нажатии утапливается
- * на 3px, пружина даёт лёгкий овершут; нижнее поле (край клавиши)
- * «уходит» под палец. При prefers-reduced-motion — только подсветка.
- *
- * Пропсы и API не менялись (variant/glow/disabled/icon/onClick/…):
- * `glow` сохранён для совместимости и трактуется как «лампа действия».
+ * Кнопка Vice Potato с вариантами и glow.
  */
 export default function Button({
  variant = 'primary',
@@ -34,28 +28,54 @@ export default function Button({
  style,
  className,
 }: Props) {
- const reducedMotion = useReducedMotion()
- void glow
+ const glows: Record<Glow, string> = {
+  orange: 'var(--pf-glow-orange)',
+  pink: 'var(--pf-glow-pink)',
+  teal: 'var(--pf-glow-teal)',
+  gold: 'var(--pf-glow-gold)',
+  purple: 'var(--pf-glow-purple)',
+  green: 'var(--pf-glow-green)',
+  none: 'none',
+ }
 
- const variantClass =
-  variant === 'primary' ? 'mk-key mk-key--paint' : variant === 'secondary' ? 'mk-key' : 'mk-key mk-key--ghost'
+ const bgByVariant: Record<Variant, string> = {
+  primary: 'var(--pf-grad-cta)',
+  secondary: 'rgba(255, 255, 255, 0.06)',
+  ghost: 'transparent',
+ }
+
+ const borderByVariant: Record<Variant, string> = {
+  primary: '1px solid rgba(255, 255, 255, 0.15)',
+  secondary: '1px solid var(--pf-border-soft)',
+  ghost: '1px solid transparent',
+ }
+
+ const textColor: Record<Variant, string> = {
+  primary: 'white',
+  secondary: 'var(--pf-text-primary)',
+  ghost: 'var(--pf-text-secondary)',
+ }
 
  return (
   <motion.button
-   whileTap={disabled || reducedMotion ? undefined : { y: 3 }}
-   whileHover={disabled || reducedMotion ? undefined : { filter: 'brightness(1.08)' }}
-   transition={{ type: 'spring', stiffness: 520, damping: 26, mass: 0.9 }}
+   whileTap={disabled ? {} : { scale: 0.96 }}
+   whileHover={disabled ? {} : { scale: 1.02 }}
+   transition={{ type: 'spring', stiffness: 400, damping: 20 }}
    disabled={disabled}
    onClick={onClick}
-   className={`${variantClass}${className ? ` ${className}` : ''}`}
+   className={className}
    style={{
     padding: '12px 20px',
+    borderRadius: 'var(--pf-radius-btn)',
+    border: borderByVariant[variant],
+    background: bgByVariant[variant],
+    color: textColor[variant],
     fontSize: 14,
-    fontWeight: 700,
+    fontWeight: 600,
     fontFamily: 'var(--pf-font-ui)',
-    letterSpacing: '0.04em',
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.5 : 1,
+    boxShadow: disabled ? 'none' : glows[glow],
     display: 'flex',
     minWidth: 0,
     alignItems: 'center',

@@ -104,8 +104,8 @@ export default function BackgroundScene({ variant = 'farm', children }: Props) {
      position: 'absolute',
      inset: 0,
      backgroundImage: `
-      linear-gradient(rgba(255,220,180,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,220,180,0.025) 1px, transparent 1px)
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)
      `,
      backgroundSize: '40px 40px',
     }}
