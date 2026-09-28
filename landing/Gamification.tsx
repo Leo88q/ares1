@@ -1,3 +1,4 @@
+import { getItem, setItem } from "./utils/consent";
 import { t } from "./i18n";
 import {
   createContext,
@@ -219,7 +220,7 @@ function initialState(): GamificationState {
   }
 
   try {
-    const raw = window.sessionStorage.getItem(storageKey);
+    const raw = getItem("functional", storageKey);
 
     if (!raw) {
       return fallback;
@@ -393,7 +394,7 @@ export function GamificationProvider({
     };
 
     try {
-      window.sessionStorage.setItem(storageKey, JSON.stringify(saved));
+      setItem("functional", storageKey, JSON.stringify(saved));
     } catch {
       // The experience remains usable when browser storage is unavailable.
     }

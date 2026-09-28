@@ -1,3 +1,4 @@
+import { getItem, setItem } from '../utils/consent'
 import { useEffect, useState, useRef } from 'react'
 import { t } from '../i18n'
 
@@ -9,7 +10,7 @@ const LAST_NOTIFIED_KEY = 'potato_last_notified'
 
 function readLastNotified(): Record<string, number> {
  try {
-  return JSON.parse(localStorage.getItem(LAST_NOTIFIED_KEY) || '{}') as Record<string, number>
+  return JSON.parse(getItem("functional", LAST_NOTIFIED_KEY) || "{}") as Record<string, number>
  } catch {
   return {}
  }
@@ -21,14 +22,14 @@ export function useNotifications() {
  const [permissionGranted, setPermissionGranted] = useState(
   () => typeof Notification !== 'undefined' && Notification.permission === 'granted',
  )
- const [notificationsEnabled, setNotificationsEnabled] = useState(() => localStorage.getItem(STORAGE_KEY) !== 'off')
+ const [notificationsEnabled, setNotificationsEnabled] = useState(() => getItem("functional", STORAGE_KEY) !== "off")
  const lastNotifiedRef = useRef<Record<string, number>>(readLastNotified())
 
  useEffect(() => {
   if (!notificationsEnabled || !permissionGranted || fields.length === 0) return
   const check = () => {
    lastNotifiedRef.current = checkFieldNotifications(fields, lastNotifiedRef.current)
-   localStorage.setItem(LAST_NOTIFIED_KEY, JSON.stringify(lastNotifiedRef.current))
+   setItem("functional", LAST_NOTIFIED_KEY, JSON.stringify(lastNotifiedRef.current))
   }
   check()
   const interval = window.setInterval(check, 30_000)
@@ -41,13 +42,13 @@ export function useNotifications() {
    const granted = await requestNotificationPermission()
    setPermissionGranted(granted)
    if (!granted) {
-    localStorage.setItem(STORAGE_KEY, 'off')
+    setItem("functional", STORAGE_KEY, "off")
     setNotificationsEnabled(false)
     return
    }
   }
   setNotificationsEnabled(next)
-  localStorage.setItem(STORAGE_KEY, next ? 'on' : 'off')
+  setItem("functional", STORAGE_KEY, next ? "on" : "off")
  }
 
  const testNotification = () =>

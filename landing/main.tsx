@@ -9,6 +9,9 @@ import {
 } from "./useSounds";
 import { soundSources } from "./soundSources";
 import { usePrefersReducedMotion, useSmoothScroll } from "./hooks";
+// Self-hosted webfonts (§4.6): imported before index.css so the @font-face
+// rules exist when Tailwind's base layer resolves font families.
+import "./fonts";
 import "./index.css";
 import "./i18n/dicts";
 

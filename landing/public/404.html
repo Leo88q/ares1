@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>404 — страница не найдена · ARES-1</title>
+    <!--
+      Self-contained on purpose: no external CSS, no webfont, no script, no
+      analytics, no API call. A 404 page is exactly what a visitor sees when
+      the bundle is broken or a route is gone, so it must not depend on the
+      thing that just failed (§8.3).
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #07050c;
+        --text: #efe9e3;
+        --muted: #a49cae;
+        --accent: #d4a576;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1.25rem;
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        text-align: center;
+      }
+      main { max-width: 34rem; }
+      .code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 3.5rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        color: var(--accent);
+        margin: 0 0 0.5rem;
+      }
+      h1 { font-size: 1.35rem; margin: 0 0 0.75rem; }
+      p { margin: 0 0 1.5rem; color: var(--muted); }
+      nav { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; justify-content: center; font-size: 0.9rem; }
+      nav a { color: var(--accent); text-decoration: none; }
+      nav a:hover { text-decoration: underline; }
+      a:focus-visible { outline: 2px solid #8fd0ff; outline-offset: 3px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="code">404</p>
+      <h1>Такой страницы нет</h1>
+      <p>
+        Ссылка устарела или содержит опечатку. Официальный сайт —
+        <strong>ares1.is-a.dev</strong>; игра — <strong>play.ares1.is-a.dev</strong>.
+        Любой другой домен, похожий на наш, нам не принадлежит.
+      </p>
+      <nav aria-label="Основные разделы">
+        <a href="/">На главную</a>
+        <a href="/legal/privacy.html">Политика конфиденциальности</a>
+        <a href="/legal/terms.html">Условия</a>
+        <a href="/legal/risk.html">Риски</a>
+      </nav>
+    </main>
+  </body>
+</html>

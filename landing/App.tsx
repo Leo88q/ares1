@@ -68,6 +68,7 @@ import {
   SparkProgress,
 } from "./MicroMotion";
 import { SoundToggle } from "./SoundToggle";
+import { CookieConsent, openCookieSettings } from "./CookieConsent";
 import { t, useI18n, tr } from "./i18n";
 import { LangSwitcher } from "./i18n/LangSwitcher";
 import { useSounds } from "./useSounds";
@@ -2197,6 +2198,20 @@ function SuccessModal({ tx, tier, onClose }: { tx: string; tier: number; onClose
     </AnimatePresence>
   );
 }
+/**
+ * Legal documents, in the order the checklist requires them (§7.1). Plain
+ * anchors to static files rather than SPA routes: a legal text must remain
+ * readable when the bundle fails, and it must be archivable at a stable URL.
+ */
+const LEGAL_LINKS = [
+  { href: "/legal/privacy.html", label: "Политика конфиденциальности" },
+  { href: "/legal/terms.html", label: "Условия использования" },
+  { href: "/legal/cookies.html", label: "Cookie Policy" },
+  { href: "/legal/risk.html", label: "Раскрытие рисков" },
+  { href: "/legal/third-party.html", label: "Лицензии третьих лиц" },
+  { href: "/legal/dmca.html", label: "Жалобы (DMCA)" },
+] as const;
+
 function Footer(): JSX.Element {
   useI18n();
   return (
@@ -2229,8 +2244,32 @@ function Footer(): JSX.Element {
           </nav>
         </div>
 
+        {/*
+          Legal documents (checklist §7.1, §5.2.4). Every one of these must be
+          reachable from every page, including the moment a visitor connects a
+          wallet. They are plain links to static files, not SPA routes: a legal
+          text has to stay readable when the bundle fails.
+
+          "Cookie settings" is here as well (§4.3): withdrawing consent must be
+          as easy as giving it, from anywhere, not only from the banner.
+        */}
+        <nav aria-label={t("Правовые документы")} className="footer-legal">
+          {LEGAL_LINKS.map((link) => (
+            <a key={link.href} href={link.href}>
+              {t(link.label)}
+            </a>
+          ))}
+          <button type="button" className="footer-legal__button" onClick={openCookieSettings}>
+            {t("Настройки cookies")}
+          </button>
+        </nav>
+
         <div className="footer-middle">
           <p>{SC.footer.copyright}</p>
+          <p className="footer-contact">
+            {t("Оператор")}: <span className="todo-inline">[НАИМЕНОВАНИЕ ОПЕРАТОРА]</span> ·{" "}
+            <a href="mailto:security@ares1.is-a.dev">security@ares1.is-a.dev</a>
+          </p>
         </div>
 
         <p className="disclaimer">{SC.footer.disclaimer}</p>
@@ -2397,6 +2436,9 @@ export default function App(): JSX.Element {
       <Toast message={notice} close={closeNotice} />
       <GamificationHud />
       <ScrollRocket />
+      {/* Consent UI (§4.3). Mounted last so it paints above everything, and it
+          is not a modal: rejecting must never block the page. */}
+      <CookieConsent />
     </>
   );
 }

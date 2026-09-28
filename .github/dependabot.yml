@@ -1,0 +1,98 @@
+# Automated dependency updates (production-deploy checklist §3.8.5).
+#
+# Why this matters more than usual here: the Solana npm ecosystem has already
+# had a real supply-chain incident (web3.js 1.95.6/1.95.7, Dec 2024). A quick,
+# reviewed update path is what keeps a project from running a compromised
+# version for months because "upgrading is risky".
+#
+# Ground rules:
+#   * updates arrive as PRs and go through CI + review — never auto-merge;
+#   * security updates are grouped and prioritised;
+#   * major version bumps of the @solana stack are always manual (they change
+#     transaction construction, which is exactly where a silent break is costly).
+
+version: 2
+
+updates:
+  # Landing (npm, own lockfile)
+  - package-ecosystem: npm
+    directory: /landing
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    versioning-strategy: increase-if-necessary
+    labels: [dependencies, landing]
+    groups:
+      solana-stack:
+        patterns:
+          - '@solana/*'
+          - '@coral-xyz/*'
+          - '@solana-mobile/*'
+        update-types: [minor, patch]
+      dev-tooling:
+        patterns:
+          - 'vite'
+          - '@vitejs/*'
+          - 'typescript'
+          - 'tailwindcss'
+          - 'postcss'
+          - 'autoprefixer'
+          - '@types/*'
+        update-types: [minor, patch]
+    # Major bumps of anything that builds or signs transactions get their own
+    # PR and a human decision.
+    ignore:
+      - dependency-name: '@solana/web3.js'
+        update-types: [version-update:semver-major]
+      - dependency-name: '@solana/spl-token'
+        update-types: [version-update:semver-major]
+
+  # Game workspace (yarn; apps/web + apps/backend)
+  - package-ecosystem: npm
+    directory: /game
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    versioning-strategy: increase-if-necessary
+    labels: [dependencies, game]
+    groups:
+      solana-stack:
+        patterns:
+          - '@solana/*'
+          - '@coral-xyz/*'
+          - '@solana-mobile/*'
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: '@solana/web3.js'
+        update-types: [version-update:semver-major]
+      - dependency-name: '@solana/spl-token'
+        update-types: [version-update:semver-major]
+      # Pinned deliberately below what wallet-adapter-react requests; see the
+      # `resolutions` field in game/package.json.
+      - dependency-name: '@solana-mobile/wallet-adapter-mobile'
+        update-types: [version-update:semver-major, version-update:semver-minor]
+
+  # Watchtower (read-only exporter, npm)
+  - package-ecosystem: npm
+    directory: /watchtower
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, watchtower]
+
+  # GitHub Actions: pin by SHA and let Dependabot keep the pin current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies, ci]
+
+  # Container base image for the backend.
+  - package-ecosystem: docker
+    directory: /game/apps/backend
+    schedule:
+      interval: weekly
+    labels: [dependencies, containers]
