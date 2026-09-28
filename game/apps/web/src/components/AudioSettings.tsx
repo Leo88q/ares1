@@ -2,7 +2,8 @@ import { ReactNode, useState } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { Volume2, VolumeX, Music, X, Bell, Vibrate, Settings } from 'lucide-react'
+import { Volume2, VolumeX, Music, X, Bell, Vibrate } from 'lucide-react'
+import { Emblem } from '../ui/Emblem'
 import { ambientMusic } from '../utils/ambientMusic'
 import { useNotifications } from '../hooks/useNotifications'
 import { setHapticEnabled, isHapticEnabled } from '../utils/haptic'
@@ -49,7 +50,7 @@ export default function AudioSettings() {
     aria-label={t("Настройки звука и уведомлений")}
     style={{ position: 'relative', top: 0, left: 0, width: 44, height: 44, borderRadius: '50%', background: 'rgba(22, 17, 13, 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(160, 82, 40, 0.65)', boxShadow: '0 0 18px -4px rgba(193,68,14,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 'var(--s-z-sticky)' }}
    >
-    {musicOn ? <Music size={18} color="var(--pf-teal)" /> : <Settings size={18} color="var(--pf-text-secondary)" />}
+    {musicOn ? <Emblem name="flame" size={18} /> : <Emblem name="gear" size={18} />}
    </motion.button>
 
    <AnimatePresence>

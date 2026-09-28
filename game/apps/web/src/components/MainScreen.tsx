@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 import { t } from '../i18n'
 
 import { MiniHydroModules } from '../ui/MiniHydroModules'
-import { Loader2, WifiOff } from 'lucide-react'
+import { Emblem } from '../ui/Emblem'
 import { useGame } from '../contexts/GameContext'
 import { useSolana } from '../contexts/SolanaContext'
 import FieldCardVice from './FieldCardVice'
@@ -92,14 +92,14 @@ function InitStatus({ error }: { error: string | null }) {
   <div role="status" style={{ gridColumn: '1 / -1', padding: '60px 20px', textAlign: 'center' }}>
    {error ? (
     <>
-     <WifiOff size={48} color="var(--pf-red)" style={{ marginBottom: 20 }} />
+     <Emblem name="flame" size={48} style={{ marginBottom: 20 }} />
      <h2 style={{ fontSize: 20, marginBottom: 12 }}>{t("Нет связи с блокчейном")}</h2>
      <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{error}</p>
      <p style={{ color: 'var(--pf-text-muted)', fontSize: 12, marginTop: 8 }}>{t("Повторяем автоматически…")}</p>
     </>
    ) : (
     <>
-     <Loader2 size={48} color="var(--pf-teal)" style={{ marginBottom: 20, animation: 'spin 1s linear infinite' }} />
+     <Emblem name="gear" size={48} style={{ marginBottom: 20, animation: 'spin 3s linear infinite' }} />
      <h2 style={{ fontSize: 20, marginBottom: 12 }}>{t("Инициализация игры…")}</h2>
      <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{t("Подключаемся к блокчейну")}</p>
     </>

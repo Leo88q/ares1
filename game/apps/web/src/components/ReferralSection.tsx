@@ -1,7 +1,8 @@
 import { Fragment, useState, type ReactNode } from 'react'
 import { t } from '../i18n'
 
-import { Copy, Check, Users, Gift, Share2 } from 'lucide-react'
+import { Copy, Check, Share2 } from 'lucide-react'
+import { Emblem } from '../ui/Emblem'
 import { useSolana } from '../contexts/SolanaContext'
 import { useToast } from './Toast'
 import { buildRefLink } from '../utils/referral'
@@ -69,7 +70,7 @@ export function ReferralSection() {
   <div style={{ marginBottom: 24 }}>
    {/* Заголовок секции */}
    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-    <Users size={20} color="var(--pf-teal)" />
+    <Emblem name="sprout" size={20} />
     <h2 className="ares-stencil" style={{ fontSize: 16, margin: 0, color: 'var(--ares-hud-amber, #FFB347)', textShadow: '0 0 10px rgba(255,179,71,0.35)' }}>{t("ВЫЗОВ ПОСЕЛЕНЦЕВ")}</h2>
    </div>
 
@@ -82,7 +83,7 @@ export function ReferralSection() {
     marginBottom: 16,
    }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-     <Gift size={32} color="var(--pf-gold)" />
+     <Emblem name="gift" size={32} />
      <div>
       <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--pf-text-primary)' }}>
        {t('Вызови поселенца — дели комиссию!')}

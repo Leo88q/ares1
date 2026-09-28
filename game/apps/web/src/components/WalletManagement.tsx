@@ -3,6 +3,7 @@ import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronUp, ArrowDownLeft, ArrowUpRight, Copy, Check, Wallet } from 'lucide-react'
+import { Emblem } from '../ui/Emblem'
 import { PublicKey } from '@solana/web3.js'
 import { useSolana, IS_MAINNET, CLUSTER } from '../contexts/SolanaContext'
 import { useGame } from '../contexts/GameContext'
@@ -23,7 +24,7 @@ interface Currency {
 }
 
 const CURRENCIES: Currency[] = [
- { id: 'SOL', name: 'Solana', symbol: 'SOL', icon: '◎', color: 'var(--ares-grow-violet, #B85CFF)', min: 0.001 },
+ { id: 'SOL', name: 'Solana', symbol: 'SOL', icon: <Emblem name="gauge" size={20} />, color: 'var(--ares-grow-violet, #B85CFF)', min: 0.001 },
  { id: 'POTATO', name: 'Potato', symbol: 'POTATO', icon: <img src="/ares/potato-coin.png" alt="" width={22} height={22} style={{ width: 22, height: 22, borderRadius: '50%' }} />, color: 'var(--pf-gold)', min: 0.01 },
 ]
 

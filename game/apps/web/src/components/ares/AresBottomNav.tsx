@@ -4,7 +4,7 @@ import { t } from '../../i18n'
 import { haptics } from '../../utils/haptic';
 import { AresHullFrame } from '../../ui/AresHullFrame';
 import { MotionIcon } from '../../ui/MotionIcon';
-import { IconTuber, IconCrate, IconLog, IconBunk } from './icons';
+import { Emblem } from '../../ui/Emblem';
 
 export type AresTab = 'main' | 'market' | 'stats' | 'profile';
 
@@ -26,18 +26,19 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 function renderIcon(tab: AresTab, active: boolean): JSX.Element {
- const accent = active ? 'var(--ares-grow-pink, #E86A3C)' : undefined;
+ // эмблемы единого арт-сета; активная вкладка подсвечивается рамкой клавиши
+ const filter = active ? 'brightness(1.25) drop-shadow(0 0 5px rgba(255,170,60,0.45))' : 'brightness(0.82)'
  switch (tab) {
   case 'main':
-   return <IconTuber size={18} accent={accent} glow={active} />;
+   return <Emblem name="sprout" size={18} style={{ filter }} />;
   case 'market':
-   return <IconCrate size={18} accent={accent} glow={active} />;
+   return <Emblem name="crate" size={18} style={{ filter }} />;
   case 'stats':
-   return <IconLog size={18} accent={accent} glow={active} />;
+   return <Emblem name="clipboard" size={18} style={{ filter }} />;
   case 'profile':
-   return <IconBunk size={18} accent={accent} glow={active} />;
+   return <Emblem name="bunk" size={18} style={{ filter }} />;
   default:
-   return <IconTuber size={18} accent={accent} glow={active} />;
+   return <Emblem name="sprout" size={18} style={{ filter }} />;
  }
 }
 

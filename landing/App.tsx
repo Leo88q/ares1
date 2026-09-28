@@ -167,50 +167,27 @@ function Mark({ className = "" }: { readonly className?: string }): JSX.Element 
   );
 }
 
+const FEATURE_EMBLEM: Record<FeatureIconName, string> = {
+  sprout: "sprout",
+  "sun-phobos": "moon",
+  scales: "percent",
+  helmets: "shield",
+};
+
 function FeatureIcon({ name }: { readonly name: FeatureIconName }): JSX.Element {
+  // эмблема единого арт-сета ARES-1 (бронза/янтарь) вместо generic line-иконки
   return (
-    <svg
-      width="48"
-      height="48"
-      viewBox="0 0 48 48"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+    <img
+      src={`/ares/icons/${FEATURE_EMBLEM[name]}.webp`}
+      alt=""
       aria-hidden="true"
-    >
-      {name === "sprout" && (
-        <>
-          <path d="M17 6h14M19 6v11L10 34a5 5 0 0 0 4 8h20a5 5 0 0 0 4-8l-9-17V6" />
-          <path d="M15 31h18M24 32V21M24 26c-7 0-9-5-9-5s8-2 9 5ZM24 23c0-7 8-9 8-9s0 8-8 9Z" />
-          <path d="M19 36h1m8 0h1" />
-        </>
-      )}
-      {name === "sun-phobos" && (
-        <>
-          <circle cx="21" cy="22" r="10" />
-          <path d="M21 4v4m0 28v4M3 22h4m28 0h4M8 9l3 3m20 20 3 3M8 35l3-3M31 12l3-3" />
-          <path d="m34 29 7 3 2 7-6 5-7-3-1-7 5-5Z" />
-          <path d="m35 35 3 2" />
-        </>
-      )}
-      {name === "scales" && (
-        <>
-          <path d="M24 7v33M16 41h16M9 15h30M24 7l-3 4h6l-3-4ZM10 16 4 29h12l-6-13ZM38 16l-6 13h12l-6-13Z" />
-          <path d="M4 29c1 7 11 7 12 0M32 29c1 7 11 7 12 0" />
-        </>
-      )}
-      {name === "helmets" && (
-        <>
-          <path d="M4 26v-5a10 10 0 0 1 20 0v5M4 26v10h20V26M24 18a10 10 0 0 1 20 3v15H29" />
-          <rect x="8" y="19" width="12" height="9" rx="4" />
-          <path d="M29 19h7a4 4 0 0 1 0 9h-7M9 32h10m12 0h8M13 15h2m18 0h2" />
-        </>
-      )}
-    </svg>
+      width={48}
+      height={48}
+      style={{ width: 48, height: 48, objectFit: "contain", display: "block" }}
+    />
   );
 }
+
 
 function Reveal({
   children,
