@@ -1,0 +1,15 @@
+# ARES-1 game client (checklist §7.3).
+#
+# robots.txt is a request, not access control. It does not hide anything from a
+# determined client and it is public, so no internal path belongs here. What
+# actually keeps source out of the browser is that only dist/ is deployed
+# (§2.1) and source maps are off (§2.3).
+#
+# The client is a SPA behind a wallet connect: most routes need a connected
+# wallet and are worthless to a crawler. Allow the shell, disallow the
+# query-string noise (referral codes, deep links).
+
+User-agent: *
+Allow: /
+Disallow: /*?ref=
+Disallow: /*?utm_

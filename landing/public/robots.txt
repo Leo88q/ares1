@@ -1,0 +1,18 @@
+# ARES-1 public site (checklist §7.3).
+#
+# robots.txt is a request, not an access control: it tells cooperative crawlers
+# where not to go. It does NOT hide anything from a determined client, and it is
+# itself public — never list a path here that you would not want an attacker to
+# read. Real protection is authentication plus the fact that only the build
+# output is deployed (§2.1).
+#
+# This site is a single-page app: every route renders the same shell, so
+# crawling query-string variants only wastes crawl budget.
+
+User-agent: *
+Allow: /
+Disallow: /*?ref=
+Disallow: /*?utm_
+Disallow: /*?lang=
+
+Sitemap: https://ares1.is-a.dev/sitemap.xml

@@ -376,6 +376,11 @@ const vi: Record<string, string> = {
   'Играть в ARES-1': 'Chơi ARES-1',
   'Постер игры ARES-1: картофельная ферма под куполами Марса': 'Poster game ARES-1: trang trại khoai tây dưới vòm sao Hỏa',
   'Продукт': 'Sản phẩm',
+
+  // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
+  'Правовые документы': 'Tài liệu pháp lý',
+  'Настройки cookies': 'Cài đặt cookie',
+  'Оператор': 'Đơn vị vận hành',
 };
 
 export default vi;

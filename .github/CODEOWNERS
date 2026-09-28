@@ -1,0 +1,31 @@
+# CODEOWNERS — required review on the paths where a mistake is not recoverable
+# with a redeploy (production-deploy checklist §2.10).
+#
+# Everything below requests a review from the owner. Adjust the handle if the
+# team grows; do not delete entries to make a PR merge faster.
+
+# Default: the owner reviews everything.
+*                                   @Leo88q
+
+# On-chain code: an unreviewed change here can lose player funds permanently.
+/game/programs/                     @Leo88q
+/game/apps/web/src/idl.json         @Leo88q
+/game/Anchor.toml                   @Leo88q
+
+# Signing / money-moving code: the difference between a hot wallet and a drain.
+/game/apps/backend/                 @Leo88q
+/game/scripts/                      @Leo88q
+
+# CI and deployment: these jobs hold the merge gate and the deploy trigger.
+/.github/workflows/                 @Leo88q
+/.github/dependabot.yml             @Leo88q
+/landing/netlify.toml               @Leo88q
+
+# Security policy and the audit gate: changing the rules must be visible.
+/.gitleaks.toml                     @Leo88q
+/.secret-scan-allowlist.json        @Leo88q
+/scripts/                           @Leo88q
+
+# Legal documents: text a user consents to must not change unnoticed.
+/scripts/build-legal-pages.mjs      @Leo88q
+/landing/public/legal/              @Leo88q

@@ -1,12 +1,73 @@
+# ---------------------------------------------------------------------------
+# Build context for the backend image (production-deploy checklist §2.7).
+#
+# Rule: the image must contain the code it runs and nothing else. Every
+# excluded path below is either a secret, someone's local state, or material
+# that turns a container escape / image pull into a source disclosure.
+#
+# Verify after building:
+#   docker build -f apps/backend/Dockerfile .
+#   docker history --no-trunc <image>          # no secrets in any layer
+#   find / -name '*.pem' -o -name '.env*'      # inside a running container
+#   trivy image --severity HIGH,CRITICAL <image>
+# ---------------------------------------------------------------------------
+
+# Version control: the whole history is a source disclosure and often
+# contains secrets that were deleted from the working tree (§1.2).
+.git
+.gitignore
+.githooks
+
+# Secrets and local environment (§1.3.1). The image mounts the payer keypair
+# at run time; it must never be baked into a layer.
+**/.env
+**/.env.*
+**/*.env
+**/keys
+**/keys/**
+**/*-keypair.json
+**/id.json
+**/*.pem
+**/*.key
+**/*.p12
+**/*.keystore
+**/secrets
+**/secrets/**
+**/serviceAccount*.json
+
+# Dependencies and build output: reinstalled inside the image from the
+# lockfile, and dist/ is produced by the build stage.
 **/node_modules
 **/dist
 **/target
-**/.env
-**/.env.*
-**/keys
-**/*-keypair.json
-**/*.pem
-**/*.log
+**/build
 .anchor
 test-ledger
+
+# Tests, fixtures and tooling that do not run in production.
+**/tests
+**/*.test.ts
+**/*.test.mjs
+**/*.test.js
+**/coverage
 security-reports
+**/db-bench.json
+
+# Documentation and repositories of internal notes: not needed at runtime and
+# a rich source of accidental disclosure (§2.5).
+docs
+**/docs
+*.md
+!README.md
+**/*.example.env
+
+# Local tooling state.
+**/*.log
+**/.DS_Store
+**/.vscode
+**/.idea
+.python-version
+**/__pycache__
+**/*.pyc
+scripts/devnet-legacy
+apps/web

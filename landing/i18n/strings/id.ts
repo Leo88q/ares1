@@ -376,6 +376,11 @@ const id: Record<string, string> = {
   'Играть в ARES-1': 'Mainkan ARES-1',
   'Постер игры ARES-1: картофельная ферма под куполами Марса': 'Poster game ARES-1: kebun kentang di bawah kubah Mars',
   'Продукт': 'Produk',
+
+  // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
+  'Правовые документы': 'Dokumen hukum',
+  'Настройки cookies': 'Pengaturan cookie',
+  'Оператор': 'Operator',
 };
 
 export default id;

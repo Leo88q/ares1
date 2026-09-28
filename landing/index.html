@@ -43,12 +43,14 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <!--
+      Webfonts are self-hosted and bundled from node_modules/@fontsource
+      (see landing/fonts.css, imported by main.tsx). Previously the families
+      were pulled from a third-party font CDN, which disclosed every visitor's
+      IP address to that provider before any consent existed (checklist §4.6)
+      and forced an extra origin into the CSP. Do not re-add a CDN font link
+      here — it would also have to be re-allowed in netlify.toml.
+    -->
   </head>
   <body>
     <div id="root"></div>

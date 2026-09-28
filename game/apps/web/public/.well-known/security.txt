@@ -1,0 +1,21 @@
+# ARES-1 — security contact and responsible disclosure (checklist §7.2)
+# RFC 9116. Keep this file at /.well-known/security.txt on every domain you own.
+#
+# TO REPORT A VULNERABILITY
+#   Email the address below. Include the affected URL, a description, and
+#   reproduction steps. Do NOT include other players' personal data, and do not
+#   exploit a live issue beyond what is needed to demonstrate it.
+#
+# WHAT WE DO AND DO NOT ASK FOR
+#   We will never ask you for a seed phrase, a private key, or to deploy a
+#   contract. Anyone who does is not us — the game has no reason to ask.
+
+Contact: mailto:security@ares1.is-a.dev
+Expires: 2027-01-01T00:00:00.000Z
+Preferred-Languages: ru, en
+Canonical: https://play.ares1.is-a.dev/.well-known/security.txt
+Policy: https://play.ares1.is-a.dev/legal/terms.html
+Acknowledgments: https://play.ares1.is-a.dev/legal/terms.html
+
+# Scope note: the Solana program and the game client are in scope. Third-party
+# services (RPC provider, hosting, wallet apps) should be reported to them.

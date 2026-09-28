@@ -1,3 +1,4 @@
+import { getItem } from '../utils/consent'
 import { createContext, useCallback, useContext, useMemo, useState, ReactNode } from 'react'
 import { t } from '../i18n'
 
@@ -65,7 +66,7 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
     if (!wallet.publicKey) return null
     if (lookupTable) return lookupTable
     try {
-      const key = localStorage.getItem(`ares-lut:${wallet.publicKey.toBase58()}`)
+      const key = getItem("functional", `ares-lut:${wallet.publicKey.toBase58()}`)
       if (key) {
         const lut = await getLookupTable(connection, new PublicKey(key))
         if (lut) { setLookupTable(lut); return lut }

@@ -17,18 +17,51 @@ import './i18n/dicts'
 import { t } from './i18n'
 import App from './App'
 import { SolanaProvider, CLUSTER } from './contexts/SolanaContext'
+import './fonts'
 import './theme/tokens.css'
 import './styles/global.css'
 import './index.css'
-import '@solana/wallet-adapter-react-ui/styles.css'
+// Vendored: upstream shipped a remote @import for DM Sans (see the file header).
+import './styles/wallet-adapter.css'
 
 const network =
  CLUSTER === 'mainnet-beta' ? WalletAdapterNetwork.Mainnet
  : CLUSTER === 'testnet' ? WalletAdapterNetwork.Testnet
  : WalletAdapterNetwork.Devnet
 
-// Localnet has no public cluster URL, so VITE_RPC_URL is required there.
-const endpoint = import.meta.env.VITE_RPC_URL || (CLUSTER === 'localnet' ? 'http://127.0.0.1:8899' : clusterApiUrl(network))
+/**
+ * RPC endpoint resolution (checklist §3.1.1 — no plaintext transport, §1.3.9 —
+ * the RPC key is not a browser secret).
+ *
+ * Two problems were found by scripts/check-release-artifacts.mjs in the
+ * previous one-liner:
+ *
+ *  1. `clusterApiUrl(network)` returns an **http://** URL by default, so a
+ *     production build without VITE_RPC_URL sent every RPC call — including
+ *     the transactions a player signs — over plaintext. It is now forced to
+ *     https.
+ *  2. The localnet fallback `http://127.0.0.1:8899` was shipped in the bundle
+ *     for every environment. Local development is the only legitimate use, so
+ *     it is gated behind import.meta.env.DEV and stripped from production
+ *     builds by the bundler.
+ *
+ * In production VITE_RPC_URL is mandatory: a silent fallback to a public
+ * endpoint is how a game ends up rate-limited, or pointed at the wrong
+ * cluster, without anyone noticing.
+ */
+const configuredRpcUrl = import.meta.env.VITE_RPC_URL
+function resolveEndpoint(): string {
+  if (configuredRpcUrl) return configuredRpcUrl
+  if (import.meta.env.DEV) {
+    return CLUSTER === 'localnet' ? 'http://127.0.0.1:8899' : clusterApiUrl(network, true)
+  }
+  throw new Error(
+    'VITE_RPC_URL is required in production (see apps/web/.env.example). ' +
+      'Refusing to fall back to a public endpoint: it would silently rate-limit ' +
+      'the game and, before this guard, used plaintext http.',
+  )
+}
+const endpoint = resolveEndpoint()
 
  // Встроенный кошелёк Seeker (Solana Mobile / Seed Vault) говорит с dApp по
  // собственному протоколу — без официального адаптера в-апп кошелёк
