@@ -22,7 +22,7 @@ import { LiquidBar } from './ares/LiquidBar'
 import { ConsolePanel } from './ares/panels'
 import { TelemetryStrip } from './ares/TelemetryStrip'
 import { describeError } from '../utils/errors'
-import { ErrorState, LoadingState } from '../ui/states'
+import { ErrorState, LoadingState, EmptyState } from '../ui/states'
 
 interface LeaderRow {
  address: string
@@ -207,8 +207,8 @@ function StatsScreenInner() {
 
  return (
   <div style={{ padding: 20, paddingBottom: 140 }}>
-   <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{t("ЖУРНАЛ МИССИИ")}</h1>
-   <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14, marginBottom: 20 }}>{t("Задачи смены, нашивки и показатели экипажа")}</p>
+   <h1 className="pf-h1" style={{ fontSize: 26, marginBottom: 8 }}>{t("ЖУРНАЛ МИССИИ")}</h1>
+   <p className="pf-subtitle" style={{ marginBottom: 20 }}>{t("Задачи смены, нашивки и показатели экипажа")}</p>
    {loadError && <ErrorState inline message={loadError} onRetry={() => void load()} />}
 
    <div style={{ marginBottom: 24 }}>
@@ -217,9 +217,12 @@ function StatsScreenInner() {
 
    <MissionLog />
 
-   <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t("Доска почёта")}</h2>
+   <h2 className="pf-h2" style={{ fontSize: 20, marginBottom: 16 }}>{t("Доска почёта")}</h2>
    {leaders.length === 0 ? (
-    <p style={{ color: 'var(--pf-text-secondary)', textAlign: 'center', padding: 30 }}>{t("Пока нет игроков")}</p>
+    <EmptyState
+     title={t('Доска почёта пуста')}
+     hint={t('Ни одно поле ещё не заложено. Стань первым — журнал запишет твоё имя первым.')}
+    />
    ) : (
     <ol style={{ display: 'flex', flexDirection: 'column', gap: 10, listStyle: 'none' }}>
      {leaders.map((row, i) => (

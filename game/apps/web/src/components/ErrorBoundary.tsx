@@ -27,7 +27,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   return (
    <div role="alert" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
     <div className="pf-card hull-skin" style={{ maxWidth: 360, padding: 28, borderRadius: 24, textAlign: 'center' }}>
-     <div className="ares-stencil" style={{ fontSize: 30, marginBottom: 12, color: 'var(--ares-hud-amber, #FFB347)', textShadow: '0 0 16px rgba(255,179,71,0.4)' }}>POTATO</div>
+     <div className="ares-stencil" style={{ fontSize: 30, marginBottom: 12, color: 'var(--ares-hud-amber, #FFB347)' }}>POTATO</div>
      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{t("Что-то пошло не так")}</h2>
      <p style={{ fontSize: 13, color: 'var(--pf-text-secondary)', marginBottom: 16, wordBreak: 'break-word' }}>{this.state.error.message}</p>
      <button

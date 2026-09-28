@@ -90,7 +90,7 @@ function ScreenFallback() {
  return (
   <div style={{ padding: 20 }} aria-busy="true">
    {Array.from({ length: 3 }).map((_, i) => (
-    <div key={i} className="pf-card hull-skin shimmer" style={{ height: 120, borderRadius: 16, marginBottom: 12 }} />
+    <div key={i} className="mk-skel" style={{ height: 120, marginBottom: 12 }} />
    ))}
   </div>
  )
