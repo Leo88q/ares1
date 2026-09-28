@@ -74,6 +74,28 @@ log. Follow [the operational runbook](docs/OPERATIONS.md) for revocation, isolat
 payer storage, recovery and pause. Dependency vulnerabilities require an up-to-date
 scanner run; old transitive-CVE notes are not a current dependency audit.
 
+## Incident-catalog audit — 28 September 2026 (items 94–130)
+
+A third pass mapped the June–September 2026 incident catalog (items 94–113) and
+the full-year addendum (114–130) onto this codebase:
+[docs/SECURITY_CHECKLIST_AUDIT_2026-09-28.md](../docs/SECURITY_CHECKLIST_AUDIT_2026-09-28.md).
+
+No new program defects. Gaps closed in infrastructure and process:
+
+- signing-bot policy layer (`apps/backend/src/policy.ts`): instruction
+  allowlist enforced at the signing point, signing decisions on `finalized`
+  snapshots cross-checked against a second independent RPC (fail-closed in
+  production);
+- client: durable-nonce / allocate / assign System instructions are refused
+  on all three txSafety layers;
+- on-chain program inventory (`game/program-inventory.json` +
+  `scripts/inventory-programs.mjs`), DNS change monitoring
+  (`scripts/check-dns.mjs` with a committed baseline);
+- incident-response kit, key provenance registry, third-party dependency
+  registry with a private-fix-then-publish policy, org policies for people,
+  IDE extensions and OTC counterparties; seven new machine gates in
+  `yarn test:guards` and launch-gate sections G-7/G-8.
+
 ## Reporting a vulnerability (F-23)
 
 Private channel: GitHub Security Advisories for this repository

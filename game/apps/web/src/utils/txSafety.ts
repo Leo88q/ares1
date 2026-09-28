@@ -64,11 +64,53 @@ export function isAllowedProgram(programId: PublicKey, gameProgram: PublicKey): 
   return ALLOWED_PROGRAMS.some(allowed => allowed.equals(programId))
 }
 
+/**
+ * System-program instruction types that must NEVER be routed through this
+ * client (checklist items 82/114, audit 2026-09-28). The nonce family creates
+ * signatures that do not expire: Drift lost $285M+ because signers approved
+ * durable-nonce transactions in advance. Allocate/Assign/CreateAccountWithSeed
+ * were used by SwapNet-style routers to smuggle account ownership changes.
+ * The game client only ever needs plain `transfer` (type 2) — allowlisted
+ * alongside 0 (CreateAccount) only because it is harmless rent-paid creation;
+ * everything else in this set requires a conscious change to this constant.
+ *
+ * Blocked here: 1 = Assign, 3 = CreateAccountWithSeed, 4..7 = nonce family
+ * (Advance/Deallocate/Initialize/Authorize), 8/9 = Allocate(+WithSeed),
+ * 10 = AssignWithSeed, 11 = TransferWithSeed, 12 = WithdrawNonceAccount.
+ */
+export const BLOCKED_SYSTEM_INSTRUCTION_TYPES: ReadonlySet<number> = new Set([1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+
+/** True if the instruction is a System-program operation the client refuses to route. */
+export function isBlockedSystemInstruction(ix: { programId: PublicKey; data: Uint8Array }): boolean {
+  if (!ix.programId.equals(SystemProgram.programId)) return false
+  const type = ix.data.length > 0 ? ix.data[0] : -1
+  return BLOCKED_SYSTEM_INSTRUCTION_TYPES.has(type)
+}
+
+/**
+ * Layer 1 supplement: durable nonces / allocate / assign are refused even
+ * though SystemProgram itself is allowlisted (only `transfer` and `createAccount`
+ * style ops with data outside the blocked set pass).
+ */
+function assertSystemInstructionAllowed(data: Uint8Array): void {
+  const type = data.length > 0 ? data[0] : -1
+  if (BLOCKED_SYSTEM_INSTRUCTION_TYPES.has(type)) {
+    throw new UnsafeTransactionError(
+      `Blocked System instruction type ${type} (durable nonce / allocate / assign family)`,
+    )
+  }
+}
+
 /** Human-readable instruction names (falls back to the program id for system ixs). */
 export function describeInstructions(ixs: readonly TransactionInstruction[]): string[] {
   return ixs.map(ix => {
     if (ix.programId.equals(ComputeBudgetProgram.programId)) return 'compute_budget'
-    if (ix.programId.equals(SystemProgram.programId)) return 'system_program'
+    if (ix.programId.equals(SystemProgram.programId)) {
+      // Human preview must name the dangerous family explicitly (item 104:
+      // the player sees WHAT is signed — nonce ops would be a red flag).
+      if (isBlockedSystemInstruction(ix)) return `system_nonce_op(type=${ix.data[0]})`
+      return 'system_program'
+    }
     if (ix.programId.equals(TOKEN_PROGRAM_ID)) return 'spl_token'
     if (ix.programId.equals(ASSOCIATED_TOKEN_PROGRAM_ID)) return 'associated_token'
     const name = DISCRIMINATOR_NAMES.get(Buffer.from(ix.data.subarray(0, 8)).toString('hex'))
@@ -90,6 +132,9 @@ export function assertInstructionsAllowed(
       throw new UnsafeTransactionError(
         `Blocked instruction to a non-allowlisted program ${ix.programId.toBase58()}`,
       )
+    }
+    if (ix.programId.equals(SystemProgram.programId)) {
+      assertSystemInstructionAllowed(ix.data)
     }
   }
 }
@@ -113,6 +158,9 @@ export function assertSignedLegacyInstructionsMatch(
   for (const [i, ix] of actual.entries()) {
     if (!isAllowedProgram(ix.programId, gameProgram)) {
       throw new UnsafeTransactionError(`Blocked instruction to a non-allowlisted program ${ix.programId.toBase58()}`)
+    }
+    if (ix.programId.equals(SystemProgram.programId)) {
+      assertSystemInstructionAllowed(ix.data)
     }
     if (!ix.programId.equals(expected[i].programId)) {
       throw new UnsafeTransactionError(
@@ -156,6 +204,9 @@ export function assertSignedInstructionsMatch(
     const program = statics[ci.programIdIndex]
     if (!isAllowedProgram(program, gameProgram)) {
       throw new UnsafeTransactionError(`Blocked instruction to a non-allowlisted program ${program.toBase58()}`)
+    }
+    if (program.equals(SystemProgram.programId)) {
+      assertSystemInstructionAllowed(ci.data)
     }
     if (!program.equals(expected[i].programId)) {
       throw new UnsafeTransactionError(
