@@ -47,7 +47,7 @@ export default function MainScreen() {
        </div>
       ) : loading && fields.length === 0 ? (
        Array.from({ length: 2 }).map((_, i) => (
-        <div key={i} className="pf-card hull-skin shimmer" style={{ height: 320, borderRadius: 20 }} aria-hidden="true" />
+        <div key={i} className="pf-card hull-skin shimmer" style={{ height: 320 }} aria-hidden="true" />
        ))
       ) : (
        <>
@@ -138,7 +138,7 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
    initial={{ opacity: 0, y: 20 }}
    animate={{ opacity: 1, y: 0 }}
    className="pf-card hull-skin"
-   style={{ padding: 20, borderRadius: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 320, border: '1px dashed rgba(160, 82, 40, 0.7)', boxShadow: '0 0 0 1px rgba(0,0,0,0.45), 0 0 26px -6px rgba(193,68,14,0.6), 0 0 60px -20px rgba(255,179,71,0.35), inset 0 0 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,214,170,0.08)' }}
+   style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}
   >
    <div className="ares-stencil" style={{ fontSize: 13, color: 'var(--ares-hud-amber, #FFB347)', marginBottom: 10, textShadow: '0 0 10px rgba(255,179,71,0.4)' }}>{t("КУПИ РАСТЕНИЕ")}</div>
    <MiniHydroModules />

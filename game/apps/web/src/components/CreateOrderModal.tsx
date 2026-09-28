@@ -21,9 +21,9 @@ interface Props {
 const inputStyle: CSSProperties = {
  width: '100%',
  padding: '12px 14px',
- borderRadius: 12,
- border: '1px solid rgba(124, 255, 107, 0.25)',
- background: 'rgba(11, 7, 20, 0.6)',
+ borderRadius: 'var(--s-radius-chip)',
+ border: '1px solid var(--s-subtle-border)',
+ background: 'var(--s-subtle-bg)',
  color: 'var(--pf-text-primary)',
  fontSize: 15,
  fontFamily: 'var(--pf-font-mono)',
@@ -116,7 +116,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
      style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(11, 7, 20, 0.75)',
+      background: 'var(--s-panel-bg-strong)',
       backdropFilter: 'blur(10px)',
       WebkitBackdropFilter: 'blur(10px)',
       zIndex: 'var(--s-z-modal)',
@@ -156,9 +156,9 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
         onClick={onClose}
         aria-label={t("Закрыть")}
         style={{
-         background: 'rgba(255,255,255,0.06)',
+         background: 'var(--s-subtle-bg)',
          border: '1px solid var(--pf-border-soft)',
-         borderRadius: 10,
+         borderRadius: 'var(--s-radius-chip)',
          padding: 14,
          margin: -8,
          cursor: 'pointer',
@@ -183,7 +183,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
          min="0"
          onChange={(e) => setAmount(e.target.value)}
          onFocus={(e) => { e.target.style.borderColor = 'var(--pf-green)'; e.target.style.boxShadow = 'var(--pf-glow-green)' }}
-         onBlur={(e) => { e.target.style.borderColor = 'rgba(124, 255, 107, 0.25)'; e.target.style.boxShadow = 'none' }}
+         onBlur={(e) => { e.target.style.borderColor = 'var(--s-subtle-border)'; e.target.style.boxShadow = 'none' }}
          style={inputStyle}
          placeholder="100"
         />
@@ -201,7 +201,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
          step="0.000000001"
          onChange={(e) => setPrice(e.target.value)}
          onFocus={(e) => { e.target.style.borderColor = 'var(--pf-green)'; e.target.style.boxShadow = 'var(--pf-glow-green)' }}
-         onBlur={(e) => { e.target.style.borderColor = 'rgba(124, 255, 107, 0.25)'; e.target.style.boxShadow = 'none' }}
+         onBlur={(e) => { e.target.style.borderColor = 'var(--s-subtle-border)'; e.target.style.boxShadow = 'none' }}
          style={inputStyle}
          placeholder="0.0001"
         />
@@ -209,9 +209,9 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
 
        {/* Сводка */}
        <div style={{
-        borderRadius: 12,
-        border: '1px solid rgba(124, 255, 107, 0.2)',
-        background: 'rgba(124, 255, 107, 0.06)',
+        borderRadius: 'var(--s-radius-chip)',
+        border: '1px solid var(--s-subtle-border)',
+        background: 'var(--s-subtle-bg)',
         padding: '12px 14px',
         display: 'flex',
         flexDirection: 'column',

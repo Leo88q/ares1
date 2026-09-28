@@ -9,6 +9,7 @@ import { haptics } from '../utils/haptic'
 import { useMarketplace, MarketOrder } from '../hooks/useMarketplace'
 import { useGame } from '../contexts/GameContext'
 import { fmtPotato, fmtSol, MICRO, CANCEL_COOLDOWN_HOURS } from '../utils/constants'
+import { Panel } from '../ui/kit'
 import { SupplyBay } from './ares/SupplyBay';
 import { HullPanel } from '../ui/HullPanel';
 import { ErrorState, EmptyState as SharedEmptyState, LoadingState } from '../ui/states'
@@ -196,11 +197,11 @@ function MarketScreenInner() {
    <AnimatePresence>
     {cancelTarget && (
      <Modal onClose={() => setCancelTarget(null)} title={t("Отозвать ордер?")}>
-      <div style={{ padding: 14, borderRadius: 14, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', marginBottom: 20 }}>
+      <Panel variant="chip" style={{ padding: 14, background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)', marginBottom: 20 }}>
        <p style={{ fontSize: 13, color: 'var(--pf-red)', lineHeight: 1.5 }}>
         {t('Груз вернётся на склад сразу, но новые ордера — только через')} <b>{t('{hours} часа', { hours: CANCEL_COOLDOWN_HOURS })}</b>.
        </p>
-      </div>
+      </Panel>
       <div style={{ display: 'flex', gap: 10 }}>
        <button onClick={() => setCancelTarget(null)} style={{ flex: 1, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
         {t('Оставить')}
@@ -224,11 +225,11 @@ function MarketScreenInner() {
    <AnimatePresence>
     {cancelInfo && (
      <Modal onClose={() => setCancelInfo(false)} title={t("Ордер отменён")}>
-      <div style={{ padding: 14, borderRadius: 14, background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+      <Panel variant="chip" style={{ padding: 14, background: 'rgba(245, 158, 11, 0.1)', borderColor: 'rgba(245, 158, 11, 0.3)' }}>
        <p style={{ fontSize: 13, color: 'var(--pf-gold)', lineHeight: 1.5 }}>
         {t('Токены возвращены на баланс. Новый ордер можно выставить через')} <b>{t('{hours} часа', { hours: CANCEL_COOLDOWN_HOURS })}</b>{t(' — так мы защищаем рынок от спама.')}
        </p>
-      </div>
+      </Panel>
       <button onClick={() => setCancelInfo(false)} style={{ marginTop: 20, width: '100%', padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
        {t('Понятно')}
       </button>
@@ -259,8 +260,8 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
     role="dialog" aria-modal="true" aria-label={title}
     initial={{ scale: 0.9 }} animate={{ scale: 1 }}
     onClick={(e) => e.stopPropagation()}
-    className="pf-card hull-skin"
-    style={{ width: '100%', maxWidth: 340, padding: 28, borderRadius: 24, textAlign: 'center', background: '#1a1a2e' }}
+    className="k-panel k-panel--pop"
+    style={{ width: '100%', maxWidth: 340, padding: 28, textAlign: 'center' }}
    >
     <div style={{ marginBottom: 12, color: 'var(--pf-teal)' }} aria-hidden="true"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5.5"/></svg></div>
     <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{title}</h3>
@@ -274,7 +275,7 @@ const instrument = (v: string) => v.replace(/^(\d+)/, (_m, d: string) => d.padSt
 
 function StatCard({ icon, label, value }: { icon?: ReactNode; label: string; value: string }) {
  return (
-  <div className="pf-card hull-skin" style={{ padding: 14, borderRadius: 14 }}>
+  <div className="pf-card hull-skin" style={{ padding: 14 }}>
    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
     <span aria-hidden="true">{icon}</span>
     <span style={{ fontSize: 12, color: 'var(--pf-text-secondary)', textAlign: 'center' }}>{label}</span>
@@ -300,11 +301,11 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
  return (
   <motion.div
    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 8) * 0.05 }}
-   className="pf-card hull-skin" style={{ padding: 16, borderRadius: 16 }}
+   className="pf-card hull-skin" style={{ padding: 16 }}
   >
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-     <div style={{ width: 36, height: 36, borderRadius: 10, background: order.isOwn ? 'rgba(59, 130, 246, 0.2)' : 'rgba(193, 68, 14, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
+     <div style={{ width: 36, height: 36, borderRadius: 'var(--s-radius-chip)', background: order.isOwn ? 'rgba(59, 130, 246, 0.2)' : 'rgba(193, 68, 14, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
       {order.isOwn ? <User size={18} color="var(--ares-blueset, #6B93D6)" /> : null }
      </div>
      <div>

@@ -87,7 +87,7 @@ export function MissionLog() {
      const pct = Math.min(100, (ach.progress / ach.target) * 100)
      return (
       <motion.div key={ach.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
-       className="pf-card hull-skin" style={{ padding: 16, borderRadius: 16, opacity: done ? 1 : 0.75 }}>
+       className="pf-card hull-skin" style={{ padding: 16, opacity: done ? 1 : 0.75 }}>
        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <PatchImg src={ach.patch} title={ach.title} done={done} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -125,7 +125,7 @@ export function MissionLog() {
        <div style={{ marginTop: 10 }}><LiquidBar value={(earlyAch.progress / earlyAch.target) * 100} /></div>
        <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', marginTop: 6 }}>{formatProgress(earlyAch.progress)} / {formatProgress(earlyAch.target)}</div>
       </div>
-      <button onClick={() => setEarlyAch(null)} style={{ width: '100%', padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
+      <button onClick={() => setEarlyAch(null)} style={{ width: '100%', padding: 12, borderRadius: 'var(--s-radius-chip)', background: 'var(--s-subtle-bg)', color: 'white', fontSize: 14, fontWeight: 600 }}>
        {t('Понятно')}
       </button>
      </Overlay>
@@ -140,8 +140,8 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose?: (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 'var(--s-z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
    onClick={onClose}>
-   <motion.div role="dialog" aria-modal="true" initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="pf-card hull-skin"
-    style={{ width: '100%', maxWidth: 320, padding: 28, borderRadius: 24, textAlign: 'center', background: '#1a1a2e' }}
+   <motion.div role="dialog" aria-modal="true" initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="k-panel k-panel--pop"
+    style={{ width: '100%', maxWidth: 320, padding: 28, textAlign: 'center' }}
     onClick={(e) => e.stopPropagation()}>
     {children}
    </motion.div>

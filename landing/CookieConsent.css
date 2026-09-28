@@ -9,6 +9,7 @@
 .consent {
   position: fixed;
   inset: auto 0 0 0;
+  /* FX-слой поверх всего, вне шкалы (см. docs/FRONTEND_AUDIT_2026-09-28.md) */
   z-index: 9999;
   display: flex;
   justify-content: center;

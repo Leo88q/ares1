@@ -231,7 +231,7 @@ function ProfileScreenInner() {
 
 function StatusRow({ label, ok, value }: { label: string; ok: boolean; value: string }) {
  return (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--pf-border-soft)' }}>
    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
     {ok ? <CheckCircle size={16} color="var(--pf-teal)" aria-hidden="true" /> : <XCircle size={16} color="var(--pf-red)" aria-hidden="true" />}
     <span style={{ fontSize: 14 }}>{label}</span>

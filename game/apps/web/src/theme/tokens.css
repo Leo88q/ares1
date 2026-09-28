@@ -145,6 +145,8 @@
     inset 0 1px 0 rgba(255, 214, 170, 0.14),
     inset 0 -1px 0 rgba(0, 0, 0, 0.45),
     inset 0 0 24px rgba(0, 0, 0, 0.65);
+  /* мелкие вложенные боксы (строки, инфо-чипы) */
+  --s-radius-chip: 8px;
   /* всплывающие окна поверх панелей */
   --s-pop-bg: var(--pf-bg-elevated);
   --s-pop-shadow: 0 24px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(0, 0, 0, 0.7);

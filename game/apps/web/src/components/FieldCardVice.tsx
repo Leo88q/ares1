@@ -110,7 +110,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
      <div className="pf-subtitle" style={{ fontSize: 10, marginBottom: 4 }}>
       {t('Целостность {d}/{max}', { d: durability, max: MAX_DURABILITY })}
      </div>
-     <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+     <div style={{ height: 6, background: 'var(--s-subtle-bg)', borderRadius: 3, overflow: 'hidden' }}>
       <motion.div
        initial={{ width: 0 }}
        animate={{ width: `${durability}%` }}

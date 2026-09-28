@@ -316,7 +316,7 @@ input:focus-visible {
 
 .header {
   position: fixed;
-  z-index: 60;
+  z-index: var(--s-z-header);
   inset: 0 0 auto;
   min-height: var(--ares-header-height);
   border-bottom: 1px solid transparent;

@@ -147,9 +147,9 @@ export function ReferralSection() {
       onClick={handleShare}
       style={{
        padding: '12px 20px',
-       borderRadius: 12,
-       background: 'rgba(255,255,255,0.08)',
-       border: '1px solid rgba(255,255,255,0.15)',
+       borderRadius: 'var(--s-radius-chip)',
+       background: 'var(--s-subtle-bg)',
+       border: '1px solid var(--s-subtle-border)',
        color: 'white',
        fontSize: 14,
        fontWeight: 600,

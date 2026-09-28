@@ -56,9 +56,8 @@ export default function LangSwitcher({ compact = false }: { compact?: boolean })
      role="menu"
      style={{
       position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 'var(--s-z-header)',
-      background: '#15100b', border: '1px solid rgba(160, 82, 40, 0.65)',
+      background: 'var(--s-pop-bg)', border: '1px solid var(--s-panel-edge-soft)', boxShadow: 'var(--s-pop-shadow)',
       borderRadius: 12, padding: 6, minWidth: 190,
-      boxShadow: '0 10px 30px rgba(0,0,0,0.55)',
      }}
     >
      {LANGS.map((l) => (

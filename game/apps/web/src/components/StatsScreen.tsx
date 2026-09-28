@@ -23,6 +23,7 @@ import { ConsolePanel } from './ares/panels'
 import { TelemetryStrip } from './ares/TelemetryStrip'
 import { describeError } from '../utils/errors'
 import { ErrorState, LoadingState } from '../ui/states'
+import { Panel } from '../ui/kit'
 
 interface LeaderRow {
  address: string
@@ -58,7 +59,7 @@ const STATS_POLL_MS = 30_000
 function ConsoleStatRow({ icon, label, value, pct, color }: { icon: ReactNode; label: string; value: string; pct?: number; color: string }) {
  const p = pct === undefined ? undefined : Math.min(100, Math.max(0, pct))
  return (
-  <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(0,0,0,0.32)', border: '1px solid rgba(160,82,40,0.35)', boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.05)' }}>
+  <Panel variant="chip" style={{ padding: '10px 12px' }}>
    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: p !== undefined ? 8 : 0 }}>
     <span aria-hidden="true" style={{ color, display: 'flex' }}>{icon}</span>
     <span className="ares-mono" style={{ flex: 1, fontSize: 11, color: 'rgba(255,179,71,0.85)', letterSpacing: '0.06em' }}>{label}</span>
@@ -67,7 +68,7 @@ function ConsoleStatRow({ icon, label, value, pct, color }: { icon: ReactNode; l
    {p !== undefined && (
     <LiquidBar value={p} height={10} label={label} />
    )}
-  </div>
+  </Panel>
  )
 }
 
@@ -102,7 +103,7 @@ function EconomySection({ data }: { data: EconomyData }) {
     <ConsoleStatRow icon={<Trophy size={16} />} label={t("ЭКИПАЖ С ДЕЛЯНКАМИ")} value={data.players.toString()} color="#FFC94A" />
     <ConsoleStatRow icon={<Coins size={16} />} label={t("МАКС. SUPPLY")} value={`${(data.maxSupply / 1e6).toFixed(0)}M POTATO`} color="var(--ares-hud-amber, #FFB347)" />
 
-    <div style={{ marginTop: 4, padding: '10px 12px', borderRadius: 8, background: 'rgba(193,68,14,0.08)', border: '1px solid rgba(193,68,14,0.35)' }}>
+    <Panel variant="chip" style={{ marginTop: 4, padding: '10px 12px', background: 'rgba(193,68,14,0.08)', borderColor: 'rgba(193,68,14,0.35)' }}>
      <div className="ares-stencil" style={{ fontSize: 11, color: 'var(--ares-rust, #C1440E)', marginBottom: 8 }}>{t("ЗАЩИТА ЭКОНОМИКИ")}</div>
      {[
       t('Эмиссия только через harvest и награды: лимит эпохи + максимальный supply'),
@@ -116,7 +117,7 @@ function EconomySection({ data }: { data: EconomyData }) {
        <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span> {t}
       </div>
      ))}
-    </div>
+    </Panel>
    </div>
   </ConsolePanel>
  )
@@ -224,7 +225,7 @@ function StatsScreenInner() {
     <ol style={{ display: 'flex', flexDirection: 'column', gap: 10, listStyle: 'none' }}>
      {leaders.map((row, i) => (
       <motion.li key={row.address} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-       className="pf-card hull-skin" style={{ padding: '14px 16px', borderRadius: 14, display: 'flex', alignItems: 'center', gap: 12, border: row.isMe ? '1px solid var(--pf-teal)' : undefined }}>
+       className="pf-card hull-skin" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, borderColor: row.isMe ? 'var(--pf-teal)' : undefined }}>
        <div style={{ width: 28, fontSize: 16, fontWeight: 800, color: i === 0 ? 'var(--pf-gold)' : i === 1 ? 'var(--pf-text-secondary)' : i === 2 ? '#b45309' : 'var(--pf-text-muted)' }}>{i + 1}</div>
        <div style={{ flex: 1 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: row.isMe ? 'var(--ares-hud-amber, #FFB347)' : 'var(--ares-parchment, #F2E8DA)' }}>
