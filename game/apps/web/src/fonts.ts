@@ -33,6 +33,16 @@ import '@fontsource/dm-sans/latin-400.css'
 import '@fontsource/dm-sans/latin-500.css'
 import '@fontsource/dm-sans/latin-700.css'
 
+// Oswald — display headings (condensed stencil, cyrillic included).
+// Anton/Archivo Black stay loaded for latin-only accents but Russian titles
+// now render in Oswald instead of silently falling back to Inter.
+import '@fontsource/oswald/latin-500.css'
+import '@fontsource/oswald/latin-600.css'
+import '@fontsource/oswald/latin-700.css'
+import '@fontsource/oswald/cyrillic-500.css'
+import '@fontsource/oswald/cyrillic-600.css'
+import '@fontsource/oswald/cyrillic-700.css'
+
 // Anton — display
 import '@fontsource/anton/latin-400.css'
 import '@fontsource/anton/latin-ext-400.css'
