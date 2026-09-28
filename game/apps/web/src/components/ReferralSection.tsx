@@ -82,7 +82,7 @@ export function ReferralSection() {
     </div>
 
     {/* Правила: кто и что платит (раньше было отдельным блоком в «Журнале») */}
-    <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)' }}>
+    <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,214,170,0.12)' }}>
      {[
       t('Ссылка бесплатна — приглашающий платит ничего'),
       t('Приглашённый открывает ссылку с ?ref= — регистрируется автоматически (on-chain, одноразово)'),
@@ -108,7 +108,7 @@ export function ReferralSection() {
       padding: '10px 12px',
       borderRadius: 10,
       background: 'rgba(0,0,0,0.25)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      border: '1px solid rgba(255,214,170,0.12)',
       fontFamily: 'monospace',
       fontSize: 11,
       color: 'var(--pf-text-secondary)',
@@ -148,7 +148,7 @@ export function ReferralSection() {
       style={{
        padding: '12px 20px',
        borderRadius: 12,
-       background: 'rgba(255,255,255,0.08)',
+       background: 'rgba(0,0,0,0.3)',
        border: '1px solid rgba(255,255,255,0.15)',
        color: 'white',
        fontSize: 14,

@@ -171,9 +171,9 @@ export const HydroTray = memo(function HydroTray({
      height: 3,
      borderRadius: 2,
      background: active
-      ? 'linear-gradient(90deg, var(--ares-bio-cyan, #12E7C4), var(--ares-bio-green, #7CFF6B))'
+      ? 'linear-gradient(90deg, #C99232, #E8A03C)'
       : 'rgba(180,220,255,0.12)',
-     boxShadow: active ? '0 0 6px var(--ares-bio-cyan, #12E7C4)' : 'none',
+     boxShadow: active ? '0 0 6px rgba(255, 170, 60, 0.35)' : 'none',
     }}
    />
    {children}

@@ -153,7 +153,7 @@ export default function PresaleSection() {
    {/* Прогресс-бар */}
    <div style={{
     height: 6,
-    background: 'rgba(255,255,255,0.08)',
+    background: 'rgba(0,0,0,0.3)',
     borderRadius: 999,
     overflow: 'hidden',
     marginBottom: 18,
@@ -180,19 +180,19 @@ export default function PresaleSection() {
     style={{
      width: '100%',
      padding: '14px 22px',
-     borderRadius: 14,
-     border: '1px solid rgba(255,255,255,0.25)',
+     borderRadius: 3,
+     border: '1px solid rgba(0,0,0,0.45)',
      background: soldOut
-      ? 'rgba(255,255,255,0.05)'
-      : 'var(--ares-btn-bg)',
-     color: soldOut ? 'var(--pf-text-muted)' : '#FFFFFF',
+      ? 'rgba(0,0,0,0.28)'
+      : 'linear-gradient(180deg, #E89A4B 0%, #C97A2B 55%, #A85F1E 100%)',
+     color: soldOut ? 'var(--pf-text-muted)' : '#2A1206',
      fontSize: 15,
      fontWeight: 800,
      textTransform: 'uppercase',
      letterSpacing: '0.05em',
      cursor: disabled ? 'not-allowed' : 'pointer',
      opacity: disabled && !soldOut ? 0.6 : 1,
-     boxShadow: soldOut ? 'none' : '0 0 16px rgba(184, 92, 255, 0.45)',
+     boxShadow: soldOut ? 'inset 0 1px 0 rgba(255,214,170,0.08)' : 'inset 0 1px 0 rgba(255,232,185,0.55), 0 4px 0 #5F3410, 0 9px 14px -7px rgba(0,0,0,0.8)',
      display: 'flex',
      alignItems: 'center',
      justifyContent: 'center',

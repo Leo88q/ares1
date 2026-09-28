@@ -46,7 +46,7 @@ export default function ParallaxBackground() {
 
  useEffect(() => {
   // Генерируем случайные плавающие элементы
-  const palette = ['#FFB347', '#B85CFF', '#12E7C4', '#6B93D6']
+  const palette = ['#FFB347', '#D8558F', '#C9A176', '#9FBE7A']
   const newElements: FloatingElement[] = Array.from({ length: 15 }, (_, i) => ({
    id: i,
    shape: Math.floor(Math.random() * 3),
