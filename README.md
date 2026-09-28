@@ -25,6 +25,12 @@ First potato colony on Mars. Grow, trade, upgrade - 100% of $POTATO is born in p
 - Landing: React 18 + Vite 6 + Framer Motion
 - Game: React 18 + Vite + @solana/web3.js
 - Network: Solana Devnet
+- Hosting: Cloudflare Pages (`ares1` for the landing, `ares1-play` for the game client)
+
+Production HTTP headers and redirects live in `landing/public/_headers` and
+`landing/public/_redirects` — both are understood by Cloudflare Pages and by Netlify.
+`landing/netlify.toml` holds build configuration only: Cloudflare Pages ignores it, so
+platform rules must not be added there.
 
 ## Run locally
 
