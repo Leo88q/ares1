@@ -26,17 +26,7 @@ function PatchSprite({ patchSrc, label }: { patchSrc?: string; label: string }):
  }
 
  return (
-  <svg width={40} height={40} viewBox="0 0 40 40">
-   <circle
-    cx="20"
-    cy="20"
-    r="17"
-    fill="rgba(184, 92, 255, 0.15)"
-    stroke="var(--ares-grow-pink, #FF2E93)"
-    strokeWidth="2"
-    strokeDasharray="2 2"
-   />
-  </svg>
+  <span style={{ display: 'block', width: 40, height: 40, borderRadius: '50%', border: '2px solid rgba(255,179,71,0.45)', background: 'rgba(0,0,0,0.35)' }} />
  );
 }
 

@@ -3,7 +3,7 @@ import { t } from '../../i18n'
 
 import { useSeekerPhase, SEEKER_PHASE_LABELS_RU } from '../../theme/ares';
 import type { SolPhase } from '../../theme/ares';
-import { IconO2, IconDrop, IconCrate } from './icons';
+import { Emblem, Glyph } from '../../ui/Emblem';
 import { BreathingGlow } from './effects';
 
 export interface SolHudProps {
@@ -99,21 +99,21 @@ export const SolHud = memo(function SolHud({
    }}
   >
    <HudCell
-    icon={<IconO2 size={14} accent={accent} />}
+    icon={<Emblem name="gauge" size={14} />}
     label="O2"
     value={formatPercent(o2Percent)}
     accent={accent}
     breathing={breathing}
    />
    <HudCell
-    icon={<IconDrop size={14} accent={accent} />}
+    icon={<Glyph name="drop" size={14} />}
     label="H2O"
     value={formatPercent(h2oPercent)}
     accent={accent}
     breathing={breathing}
    />
    <HudCell
-    icon={<IconCrate size={14} accent={accent} />}
+    icon={<Emblem name="crate" size={14} />}
     label="RATION"
     value={t(rationLabel)}
     accent={accent}

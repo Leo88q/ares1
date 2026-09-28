@@ -1,0 +1,15 @@
+{
+  // П. 107 (аудит 2026-09-28): рекомендованные расширения = фактический allowlist
+  // проекта. Установка расширений вне этого списка — только в одноразовом
+  // профиле/VM (docs/OPERATIONS.md, «Люди, устройства и доступ»).
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "rust-lang.rust-analyzer",
+    "editorconfig.editorconfig",
+    "usernamehw.errorlens"
+  ],
+  // Плохие рекомендации: если расширение попросили установить «для работы с
+  // проектом» в личке — это паттерн WaterPlum (п. 106). Проверяйте publisher.
+  "unwantedRecommendations": ["ms-vscode.vscode-typescript-tslint-plugin"]
+}

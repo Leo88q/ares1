@@ -75,14 +75,15 @@ function BandMedia({ filter }: { filter: string }): JSX.Element {
 
 function BandFallback(): JSX.Element {
  return (
-  <svg viewBox="0 0 400 120" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
-   <path d="M0 92 Q50 64 110 80 T230 72 T330 82 T400 76 V120 H0 Z" fill="#8A2E08" />
-   <path d="M282 78 Q300 56 318 78 Z" fill="rgba(232,106,60,0.30)" />
-   <circle cx="300" cy="70" r="2" fill="#E86A3C" opacity="0.9" />
-   <path d="M0 104 Q55 88 115 100 T235 94 T345 102 T400 98 V120 H0 Z" fill="#C1440E" />
-   <ellipse cx="70" cy="110" rx="7" ry="3" fill="#8A2E08" />
-   <ellipse cx="330" cy="112" rx="9" ry="3.4" fill="#8A2E08" />
-  </svg>
+  <span
+     aria-hidden="true"
+     style={{
+      position: 'absolute',
+      inset: 0,
+      background:
+        'radial-gradient(140% 90% at 18% 115%, rgba(138,46,8,0.55) 0 38%, transparent 39%), radial-gradient(120% 80% at 72% 118%, rgba(90,30,6,0.6) 0 44%, transparent 45%), radial-gradient(90% 60% at 45% 125%, rgba(193,68,14,0.35) 0 40%, transparent 41%)',
+     }}
+    />
  );
 }
 

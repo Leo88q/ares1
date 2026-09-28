@@ -25,30 +25,10 @@ interface PatchBadgeProps {
 
 function PatchFallback({ label, tone, earned }: { label: string; tone: string; earned: boolean }): JSX.Element {
  return (
-  <svg viewBox="0 0 64 64" width="100%" height="100%">
-   <circle
-    cx="32"
-    cy="32"
-    r="28"
-    fill="rgba(0,0,0,0.35)"
-    stroke={tone}
-    strokeWidth="2"
-    strokeDasharray="3 2"
-    opacity={earned ? 1 : 0.35}
-   />
-   <circle cx="32" cy="32" r="20" fill={`${tone}22`} stroke={tone} strokeWidth="1" opacity={earned ? 1 : 0.35} />
-   <text
-    x="32"
-    y="36"
-    textAnchor="middle"
-    fontSize="9"
-    fill={tone}
-    opacity={earned ? 1 : 0.4}
-    fontFamily="var(--ares-font-mono, monospace)"
-   >
-    {label.slice(0, 3).toUpperCase()}
-   </text>
-  </svg>
+  <span
+   title={label}
+   style={{ display: 'block', width: '100%', height: '100%', borderRadius: '50%', border: `2px solid ${earned ? tone : 'rgba(255,179,71,0.3)'}`, background: 'rgba(0,0,0,0.35)' }}
+  />
  );
 }
 

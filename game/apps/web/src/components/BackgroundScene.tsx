@@ -17,26 +17,33 @@ export default function BackgroundScene({ variant = 'farm', children }: Props) {
  const y1 = useTransform(scrollY, [0, 1000], [0, -50])
  const y2 = useTransform(scrollY, [0, 1000], [0, -100])
 
+ const artByVariant: Record<Variant, string> = {
+  farm: '/ares/bg-colony.jpg',
+  market: '/ares/bg-market.jpg',
+  profile: '/ares/bg-cabin.jpg',
+  stats: '/ares/bg-engine.jpg',
+ }
+
  const gradients: Record<Variant, { bg: string; blob1: string; blob2: string }> = {
   farm: {
    bg: 'linear-gradient(135deg, #0B0714 0%, #1A0E2E 50%, #2D0B3D 100%)',
-   blob1: 'rgba(255, 122, 26, 0.15)', // orange
-   blob2: 'rgba(184, 92, 255, 0.15)', // purple
+   blob1: 'rgba(255, 122, 26, 0.08)', // orange
+   blob2: 'rgba(184, 92, 255, 0.07)', // purple
   },
   market: {
    bg: 'linear-gradient(135deg, #0B0714 0%, #1A0E2E 50%, #3D1F5C 100%)',
-   blob1: 'rgba(184, 92, 255, 0.15)',
-   blob2: 'rgba(255, 122, 26, 0.15)',
+   blob1: 'rgba(184, 92, 255, 0.07)',
+   blob2: 'rgba(255, 122, 26, 0.08)',
   },
   profile: {
    bg: 'linear-gradient(135deg, #0B0714 0%, #2D0B3D 50%, #6A1B5D 100%)',
-   blob1: 'rgba(255, 62, 127, 0.15)', // pink
-   blob2: 'rgba(255, 122, 26, 0.15)',
+   blob1: 'rgba(255, 62, 127, 0.08)', // pink
+   blob2: 'rgba(255, 122, 26, 0.08)',
   },
   stats: {
    bg: 'linear-gradient(135deg, #0B0714 0%, #0A1E2E 50%, #1A3E5C 100%)',
-   blob1: 'rgba(193, 68, 14, 0.12)', // teal
-   blob2: 'rgba(184, 92, 255, 0.15)',
+   blob1: 'rgba(193, 68, 14, 0.08)', // teal
+   blob2: 'rgba(184, 92, 255, 0.07)',
   },
  }
 
@@ -52,6 +59,30 @@ export default function BackgroundScene({ variant = 'farm', children }: Props) {
     overflow: 'hidden',
    }}
   >
+   {/* Живописный интерьер колонии (арт-фон) */}
+   <div
+    aria-hidden="true"
+    style={{
+     position: 'absolute',
+     inset: 0,
+     backgroundImage: `url(${artByVariant[variant]})`,
+     backgroundSize: 'cover',
+     backgroundPosition: 'center',
+     opacity: 0.5,
+     transition: 'opacity 0.6s ease',
+    }}
+    key={variant}
+   />
+   {/* Тёплая виньетка поверх арта */}
+   <div
+    aria-hidden="true"
+    style={{
+     position: 'absolute',
+     inset: 0,
+     background: 'radial-gradient(120% 90% at 50% 20%, transparent 30%, rgba(6,3,1,0.72) 100%), linear-gradient(to bottom, rgba(6,3,1,0.35), transparent 30%, transparent 65%, rgba(6,3,1,0.55))',
+    }}
+   />
+
    {/* Blob 1 */}
    <motion.div
     style={{
@@ -98,16 +129,16 @@ export default function BackgroundScene({ variant = 'farm', children }: Props) {
     }}
    />
 
-   {/* Сетка поверх */}
+   {/* Зернистая металлическая текстура поверх */}
    <div
+    aria-hidden="true"
     style={{
      position: 'absolute',
      inset: 0,
-     backgroundImage: `
-      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)
-     `,
-     backgroundSize: '40px 40px',
+     backgroundImage: 'url(/ares/bg-plates.jpg)',
+     backgroundSize: '512px 512px',
+     opacity: 0.1,
+     mixBlendMode: 'overlay',
     }}
    />
 

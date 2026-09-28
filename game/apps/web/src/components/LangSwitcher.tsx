@@ -1,7 +1,7 @@
 // Компактный селектор языка: глобус в шапке + выпадающий список.
 // Использует useI18n, чтобы перерисовываться при смене языка.
 import { useEffect, useRef, useState } from 'react'
-import { Globe, Check } from 'lucide-react'
+import { Glyph } from '../ui/Emblem'
 import { LANGS, useI18n } from '../i18n'
 
 export default function LangSwitcher({ compact = false }: { compact?: boolean }) {
@@ -33,7 +33,7 @@ export default function LangSwitcher({ compact = false }: { compact?: boolean })
     onClick={() => setOpen((v) => !v)}
     aria-label={t('Язык')}
     aria-expanded={open}
-    className="pf-card hull-skin"
+    className="pf-card"
     style={{
      display: 'flex', alignItems: 'center', gap: 6,
      padding: compact ? '7px 10px' : '9px 12px',
@@ -48,17 +48,16 @@ export default function LangSwitcher({ compact = false }: { compact?: boolean })
      letterSpacing: '0.08em',
     }}
    >
-    <Globe size={compact ? 13 : 15} aria-hidden="true" />
+    <Glyph name="globe" size={compact ? 13 : 15} aria-hidden="true" />
     <span className="ares-mono">{(current?.label || 'English').split(' ')[0].toUpperCase().slice(0, 6)}</span>
    </button>
    {open && (
     <div
      role="menu"
      style={{
-      position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 60,
-      background: '#15100b', border: '1px solid rgba(160, 82, 40, 0.65)',
+      position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 'var(--s-z-header)',
+      background: 'var(--s-pop-bg)', border: '1px solid var(--s-panel-edge-soft)', boxShadow: 'var(--s-pop-shadow)',
       borderRadius: 12, padding: 6, minWidth: 190,
-      boxShadow: '0 10px 30px rgba(0,0,0,0.55)',
      }}
     >
      {LANGS.map((l) => (
@@ -77,7 +76,7 @@ export default function LangSwitcher({ compact = false }: { compact?: boolean })
        }}
       >
        <span>{l.native}</span>
-       {l.code === lang && <Check size={14} aria-hidden="true" />}
+       {l.code === lang && <Glyph name="check" size={14} aria-hidden="true" />}
       </button>
      ))}
     </div>

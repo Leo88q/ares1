@@ -29,6 +29,27 @@
   --body: "Inter", system-ui, sans-serif;
 }
 
+  /* ══ ЕДИНАЯ СИСТЕМА ПОВЕРХНОСТЕЙ (--s-*, 2026-09-28) ══
+     Единственный источник значений панелей/шапки/тостов.
+     Меняется здесь → применяется везде, где поверхность ссылается на --s-*.
+     Значения зафиксированы по фактическому рендеру на 28.09.2026. */
+  --s-panel-bg: rgba(20, 14, 26, 0.55);
+  --s-panel-bg-strong: rgba(16, 10, 22, 0.85);
+  --s-panel-border: rgba(184, 160, 214, 0.2);
+  --s-panel-border-soft: rgba(184, 160, 214, 0.12);
+  --s-panel-radius: 14px;
+  --s-panel-radius-lg: 20px;
+  --s-panel-blur: blur(14px);
+  --s-panel-shadow: 0 18px 44px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --s-pop-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --s-header-bg: #08050acc;
+  --s-toast-bg: #1b1024;
+  --s-z-header: 60;
+  --s-z-overlay: 90;
+  --s-z-modal: 100;
+  --s-z-toast: 110;
+  --s-z-cursor: 110;
+
 *,
 *::before,
 *::after {
@@ -49,7 +70,12 @@ body {
   min-width: 320px;
   overflow-x: clip;
   color: var(--ares-ink);
-  background: var(--ares-space);
+  background:
+    linear-gradient(180deg, rgba(7, 4, 2, 0.82), rgba(7, 4, 2, 0.9)),
+    url('/ares/bg-plates.jpg');
+  background-size: auto, 512px 512px;
+  background-repeat: no-repeat, repeat;
+  background-attachment: fixed;
   font-family: var(--body);
   font-size: 16px;
   line-height: 1.7;
@@ -295,11 +321,11 @@ input:focus-visible {
 
 .header {
   position: fixed;
-  z-index: 60;
+  z-index: var(--s-z-header);
   inset: 0 0 auto;
   min-height: var(--ares-header-height);
   border-bottom: 1px solid transparent;
-  background: linear-gradient(#08050acc, #08050a00);
+  background: linear-gradient(var(--s-header-bg), #08050a00);
 }
 
 .header--scrolled {
@@ -537,19 +563,22 @@ input:focus-visible {
   position: relative;
   isolation: isolate;
   display: inline-flex;
-  min-height: 52px;
+  min-height: 56px;
   width: 100%;
   align-items: center;
   justify-content: center;
   padding: 14px 22px;
-  border: 1px solid #ffffff2e;
-  border-radius: 7px;
-  box-shadow: inset 0 1px 0 #ffffff38, 0 3px 0 #0006;
+  border: 0 solid transparent;
+  border-width: 15px;
+  border-image: url('/ares/kit/btn-secondary.webp') 40 fill / 15px;
+  border-radius: 0;
+  background: none;
+  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.85);
   font-weight: 700;
   font-size: 13px;
   line-height: 1.5;
   text-align: center;
-  transition: transform 150ms ease;
+  transition: transform 150ms ease, filter 150ms ease;
   touch-action: manipulation;
 }
 
@@ -562,14 +591,23 @@ input:focus-visible {
 }
 
 .action--primary {
-  background: var(--ares-grow);
-  color: #16030d;
+  border-image-source: url('/ares/kit/btn-primary.webp');
+  color: #2B1403;
+  text-shadow: 0 1px 0 rgba(255, 220, 150, 0.55);
 }
 
 .action--secondary {
-  border-color: #80708975;
-  background: #15101deb;
-  color: #f3eaf6;
+  color: #E9DBC4;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.action:hover:not(:disabled) {
+  transform: translateY(1px);
+  filter: brightness(1.15);
+}
+
+.action--primary:hover:not(:disabled) {
+  box-shadow: 0 6px 22px -6px rgba(0, 0, 0, 0.85), 0 0 24px -4px rgba(255, 158, 44, 0.5);
 }
 
 .action:disabled {
@@ -782,7 +820,8 @@ input:focus-visible {
   inset: 0;
   background:
     radial-gradient(ellipse at 88% 48%, #7399d22b, transparent 37%),
-    linear-gradient(180deg, #0c0913 3%, #2b1828 38%, #643e47 65%, #8e492e 88%);
+    linear-gradient(180deg, rgba(12, 9, 19, 0.25) 3%, rgba(43, 24, 40, 0.3) 38%, rgba(100, 62, 71, 0.35) 65%, rgba(142, 73, 46, 0.4) 88%),
+    url('/ares/bg-mars.jpg') center / cover no-repeat;
 }
 
 .star-field {
@@ -1878,10 +1917,14 @@ input:focus-visible {
 
 .faq-item {
   position: relative;
-  padding-inline: 14px;
-  border-bottom: 1px solid var(--border);
-  border-radius: 8px;
+  padding: 6px 14px;
+  border-style: solid;
+  border-width: 13px;
+  border-image: url('/ares/kit/card-bronze-small.webp') 20 fill / 13px;
+  border-radius: 0;
+  margin-bottom: 10px;
 }
+.faq-item + .faq-item { border-top-style: solid; }
 
 .faq-item h3 {
   font-family: var(--body);
@@ -1973,8 +2016,12 @@ input:focus-visible {
   gap: 18px;
   width: min(100%, 340px);
   margin-top: 30px;
-  padding: 17px;
-  border: 1px dashed #b588b657;
+  padding: 13px 17px;
+  border: 0 solid transparent;
+  border-width: 16px;
+  border-image: url('/ares/kit/card-bone-small.webp') 20 fill / 16px;
+  border-radius: 0;
+  background: none;
   border-radius: 8px;
   background: #09060e47;
   transform: rotate(-3deg);
@@ -2053,10 +2100,12 @@ input:focus-visible {
   display: block;
   width: 100%;
   min-height: 52px;
-  padding: 13px 15px;
-  border: 1px solid #8c69915e;
-  border-radius: 6px;
-  background: #0b0710d9;
+  padding: 13px 18px;
+  border: 0 solid transparent;
+  border-width: 10px;
+  border-image: url('/ares/kit/input.webp') 30 fill / 10px;
+  border-radius: 0;
+  background: none;
   color: #f6eaf9;
   font-size: 16px;
   line-height: 1.5;
@@ -2068,7 +2117,8 @@ input:focus-visible {
 }
 
 .form-field input[aria-invalid="true"] {
-  border-color: var(--ares-danger);
+  border-image-source: url('/ares/kit/input.webp');
+  filter: hue-rotate(-30deg) saturate(1.4);
 }
 
 .form-field input:disabled {
@@ -2219,8 +2269,8 @@ input:focus-visible {
   gap: 16px;
   margin-left: auto;
   padding: 18px 14px 18px 22px;
-  background: #1b1024;
-  box-shadow: 0 15px 60px #0008;
+  background: var(--s-toast-bg);
+  box-shadow: var(--s-pop-shadow);
   pointer-events: auto;
 }
 
@@ -2809,22 +2859,27 @@ input:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 15px 28px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #FFB347, #FF8A2A);
-  color: #1a1208;
+  padding: 10px 28px;
+  border: 0 solid transparent;
+  border-width: 16px;
+  border-image: url('/ares/kit/btn-primary.webp') 40 fill / 16px;
+  border-radius: 0;
+  background: none;
+  color: #2B1403;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-size: 14px;
   font-family: "JetBrains Mono", ui-monospace, monospace;
-  box-shadow: 0 8px 30px rgba(255, 138, 42, 0.35);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  text-shadow: 0 1px 0 rgba(255, 220, 150, 0.55);
+  box-shadow: 0 8px 26px -10px rgba(0, 0, 0, 0.85);
+  transition: transform 0.2s ease, filter 0.2s ease;
   text-decoration: none;
 }
 .cta-play:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 36px rgba(255, 138, 42, 0.5);
+  filter: brightness(1.14);
+  box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.9), 0 0 26px -4px rgba(255, 158, 44, 0.55);
 }
 .cta-play:active { transform: translateY(0); }
 
@@ -2832,19 +2887,23 @@ input:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #FFB347, #FF8A2A);
-  color: #1a1208;
+  padding: 4px 14px;
+  border: 0 solid transparent;
+  border-width: 13px;
+  border-image: url('/ares/kit/btn-primary.webp') 40 fill / 13px;
+  border-radius: 0;
+  background: none;
+  color: #2B1403;
   font-weight: 700;
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-family: "JetBrains Mono", ui-monospace, monospace;
+  text-shadow: 0 1px 0 rgba(255, 220, 150, 0.55);
   text-decoration: none;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, filter 0.2s ease;
 }
-.header-play:hover { transform: translateY(-1px); }
+.header-play:hover { transform: translateY(-1px); filter: brightness(1.14); }
 @media (max-width: 720px) {
   .header-play-full { display: none; }
   .header-play { padding: 8px 10px; }
@@ -2880,9 +2939,11 @@ input:focus-visible {
   gap: 16px;
 }
 .pack-card {
-  background: rgba(20,20,30,0.6);
-  border: 2px solid;
-  border-radius: 12px;
+  background: none;
+  border: 0 solid transparent;
+  border-width: 18px;
+  border-image: url('/ares/kit/card-bronze-small.webp') 20 fill / 18px;
+  border-radius: 0;
   padding: 20px;
   text-align: center;
 }
@@ -2908,15 +2969,19 @@ input:focus-visible {
 }
 .pack-buy {
   width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: 8px;
-  color: #1a1208;
+  padding: 10px 12px;
+  border: 0 solid transparent;
+  border-width: 14px;
+  border-image: url('/ares/kit/btn-primary.webp') 40 fill / 14px;
+  border-radius: 0;
+  background: none;
+  color: #2B1403;
+  text-shadow: 0 1px 0 rgba(255, 220, 150, 0.55);
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.08em;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: transform 0.2s, filter 0.2s;
 }
 .pack-buy:hover:not(:disabled) {
   transform: translateY(-2px);
@@ -2945,10 +3010,12 @@ input:focus-visible {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 8px;
+  padding: 8px 12px;
+  border-style: solid;
+  border-width: 11px;
+  border-image: url('/ares/kit/card-bronze-small.webp') 20 fill / 11px;
+  background: none;
+  border-radius: 0;
   margin-bottom: 10px;
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 13px;
@@ -2984,20 +3051,20 @@ input:focus-visible {
 .lang-switcher { position: relative; display: inline-flex; flex-shrink: 0; }
 .lang-switcher__button {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 12px; border-radius: 999px;
-  border: 1px solid rgba(255, 179, 71, 0.35);
-  background: rgba(255, 179, 71, 0.06);
+  padding: 2px 12px; border: 0 solid transparent;
+  border-width: 8px; border-image: url('/ares/kit/btn-secondary.webp') 40 fill / 8px;
+  border-radius: 0; background: none;
   color: #ffb347; font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
-  cursor: pointer; transition: background 0.2s ease, border-color 0.2s ease;
+  cursor: pointer; transition: filter 0.2s ease;
   min-height: 40px;
 }
-.lang-switcher__button:hover { background: rgba(255, 179, 71, 0.14); border-color: rgba(255, 179, 71, 0.6); }
+.lang-switcher__button:hover { filter: brightness(1.22); }
 .lang-switcher__menu {
   position: absolute; right: 0; top: calc(100% + 8px); z-index: 80;
-  background: rgba(12, 10, 16, 0.97);
-  border: 1px solid rgba(255, 179, 71, 0.35);
-  border-radius: 12px; padding: 6px; min-width: 200px;
+  border-style: solid; border-width: 12px;
+  border-image: url('/ares/kit/card-bronze-small.webp') 20 fill / 12px;
+  border-radius: 0; padding: 2px 6px; min-width: 200px; background: none;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
 }
 .lang-switcher__item {
@@ -3104,3 +3171,28 @@ input:focus-visible {
   color: #ff8f6b;
   border-bottom: 1px dashed #ff8f6b;
 }
+
+/* MK-art: сгенерированный купол — те же габариты, что у прежней SVG-сцены */
+.dome-art-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  user-select: none;
+  filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.55));
+}
+
+/* ── Живописные фоны секций ── */
+.section { position: relative; }
+.section-bg-art {
+  position: absolute;
+  inset: 0;
+  background-image: var(--section-bg);
+  background-size: cover;
+  background-position: center;
+  opacity: 0.28;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  pointer-events: none;
+}
+.section-bg-art + .section-orbit { opacity: 0.5; }
+.section .container { position: relative; z-index: 1; }

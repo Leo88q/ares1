@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { Glyph } from './Emblem'
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { t } from "../i18n";
-import { motion, useMotionValue, useTransform } from "framer-motion";
+import { motion, useMotionTemplate, useMotionValue, useTransform } from "framer-motion";
 import { usePrefersReducedMotion } from "../components/ares/effects";
 import { createPrizeCanvas } from "./prizeCanvas";
 import {
@@ -39,46 +40,6 @@ const numberFormatter = new Intl.NumberFormat("ru-RU", {
   maximumFractionDigits: 6,
 });
 
-function createCrackPath(progress: number): string {
-  const paths: string[] = [];
-
-  for (let branch = 0; branch < 6; branch += 1) {
-    const angle = (branch / 6) * Math.PI * 2 - Math.PI / 2;
-    const points: string[] = [];
-
-    for (let segment = 1; segment <= 4; segment += 1) {
-      const distance = segment * 21 * progress;
-      const side =
-        (segment % 2 === 0 ? -1 : 1) *
-        (5 + branch % 3) *
-        progress;
-
-      const x =
-        120 +
-        Math.cos(angle) * distance +
-        Math.cos(angle + Math.PI / 2) * side;
-
-      const y =
-        120 +
-        Math.sin(angle) * distance +
-        Math.sin(angle + Math.PI / 2) * side;
-
-      points.push(`${x.toFixed(2)} ${y.toFixed(2)}`);
-    }
-
-    paths.push(`M120 120 L${points.join(" L")}`);
-  }
-
-  return paths.join(" ");
-}
-
-const crackStates = Array.from({ length: 10 }, (_, index) =>
-  createCrackPath(index / 9),
-);
-
-const crackTimes = Array.from({ length: 10 }, (_, index) =>
-  30 + (index / 9) * 370,
-);
 
 function PrizeScene({
   amount,
@@ -92,7 +53,6 @@ function PrizeScene({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const finishRef = useRef(onComplete);
-  const id = useId().replace(/:/g, "");
   const elapsed = useMotionValue(0);
 
   useEffect(() => {
@@ -129,7 +89,6 @@ function PrizeScene({
     [0, 220],
   );
 
-  const crackPath = useTransform(elapsed, crackTimes, crackStates);
 
   const flashScale = useTransform(
     elapsed,
@@ -160,6 +119,9 @@ function PrizeScene({
     [0, 1800, 2400],
     [40, 40, 0],
   );
+
+  const shockSize = useTransform(shockRadius, (r) => r * 2);
+  const shockBorder = useMotionTemplate`${shockWidth}px solid #FF8CC5`;
 
   const resultOpacity = useTransform(
     elapsed,
@@ -341,7 +303,7 @@ function PrizeScene({
       <div ref={stageRef} className="prize-static">
         <div className="prize-static-card">
           <div className="prize-static-mark" aria-hidden="true">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5.5"/></svg>
+            <Glyph name="check" size={44} />
           </div>
           <div>
             <p className="prize-result-title">{title}</p>
@@ -386,17 +348,21 @@ function PrizeScene({
           }}
         />
 
-        <svg className="prize-shockwave" viewBox="0 0 1200 1200">
-          <motion.circle
-            cx="600"
-            cy="600"
-            r={shockRadius}
-            strokeWidth={shockWidth}
-            style={{ opacity: shockOpacity }}
-            stroke="#FF8CC5"
-            fill="none"
+        <div
+          className="prize-shockwave"
+          aria-hidden="true"
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <motion.div
+            style={{
+              width: shockSize,
+              height: shockSize,
+              border: shockBorder,
+              borderRadius: '50%',
+              opacity: shockOpacity,
+            }}
           />
-        </svg>
+        </div>
 
         <motion.div
           className="prize-seal"
@@ -406,51 +372,7 @@ function PrizeScene({
             rotate: sealRotation,
           }}
         >
-          <svg viewBox="0 0 240 240">
-            <defs>
-              <radialGradient id={`${id}-seal-fill`}>
-                <stop offset="0%" stopColor="#552442" />
-                <stop offset="100%" stopColor="#100A19" />
-              </radialGradient>
-              <linearGradient id={`${id}-seal-stroke`} x2="1" y2="1">
-                <stop offset="0%" stopColor="#FFB347" />
-                <stop offset="50%" stopColor="#FF2E93" />
-                <stop offset="100%" stopColor="#6B93D6" />
-              </linearGradient>
-            </defs>
-
-            <path
-              d="M120 16 210 68V172L120 224 30 172V68Z"
-              fill={`url(#${id}-seal-fill)`}
-              stroke={`url(#${id}-seal-stroke)`}
-              strokeWidth="3"
-            />
-            <path
-              d="M120 31 197 75V165L120 209 43 165V75Z"
-              fill="none"
-              stroke="#FFB347"
-              strokeOpacity="0.45"
-              strokeWidth="1"
-              strokeDasharray="4 7"
-            />
-
-            <g fill="#FFB347">
-              <circle cx="120" cy="24" r="3" />
-              <circle cx="203" cy="72" r="3" />
-              <circle cx="203" cy="168" r="3" />
-              <circle cx="120" cy="216" r="3" />
-              <circle cx="37" cy="168" r="3" />
-              <circle cx="37" cy="72" r="3" />
-            </g>
-
-            <motion.path
-              d={crackPath}
-              stroke="#FFF0CE"
-              strokeWidth="2"
-              strokeLinecap="round"
-              fill="none"
-            />
-          </svg>
+          <img src="/ares/prize-art.webp" alt="" aria-hidden="true" style={{ width: 220, height: 220, objectFit: 'contain' }} />
 
           <motion.div
             className="prize-seal-symbol"

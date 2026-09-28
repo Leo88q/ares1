@@ -55,7 +55,7 @@ export default function App() {
   <div className="pf-app-bg">
    <GrainOverlay />
    <HullSkinMounter />
-   <BackgroundScene variant="farm" />
+   <BackgroundScene variant={screen as never} />
    <div style={{ maxWidth: 480, margin: '0 auto', position: 'relative', minHeight: '100vh', zIndex: 1 }}>
     <div className="ares-habitat-bg" aria-hidden="true" />
     <ErrorBoundary>
@@ -90,7 +90,7 @@ function ScreenFallback() {
  return (
   <div style={{ padding: 20 }} aria-busy="true">
    {Array.from({ length: 3 }).map((_, i) => (
-    <div key={i} className="pf-card hull-skin shimmer" style={{ height: 120, borderRadius: 16, marginBottom: 12 }} />
+    <div key={i} className="pf-card hull-skin shimmer" style={{ height: 120, marginBottom: 12 }} />
    ))}
   </div>
  )

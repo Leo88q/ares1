@@ -2,7 +2,8 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ShoppingCart, Info } from 'lucide-react'
+import { Glyph } from '../ui/Emblem'
+import { Emblem } from '../ui/Emblem'
 import Button from './Button'
 import { MICRO, MIN_ORDER_AMOUNT_POTATO, feeBps } from '../utils/constants'
 import { pdas, decodeExportLicense } from '../utils/anchorClient'
@@ -20,16 +21,18 @@ interface Props {
 
 const inputStyle: CSSProperties = {
  width: '100%',
- padding: '12px 14px',
- borderRadius: 12,
- border: '1px solid rgba(124, 255, 107, 0.25)',
- background: 'rgba(11, 7, 20, 0.6)',
+ padding: '10px 16px',
+ borderRadius: 0,
+ borderStyle: 'solid',
+ borderWidth: 9,
+ borderImage: "url('/ares/kit/input.webp') 30 fill / 9px",
+ background: 'none',
  color: 'var(--pf-text-primary)',
  fontSize: 15,
  fontFamily: 'var(--pf-font-mono)',
  fontWeight: 700,
  outline: 'none',
- transition: 'border-color 0.2s, box-shadow 0.2s',
+ transition: 'filter 0.2s, box-shadow 0.2s',
 }
 
 /**
@@ -116,10 +119,10 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
      style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(11, 7, 20, 0.75)',
+      background: 'var(--s-panel-bg-strong)',
       backdropFilter: 'blur(10px)',
       WebkitBackdropFilter: 'blur(10px)',
-      zIndex: 100,
+      zIndex: 'var(--s-z-modal)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -132,8 +135,8 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
       exit={{ opacity: 0, scale: 0.92, y: 24 }}
       transition={{ type: 'spring', stiffness: 320, damping: 26 }}
       onClick={(e) => e.stopPropagation()}
-      className="pf-card hull-skin"
-      style={{ width: '100%', maxWidth: 400, padding: 0, overflow: 'hidden' }}
+      className="pf-card"
+      style={{ width: '100%', maxWidth: 400, padding: 26 }}
      >
       {/* Заголовок */}
       <div style={{
@@ -148,7 +151,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
         color: 'var(--pf-green)',
         filter: 'drop-shadow(var(--pf-glow-green))',
        }}>
-        <ShoppingCart size={22} />
+        <Emblem name="crate" size={22} />
        </span>
        <h2 className="pf-h2" style={{ fontSize: 18, flex: 1 }}>{t("Отгрузить $POTATO")}</h2>
        <motion.button
@@ -156,9 +159,9 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
         onClick={onClose}
         aria-label={t("Закрыть")}
         style={{
-         background: 'rgba(255,255,255,0.06)',
+         background: 'var(--s-subtle-bg)',
          border: '1px solid var(--pf-border-soft)',
-         borderRadius: 10,
+         borderRadius: 'var(--s-radius-chip)',
          padding: 14,
          margin: -8,
          cursor: 'pointer',
@@ -166,7 +169,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         }}
        >
-        <X size={16} />
+        <Glyph name="x" size={16} />
        </motion.button>
       </div>
 
@@ -183,7 +186,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
          min="0"
          onChange={(e) => setAmount(e.target.value)}
          onFocus={(e) => { e.target.style.borderColor = 'var(--pf-green)'; e.target.style.boxShadow = 'var(--pf-glow-green)' }}
-         onBlur={(e) => { e.target.style.borderColor = 'rgba(124, 255, 107, 0.25)'; e.target.style.boxShadow = 'none' }}
+         onBlur={(e) => { e.target.style.borderColor = 'var(--s-subtle-border)'; e.target.style.boxShadow = 'none' }}
          style={inputStyle}
          placeholder="100"
         />
@@ -201,7 +204,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
          step="0.000000001"
          onChange={(e) => setPrice(e.target.value)}
          onFocus={(e) => { e.target.style.borderColor = 'var(--pf-green)'; e.target.style.boxShadow = 'var(--pf-glow-green)' }}
-         onBlur={(e) => { e.target.style.borderColor = 'rgba(124, 255, 107, 0.25)'; e.target.style.boxShadow = 'none' }}
+         onBlur={(e) => { e.target.style.borderColor = 'var(--s-subtle-border)'; e.target.style.boxShadow = 'none' }}
          style={inputStyle}
          placeholder="0.0001"
         />
@@ -209,9 +212,9 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
 
        {/* Сводка */}
        <div style={{
-        borderRadius: 12,
-        border: '1px solid rgba(124, 255, 107, 0.2)',
-        background: 'rgba(124, 255, 107, 0.06)',
+        borderRadius: 'var(--s-radius-chip)',
+        border: '1px solid var(--s-subtle-border)',
+        background: 'var(--s-subtle-bg)',
         padding: '12px 14px',
         display: 'flex',
         flexDirection: 'column',
@@ -244,14 +247,14 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
         glow="green"
         disabled={busy}
         onClick={handleSubmit}
-        icon={<ShoppingCart size={16} />}
+        icon={<Emblem name="crate" size={16} />}
         style={{ width: '100%' }}
        >
         {busy ? t('Создаём…') : t('Оформить ордер')}
        </Button>
 
        <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--pf-text-muted)', margin: 0 }}>
-        <Info size={12} />
+        <Emblem name="clipboard" size={12} />
         {t('Ордер висит на бирже до 24ч или пока груз не примут.')}
        </p>
       </div>

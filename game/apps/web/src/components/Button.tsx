@@ -38,22 +38,28 @@ export default function Button({
   none: 'none',
  }
 
- const bgByVariant: Record<Variant, string> = {
-  primary: 'var(--pf-grad-cta)',
-  secondary: 'rgba(255, 255, 255, 0.06)',
-  ghost: 'transparent',
+ const plateByVariant: Record<Variant, string> = {
+  primary: "url('/ares/kit/btn-primary.webp') 40 fill / 15px",
+  secondary: "url('/ares/kit/btn-secondary.webp') 40 fill / 15px",
+  ghost: 'none',
  }
 
  const borderByVariant: Record<Variant, string> = {
-  primary: '1px solid rgba(255, 255, 255, 0.15)',
-  secondary: '1px solid var(--pf-border-soft)',
+  primary: '15px solid transparent',
+  secondary: '15px solid transparent',
   ghost: '1px solid transparent',
  }
 
  const textColor: Record<Variant, string> = {
-  primary: 'white',
-  secondary: 'var(--pf-text-primary)',
+  primary: '#2B1403',
+  secondary: '#E9DBC4',
   ghost: 'var(--pf-text-secondary)',
+ }
+
+ const textShadowByVariant: Record<Variant, string> = {
+  primary: '0 1px 0 rgba(255, 220, 150, 0.55)',
+  secondary: '0 1px 2px rgba(0, 0, 0, 0.8)',
+  ghost: 'none',
  }
 
  return (
@@ -66,10 +72,13 @@ export default function Button({
    className={className}
    style={{
     padding: '12px 20px',
-    borderRadius: 'var(--pf-radius-btn)',
-    border: borderByVariant[variant],
-    background: bgByVariant[variant],
+    borderRadius: variant === 'ghost' ? 'var(--pf-radius-btn)' : 0,
+    borderStyle: 'solid',
+    borderWidth: borderByVariant[variant],
+    borderImage: plateByVariant[variant],
+    background: 'none',
     color: textColor[variant],
+    textShadow: textShadowByVariant[variant],
     fontSize: 14,
     fontWeight: 600,
     fontFamily: 'var(--pf-font-ui)',

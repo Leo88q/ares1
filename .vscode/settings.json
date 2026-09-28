@@ -1,0 +1,21 @@
+{
+  // П. 106/107 (аудит 2026-09-28). workspace-level: снижаем поверхность
+  // автозапуска и утечек. Пользовательские настройки (task.allowAutomaticTasks)
+  // не форсируются из workspace — их выключение обязана сделать команда
+  // вручную: см. OPERATIONS.md «Люди, устройства и доступ» п. 1.
+  "extensions.ignoreRecommendations": false,
+  "search.followSymlinks": false,
+  "git.autofetch": false,
+  "files.exclude": {
+    "**/keys/*.json": true,
+    "**/*-keypair.json": true,
+    "**/.env": true,
+    "**/.env.*": true
+  },
+  "json.schemas": [
+    {
+      "fileMatch": ["program-inventory.json"],
+      "url": "./game/program-inventory.json"
+    }
+  ]
+}

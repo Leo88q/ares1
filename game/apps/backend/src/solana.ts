@@ -13,6 +13,7 @@ import {
 } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { env } from "./env.js";
+import { assertPayerInstructionsAllowed } from "./policy.js";
 import { anchorDiscriminator, u64LE, decodeGameConfig, decodeEpoch, GameConfig, EpochAccount } from "./anchorRaw.js";
 
 export const programId = new PublicKey(env.programId);
@@ -155,6 +156,10 @@ export async function sendVersionedTx(
   instructions: TransactionInstruction[],
   opts?: { lookupTables?: AddressLookupTableAccount[]; extraSigners?: Keypair[] },
 ): Promise<string> {
+  // Checklist item 108/114 (audit 2026-09-28): the signer refuses any
+  // instruction that is not on its own allowlist, regardless of which module
+  // assembled the transaction (jaredfromsubway honeypot / SwapNet router).
+  assertPayerInstructionsAllowed(instructions, programId);
   const priorityIxs = [
     ComputeBudgetProgram.setComputeUnitLimit({ units: 250_000 }),
     ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }),

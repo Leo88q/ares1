@@ -3,7 +3,7 @@ import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { PublicKey } from '@solana/web3.js'
-import { Wrench, ArrowUp, Droplet, Receipt, ChevronDown } from 'lucide-react'
+import { Emblem, Glyph } from '../ui/Emblem'
 import { Field } from '../contexts/GameContext'
 import HarvestAnimation from './HarvestAnimation'
 import ProgressBar from './ProgressBar'
@@ -13,7 +13,6 @@ import {
  fieldTypeInfo, mutationInfo, fmtPotato, fmtPotatoExact, upgradeCostMicro, repairCostMicro, taxCostMicro, fertilizerCostMicro,
  HARVEST_THRESHOLD_MICRO, MAX_FIELD_LEVEL, MAX_DURABILITY, TAX_PERIOD_DAYS, FERTILIZER_HOURS,
 } from '../utils/constants'
-import { IconMutGold, IconMutSilicon } from './ares/icons'
 
 type FieldAction = (field: PublicKey) => Promise<boolean>
 
@@ -65,8 +64,8 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
  }
 
  const actionStyle = (color: string): React.CSSProperties => ({
-  padding: 10, borderRadius: 10, background: `${color}33`, border: `1px solid ${color}4d`, color,
-  fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+  padding: 8, borderRadius: 0, borderStyle: 'solid', borderWidth: 13, borderImage: "url('/ares/kit/btn-secondary.webp') 40 fill / 13px", background: 'none', color,
+  fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, textShadow: '0 1px 2px rgba(0,0,0,0.8)',
  })
 
  return (
@@ -105,7 +104,7 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
           fontFamily: 'ui-monospace, "JetBrains Mono", monospace',
           fontSize: 10, fontWeight: 700, letterSpacing: 0.5, color: mut.color,
          }}>
-          {field.mutationType === 1 ? <IconMutGold size={11} /> : <IconMutSilicon size={11} />}
+          {field.mutationType === 1 ? <Emblem name="coins" size={11} /> : <Emblem name="gear" size={11} />}
           <span>MUT {mut.code}</span>
           <span style={{ opacity: 0.6 }}>·</span>
           <span>{mut.effect}</span>
@@ -118,7 +117,7 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
         {t('Ур. {n}', { n: field.level })}
        </span>
        <motion.div animate={{ rotate: showActions ? 180 : 0 }} transition={{ duration: 0.3 }}>
-        <ChevronDown size={16} color="var(--pf-text-secondary)" />
+        <Glyph name="chevron-down" size={16} style={{ opacity: 0.8 }} />
        </motion.div>
       </div>
      </div>
@@ -159,8 +158,8 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
      onClick={handleHarvest}
      disabled={!canHarvest || harvesting}
      data-tutorial={index === 0 ? 'harvest-button' : undefined}
-     className={canHarvest ? 'gradient-gold shadow-glow-gold' : ''}
-     style={{ width: '100%', padding: 12, borderRadius: 12, fontSize: 14, fontWeight: 600, marginTop: 12, background: canHarvest ? undefined : 'rgba(255,255,255,0.1)' }}
+     className=""
+     style={{ width: '100%', padding: 10, fontSize: 14, fontWeight: 600, marginTop: 12, borderStyle: 'solid', borderWidth: 15, borderImage: canHarvest ? "url('/ares/kit/btn-primary.webp') 40 fill / 15px" : "url('/ares/kit/btn-secondary.webp') 40 fill / 15px", background: 'none', color: canHarvest ? '#2B1403' : '#B9A98F', textShadow: canHarvest ? '0 1px 0 rgba(255,220,150,0.55)' : '0 1px 2px rgba(0,0,0,0.8)' }}
     >
      {harvesting ? t('Сбор…') : canHarvest ? t('Жатва') : t('Растёт…')}
     </motion.button>
@@ -175,22 +174,22 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
       >
        {onUpgrade && field.level < MAX_FIELD_LEVEL && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onUpgrade, sounds.upgrade, haptics.upgradeField)} style={actionStyle('var(--ares-blueset, #6B93D6)')}>
-         <ArrowUp size={14} /> {t('Апгрейд модуля до ур. {level} ({cost} POTATO)', { level: field.level + 1, cost: fmtPotatoExact(upgradeCostMicro(field.level, field.fieldType)) })}
+         <Glyph name="arrow-up-right" size={14} style={{ transform: 'rotate(-45deg)' }} /> {t('Апгрейд модуля до ур. {level} ({cost} POTATO)', { level: field.level + 1, cost: fmtPotatoExact(upgradeCostMicro(field.level, field.fieldType)) })}
         </motion.button>
        )}
        {onRepair && field.durability < MAX_DURABILITY && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onRepair, sounds.repair, haptics.repairField)} style={actionStyle('var(--pf-teal)')}>
-         <Wrench size={14} /> {t('Техремонт до 100% ({cost} POTATO)', { cost: fmtPotatoExact(repairCostMicro(field.level, field.fieldType)) })}
+         <Emblem name="gear" size={14} /> {t('Техремонт до 100% ({cost} POTATO)', { cost: fmtPotatoExact(repairCostMicro(field.level, field.fieldType)) })}
         </motion.button>
        )}
        {onPayTax && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onPayTax, sounds.payTax, haptics.payTax)} style={actionStyle('var(--pf-gold)')}>
-         <Receipt size={14} /> {t('Пошлина: +{days} дней ({cost} POTATO)', { days: TAX_PERIOD_DAYS, cost: fmtPotatoExact(taxCostMicro(field.level, field.fieldType)) })}
+         <Emblem name="clipboard" size={14} /> {t('Пошлина: +{days} дней ({cost} POTATO)', { days: TAX_PERIOD_DAYS, cost: fmtPotatoExact(taxCostMicro(field.level, field.fieldType)) })}
         </motion.button>
        )}
        {onApplyFertilizer && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onApplyFertilizer, sounds.fertilizer, haptics.applyFertilizer)} style={actionStyle('#22c55e')}>
-         <Droplet size={14} /> {t('Удобрить ×1.5 на {h}ч ({cost} POTATO)', { h: FERTILIZER_HOURS, cost: fmtPotatoExact(fertilizerCostMicro(field.fieldType)) })}
+         <Glyph name="drop" size={14} /> {t('Удобрить ×1.5 на {h}ч ({cost} POTATO)', { h: FERTILIZER_HOURS, cost: fmtPotatoExact(fertilizerCostMicro(field.fieldType)) })}
         </motion.button>
        )}
       </motion.div>
