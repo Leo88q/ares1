@@ -10,6 +10,7 @@
 // PG_APPLY_GAME_OPS=1 дополнительно применяет миграции game_ops из
 // game/migrations/game_ops (в лексикографическом порядке) — это удобный способ
 // поднять схему для интеграционных тестов `yarn workspace backend test`.
+import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket';
@@ -26,8 +27,19 @@ if (process.env.PG_APPLY_GAME_OPS === '1') {
   const files = readdirSync(dir).filter(name => name.endsWith('.sql')).sort();
   await db.exec('DROP SCHEMA IF EXISTS game_ops CASCADE');
   for (const file of files) {
-    await db.exec(readFileSync(new URL(file, dir), 'utf8'));
-    console.log(`applied ${file}`);
+    const sql = readFileSync(new URL(file, dir), 'utf8');
+    await db.exec(sql);
+    // Реестр версий заполняем тем же способом, что и раннер миграций
+    // (sha256 содержимого файла): иначе стенд отличается от продового — тесты и
+    // `yarn db:verify` справедливо сообщали бы «миграции не применены».
+    const version = Number.parseInt(file.slice(0, 4), 10);
+    const checksum = createHash('sha256').update(sql).digest('hex');
+    await db.query(
+      `INSERT INTO game_ops.schema_version (version, file_name, checksum, note)
+       VALUES ($1, $2, $3, 'applied by scripts/local-pg-pglite.mjs')`,
+      [version, file, checksum],
+    );
+    console.log(`applied ${file} (registry v${version})`);
   }
 }
 

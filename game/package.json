@@ -37,7 +37,7 @@
     "db:verify": "tsx scripts/db-verify.ts",
     "db:bench": "tsx scripts/db-bench.ts",
     "db:mutate": "tsx scripts/db-mutate.ts",
-    "test:db": "tsx --test tests/db/*.test.ts",
+    "test:db": "tsx --test --test-concurrency=1 tests/db/*.test.ts",
     "test:db:unit": "tsx --test tests/db/gameops-unit.test.ts"
   },
   "devDependencies": {
