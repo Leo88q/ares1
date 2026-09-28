@@ -155,3 +155,79 @@ test('инструкция, чья программа пришла из lookup t
   signed.message.compiledInstructions[0].programIdIndex = signed.message.staticAccountKeys.length
   assert.throws(() => assertSignedInstructionsMatch(signed, expected, game), /lookup table/)
 })
+
+// --- Audit 2026-09-28: items 82/104/114 — durable nonce / allocate / assign ---
+
+import {
+  BLOCKED_SYSTEM_INSTRUCTION_TYPES,
+  isBlockedSystemInstruction,
+} from '../../apps/web/src/utils/txSafety'
+
+const sysPk = () => ({
+  fromPubkey: Keypair.generate().publicKey,
+  nonceAccount: Keypair.generate().publicKey,
+  authorizedPubkey: Keypair.generate().publicKey,
+  toPubkey: Keypair.generate().publicKey,
+  lamports: 1,
+  space: 80,
+  basePubkey: Keypair.generate().publicKey,
+  seed: 's',
+  newAuthorizedPubkey: Keypair.generate().publicKey,
+})
+
+test('durable-nonce family is enumerated and blocked by type', () => {
+  const a = sysPk()
+  const nonceOps = [
+    SystemProgram.nonceAdvance({ noncePubkey: a.nonceAccount, authorizedPubkey: a.authorizedPubkey }),
+    SystemProgram.nonceInitialize({ noncePubkey: a.nonceAccount, authorizedPubkey: a.authorizedPubkey }),
+    SystemProgram.nonceAuthorize({ noncePubkey: a.nonceAccount, authorizedPubkey: a.authorizedPubkey, newAuthorizedPubkey: a.newAuthorizedPubkey }),
+    SystemProgram.nonceWithdraw({ noncePubkey: a.nonceAccount, authorizedPubkey: a.authorizedPubkey, toPubkey: a.toPubkey, lamports: a.lamports }),
+    SystemProgram.allocate({ accountPubkey: a.nonceAccount, space: a.space }),
+    SystemProgram.allocate({ accountPubkey: a.nonceAccount, basePubkey: a.basePubkey, seed: a.seed, space: a.space, programId: game }),
+    SystemProgram.assign({ accountPubkey: a.nonceAccount, programId: game }),
+    SystemProgram.assign({ accountPubkey: a.nonceAccount, basePubkey: a.basePubkey, seed: a.seed, programId: game }),
+    SystemProgram.createAccountWithSeed({ fromPubkey: a.fromPubkey, basePubkey: a.basePubkey, seed: a.seed, lamports: a.lamports, space: a.space, programId: game, newAccountPubkey: a.nonceAccount }),
+  ]
+  for (const ix of nonceOps) {
+    assert.ok(
+      isBlockedSystemInstruction(ix),
+      `System ix type ${ix.data[0]} must be recognized as blocked`,
+    )
+    assert.throws(() => assertInstructionsAllowed([computeIx(), ix], game), UnsafeTransactionError)
+  }
+  // The types we saw in practice are pinned so a web3.js layout change is caught:
+  const types = new Set(nonceOps.map(ix => ix.data[0]))
+  for (const t of types) assert.ok(BLOCKED_SYSTEM_INSTRUCTION_TYPES.has(t))
+  assert.deepEqual([...BLOCKED_SYSTEM_INSTRUCTION_TYPES].sort((x, y) => x - y), [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+})
+
+test('ordinary system transfer still passes the client guards', () => {
+  const transfer = SystemProgram.transfer({
+    fromPubkey: Keypair.generate().publicKey,
+    toPubkey: Keypair.generate().publicKey,
+    lamports: 123,
+  })
+  assert.ok(!isBlockedSystemInstruction(transfer))
+  assert.doesNotThrow(() => assertInstructionsAllowed([transfer], game))
+})
+
+test('signed transaction with a smuggled nonce instruction is refused after signing', () => {
+  const payer = Keypair.generate().publicKey
+  const a = sysPk()
+  const expected = [computeIx(), harvestIx()]
+  const nonceIx = SystemProgram.nonceAdvance({
+    noncePubkey: a.nonceAccount,
+    authorizedPubkey: payer,
+  })
+  // Wallet (or an injected signer shim) appends a durable-nonce instruction.
+  const signed = new VersionedTransaction(
+    new TransactionMessage({
+      payerKey: payer,
+      recentBlockhash: PublicKey.default.toBase58(),
+      instructions: [...expected, nonceIx],
+    }).compileToV0Message(),
+  )
+  assert.throws(() => assertSignedInstructionsMatch(signed, expected, game), UnsafeTransactionError)
+  // And the preview names the family instead of a generic system_program.
+  assert.equal(describeInstructions([nonceIx])[0], 'system_nonce_op(type=4)')
+})

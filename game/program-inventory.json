@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "network": "devnet",
+  "comment": "Реестр ВСЕХ ончейн-программ проекта (п. 98 каталога 2026: Raydium Legacy/Aztec Connect/Thetanuts). Инструмент: node scripts/inventory-programs.mjs. Правила: deprecated-программа обязана быть immutable (expectedUpgradeAuthority = null) и осушена; у активной программы authority — ожидаемый multisig. Новая запись — только через PR с объяснением, зачем существует ещё одна программа.",
+  "programs": [
+    {
+      "id": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+      "role": "solana_potato — единственная программа игры (маркет/фарм/пресейл/казна)",
+      "status": "active",
+      "expectedUpgradeAuthority": null,
+      "expectedUpgradeAuthorityNote": "ДО mainnet: заполнить адресом Squads-мультисига (гейт G-2); null здесь означает «не проверено», для active-записи inventory-programs.mjs требует явного значения через --expect-authority",
+      "drainRequired": true,
+      "deployedAt": null,
+      "lastCheckedAt": null
+    }
+  ],
+  "removedPrograms": [],
+  "notes": [
+    "П. 98: если программа переименована/заменена — СТАРАЯ запись переносится в removedPrograms со статусом retired и датой осушения, а не удаляется.",
+    "П. 129: после любого инцидента в экосистеме Solana прогонять scripts/inventory-programs.mjs и проверять, что устаревших/спящих программ с балансами нет.",
+    "Исторические deploy-скрипты devnet (scripts/devnet-legacy/) не создают отдельных программ; при появлении новой программы (например, quests) — добавить запись сюда и в watchtower/address-registry.json."
+  ]
+}
