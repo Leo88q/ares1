@@ -1911,10 +1911,14 @@ input:focus-visible {
 
 .faq-item {
   position: relative;
-  padding-inline: 14px;
-  border-bottom: 1px solid var(--border);
-  border-radius: 8px;
+  padding: 6px 14px;
+  border-style: solid;
+  border-width: 13px;
+  border-image: url('/ares/kit/card-bronze-small.webp') 20 fill / 13px;
+  border-radius: 0;
+  margin-bottom: 10px;
 }
+.faq-item + .faq-item { border-top-style: solid; }
 
 .faq-item h3 {
   font-family: var(--body);
@@ -3052,9 +3056,9 @@ input:focus-visible {
 .lang-switcher__button:hover { filter: brightness(1.22); }
 .lang-switcher__menu {
   position: absolute; right: 0; top: calc(100% + 8px); z-index: 80;
-  background: rgba(12, 10, 16, 0.97);
-  border: 1px solid rgba(255, 179, 71, 0.35);
-  border-radius: 12px; padding: 6px; min-width: 200px;
+  border-style: solid; border-width: 12px;
+  border-image: url('/ares/kit/card-bronze-small.webp') 20 fill / 12px;
+  border-radius: 0; padding: 2px 6px; min-width: 200px; background: none;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
 }
 .lang-switcher__item {
