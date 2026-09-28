@@ -1,29 +1,36 @@
 # ---------------------------------------------------------------------------
 # Build context for the backend image (production-deploy checklist §2.7).
 #
-# Rule: the image must contain the code it runs and nothing else. Every
-# excluded path below is either a secret, someone's local state, or material
-# that turns a container escape / image pull into a source disclosure.
+# Rule: the image contains the code it runs and nothing else. Every excluded
+# path below is either a secret, someone's local state, or material that turns
+# an image pull into a source disclosure.
+#
+# DO NOT EXCLUDE THESE — the build breaks without them, and both failures were
+# reproduced from CI, not guessed:
+#   * package.json + yarn.lock at the context root
+#   * apps/web/package.json and apps/backend/package.json
+#     (`yarn install --frozen-lockfile` resolves the whole workspace graph, so
+#     every workspace manifest is required even when only one is built)
+#   * apps/backend/src, apps/backend/tsconfig.json, migrations/
 #
 # Verify after building:
 #   docker build -f apps/backend/Dockerfile .
 #   docker history --no-trunc <image>          # no secrets in any layer
-#   find / -name '*.pem' -o -name '.env*'      # inside a running container
 #   trivy image --severity HIGH,CRITICAL <image>
 # ---------------------------------------------------------------------------
 
-# Version control: the whole history is a source disclosure and often
-# contains secrets that were deleted from the working tree (§1.2).
+# Version control: the whole history is a source disclosure and often holds
+# secrets that were deleted from the working tree (§1.2).
 .git
 .gitignore
 .githooks
 
-# Secrets and local environment (§1.3.1). The image mounts the payer keypair
-# at run time; it must never be baked into a layer.
+# Secrets and local environment (§1.3.1). The payer keypair is mounted at run
+# time; it must never be baked into a layer.
 **/.env
 **/.env.*
 **/*.env
-**/keys
+**/keys/
 **/keys/**
 **/*-keypair.json
 **/id.json
@@ -31,43 +38,45 @@
 **/*.key
 **/*.p12
 **/*.keystore
-**/secrets
-**/secrets/**
 **/serviceAccount*.json
+**/secrets/
+**/secrets/**
 
-# Dependencies and build output: reinstalled inside the image from the
-# lockfile, and dist/ is produced by the build stage.
+# Dependencies and build output: reinstalled inside the image from the lockfile;
+# dist/ is produced by the build stage.
 **/node_modules
 **/dist
 **/target
 **/build
+**/coverage
 .anchor
 test-ledger
-
-# Tests, fixtures and tooling that do not run in production.
-**/tests
-**/*.test.ts
-**/*.test.mjs
-**/*.test.js
-**/coverage
 security-reports
-**/db-bench.json
 
-# Documentation and repositories of internal notes: not needed at runtime and
-# a rich source of accidental disclosure (§2.5).
+# Tests. The backend tsconfig is `include: ["src"]` with `rootDir: src`, so
+# removing tests does not break `yarn workspace backend build`.
+tests
+apps/backend/tests
+apps/web/tests
+
+# Frontend source is not needed to build the backend — but the workspace
+# manifest IS (see the note at the top). Exclude the tree, keep package.json.
+apps/web/src
+apps/web/public
+apps/web/index.html
+apps/web/vite.config.ts
+apps/web/check-devnet.js
+
+# Documentation and internal reports.
 docs
-**/docs
-*.md
-!README.md
-**/*.example.env
+apps/backend/docs
+apps/web/docs
+scripts/devnet-legacy
 
-# Local tooling state.
+# Local tooling noise.
 **/*.log
 **/.DS_Store
 **/.vscode
 **/.idea
-.python-version
 **/__pycache__
 **/*.pyc
-scripts/devnet-legacy
-apps/web
