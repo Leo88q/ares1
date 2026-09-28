@@ -13,8 +13,10 @@ export interface SolTimelineProps {
 
 const VIEW_WIDTH = 320;
 
-function buildPath(points: SolTimelinePoint[], height: number): { line: string; dots: Array<{ x: number; y: number }> } {
- if (points.length === 0) return { line: '', dots: [] };
+interface TimelineSegment { x: number; y: number; len: number; angle: number }
+
+function buildPath(points: SolTimelinePoint[], height: number): { segments: TimelineSegment[]; dots: Array<{ x: number; y: number }> } {
+ if (points.length === 0) return { segments: [], dots: [] };
 
  const values = points.map((point) => point.value);
  const minValue = Math.min(...values);
@@ -30,9 +32,15 @@ function buildPath(points: SolTimelinePoint[], height: number): { line: string; 
   return { x, y };
  });
 
- const line = dots.map((dot, index) => `${index === 0 ? 'M' : 'L'}${dot.x.toFixed(1)},${dot.y.toFixed(1)}`).join(' ');
 
- return { line, dots };
+ const segments: TimelineSegment[] = dots.slice(1).map((dot, index) => {
+  const prev = dots[index];
+  const dx = dot.x - prev.x;
+  const dy = dot.y - prev.y;
+  return { x: prev.x, y: prev.y, len: Math.hypot(dx, dy), angle: Math.atan2(dy, dx) };
+ });
+
+ return { segments, dots };
 }
 
 export const SolTimeline = memo(function SolTimeline({
@@ -40,18 +48,45 @@ export const SolTimeline = memo(function SolTimeline({
  height = 72,
  accent = 'var(--ares-bio-cyan, #12E7C4)',
 }: SolTimelineProps): JSX.Element {
- const { line, dots } = useMemo(() => buildPath(points, height), [points, height]);
+ const { segments, dots } = useMemo(() => buildPath(points, height), [points, height]);
  const firstSol = points[0]?.sol;
  const lastSol = points[points.length - 1]?.sol;
 
  return (
   <div>
-   <svg viewBox={`0 0 ${VIEW_WIDTH} ${height}`} width="100%" height={height} preserveAspectRatio="none">
-    {line ? <path d={line} fill="none" stroke={accent} strokeWidth={1.5} /> : null}
-    {dots.map((dot, index) => (
-     <circle key={index} cx={dot.x} cy={dot.y} r={2.4} fill={accent} />
+   <div style={{ position: 'relative', width: '100%', height }} aria-hidden="true">
+    {segments.map((seg, index) => (
+     <span
+      key={`seg-${index}`}
+      style={{
+       position: 'absolute',
+       left: `${(seg.x / VIEW_WIDTH) * 100}%`,
+       top: seg.y - 0.75,
+       width: `${(seg.len / VIEW_WIDTH) * 100}%`,
+       height: 1.5,
+       background: accent,
+       opacity: 0.85,
+       transformOrigin: '0 50%',
+       transform: `rotate(${seg.angle}rad)`,
+      }}
+     />
     ))}
-   </svg>
+    {dots.map((dot, index) => (
+     <span
+      key={index}
+      style={{
+       position: 'absolute',
+       left: `${(dot.x / VIEW_WIDTH) * 100}%`,
+       top: dot.y - 2.4,
+       width: 4.8,
+       height: 4.8,
+       marginLeft: -2.4,
+       borderRadius: '50%',
+       background: accent,
+      }}
+     />
+    ))}
+   </div>
    {firstSol !== undefined && lastSol !== undefined ? (
     <div
      className="ares-mono"

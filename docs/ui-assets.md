@@ -104,3 +104,31 @@ globe, menu. Заменяют ВСЕ line-SVG-иконки управления 
 Сохранены как исключения (не иконки): анимированный check-success в MorphButton
 (pathLength-анимация), иллюстрации (dome-art, tuber-art, TokenReactor, InterstellarBridge),
 декоративные рамки AresHullFrame/LiquidPanel.
+
+## Полное замещение SVG растровыми артами и CSS (2026-09-28, финальный проход)
+
+В исходниках игры и лендинга не осталось ни одного `<svg>`: структурные и
+декоративные векторы заменены сгенерированными картинками или CSS-эквивалентами.
+Анимации (drift/spin/reveal/sweep) сохранены на новом носителе.
+
+Новые ассеты:
+| Файл (обе apps, если не указано) | Что изображает / где применяется |
+|---|---|
+| `hull-frame.webp` | двойная бронзовая рамка с заклёпками — единый каркас AresHullFrame (лендинг) и HullSkinMounter (игра, `.hull-skin`), раньше — два разных векторных генератора |
+| `divider-strip.webp` | резной бронзовый разделитель — секции лендинга (Divider) |
+| `prize-art.webp` | призовая печать-артефакт — победный экран PrizeRevealShow обоих приложений |
+| `flask.webp` (игра) | бронзовая колба с янтарной жидкостью — FlaskGauge (индикатор) и BubblingFlask (загрузка); уровень/бурление — CSS-свечение и пузырьки внутри clip-path сферы |
+| `rocket.webp` (лендинг) | ретро-ракета с пламенем — MicroMotion RocketArt |
+| `tuber9-happy.webp` (лендинг) | маскот — TuberArt (раньше 60 строк векторного человечка) |
+| `grain.png` | шумовой тайл — GrainOverlay игры (feTurbulence → background-repeat) |
+| `dome-colony.webp` | купол-колония — dome-art лендинга и кнопка «Дом» в mascot игры |
+
+CSS-эквиваленты (без картинок): terrain/dust-слои Марса (радиальные градиенты),
+квантовый маршрут InterstellarBridge (маски-дуги + пакеты), диал TokenReactor
+(conic-gradient секторы + вращающиеся кольца), таймлайн SolTimeline (absolute-
+сегменты), пиксель-аватар IdCard (CSS-grid), shockwave приза (border-кольцо на
+useMotionTemplate), подчёркивание ссылок, параллакс-частицы, свечение рамок.
+
+Удалены мёртвые векторные компоненты: `game .../ares/icons.tsx` (15 svg-иконок),
+`landing/DomeHabitat.tsx`, `landing/HullLightCircuit.tsx`, LegacyLiquidPanelBorder.
+lucide-react выведен из рендера полностью (states, FieldCard, ParallaxBackground).

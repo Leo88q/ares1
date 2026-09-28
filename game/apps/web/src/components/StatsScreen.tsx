@@ -4,7 +4,7 @@ import { t, plural } from '../i18n'
 import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { PublicKey } from '@solana/web3.js'
-import { Emblem } from '../ui/Emblem'
+import { Emblem, Glyph } from '../ui/Emblem'
 import { getMint } from '@solana/spl-token'
 import { useSolana } from '../contexts/SolanaContext'
 import { usePolling } from '../hooks/usePolling'
@@ -114,7 +114,7 @@ function EconomySection({ data }: { data: EconomyData }) {
       t('Награды выдаёт только сервер от имени authority, не из клиента'),
      ].map((t, i) => (
       <div key={i} className="ares-mono" style={{ fontSize: 10, color: 'rgba(255,179,71,0.8)', padding: '3px 0', display: 'flex', gap: 6, lineHeight: 1.5 }}>
-       <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span> {t}
+       <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true"><Glyph name="check" size={12} /></span> {t}
       </div>
      ))}
     </Panel>

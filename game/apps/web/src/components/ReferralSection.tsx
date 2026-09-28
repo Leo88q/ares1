@@ -104,7 +104,7 @@ export function ReferralSection() {
       t('Твоя награда: 0.5 % от комиссии маркета по его сделкам'),
      ].map((rule, i) => (
       <div key={i} style={{ display: 'flex', gap: 6, padding: '2px 0', fontSize: 11, color: 'var(--pf-text-secondary)', lineHeight: 1.5 }}>
-       <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span> <span>{coinText(rule)}</span>
+       <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true"><Glyph name="check" size={12} /></span> <span>{coinText(rule)}</span>
       </div>
      ))}
     </div>

@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { Emblem } from "./Glyph";
 import type { RefObject } from "react";
 import {
   AnimatePresence,
@@ -166,7 +167,6 @@ function QuantumRoute({
 }): JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
   const animated = useVisibleAnimation(ref);
-  const id = useId().replace(/:/g, "");
 
   return (
     <div
@@ -174,74 +174,46 @@ function QuantumRoute({
       className={`quantum-route ${compact ? "quantum-route--compact" : ""}`}
       aria-hidden="true"
     >
-      <svg viewBox="0 0 800 180" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id={`${id}-route`}>
-            <stop offset="0%" stopColor="#C1440E" />
-            <stop offset="45%" stopColor="#FF2E93" />
-            <stop offset="100%" stopColor="#12E7C4" />
-          </linearGradient>
-        </defs>
+      <span className="quantum-route-arc quantum-route-arc--top" aria-hidden="true" />
+      <span className="quantum-route-arc quantum-route-arc--bottom" aria-hidden="true" />
+      <span className="quantum-route-line" aria-hidden="true" />
 
-        <path
-          d="M20 90C210 18 590 18 780 90"
-          fill="none"
-          stroke={`url(#${id}-route)`}
-          strokeOpacity="0.2"
-          strokeWidth="1"
-        />
-        <path
-          d="M20 90C210 162 590 162 780 90"
-          fill="none"
-          stroke={`url(#${id}-route)`}
-          strokeOpacity="0.2"
-          strokeWidth="1"
-        />
-        <path
-          d="M20 90H780"
-          stroke={`url(#${id}-route)`}
-          strokeOpacity="0.36"
-          strokeWidth="1"
-          strokeDasharray="3 9"
-        />
+      {Array.from({ length: 12 }, (_, index) => {
+        const reverse = index % 2 === 1;
+        const restingLeft = `${8 + index * 7.5}%`;
 
-        {Array.from({ length: 12 }, (_, index) => {
-          const reverse = index % 2 === 1;
-          const restingX = 50 + index * 62;
-
-          return (
-            <motion.circle
-              key={index}
-              r={index % 3 === 0 ? 3 : 2}
-              fill={reverse ? "#7CFF6B" : "#FFB347"}
-              initial={false}
-              animate={
-                animated
-                  ? {
-                      cx: reverse ? [780, 400, 20] : [20, 400, 780],
-                      cy: reverse ? [90, 128, 90] : [90, 52, 90],
-                      opacity: [0, 1, 0],
-                    }
-                  : {
-                      cx: restingX,
-                      cy: reverse ? 108 : 72,
-                      opacity: 0.5,
-                    }
-              }
-              transition={
-                animated
-                  ? {
-                      duration: 2.8 + (index % 3) * 0.35,
-                      delay: index * 0.19,
-                      repeat: Infinity,
-                      ease: "linear",
-                    }
-                  : { duration: 0 }
-              }
-            />
-          );
-        })}
-      </svg>
+        return (
+          <motion.span
+            key={index}
+            className="quantum-route-packet"
+            style={{ background: reverse ? "#7CFF6B" : "#FFB347" }}
+            initial={false}
+            animate={
+              animated
+                ? {
+                    left: reverse ? ["96%", "50%", "2%"] : ["2%", "50%", "96%"],
+                    top: reverse ? ["50%", "80%", "50%"] : ["50%", "20%", "50%"],
+                    opacity: [0, 1, 0],
+                  }
+                : {
+                    left: restingLeft,
+                    top: reverse ? "62%" : "38%",
+                    opacity: 0.5,
+                  }
+            }
+            transition={
+              animated
+                ? {
+                    duration: 2.8 + (index % 3) * 0.35,
+                    delay: index * 0.19,
+                    repeat: Infinity,
+                    ease: "linear",
+                  }
+                : { duration: 0 }
+            }
+          />
+        );
+      })}
 
       {!compact && (
         <div className="quantum-route-label">
@@ -328,10 +300,10 @@ function BridgeDialog({
   ageOfFarmingUrl,
 }: BridgeDialogProps): JSX.Element {
   useI18n();
+  const id = useId().replace(/:/g, "");
   const dialogRef = useRef<HTMLDialogElement>(null);
   const { play } = useSounds();
   const reducedMotion = usePrefersReducedMotion();
-  const id = useId().replace(/:/g, "");
   const url = safeExternalUrl(ageOfFarmingUrl);
 
   useEffect(() => {
@@ -471,7 +443,7 @@ function PlanetCard({
         >
           {copy.benefits.map((benefit) => (
             <li key={benefit}>
-              <span aria-hidden="true" style={{ color: "var(--ares-hud-amber, #FFB347)", display: "inline-flex" }}><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z"/></svg></span>
+              <span aria-hidden="true" style={{ display: "inline-flex" }}><Emblem name="flame" size={12} /></span>
               {benefit}
             </li>
           ))}
@@ -625,8 +597,8 @@ export function InterstellarBridge({
   ageOfFarmingUrl = interstellarConfig.ageOfFarmingUrl,
 }: InterstellarBridgeProps): JSX.Element {
   useI18n();
-  const [dialogOpen, setDialogOpen] = useState(false);
   const id = useId().replace(/:/g, "");
+  const [dialogOpen, setDialogOpen] = useState(false);
   const url = safeExternalUrl(ageOfFarmingUrl);
 
   return (

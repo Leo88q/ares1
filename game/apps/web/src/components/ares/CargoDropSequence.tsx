@@ -1,3 +1,4 @@
+import { Emblem } from '../../ui/Emblem';
 import { memo, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ParticleBurst, usePrefersReducedMotion } from './effects';
@@ -65,16 +66,7 @@ export const CargoDropSequence = memo(function CargoDropSequence({
       transition={{ duration: (reducedMotion ? 200 : fallDurationMs) / 1000, ease: 'easeIn' }}
       style={{ position: 'absolute' }}
      >
-      <svg width={48} height={64} viewBox="0 0 48 64">
-       <path
-        d="M4 20 Q24 2 44 20 Q34 14 24 16 Q14 14 4 20 Z"
-        fill="var(--ares-hud-amber, #FFB347)"
-        opacity={0.9}
-       />
-       <line x1="6" y1="20" x2="18" y2="44" stroke="rgba(255,179,71,0.6)" strokeWidth="1" />
-       <line x1="42" y1="20" x2="30" y2="44" stroke="rgba(255,179,71,0.6)" strokeWidth="1" />
-       <rect x="16" y="44" width="16" height="12" rx="2" fill="var(--ares-metal-light, #4A4F5A)" />
-      </svg>
+      <Emblem name="crate" size={44} />
      </motion.div>
     ) : null}
    </AnimatePresence>
