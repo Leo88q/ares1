@@ -84,11 +84,12 @@ interface ClickEffect {
 }
 
 const particleColors = [
-  "#FFFFFF",
+  // MK: искры клавиши — горячий металл и лампы, без неона
+  "#FFE2B4",
   "#FFB347",
-  "#FF2E93",
-  "#6B93D6",
-  "#7CFF6B",
+  "#D8558F",
+  "#C9A176",
+  "#9FBE7A",
 ] as const;
 
 const metalEase = [0.19, 1, 0.22, 1] as const;
@@ -589,7 +590,7 @@ export function MorphButton(props: MorphButtonProps): JSX.Element {
                   : activeHover
                     ? 1.03
                     : 1,
-              y: reducedMotion ? 0 : pressed ? 1 : 0,
+              y: reducedMotion ? 0 : pressed ? 3 : 0,
               rotate:
                 animated && activeFocus && !pressed
                   ? [-0.5, 0.5, -0.5]
