@@ -2925,9 +2925,11 @@ input:focus-visible {
   gap: 16px;
 }
 .pack-card {
-  background: rgba(20,20,30,0.6);
-  border: 2px solid;
-  border-radius: 12px;
+  background: none;
+  border: 0 solid transparent;
+  border-width: 18px;
+  border-image: url('/ares/kit/card-bronze-small.webp') 20 fill / 18px;
+  border-radius: 0;
   padding: 20px;
   text-align: center;
 }
@@ -2953,15 +2955,19 @@ input:focus-visible {
 }
 .pack-buy {
   width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: 8px;
-  color: #1a1208;
+  padding: 10px 12px;
+  border: 0 solid transparent;
+  border-width: 14px;
+  border-image: url('/ares/kit/btn-primary.webp') 40 fill / 14px;
+  border-radius: 0;
+  background: none;
+  color: #2B1403;
+  text-shadow: 0 1px 0 rgba(255, 220, 150, 0.55);
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.08em;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: transform 0.2s, filter 0.2s;
 }
 .pack-buy:hover:not(:disabled) {
   transform: translateY(-2px);
