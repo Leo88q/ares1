@@ -171,3 +171,11 @@ translateY(2px) + затемнение); disabled — обесцвечивани
   маховик тумблеров (доворот 150° при включении) и бегунок ползунка громкости
 - ползунок `.ares-range`: жёлоб input.webp + рукоятка knob.webp (webkit+moz)
 - тумблеры: утопленная ниша input.webp; ВКЛ — янтарный ток + свечение рукоятки
+
+### Кит-3: чипы, статы, CTA (2026-09-28)
+
+- Header: балансовые чипы, кнопка кошелька и стат-карточки → card-bronze-small
+  (тонкая рамка 12–14px вместо тяжёлой оконной); «Подключить кошелёк» → btn-primary
+- `.k-tag` шильдики → btn-secondary slice 6px
+- лендинг: `.cta-play`, `.header-play` → btn-primary; `.lang-switcher__button` →
+  btn-secondary slice 8px; hover = brightness вместо фоновых подкрасок

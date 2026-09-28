@@ -33,7 +33,7 @@ export default function LangSwitcher({ compact = false }: { compact?: boolean })
     onClick={() => setOpen((v) => !v)}
     aria-label={t('Язык')}
     aria-expanded={open}
-    className="pf-card hull-skin"
+    className="pf-card"
     style={{
      display: 'flex', alignItems: 'center', gap: 6,
      padding: compact ? '7px 10px' : '9px 12px',

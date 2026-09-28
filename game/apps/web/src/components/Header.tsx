@@ -46,13 +46,13 @@ export default function Header({ stats }: Props) {
      <div data-tutorial="balance" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div>
         <div className="ares-mono" style={{ fontSize: 9, letterSpacing: '0.16em', color: 'rgba(255,179,71,0.75)', marginBottom: 3, textAlign: 'center' }}>POTATO</div>
-        <motion.div whileHover={{ scale: 1.03 }} className="pf-card hull-skin" style={{ padding: '10px 12px', minWidth: 150, display: 'flex', justifyContent: 'center' }} aria-label={t("Баланс POTATO")}>
+        <motion.div whileHover={{ scale: 1.03 }} className="pf-card" style={{ padding: '8px 12px', minWidth: 150, display: 'flex', justifyContent: 'center', borderWidth: 12, borderStyle: 'solid', borderImage: "url('/ares/kit/card-bronze-small.webp') 20 fill / 12px" }} aria-label={t("Баланс POTATO")}>
           <RollingNumber value={stats.potatoBalance / MICRO} decimals={2} className="hud-balance" />
         </motion.div>
       </div>
       <div>
         <div className="ares-mono" style={{ fontSize: 9, letterSpacing: '0.16em', color: 'rgba(255,179,71,0.75)', marginBottom: 3, textAlign: 'center' }}>SKR</div>
-        <motion.div whileHover={{ scale: 1.03 }} className="pf-card hull-skin" style={{ padding: '10px 12px', minWidth: 150, display: 'flex', justifyContent: 'center' }} aria-label={t("Баланс SKR")}>
+        <motion.div whileHover={{ scale: 1.03 }} className="pf-card" style={{ padding: '8px 12px', minWidth: 150, display: 'flex', justifyContent: 'center', borderWidth: 12, borderStyle: 'solid', borderImage: "url('/ares/kit/card-bronze-small.webp') 20 fill / 12px" }} aria-label={t("Баланс SKR")}>
           <RollingNumber value={stats.skrBalance} decimals={3} className="hud-balance" />
         </motion.div>
       </div>
@@ -65,9 +65,9 @@ export default function Header({ stats }: Props) {
      <motion.button
       whileTap={{ scale: 0.98 }}
       onClick={() => setVisible(true)}
-      className="pf-card hull-skin"
+      className="pf-card"
       aria-label={t("Смена кошелька")}
-      style={{ width: '100%', padding: 8, borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, border: '1px solid rgba(160, 82, 40, 0.65)' }}
+      style={{ width: '100%', padding: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, borderWidth: 12, borderStyle: 'solid', borderImage: "url('/ares/kit/card-bronze-small.webp') 20 fill / 12px" }}
      >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
        <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--pf-teal)' }} />
@@ -85,7 +85,7 @@ export default function Header({ stats }: Props) {
       whileTap={{ scale: 0.98 }}
       onClick={handleConnectClick}
       disabled={connecting}
-      style={{ width: '100%', padding: 12, borderRadius: 12, background: 'linear-gradient(135deg, var(--pf-teal), var(--pf-teal))', color: 'white', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 20px rgba(193, 68, 14, 0.45)', opacity: connecting ? 0.7 : 1 }}
+      style={{ width: '100%', padding: 12, borderStyle: 'solid', borderWidth: 15, borderImage: "url('/ares/kit/btn-primary.webp') 40 fill / 15px", color: '#2B1403', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 6px 18px -8px rgba(0,0,0,0.8)', textShadow: '0 1px 0 rgba(255,220,150,0.55)', opacity: connecting ? 0.7 : 1 }}
      >
       <Glyph name="wallet" size={18} aria-hidden="true" />
       {connecting ? t('Подключение…') : t('Подключить кошелёк')}
@@ -104,7 +104,7 @@ export default function Header({ stats }: Props) {
 
 function StatCard({ label, value }: { label: string; value: number }) {
  return (
-  <div className="pf-card hull-skin" style={{ padding: 16, textAlign: 'center' }}>
+  <div className="pf-card" style={{ padding: 14, textAlign: 'center', borderWidth: 14, borderStyle: 'solid', borderImage: "url('/ares/kit/card-bronze-small.webp') 20 fill / 14px" }}>
    <div className="ares-mono" style={{ fontSize: String(value).length > 6 ? 14 : String(value).length > 4 ? 17 : 22, fontWeight: 700, marginBottom: 6, color: 'var(--ares-hud-amber, #FFB347)', textShadow: '0 0 12px rgba(255,179,71,0.4)', overflowWrap: 'anywhere', lineHeight: 1.2 }}>{value}</div>
    <div className="ares-stencil" style={{ fontSize: 10, color: 'rgba(255,179,71,0.8)' }}>{label}</div>
   </div>
