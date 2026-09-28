@@ -18,8 +18,7 @@ const MOOD_IMAGE: Record<TuberMood, string> = {
  happy: '/ares/tuber9-happy.webp',
  warn: '/ares/tuber9-warn.webp',
  sleep: '/ares/tuber9-sleep.webp',
- // TODO(art): перегенерировать jump в тёплом стиле (лимит генераций этого хода)
- jump: '/ares/tuber9-happy.webp',
+ jump: '/ares/tuber9-jump.webp',
 };
 
 const VISOR_COLOR: Record<TuberMood, string> = {
