@@ -568,3 +568,10 @@
     animation: none !important;
   }
 }
+
+/* ── Квантовый маршрут: SVG заменён CSS-дугами и пакетами ── */
+.quantum-route-arc{position:absolute;left:-50%;width:200%;height:200%;border-radius:50%;pointer-events:none;background:linear-gradient(90deg,#C1440E,#FF2E93,#12E7C4);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));opacity:.2}
+.quantum-route-arc--top{bottom:50%}
+.quantum-route-arc--bottom{top:50%}
+.quantum-route-line{position:absolute;top:50%;left:2.5%;right:2.5%;height:1px;background:repeating-linear-gradient(90deg,rgba(255,179,71,.55) 0 3px,transparent 3px 12px);opacity:.5;pointer-events:none}
+.quantum-route-packet{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;pointer-events:none}

@@ -78,9 +78,9 @@ export default function HarvestParticles({ fromElement, toElement, amount, onCom
      }}
     >
      {particle.kind === 'tuber' ? (
-      <svg viewBox="0 0 24 24" width="100%" height="100%"><ellipse cx="12" cy="13" rx="8" ry="6.5" fill="#E8A94E" stroke="#8A5A1E" strokeWidth="1.5"/><circle cx="9" cy="11" r="1" fill="#8A5A1E"/><circle cx="14" cy="14" r="1" fill="#8A5A1E"/><circle cx="12" cy="10" r="0.8" fill="#8A5A1E"/></svg>
+      <img src="/ares/potato-coin.png" alt="" width="100%" height="100%" style={{ objectFit: 'contain' }} />
      ) : (
-      <svg viewBox="0 0 24 24" width="100%" height="100%"><path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" fill="#FFD278"/></svg>
+      <span style={{ display: 'block', width: '100%', height: '100%', borderRadius: '50%', background: 'radial-gradient(circle, #FFD278 0%, #E8A94E 55%, transparent 75%)' }} />
      )}
     </motion.div>
    ))}

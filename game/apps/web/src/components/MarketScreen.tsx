@@ -263,7 +263,7 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
     className="k-panel k-panel--pop"
     style={{ width: '100%', maxWidth: 340, padding: 28, textAlign: 'center' }}
    >
-    <div style={{ marginBottom: 12, color: 'var(--pf-teal)' }} aria-hidden="true"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5.5"/></svg></div>
+    <div style={{ marginBottom: 12, color: 'var(--pf-teal)' }} aria-hidden="true"><Glyph name="check" size={48} /></div>
     <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{title}</h3>
     {children}
    </motion.div>

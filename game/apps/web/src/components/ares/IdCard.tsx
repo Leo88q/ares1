@@ -63,27 +63,26 @@ export interface PixelAvatarProps {
 
 export const PixelAvatar = memo(function PixelAvatar({ seed, size = 56 }: PixelAvatarProps): JSX.Element {
  const { cells, color } = useMemo(() => buildPixelAvatar(seed), [seed]);
- const cellSize = size / GRID_COLUMNS;
 
  return (
-  <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-   <rect width={size} height={size} fill="rgba(0,0,0,0.4)" rx={6} />
-   {cells.map((on, index) => {
-    if (!on) return null;
-    const row = Math.floor(index / GRID_COLUMNS);
-    const col = index % GRID_COLUMNS;
-    return (
-     <rect
-      key={index}
-      x={col * cellSize}
-      y={row * cellSize}
-      width={cellSize}
-      height={cellSize}
-      fill={color}
-     />
-    );
-   })}
-  </svg>
+  <span
+   aria-hidden="true"
+   style={{
+    display: 'grid',
+    gridTemplateColumns: `repeat(${GRID_COLUMNS}, 1fr)`,
+    gridTemplateRows: `repeat(${GRID_ROWS}, 1fr)`,
+    width: size,
+    height: size,
+    padding: Math.round(size * 0.06),
+    background: 'rgba(0,0,0,0.4)',
+    borderRadius: 6,
+    boxSizing: 'border-box',
+   }}
+  >
+   {cells.map((on, index) => (
+    <span key={index} style={{ backgroundColor: on ? color : 'transparent' }} />
+   ))}
+  </span>
  );
 });
 

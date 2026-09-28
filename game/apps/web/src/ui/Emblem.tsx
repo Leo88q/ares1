@@ -40,7 +40,7 @@ export function Emblem({ name, size = 16, className, style }: {
 /* ── Управленческие глифы (сгенерированные, тот же тёплый стиль) ──
    Вместо line-SVG: крестик, шевроны, копирование, стрелки, часы и т.д. */
 export const GLYPHS = [
- 'x', 'chevron-down', 'chevron-up', 'chevron-right', 'check',
+ 'x', 'chevron-down', 'chevron-up', 'chevron-right', 'check', 'drop',
  'copy', 'plus', 'clock', 'person', 'share',
  'deposit', 'arrow-up-right', 'wallet', 'bell', 'music',
  'speaker', 'vibrate', 'warning', 'globe', 'menu',

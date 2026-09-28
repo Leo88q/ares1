@@ -95,30 +95,25 @@ export function AnimatedTextLink({
     >
       {children}
 
-      <svg
+      <motion.span
         className="micro-link-underline"
-        viewBox="0 0 100 4"
-        preserveAspectRatio="none"
         aria-hidden="true"
-        focusable="false"
-      >
-        <motion.path
-          d="M1 2H99"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          initial={false}
-          animate={{
-            pathLength: reducedMotion ? 1 : active ? 1 : 0,
-            opacity: reducedMotion ? active ? 1 : 0 : 1,
-          }}
-          transition={{
-            duration: reducedMotion ? 0.15 : 0.3,
-            ease: easeOutCubic,
-          }}
-        />
-      </svg>
+        initial={false}
+        animate={{
+          scaleX: reducedMotion ? (active ? 1 : 0) : active ? 1 : 0,
+          opacity: reducedMotion ? (active ? 1 : 0) : 1,
+        }}
+        transition={{
+          duration: reducedMotion ? 0.15 : 0.3,
+          ease: easeOutCubic,
+        }}
+        style={{
+          transformOrigin: "0 50%",
+          height: 1.5,
+          borderRadius: 1,
+          background: "currentColor",
+        }}
+      />
     </a>
   );
 }
@@ -447,24 +442,14 @@ export function SparkProgress({
 
 function RocketArt(): JSX.Element {
   return (
-    <svg
-      width="24"
-      height="44"
-      viewBox="0 0 24 44"
-      fill="none"
+    <img
+      src="/ares/rocket.webp"
+      width={24}
+      height={44}
+      alt=""
       aria-hidden="true"
-    >
-      <path
-        d="M12 3C7 8 7 19 7 28H17C17 19 17 8 12 3Z"
-        fill="#DED8E5"
-        stroke="#8E809F"
-      />
-      <path d="M7 19 3 27v8l5-6M17 19l4 8v8l-5-6" fill="#FF2E93" />
-      <circle cx="12" cy="16" r="3" fill="#172234" stroke="#6B93D6" />
-      <path d="M9 29h6v4H9Z" fill="#79707F" />
-      <path d="m9 34 3 8 3-8" fill="#FFB347" />
-      <path d="m11 34 1 5 1-5" fill="#FFF0CE" />
-    </svg>
+      style={{ display: "block", objectFit: "contain" }}
+    />
   );
 }
 

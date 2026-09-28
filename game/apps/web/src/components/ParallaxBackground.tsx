@@ -16,22 +16,31 @@ interface FloatingElement {
 function FloatShape({ shape, color, size }: { shape: number; color: string; size: number }): JSX.Element {
  if (shape === 1) {
   return (
-   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2">
-    <circle cx="12" cy="12" r="8" />
-   </svg>
+   <span
+    aria-hidden="true"
+    style={{ display: 'block', width: size, height: size, borderRadius: '50%', border: `2px solid ${color}` }}
+   />
   )
  }
  if (shape === 2) {
   return (
-   <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-    <path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" />
-   </svg>
+   <span
+    aria-hidden="true"
+    style={{
+     display: 'block',
+     width: size,
+     height: size,
+     background: color,
+     clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
+    }}
+   />
   )
  }
  return (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
-   <circle cx="12" cy="12" r="5" />
-  </svg>
+  <span
+   aria-hidden="true"
+   style={{ display: 'block', width: size, height: size, borderRadius: '50%', background: color }}
+  />
  )
 }
 

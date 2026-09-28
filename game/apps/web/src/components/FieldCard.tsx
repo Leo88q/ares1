@@ -3,7 +3,7 @@ import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { PublicKey } from '@solana/web3.js'
-import { Wrench, ArrowUp, Droplet, Receipt, ChevronDown } from 'lucide-react'
+import { Emblem, Glyph } from '../ui/Emblem'
 import { Field } from '../contexts/GameContext'
 import HarvestAnimation from './HarvestAnimation'
 import ProgressBar from './ProgressBar'
@@ -13,7 +13,6 @@ import {
  fieldTypeInfo, mutationInfo, fmtPotato, fmtPotatoExact, upgradeCostMicro, repairCostMicro, taxCostMicro, fertilizerCostMicro,
  HARVEST_THRESHOLD_MICRO, MAX_FIELD_LEVEL, MAX_DURABILITY, TAX_PERIOD_DAYS, FERTILIZER_HOURS,
 } from '../utils/constants'
-import { IconMutGold, IconMutSilicon } from './ares/icons'
 
 type FieldAction = (field: PublicKey) => Promise<boolean>
 
@@ -105,7 +104,7 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
           fontFamily: 'ui-monospace, "JetBrains Mono", monospace',
           fontSize: 10, fontWeight: 700, letterSpacing: 0.5, color: mut.color,
          }}>
-          {field.mutationType === 1 ? <IconMutGold size={11} /> : <IconMutSilicon size={11} />}
+          {field.mutationType === 1 ? <Emblem name="coins" size={11} /> : <Emblem name="gear" size={11} />}
           <span>MUT {mut.code}</span>
           <span style={{ opacity: 0.6 }}>·</span>
           <span>{mut.effect}</span>
@@ -118,7 +117,7 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
         {t('Ур. {n}', { n: field.level })}
        </span>
        <motion.div animate={{ rotate: showActions ? 180 : 0 }} transition={{ duration: 0.3 }}>
-        <ChevronDown size={16} color="var(--pf-text-secondary)" />
+        <Glyph name="chevron-down" size={16} style={{ opacity: 0.8 }} />
        </motion.div>
       </div>
      </div>
@@ -175,22 +174,22 @@ export default function FieldCard({ field, index, onHarvest, onUpgrade, onRepair
       >
        {onUpgrade && field.level < MAX_FIELD_LEVEL && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onUpgrade, sounds.upgrade, haptics.upgradeField)} style={actionStyle('var(--ares-blueset, #6B93D6)')}>
-         <ArrowUp size={14} /> {t('Апгрейд модуля до ур. {level} ({cost} POTATO)', { level: field.level + 1, cost: fmtPotatoExact(upgradeCostMicro(field.level, field.fieldType)) })}
+         <Glyph name="arrow-up-right" size={14} style={{ transform: 'rotate(-45deg)' }} /> {t('Апгрейд модуля до ур. {level} ({cost} POTATO)', { level: field.level + 1, cost: fmtPotatoExact(upgradeCostMicro(field.level, field.fieldType)) })}
         </motion.button>
        )}
        {onRepair && field.durability < MAX_DURABILITY && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onRepair, sounds.repair, haptics.repairField)} style={actionStyle('var(--pf-teal)')}>
-         <Wrench size={14} /> {t('Техремонт до 100% ({cost} POTATO)', { cost: fmtPotatoExact(repairCostMicro(field.level, field.fieldType)) })}
+         <Emblem name="gear" size={14} /> {t('Техремонт до 100% ({cost} POTATO)', { cost: fmtPotatoExact(repairCostMicro(field.level, field.fieldType)) })}
         </motion.button>
        )}
        {onPayTax && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onPayTax, sounds.payTax, haptics.payTax)} style={actionStyle('var(--pf-gold)')}>
-         <Receipt size={14} /> {t('Пошлина: +{days} дней ({cost} POTATO)', { days: TAX_PERIOD_DAYS, cost: fmtPotatoExact(taxCostMicro(field.level, field.fieldType)) })}
+         <Emblem name="clipboard" size={14} /> {t('Пошлина: +{days} дней ({cost} POTATO)', { days: TAX_PERIOD_DAYS, cost: fmtPotatoExact(taxCostMicro(field.level, field.fieldType)) })}
         </motion.button>
        )}
        {onApplyFertilizer && (
         <motion.button whileTap={{ scale: 0.95 }} onClick={action(onApplyFertilizer, sounds.fertilizer, haptics.applyFertilizer)} style={actionStyle('#22c55e')}>
-         <Droplet size={14} /> {t('Удобрить ×1.5 на {h}ч ({cost} POTATO)', { h: FERTILIZER_HOURS, cost: fmtPotatoExact(fertilizerCostMicro(field.fieldType)) })}
+         <Glyph name="drop" size={14} /> {t('Удобрить ×1.5 на {h}ч ({cost} POTATO)', { h: FERTILIZER_HOURS, cost: fmtPotatoExact(fertilizerCostMicro(field.fieldType)) })}
         </motion.button>
        )}
       </motion.div>

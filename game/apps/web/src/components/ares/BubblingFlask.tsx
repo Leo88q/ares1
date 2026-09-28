@@ -45,119 +45,51 @@ export function BubblingFlask({
    />
 
    {/* SVG колба */}
-   <svg
-    width={s.width}
-    height={s.height}
-    viewBox={`0 0 ${s.width} ${s.height}`}
-    style={{ position: 'relative', zIndex: 10 }}
-   >
-    <defs>
-     {/* Градиент жидкости */}
-     <linearGradient id={`liquid-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stopColor={color} stopOpacity="0.9" />
-      <stop offset="100%" stopColor={color} stopOpacity="0.6" />
-     </linearGradient>
-
-     {/* Маска для жидкости */}
-     <clipPath id={`flask-clip-${size}`}>
-      <path d={`
-       M ${s.width/2 - 15} 10
-       L ${s.width/2 - 15} ${s.height * 0.3}
-       Q ${s.width/2 - s.width * 0.35} ${s.height * 0.5} ${s.width/2 - s.width * 0.35} ${s.height * 0.75}
-       Q ${s.width/2 - s.width * 0.35} ${s.height - 5} ${s.width/2} ${s.height - 5}
-       Q ${s.width/2 + s.width * 0.35} ${s.height - 5} ${s.width/2 + s.width * 0.35} ${s.height * 0.75}
-       Q ${s.width/2 + s.width * 0.35} ${s.height * 0.5} ${s.width/2 + 15} ${s.height * 0.3}
-       L ${s.width/2 + 15} 10
-       Z
-      `} />
-     </clipPath>
-
-     {/* Блик на стекле */}
-     <linearGradient id="glass-shine" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stopColor="white" stopOpacity="0.4" />
-      <stop offset="50%" stopColor="white" stopOpacity="0.1" />
-      <stop offset="100%" stopColor="white" stopOpacity="0" />
-     </linearGradient>
-    </defs>
-
-    {/* Жидкость (обрезана по форме колбы) */}
-    <g clipPath={`url(#flask-clip-${size})`}>
-     {/* Основная жидкость */}
-     <rect
-      x="0"
-      y={s.height - s.liquidHeight}
-      width={s.width}
-      height={s.liquidHeight}
-      fill={`url(#liquid-${color})`}
-     />
-
-     {/* Волны на поверхности */}
-     <motion.path
-      d={`
-       M 0 ${s.height - s.liquidHeight}
-       Q ${s.width * 0.25} ${s.height - s.liquidHeight - 8} ${s.width * 0.5} ${s.height - s.liquidHeight}
-       T ${s.width} ${s.height - s.liquidHeight}
-       L ${s.width} ${s.height}
-       L 0 ${s.height}
-       Z
-      `}
-      fill={color}
-      fillOpacity="0.7"
-      animate={{
-       d: [
-        `M 0 ${s.height - s.liquidHeight} Q ${s.width * 0.25} ${s.height - s.liquidHeight - 8} ${s.width * 0.5} ${s.height - s.liquidHeight} T ${s.width} ${s.height - s.liquidHeight} L ${s.width} ${s.height} L 0 ${s.height} Z`,
-        `M 0 ${s.height - s.liquidHeight} Q ${s.width * 0.25} ${s.height - s.liquidHeight + 8} ${s.width * 0.5} ${s.height - s.liquidHeight} T ${s.width} ${s.height - s.liquidHeight} L ${s.width} ${s.height} L 0 ${s.height} Z`,
-        `M 0 ${s.height - s.liquidHeight} Q ${s.width * 0.25} ${s.height - s.liquidHeight - 8} ${s.width * 0.5} ${s.height - s.liquidHeight} T ${s.width} ${s.height - s.liquidHeight} L ${s.width} ${s.height} L 0 ${s.height} Z`,
-       ],
-      }}
-      transition={{
-       duration: 3,
-       repeat: Infinity,
-       ease: 'easeInOut',
+   {/* Колба: сгенерированный арт + бурление внутри сферы */}
+   <div style={{ position: 'relative', width: s.width, height: s.height, zIndex: 10 }}>
+    <img
+     src="/ares/flask.webp"
+     alt=""
+     aria-hidden="true"
+     style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+    />
+    <div
+     aria-hidden="true"
+     style={{
+      position: 'absolute', inset: 0,
+      clipPath: 'circle(34% at 50% 61%)',
+      overflow: 'hidden',
+     }}
+    >
+     {/* Жидкость — терракотовое свечение внизу */}
+     <div
+      style={{
+       position: 'absolute', left: 0, right: 0, bottom: 0, height: '58%',
+       background: `linear-gradient(to top, ${color}AA 0%, transparent 100%)`,
+       mixBlendMode: 'screen',
       }}
      />
-
-
-    </g>
-
-    {/* Стекло колбы (контур) */}
-    <path
-     d={`
-      M ${s.width/2 - 15} 10
-      L ${s.width/2 - 15} ${s.height * 0.3}
-      Q ${s.width/2 - s.width * 0.35} ${s.height * 0.5} ${s.width/2 - s.width * 0.35} ${s.height * 0.75}
-      Q ${s.width/2 - s.width * 0.35} ${s.height - 5} ${s.width/2} ${s.height - 5}
-      Q ${s.width/2 + s.width * 0.35} ${s.height - 5} ${s.width/2 + s.width * 0.35} ${s.height * 0.75}
-      Q ${s.width/2 + s.width * 0.35} ${s.height * 0.5} ${s.width/2 + 15} ${s.height * 0.3}
-      L ${s.width/2 + 15} 10
-     `}
-     fill="none"
-     stroke="rgba(255, 179, 71, 0.5)"
-     strokeWidth="2"
-    />
-
-    {/* Горлышко колбы */}
-    <rect
-     x={s.width/2 - 18}
-     y={2}
-     width={36}
-     height={12}
-     rx="2"
-     fill="none"
-     stroke="rgba(255, 179, 71, 0.6)"
-     strokeWidth="2"
-    />
-
-    {/* Блик на стекле */}
-    <ellipse
-     cx={s.width * 0.35}
-     cy={s.height * 0.5}
-     rx={s.width * 0.08}
-     ry={s.height * 0.15}
-     fill="url(#glass-shine)"
-     transform={`rotate(-20 ${s.width * 0.35} ${s.height * 0.5})`}
-    />
-   </svg>
+     {/* Пузырьки */}
+     {Array.from({ length: 9 }, (_, i) => (
+      <motion.span
+       key={i}
+       style={{
+        position: 'absolute',
+        left: `${16 + ((i * 37) % 66)}%`,
+        bottom: '18%',
+        width: 3 + ((i * 5) % 5),
+        height: 3 + ((i * 5) % 5),
+        borderRadius: '50%',
+        border: '1px solid rgba(255,214,140,0.8)',
+        background: 'rgba(255,179,71,0.1)',
+       }}
+       initial={{ y: 0, opacity: 0 }}
+       animate={{ y: -Math.round(s.height * 0.38), opacity: [0, 0.9, 0] }}
+       transition={{ duration: 2 + ((i * 7) % 30) / 10, delay: ((i * 11) % 30) / 10, repeat: Infinity, ease: 'easeOut' }}
+      />
+     ))}
+    </div>
+   </div>
   </div>
  )
 }
