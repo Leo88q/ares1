@@ -73,16 +73,19 @@
 /* ── Шильдик: трафаретная надпись-метка ── */
 .k-tag {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  border: 1px solid var(--s-panel-edge-soft);
-  background: var(--s-subtle-bg);
+  padding: 2px 10px;
+  border: 0 solid transparent;
+  border-width: 6px;
+  border-image: url('/ares/kit/btn-secondary.webp') 40 fill / 6px;
+  border-radius: 0;
+  background: none;
   color: var(--ares-hud-amber, var(--pf-gold));
   font-family: var(--ares-font-mono, var(--pf-font-mono));
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 /* ── Лампа-индикатор ── */
