@@ -480,21 +480,22 @@ body { color: var(--pf-text-primary); }
     0 10px 22px rgba(0, 0, 0, 0.4);
 }
 
-/* Клёпка по углам — только там, где плита «несущая» (primary) */
+/* A «ШТАМП»: несущая плита — вырезанные фаски, цельный лист */
 .mk-plate--primary {
   border-color: var(--mk-bevel-lo);
-  box-shadow:
-    inset 0 0 0 1px rgba(138, 74, 34, 0.55),
-    inset 0 2px 0 var(--mk-edge-hi),
-    inset 0 -2px 0 var(--mk-edge-lo),
-    inset 0 0 28px rgba(0, 0, 0, 0.5),
-    0 14px 30px rgba(0, 0, 0, 0.55);
+  clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);
+  border-radius: 0;
   background-image:
-    var(--ares-rivets-rust),
     var(--mk-grain),
     var(--mk-scratches),
-    linear-gradient(180deg, var(--mk-face-hi) 0%, var(--mk-face) 40%, var(--mk-face-lo) 100%);
-  background-size: 100% 100%, 120px 120px, 260px 260px, 100% 100%;
+    linear-gradient(168deg, #40331F 0%, #372B1C 45%, #2A1F13 100%);
+  background-size: 120px 120px, 260px 260px, 100% 100%;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 224, 178, 0.18),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.55),
+    inset 2px 0 0 rgba(255, 224, 178, 0.06),
+    inset -2px 0 0 rgba(0, 0, 0, 0.3),
+    inset 0 0 40px rgba(0, 0, 0, 0.28);
 }
 
 .mk-plate--quiet {
@@ -505,37 +506,55 @@ body { color: var(--pf-text-primary); }
     0 6px 14px rgba(0, 0, 0, 0.3);
 }
 
-/* Штампованный шов-углубление внутри primary */
+/* A «ШТАМП»: линия штампа — утопленная кромка цельного листа */
 .mk-plate--primary::before {
   content: '';
   position: absolute;
-  inset: 5px;
-  border-radius: 4px;
-  border: 1px solid rgba(0, 0, 0, 0.35);
-  border-bottom-color: var(--mk-ink-hi);
-  border-right-color: var(--mk-ink-hi);
+  inset: 11px;
+  border-radius: 2px;
+  border-top: 1px solid rgba(0, 0, 0, 0.5);
+  border-left: 1px solid rgba(0, 0, 0, 0.38);
+  border-bottom: 1px solid rgba(255, 224, 178, 0.09);
+  border-right: 1px solid rgba(255, 224, 178, 0.05);
   pointer-events: none;
+  z-index: 0;
+}
+
+/* A «ШТАМП»: точечная сварка в четырёх углах несущей плиты */
+.mk-plate--primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(7px 7px at 22px 22px, #1E150B 38%, rgba(255, 224, 178, 0.2) 46%, rgba(0, 0, 0, 0.35) 58%, transparent 66%),
+    radial-gradient(6px 6px at calc(100% - 24px) 24px, #1E150B 38%, rgba(255, 224, 178, 0.18) 46%, rgba(0, 0, 0, 0.35) 58%, transparent 66%),
+    radial-gradient(6px 6px at 24px calc(100% - 24px), #1E150B 38%, rgba(255, 224, 178, 0.18) 46%, rgba(0, 0, 0, 0.35) 58%, transparent 66%),
+    radial-gradient(7px 7px at calc(100% - 22px) calc(100% - 22px), #1E150B 38%, rgba(255, 224, 178, 0.2) 46%, rgba(0, 0, 0, 0.35) 58%, transparent 66%);
   z-index: 0;
 }
 
 .mk-plate > * { position: relative; z-index: 1; }
 
-/* — Шильдик-гравировка (заголовок плиты) — */
+/* A «ШТАМП»: шелкография — квадратный маркер + трафаретный текст */
 .mk-tag {
-  display: inline-block;
-  padding: 2px 8px 1px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, rgba(0,0,0,0.5), rgba(0,0,0,0.32));
-  border: 1px solid rgba(0, 0, 0, 0.55);
-  border-top-color: rgba(255, 214, 170, 0.14);
-  box-shadow: inset 0 -1px 0 rgba(255, 214, 170, 0.08);
-  color: var(--ares-hud-amber, #FFB347);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--pf-text-secondary, #BCA075);
   font-family: var(--ares-font-stencil);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8);
+}
+.mk-tag::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  background: #C97A2B;
+  box-shadow: 0 0 0 1px #1E150B, 0 0 7px rgba(255, 170, 60, 0.35);
 }
 
 /* — Штамп статуса (наклон 1–2°, оттиск краской) — */
@@ -553,6 +572,7 @@ body { color: var(--pf-text-primary); }
   line-height: 1.4;
   mix-blend-mode: screen;
   opacity: 0.92;
+  filter: url(#mk-rough);
 }
 .mk-stamp--ok { color: var(--mk-lamp-green); }
 .mk-stamp--warn { color: var(--mk-lamp-amber); }
@@ -573,7 +593,7 @@ body { color: var(--pf-text-primary); }
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  clip-path: polygon(0 0, 100% 0, 97% 100%, 3% 100%);
+  clip-path: polygon(0 0, 100% 0, 97% 42%, 100% 62%, 94% 100%, 3% 100%);
 }
 .mk-sticker .mk-sticker__label { opacity: 0.62; letter-spacing: 0.14em; font-size: 9px; }
 
@@ -686,23 +706,25 @@ body { color: var(--pf-text-primary); }
 
 /* Краска на клавише: крашеный янтарь с гравировкой по дереву трафарета */
 .mk-key--paint {
+  border-radius: 3px;
   background-color: #C97A2B;
-  background-image: var(--mk-grain), linear-gradient(180deg, #E89A4B 0%, #C97A2B 55%, #A85F1E 100%);
+  background-image: var(--mk-grain), linear-gradient(180deg, #D08A3E 0%, #B06A22 58%, #96551A 100%);
   background-size: 120px 120px, 100% 100%;
   color: var(--mk-paint-amber-ink);
   border-color: rgba(0, 0, 0, 0.45);
   box-shadow:
-    inset 0 1px 0 rgba(255, 226, 180, 0.5),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.35),
-    0 3px 0 var(--mk-paint-amber-edge),
-    0 8px 16px -6px rgba(0, 0, 0, 0.7);
+    inset 0 1px 0 rgba(255, 232, 185, 0.6),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+    0 4px 0 #5F3410,
+    0 9px 14px -7px rgba(0, 0, 0, 0.8);
 }
 .mk-key--paint:active,
 .mk-key--paint.mk-key--engaged {
+  transform: translateY(4px);
   box-shadow:
-    inset 0 2px 4px rgba(0, 0, 0, 0.45),
-    0 0 0 var(--mk-paint-amber-edge),
-    0 2px 8px -3px rgba(0, 0, 0, 0.7);
+    inset 0 2px 6px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 232, 185, 0.25),
+    0 0 0 #5F3410;
 }
 .mk-key--ghost {
   background-color: transparent;
@@ -710,4 +732,196 @@ body { color: var(--pf-text-primary); }
   border-color: rgba(255, 214, 170, 0.22);
   box-shadow: none;
   color: var(--ares-dust, #E0A183);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   C «ПОХОД» — клёпаная обшивка полевой сборки (только экран АГРО).
+   Клёпка по периметру рамы, сварные латки, сколы краски,
+   трафарет-спрей, один пояс hazard-ленты на герое.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.po-plate {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  border: 1px solid #170E05;
+  border-radius: 2px;
+  background-color: #3A2A17;
+  background-image:
+    var(--po-blotch),
+    var(--mk-grain),
+    linear-gradient(155deg, #48341F 0%, #3A2A17 55%, #2B1E0F 100%);
+  background-repeat: repeat, repeat, no-repeat;
+  background-size: 200px 200px, 120px 120px, 100% 100%;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 210, 160, 0.12),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.5),
+    inset 0 0 40px rgba(0, 0, 0, 0.4),
+    0 16px 24px -14px #000;
+}
+.po-plate > * { position: relative; z-index: 1; }
+
+/* Клёпаная рама внутри плиты */
+.po-rim {
+  position: relative;
+  border: 1px solid rgba(10, 6, 2, 0.7);
+  box-shadow: 0 1px 0 rgba(255, 214, 160, 0.07);
+}
+.po-rim::before,
+.po-rim::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+.po-rim::before {
+  inset: 4px 2px;
+  background:
+    radial-gradient(3.5px 3.5px at 50% 50%, #1A1006 30%, rgba(255, 214, 160, 0.3) 46%, rgba(0, 0, 0, 0.45) 58%, transparent 64%) repeat-x left top / 19px 9px,
+    radial-gradient(3.5px 3.5px at 50% 50%, #1A1006 30%, rgba(255, 214, 160, 0.3) 46%, rgba(0, 0, 0, 0.45) 58%, transparent 64%) repeat-x left bottom / 19px 9px;
+}
+.po-rim::after {
+  inset: 2px 4px;
+  background:
+    radial-gradient(3.5px 3.5px at 50% 50%, #1A1006 30%, rgba(255, 214, 160, 0.3) 46%, rgba(0, 0, 0, 0.45) 58%, transparent 64%) repeat-y left top / 9px 19px,
+    radial-gradient(3.5px 3.5px at 50% 50%, #1A1006 30%, rgba(255, 214, 160, 0.3) 46%, rgba(0, 0, 0, 0.45) 58%, transparent 64%) repeat-y right top / 9px 19px;
+}
+.po-rim > * { position: relative; z-index: 1; }
+
+/* Тихая C-плита (без рамы): обшивка попроще */
+.po-card {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  border: 1px solid #170E05;
+  border-radius: 2px;
+  background-color: #362716;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(160deg, #44321D 0%, #382817 55%, #2C1F11 100%);
+  background-size: 120px 120px, 100% 100%;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 210, 160, 0.1),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.45),
+    inset 0 0 30px rgba(0, 0, 0, 0.35),
+    0 10px 18px -12px #000;
+}
+.po-card > * { position: relative; z-index: 1; }
+
+/* Пояс hazard-ленты — только верх героя */
+.po-hazard {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 9px;
+  border-bottom: 1px solid #170E05;
+  background: repeating-linear-gradient(-45deg, #C99232 0 11px, #1F1309 11px 22px);
+  opacity: 0.85;
+  z-index: 2;
+}
+
+/* Скол краски до голого металла */
+.po-chip {
+  position: absolute;
+  background: linear-gradient(150deg, #71603F, #57482E);
+  box-shadow: inset 0 1px 0 rgba(255, 230, 180, 0.25);
+  pointer-events: none;
+  z-index: 2;
+}
+.po-chip--tl { width: 26px; height: 12px; top: 0; left: 56px; clip-path: polygon(0 0, 100% 0, 72% 100%, 12% 78%); }
+.po-chip--br { width: 18px; height: 10px; bottom: 0; right: 40px; clip-path: polygon(28% 0, 100% 22%, 100% 100%, 0 100%); }
+
+/* Сварная латка с швом */
+.po-patch {
+  position: absolute;
+  border: 1px solid #170E05;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 5px, rgba(0, 0, 0, 0.25) 5px 6px),
+    linear-gradient(160deg, #3E2D1A, #322310);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 214, 160, 0.08);
+  pointer-events: none;
+  z-index: 0;
+}
+.po-patch::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px dashed rgba(255, 214, 160, 0.22);
+}
+
+/* Трафарет-спрей: рваный край */
+.po-spray { filter: url(#po-spray); }
+
+/* Грузовая лента-стикер */
+.po-tape {
+  display: inline-block;
+  transform: rotate(1.8deg);
+  background: linear-gradient(180deg, #DDC48E, #C9AC70);
+  color: #2E1F0C;
+  font-family: var(--ares-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
+  opacity: 0.94;
+}
+
+/* Штамп-спрей (светлее и грубее А-штампа) */
+.po-stamp {
+  display: inline-block;
+  padding: 3px 12px;
+  transform: rotate(3deg);
+  border: 2px solid rgba(217, 143, 92, 0.8);
+  color: #D98F5C;
+  font-family: var(--ares-font-stencil);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  filter: url(#po-spray);
+  mix-blend-mode: screen;
+  opacity: 0.92;
+}
+.po-stamp--ok { color: #C4B075; border-color: rgba(196, 176, 117, 0.75); }
+
+/* Лампа в защитной клетке */
+.po-lamp {
+  position: relative;
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background: radial-gradient(circle at 36% 30%, #E9C58B, #7E4E14 78%);
+  box-shadow: 0 0 8px rgba(255, 180, 80, 0.3);
+}
+.po-lamp::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background:
+    linear-gradient(45deg, transparent 46%, rgba(20, 12, 4, 0.9) 46% 54%, transparent 54%),
+    linear-gradient(-45deg, transparent 46%, rgba(20, 12, 4, 0.9) 46% 54%, transparent 54%);
+}
+.po-lamp--green { background: radial-gradient(circle at 36% 30%, #CBD9A2, #5F7434 78%); box-shadow: 0 0 8px rgba(170, 200, 110, 0.25); }
+.po-lamp--off { background: radial-gradient(circle at 36% 30%, #4A443A, #221E17 78%); box-shadow: none; }
+
+/* LCD на походной плите */
+.po-lcd {
+  display: inline-block;
+  background: linear-gradient(180deg, #170E06, #201408);
+  border-radius: 2px;
+  padding: 6px 12px;
+  color: #F5BE72;
+  font-family: var(--ares-font-mono);
+  text-shadow: 0 0 7px rgba(255, 170, 60, 0.28);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.85), inset 0 0 14px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 214, 160, 0.1);
+}
+
+/* Клавиша Похода: крашеная со сколотым углом (используется только на АГРО) */
+.po-key {
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 9px) 100%, 0 100%);
 }

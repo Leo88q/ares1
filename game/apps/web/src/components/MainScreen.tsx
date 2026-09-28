@@ -92,14 +92,14 @@ function InitStatus({ error }: { error: string | null }) {
   <div role="status" style={{ gridColumn: '1 / -1', padding: '60px 20px', textAlign: 'center' }}>
    {error ? (
     <>
-     <span className="mk-lamp mk-lamp--blink" style={{ width: 18, height: 18, marginBottom: 22 }} aria-hidden="true" />
+     <span className="po-lamp" style={{ width: 18, height: 18, marginBottom: 22 }} aria-hidden="true" />
      <h2 style={{ fontSize: 20, marginBottom: 12 }}>{t("Нет связи с блокчейном")}</h2>
      <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{error}</p>
      <p style={{ color: 'var(--pf-text-muted)', fontSize: 12, marginTop: 8 }}>{t("Повторяем автоматически…")}</p>
     </>
    ) : (
     <>
-     <span className="mk-lamp" style={{ width: 18, height: 18, marginBottom: 22 }} aria-hidden="true" />
+     <span className="po-lamp po-lamp--off" style={{ width: 18, height: 18, marginBottom: 22 }} aria-hidden="true" />
      <h2 style={{ fontSize: 20, marginBottom: 12 }}>{t("Инициализация игры…")}</h2>
      <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14 }}>{t("Подключаемся к блокчейну")}</p>
     </>
@@ -111,7 +111,7 @@ function InitStatus({ error }: { error: string | null }) {
 function ConnectHint() {
  return (
   <div style={{ gridColumn: '1 / -1' }}>
-   <div className="mk-plate mk-plate--quiet" style={{ padding: '36px 24px', textAlign: 'center' }}>
+   <div className="po-card" style={{ padding: '36px 24px', textAlign: 'center' }}>
     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
      <Tuber9 mood="sleep" size={96} />
     </div>
@@ -141,10 +141,10 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
   <motion.div
    initial={{ opacity: 0, y: 20 }}
    animate={{ opacity: 1, y: 0 }}
-   className="mk-plate"
+   className="po-card"
    style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}
   >
-   <div className="mk-tag" style={{ fontSize: 12, marginBottom: 12 }}>{t("КУПИ РАСТЕНИЕ")}</div>
+   <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 12, fontWeight: 600, letterSpacing: '0.2em', color: '#B3946A', textTransform: 'uppercase', marginBottom: 12 }}>{t("КУПИ РАСТЕНИЕ")}</div>
    <MiniHydroModules />
    <p style={{ fontSize: 14, color: 'var(--pf-text-secondary)', marginBottom: 4, textAlign: 'center' }}>
     {firstField ? t('Заложи первую делянку') : t('Заложи новую жизнь')}

@@ -26,7 +26,7 @@
   min-width: 0;
   width: 100%;
   min-height: var(--morph-height);
-  border-radius: 8px;
+  border-radius: 3px;
 }
 
 .morph-measure {

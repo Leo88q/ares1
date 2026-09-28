@@ -305,7 +305,7 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
   >
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-     <div style={{ width: 36, height: 36, borderRadius: 10, background: order.isOwn ? 'rgba(107, 147, 214, 0.16)' : 'rgba(0, 0, 0, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
+     <div style={{ width: 36, height: 36, borderRadius: 10, background: order.isOwn ? 'rgba(201, 161, 118, 0.16)' : 'rgba(0, 0, 0, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
       {order.isOwn ? <User size={18} color="var(--ares-blueset, #6B93D6)" /> : null }
      </div>
      <div>
@@ -318,7 +318,7 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
      <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>{t("за 1 POTATO")}</div>
     </div>
    </div>
-   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginBottom: 12, fontSize: 12 }}>
+   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid rgba(255,214,170,0.08)', borderBottom: '1px solid rgba(255,214,170,0.08)', marginBottom: 12, fontSize: 12 }}>
     <span style={{ color: 'var(--pf-text-secondary)' }}>{t('Итого к оплате')}:</span>
     <span style={{ fontWeight: 700, color: 'white' }}>{fmtSol(order.totalLamports, 4)} SOL</span>
    </div>

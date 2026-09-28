@@ -107,8 +107,8 @@ export function FlaskGauge({
         cx={(b.left / 100) * width}
         cy={height - 8}
         r={b.size / 2}
-        fill="rgba(107, 147, 214, 0.06)"
-        stroke="rgba(107, 147, 214, 0.85)"
+        fill="rgba(255, 179, 71, 0.07)"
+        stroke="rgba(232, 160, 60, 0.85)"
         strokeWidth="1"
         initial={{ cy: height - 8, opacity: 0 }}
         animate={{

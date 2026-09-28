@@ -52,8 +52,8 @@ export function TuberAstronaut({ size = 220, jumping = true }: { size?: number; 
     <path d="M126 302h170" stroke="#4b3a44" strokeWidth="15" />
     <rect x="174" y="250" width="72" height="69" rx="10" fill="#333341" stroke="#d2b3a0" strokeWidth="4" />
     <rect x="186" y="262" width="47" height="18" rx="3" fill="#102522" />
-    <path d="M190 272h7l4-5 7 9 5-6h16" fill="none" stroke="#7cff6b" strokeWidth="2" />
-    <circle cx="190" cy="297" r="5" fill="#7cff6b" />
+    <path d="M190 272h7l4-5 7 9 5-6h16" fill="none" stroke="#9FBE7A" strokeWidth="2" />
+    <circle cx="190" cy="297" r="5" fill="#9FBE7A" />
     <circle cx="209" cy="297" r="5" fill="#ffb347" />
     <circle cx="229" cy="297" r="5" fill="#ff2e93" />
 
@@ -76,7 +76,7 @@ export function TuberAstronaut({ size = 220, jumping = true }: { size?: number; 
     <rect x="94" y="137" width="21" height="46" rx="8" fill="#827b87" />
     <rect x="300" y="137" width="21" height="46" rx="8" fill="#827b87" />
     <path d="M310 135V75" stroke="#bab0bc" strokeWidth="5" />
-    <circle cx="310" cy="70" r="7" fill="#7cff6b" />
+    <circle cx="310" cy="70" r="7" fill="#9FBE7A" />
    </svg>
   </motion.div>
  );

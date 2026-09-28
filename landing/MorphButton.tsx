@@ -590,7 +590,7 @@ export function MorphButton(props: MorphButtonProps): JSX.Element {
                   : activeHover
                     ? 1.03
                     : 1,
-              y: reducedMotion ? 0 : pressed ? 3 : 0,
+              y: reducedMotion ? 0 : pressed ? 4 : 0,
               rotate:
                 animated && activeFocus && !pressed
                   ? [-0.5, 0.5, -0.5]

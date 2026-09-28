@@ -141,7 +141,7 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose?: (
    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
    onClick={onClose}>
    <motion.div role="dialog" aria-modal="true" initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="pf-card hull-skin"
-    style={{ width: '100%', maxWidth: 320, padding: 28, borderRadius: 24, textAlign: 'center', background: '#1a1a2e' }}
+    style={{ width: '100%', maxWidth: 320, padding: 28, textAlign: 'center' }}
     onClick={(e) => e.stopPropagation()}>
     {children}
    </motion.div>
