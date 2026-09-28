@@ -4,6 +4,7 @@ import { t } from '../i18n'
 import { motion } from 'framer-motion'
 import { PublicKey } from '@solana/web3.js'
 
+import { HullPanel } from '../ui/HullPanel'
 import Button from './Button'
 import AnimatedNumber from './AnimatedNumber'
 import { Field } from '../contexts/GameContext'
@@ -66,7 +67,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
    animate={{ opacity: 1, y: 0 }}
    transition={{ delay: Math.min(index * 0.06, 0.4) }}
   >
-   <div className={`po-card field-hull${rare === 'gold' ? ' field-hull--gold' : ''}${canHarvest ? ' field-hull--ready' : ''}`}>
+   <HullPanel variant={rare === 'gold' ? 'accent' : 'default'} className="field-hull">
     {/* Заголовок */}
     <div style={{
      padding: '16px 20px 12px',
@@ -81,12 +82,12 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       width={48}
       height={56}
       loading="lazy"
-      style={{ width: 48, height: 56, objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}
+      style={{ width: 48, height: 56, objectFit: 'contain', flexShrink: 0, filter: `drop-shadow(0 0 12px ${RARE_COLOR[rare]}66)` }}
      />
      <div style={{ flex: 1, minWidth: 0 }}>
       <div className="pf-h2" style={{ fontSize: 18 }}>{t("РАСТЕНИЕ")}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, rowGap: 4, marginTop: 4, flexWrap: 'wrap' }}>
-       <span className="ares-mono" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', padding: '2px 8px', borderRadius: 4, color: RARE_COLOR[rare], border: `1px solid ${RARE_COLOR[rare]}66`, background: `${RARE_COLOR[rare]}1a`, textShadow: 'none' }}>
+       <span className="ares-mono" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', padding: '2px 8px', borderRadius: 4, color: RARE_COLOR[rare], border: `1px solid ${RARE_COLOR[rare]}66`, background: `${RARE_COLOR[rare]}1a`, textShadow: `0 0 8px ${RARE_COLOR[rare]}55` }}>
         {RARE_LABEL[rare]}
        </span>
        <span className="pf-subtitle" style={{ fontSize: 10 }}>{t('РАНГ {n}', { n: field.level })}</span>
@@ -96,7 +97,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       <div className="pf-mono" style={{
        fontSize: 18,
        color: canHarvest ? 'var(--pf-gold)' : 'var(--pf-text-muted)',
-       textShadow: 'none',
+       textShadow: canHarvest ? 'var(--pf-glow-gold)' : 'none',
       }}>
        <AnimatedNumber value={accumulated} decimals={2} />
       </div>
@@ -109,7 +110,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
      <div className="pf-subtitle" style={{ fontSize: 10, marginBottom: 4 }}>
       {t('Целостность {d}/{max}', { d: durability, max: MAX_DURABILITY })}
      </div>
-     <div style={{ height: 6, background: 'rgba(0,0,0,0.35)', borderRadius: 3, overflow: 'hidden' }}>
+     <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
       <motion.div
        initial={{ width: 0 }}
        animate={{ width: `${durability}%` }}
@@ -206,7 +207,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       <span style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{fmtPotatoExact(fertilizerCostMicro(field.fieldType))} POTATO</span>
      </Button>
     </div>
-   </div>
+   </HullPanel>
   </motion.div>
  )
 }

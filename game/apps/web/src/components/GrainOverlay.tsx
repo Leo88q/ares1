@@ -26,24 +26,3 @@ export default function GrainOverlay() {
   </svg>
  )
 }
-
-/**
- * SVG-фильтры «рваного края» для штампов (MK) и трафарет-спрея (Поход).
- * Рендерится один раз рядом с зерном; сами элементы ссылаются url(#...).
- */
-export function MkRoughFilters() {
- return (
-  <svg aria-hidden="true" width="0" height="0" style={{ position: 'absolute' }}>
-   <defs>
-    <filter id="mk-rough" x="-5%" y="-5%" width="110%" height="110%">
-     <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" seed="3" result="n" />
-     <feDisplacementMap in="SourceGraphic" in2="n" scale="1.8" />
-    </filter>
-    <filter id="po-spray" x="-8%" y="-8%" width="116%" height="116%">
-     <feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="2" seed="14" result="n" />
-     <feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" />
-    </filter>
-   </defs>
-  </svg>
- )
-}

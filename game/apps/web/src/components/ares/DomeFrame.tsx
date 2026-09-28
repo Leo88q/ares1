@@ -95,10 +95,10 @@ const CONDENSATION_DROPS = buildDrops(14);
 const GlassArc = memo(function GlassArc({ tint }: { tint: string }): JSX.Element {
  return (
   <div aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%', pointerEvents: 'none', overflow: 'hidden' }}>
-   <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(255,230,190,0.07), ${tint} 55%, transparent)` }} />
-   <div style={{ position: 'absolute', top: '8%', left: '10%', width: '30%', height: '22%', borderRadius: '50%', background: 'radial-gradient(ellipse at center, rgba(255,230,190,0.13), transparent 70%)', filter: 'blur(2px)' }} />
+   <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(255,255,255,0.10), ${tint} 55%, transparent)` }} />
+   <div style={{ position: 'absolute', top: '8%', left: '10%', width: '30%', height: '22%', borderRadius: '50%', background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.22), transparent 70%)', filter: 'blur(2px)' }} />
    {CONDENSATION_DROPS.map((d) => (
-    <span key={d.id} style={{ position: 'absolute', left: `${d.left}%`, top: `${d.top}%`, width: d.size, height: d.size * 1.3, borderRadius: '50%', background: 'rgba(255,220,180,0.15)', boxShadow: 'inset -1px -1px 1px rgba(255,235,200,0.3)' }} />
+    <span key={d.id} style={{ position: 'absolute', left: `${d.left}%`, top: `${d.top}%`, width: d.size, height: d.size * 1.3, borderRadius: '50%', background: 'rgba(200,225,255,0.22)', boxShadow: 'inset -1px -1px 1px rgba(255,255,255,0.35)' }} />
    ))}
   </div>
  );

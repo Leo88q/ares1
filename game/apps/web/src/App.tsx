@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import InteractiveTutorial from './components/InteractiveTutorial'
 import BackgroundScene from './components/BackgroundScene'
-import GrainOverlay, { MkRoughFilters } from './components/GrainOverlay'
+import GrainOverlay from './components/GrainOverlay'
 import PageTransition from './components/PageTransition'
 import ErrorBoundary from './components/ErrorBoundary'
 import { ToastProvider } from './components/Toast'
@@ -54,7 +54,6 @@ export default function App() {
  return (
   <div className="pf-app-bg">
    <GrainOverlay />
-   <MkRoughFilters />
    <HullSkinMounter />
    <BackgroundScene variant="farm" />
    <div style={{ maxWidth: 480, margin: '0 auto', position: 'relative', minHeight: '100vh', zIndex: 1 }}>
@@ -91,7 +90,7 @@ function ScreenFallback() {
  return (
   <div style={{ padding: 20 }} aria-busy="true">
    {Array.from({ length: 3 }).map((_, i) => (
-    <div key={i} className="mk-skel" style={{ height: 120, marginBottom: 12 }} />
+    <div key={i} className="pf-card hull-skin shimmer" style={{ height: 120, borderRadius: 16, marginBottom: 12 }} />
    ))}
   </div>
  )

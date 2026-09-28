@@ -77,10 +77,9 @@ const magneticRadius = 120;
 const magneticStrength = 15;
 
 const colors: Record<LiquidPanelVariant, string> = {
-  // MK (2026-09-28): тёплый металл вместо лавандового неона
-  default: "#C9A176",
-  accent: "#FFB347",
-  danger: "#E8823F",
+  default: "#BBA8CC",
+  accent: "#FF2E93",
+  danger: "#FF9CAA",
 };
 
 function clamp(value: number, minimum: number, maximum: number): number {

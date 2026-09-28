@@ -5,9 +5,9 @@ import { motion } from 'framer-motion';
 export type PanelTone = 'neutral' | 'amber' | 'magenta' | 'danger';
 
 const TONE_GLOW: Record<PanelTone, string> = {
- neutral: '#C9A176',
+ neutral: 'rgba(180, 220, 255, 0.75)',
  amber: 'var(--ares-hud-amber, #FFB347)',
- magenta: 'var(--mk-lamp-magenta, #E06CA4)',
+ magenta: 'var(--ares-grow-pink, #FF2E93)',
  danger: '#E8823F',
 };
 
@@ -94,8 +94,8 @@ export const StencilPlate = memo(function StencilPlate({
     color: glow,
     fontSize: 11,
     lineHeight: '16px',
-    textShadow: '0 1px 0 rgba(0,0,0,0.8)',
-    background: 'linear-gradient(180deg, rgba(0,0,0,0.5), rgba(0,0,0,0.32))',
+    textShadow: `0 0 6px ${glow}66`,
+    background: 'rgba(0,0,0,0.35)',
    }}
   >
    {children}
@@ -116,7 +116,7 @@ export const ConsolePanel = memo(function ConsolePanel({
  tone = 'neutral',
  className,
 }: ConsolePanelProps): JSX.Element {
- void tone;
+ const glow = TONE_GLOW[tone];
  return (
   <section
    className={`hull-skin${className ? ` ${className}` : ''}`}
@@ -124,10 +124,10 @@ export const ConsolePanel = memo(function ConsolePanel({
     position: 'relative',
     borderRadius: 10,
     padding: '14px 16px',
-    boxShadow: `inset 0 1px 0 var(--mk-edge-hi, rgba(255,214,170,0.16)), inset 0 -1px 0 var(--mk-edge-lo, rgba(0,0,0,0.72)), inset 0 0 20px rgba(0,0,0,0.4), 0 10px 22px rgba(0,0,0,0.4)`,
-    borderWidth: 1,
+    boxShadow: `0 0 0 1px rgba(0,0,0,0.7), 0 0 22px -6px ${glow}, inset 0 1px 0 rgba(255,214,170,0.14), inset 0 -1px 0 rgba(0,0,0,0.45)`,
+    borderWidth: 2,
     borderStyle: 'solid',
-    borderColor: 'var(--mk-bevel, #8A4A22) var(--mk-bevel-lo, #2A1508) var(--mk-bevel-lo, #2A1508) var(--mk-bevel-lo, #2A1508)',
+    borderColor: '#2A1508 #8A4A22 #8A4A22 #2A1508',
    }}
   >
    {title ? (
@@ -171,9 +171,9 @@ export const HydroTray = memo(function HydroTray({
      height: 3,
      borderRadius: 2,
      background: active
-      ? 'linear-gradient(90deg, #C99232, #E8A03C)'
+      ? 'linear-gradient(90deg, var(--ares-bio-cyan, #12E7C4), var(--ares-bio-green, #7CFF6B))'
       : 'rgba(180,220,255,0.12)',
-     boxShadow: active ? '0 0 6px rgba(255, 170, 60, 0.35)' : 'none',
+     boxShadow: active ? '0 0 6px var(--ares-bio-cyan, #12E7C4)' : 'none',
     }}
    />
    {children}

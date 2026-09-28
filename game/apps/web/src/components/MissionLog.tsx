@@ -91,7 +91,7 @@ export function MissionLog() {
        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <PatchImg src={ach.patch} title={ach.title} done={done} />
         <div style={{ flex: 1, minWidth: 0 }}>
-         <div className="ares-stencil" style={{ fontSize: 13, marginBottom: 2, color: 'var(--ares-hud-amber, #FFB347)' }}>{ach.title}</div>
+         <div className="ares-stencil" style={{ fontSize: 13, marginBottom: 2, color: 'var(--ares-hud-amber, #FFB347)', textShadow: '0 0 10px rgba(255,179,71,0.35)' }}>{ach.title}</div>
          <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 6 }}>{ach.desc}</div>
          <LiquidBar value={pct} label={ach.title} />
          <div style={{ fontSize: 10, color: 'var(--pf-text-muted)', marginTop: 3 }}>
@@ -141,7 +141,7 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose?: (
    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
    onClick={onClose}>
    <motion.div role="dialog" aria-modal="true" initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="pf-card hull-skin"
-    style={{ width: '100%', maxWidth: 320, padding: 28, textAlign: 'center' }}
+    style={{ width: '100%', maxWidth: 320, padding: 28, borderRadius: 24, textAlign: 'center', background: '#1a1a2e' }}
     onClick={(e) => e.stopPropagation()}>
     {children}
    </motion.div>

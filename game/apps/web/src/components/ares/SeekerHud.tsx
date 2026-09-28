@@ -77,9 +77,9 @@ const PHASE_ACCENT: Record<SolPhase, string> = {
 };
 
 export const SolHud = memo(function SolHud({
- o2Percent,
- h2oPercent,
- rationLabel,
+ o2Percent = 98.4,
+ h2oPercent = 76.2,
+ rationLabel = 'ГОТОВ',
  className,
 }: SolHudProps): JSX.Element {
  const phase = useSeekerPhase();
@@ -98,66 +98,27 @@ export const SolHud = memo(function SolHud({
     alignItems: 'center',
    }}
   >
-   {/* MK (2026-09-28): выдуманная телеметрия (O2 98.4% / H2O 76.2%) снята.
-       Показываем только реальные данные: номер сола и фаза по часам.
-       Числовые ячейки O2/H2O остаются доступны, только если их значения
-       переданы явно — выдумывать их по умолчанию запрещено. */}
-   {o2Percent !== undefined && (
-    <HudCell
-     icon={<IconO2 size={14} accent={accent} />}
-     label="O2"
-     value={formatPercent(o2Percent)}
-     accent={accent}
-     breathing={breathing}
-    />
-   )}
-   {h2oPercent !== undefined && (
-    <HudCell
-     icon={<IconDrop size={14} accent={accent} />}
-     label="H2O"
-     value={formatPercent(h2oPercent)}
-     accent={accent}
-     breathing={breathing}
-    />
-   )}
-   {rationLabel !== undefined && (
-    <HudCell
-     icon={<IconCrate size={14} accent={accent} />}
-     label="RATION"
-     value={t(rationLabel)}
-     accent={accent}
-     breathing={breathing}
-    />
-   )}
-   {/* Лампы купола: индикатор фазы суток (реальные часы), не данные */}
-   <span
-    aria-hidden="true"
-    style={{
-     display: 'inline-flex',
-     alignItems: 'center',
-     gap: 4,
-     padding: '6px 8px',
-     borderRadius: 6,
-     background: 'rgba(0,0,0,0.35)',
-     border: `1px solid ${accent}55`,
-    }}
-   >
-    {(['dawn', 'day', 'blueset', 'night'] as const).map((p) => (
-     <span
-      key={p}
-      className="mk-lamp"
-      style={{
-       width: 7,
-       height: 7,
-       opacity: p === phase ? 1 : 0.18,
-       background:
-        p === phase
-         ? `radial-gradient(circle at 34% 30%, ${accent} 0%, #3A2410 70%)`
-         : 'radial-gradient(circle at 34% 30%, #4A4538 0%, #171410 100%)',
-      }}
-     />
-    ))}
-   </span>
+   <HudCell
+    icon={<IconO2 size={14} accent={accent} />}
+    label="O2"
+    value={formatPercent(o2Percent)}
+    accent={accent}
+    breathing={breathing}
+   />
+   <HudCell
+    icon={<IconDrop size={14} accent={accent} />}
+    label="H2O"
+    value={formatPercent(h2oPercent)}
+    accent={accent}
+    breathing={breathing}
+   />
+   <HudCell
+    icon={<IconCrate size={14} accent={accent} />}
+    label="RATION"
+    value={t(rationLabel)}
+    accent={accent}
+    breathing={breathing}
+   />
    <span
     className="ares-mono"
     style={{

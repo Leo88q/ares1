@@ -743,11 +743,11 @@ function MarsScene({
             <linearGradient id={`${id}-glass`} x1="0" y1="0" x2=".8" y2="1">
               <stop stopColor="#B5D9F5" stopOpacity=".13" />
               <stop offset=".4" stopColor="#6B93D6" stopOpacity=".025" />
-              <stop offset="1" stopColor="#D8558F" stopOpacity=".075" />
+              <stop offset="1" stopColor="#FF2E93" stopOpacity=".075" />
             </linearGradient>
             <radialGradient id={`${id}-grow`}>
-              <stop stopColor="#d8558f" stopOpacity=".55" />
-              <stop offset="1" stopColor="#d8558f" stopOpacity="0" />
+              <stop stopColor="#ff2e93" stopOpacity=".65" />
+              <stop offset="1" stopColor="#ff2e93" stopOpacity="0" />
             </radialGradient>
             <linearGradient id={`${id}-base`} x2="0" y2="1">
               <stop stopColor="#77707d" />
@@ -823,9 +823,9 @@ function MarsScene({
             <path d="M0 0h113v78H0Z" fill="#332832" stroke="#a08c90" />
             <path d="M13 13h87v66H13Z" fill="#0b0911" stroke="#6f6878" />
             <path d="M23 23h67v54H23Z" fill="#352139" />
-            <path d="M23 23h67" stroke="#9fbe7a" strokeWidth="3" />
+            <path d="M23 23h67" stroke="#7cff6b" strokeWidth="3" />
             <path d="M56 25v50" stroke="#ae819b" />
-            <circle cx="80" cy="44" r="3" fill="#9fbe7a" />
+            <circle cx="80" cy="44" r="3" fill="#7cff6b" />
             <path d="M-10 79h133l22 13H-31Z" fill="#53414b" />
           </g>
 
@@ -836,7 +836,7 @@ function MarsScene({
             <circle cx="651" cy="449" r="3" />
           </g>
           <path d="M665 371v-112m-12 15h25" stroke="#8f8496" strokeWidth="3" />
-          <circle cx="665" cy="259" r="4" fill="#9fbe7a" />
+          <circle cx="665" cy="259" r="4" fill="#7cff6b" />
         </svg>
 
         <div className="dome-callout">
@@ -1070,7 +1070,7 @@ function Hero(): JSX.Element {
                   ? t("{n} модулей продано", { n: `${sold} / ${live.online ? live.cap : presale.supply}` })
                   : t("подключение к devnet…")
               }
-              color="#FFB347"
+              color="#FF2E93"
             />
 
             <div className="presale-bottom">
@@ -1372,10 +1372,10 @@ function TuberArt(): JSX.Element {
       <path d="M126 302h170" stroke="#4b3a44" strokeWidth="15" />
       <rect x="174" y="250" width="72" height="69" rx="10" fill="#333341" stroke="#d2b3a0" strokeWidth="4" />
       <rect x="186" y="262" width="47" height="18" rx="3" fill="#102522" />
-      <path d="M190 272h7l4-5 7 9 5-6h16" fill="none" stroke="#9fbe7a" strokeWidth="2" />
-      <circle cx="190" cy="297" r="5" fill="#9fbe7a" />
+      <path d="M190 272h7l4-5 7 9 5-6h16" fill="none" stroke="#7cff6b" strokeWidth="2" />
+      <circle cx="190" cy="297" r="5" fill="#7cff6b" />
       <circle cx="209" cy="297" r="5" fill="#ffb347" />
-      <circle cx="229" cy="297" r="5" fill="#e06ca4" />
+      <circle cx="229" cy="297" r="5" fill="#ff2e93" />
 
       <circle cx="207" cy="158" r="108" fill="#e1d8d4" stroke="#71636d" strokeWidth="7" />
       <circle cx="207" cy="158" r="92" fill={`url(#${id}-visor)`} stroke="#2d2b3e" strokeWidth="7" />
@@ -1396,7 +1396,7 @@ function TuberArt(): JSX.Element {
       <rect x="94" y="137" width="21" height="46" rx="8" fill="#827b87" />
       <rect x="300" y="137" width="21" height="46" rx="8" fill="#827b87" />
       <path d="M310 135V75" stroke="#bab0bc" strokeWidth="5" />
-      <circle cx="310" cy="70" r="7" fill="#9fbe7a" />
+      <circle cx="310" cy="70" r="7" fill="#7cff6b" />
       <path d="m133 252 12-20 12 20m-18-7h12" fill="none" stroke="#51232a" strokeWidth="3" />
     </svg>
   );
