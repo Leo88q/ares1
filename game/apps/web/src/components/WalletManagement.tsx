@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, ChevronUp, ArrowDownLeft, ArrowUpRight, Copy, Check, Wallet } from 'lucide-react'
+import { Glyph } from '../ui/Emblem'
 import { Emblem } from '../ui/Emblem'
 import { PublicKey } from '@solana/web3.js'
 import { useSolana, IS_MAINNET, CLUSTER } from '../contexts/SolanaContext'
@@ -120,14 +120,14 @@ export default function WalletManagement() {
    >
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
      <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, #8A2E08, #C1440E)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
-      <Wallet size={20} color="white" />
+      <Glyph name="wallet" size={20} />
      </div>
      <div style={{ textAlign: 'left' }}>
       <div className="ares-stencil" style={{ fontSize: 13, color: 'var(--ares-hud-amber, #FFB347)' }}>{t('УПРАВЛЕНИЕ КОШЕЛЬКОМ')}</div>
       <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)' }}>{t('Приём и передача топлива и пайка')}</div>
      </div>
     </div>
-    {isOpen ? <ChevronUp size={20} color="var(--pf-text-secondary)" /> : <ChevronDown size={20} color="var(--pf-text-secondary)" />}
+    {isOpen ? <Glyph name="chevron-up" size={20} style={{ opacity: 0.8 }} /> : <Glyph name="chevron-down" size={20} style={{ opacity: 0.8 }} />}
    </motion.button>
 
    <AnimatePresence>
@@ -142,7 +142,7 @@ export default function WalletManagement() {
          </code>
          <motion.button whileTap={{ scale: 0.9 }} onClick={copyAddress} aria-label={t("Скопировать адрес")}
           style={{ padding: '6px 10px', borderRadius: 'var(--s-radius-chip)', background: copied ? 'var(--pf-teal)' : 'var(--s-subtle-bg)', display: 'flex', alignItems: 'center' }}>
-          {copied ? <Check size={12} color="white" /> : <Copy size={12} color="var(--pf-text-secondary)" />}
+          {copied ? <Glyph name="check" size={12} /> : <Glyph name="copy" size={12} style={{ opacity: 0.8 }} />}
          </motion.button>
         </div>
        </div>
@@ -165,8 +165,8 @@ export default function WalletManagement() {
        </div>
 
        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <ActionToggle active={action === 'deposit'} color="var(--pf-teal)" onClick={() => setAction(action === 'deposit' ? null : 'deposit')} icon={<ArrowDownLeft size={16} />} label={t("Принять")} />
-        <ActionToggle active={action === 'withdraw'} color="var(--pf-gold)" onClick={() => setAction(action === 'withdraw' ? null : 'withdraw')} icon={<ArrowUpRight size={16} />} label={t("Передать")} />
+        <ActionToggle active={action === 'deposit'} color="var(--pf-teal)" onClick={() => setAction(action === 'deposit' ? null : 'deposit')} icon={<Glyph name="deposit" size={16} />} label={t("Принять")} />
+        <ActionToggle active={action === 'withdraw'} color="var(--pf-gold)" onClick={() => setAction(action === 'withdraw' ? null : 'withdraw')} icon={<Glyph name="arrow-up-right" size={16} />} label={t("Передать")} />
        </div>
 
        <AnimatePresence>

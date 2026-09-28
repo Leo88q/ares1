@@ -1,6 +1,6 @@
 import { useState, createContext, useContext, ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertTriangle, CheckCircle, Info, X } from 'lucide-react'
+import { Glyph, Emblem } from '../ui/Emblem'
 
 type ToastType = 'success' | 'error' | 'warning' | 'info'
 interface ToastData { id: number; type: ToastType; title: string; message?: string }
@@ -36,10 +36,10 @@ export function useToast() {
 
 function ToastItem({ toast, index, onClose }: { toast: ToastData; index: number; onClose: () => void }) {
  const config = {
-  success: { icon: <CheckCircle size={20} />, color: 'var(--pf-teal)', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(193, 68, 14, 0.45)' },
-  error:  { icon: <X size={20} />,     color: 'var(--pf-red)', bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.4)' },
-  warning: { icon: <AlertTriangle size={20} />, color: 'var(--pf-gold)', bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.4)' },
-  info:  { icon: <Info size={20} />,    color: 'var(--ares-blueset, #6B93D6)', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.4)' },
+  success: { icon: <Glyph name="check" size={20} />, color: 'var(--pf-teal)', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(193, 68, 14, 0.45)' },
+  error:  { icon: <Glyph name="x" size={20} />,     color: 'var(--pf-red)', bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.4)' },
+  warning: { icon: <Glyph name="warning" size={20} />, color: 'var(--pf-gold)', bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.4)' },
+  info:  { icon: <Emblem name="clipboard" size={20} />,    color: 'var(--ares-blueset, #6B93D6)', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.4)' },
  }[toast.type]
 
  return (

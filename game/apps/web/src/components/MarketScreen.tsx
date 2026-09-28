@@ -2,7 +2,7 @@ import { ReactNode, useState, useMemo } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, Clock, User, Loader2 } from 'lucide-react'
+import { Glyph } from '../ui/Emblem'
 import BigPurchaseEffect from './BigPurchaseEffect'
 import CreateOrderModal from './CreateOrderModal'
 import { haptics } from '../utils/haptic'
@@ -69,7 +69,7 @@ function MarketScreenInner() {
      className="gradient-gold"
      style={{ padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
     >
-     <Plus size={18} aria-hidden="true" /> {t('Отгрузить')}
+     <Glyph name="plus" size={18} aria-hidden="true" /> {t('Отгрузить')}
     </motion.button>
    </div>
 
@@ -306,7 +306,7 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
      <div style={{ width: 36, height: 36, borderRadius: 'var(--s-radius-chip)', background: order.isOwn ? 'rgba(59, 130, 246, 0.2)' : 'rgba(193, 68, 14, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
-      {order.isOwn ? <User size={18} color="var(--ares-blueset, #6B93D6)" /> : null }
+      {order.isOwn ? <Glyph name="person" size={18} /> : null }
      </div>
      <div>
       <div className="ares-mono" style={{ fontSize: 15, fontWeight: 700, textAlign: 'center', color: 'transparent', background: 'var(--ares-action)', WebkitBackgroundClip: 'text', backgroundClip: 'text' }}>{fmtPotato(order.amountMicro)} POTATO</div>
@@ -324,19 +324,19 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
    </div>
    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, fontSize: 11 }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--pf-text-secondary)' }}>
-     <Clock size={12} aria-hidden="true" /> {t('{h} ч осталось', { h: hoursLeft })}
+     <Glyph name="clock" size={12} aria-hidden="true" /> {t('{h} ч осталось', { h: hoursLeft })}
     </div>
     <div style={{ color: 'var(--pf-gold)' }}>{t('Комиссия продавца')}: {((order.feeMicro / order.amountMicro) * 100).toFixed(1)}%</div>
    </div>
    {order.isOwn ? (
     <motion.button whileTap={{ scale: 0.95 }} onClick={onCancel} disabled={busy}
      style={{ width: '100%', padding: 12, borderRadius: 10, background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--pf-red)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-     {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <X size={16} />} {t('Отменить ордер')}
+     {busy ? <Glyph name="clock" size={16} style={{ animation: 'spin 2s linear infinite' }} /> : <Glyph name="x" size={16} />} {t('Отменить ордер')}
     </motion.button>
    ) : (
     <motion.button whileTap={{ scale: 0.95 }} onClick={onBuy} disabled={busy} className="gradient-primary"
      style={{ width: '100%', padding: 12, borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-     {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null  } {t('Купить за {price} SOL', { price: fmtSol(order.totalLamports, 4) })}
+     {busy ? <Glyph name="clock" size={16} style={{ animation: 'spin 2s linear infinite' }} /> : null  } {t('Купить за {price} SOL', { price: fmtSol(order.totalLamports, 4) })}
     </motion.button>
    )}
   </motion.div>

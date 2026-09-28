@@ -1,7 +1,7 @@
 import { Fragment, useState, type ReactNode } from 'react'
 import { t } from '../i18n'
 
-import { Copy, Check, Share2 } from 'lucide-react'
+import { Glyph } from '../ui/Emblem'
 import { Emblem } from '../ui/Emblem'
 import { useSolana } from '../contexts/SolanaContext'
 import { useToast } from './Toast'
@@ -152,7 +152,7 @@ export function ReferralSection() {
        transition: 'all 0.2s',
       }}
      >
-      {copied ? <Check size={16} /> : <Copy size={16} />}
+      {copied ? <Glyph name="check" size={16} /> : <Glyph name="copy" size={16} />}
       {copied ? t('Скопировано!') : t('Скопировать ссылку')}
      </button>
 
@@ -173,7 +173,7 @@ export function ReferralSection() {
        gap: 8,
       }}
      >
-      <Share2 size={16} />
+      <Glyph name="share" size={16} />
       {t('Поделиться')}
      </button>
     </div>

@@ -2,7 +2,8 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ShoppingCart, Info } from 'lucide-react'
+import { Glyph } from '../ui/Emblem'
+import { Emblem } from '../ui/Emblem'
 import Button from './Button'
 import { MICRO, MIN_ORDER_AMOUNT_POTATO, feeBps } from '../utils/constants'
 import { pdas, decodeExportLicense } from '../utils/anchorClient'
@@ -148,7 +149,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
         color: 'var(--pf-green)',
         filter: 'drop-shadow(var(--pf-glow-green))',
        }}>
-        <ShoppingCart size={22} />
+        <Emblem name="crate" size={22} />
        </span>
        <h2 className="pf-h2" style={{ fontSize: 18, flex: 1 }}>{t("Отгрузить $POTATO")}</h2>
        <motion.button
@@ -166,7 +167,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         }}
        >
-        <X size={16} />
+        <Glyph name="x" size={16} />
        </motion.button>
       </div>
 
@@ -244,14 +245,14 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
         glow="green"
         disabled={busy}
         onClick={handleSubmit}
-        icon={<ShoppingCart size={16} />}
+        icon={<Emblem name="crate" size={16} />}
         style={{ width: '100%' }}
        >
         {busy ? t('Создаём…') : t('Оформить ордер')}
        </Button>
 
        <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--pf-text-muted)', margin: 0 }}>
-        <Info size={12} />
+        <Emblem name="clipboard" size={12} />
         {t('Ордер висит на бирже до 24ч или пока груз не примут.')}
        </p>
       </div>

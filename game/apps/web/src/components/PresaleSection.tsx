@@ -3,7 +3,7 @@ import { t } from '../i18n'
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp  } from 'lucide-react'
+import { Glyph } from '../ui/Emblem'
 import { useGame } from '../contexts/GameContext'
 import { useSolana, PROGRAM_ID } from '../contexts/SolanaContext'
 import { sounds } from '../utils/sounds'
@@ -208,7 +208,7 @@ export default function PresaleSection() {
      t('Подключи кошелёк')
     ) : (
      <>
-      <TrendingUp size={18} />
+      <Glyph name="arrow-up-right" size={18} />
        {t('Купить растения за {price} SKR', { price: PRESALE_PRICE_SKR })}
      </>
     )}
