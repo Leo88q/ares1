@@ -33,8 +33,26 @@ yarn check:unicode
 # инструмента на синтетических БД с заведомо посаженными дырами.
 yarn test:sqlite
 yarn test:economy
-# F-15: backend unit tests (security/alert helpers; no network).
+# F-15: backend unit tests (security/alert helpers + game_ops admin API; no network).
 yarn workspace backend test
+# game_ops: юнит-тесты слоя данных (hash-chain, коды ошибок, миграции как файлы)
+# идут всегда; полный набор (интеграция + мутации + приёмка) требует живой
+# PostgreSQL и включается переменной GAME_OPS_TEST_URL — см. docs/DB_RUNBOOK.md.
+yarn test:db:unit
+if [[ -n "${GAME_OPS_TEST_URL:-}" ]]; then
+  echo "game_ops DB suite: GAME_OPS_TEST_URL задан — миграции, интеграция, мутации, приёмка, стенд"
+  yarn db:migrate --url="$GAME_OPS_TEST_URL"
+  # test:db включает интеграционные проверки, мутационные пробы и приёмку
+  # db:verify; отдельный db:verify ниже — финальная приёмка «после всего».
+  GAME_OPS_TEST_URL="$GAME_OPS_TEST_URL" yarn test:db
+  yarn db:verify --url="$GAME_OPS_TEST_URL"
+  yarn db:bench --url="$GAME_OPS_TEST_URL" --rows="${GAME_OPS_BENCH_ROWS:-2000}" --concurrency="${GAME_OPS_BENCH_CONCURRENCY:-4}"
+  ANCHOR="/tmp/ares1-audit-anchor.json"
+  yarn db:mutate --url="$GAME_OPS_TEST_URL" --anchor="$ANCHOR" --write-anchor
+  yarn db:mutate --url="$GAME_OPS_TEST_URL" --anchor="$ANCHOR"
+else
+  echo 'game_ops DB suite SKIPPED: GAME_OPS_TEST_URL не задан (проверяется только юнит-слой).'
+fi
 # F-15: landing i18n parity tests + typecheck (via vite build).
 # deps already installed above; parity tests + typecheck(via build)
 (cd ../landing && npm test && npm run build)

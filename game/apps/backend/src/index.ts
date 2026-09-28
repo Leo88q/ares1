@@ -3,6 +3,10 @@ import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { env } from "./env.js";
 import { configRouter } from "./routes/config.js";
+import { gameOpsRouter } from "./routes/gameops.js";
+import { loadGameOpsConfig } from "./gameops/env.js";
+import { closePool, createPool } from "./gameops/pool.js";
+import { checkReadiness, httpStatusFor } from "./gameops/readiness.js";
 import { startEpochRoller } from "./epochRoller.js";
 import { connection, fetchConfig, payerKeypair, programId } from "./solana.js";
 import { buildAlert, sendAlert } from "./alert.js";
@@ -71,6 +75,7 @@ async function main() {
         paused: config.paused,
         payer: payerKeypair.publicKey.toBase58(),
         payerSol: payerBal / 1e9,
+        gameOps: gameOpsPool ? "on" : "off",
         uptime: process.uptime(),
       });
     } catch (err) {
@@ -78,14 +83,35 @@ async function main() {
     }
   });
 
-  // Readiness probe (k8s)
+  // Слой game_ops подключается ТОЛЬКО если задан GAME_OPS_DATABASE_URL. Без него
+  // бэкенд работает как раньше (read-only API + крон эпохи), а платёжные
+  // эндпоинты отвечают 503 NOT_CONFIGURED — fail-closed, а не «работает
+  // наполовину».
+  const gameOpsConfig = loadGameOpsConfig();
+  const gameOpsPool = gameOpsConfig ? createPool(gameOpsConfig) : null;
+  if (gameOpsConfig && gameOpsPool) {
+    app.use("/api/gameops", gameOpsRouter(gameOpsPool, gameOpsConfig));
+    console.log(
+      `[startup] game_ops on: chain=${gameOpsConfig.chainId} pool=${gameOpsConfig.poolMax} role=${gameOpsConfig.role ?? "connection-default"}`,
+    );
+  }
+
+  // Readiness probe (k8s): цепь и слой данных проверяются вместе. Если хотя бы
+  // одна проверка слоя данных провалена — 503: под может быть жив, но награды
+  // выдавать нельзя (расхождение журнала/сверки).
   app.get("/ready", async (_req, res) => {
     try {
       await fetchConfig();
-      res.json({ ready: true });
     } catch {
-      res.status(503).json({ ready: false });
+      res.status(503).json({ ready: false, error: "CHAIN_UNAVAILABLE" });
+      return;
     }
+    if (!gameOpsConfig || !gameOpsPool) {
+      res.json({ ready: true, gameOps: "off" });
+      return;
+    }
+    const report = await checkReadiness(gameOpsPool, gameOpsConfig);
+    res.status(httpStatusFor(report)).json({ ready: report.ready, gameOps: "on", checks: report.checks });
   });
 
   app.use("/api/config", configRouter);
@@ -137,6 +163,16 @@ async function main() {
   if (env.corsOrigin === "*" && process.env.NODE_ENV === "production") {
     console.warn("[startup] WARNING: CORS_ORIGIN='*' in production — restrict to your dApp domain!");
   }
+
+  // Остановка: сначала перестаём принимать запросы, затем закрываем пул, чтобы
+  // «полуоткрытая» транзакция выплаты не осталась в соединении с ролью-писателем.
+  const shutdown = async (signal: string) => {
+    console.log(`[shutdown] ${signal}: закрываю пул game_ops`);
+    if (gameOpsPool) await closePool(gameOpsPool);
+    process.exit(0);
+  };
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 
   startEpochRoller();
   app.listen(env.port, "0.0.0.0", () => {

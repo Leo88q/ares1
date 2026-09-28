@@ -14,6 +14,13 @@
     "scripts/init-onchain.ts",
     "tests/offchain/**/*.ts",
     "scripts/test-migrations-localnet.ts",
-    "scripts/check-invariants.ts"
+    "scripts/check-invariants.ts",
+    "scripts/db-common.ts",
+    "scripts/db-migrate.ts",
+    "scripts/db-roles.ts",
+    "scripts/db-verify.ts",
+    "scripts/db-bench.ts",
+    "scripts/db-mutate.ts",
+    "tests/db/**/*.ts"
   ]
 }
