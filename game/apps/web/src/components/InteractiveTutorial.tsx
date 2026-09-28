@@ -234,12 +234,15 @@ export default function InteractiveTutorial({ onComplete }: Props) {
        )}
        <button
         onClick={handleNext}
-        className="gradient-gold"
         style={{
          flex: isLast ? 1 : 2,
-         padding: '12px 20px',
-         borderRadius: 8,
-         border: 'none',
+         padding: '10px 20px',
+         borderStyle: 'solid',
+         borderWidth: 14,
+         borderImage: "url('/ares/kit/btn-primary.webp') 40 fill / 14px",
+         background: 'none',
+         color: '#2B1403',
+         textShadow: '0 1px 0 rgba(255,220,150,0.55)',
          fontSize: 14,
          fontWeight: 700,
          cursor: 'pointer',

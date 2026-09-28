@@ -66,8 +66,7 @@ function MarketScreenInner() {
     <motion.button
      whileTap={{ scale: 0.95 }}
      onClick={() => { haptics.tap(); setShowCreate(true) }}
-     className="gradient-gold"
-     style={{ padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
+     style={{ padding: '8px 16px', borderStyle: 'solid', borderWidth: 14, borderImage: "url('/ares/kit/btn-primary.webp') 40 fill / 14px", background: 'none', color: '#2B1403', textShadow: '0 1px 0 rgba(255,220,150,0.55)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
     >
      <Glyph name="plus" size={18} aria-hidden="true" /> {t('Отгрузить')}
     </motion.button>

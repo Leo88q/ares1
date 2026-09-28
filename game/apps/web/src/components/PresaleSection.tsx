@@ -87,14 +87,18 @@ export default function PresaleSection() {
   >
 
    {/* Бейдж "LIMITED" */}
-   <div className="gradient-gold" style={{
+   <div style={{
     position: 'absolute',
-    top: 16,
-    right: 16,
+    top: 14,
+    right: 14,
     fontSize: 10,
     fontWeight: 800,
-    padding: '4px 10px',
-    borderRadius: 'var(--pf-radius-pill)',
+    padding: '2px 12px',
+    borderStyle: 'solid',
+    borderWidth: 8,
+    borderImage: "url('/ares/kit/btn-primary.webp') 40 fill / 8px",
+    color: '#2B1403',
+    textShadow: '0 1px 0 rgba(255,220,150,0.55)',
     letterSpacing: '0.1em',
     textTransform: 'uppercase',
    }}>

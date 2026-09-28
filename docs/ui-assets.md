@@ -194,3 +194,10 @@ translateY(2px) + затемнение); disabled — обесцвечивани
   с цветным текстом действия; «Жатва» → btn-primary (не готова — btn-secondary)
 - ReferralSection строки и pack-wallet-line → card-bronze-small
 - лендинг boarding-pass → card-bone-small (костяной талон)
+
+### Кит-6: gradient-gold выведен, ProgressBar на жёлобе (2026-09-28)
+
+- все 4 места gradient-gold (Собрать, Далее-туториал, Отгрузить, LIMITED-бейдж)
+  переведены на пластины btn-primary; класс больше не используется в TSX
+- ProgressBar (рост/ур. карточек): track.webp жёлоб 22px + fill.webp с цветным
+  тонированием линейным градиентом-маской (сохранён semantic color)
