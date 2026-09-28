@@ -1,27 +1,21 @@
+# ARES-1 landing — build configuration.
+#
+# §2.1: `publish = "dist"` — only the build output is deployed. The repository
+# root (docs, scripts, .github, the game workspace) is never served.
+#
+# HEADERS AND REDIRECTS DO NOT LIVE HERE — see public/_headers and
+# public/_redirects.
+#
+# This site is actually deployed by Cloudflare Pages (the "Cloudflare Pages:
+# ares1" check runs on every PR), and Cloudflare Pages ignores netlify.toml
+# completely. Header and redirect rules that lived only in this file were
+# therefore silently never applied. `_headers` and `_redirects` in the published
+# directory are understood by BOTH platforms, so they are now the single source
+# of truth. This file keeps only what is genuinely Netlify-specific: the build
+# command, the publish directory and the Node version.
 [build]
   command = "npm run build"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "22"
-
-# F-14: security headers. CSP allows only self-hosted assets, Google Fonts
-# (style + font), and the configured Solana devnet RPC endpoint for the live
-# counters. No inline scripts (index.html loads /main.tsx as a module).
-[[headers]]
-  for = "/*"
-    [headers.values]
-    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.devnet.solana.com; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-    X-Frame-Options = "DENY"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"

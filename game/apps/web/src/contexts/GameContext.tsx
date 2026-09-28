@@ -1,3 +1,4 @@
+import { setItem } from '../utils/consent'
 import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { t } from '../i18n'
 
@@ -377,7 +378,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
      await sendIx([createIx])
      // Дожидаемся финализации LUT перед extend (иначе AddressLookupTableNotFound)
      await new Promise(r => setTimeout(r, 800))
-     localStorage.setItem(`ares-lut:${publicKey.toBase58()}`, lutAddress.toBase58())
+     setItem("functional", `ares-lut:${publicKey.toBase58()}`, lutAddress.toBase58())
      const fieldPks = fields.map(f => f.publicKey)
      if (fieldPks.length > 0) {
        const extendIx = AddressLookupTableProgram.extendLookupTable({

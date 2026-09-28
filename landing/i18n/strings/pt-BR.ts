@@ -376,6 +376,11 @@ const ptBR: Record<string, string> = {
   'Играть в ARES-1': 'Jogar ARES-1',
   'Постер игры ARES-1: картофельная ферма под куполами Марса': 'Pôster do jogo ARES-1: fazenda de batatas sob domos marcianos',
   'Продукт': 'Produto',
+
+  // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
+  'Правовые документы': 'Documentos legais',
+  'Настройки cookies': 'Configurações de cookies',
+  'Оператор': 'Operador',
 };
 
 export default ptBR;

@@ -1,3 +1,4 @@
+import { getItem, setItem, removeItem } from '../utils/consent';
 import { useState, useEffect, useCallback } from 'react';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
@@ -44,7 +45,7 @@ export function useLandingWallet() {
       const resp = await window.solana.connect();
       const pubkey = resp.publicKey;
       setState(s => ({ ...s, connected: true, publicKey: pubkey, connecting: false }));
-      localStorage.setItem('wallet_connected', 'true');
+      setItem("functional", "wallet_connected", "true");
     } catch (err: any) {
       setState(s => ({ ...s, error: err.message, connecting: false }));
     }
@@ -55,7 +56,7 @@ export function useLandingWallet() {
       await window.solana?.disconnect();
     } catch {}
     setState({ connected: false, publicKey: null, balanceSkr: 0n, connecting: false, error: null });
-    localStorage.removeItem('wallet_connected');
+    removeItem("functional", "wallet_connected");
   }, []);
 
   const fetchBalance = useCallback(async () => {
@@ -72,7 +73,7 @@ export function useLandingWallet() {
   }, [state.publicKey, connection]);
 
   useEffect(() => {
-    if (localStorage.getItem('wallet_connected') === 'true' && window.solana?.publicKey) {
+    if (getItem("functional", "wallet_connected") === "true" && window.solana?.publicKey) {
       setState(s => ({ ...s, connected: true, publicKey: window.solana!.publicKey! }));
     }
   }, []);

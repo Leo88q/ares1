@@ -1,3 +1,4 @@
+import { getItem, setItem } from './consent'
 /**
  * Тактильный отклик — нейтральный к платформе (dApp Store / браузер).
  * Web Vibration API; в webview, где он недоступен, — тихо no-op.
@@ -36,7 +37,7 @@ const HAPTIC_STORAGE_KEY = 'haptics_enabled'
 
 export function isHapticEnabled(): boolean {
  try {
-  return localStorage.getItem(HAPTIC_STORAGE_KEY) !== '0'
+  return getItem("functional", HAPTIC_STORAGE_KEY) !== "0"
  } catch {
   return true
  }
@@ -44,7 +45,7 @@ export function isHapticEnabled(): boolean {
 
 export function setHapticEnabled(enabled: boolean): void {
  try {
-  localStorage.setItem(HAPTIC_STORAGE_KEY, enabled ? '1' : '0')
+  setItem("functional", HAPTIC_STORAGE_KEY, enabled ? "1" : "0")
  } catch {
   /* ignore */
  }

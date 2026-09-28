@@ -25,6 +25,12 @@ First potato colony on Mars. Grow, trade, upgrade - 100% of $POTATO is born in p
 - Landing: React 18 + Vite 6 + Framer Motion
 - Game: React 18 + Vite + @solana/web3.js
 - Network: Solana Devnet
+- Hosting: Cloudflare Pages (`ares1` for the landing, `ares1-play` for the game client)
+
+Production HTTP headers and redirects live in `landing/public/_headers` and
+`landing/public/_redirects` — both are understood by Cloudflare Pages and by Netlify.
+`landing/netlify.toml` holds build configuration only: Cloudflare Pages ignores it, so
+platform rules must not be added there.
 
 ## Run locally
 
@@ -59,6 +65,27 @@ Deploy contract:
 ## License
 
 MIT - Zlata, 2026
+
+## Production deploy readiness
+
+Website and app preparation for a production deploy: [checklist audit and remediation](docs/PRODUCTION_DEPLOY_CHECKLIST.md)
+(secrets and history, source exposure, OWASP, cookies/GDPR, legal pages, operability).
+
+Run locally before pushing:
+
+```sh
+./scripts/install-git-hooks.sh        # once per clone: pre-commit secret gate
+node scripts/secret-scan.mjs          # working tree (§1.1)
+node scripts/secret-scan-history.mjs  # all fetched history (§1.2.1)
+node scripts/build-legal-pages.mjs --check
+
+# after building both apps:
+node scripts/check-release-artifacts.mjs landing/dist game/apps/web/dist
+
+# against a live deployment (needs network access to the host):
+./scripts/check-headers.sh https://ares1.is-a.dev
+./scripts/check-public-exposure.sh https://ares1.is-a.dev
+```
 
 ## Stabilization / beta readiness
 

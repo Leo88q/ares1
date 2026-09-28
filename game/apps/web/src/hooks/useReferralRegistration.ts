@@ -1,3 +1,4 @@
+import { getItem, setItem } from '../utils/consent'
 import { useEffect } from 'react'
 import { PublicKey } from '@solana/web3.js'
 import { getAssociatedTokenAddressSync, createAssociatedTokenAccountIdempotentInstruction } from '@solana/spl-token'
@@ -36,13 +37,13 @@ export function useReferralRegistration(): void {
 
   const done = () => {
    try {
-    localStorage.setItem(REGISTERED_KEY, ref)
+    setItem("functional", REGISTERED_KEY, ref)
    } catch {
     /* ignore */
    }
   }
   try {
-   if (localStorage.getItem(REGISTERED_KEY)) return
+   if (getItem("functional", REGISTERED_KEY)) return
   } catch {
     /* ignore */
   }

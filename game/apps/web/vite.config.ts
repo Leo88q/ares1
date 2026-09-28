@@ -8,6 +8,11 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
   },
+  preview: {
+    port: 4173,
+    host: true,
+    allowedHosts: true,
+  },
   build: {
     target: 'es2020',
     sourcemap: false,

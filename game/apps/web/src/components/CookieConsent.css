@@ -1,0 +1,160 @@
+/*
+ * Consent banner.
+ *
+ * Not a modal overlay: it must not block the game, because refusing cookies
+ * must not degrade access (no cookie wall, §4.3). It sits above the content,
+ * is keyboard reachable, and both primary buttons look identical.
+ */
+
+.consent {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem;
+  pointer-events: none;
+}
+
+.consent__panel {
+  pointer-events: auto;
+  width: min(34rem, 100%);
+  max-height: min(80vh, 40rem);
+  overflow-y: auto;
+  background: #10141e;
+  color: #efe9e3;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.9rem;
+  padding: 1.1rem 1.15rem 1rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  /* Respect the OS safe area on notched devices. */
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+.consent__title {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.consent__intro {
+  margin: 0 0 0.75rem;
+  color: #b7aebe;
+}
+
+.consent__gpc {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.65rem;
+  border-left: 3px solid #8fd0ff;
+  background: rgba(143, 208, 255, 0.08);
+  color: #cfe6f7;
+  font-size: 0.85rem;
+}
+
+.consent__list {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+
+.consent__item {
+  padding: 0.55rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.consent__row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  cursor: pointer;
+}
+
+.consent__row input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: #d4a576;
+  flex: 0 0 auto;
+}
+
+.consent__name {
+  font-weight: 600;
+}
+
+.consent__badge {
+  margin-left: auto;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9a92a4;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+}
+
+.consent__note {
+  margin: 0.25rem 0 0 1.65rem;
+  color: #a49cae;
+  font-size: 0.82rem;
+}
+
+.consent__link {
+  background: none;
+  border: none;
+  color: #d4a576;
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.consent__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+/*
+ * Both primary buttons share one class on purpose. If a future change makes
+ * "Accept" bigger, brighter or bolder than "Reject", that is a dark pattern
+ * and this comment is the record of why it must be reverted (§4.3).
+ */
+.consent__btn {
+  flex: 1 1 auto;
+  min-height: 2.75rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: #efe9e3;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.consent__btn--primary {
+  background: #d4a576;
+  border-color: #d4a576;
+  color: #14101a;
+}
+
+.consent__btn:hover {
+  border-color: #d4a576;
+}
+
+.consent__footnote {
+  margin: 0.8rem 0 0;
+  font-size: 0.78rem;
+  color: #8f8798;
+}
+
+.consent__footnote a {
+  color: #d4a576;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .consent__panel {
+    box-shadow: none;
+  }
+}
