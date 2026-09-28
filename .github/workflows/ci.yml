@@ -147,7 +147,7 @@ jobs:
           curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
           sh /tmp/solana-install.sh
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         id: anchor-cache
         with:
           path: ~/.cargo/bin/anchor
@@ -157,7 +157,7 @@ jobs:
           if ! command -v anchor >/dev/null || [[ "$(anchor --version | awk '{print $2}')" != "$ANCHOR_VERSION" ]]; then
             cargo install anchor-cli --version "=$ANCHOR_VERSION" --locked
           fi
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         if: steps.anchor-cache.outputs.cache-hit != 'true'
         with:
           path: ~/.cargo/bin/anchor
