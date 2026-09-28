@@ -29,6 +29,27 @@
   --body: "Inter", system-ui, sans-serif;
 }
 
+  /* ══ ЕДИНАЯ СИСТЕМА ПОВЕРХНОСТЕЙ (--s-*, 2026-09-28) ══
+     Единственный источник значений панелей/шапки/тостов.
+     Меняется здесь → применяется везде, где поверхность ссылается на --s-*.
+     Значения зафиксированы по фактическому рендеру на 28.09.2026. */
+  --s-panel-bg: rgba(20, 14, 26, 0.55);
+  --s-panel-bg-strong: rgba(16, 10, 22, 0.85);
+  --s-panel-border: rgba(184, 160, 214, 0.2);
+  --s-panel-border-soft: rgba(184, 160, 214, 0.12);
+  --s-panel-radius: 14px;
+  --s-panel-radius-lg: 20px;
+  --s-panel-blur: blur(14px);
+  --s-panel-shadow: 0 18px 44px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --s-pop-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --s-header-bg: #08050acc;
+  --s-toast-bg: #1b1024;
+  --s-z-header: 60;
+  --s-z-overlay: 90;
+  --s-z-modal: 100;
+  --s-z-toast: 110;
+  --s-z-cursor: 110;
+
 *,
 *::before,
 *::after {
@@ -299,7 +320,7 @@ input:focus-visible {
   inset: 0 0 auto;
   min-height: var(--ares-header-height);
   border-bottom: 1px solid transparent;
-  background: linear-gradient(#08050acc, #08050a00);
+  background: linear-gradient(var(--s-header-bg), #08050a00);
 }
 
 .header--scrolled {
@@ -2219,8 +2240,8 @@ input:focus-visible {
   gap: 16px;
   margin-left: auto;
   padding: 18px 14px 18px 22px;
-  background: #1b1024;
-  box-shadow: 0 15px 60px #0008;
+  background: var(--s-toast-bg);
+  box-shadow: var(--s-pop-shadow);
   pointer-events: auto;
 }
 

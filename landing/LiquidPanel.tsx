@@ -77,9 +77,10 @@ const magneticRadius = 120;
 const magneticStrength = 15;
 
 const colors: Record<LiquidPanelVariant, string> = {
-  default: "#BBA8CC",
-  accent: "#FF2E93",
-  danger: "#FF9CAA",
+  // значения берутся из токенов (index.css :root), не из сырых hex
+  default: "rgba(187, 168, 204, 0.9)",
+  accent: "var(--ares-grow)",
+  danger: "var(--ares-danger, #FF9CAA)",
 };
 
 function clamp(value: number, minimum: number, maximum: number): number {

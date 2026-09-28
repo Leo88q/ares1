@@ -20,6 +20,7 @@ import { SolanaProvider, CLUSTER } from './contexts/SolanaContext'
 import './fonts'
 import './theme/tokens.css'
 import './styles/global.css'
+import './styles/kit.css'
 import './index.css'
 // Vendored: upstream shipped a remote @import for DM Sans (see the file header).
 import './styles/wallet-adapter.css'

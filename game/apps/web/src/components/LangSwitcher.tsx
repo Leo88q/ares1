@@ -55,7 +55,7 @@ export default function LangSwitcher({ compact = false }: { compact?: boolean })
     <div
      role="menu"
      style={{
-      position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 60,
+      position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 'var(--s-z-header)',
       background: '#15100b', border: '1px solid rgba(160, 82, 40, 0.65)',
       borderRadius: 12, padding: 6, minWidth: 190,
       boxShadow: '0 10px 30px rgba(0,0,0,0.55)',

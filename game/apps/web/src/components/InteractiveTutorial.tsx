@@ -104,7 +104,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
      inset: 0,
      background: 'rgba(0, 0, 0, 0.85)',
      backdropFilter: 'blur(8px)',
-     zIndex: 1000,
+     zIndex: 'var(--s-z-toast)',
      display: 'flex',
      alignItems: step.position === 'center' ? 'center' : step.position === 'top' ? 'flex-start' : 'flex-end',
      justifyContent: 'center',

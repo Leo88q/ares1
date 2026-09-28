@@ -119,7 +119,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
       background: 'rgba(11, 7, 20, 0.75)',
       backdropFilter: 'blur(10px)',
       WebkitBackdropFilter: 'blur(10px)',
-      zIndex: 100,
+      zIndex: 'var(--s-z-modal)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
