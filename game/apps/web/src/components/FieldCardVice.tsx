@@ -161,8 +161,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       glow={canHarvest ? (rare === 'gold' ? 'gold' : 'teal') : 'none'}
       disabled={!canHarvest || busy !== null}
       onClick={() => run('harvest', onHarvest, () => sounds.harvest(), () => haptics.harvest())}
-      className={canHarvest ? 'gradient-gold' : ''}
-      style={{ fontSize: 11, padding: '10px 8px' }}
+      style={{ fontSize: 11, padding: '8px 8px' }}
      >
       {t('Собрать')}
      </Button>
