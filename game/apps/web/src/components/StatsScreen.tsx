@@ -4,7 +4,7 @@ import { t, plural } from '../i18n'
 import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { PublicKey } from '@solana/web3.js'
-import { Flame, Coins, TrendingUp, Gauge, Trophy, Landmark, Moon, Percent, Shield } from 'lucide-react'
+import { Emblem } from '../ui/Emblem'
 import { getMint } from '@solana/spl-token'
 import { useSolana } from '../contexts/SolanaContext'
 import { usePolling } from '../hooks/usePolling'
@@ -93,15 +93,15 @@ function EconomySection({ data }: { data: EconomyData }) {
       { label: 'CAP', value: fmtBig(data.elasticCap) },
      ]}
     />
-    <ConsoleStatRow icon={<Gauge size={16} />} label={t("ТЕКУЩИЙ SUPPLY")} value={`${fmt(data.currentSupply)} POTATO`} pct={pct(data.currentSupply, data.maxSupply)} color="var(--ares-hud-amber, #FFB347)" />
-    <ConsoleStatRow icon={<Flame size={16} />} label={t("ВСЕГО СОЖЖЕНО")} value={`${fmt(data.burned)} POTATO`} pct={pct(data.burned, data.currentSupply + data.burned)} color="var(--ares-rust, #C1440E)" />
-    <ConsoleStatRow icon={<TrendingUp size={16} />} label={t("СМАЙНЕНО ЗА ЭПОХУ")} value={`${data.mintedToday.toFixed(0)} / ${fmtBig(data.dailyCap)} POTATO`} pct={pct(data.mintedToday, data.dailyCap)} color="var(--ares-blueset, #6B93D6)" />
-    <ConsoleStatRow icon={<Moon size={16} />} label={t("ЛУННЫЙ ЦИКЛ: {phase}", { phase: data.lunarPhase })} value={`x${data.lunarMultiplier.toFixed(2)}`} pct={data.lunarMultiplier * 100 - 85} color="#E0D8C0" />
-    <ConsoleStatRow icon={<Percent size={16} />} label={t("НАЛОГ НА ХАРВЕСТ")} value={`${(data.taxBps / 100).toFixed(2)}%`} pct={(data.taxBps - 200) / 8} color="var(--ares-rust, #C1440E)" />
-    <ConsoleStatRow icon={<Shield size={16} />} label={t("ЭЛАСТИЧНЫЙ КАП")} value={`${fmtBig(data.elasticCap)} POTATO`} pct={pct(data.elasticCap - 250_000, 750_000 - 250_000)} color="var(--ares-blueset, #6B93D6)" />
-    <ConsoleStatRow icon={<Landmark size={16} />} label={t("ВСЕГО ДЕЛЯНОК")} value={data.fieldCount.toString()} color="var(--ares-grow-violet, #B85CFF)" />
-    <ConsoleStatRow icon={<Trophy size={16} />} label={t("ЭКИПАЖ С ДЕЛЯНКАМИ")} value={data.players.toString()} color="#FFC94A" />
-    <ConsoleStatRow icon={<Coins size={16} />} label={t("МАКС. SUPPLY")} value={`${(data.maxSupply / 1e6).toFixed(0)}M POTATO`} color="var(--ares-hud-amber, #FFB347)" />
+    <ConsoleStatRow icon={<Emblem name="gauge" size={16} />} label={t("ТЕКУЩИЙ SUPPLY")} value={`${fmt(data.currentSupply)} POTATO`} pct={pct(data.currentSupply, data.maxSupply)} color="var(--ares-hud-amber, #FFB347)" />
+    <ConsoleStatRow icon={<Emblem name="flame" size={16} />} label={t("ВСЕГО СОЖЖЕНО")} value={`${fmt(data.burned)} POTATO`} pct={pct(data.burned, data.currentSupply + data.burned)} color="var(--ares-rust, #C1440E)" />
+    <ConsoleStatRow icon={<Emblem name="pickaxe" size={16} />} label={t("СМАЙНЕНО ЗА ЭПОХУ")} value={`${data.mintedToday.toFixed(0)} / ${fmtBig(data.dailyCap)} POTATO`} pct={pct(data.mintedToday, data.dailyCap)} color="var(--ares-blueset, #6B93D6)" />
+    <ConsoleStatRow icon={<Emblem name="moon" size={16} />} label={t("ЛУННЫЙ ЦИКЛ: {phase}", { phase: data.lunarPhase })} value={`x${data.lunarMultiplier.toFixed(2)}`} pct={data.lunarMultiplier * 100 - 85} color="#E0D8C0" />
+    <ConsoleStatRow icon={<Emblem name="percent" size={16} />} label={t("НАЛОГ НА ХАРВЕСТ")} value={`${(data.taxBps / 100).toFixed(2)}%`} pct={(data.taxBps - 200) / 8} color="var(--ares-rust, #C1440E)" />
+    <ConsoleStatRow icon={<Emblem name="shield" size={16} />} label={t("ЭЛАСТИЧНЫЙ КАП")} value={`${fmtBig(data.elasticCap)} POTATO`} pct={pct(data.elasticCap - 250_000, 750_000 - 250_000)} color="var(--ares-blueset, #6B93D6)" />
+    <ConsoleStatRow icon={<Emblem name="bank" size={16} />} label={t("ВСЕГО ДЕЛЯНОК")} value={data.fieldCount.toString()} color="var(--ares-grow-violet, #B85CFF)" />
+    <ConsoleStatRow icon={<Emblem name="trophy" size={16} />} label={t("ЭКИПАЖ С ДЕЛЯНКАМИ")} value={data.players.toString()} color="#FFC94A" />
+    <ConsoleStatRow icon={<Emblem name="coins" size={16} />} label={t("МАКС. SUPPLY")} value={`${(data.maxSupply / 1e6).toFixed(0)}M POTATO`} color="var(--ares-hud-amber, #FFB347)" />
 
     <Panel variant="chip" style={{ marginTop: 4, padding: '10px 12px', background: 'rgba(193,68,14,0.08)', borderColor: 'rgba(193,68,14,0.35)' }}>
      <div className="ares-stencil" style={{ fontSize: 11, color: 'var(--ares-rust, #C1440E)', marginBottom: 8 }}>{t("ЗАЩИТА ЭКОНОМИКИ")}</div>

@@ -76,3 +76,19 @@
 | `potato-coin.png` 256 alpha | ✅ прозрачный круг вместо чёрного квадрата |
 | `patch-*.webp` (6 нашивок) | ✅ вышитые нашивки: канатный бронзовый обод, тёмное сукно; мотивы: росток/корзина/лавры+картофелина/корона+монеты/барон в короне/звезда ветерана |
 | `plantation.webp/mp4` | ✅ уже в тёплом стиле — не тронут |
+
+## Иконки-эмблемы (2026-09-28, второй арт-проход)
+
+Спрайт-лист 24 иконки → 17 вырезанных эмблем `public/ares/icons/*.webp` (128×128 alpha):
+gauge, flame, pickaxe, moon, gear, percent, shield, bank, trophy, coins, sprout,
+crate, clipboard, license, bunk, wallet, gift. Стиль: литая бронза/латунь,
+янтарные акценты, без неона.
+
+Замена generic-иконок (lucide/эмодзи) на эмблемы:
+- игра: нав-пульт (sprout/crate/clipboard/bunk), InitStatus (gear/flame),
+  ConsoleStatRow ×9 (ЖУРНАЛ), WalletManagement SOL-иконка (gauge),
+  ReferralSection (sprout/gift), AudioSettings-кнопка (gear/flame)
+- лендинг: FeatureIcon — sprout/moon/percent/shield (механики под куполом)
+- маркер 🥔 в строках локализации рендерится иконкой монеты (coinText)
+- функциональные глифы (X закрыть, шевроны, копирование) остаются line-иконками —
+  это контуры управления, не декор
