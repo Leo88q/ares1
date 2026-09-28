@@ -3125,3 +3125,12 @@ input:focus-visible {
   color: #ff8f6b;
   border-bottom: 1px dashed #ff8f6b;
 }
+
+/* MK-art: сгенерированный купол — те же габариты, что у прежней SVG-сцены */
+.dome-art-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  user-select: none;
+  filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.55));
+}
