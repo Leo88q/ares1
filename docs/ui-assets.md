@@ -201,3 +201,9 @@ translateY(2px) + затемнение); disabled — обесцвечивани
   переведены на пластины btn-primary; класс больше не используется в TSX
 - ProgressBar (рост/ур. карточек): track.webp жёлоб 22px + fill.webp с цветным
   тонированием линейным градиентом-маской (сохранён semantic color)
+
+### Кит-7: согласие, FAQ, дропдауны (2026-09-28)
+
+- Consent-панель игры → panel-bronze (лёгкий бортик 16px)
+- CreateOrderModal: снят дубль маунта, диалог на пластине окна
+- лендинг: .faq-item → card-bronze-small; .lang-switcher__menu → пластина
