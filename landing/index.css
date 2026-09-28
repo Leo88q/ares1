@@ -558,19 +558,22 @@ input:focus-visible {
   position: relative;
   isolation: isolate;
   display: inline-flex;
-  min-height: 52px;
+  min-height: 56px;
   width: 100%;
   align-items: center;
   justify-content: center;
   padding: 14px 22px;
-  border: 1px solid #ffffff2e;
-  border-radius: 7px;
-  box-shadow: inset 0 1px 0 #ffffff38, 0 3px 0 #0006;
+  border: 0 solid transparent;
+  border-width: 15px;
+  border-image: url('/ares/kit/btn-secondary.webp') 40 fill / 15px;
+  border-radius: 0;
+  background: none;
+  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.85);
   font-weight: 700;
   font-size: 13px;
   line-height: 1.5;
   text-align: center;
-  transition: transform 150ms ease;
+  transition: transform 150ms ease, filter 150ms ease;
   touch-action: manipulation;
 }
 
@@ -583,14 +586,23 @@ input:focus-visible {
 }
 
 .action--primary {
-  background: var(--ares-grow);
-  color: #16030d;
+  border-image-source: url('/ares/kit/btn-primary.webp');
+  color: #2B1403;
+  text-shadow: 0 1px 0 rgba(255, 220, 150, 0.55);
 }
 
 .action--secondary {
-  border-color: #80708975;
-  background: #15101deb;
-  color: #f3eaf6;
+  color: #E9DBC4;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.action:hover:not(:disabled) {
+  transform: translateY(1px);
+  filter: brightness(1.15);
+}
+
+.action--primary:hover:not(:disabled) {
+  box-shadow: 0 6px 22px -6px rgba(0, 0, 0, 0.85), 0 0 24px -4px rgba(255, 158, 44, 0.5);
 }
 
 .action:disabled {
@@ -2074,10 +2086,12 @@ input:focus-visible {
   display: block;
   width: 100%;
   min-height: 52px;
-  padding: 13px 15px;
-  border: 1px solid #8c69915e;
-  border-radius: 6px;
-  background: #0b0710d9;
+  padding: 13px 18px;
+  border: 0 solid transparent;
+  border-width: 10px;
+  border-image: url('/ares/kit/input.webp') 30 fill / 10px;
+  border-radius: 0;
+  background: none;
   color: #f6eaf9;
   font-size: 16px;
   line-height: 1.5;
@@ -2089,7 +2103,8 @@ input:focus-visible {
 }
 
 .form-field input[aria-invalid="true"] {
-  border-color: var(--ares-danger);
+  border-image-source: url('/ares/kit/input.webp');
+  filter: hue-rotate(-30deg) saturate(1.4);
 }
 
 .form-field input:disabled {

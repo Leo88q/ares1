@@ -12,25 +12,25 @@
 .pf-card,
 .glass {
   position: relative;
-  background-color: var(--s-panel-bg);
-  background-image: var(--s-panel-image);
-  background-repeat: no-repeat;
-  backdrop-filter: var(--s-panel-blur);
-  -webkit-backdrop-filter: var(--s-panel-blur);
-  border: 2px solid;
-  border-color: var(--s-panel-edge-dark) var(--s-panel-edge) var(--s-panel-edge) var(--s-panel-edge-dark);
-  border-radius: var(--s-panel-radius);
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 0 solid transparent;
+  border-width: 30px;
+  border-image: url('/ares/kit/panel-bronze.webp') 88 fill / 30px;
+  border-radius: 0;
   padding: var(--s-panel-pad);
-  box-shadow: var(--s-panel-shadow);
+  box-shadow: 0 18px 44px -16px rgba(0, 0, 0, 0.85);
 }
 
 /* редкая панель: латунное кольцо по контуру */
 .k-panel--rare,
 .pf-card--rare {
-  border: none;
-  background-image: var(--s-panel-image);
-  background-repeat: no-repeat;
+  border-image-source: url('/ares/kit/panel-bone.webp');
+  border-image-slice: 84 fill;
 }
+.k-panel--rare { filter: saturate(1.05); }
+.pf-card--rare::before { display: none; }
 .k-panel--rare::before,
 .pf-card--rare::before {
   content: '';
@@ -57,17 +57,17 @@
 
 /* всплывающая панель: модалки, попапы */
 .k-panel--pop {
-  background: var(--s-pop-bg);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 1px solid var(--s-panel-edge-soft);
-  border-radius: var(--s-panel-radius);
-  box-shadow: var(--s-pop-shadow);
+  border-width: 34px;
+  border-image-slice: 88 fill;
+  border-image-width: 34px;
+  box-shadow: 0 30px 70px -18px rgba(0, 0, 0, 0.95), 0 0 40px -18px rgba(255, 179, 71, 0.35);
 }
 
 /* чип: мелкий вложенный бокс (инфо-строки, предупреждения) */
 .k-panel--chip {
-  border-radius: var(--s-radius-chip);
+  border-width: 12px;
+  border-image: url('/ares/kit/btn-secondary.webp') 40 fill / 12px;
+  box-shadow: none;
 }
 
 /* ── Шильдик: трафаретная надпись-метка ── */
@@ -146,34 +146,41 @@
   align-items: center;
   justify-content: center;
   gap: var(--pf-space-2);
-  padding: 11px 18px;
-  border: 1px solid rgba(0, 0, 0, 0.35);
-  border-radius: var(--pf-radius-btn);
-  background: var(--ares-btn-bg);
-  color: var(--ares-btn-text);
-  text-shadow: var(--ares-btn-text-shadow);
-  box-shadow: var(--ares-btn-glow);
+  padding: 11px 20px;
+  border: 0 solid transparent;
+  border-width: 15px;
+  border-image: url('/ares/kit/btn-primary.webp') 40 fill / 15px;
+  border-radius: 0;
+  background: none;
+  color: #2B1403;
+  text-shadow: 0 1px 0 rgba(255, 220, 150, 0.55);
+  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.8);
   font-family: var(--pf-font-ui);
   font-weight: 700;
   cursor: pointer;
   transition: transform 90ms ease, filter 120ms ease, box-shadow 120ms ease;
 }
-.k-key:hover { filter: brightness(1.07); }
+.k-key:hover {
+  filter: brightness(1.14) saturate(1.06);
+  box-shadow: 0 6px 22px -6px rgba(0, 0, 0, 0.85), 0 0 22px -4px rgba(255, 158, 44, 0.55);
+}
 .k-key:focus-visible { outline: 2px solid var(--pf-info); outline-offset: 2px; }
 .k-key:active,
 .k-key--engaged {
   transform: translateY(2px);
-  filter: brightness(0.94);
-  box-shadow: 0 0 10px -4px rgba(0, 0, 0, 0.8);
+  filter: brightness(0.9) saturate(1.05);
+  box-shadow: 0 2px 8px -4px rgba(0, 0, 0, 0.9);
 }
-.k-key:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.k-key:disabled { opacity: 0.55; cursor: not-allowed; transform: none; filter: saturate(0.4) brightness(0.8); }
 .k-key--ghost {
-  background: var(--s-subtle-bg);
-  color: var(--pf-text-primary);
-  text-shadow: none;
-  border: 1px solid var(--s-panel-edge-soft);
-  box-shadow: none;
+  border-image-source: url('/ares/kit/btn-secondary.webp');
+  color: #E9DBC4;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.8);
 }
+.k-key--ghost:hover { filter: brightness(1.22); }
 .k-key--danger {
-  background: linear-gradient(135deg, var(--pf-danger), #B22B2B);
+  border-image-source: url('/ares/kit/btn-primary.webp');
+  filter: hue-rotate(-32deg) saturate(1.25);
 }
+.k-key--danger:hover { filter: hue-rotate(-32deg) saturate(1.3) brightness(1.12); }

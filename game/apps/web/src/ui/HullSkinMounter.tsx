@@ -22,7 +22,7 @@ export function HullSkinMounter(): null {
   }
 
   function scan() {
-   document.querySelectorAll('.hull-skin').forEach((el) => apply(el));
+   document.querySelectorAll('.hull-skin:not(.pf-card):not(.k-panel)').forEach((el) => apply(el));
   }
 
   scan();
