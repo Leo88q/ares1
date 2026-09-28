@@ -47,7 +47,7 @@ export default function AudioSettings() {
     whileTap={{ scale: 0.9 }}
     onClick={() => setIsOpen(true)}
     aria-label={t("Настройки звука и уведомлений")}
-    style={{ position: 'relative', top: 0, left: 0, width: 44, height: 44, borderRadius: '50%', background: 'rgba(22, 17, 13, 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(160, 82, 40, 0.65)', boxShadow: '0 0 18px -4px rgba(193,68,14,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
+    style={{ position: 'relative', top: 0, left: 0, width: 44, height: 44, borderRadius: '50%', background: 'rgba(22, 17, 13, 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(160, 82, 40, 0.65)', boxShadow: '0 0 18px -4px rgba(193,68,14,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 'var(--s-z-sticky)' }}
    >
     {musicOn ? <Music size={18} color="var(--pf-teal)" /> : <Settings size={18} color="var(--pf-text-secondary)" />}
    </motion.button>
@@ -57,7 +57,7 @@ export default function AudioSettings() {
      <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       onClick={() => setIsOpen(false)}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', zIndex: 'var(--s-z-overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
      >
       <motion.div
        role="dialog" aria-modal="true" aria-labelledby="settings-title"

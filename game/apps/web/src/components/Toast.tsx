@@ -19,7 +19,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
  return (
   <ToastContext.Provider value={{ show }}>
    {children}
-   <div style={{ position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '440px', zIndex: 500, padding: '0 16px', pointerEvents: 'none' }}>
+   <div style={{ position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '440px', zIndex: 'var(--s-z-toast)', padding: '0 16px', pointerEvents: 'none' }}>
     <AnimatePresence>
      {toasts.map((t, i) => <ToastItem key={t.id} toast={t} index={i} onClose={() => setToasts(p => p.filter(x => x.id !== t.id))} />)}
     </AnimatePresence>

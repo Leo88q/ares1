@@ -253,7 +253,7 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
   <motion.div
    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
    onClick={onClose}
-   style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+   style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 'var(--s-z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
   >
    <motion.div
     role="dialog" aria-modal="true" aria-label={title}

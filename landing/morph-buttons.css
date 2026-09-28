@@ -8,9 +8,10 @@
   --morph-height: 54px;
   --morph-padding-inline: 23px;
   --morph-font-size: 13px;
-  --morph-ring: rgba(255, 46, 147, 0.5);
-  --morph-text: #fff5fa;
-  --morph-border: rgba(255, 183, 223, 0.43);
+  /* клавиша — значения только из токенов :root (index.css) */
+  --morph-ring: color-mix(in srgb, var(--ares-grow) 50%, transparent);
+  --morph-text: var(--ares-ink);
+  --morph-border: color-mix(in srgb, var(--ares-grow) 43%, transparent);
   --morph-background: #511231;
 }
 

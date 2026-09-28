@@ -99,9 +99,7 @@ button:disabled {
 .pf-h2 { font-family: var(--pf-font-display); font-size: 20px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--pf-text-primary); margin: 0; }
 .pf-subtitle { font-family: var(--pf-font-ui); font-weight: 500; font-size: 14px; color: var(--pf-text-secondary); margin: 0; }
 .pf-mono { font-family: var(--pf-font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
-.pf-card { position: relative; background-color: rgba(22, 17, 13, 0.28); background-image: var(--ares-rust-panel); background-repeat: no-repeat; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: var(--pf-radius-card); padding: 20px; border: 1px solid rgba(160, 82, 40, 0.65); box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 10px 26px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,214,170,0.07), inset 0 0 18px rgba(0,0,0,0.55); }
-.pf-card--rare { border: none; background-image: var(--ares-rust-panel); background-repeat: no-repeat; }
-.pf-card--rare::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; background: var(--pf-grad-border); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; opacity: 0.8; }
+/* .pf-card / .pf-card--rare → единая конструкция в styles/kit.css (алиасы .k-panel) */
 .pf-caps { text-transform: uppercase; letter-spacing: 0.08em; }
 .pf-flex-center { display: flex; align-items: center; justify-content: center; }
 /* FIX: в оригинальном гайде были лишние скобки — здесь исправлено */
@@ -172,13 +170,14 @@ button:disabled {
 }
 
 .ares-glass-panel {
+  /* вариант панели на токенах единой системы */
   background: var(--ares-glass);
   backdrop-filter: blur(6px);
-  border: 1px solid rgba(180, 220, 255, 0.18);
+  border: 1px solid var(--s-panel-edge-soft);
 }
 
 .ares-metal-edge {
-  border: 1px solid rgba(160, 82, 40, 0.65);
+  border: 1px solid var(--s-panel-edge-soft);
   background:
     radial-gradient(ellipse 50px 18px at 15% 10%, rgba(193,68,14,0.18), transparent 70%),
     radial-gradient(ellipse 44px 16px at 85% 90%, rgba(138,46,8,0.22), transparent 70%),
@@ -255,22 +254,12 @@ button:disabled {
     linear-gradient(180deg, rgba(255,214,170,0.10), rgba(0,0,0,0.15) 30%, rgba(0,0,0,0.45));
 }
 
-.pf-card {
-  border-width: 2px;
-  border-style: solid;
-  border-color: #2A1508 #8A4A22 #8A4A22 #2A1508;
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,0.7),
-    0 12px 28px rgba(0,0,0,0.5),
-    inset 0 1px 0 rgba(255,214,170,0.14),
-    inset 0 -1px 0 rgba(0,0,0,0.45),
-    inset 0 0 24px rgba(0,0,0,0.65);
-}
+/* дублирующее определение .pf-card удалено (переопределяло первое) → kit.css */
 
 .ares-metal-edge {
   border-width: 2px;
   border-style: solid;
-  border-color: #2A1508 #8A4A22 #8A4A22 #2A1508;
+  border-color: var(--s-panel-edge-dark) var(--s-panel-edge) var(--s-panel-edge) var(--s-panel-edge-dark);
   background:
     radial-gradient(ellipse 70px 24px at 15% 10%, rgba(193,68,14,0.28), transparent 70%),
     radial-gradient(ellipse 56px 20px at 85% 90%, rgba(138,46,8,0.32), transparent 70%),

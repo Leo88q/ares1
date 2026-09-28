@@ -1,0 +1,174 @@
+/* ═══════════════════════════════════════════════════════════════════
+   KIT — единственная конструкция поверхностей (2026-09-28)
+   ─────────────────────────────────────────────────────────────────
+   Панель, клавиша, шильдик, лампа, LCD, скелетон описаны ЗДЕСЬ один раз.
+   Значения — только var(--s-*) / var(--pf-*) / var(--ares-*).
+   Новые компоненты используют .k-*; старые классы подключены алиасами,
+   так что существующая разметка получает ту же конструкцию.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Панель: базовая поверхность. Алиасы: .pf-card, .glass ── */
+.k-panel,
+.pf-card,
+.glass {
+  position: relative;
+  background-color: var(--s-panel-bg);
+  background-image: var(--s-panel-image);
+  background-repeat: no-repeat;
+  backdrop-filter: var(--s-panel-blur);
+  -webkit-backdrop-filter: var(--s-panel-blur);
+  border: 2px solid;
+  border-color: var(--s-panel-edge-dark) var(--s-panel-edge) var(--s-panel-edge) var(--s-panel-edge-dark);
+  border-radius: var(--s-panel-radius);
+  padding: var(--s-panel-pad);
+  box-shadow: var(--s-panel-shadow);
+}
+
+/* редкая панель: латунное кольцо по контуру */
+.k-panel--rare,
+.pf-card--rare {
+  border: none;
+  background-image: var(--s-panel-image);
+  background-repeat: no-repeat;
+}
+.k-panel--rare::before,
+.pf-card--rare::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--pf-grad-border);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* тихая панель: строки, детали, второстепенное */
+.k-panel--quiet {
+  background-color: var(--s-subtle-bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--s-subtle-border);
+  box-shadow: inset 0 1px 0 rgba(255, 214, 170, 0.05);
+}
+
+/* всплывающая панель: модалки, попапы */
+.k-panel--pop {
+  background: var(--s-pop-bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--s-panel-edge-soft);
+  border-radius: var(--s-panel-radius);
+  box-shadow: var(--s-pop-shadow);
+}
+
+/* ── Шильдик: трафаретная надпись-метка ── */
+.k-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--s-panel-edge-soft);
+  background: var(--s-subtle-bg);
+  color: var(--ares-hud-amber, var(--pf-gold));
+  font-family: var(--ares-font-mono, var(--pf-font-mono));
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ── Лампа-индикатор ── */
+.k-lamp {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--pf-success);
+  box-shadow: 0 0 8px var(--pf-success);
+}
+.k-lamp--warn { background: var(--pf-warning); box-shadow: 0 0 8px var(--pf-warning); }
+.k-lamp--danger { background: var(--pf-danger); box-shadow: 0 0 8px var(--pf-danger); }
+.k-lamp--off { background: var(--pf-text-muted); box-shadow: none; }
+@keyframes k-lamp-blink { 0%, 70% { opacity: 1; } 75%, 100% { opacity: 0.3; } }
+.k-lamp--blink { animation: k-lamp-blink 1.6s steps(1) infinite; }
+
+/* ── LCD-показание ── */
+.k-lcd {
+  font-family: var(--pf-font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--pf-text-primary);
+}
+
+/* ── Скелетон загрузки ── */
+.k-skel {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--s-panel-radius);
+  border: 1px solid var(--s-panel-edge-soft);
+  background: var(--s-subtle-bg);
+}
+.k-skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 214, 170, 0.07), transparent);
+  animation: k-skel-sweep 1.6s ease-in-out infinite;
+}
+@keyframes k-skel-sweep { to { transform: translateX(100%); } }
+
+/* ── Разделитель ── */
+.k-divider {
+  border: 0;
+  border-top: 1px solid var(--pf-border-soft);
+  margin: var(--pf-space-3) 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k-lamp--blink, .k-skel::after { animation: none; }
+}
+
+/* ── Клавиша: канонический класс действия ──
+   Цвет действия один на всю игру: --ares-btn-* (меняется в одном месте).
+   Общий компонент Button.tsx и любые новые кнопки обязаны сидеть на нём. */
+.k-key {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pf-space-2);
+  padding: 11px 18px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: var(--pf-radius-btn);
+  background: var(--ares-btn-bg);
+  color: var(--ares-btn-text);
+  text-shadow: var(--ares-btn-text-shadow);
+  box-shadow: var(--ares-btn-glow);
+  font-family: var(--pf-font-ui);
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 90ms ease, filter 120ms ease, box-shadow 120ms ease;
+}
+.k-key:hover { filter: brightness(1.07); }
+.k-key:focus-visible { outline: 2px solid var(--pf-info); outline-offset: 2px; }
+.k-key:active,
+.k-key--engaged {
+  transform: translateY(2px);
+  filter: brightness(0.94);
+  box-shadow: 0 0 10px -4px rgba(0, 0, 0, 0.8);
+}
+.k-key:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.k-key--ghost {
+  background: var(--s-subtle-bg);
+  color: var(--pf-text-primary);
+  text-shadow: none;
+  border: 1px solid var(--s-panel-edge-soft);
+  box-shadow: none;
+}
+.k-key--danger {
+  background: linear-gradient(135deg, var(--pf-danger), #B22B2B);
+}
