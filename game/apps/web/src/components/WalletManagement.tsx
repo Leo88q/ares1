@@ -105,8 +105,9 @@ export default function WalletManagement() {
  }
 
  const inputStyle: React.CSSProperties = {
-  width: '100%', padding: 12, borderRadius: 'var(--s-radius-chip)', background: 'var(--s-subtle-bg)',
-  border: '1px solid var(--s-panel-edge-soft)', color: 'white', fontSize: 13, outline: 'none', marginBottom: 10,
+  width: '100%', padding: '10px 14px', borderRadius: 0, background: 'none',
+  borderStyle: 'solid', borderWidth: 9, borderImage: "url('/ares/kit/input.webp') 30 fill / 9px",
+  color: 'var(--pf-text-primary, white)', fontSize: 13, outline: 'none', marginBottom: 10,
  }
 
  return (
@@ -116,7 +117,7 @@ export default function WalletManagement() {
     onClick={() => { setIsOpen(!isOpen); sounds.click(); haptics.buttonPress() }}
     aria-expanded={isOpen}
     className="pf-card hull-skin"
-    style={{ width: '100%', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--s-subtle-bg)', border: '1px solid var(--s-panel-edge-soft)', borderRadius: 'var(--s-radius-chip)' }}
+    style={{ width: '100%', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
    >
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
      <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, #8A2E08, #C1440E)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
