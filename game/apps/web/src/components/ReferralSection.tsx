@@ -95,7 +95,7 @@ export function ReferralSection() {
     </div>
 
     {/* Правила: кто и что платит (раньше было отдельным блоком в «Журнале») */}
-    <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'var(--s-subtle-bg)', border: '1px solid var(--s-subtle-border)' }}>
+    <div style={{ marginBottom: 14, padding: '8px 12px', borderStyle: 'solid', borderWidth: 12, borderImage: "url('/ares/kit/card-bronze-small.webp') 20 fill / 12px", background: 'none' }}>
      {[
       t('Ссылка бесплатна — приглашающий платит ничего'),
       t('Приглашённый открывает ссылку с ?ref= — регистрируется автоматически (on-chain, одноразово)'),

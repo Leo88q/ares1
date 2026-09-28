@@ -94,7 +94,7 @@ export default function AudioSettings() {
         </button>
        )}
 
-       <div style={{ padding: 12, borderRadius: 12, background: 'rgba(193, 68, 14, 0.10)', border: '1px solid rgba(160, 82, 40, 0.5)', fontSize: 11, color: 'var(--pf-text-secondary)', lineHeight: 1.5 }}>
+       <div style={{ padding: 8, borderStyle: 'solid', borderWidth: 10, borderImage: "url('/ares/kit/btn-secondary.webp') 40 fill / 10px", background: 'none', fontSize: 11, color: 'var(--pf-text-secondary)', lineHeight: 1.5 }}>
         {t('Настройки хранятся только в этом браузере.')}
        </div>
       </motion.div>
