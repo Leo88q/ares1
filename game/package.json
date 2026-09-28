@@ -41,9 +41,9 @@
     "test:db:unit": "tsx --test tests/db/gameops-unit.test.ts"
   },
   "devDependencies": {
-    "@coral-xyz/anchor": "0.30.1",
+    "@coral-xyz/anchor": "0.32.1",
     "@solana/spl-token": "0.4.15",
-    "@solana/web3.js": "1.98.4",
+    "@solana/web3.js": "1.99.0",
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.14.10",
