@@ -75,15 +75,14 @@ function BandMedia({ filter }: { filter: string }): JSX.Element {
 
 function BandFallback(): JSX.Element {
  return (
-  <span
-     aria-hidden="true"
-     style={{
-      position: 'absolute',
-      inset: 0,
-      background:
-        'radial-gradient(140% 90% at 18% 115%, rgba(138,46,8,0.55) 0 38%, transparent 39%), radial-gradient(120% 80% at 72% 118%, rgba(90,30,6,0.6) 0 44%, transparent 45%), radial-gradient(90% 60% at 45% 125%, rgba(193,68,14,0.35) 0 40%, transparent 41%)',
-     }}
-    />
+  <svg viewBox="0 0 400 120" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
+   <path d="M0 92 Q50 64 110 80 T230 72 T330 82 T400 76 V120 H0 Z" fill="#8A2E08" />
+   <path d="M282 78 Q300 56 318 78 Z" fill="rgba(232,106,60,0.30)" />
+   <circle cx="300" cy="70" r="2" fill="#E86A3C" opacity="0.9" />
+   <path d="M0 104 Q55 88 115 100 T235 94 T345 102 T400 98 V120 H0 Z" fill="#C1440E" />
+   <ellipse cx="70" cy="110" rx="7" ry="3" fill="#8A2E08" />
+   <ellipse cx="330" cy="112" rx="9" ry="3.4" fill="#8A2E08" />
+  </svg>
  );
 }
 
@@ -96,10 +95,10 @@ const CONDENSATION_DROPS = buildDrops(14);
 const GlassArc = memo(function GlassArc({ tint }: { tint: string }): JSX.Element {
  return (
   <div aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '60%', pointerEvents: 'none', overflow: 'hidden' }}>
-   <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(255,255,255,0.10), ${tint} 55%, transparent)` }} />
-   <div style={{ position: 'absolute', top: '8%', left: '10%', width: '30%', height: '22%', borderRadius: '50%', background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.22), transparent 70%)', filter: 'blur(2px)' }} />
+   <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(255,230,190,0.07), ${tint} 55%, transparent)` }} />
+   <div style={{ position: 'absolute', top: '8%', left: '10%', width: '30%', height: '22%', borderRadius: '50%', background: 'radial-gradient(ellipse at center, rgba(255,230,190,0.13), transparent 70%)', filter: 'blur(2px)' }} />
    {CONDENSATION_DROPS.map((d) => (
-    <span key={d.id} style={{ position: 'absolute', left: `${d.left}%`, top: `${d.top}%`, width: d.size, height: d.size * 1.3, borderRadius: '50%', background: 'rgba(200,225,255,0.22)', boxShadow: 'inset -1px -1px 1px rgba(255,255,255,0.35)' }} />
+    <span key={d.id} style={{ position: 'absolute', left: `${d.left}%`, top: `${d.top}%`, width: d.size, height: d.size * 1.3, borderRadius: '50%', background: 'rgba(255,220,180,0.15)', boxShadow: 'inset -1px -1px 1px rgba(255,235,200,0.3)' }} />
    ))}
   </div>
  );

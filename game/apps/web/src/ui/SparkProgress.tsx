@@ -166,7 +166,7 @@ export function SparkProgress({
                   <motion.i
                     key={index}
                     className="spark-progress-particle"
-                    style={{ backgroundColor: index % 2 ? "#7CFF6B" : color }}
+                    style={{ backgroundColor: index % 2 ? "#9FBE7A" : color }}
                     initial={{ x: 0, y: 0, scale: 1 }}
                     animate={{
                       x: Math.cos(angle) * 30,

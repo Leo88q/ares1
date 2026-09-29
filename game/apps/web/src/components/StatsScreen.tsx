@@ -4,7 +4,7 @@ import { t, plural } from '../i18n'
 import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { PublicKey } from '@solana/web3.js'
-import { Emblem, Glyph } from '../ui/Emblem'
+import { Flame, Coins, TrendingUp, Gauge, Trophy, Landmark, Moon, Percent, Shield } from 'lucide-react'
 import { getMint } from '@solana/spl-token'
 import { useSolana } from '../contexts/SolanaContext'
 import { usePolling } from '../hooks/usePolling'
@@ -22,8 +22,7 @@ import { LiquidBar } from './ares/LiquidBar'
 import { ConsolePanel } from './ares/panels'
 import { TelemetryStrip } from './ares/TelemetryStrip'
 import { describeError } from '../utils/errors'
-import { ErrorState, LoadingState } from '../ui/states'
-import { Panel } from '../ui/kit'
+import { ErrorState, LoadingState, EmptyState } from '../ui/states'
 
 interface LeaderRow {
  address: string
@@ -59,7 +58,7 @@ const STATS_POLL_MS = 30_000
 function ConsoleStatRow({ icon, label, value, pct, color }: { icon: ReactNode; label: string; value: string; pct?: number; color: string }) {
  const p = pct === undefined ? undefined : Math.min(100, Math.max(0, pct))
  return (
-  <Panel variant="chip" style={{ padding: '10px 12px' }}>
+  <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(0,0,0,0.32)', border: '1px solid rgba(160,82,40,0.35)', boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.05)' }}>
    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: p !== undefined ? 8 : 0 }}>
     <span aria-hidden="true" style={{ color, display: 'flex' }}>{icon}</span>
     <span className="ares-mono" style={{ flex: 1, fontSize: 11, color: 'rgba(255,179,71,0.85)', letterSpacing: '0.06em' }}>{label}</span>
@@ -68,7 +67,7 @@ function ConsoleStatRow({ icon, label, value, pct, color }: { icon: ReactNode; l
    {p !== undefined && (
     <LiquidBar value={p} height={10} label={label} />
    )}
-  </Panel>
+  </div>
  )
 }
 
@@ -93,17 +92,17 @@ function EconomySection({ data }: { data: EconomyData }) {
       { label: 'CAP', value: fmtBig(data.elasticCap) },
      ]}
     />
-    <ConsoleStatRow icon={<Emblem name="gauge" size={16} />} label={t("ТЕКУЩИЙ SUPPLY")} value={`${fmt(data.currentSupply)} POTATO`} pct={pct(data.currentSupply, data.maxSupply)} color="var(--ares-hud-amber, #FFB347)" />
-    <ConsoleStatRow icon={<Emblem name="flame" size={16} />} label={t("ВСЕГО СОЖЖЕНО")} value={`${fmt(data.burned)} POTATO`} pct={pct(data.burned, data.currentSupply + data.burned)} color="var(--ares-rust, #C1440E)" />
-    <ConsoleStatRow icon={<Emblem name="pickaxe" size={16} />} label={t("СМАЙНЕНО ЗА ЭПОХУ")} value={`${data.mintedToday.toFixed(0)} / ${fmtBig(data.dailyCap)} POTATO`} pct={pct(data.mintedToday, data.dailyCap)} color="var(--ares-blueset, #6B93D6)" />
-    <ConsoleStatRow icon={<Emblem name="moon" size={16} />} label={t("ЛУННЫЙ ЦИКЛ: {phase}", { phase: data.lunarPhase })} value={`x${data.lunarMultiplier.toFixed(2)}`} pct={data.lunarMultiplier * 100 - 85} color="#E0D8C0" />
-    <ConsoleStatRow icon={<Emblem name="percent" size={16} />} label={t("НАЛОГ НА ХАРВЕСТ")} value={`${(data.taxBps / 100).toFixed(2)}%`} pct={(data.taxBps - 200) / 8} color="var(--ares-rust, #C1440E)" />
-    <ConsoleStatRow icon={<Emblem name="shield" size={16} />} label={t("ЭЛАСТИЧНЫЙ КАП")} value={`${fmtBig(data.elasticCap)} POTATO`} pct={pct(data.elasticCap - 250_000, 750_000 - 250_000)} color="var(--ares-blueset, #6B93D6)" />
-    <ConsoleStatRow icon={<Emblem name="bank" size={16} />} label={t("ВСЕГО ДЕЛЯНОК")} value={data.fieldCount.toString()} color="var(--ares-grow-violet, #B85CFF)" />
-    <ConsoleStatRow icon={<Emblem name="trophy" size={16} />} label={t("ЭКИПАЖ С ДЕЛЯНКАМИ")} value={data.players.toString()} color="#FFC94A" />
-    <ConsoleStatRow icon={<Emblem name="coins" size={16} />} label={t("МАКС. SUPPLY")} value={`${(data.maxSupply / 1e6).toFixed(0)}M POTATO`} color="var(--ares-hud-amber, #FFB347)" />
+    <ConsoleStatRow icon={<Gauge size={16} />} label={t("ТЕКУЩИЙ SUPPLY")} value={`${fmt(data.currentSupply)} POTATO`} pct={pct(data.currentSupply, data.maxSupply)} color="var(--ares-hud-amber, #FFB347)" />
+    <ConsoleStatRow icon={<Flame size={16} />} label={t("ВСЕГО СОЖЖЕНО")} value={`${fmt(data.burned)} POTATO`} pct={pct(data.burned, data.currentSupply + data.burned)} color="var(--ares-rust, #C1440E)" />
+    <ConsoleStatRow icon={<TrendingUp size={16} />} label={t("СМАЙНЕНО ЗА ЭПОХУ")} value={`${data.mintedToday.toFixed(0)} / ${fmtBig(data.dailyCap)} POTATO`} pct={pct(data.mintedToday, data.dailyCap)} color="var(--ares-blueset, #6B93D6)" />
+    <ConsoleStatRow icon={<Moon size={16} />} label={t("ЛУННЫЙ ЦИКЛ: {phase}", { phase: data.lunarPhase })} value={`x${data.lunarMultiplier.toFixed(2)}`} pct={data.lunarMultiplier * 100 - 85} color="#E0D8C0" />
+    <ConsoleStatRow icon={<Percent size={16} />} label={t("НАЛОГ НА ХАРВЕСТ")} value={`${(data.taxBps / 100).toFixed(2)}%`} pct={(data.taxBps - 200) / 8} color="var(--ares-rust, #C1440E)" />
+    <ConsoleStatRow icon={<Shield size={16} />} label={t("ЭЛАСТИЧНЫЙ КАП")} value={`${fmtBig(data.elasticCap)} POTATO`} pct={pct(data.elasticCap - 250_000, 750_000 - 250_000)} color="var(--ares-blueset, #6B93D6)" />
+    <ConsoleStatRow icon={<Landmark size={16} />} label={t("ВСЕГО ДЕЛЯНОК")} value={data.fieldCount.toString()} color="var(--ares-grow-violet, #B85CFF)" />
+    <ConsoleStatRow icon={<Trophy size={16} />} label={t("ЭКИПАЖ С ДЕЛЯНКАМИ")} value={data.players.toString()} color="#FFC94A" />
+    <ConsoleStatRow icon={<Coins size={16} />} label={t("МАКС. SUPPLY")} value={`${(data.maxSupply / 1e6).toFixed(0)}M POTATO`} color="var(--ares-hud-amber, #FFB347)" />
 
-    <Panel variant="chip" style={{ marginTop: 4, padding: '10px 12px', background: 'rgba(193,68,14,0.08)', borderColor: 'rgba(193,68,14,0.35)' }}>
+    <div style={{ marginTop: 4, padding: '10px 12px', borderRadius: 8, background: 'rgba(193,68,14,0.08)', border: '1px solid rgba(193,68,14,0.35)' }}>
      <div className="ares-stencil" style={{ fontSize: 11, color: 'var(--ares-rust, #C1440E)', marginBottom: 8 }}>{t("ЗАЩИТА ЭКОНОМИКИ")}</div>
      {[
       t('Эмиссия только через harvest и награды: лимит эпохи + максимальный supply'),
@@ -114,10 +113,10 @@ function EconomySection({ data }: { data: EconomyData }) {
       t('Награды выдаёт только сервер от имени authority, не из клиента'),
      ].map((t, i) => (
       <div key={i} className="ares-mono" style={{ fontSize: 10, color: 'rgba(255,179,71,0.8)', padding: '3px 0', display: 'flex', gap: 6, lineHeight: 1.5 }}>
-       <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true"><Glyph name="check" size={12} /></span> {t}
+       <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span> {t}
       </div>
      ))}
-    </Panel>
+    </div>
    </div>
   </ConsolePanel>
  )
@@ -208,8 +207,8 @@ function StatsScreenInner() {
 
  return (
   <div style={{ padding: 20, paddingBottom: 140 }}>
-   <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{t("ЖУРНАЛ МИССИИ")}</h1>
-   <p style={{ color: 'var(--pf-text-secondary)', fontSize: 14, marginBottom: 20 }}>{t("Задачи смены, нашивки и показатели экипажа")}</p>
+   <h1 className="pf-h1" style={{ fontSize: 26, marginBottom: 8 }}>{t("ЖУРНАЛ МИССИИ")}</h1>
+   <p className="pf-subtitle" style={{ marginBottom: 20 }}>{t("Задачи смены, нашивки и показатели экипажа")}</p>
    {loadError && <ErrorState inline message={loadError} onRetry={() => void load()} />}
 
    <div style={{ marginBottom: 24 }}>
@@ -218,14 +217,17 @@ function StatsScreenInner() {
 
    <MissionLog />
 
-   <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>{t("Доска почёта")}</h2>
+   <h2 className="pf-h2" style={{ fontSize: 20, marginBottom: 16 }}>{t("Доска почёта")}</h2>
    {leaders.length === 0 ? (
-    <p style={{ color: 'var(--pf-text-secondary)', textAlign: 'center', padding: 30 }}>{t("Пока нет игроков")}</p>
+    <EmptyState
+     title={t('Доска почёта пуста')}
+     hint={t('Ни одно поле ещё не заложено. Стань первым — журнал запишет твоё имя первым.')}
+    />
    ) : (
     <ol style={{ display: 'flex', flexDirection: 'column', gap: 10, listStyle: 'none' }}>
      {leaders.map((row, i) => (
       <motion.li key={row.address} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-       className="pf-card hull-skin" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, borderColor: row.isMe ? 'var(--pf-teal)' : undefined }}>
+       className="pf-card hull-skin" style={{ padding: '14px 16px', borderRadius: 14, display: 'flex', alignItems: 'center', gap: 12, border: row.isMe ? '1px solid var(--pf-teal)' : undefined }}>
        <div style={{ width: 28, fontSize: 16, fontWeight: 800, color: i === 0 ? 'var(--pf-gold)' : i === 1 ? 'var(--pf-text-secondary)' : i === 2 ? '#b45309' : 'var(--pf-text-muted)' }}>{i + 1}</div>
        <div style={{ flex: 1 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: row.isMe ? 'var(--ares-hud-amber, #FFB347)' : 'var(--ares-parchment, #F2E8DA)' }}>
