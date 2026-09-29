@@ -2068,7 +2068,7 @@ function Footer(): JSX.Element {
         <div className="footer-middle">
           <p>{SC.footer.copyright}</p>
           <p className="footer-contact">
-            {t("Оператор")}: <span className="todo-inline">[НАИМЕНОВАНИЕ ОПЕРАТОРА]</span> ·{" "}
+            {t("Связь с командой")}:{" "}
             <a href="mailto:security@ares1.is-a.dev">security@ares1.is-a.dev</a>
           </p>
         </div>

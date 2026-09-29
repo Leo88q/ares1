@@ -1,0 +1,174 @@
+/*
+ * i18n-fit.css — адаптация рамок игры под длину строк в разных языках.
+ *
+ * Русский и английский — самые короткие; португальский, испанский и филиппинский
+ * дают +25…45% к длине надписи, вьетнамский добавляет диакритику (нужна большая
+ * высота строки). Правила ниже ничего не меняют визуально для коротких строк:
+ * они снимают жёсткие ограничения, из-за которых длинный перевод вылезал
+ * за бронзовую рамку, за кнопку или за нижнюю навигацию.
+ *
+ * Подключается последним — после global.css / kit.css / index.css.
+ */
+
+/* ── 1. Слова не рвут рамку ───────────────────────────────────────── */
+body,
+h1, h2, h3, h4,
+p, li, a, span, label, button, td, th {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.ares-mono,
+code,
+kbd {
+  overflow-wrap: break-word;
+}
+
+/* ── 2. Flex/grid-дети сжимаются вместо распирания контейнера ─────── */
+.pf-card > *,
+.k-panel > *,
+.ares-panel > *,
+[class*="-row"] > *,
+[class*="-grid"] > * {
+  min-width: 0;
+}
+
+/* ── 3. Заголовки и подписи: кегль подстраивается под длину ───────── */
+.pf-h1 {
+  font-size: clamp(18px, 5.2vw, 28px);
+  line-height: 1.18;
+  text-wrap: balance;
+}
+
+.pf-h2 {
+  font-size: clamp(15px, 4.2vw, 20px);
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.pf-subtitle {
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+
+/* Трафаретные плашки корпуса — обрезаем аккуратно, а не выпускаем наружу. */
+.ares-stencil,
+.ares-hull-plate {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 4. Кнопки: высота по контенту, но не меньше тач-таргета ──────── */
+.pf-btn,
+.k-btn,
+.ares-btn,
+button.pf-card {
+  height: auto;
+  min-height: 44px;
+  white-space: normal;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+/* Ряды кнопок переносятся, а не сжимаются в нечитаемую полоску. */
+.pf-actions,
+.k-actions,
+[class*="-actions"] {
+  flex-wrap: wrap;
+}
+
+/* ── 5. HUD и статистика: значения важнее подписей ───────────────── */
+[class*="-stat"] .label,
+[class*="__label"],
+.telemetry-label {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+[class*="-stat"] .value,
+[class*="__value"] {
+  white-space: nowrap;
+}
+
+/* ── 6. Нижняя навигация: 4–5 вкладок с длинными словами ─────────── */
+.ares-bottom-nav,
+[class*="bottom-nav"] {
+  gap: 2px;
+}
+
+.ares-bottom-nav button,
+[class*="bottom-nav"] button {
+  min-width: 0;
+  padding-inline: 2px;
+}
+
+.ares-bottom-nav button span,
+[class*="bottom-nav"] button span {
+  font-size: clamp(8px, 2.6vw, 11px);
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  display: block;
+}
+
+/* ── 7. Модалки и тосты: длинный текст скроллится внутри рамки ───── */
+.pf-modal,
+.k-modal,
+[class*="-modal"] {
+  max-height: min(88vh, 760px);
+}
+
+.pf-modal__body,
+[class*="-modal"] [class*="body"] {
+  overflow-y: auto;
+}
+
+.pf-toast,
+[class*="-toast"] {
+  max-width: min(92vw, 420px);
+  white-space: normal;
+}
+
+/* ── 8. Cookie-панель ─────────────────────────────────────────────── */
+.consent__panel {
+  max-height: min(86vh, 720px);
+  overflow-y: auto;
+}
+
+.consent__row {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+/* ── 9. Прогресс-бары: подпись не должна выталкивать проценты ─────── */
+[class*="progress"] [class*="label"] {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 10. Вьетнамский: диакритика требует высоты строки ────────────── */
+:root:lang(vi) body,
+:root:lang(vi) .pf-h1,
+:root:lang(vi) .pf-h2 {
+  line-height: 1.38;
+}
+
+/* ── 11. Длинные языки: сокращаем трекинг в капсе ─────────────────── */
+:root:lang(pt-BR) .pf-h1,
+:root:lang(pt) .pf-h1,
+:root:lang(es) .pf-h1,
+:root:lang(tl) .pf-h1,
+:root:lang(id) .pf-h1,
+:root:lang(vi) .pf-h1,
+:root:lang(pt-BR) .ares-stencil,
+:root:lang(pt) .ares-stencil,
+:root:lang(es) .ares-stencil,
+:root:lang(tl) .ares-stencil,
+:root:lang(id) .ares-stencil,
+:root:lang(vi) .ares-stencil {
+  letter-spacing: 0.01em;
+}

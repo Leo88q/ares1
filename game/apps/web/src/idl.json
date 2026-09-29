@@ -2586,6 +2586,145 @@
       ]
     },
     {
+      "name": "grant_reward_once",
+      "docs": [
+        "Replay-proof reward rail (gate G-1, checklist item 41).",
+        "",
+        "`grant_reward` above authorises by signature alone: the same signed",
+        "transaction can be submitted twice, and an off-chain \"already paid\"",
+        "check loses every race. That is the exact class of bug that cost Aurory",
+        "~600k tokens. Here the payout is bound to a `reward_claim` PDA created",
+        "with `init`, so the second attempt with the same (recipient, nonce)",
+        "fails inside the runtime — no off-chain bookkeeping is trusted.",
+        "",
+        "`expires_at` closes the durable-nonce window (G-1b): a signature that",
+        "sat in an attacker's pocket past its deadline mints nothing."
+      ],
+      "discriminator": [
+        90,
+        215,
+        162,
+        126,
+        233,
+        186,
+        19,
+        143
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "epoch",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  112,
+                  111,
+                  99,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "config.epoch_id",
+                "account": "GameConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "docs": [
+            "Low-priv backend key (`reward_signer`) or the authority; also pays rent",
+            "for the claim marker, so the cost of spamming nonces lands on the caller."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "potato_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "user_potato",
+          "writable": true
+        },
+        {
+          "name": "reward_claim",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  119,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "user_potato"
+              },
+              {
+                "kind": "arg",
+                "path": "nonce"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "nonce",
+          "type": "u64"
+        },
+        {
+          "name": "amount_micro",
+          "type": "u64"
+        },
+        {
+          "name": "expires_at",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "harvest",
       "docs": [
         "Mints the yield accrued since the last harvest to the owner's token",
@@ -4975,6 +5114,19 @@
       ]
     },
     {
+      "name": "RewardClaim",
+      "discriminator": [
+        194,
+        80,
+        130,
+        80,
+        113,
+        62,
+        2,
+        91
+      ]
+    },
+    {
       "name": "SellerProfile",
       "discriminator": [
         96,
@@ -5286,6 +5438,19 @@
         19,
         56,
         70
+      ]
+    },
+    {
+      "name": "RewardGrantedOnce",
+      "discriminator": [
+        145,
+        94,
+        106,
+        175,
+        68,
+        33,
+        111,
+        79
       ]
     },
     {
@@ -5623,6 +5788,16 @@
       "code": 6048,
       "name": "InvalidSkrDecimals",
       "msg": "SKR mint must have 6 decimals: all SKR prices are quoted in 10^-6 atoms"
+    },
+    {
+      "code": 6049,
+      "name": "RewardClaimExpired",
+      "msg": "Reward claim has expired: request a fresh nonce from the backend"
+    },
+    {
+      "code": 6050,
+      "name": "RewardExpiryTooFar",
+      "msg": "Reward expiry is too far in the future (max 15 minutes)"
     }
   ],
   "types": [
@@ -6516,6 +6691,39 @@
       }
     },
     {
+      "name": "RewardClaim",
+      "docs": [
+        "One-shot payout marker. PDA seeds: `[\"reward\", recipient_ata, nonce]`.",
+        "Its mere existence means \"this nonce has already been paid\"; the stored",
+        "fields exist for audit and reconciliation, not for the check itself."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "nonce",
+            "type": "u64"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "claimed_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "RewardGranted",
       "type": {
         "kind": "struct",
@@ -6526,6 +6734,26 @@
               "Wallet that owns the receiving token account."
             ],
             "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardGrantedOnce",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "nonce",
+            "type": "u64"
           },
           {
             "name": "amount_micro",

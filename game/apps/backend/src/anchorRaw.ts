@@ -11,6 +11,12 @@ export function u64LE(value: bigint): Buffer {
   return b;
 }
 
+export function i64LE(value: bigint): Buffer {
+  const b = Buffer.alloc(8);
+  b.writeBigInt64LE(value);
+  return b;
+}
+
 export function readPubkey(data: Buffer, offset: number): { value: PublicKey; next: number } {
   return { value: new PublicKey(data.subarray(offset, offset + 32)), next: offset + 32 };
 }

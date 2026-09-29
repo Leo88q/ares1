@@ -4,6 +4,8 @@
  * cross-checks a few reference values against the program's IDL build.
  */
 
+import { tr } from '../i18n'
+
 export const MICRO = 1_000_000
 export const BPS = 10_000
 export const SECONDS_PER_DAY = 86_400
@@ -59,7 +61,7 @@ const MUTATIONS: MutationInfo[] = [
 ]
 
 export function mutationInfo(type: number): MutationInfo {
- return MUTATIONS[Math.min(Math.max(type, 0), 2)]
+ return tr(MUTATIONS[Math.min(Math.max(type, 0), 2)])
 }
 
 /** Reference prices for field type 1 (“Луг”), in micro POTATO. */

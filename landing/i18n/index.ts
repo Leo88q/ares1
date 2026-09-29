@@ -74,6 +74,14 @@ export function initI18n(all: Partial<Record<Lang, Record<string, string>>>): vo
 }
 
 let current: Lang = detect();
+
+// Язык проставляем в <html lang> сразу при загрузке: от него зависят
+// :lang()-правила адаптации рамок и переносы слов в браузере.
+try {
+  document.documentElement.lang = current === "es-419" ? "es" : current;
+} catch {
+  /* нет DOM (тесты/SSR) */
+}
 const listeners = new Set<() => void>();
 
 export function getLang(): Lang {

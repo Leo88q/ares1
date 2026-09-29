@@ -1,5 +1,6 @@
 import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_SLOT_HASHES_PUBKEY, TransactionInstruction } from '@solana/web3.js'
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
+import { t } from '../i18n';
 
 export const SKR_MINT = new PublicKey('Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o')
 
@@ -551,13 +552,13 @@ export function getLunarMultiplier(epochId: number): number {
 
 export function getLunarPhase(epochId: number): string {
   const day = epochId % 28;
-  if (day <= 3) return 'Растущая луна';
-  if (day <= 7) return 'Первая четверть';
-  if (day <= 10) return 'Прибывающая луна';
-  if (day <= 14) return 'Полнолуние (пик)';
-  if (day <= 17) return 'Убывающая луна';
-  if (day <= 21) return 'Последняя четверть';
-  return 'Новолуние (дно)';
+  if (day <= 3) return t('Растущая луна');
+  if (day <= 7) return t('Первая четверть');
+  if (day <= 10) return t('Прибывающая луна');
+  if (day <= 14) return t('Полнолуние (пик)');
+  if (day <= 17) return t('Убывающая луна');
+  if (day <= 21) return t('Последняя четверть');
+  return t('Новолуние (дно)');
 }
 
 // ───────────────────────────────────────────────────────────────
