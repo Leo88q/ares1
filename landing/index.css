@@ -1046,6 +1046,32 @@ input:focus-visible {
   margin-top: 3px;
 }
 
+/* Текст не должен вылезать за пределы панелей и карточек — ни по ширине,
+   ни обрезаться по высоте. Панели растягиваются под содержимое. */
+.panel,
+.feature-card,
+.comparison,
+.tier-panel,
+.colony-manual,
+.waitlist-panel {
+  min-width: 0;
+  height: auto;
+  overflow: visible;
+}
+
+.comparison li > span,
+.feature-description,
+.feature-card h3,
+.tier-panel p,
+.colony-manual p,
+.body-copy,
+.section-description,
+.hero-description,
+.section-footnote {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
 .comparison--before {
   border-color: #d566663d;
 }
@@ -1105,10 +1131,10 @@ input:focus-visible {
   width: 76px;
   height: 76px;
   place-items: center;
-  border: 1px solid #ff2e9330;
+  border: 1px solid rgba(255, 179, 71, 0.26);
   border-radius: 16px;
-  color: #ff8bc4;
-  background: radial-gradient(circle, #ff2e931c, #ff2e9303);
+  color: #ffcf8f;
+  background: radial-gradient(circle, rgba(255, 179, 71, 0.13), rgba(255, 179, 71, 0.02) 70%, transparent 78%);
 }
 
 .feature-number {
@@ -3187,9 +3213,11 @@ input:focus-visible {
   position: absolute;
   inset: 0;
   background-image: var(--section-bg);
-  background-size: cover;
-  background-position: center;
-  opacity: 0.28;
+  background-repeat: no-repeat;
+  background-position: center 42%;
+  /* Масштаб ограничен: фон — плашка за контентом, а не во весь экран. */
+  background-size: min(1040px, 68%) auto;
+  opacity: 0.22;
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
   pointer-events: none;

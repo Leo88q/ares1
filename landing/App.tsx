@@ -230,6 +230,7 @@ const ART_BY_SECTION: Record<string, string> = {
   mechanics: "/ares/bg-reactor.jpg",
   mascot: "/ares/bg-cargo.jpg",
   faq: "/ares/bg-maproom.jpg",
+  tokenomics: "/ares/bg-vault.jpg",
 };
 
 function Section({
