@@ -54,9 +54,10 @@ const count = (src, needle) => src.split(needle).length - 1;
 
 test('A1/A5/A6/D21-D22: каждый init платит ренту; data-аккаунт декларирует space', () => {
   const inits = blocks.filter((b) => /\binit,/.test(b) || /\binit_if_needed,/.test(b));
-  // 29 блоков init/init_if_needed: 9 init + 20 init_if_needed в коде
+  // 30 блоков init/init_if_needed: 10 init + 20 init_if_needed в коде
   // (SW016-инвентарь насчитывает 21 сырой токен — 2 из них в комментариях).
-  assert.equal(inits.length, 29, `init-блоков: ${inits.length}, ожидалось 29`);
+  // +1 init к 29: reward_claim в GrantRewardOnce (гейт G-1, защита от replay).
+  assert.equal(inits.length, 30, `init-блоков: ${inits.length}, ожидалось 30`);
   for (const b of inits) {
     assert.ok(/payer\s*=/.test(b), `init без payer: ${b.slice(0, 120)}`);
     const isTokenAccount = /token::|associated_token::/.test(b);
@@ -69,15 +70,16 @@ test('A1/A5/A6/D21-D22: каждый init платит ренту; data-акка
 
 test('A1: каждый seeds-констрейнт спарен с bump', () => {
   const seeded = blocks.filter((b) => /seeds\s*=/.test(b));
-  assert.equal(seeded.length, 82, `seeds-блоков: ${seeded.length}, ожидалось 82`);
+  // 82 + 3: config / epoch / reward_claim в GrantRewardOnce.
+  assert.equal(seeded.length, 85, `seeds-блоков: ${seeded.length}, ожидалось 85`);
   for (const b of seeded) {
     assert.ok(/\bbump\b/.test(b), `seeds без bump: ${b.slice(0, 120)}`);
   }
 });
 
-test('A2: пины has_one (10×potato_mint, 18×authority, 4×owner, 3×seller)', () => {
+test('A2: пины has_one (11×potato_mint, 18×authority, 4×owner, 3×seller)', () => {
   // Нарочно зафиксированные счётчики: новый контекст = осознанный diff пина.
-  assert.equal(count(libRs, 'has_one = potato_mint'), 10);
+  assert.equal(count(libRs, 'has_one = potato_mint'), 11); // +1: GrantRewardOnce
   assert.equal(count(libRs, 'has_one = authority'), 17); // 18-й — в doc-комментарии, срезан
   assert.equal(count(libRs, 'has_one = owner'), 4);
   assert.equal(count(libRs, 'has_one = seller'), 3);
@@ -108,8 +110,8 @@ test('B7/B8/F-01: платный RNG только на верхнем уровн
   }
 });
 
-test('C: пауза-гейт на всех расходных инструкциях (15 пинов)', () => {
-  assert.equal(count(libRs, 'require!(!ctx.accounts.config.paused, GameError::Paused)'), 14);
+test('C: пауза-гейт на всех расходных инструкциях (16 пинов)', () => {
+  assert.equal(count(libRs, 'require!(!ctx.accounts.config.paused, GameError::Paused)'), 15); // +1: grant_reward_once
   assert.equal(count(libRs, 'require!(!config.paused, GameError::Paused)'), 1);
   assert.ok(libRs.includes('pub fn set_paused'));
   // guardian может только ставить паузу, не снимать.

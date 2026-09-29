@@ -2870,7 +2870,8 @@ pub struct GrantReward<'info> {
 }
 
 /// Accounts for `grant_reward_once`. The replay protection is structural:
-/// `reward_claim` uses `init` (never `init_if_needed` — SW016), so a repeat of
+/// `reward_claim` uses plain `init` (never the init-if-needed variant — SW016),
+/// so a repeat of
 /// the same (recipient ATA, nonce) aborts in the runtime before any mint.
 /// The account is deliberately never closed: a closed claim could be re-created
 /// and the payout replayed, which is exactly what this rail prevents.
