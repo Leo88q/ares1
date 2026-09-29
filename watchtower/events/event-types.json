@@ -21,6 +21,7 @@
     "ReferrerRegistered",
     "RewardClaimed",
     "RewardGranted",
+    "RewardGrantedOnce",
     "TaxPaid",
     "TreasuryDeposited",
     "TreasuryWithdrawn",
