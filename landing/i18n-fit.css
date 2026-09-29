@@ -1,0 +1,187 @@
+/*
+ * i18n-fit.css — адаптация рамок под длину строк в разных языках.
+ *
+ * Немецкий здесь не используется, но португальский, испанский и филиппинский
+ * дают +25…45% к длине строки относительно русского, а вьетнамский добавляет
+ * диакритику (выше строка). Правила ниже не меняют дизайн для ru/en: они лишь
+ * снимают жёсткие ограничения, из-за которых длинный перевод вылезал за рамку.
+ *
+ * Подключается последним — после index.css и всех модульных стилей.
+ */
+
+/* ── 1. Базовая защита от вылезания слов ───────────────────────────── */
+body,
+.container,
+.section,
+h1, h2, h3, h4, h5, h6,
+p, li, a, span, button, label, figcaption, td, th {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* Моноширинные технические строки (адреса, хэши, числа) не переносим по буквам,
+   но разрешаем перенос по границам, чтобы не рвать сетку. */
+.ares-mono,
+code,
+kbd,
+samp {
+  overflow-wrap: break-word;
+}
+
+/* Flex-элементы по умолчанию не сжимаются ниже контента — из-за этого
+   длинный перевод растягивает родителя. */
+.container > *,
+.section > *,
+[class*="-grid"] > *,
+[class*="-row"] > *,
+[class*="-card"] > *,
+[class*="__row"] > * {
+  min-width: 0;
+}
+
+/* ── 2. Заголовки: плавный кегль вместо фиксированного ─────────────── */
+.hero-title,
+.section-title,
+.tokenomics-manifesto,
+.prize-result-title {
+  text-wrap: balance;
+  hyphens: auto;
+}
+
+.section-eyebrow,
+.feature-label,
+.hero-eyebrow {
+  white-space: normal;
+  text-wrap: balance;
+}
+
+/* ── 3. Кнопки: высота по контенту, текст в две строки допустим ───── */
+.action,
+.morph-button,
+.cta-button,
+.consent__btn,
+.lang-switcher__button {
+  white-space: normal;
+  text-wrap: balance;
+  height: auto;
+  min-height: 44px; /* тач-таргет сохраняем */
+}
+
+.action,
+.morph-button,
+.cta-button {
+  padding-block: 12px;
+  line-height: 1.25;
+}
+
+/* Группы кнопок переносим, а не сжимаем. */
+.hero-actions,
+.consent__actions,
+.presale-actions,
+.footer-legal {
+  flex-wrap: wrap;
+}
+
+/* ── 4. Плашки, бейджи, таблички корпуса ──────────────────────────── */
+.ares-hull-plate,
+.badge,
+.tag,
+.pill,
+[class*="__badge"],
+[class*="-badge"] {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 5. Карточки фич / тиров / роадмапа: высота по содержимому ────── */
+.feature-card,
+.module-card,
+.roadmap-item,
+.faq-item,
+.tier-card,
+.rarity-module {
+  height: auto;
+  min-height: 0;
+  align-items: start;
+}
+
+.feature-card p,
+.module-card p,
+.roadmap-content p,
+.faq-item p {
+  overflow: visible;
+  display: block;
+  -webkit-line-clamp: none;
+}
+
+/* ── 6. Табличные/сеточные блоки: колонки подстраиваются ──────────── */
+[class*="-grid"] {
+  grid-auto-rows: minmax(0, auto);
+}
+
+/* ── 7. Переключатель языка: список не должен уезжать за экран ────── */
+.lang-switcher__menu {
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  max-width: calc(100vw - 24px);
+}
+
+.lang-switcher__item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* На узких экранах меню прижимаем к правому краю вьюпорта. */
+@media (max-width: 420px) {
+  .lang-switcher__menu {
+    right: 0;
+    min-width: 0;
+    width: max-content;
+  }
+}
+
+/* ── 8. Cookie-панель: длинные интро-тексты ───────────────────────── */
+.consent__panel {
+  max-height: min(86vh, 720px);
+  overflow-y: auto;
+}
+
+.consent__row {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.consent__name {
+  min-width: 0;
+}
+
+/* ── 9. Футер и юридические ссылки ────────────────────────────────── */
+.footer-bottom a,
+.footer-legal a {
+  white-space: normal;
+}
+
+/* ── 10. Вьетнамский: диакритика требует чуть большей высоты строки ─ */
+:root:lang(vi) body,
+:root:lang(vi) .hero-title,
+:root:lang(vi) .section-title {
+  line-height: 1.35;
+}
+
+/* ── 11. Языки с длинными словами: уменьшаем трекинг в капсе ──────── */
+:root:lang(pt-BR) .section-eyebrow,
+:root:lang(pt) .section-eyebrow,
+:root:lang(es) .section-eyebrow,
+:root:lang(tl) .section-eyebrow,
+:root:lang(id) .section-eyebrow,
+:root:lang(vi) .section-eyebrow,
+:root:lang(pt-BR) .feature-label,
+:root:lang(pt) .feature-label,
+:root:lang(es) .feature-label,
+:root:lang(tl) .feature-label,
+:root:lang(id) .feature-label,
+:root:lang(vi) .feature-label {
+  letter-spacing: 0.04em;
+}

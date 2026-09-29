@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { t } from '../i18n';
 
 export type SolPhase = 'dawn' | 'day' | 'blueset' | 'night';
 
@@ -54,3 +55,8 @@ export const SEEKER_PHASE_LABELS_RU: Record<SolPhase, string> = {
  blueset: 'Синий закат',
  night: 'Ночь',
 };
+
+/** Локализованные подписи фаз сола (перевод берётся на момент вызова). */
+export function seekerPhaseLabel(phase: SolPhase): string {
+ return t(SEEKER_PHASE_LABELS_RU[phase]);
+}

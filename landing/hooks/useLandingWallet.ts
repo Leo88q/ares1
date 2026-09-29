@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { chainConfig } from '../content';
+import { t } from '../i18n';
 
 declare global {
   interface Window {
@@ -37,7 +38,7 @@ export function useLandingWallet() {
 
   const connect = useCallback(async () => {
     if (!window.solana?.isPhantom) {
-      setState(s => ({ ...s, error: 'Установите Phantom Wallet' }));
+      setState(s => ({ ...s, error: t('Установите Phantom Wallet') }));
       return;
     }
     setState(s => ({ ...s, connecting: true, error: null }));
