@@ -36,11 +36,13 @@ README — «No real-funds/mainnet readiness is claimed».
 
 ## Блокеры
 
-### 1. CI был красный на `main` ~16 часов — исправлено в этой ветке
+### 1. CI был красный на `main` ~16 часов — исправлено и проверено
 Все джобы падали на `yarn install --frozen-lockfile`: корневой `game/package.json`
 объявляет `"@solana-mobile/wallet-adapter-mobile": "^2.1.5"`, а запись в `yarn.lock`
-перечисляла только `2.1.5` и `^2.2.0`. Спецификатор добавлен, разрешаемая версия
-не изменилась. **Нельзя деплоить, пока CI не зелёный** — проверить следующий прогон.
+перечисляла только `2.1.5` и `^2.2.0`. Спецификатор добавлен, разрешаемая версия не изменилась.
+Прогон `CI #36561243186` на этой ветке — **все 6 джобов зелёные**, включая Anchor
+(build + unit + integration, 8m21s), backend-контейнер и гейт артефактов сборки.
+На `main` фикс ещё не влит.
 
 ### 2. Секреты и настройки репозитория (🔴, только человек)
 - Ключ Helius RPC был закоммичен в историю публичного репозитория — **ротация обязательна**,
@@ -69,7 +71,8 @@ README — «No real-funds/mainnet readiness is claimed».
 - `check-release-artifacts.mjs` дал 3 FAIL по чанку `wallets-*.js` (fonts.googleapis.com,
   fonts.gstatic.com, `http://localhost`) — но это артефакт моей npm-установки:
   yarn-registry недоступен, npm разрешил дерево иначе и втянул `@reown/appkit-ui`.
-  **Перепроверить с `yarn install --frozen-lockfile`**; в CI этот гейт раньше был зелёным.
+  Перепроверено в CI после фикса lockfile: джоб «Build output gate (no secrets, maps or
+  CDN in dist/)» — **зелёный**, то есть находки были ложными.
 
 ### 6. Известные принятые риски
 `bigint-buffer` (GHSA-3gc7-fjrx-p6mg) без фикса; `style-src 'unsafe-inline'` в обеих CSP;
