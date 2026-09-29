@@ -6,7 +6,7 @@
     "spec": "0.1.0",
     "description": "Solana Potato game program"
   },
-  "sourceIdlSha256": "107c6e2a2402d1d4e86a31d8c7f0d9c0157804655568af27d27ee402da752e14",
+  "sourceIdlSha256": "7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694",
   "events": [
     {
       "name": "AchievementClaimed",
@@ -305,6 +305,19 @@
         19,
         56,
         70
+      ]
+    },
+    {
+      "name": "RewardGrantedOnce",
+      "discriminator": [
+        145,
+        94,
+        106,
+        175,
+        68,
+        33,
+        111,
+        79
       ]
     },
     {
@@ -831,6 +844,26 @@
       }
     },
     {
+      "name": "RewardGrantedOnce",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "nonce",
+            "type": "u64"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "RewardSignerUpdated",
       "type": {
         "kind": "struct",
@@ -1127,6 +1160,16 @@
       131,
       147,
       235
+    ],
+    "grant_reward_once": [
+      90,
+      215,
+      162,
+      126,
+      233,
+      186,
+      19,
+      143
     ],
     "harvest": [
       228,
