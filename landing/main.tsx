@@ -13,6 +13,7 @@ import { usePrefersReducedMotion, useSmoothScroll } from "./hooks";
 // rules exist when Tailwind's base layer resolves font families.
 import "./fonts";
 import "./index.css";
+import "./i18n-fit.css";
 import "./i18n/dicts";
 
 

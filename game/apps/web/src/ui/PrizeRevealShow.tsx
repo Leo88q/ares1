@@ -393,7 +393,7 @@ function PrizeScene({
           scale: resultScale,
         }}
       >
-        <p className="prize-result-eyebrow">СИГНАЛ КОЛОНИИ ПРИНЯТ</p>
+        <p className="prize-result-eyebrow">{t("СИГНАЛ КОЛОНИИ ПРИНЯТ")}</p>
         <h2 className="prize-result-title">{title}</h2>
         {amountLabel && (
           <p className="prize-result-amount">{amountLabel}</p>

@@ -1,7 +1,7 @@
 // Компактный селектор языка для шапки лендинга: глобус + выпадающий список.
 import { useEffect, useRef, useState } from "react";
 import { Globe, Check } from "lucide-react";
-import { LANGS, useI18n } from "./index";
+import { LANGS, t, useI18n } from "./index";
 
 export function LangSwitcher(): JSX.Element {
   const { lang, setLang } = useI18n();
@@ -31,7 +31,7 @@ export function LangSwitcher(): JSX.Element {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label={lang === "ru" ? "Язык" : "Language"}
+        aria-label={t("Язык")}
         aria-expanded={open}
         className="lang-switcher__button"
       >
