@@ -2,8 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { Glyph } from '../ui/Emblem'
-import { Emblem } from '../ui/Emblem'
+import { ChevronDown, ChevronUp, ArrowDownLeft, ArrowUpRight, Copy, Check, Wallet } from 'lucide-react'
 import { PublicKey } from '@solana/web3.js'
 import { useSolana, IS_MAINNET, CLUSTER } from '../contexts/SolanaContext'
 import { useGame } from '../contexts/GameContext'
@@ -24,7 +23,7 @@ interface Currency {
 }
 
 const CURRENCIES: Currency[] = [
- { id: 'SOL', name: 'Solana', symbol: 'SOL', icon: <Emblem name="gauge" size={20} />, color: 'var(--ares-grow-violet, #B85CFF)', min: 0.001 },
+ { id: 'SOL', name: 'Solana', symbol: 'SOL', icon: '◎', color: 'var(--ares-grow-violet, #B85CFF)', min: 0.001 },
  { id: 'POTATO', name: 'Potato', symbol: 'POTATO', icon: <img src="/ares/potato-coin.png" alt="" width={22} height={22} style={{ width: 22, height: 22, borderRadius: '50%' }} />, color: 'var(--pf-gold)', min: 0.01 },
 ]
 
@@ -105,9 +104,8 @@ export default function WalletManagement() {
  }
 
  const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', borderRadius: 0, background: 'none',
-  borderStyle: 'solid', borderWidth: 9, borderImage: "url('/ares/kit/input.webp') 30 fill / 9px",
-  color: 'var(--pf-text-primary, white)', fontSize: 13, outline: 'none', marginBottom: 10,
+  width: '100%', padding: 12, borderRadius: 4, background: 'rgba(0,0,0,0.28)',
+  border: '1px solid rgba(160,82,40,0.5)', color: 'white', fontSize: 13, outline: 'none', marginBottom: 10,
  }
 
  return (
@@ -117,33 +115,33 @@ export default function WalletManagement() {
     onClick={() => { setIsOpen(!isOpen); sounds.click(); haptics.buttonPress() }}
     aria-expanded={isOpen}
     className="pf-card hull-skin"
-    style={{ width: '100%', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+    style={{ width: '100%', padding: '16px 20px', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.32)', border: '1px solid rgba(160,82,40,0.65)' }}
    >
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
      <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, #8A2E08, #C1440E)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
-      <Glyph name="wallet" size={20} />
+      <Wallet size={20} color="white" />
      </div>
      <div style={{ textAlign: 'left' }}>
       <div className="ares-stencil" style={{ fontSize: 13, color: 'var(--ares-hud-amber, #FFB347)' }}>{t('УПРАВЛЕНИЕ КОШЕЛЬКОМ')}</div>
       <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)' }}>{t('Приём и передача топлива и пайка')}</div>
      </div>
     </div>
-    {isOpen ? <Glyph name="chevron-up" size={20} style={{ opacity: 0.8 }} /> : <Glyph name="chevron-down" size={20} style={{ opacity: 0.8 }} />}
+    {isOpen ? <ChevronUp size={20} color="var(--pf-text-secondary)" /> : <ChevronDown size={20} color="var(--pf-text-secondary)" />}
    </motion.button>
 
    <AnimatePresence>
     {isOpen && (
      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} style={{ overflow: 'hidden' }}>
       <div style={{ padding: 16, marginTop: 8 }} className="pf-card hull-skin">
-       <div style={{ padding: 12, borderRadius: 'var(--s-radius-chip)', background: 'var(--s-subtle-bg)', marginBottom: 16 }}>
+       <div style={{ padding: 12, borderRadius: 4, background: 'rgba(0,0,0,0.22)', marginBottom: 16, border: '1px solid rgba(0,0,0,0.4)' }}>
         <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', marginBottom: 6 }}>{t('Твой адрес для получения')}:</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
          <code style={{ flex: 1, fontSize: 11, color: 'var(--ares-parchment, #F2E8DA)', fontFamily: 'var(--ares-font-mono, monospace)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {publicKey?.toString() || t('Не подключён')}
          </code>
          <motion.button whileTap={{ scale: 0.9 }} onClick={copyAddress} aria-label={t("Скопировать адрес")}
-          style={{ padding: '6px 10px', borderRadius: 'var(--s-radius-chip)', background: copied ? 'var(--pf-teal)' : 'var(--s-subtle-bg)', display: 'flex', alignItems: 'center' }}>
-          {copied ? <Glyph name="check" size={12} /> : <Glyph name="copy" size={12} style={{ opacity: 0.8 }} />}
+          style={{ padding: '6px 10px', borderRadius: 6, background: copied ? 'var(--pf-teal)' : 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center' }}>
+          {copied ? <Check size={12} color="white" /> : <Copy size={12} color="var(--pf-text-secondary)" />}
          </motion.button>
         </div>
        </div>
@@ -156,7 +154,7 @@ export default function WalletManagement() {
           return (
            <motion.button key={c.id} role="radio" aria-checked={active} whileTap={{ scale: 0.95 }}
             onClick={() => { setSelected(c.id); sounds.click(); haptics.tap() }}
-            style={{ padding: '12px 8px', borderRadius: 'var(--s-radius-chip)', background: active ? `${c.color}20` : 'var(--s-subtle-bg)', border: active ? `2px solid ${c.color}` : '1px solid var(--pf-border-soft)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, color: 'white' }}>
+            style={{ padding: '12px 8px', borderRadius: 3, background: active ? `${c.color}20` : 'rgba(0,0,0,0.22)', border: active ? `2px solid ${c.color}` : '1px solid rgba(255,214,170,0.12)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, color: '#F2E8DA' }}>
             <span style={{ fontSize: 20 }} aria-hidden="true">{c.icon}</span>
             <div style={{ fontSize: 11, fontWeight: 600 }}>{c.name}</div>
            </motion.button>
@@ -166,14 +164,14 @@ export default function WalletManagement() {
        </div>
 
        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <ActionToggle active={action === 'deposit'} color="var(--pf-teal)" onClick={() => setAction(action === 'deposit' ? null : 'deposit')} icon={<Glyph name="deposit" size={16} />} label={t("Принять")} />
-        <ActionToggle active={action === 'withdraw'} color="var(--pf-gold)" onClick={() => setAction(action === 'withdraw' ? null : 'withdraw')} icon={<Glyph name="arrow-up-right" size={16} />} label={t("Передать")} />
+        <ActionToggle active={action === 'deposit'} color="var(--pf-teal)" onClick={() => setAction(action === 'deposit' ? null : 'deposit')} icon={<ArrowDownLeft size={16} />} label={t("Принять")} />
+        <ActionToggle active={action === 'withdraw'} color="var(--pf-gold)" onClick={() => setAction(action === 'withdraw' ? null : 'withdraw')} icon={<ArrowUpRight size={16} />} label={t("Передать")} />
        </div>
 
        <AnimatePresence>
         {action === 'deposit' && (
          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden' }}>
-          <div style={{ padding: 14, borderRadius: 'var(--s-radius-chip)', background: 'var(--s-subtle-bg)', border: '1px solid var(--s-subtle-border)' }}>
+          <div style={{ padding: 14, borderRadius: 12, background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(193, 68, 14, 0.12)' }}>
            <div style={{ fontSize: 13, color: 'var(--pf-teal)', marginBottom: 8, fontWeight: 600 }}>{t('Приём')} {currency.name}</div>
            <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
             {selected === 'SOL' && !IS_MAINNET
@@ -183,7 +181,7 @@ export default function WalletManagement() {
               : `${t('$POTATO можно купить на вкладке «Рынок» за SOL или получить переводом на адрес выше')}${config ? t(' (mint {mint}…)', { mint: config.potatoMint.toString().slice(0, 6) }) : ''}.`}
            </div>
            <motion.button whileTap={{ scale: 0.95 }} onClick={handleDeposit} disabled={loading}
-            style={{ width: '100%', padding: 12, borderRadius: 'var(--s-radius-chip)', background: 'var(--pf-teal)', color: 'white', fontSize: 13, fontWeight: 700, opacity: loading ? 0.7 : 1 }}>
+            style={{ width: '100%', padding: 12, borderRadius: 10, background: 'var(--pf-teal)', color: 'white', fontSize: 13, fontWeight: 700, opacity: loading ? 0.7 : 1 }}>
             {loading ? t(' Пополнение…') : selected === 'SOL' && !IS_MAINNET ? t(' Получить 1 SOL (airdrop)') : t(' Скопировать адрес')}
            </motion.button>
           </div>
@@ -194,7 +192,7 @@ export default function WalletManagement() {
        <AnimatePresence>
         {action === 'withdraw' && (
          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden' }}>
-          <div style={{ padding: 14, borderRadius: 'var(--s-radius-chip)', background: 'var(--s-subtle-bg)', border: '1px solid var(--s-subtle-border)' }}>
+          <div style={{ padding: 14, borderRadius: 12, background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
            <div style={{ fontSize: 13, color: 'var(--pf-gold)', marginBottom: 10, fontWeight: 600 }}>{t('Передача')} {currency.name}</div>
            <input type="text" value={recipient} onChange={(e) => setRecipient(e.target.value.trim())} placeholder={t("Адрес получателя")} aria-label={t("Адрес получателя")} autoComplete="off" spellCheck={false}
             style={{ ...inputStyle, fontFamily: 'monospace' }} />
@@ -202,7 +200,7 @@ export default function WalletManagement() {
             style={inputStyle} />
            <p style={{ fontSize: 11, color: 'var(--pf-red)', marginBottom: 10 }}>{t('Проверь адрес дважды — транзакцию в блокчейне нельзя отменить.')}</p>
            <motion.button whileTap={{ scale: 0.95 }} onClick={handleWithdraw} disabled={loading || !amount || !recipient}
-            style={{ width: '100%', padding: 12, borderRadius: 'var(--s-radius-chip)', background: !amount || !recipient ? 'var(--s-subtle-bg)' : 'var(--pf-gold)', color: 'white', fontSize: 13, fontWeight: 700, opacity: loading ? 0.7 : 1 }}>
+            style={{ width: '100%', padding: 12, borderRadius: 10, background: !amount || !recipient ? 'rgba(255,255,255,0.1)' : 'var(--pf-gold)', color: 'white', fontSize: 13, fontWeight: 700, opacity: loading ? 0.7 : 1 }}>
             {loading ? t(' Отправка…') : t('Передать {amount} {sym}', { amount: amount || '0', sym: currency.symbol })}
            </motion.button>
           </div>
@@ -220,7 +218,7 @@ export default function WalletManagement() {
 function ActionToggle({ active, color, onClick, icon, label }: { active: boolean; color: string; onClick: () => void; icon: React.ReactNode; label: string }) {
  return (
   <motion.button whileTap={{ scale: 0.95 }} onClick={onClick} aria-pressed={active}
-   style={{ padding: 12, borderRadius: 'var(--s-radius-chip)', background: active ? color : `${color}33`, border: `1px solid ${color}66`, color: active ? 'white' : color, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+   style={{ padding: 12, borderRadius: 3, background: active ? color : `${color}33`, border: `1px solid ${color}66`, color: active ? '#2A1206' : color, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
    <span aria-hidden="true">{icon}</span>
    {label}
   </motion.button>

@@ -1,5 +1,5 @@
 import { ReactNode, CSSProperties } from 'react'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 
 type Variant = 'primary' | 'secondary' | 'ghost'
 type Glow = 'orange' | 'pink' | 'teal' | 'gold' | 'purple' | 'green' | 'none'
@@ -16,7 +16,13 @@ interface Props {
 }
 
 /**
- * Кнопка Vice Potato с вариантами и glow.
+ * Клавиша пульта ARES-1 (MK-редизайн представления, 2026-09-28).
+ * Физическое поведение: клавиша имеет ход — при нажатии утапливается
+ * на 3px, пружина даёт лёгкий овершут; нижнее поле (край клавиши)
+ * «уходит» под палец. При prefers-reduced-motion — только подсветка.
+ *
+ * Пропсы и API не менялись (variant/glow/disabled/icon/onClick/…):
+ * `glow` сохранён для совместимости и трактуется как «лампа действия».
  */
 export default function Button({
  variant = 'primary',
@@ -28,63 +34,28 @@ export default function Button({
  style,
  className,
 }: Props) {
- const glows: Record<Glow, string> = {
-  orange: 'var(--pf-glow-orange)',
-  pink: 'var(--pf-glow-pink)',
-  teal: 'var(--pf-glow-teal)',
-  gold: 'var(--pf-glow-gold)',
-  purple: 'var(--pf-glow-purple)',
-  green: 'var(--pf-glow-green)',
-  none: 'none',
- }
+ const reducedMotion = useReducedMotion()
+ void glow
 
- const plateByVariant: Record<Variant, string> = {
-  primary: "url('/ares/kit/btn-primary.webp') 40 fill / 15px",
-  secondary: "url('/ares/kit/btn-secondary.webp') 40 fill / 15px",
-  ghost: 'none',
- }
-
- const borderByVariant: Record<Variant, string> = {
-  primary: '15px solid transparent',
-  secondary: '15px solid transparent',
-  ghost: '1px solid transparent',
- }
-
- const textColor: Record<Variant, string> = {
-  primary: '#2B1403',
-  secondary: '#E9DBC4',
-  ghost: 'var(--pf-text-secondary)',
- }
-
- const textShadowByVariant: Record<Variant, string> = {
-  primary: '0 1px 0 rgba(255, 220, 150, 0.55)',
-  secondary: '0 1px 2px rgba(0, 0, 0, 0.8)',
-  ghost: 'none',
- }
+ const variantClass =
+  variant === 'primary' ? 'mk-key mk-key--paint' : variant === 'secondary' ? 'mk-key' : 'mk-key mk-key--ghost'
 
  return (
   <motion.button
-   whileTap={disabled ? {} : { scale: 0.96 }}
-   whileHover={disabled ? {} : { scale: 1.02 }}
-   transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+   whileTap={disabled || reducedMotion ? undefined : { y: 3 }}
+   whileHover={disabled || reducedMotion ? undefined : { filter: 'brightness(1.08)' }}
+   transition={{ type: 'spring', stiffness: 520, damping: 26, mass: 0.9 }}
    disabled={disabled}
    onClick={onClick}
-   className={className}
+   className={`${variantClass}${className ? ` ${className}` : ''}`}
    style={{
     padding: '12px 20px',
-    borderRadius: variant === 'ghost' ? 'var(--pf-radius-btn)' : 0,
-    borderStyle: 'solid',
-    borderWidth: borderByVariant[variant],
-    borderImage: plateByVariant[variant],
-    background: 'none',
-    color: textColor[variant],
-    textShadow: textShadowByVariant[variant],
     fontSize: 14,
-    fontWeight: 600,
+    fontWeight: 700,
     fontFamily: 'var(--pf-font-ui)',
+    letterSpacing: '0.04em',
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.5 : 1,
-    boxShadow: disabled ? 'none' : glows[glow],
     display: 'flex',
     minWidth: 0,
     alignItems: 'center',

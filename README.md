@@ -5,7 +5,7 @@ First potato colony on Mars. Grow, trade, upgrade - 100% of $POTATO is born in p
 ## Demo
 
 - Landing: https://ares1.is-a.dev
-- Game: https://play.ares1.is-a.dev
+- Game: https://ares1-play.pages.dev (CNAME / alias: https://play.ares1.is-a.dev)
 - Network: Solana Devnet
 
 ## Structure
