@@ -174,6 +174,89 @@ describe("solana_potato", () => {
     });
   });
 
+  describe("grant_reward_once (replay-proof rail, gate G-1)", () => {
+    const rewardClaimPda = (userPotato: PublicKey, nonce: bigint) =>
+      pda(Buffer.from("reward"), userPotato.toBuffer(), u64(nonce));
+    const soon = () => new BN(Math.floor(Date.now() / 1000) + 300);
+    const once = (nonce: bigint, amount: number, expiresAt = soon(), userPotato = playerAta) =>
+      program.methods.grantRewardOnce(new BN(nonce.toString()), new BN(amount), expiresAt).accountsPartial({
+        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint,
+        userPotato, rewardClaim: rewardClaimPda(userPotato, nonce),
+        systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID,
+      });
+
+    it("pays once and records the claim", async () => {
+      const before = await ataBalance(playerAta);
+      await once(7n, 5_000_000).rpc();
+      expect(await ataBalance(playerAta)).to.eq(before + 5_000_000n);
+      const claim = await program.account.rewardClaim.fetch(rewardClaimPda(playerAta, 7n));
+      expect(claim.recipient.toBase58()).to.eq(playerAta.toBase58());
+      expect(claim.nonce.toString()).to.eq("7");
+      expect(claim.amountMicro.toString()).to.eq("5000000");
+    });
+
+    it("rejects a replay of the same nonce and mints nothing", async () => {
+      const before = await ataBalance(playerAta);
+      // The marker account already exists, so `init` fails inside the runtime:
+      // no amount of off-chain bookkeeping is trusted for this check.
+      await expectFail(once(7n, 5_000_000).rpc());
+      expect(await ataBalance(playerAta)).to.eq(before);
+    });
+
+    it("accepts a fresh nonce for the same recipient", async () => {
+      const before = await ataBalance(playerAta);
+      await once(8n, 1_000_000).rpc();
+      expect(await ataBalance(playerAta)).to.eq(before + 1_000_000n);
+    });
+
+    it("rejects an expired claim", async () => {
+      await expectFail(
+        once(9n, 1_000_000, new BN(Math.floor(Date.now() / 1000) - 60)).rpc(),
+        "RewardClaimExpired",
+      );
+    });
+
+    it("rejects an expiry beyond the 15-minute window", async () => {
+      await expectFail(
+        once(10n, 1_000_000, new BN(Math.floor(Date.now() / 1000) + 86_400)).rpc(),
+        "RewardExpiryTooFar",
+      );
+    });
+
+    it("rejects amounts above the per-reward bound", async () => {
+      await expectFail(once(11n, 1_000_000_001).rpc(), "RewardTooLarge");
+    });
+
+    it("rejects a non-authority signer", async () => {
+      await expectFail(
+        program.methods.grantRewardOnce(new BN(12), new BN(1_000_000), soon()).accountsPartial({
+          config: configPda, epoch: epochPda(0), authority: player.publicKey, potatoMint: mint,
+          userPotato: playerAta, rewardClaim: rewardClaimPda(playerAta, 12n),
+          systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID,
+        }).signers([player]).rpc(),
+        "Unauthorized",
+      );
+    });
+
+    it("rejects a claim PDA derived from a different nonce", async () => {
+      await expectFail(
+        program.methods.grantRewardOnce(new BN(13), new BN(1_000_000), soon()).accountsPartial({
+          config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint,
+          userPotato: playerAta, rewardClaim: rewardClaimPda(playerAta, 14n),
+          systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID,
+        }).rpc(),
+      );
+    });
+
+    it("counts toward the same epoch grant quota as grant_reward", async () => {
+      const before = await program.account.epoch.fetch(epochPda(0));
+      await once(15n, 2_000_000).rpc();
+      const after = await program.account.epoch.fetch(epochPda(0));
+      expect(BigInt(after.grantedMicro.toString()) - BigInt(before.grantedMicro.toString())).to.eq(2_000_000n);
+      expect(BigInt(after.mintedMicro.toString()) - BigInt(before.mintedMicro.toString())).to.eq(2_000_000n);
+    });
+  });
+
   describe("reward signer separation", () => {
     it("delegates mint only, rejects admin actions, and revokes the old signer", async () => {
       const rewardSigner = Keypair.generate();
