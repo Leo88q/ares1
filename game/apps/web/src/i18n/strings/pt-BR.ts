@@ -505,6 +505,7 @@ const ptBR: Record<string, string> = {
   'Установите Phantom Wallet': 'Instale a Phantom Wallet',
   'Громкость музыки': 'Volume da música',
   'Игра упала': 'O jogo travou',
+  'Игра не запустилась: не заданы VITE_PROGRAM_ID / VITE_RPC_URL. На Cloudflare Pages задай их в Settings → Environment variables; локально — в apps/web/.env (см. .env.example).': 'O jogo não conseguiu iniciar: VITE_PROGRAM_ID / VITE_RPC_URL não definidos. No Cloudflare Pages configure-os em Settings → Environment variables; localmente, em apps/web/.env (veja .env.example).',
   'СИГНАЛ КОЛОНИИ ПРИНЯТ': 'SINAL DA COLÔNIA RECEBIDO',
   'Транзакция не пройдёт на сети:': 'A transação vai falhar na rede:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'A transação foi enviada, mas não houve confirmação. Verifique a carteira antes de tentar de novo — a ação pode já ter sido concluída.',
