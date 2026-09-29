@@ -74,6 +74,14 @@ export function initI18n(all: Partial<Record<Lang, Record<string, string>>>): vo
 }
 
 let current: Lang = detect();
+
+// Язык проставляем в <html lang> сразу при загрузке: от него зависят
+// :lang()-правила адаптации рамок и переносы слов в браузере.
+try {
+  document.documentElement.lang = current === "es-419" ? "es" : current;
+} catch {
+  /* нет DOM (тесты/SSR) */
+}
 const listeners = new Set<() => void>();
 
 export function getLang(): Lang {
@@ -149,4 +157,32 @@ export interface I18n {
 export function useI18n(): I18n {
   const lang = useSyncExternalStore(subscribe, getLang, getLang);
   return { lang, setLang: setLang, t, plural };
+}
+
+const proxyCache = new WeakMap<object, unknown>();
+
+/**
+ * Ленивый глубокий транслятор объектов: строки переводятся при обращении,
+ * поэтому модуль-константы из content.ts реагируют на смену языка без пересоздания.
+ */
+export function tr<T>(value: T): T {
+  if (typeof value === "string") return t(value) as unknown as T;
+  if (value && typeof value === "object") {
+    const cached = proxyCache.get(value);
+    if (cached) return cached as T;
+    const proxy = new Proxy(value, {
+      get(target: T & object, prop: string | symbol) {
+        if (typeof prop === "symbol") {
+          return (target as Record<symbol, unknown>)[prop];
+        }
+        const v = (target as Record<string, unknown>)[prop];
+        if (typeof v === "string") return t(v) as never;
+        if (v && typeof v === "object") return tr(v);
+        return v;
+      },
+    });
+    proxyCache.set(value, proxy);
+    return proxy as T;
+  }
+  return value;
 }

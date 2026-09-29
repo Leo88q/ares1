@@ -9,6 +9,7 @@ import {
   subscribeConsent,
   type ConsentCategory,
 } from '../utils/consent'
+import { useI18n } from '../i18n'
 import './CookieConsent.css'
 
 /**
@@ -53,51 +54,31 @@ interface Labels {
   record: string
 }
 
-const LABELS: Record<'ru' | 'en', Labels> = {
-  ru: {
-    title: 'Cookies и локальное хранилище',
-    intro:
+// Ярлыки строятся через i18n: ключ — русская строка, перевод берётся из словаря.
+function buildLabels(tr: (k: string) => string): Labels {
+  return {
+    title: tr('Cookies и локальное хранилище'),
+    intro: tr(
       'Мы не используем аналитику и рекламу и не устанавливаем cookies. Данные ниже остаются в вашем браузере и нужны только для работы сайта. Решение можно изменить в любой момент.',
-    necessary: 'Необходимое',
-    necessaryNote: 'Только запись вашего выбора. Без этого баннер нельзя запомнить.',
-    functional: 'Функциональное',
-    functionalNote: 'Язык, звук, вибрация, флаг подключения кошелька, кэш адресов.',
-    analytics: 'Аналитика',
-    analyticsNote: 'Сейчас не используется. Включается только вами.',
-    marketing: 'Маркетинг',
-    marketingNote: 'Сейчас не используется. Включается только вами.',
-    acceptAll: 'Принять все',
-    rejectAll: 'Отклонить все',
-    save: 'Сохранить выбор',
-    close: 'Закрыть',
-    manage: 'Настроить',
-    policy: 'Cookie Policy',
-    gpc: 'Браузер передаёт сигнал Global Privacy Control — необязательные категории отключены.',
-    alwaysOn: 'всегда',
-    record: 'Запись решения',
-  },
-  en: {
-    title: 'Cookies and local storage',
-    intro:
-      'We run no analytics and no advertising and set no cookies. Everything below stays in your browser and only makes the site work. You can change this at any time.',
-    necessary: 'Necessary',
-    necessaryNote: 'Only stores your choice. Without it the banner cannot remember anything.',
-    functional: 'Functional',
-    functionalNote: 'Language, sound, haptics, wallet-reconnect flag, address cache.',
-    analytics: 'Analytics',
-    analyticsNote: 'Not used today. Switched on only by you.',
-    marketing: 'Marketing',
-    marketingNote: 'Not used today. Switched on only by you.',
-    acceptAll: 'Accept all',
-    rejectAll: 'Reject all',
-    save: 'Save choice',
-    close: 'Close',
-    manage: 'Manage',
-    policy: 'Cookie Policy',
-    gpc: 'Your browser sends Global Privacy Control — optional categories are off.',
-    alwaysOn: 'always on',
-    record: 'Your decision record',
-  },
+    ),
+    necessary: tr('Необходимое'),
+    necessaryNote: tr('Только запись вашего выбора. Без этого баннер нельзя запомнить.'),
+    functional: tr('Функциональное'),
+    functionalNote: tr('Язык, звук, вибрация, флаг подключения кошелька, кэш адресов.'),
+    analytics: tr('Аналитика'),
+    analyticsNote: tr('Сейчас не используется. Включается только вами.'),
+    marketing: tr('Маркетинг'),
+    marketingNote: tr('Сейчас не используется. Включается только вами.'),
+    acceptAll: tr('Принять все'),
+    rejectAll: tr('Отклонить все'),
+    save: tr('Сохранить выбор'),
+    close: tr('Закрыть'),
+    manage: tr('Настроить'),
+    policy: tr('Политика cookie'),
+    gpc: tr('Браузер передаёт сигнал Global Privacy Control — необязательные категории отключены.'),
+    alwaysOn: tr('всегда'),
+    record: tr('Запись решения'),
+  }
 }
 
 const OPTIONAL: Exclude<ConsentCategory, 'necessary'>[] = ['functional', 'analytics', 'marketing']
@@ -114,15 +95,10 @@ export function openCookieSettings(): void {
   window.dispatchEvent(new Event(OPEN_EVENT))
 }
 
-function currentLang(): 'ru' | 'en' {
-  const nav = (navigator.language || 'en').toLowerCase()
-  return nav.startsWith('ru') ? 'ru' : 'en'
-}
-
 export function CookieConsent(): JSX.Element | null {
   const [open, setOpen] = useState(false)
   const [showDetail, setShowDetail] = useState(false)
-  const [lang] = useState<'ru' | 'en'>(currentLang)
+  const { lang, t: translate } = useI18n()
   const [draft, setDraft] = useState<Record<string, boolean>>({
     functional: false,
     analytics: false,
@@ -130,7 +106,7 @@ export function CookieConsent(): JSX.Element | null {
   })
   const [record, setRecord] = useState(() => readConsent())
 
-  const t = useMemo(() => LABELS[lang], [lang])
+  const t = useMemo(() => buildLabels(translate), [lang, translate])
 
   useEffect(() => {
     applyGpcDefault()
@@ -268,7 +244,7 @@ export function CookieConsent(): JSX.Element | null {
             <span className="consent__record">
               {' '}
               · {t.record}: {record.decisionId} · v{CONSENT_VERSION} ·{' '}
-              {new Date(record.decidedAt).toLocaleDateString()}
+              {new Date(record.decidedAt).toLocaleDateString(lang === 'es-419' ? 'es' : lang)}
             </span>
           ) : null}
         </p>

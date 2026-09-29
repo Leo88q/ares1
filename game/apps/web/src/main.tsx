@@ -23,6 +23,7 @@ import './theme/tokens.css'
 import './styles/global.css'
 import './styles/kit.css'
 import './index.css'
+import './styles/i18n-fit.css'
 // Vendored: upstream shipped a remote @import for DM Sans (see the file header).
 import './styles/wallet-adapter.css'
 
@@ -109,7 +110,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
   if (this.state.error) {
    return (
     <div style={{ padding: 20, color: '#fff', background: '#0a0a0f', minHeight: '100vh', fontFamily: 'monospace' }}>
-     <h1><Glyph name="warning" size={26} style={{ verticalAlign: "-4px", marginRight: 8 }} />Игра упала</h1>
+     <h1><Glyph name="warning" size={26} style={{ verticalAlign: "-4px", marginRight: 8 }} />{t('Игра упала')}</h1>
      <p>{this.state.error.message}</p>
      <pre style={{ fontSize: 11, opacity: 0.7 }}>{this.state.error.stack}</pre>
      <button onClick={() => window.location.reload()}>{t('Перезагрузить')}</button>

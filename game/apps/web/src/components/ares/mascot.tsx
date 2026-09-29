@@ -130,7 +130,7 @@ export interface HomeBeaconProps {
  className?: string;
 }
 
-const HOME_TOOLTIP_TEXT = 'ДОМ. 225 МЛН КМ. ШЛЁМ КАРТОШКУ.';
+const HOME_TOOLTIP_KEY = 'ДОМ. 225 МЛН КМ. ШЛЁМ КАРТОШКУ.';
 const HOME_TOOLTIP_VISIBLE_MS = 2400;
 
 export const HomeBeacon = memo(function HomeBeacon({
@@ -190,7 +190,7 @@ export const HomeBeacon = memo(function HomeBeacon({
        color: 'var(--ares-blueset, #6B93D6)',
       }}
      >
-      {t(HOME_TOOLTIP_TEXT)}
+      {t(HOME_TOOLTIP_KEY)}
      </motion.span>
     ) : null}
    </AnimatePresence>

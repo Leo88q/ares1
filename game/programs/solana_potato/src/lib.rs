@@ -69,6 +69,11 @@ pub const MAX_REWARD_MICRO: u64 = 1_000_000_000;
 /// Manual `grant_reward` mints may consume at most this share (bps) of an
 /// epoch cap: 10 %. Gameplay harvests keep the rest.
 pub const GRANT_QUOTA_SHARE_BPS: u64 = 1_000;
+/// G-1b (Drift, апрель 2026): заранее подписанная durable-nonce транзакция не
+/// истекает сама. Заявка на награду обязана нести собственный дедлайн, и он не
+/// может быть отодвинут дальше этого окна — подпись, пролежавшая у атакующего
+/// дольше, becomes worthless.
+pub const MAX_REWARD_EXPIRY_SECONDS: i64 = 900; // 15 минут
 /// Default total supply ceiling: 1 000 000 000 $POTATO.
 pub const DEFAULT_MAX_SUPPLY_MICRO: u64 = 1_000_000_000_000_000;
 /// Default base yield of a level-1, 1.0× field: 6 $POTATO / day.
@@ -1337,24 +1342,7 @@ pub mod solana_potato {
             .saturating_sub(ctx.accounts.potato_mint.supply);
         require!(amount_micro <= supply_left, GameError::MaxSupplyReached);
 
-        let epoch = &mut ctx.accounts.epoch;
-        // Квота ручных грантов: суммарно не более GRANT_QUOTA_SHARE_BPS (10 %)
-        // капа эпохи. Иначе скомпрометированный reward_signer мог бы вычерпать
-        // весь дневной кап грантами, оставив игроков без harvest.
-        let grant_quota = ((epoch.mint_cap_micro as u128)
-            .checked_mul(GRANT_QUOTA_SHARE_BPS as u128)
-            .ok_or(GameError::MathOverflow)?
-            / BPS) as u64;
-        let new_granted = epoch
-            .granted_micro
-            .checked_add(amount_micro)
-            .ok_or(GameError::MathOverflow)?;
-        require!(new_granted <= grant_quota, GameError::GrantQuotaExceeded);
-        epoch.granted_micro = new_granted;
-
-        let new_minted = epoch.minted_micro.checked_add(amount_micro).ok_or(GameError::MathOverflow)?;
-        require!(new_minted <= epoch.mint_cap_micro, GameError::EpochCapExceeded);
-        epoch.minted_micro = new_minted;
+        charge_epoch_grant(&mut ctx.accounts.epoch, amount_micro)?;
 
         let bump = ctx.accounts.config.bump;
         let seeds: &[&[u8]] = &[b"config", &[bump]];
@@ -1372,6 +1360,77 @@ pub mod solana_potato {
             amount_micro,
         )?;
         emit!(RewardGranted { recipient: ctx.accounts.user_potato.owner, amount_micro });
+        Ok(())
+    }
+
+    /// Replay-proof reward rail (gate G-1, checklist item 41).
+    ///
+    /// `grant_reward` above authorises by signature alone: the same signed
+    /// transaction can be submitted twice, and an off-chain "already paid"
+    /// check loses every race. That is the exact class of bug that cost Aurory
+    /// ~600k tokens. Here the payout is bound to a `reward_claim` PDA created
+    /// with `init`, so the second attempt with the same (recipient, nonce)
+    /// fails inside the runtime — no off-chain bookkeeping is trusted.
+    ///
+    /// `expires_at` closes the durable-nonce window (G-1b): a signature that
+    /// sat in an attacker's pocket past its deadline mints nothing.
+    pub fn grant_reward_once(
+        ctx: Context<GrantRewardOnce>,
+        nonce: u64,
+        amount_micro: u64,
+        expires_at: i64,
+    ) -> Result<()> {
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        let signer_key = ctx.accounts.authority.key();
+        let cfg = &ctx.accounts.config;
+        let authorized = signer_key == cfg.reward_signer || signer_key == cfg.authority;
+        require!(authorized, GameError::Unauthorized);
+        require!(
+            amount_micro > 0 && amount_micro <= MAX_REWARD_MICRO,
+            GameError::RewardTooLarge
+        );
+
+        let now = Clock::get()?.unix_timestamp;
+        require!(now <= expires_at, GameError::RewardClaimExpired);
+        require!(
+            expires_at.saturating_sub(now) <= MAX_REWARD_EXPIRY_SECONDS,
+            GameError::RewardExpiryTooFar
+        );
+
+        let supply_left = cfg
+            .max_supply_micro
+            .saturating_sub(ctx.accounts.potato_mint.supply);
+        require!(amount_micro <= supply_left, GameError::MaxSupplyReached);
+
+        charge_epoch_grant(&mut ctx.accounts.epoch, amount_micro)?;
+
+        let claim = &mut ctx.accounts.reward_claim;
+        claim.recipient = ctx.accounts.user_potato.key();
+        claim.nonce = nonce;
+        claim.amount_micro = amount_micro;
+        claim.claimed_at = now;
+        claim.bump = ctx.bumps.reward_claim;
+
+        let bump = ctx.accounts.config.bump;
+        let seeds: &[&[u8]] = &[b"config", &[bump]];
+        let signer: &[&[&[u8]]] = &[seeds];
+        token::mint_to(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                MintTo {
+                    mint: ctx.accounts.potato_mint.to_account_info(),
+                    to: ctx.accounts.user_potato.to_account_info(),
+                    authority: ctx.accounts.config.to_account_info(),
+                },
+                signer,
+            ),
+            amount_micro,
+        )?;
+        emit!(RewardGrantedOnce {
+            recipient: ctx.accounts.user_potato.owner,
+            nonce,
+            amount_micro,
+        });
         Ok(())
     }
 
@@ -1948,6 +2007,33 @@ fn write_field_account(field: &Field, data: &mut [u8]) -> Result<()> {
 }
 
 // ────────────────────────── Pure helpers ─────────────────────────
+
+/// Списывает сумму гранта с квоты и капа эпохи. Один источник правды для
+/// `grant_reward` и `grant_reward_once`: если правило разъедется между двумя
+/// рельсами, более слабый станет обходным путём вокруг более строгого.
+pub fn charge_epoch_grant(epoch: &mut Epoch, amount_micro: u64) -> Result<()> {
+    // Квота ручных грантов: суммарно не более GRANT_QUOTA_SHARE_BPS (10 %)
+    // капа эпохи. Иначе скомпрометированный reward_signer мог бы вычерпать
+    // весь дневной кап грантами, оставив игроков без harvest.
+    let grant_quota = ((epoch.mint_cap_micro as u128)
+        .checked_mul(GRANT_QUOTA_SHARE_BPS as u128)
+        .ok_or(GameError::MathOverflow)?
+        / BPS) as u64;
+    let new_granted = epoch
+        .granted_micro
+        .checked_add(amount_micro)
+        .ok_or(GameError::MathOverflow)?;
+    require!(new_granted <= grant_quota, GameError::GrantQuotaExceeded);
+    epoch.granted_micro = new_granted;
+
+    let new_minted = epoch
+        .minted_micro
+        .checked_add(amount_micro)
+        .ok_or(GameError::MathOverflow)?;
+    require!(new_minted <= epoch.mint_cap_micro, GameError::EpochCapExceeded);
+    epoch.minted_micro = new_minted;
+    Ok(())
+}
 // Kept free of account types so they can be unit-tested on the host.
 
 /// Yield multiplier for a field type, in bps.
@@ -2783,6 +2869,39 @@ pub struct GrantReward<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+/// Accounts for `grant_reward_once`. The replay protection is structural:
+/// `reward_claim` uses plain `init` (never the init-if-needed variant — SW016),
+/// so a repeat of
+/// the same (recipient ATA, nonce) aborts in the runtime before any mint.
+/// The account is deliberately never closed: a closed claim could be re-created
+/// and the payout replayed, which is exactly what this rail prevents.
+#[derive(Accounts)]
+#[instruction(nonce: u64)]
+pub struct GrantRewardOnce<'info> {
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
+    pub config: Account<'info, GameConfig>,
+    #[account(mut, seeds = [b"epoch", config.epoch_id.to_le_bytes().as_ref()], bump = epoch.bump)]
+    pub epoch: Account<'info, Epoch>,
+    /// Low-priv backend key (`reward_signer`) or the authority; also pays rent
+    /// for the claim marker, so the cost of spamming nonces lands on the caller.
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub potato_mint: Account<'info, Mint>,
+    #[account(mut, token::mint = potato_mint)]
+    pub user_potato: Account<'info, TokenAccount>,
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + RewardClaim::INIT_SPACE,
+        seeds = [b"reward", user_potato.key().as_ref(), nonce.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub reward_claim: Account<'info, RewardClaim>,
+    pub system_program: Program<'info, System>,
+    pub token_program: Program<'info, Token>,
+}
+
 #[derive(Accounts)]
 pub struct WithdrawTreasury<'info> {
     #[account(seeds = [b"config"], bump = config.bump, has_one = authority, has_one = potato_mint)]
@@ -3168,6 +3287,19 @@ impl AdminState {
     }
 }
 
+/// One-shot payout marker. PDA seeds: `["reward", recipient_ata, nonce]`.
+/// Its mere existence means "this nonce has already been paid"; the stored
+/// fields exist for audit and reconciliation, not for the check itself.
+#[account]
+#[derive(InitSpace)]
+pub struct RewardClaim {
+    pub recipient: Pubkey,
+    pub nonce: u64,
+    pub amount_micro: u64,
+    pub claimed_at: i64,
+    pub bump: u8,
+}
+
 /// Реферальная связь игрока. PDA seeds: `["referral", owner]`.
 /// Создаётся один раз через `register_referrer` (burn 5 POTATO).
 #[account]
@@ -3256,6 +3388,13 @@ pub struct PresalePurchase {
     pub amount: u64,
     /// On-chain drop roll, 0-99: <70 COMMON, <95 RARE, else EPIC.
     pub roll: u8,
+}
+
+#[event]
+pub struct RewardGrantedOnce {
+    pub recipient: Pubkey,
+    pub nonce: u64,
+    pub amount_micro: u64,
 }
 
 #[event]
@@ -3542,6 +3681,10 @@ pub enum GameError {
     InvalidMintSupply, // 6047
     #[msg("SKR mint must have 6 decimals: all SKR prices are quoted in 10^-6 atoms")]
     InvalidSkrDecimals, // 6048
+    #[msg("Reward claim has expired: request a fresh nonce from the backend")]
+    RewardClaimExpired, // 6049
+    #[msg("Reward expiry is too far in the future (max 15 minutes)")]
+    RewardExpiryTooFar, // 6050
 }
 
 // ──────────────────────────── Tests ──────────────────────────────

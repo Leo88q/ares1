@@ -34,22 +34,75 @@ const EFFECTIVE_DATE = '2026-09-28';
 const REVIEW_DATE = '2027-03-28';
 
 /**
- * Fields the operator (or their lawyer) must fill in. `todo('...')` renders a
- * loud placeholder and legal.js counts them on the page.
+ * Operator details come from scripts/legal-operator.json — one source of truth,
+ * no placeholders. A required field that is empty throws at build time, so a
+ * document with a blank contact can never be generated, let alone deployed.
+ *
+ * `discloseIdentity: false` is a deliberate choice by the project owner: the
+ * documents then render a contact-only variant instead of naming an entity we
+ * do not have. The GDPR art. 13(1)(a) gap this leaves is recorded in
+ * docs/PRODUCTION_DEPLOY_CHECKLIST.md (L-01) rather than papered over with a
+ * fabricated legal name.
  */
-const op = (labelRu, labelEn) =>
-  `<span class="todo" title="Operator must fill this in before launch">` +
-  `<span data-lang="ru" class="inline">${labelRu}</span>` +
-  `<span data-lang="en" class="inline">${labelEn}</span></span>`;
+const OPERATOR = JSON.parse(
+  readFileSync(join(ROOT, 'scripts', 'legal-operator.json'), 'utf8'),
+);
 
-const OPERATOR_NAME = op('[НАИМЕНОВАНИЕ ОПЕРАТОРА]', '[OPERATOR LEGAL NAME]');
-const OPERATOR_ADDRESS = op('[ЮРИДИЧЕСКИЙ АДРЕС]', '[REGISTERED ADDRESS]');
-const OPERATOR_EMAIL = op('[EMAIL ОПЕРАТОРА]', '[OPERATOR EMAIL]');
-const PRIVACY_EMAIL = op('[EMAIL ДЛЯ ЗАПРОСОВ О ПД]', '[PRIVACY CONTACT EMAIL]');
-const GOVERNING_LAW = op('[ПРИМЕНИМОЕ ПРАВО]', '[GOVERNING LAW / JURISDICTION]');
-const DPO_INFO = op('[DPO / ПРЕДСТАВИТЕЛЬ В ЕС]', '[DPO OR EU REPRESENTATIVE]');
-const SUPERVISOR = op('[НАДЗОРНЫЙ ОРГАН]', '[SUPERVISORY AUTHORITY]');
-const COUNTRIES = op('[СПИСОК СТРАН АУДИТОРИИ]', '[LIST OF TARGET COUNTRIES]');
+function required(field) {
+  const value = OPERATOR[field];
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(
+      `legal-operator.json: "${field}" is required and must be a non-empty string`,
+    );
+  }
+  return value.trim();
+}
+
+function optional(field) {
+  const value = OPERATOR[field];
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+}
+
+const CONTACT_EMAIL = required('contactEmail');
+const PRIVACY_EMAIL_ADDR = required('privacyEmail');
+const COPYRIGHT_EMAIL_ADDR = required('copyrightEmail');
+const LEGAL_NAME = optional('legalName');
+const REGISTERED_ADDRESS = optional('registeredAddress');
+const GOVERNING_LAW_TEXT = optional('governingLaw');
+const DISCLOSE_IDENTITY = OPERATOR.discloseIdentity === true;
+
+if (DISCLOSE_IDENTITY && (!LEGAL_NAME || !REGISTERED_ADDRESS)) {
+  throw new Error(
+    'legal-operator.json: discloseIdentity=true requires legalName and registeredAddress',
+  );
+}
+
+const mail = (address) => `<a href="mailto:${address}">${address}</a>`;
+
+/** «Кто оператор» — с реквизитами или в варианте «только контакт». */
+function operatorLine(lang) {
+  const ru = lang === 'ru';
+  if (DISCLOSE_IDENTITY) {
+    return ru
+      ? `Оператор:&nbsp;${LEGAL_NAME}. Адрес:&nbsp;${REGISTERED_ADDRESS}. Контакт:&nbsp;${mail(CONTACT_EMAIL)}.`
+      : `Operator:&nbsp;${LEGAL_NAME}. Address:&nbsp;${REGISTERED_ADDRESS}. Contact:&nbsp;${mail(CONTACT_EMAIL)}.`;
+  }
+  return ru
+    ? `Проект ARES-1 ведёт частная команда разработчиков. Единый канал связи по любым вопросам, ` +
+      `включая юридические и запросы о персональных данных:&nbsp;${mail(CONTACT_EMAIL)}. ` +
+      `Мы отвечаем с того же адреса и не ведём переписку через посредников.`
+    : `ARES-1 is run by a private development team. A single channel handles every enquiry, ` +
+      `legal and data-protection requests included:&nbsp;${mail(CONTACT_EMAIL)}. ` +
+      `We reply from that same address and use no intermediaries.`;
+}
+
+/** Оговорка о применимом праве печатается только если она задана. */
+function governingLawSentence(lang) {
+  if (!GOVERNING_LAW_TEXT) return '';
+  return lang === 'ru'
+    ? ` Применимое право:&nbsp;${GOVERNING_LAW_TEXT}.`
+    : ` Governing law:&nbsp;${GOVERNING_LAW_TEXT}.`;
+}
 
 const NAV = [
   ['privacy.html', 'Конфиденциальность', 'Privacy'],
@@ -149,12 +202,17 @@ const PRIVACY_RU = `
 
           <h2>1. Кто оператор</h2>
           <p>
-            Оператор:&nbsp;${OPERATOR_NAME}. Адрес:&nbsp;${OPERATOR_ADDRESS}. Контакт:&nbsp;${OPERATOR_EMAIL}.
-            Применимое право:&nbsp;${GOVERNING_LAW}.
+            ${operatorLine('ru')}${governingLawSentence('ru')}
           </p>
           <p>
-            ${DPO_INFO}. Если вы считаете, что мы обрабатываем ваши данные незаконно, вы вправе подать жалобу
-            в надзорный орган:&nbsp;${SUPERVISOR}.
+            Отдельный специалист по защите данных (DPO) не назначен: мы не ведём систематического
+            мониторинга субъектов в крупном масштабе и не обрабатываем специальные категории данных,
+            то есть оснований ст. 37 GDPR для обязательного назначения нет. Все запросы принимает
+            тот же адрес:&nbsp;${mail(PRIVACY_EMAIL_ADDR)}.
+          </p>
+          <p>
+            Если вы считаете, что мы обрабатываем ваши данные незаконно, вы вправе подать жалобу
+            в надзорный орган по месту вашего жительства, работы или предполагаемого нарушения.
           </p>
 
           <h2>2. Какие данные мы собираем</h2>
@@ -208,9 +266,9 @@ const PRIVACY_RU = `
           <table>
             <thead><tr><th>Роль</th><th>Что делает</th><th>Страна обработки</th></tr></thead>
             <tbody>
-              <tr><td>Хостинг и CDN сайта</td><td>Отдача статических файлов, TLS</td><td>${COUNTRIES}</td></tr>
-              <tr><td>RPC-провайдер Solana</td><td>Чтение состояния блокчейна по нашему запросу</td><td>${COUNTRIES}</td></tr>
-              <tr><td>Почтовый сервис</td><td>Ответы на обращения</td><td>${COUNTRIES}</td></tr>
+              <tr><td>Cloudflare Pages (хостинг и CDN)</td><td>Отдача статических файлов, TLS, защита от DDoS</td><td>Глобальная сеть точек присутствия; ближайшая к вам обслуживает запрос</td></tr>
+              <tr><td>RPC-провайдер Solana</td><td>Чтение состояния блокчейна по вашему запросу из браузера</td><td>Глобальная сеть узлов провайдера</td></tr>
+              <tr><td>Почтовый провайдер домена</td><td>Приём и отправка писем по адресам из этих документов</td><td>Инфраструктура почтового провайдера</td></tr>
             </tbody>
           </table>
           <p>
@@ -222,13 +280,13 @@ const PRIVACY_RU = `
           <p>
             Блокчейн Solana распределён по всему миру, поэтому транзакция технически доступна любому узлу
             сети. Для передач процессорам за пределы ЕЭЗ мы используем стандартные договорные положения
-            (SCC) либо иное lawful основание: ${GOVERNING_LAW}.
+            (SCC) Европейской комиссии либо иное законное основание, предусмотренное главой V GDPR.
           </p>
 
           <h2>6. Ваши права</h2>
           <p>
             Вы можете запросить доступ к своим данным, их исправление, удаление, ограничение обработки,
-            переносимость, а также возразить против обработки. Напишите на ${PRIVACY_EMAIL}.
+            переносимость, а также возразить против обработки. Напишите на ${mail(PRIVACY_EMAIL_ADDR)}.
             Отвечаем в течение одного месяца (по GDPR).
           </p>
           <p>
@@ -269,12 +327,17 @@ const PRIVACY_EN = `
 
           <h2>1. Who is the operator</h2>
           <p>
-            Operator:&nbsp;${OPERATOR_NAME}. Address:&nbsp;${OPERATOR_ADDRESS}. Contact:&nbsp;${OPERATOR_EMAIL}.
-            Governing law:&nbsp;${GOVERNING_LAW}.
+            ${operatorLine('en')}${governingLawSentence('en')}
           </p>
           <p>
-            ${DPO_INFO}. If you believe we process your data unlawfully, you may lodge a complaint with
-            the supervisory authority:&nbsp;${SUPERVISOR}.
+            No separate Data Protection Officer is appointed: we carry out no large-scale systematic
+            monitoring of data subjects and process no special categories of data, so none of the
+            art. 37 GDPR triggers apply. The same address handles every request:&nbsp;${mail(PRIVACY_EMAIL_ADDR)}.
+          </p>
+          <p>
+            If you believe we process your data unlawfully, you may lodge a complaint with the
+            supervisory authority of your place of residence, place of work or of the alleged
+            infringement.
           </p>
 
           <h2>2. What we collect</h2>
@@ -328,9 +391,9 @@ const PRIVACY_EN = `
           <table>
             <thead><tr><th>Role</th><th>What it does</th><th>Country of processing</th></tr></thead>
             <tbody>
-              <tr><td>Site hosting and CDN</td><td>Serving static files, TLS</td><td>${COUNTRIES}</td></tr>
-              <tr><td>Solana RPC provider</td><td>Reading chain state on our behalf</td><td>${COUNTRIES}</td></tr>
-              <tr><td>Email provider</td><td>Replying to enquiries</td><td>${COUNTRIES}</td></tr>
+              <tr><td>Cloudflare Pages (hosting and CDN)</td><td>Serving static files, TLS, DDoS protection</td><td>Global edge network; the point of presence nearest to you serves the request</td></tr>
+              <tr><td>Solana RPC provider</td><td>Reading chain state for requests your browser makes</td><td>The provider's global node network</td></tr>
+              <tr><td>Domain email provider</td><td>Receiving and sending mail at the addresses in these documents</td><td>The email provider's infrastructure</td></tr>
             </tbody>
           </table>
           <p>
@@ -342,13 +405,13 @@ const PRIVACY_EN = `
           <p>
             Solana is a globally distributed ledger, so a transaction is technically visible to any node.
             For transfers to processors outside the EEA we rely on Standard Contractual Clauses or another
-            lawful mechanism: ${GOVERNING_LAW}.
+            lawful mechanism under Chapter V GDPR.
           </p>
 
           <h2>6. Your rights</h2>
           <p>
             You may request access to your data, rectification, erasure, restriction, portability, and you
-            may object to processing. Write to ${PRIVACY_EMAIL}. We reply within one month (GDPR).
+            may object to processing. Write to ${mail(PRIVACY_EMAIL_ADDR)}. We reply within one month (GDPR).
           </p>
           <p>
             We must verify that the request is really yours. We ask you to sign a message with the wallet
@@ -386,7 +449,7 @@ const TERMS_RU = `
           </p>
 
           <h2>1. Оператор и контакт</h2>
-          <p>${OPERATOR_NAME}, ${OPERATOR_ADDRESS}, ${OPERATOR_EMAIL}. Применимое право: ${GOVERNING_LAW}.</p>
+          <p>${operatorLine('ru')}${governingLawSentence('ru')}</p>
 
           <h2>2. Возраст</h2>
           <p>
@@ -451,8 +514,11 @@ const TERMS_RU = `
 
           <h2>10. Порядок споров</h2>
           <p>
-            Сначала&nbsp;— обращение к нам для досудебного урегулирования. Применимое право: ${GOVERNING_LAW}.
-            Права потребителей, предусмотренные императивными нормами вашей страны, сохраняются.
+            Сначала&nbsp;— обращение к нам для досудебного урегулирования: напишите на
+            ${mail(CONTACT_EMAIL)}, мы отвечаем в течение одного месяца.${governingLawSentence('ru')}
+            Отдельной оговорки о применимом праве и подсудности эти Условия не содержат: спор
+            разрешается по коллизионным нормам, а императивные права потребителя, предусмотренные
+            законом вашей страны, сохраняются в полном объёме и этими Условиями не ограничиваются.
           </p>
 `;
 
@@ -463,7 +529,7 @@ const TERMS_EN = `
           </p>
 
           <h2>1. Operator and contact</h2>
-          <p>${OPERATOR_NAME}, ${OPERATOR_ADDRESS}, ${OPERATOR_EMAIL}. Governing law: ${GOVERNING_LAW}.</p>
+          <p>${operatorLine('en')}${governingLawSentence('en')}</p>
 
           <h2>2. Age</h2>
           <p>
@@ -525,8 +591,11 @@ const TERMS_EN = `
 
           <h2>10. Disputes</h2>
           <p>
-            Contact us first so the issue can be resolved without litigation. Governing law:
-            ${GOVERNING_LAW}. Mandatory consumer rights in your country are preserved.
+            Contact us first so the issue can be resolved without litigation: write to
+            ${mail(CONTACT_EMAIL)} and we reply within one month.${governingLawSentence('en')}
+            These Terms contain no separate choice-of-law or forum clause: a dispute is decided by the
+            applicable conflict-of-laws rules, and the mandatory consumer rights granted by the law of
+            your country are preserved in full and are not limited by these Terms.
           </p>
 `;
 
@@ -843,7 +912,12 @@ const THIRD_PARTY_RU = `
           <h2>Музыка и звуки</h2>
           <p>
             Файлы в <code>/music/</code> и <code>/sfx/</code> и их лицензии перечислены в
-            <code>/music/CREDITS.txt</code>. ${op('[ПРОВЕРИТЬ ПРАВА НА МУЗЫКУ]', '[VERIFY MUSIC LICENSING]')}
+            <code>/music/CREDITS.txt</code>. Фоновый трек «Cipher» (Kevin MacLeod, incompetech.com)
+            используется по лицензии Creative Commons Attribution 4.0 International (CC BY 4.0);
+            требуемая атрибуция приведена в том же файле и в настройках звука внутри игры.
+            Звуковые эффекты в <code>/sfx/</code> сопроводительной лицензионной документации не имеют
+            и до её появления считаются непроверенными: правообладатель может потребовать удаления
+            через процедуру на странице «Жалобы».
           </p>
 
           <h2>Репозиторий проекта</h2>
@@ -893,7 +967,12 @@ const THIRD_PARTY_EN = `
           <h2>Music and sounds</h2>
           <p>
             Files under <code>/music/</code> and <code>/sfx/</code> and their licences are listed in
-            <code>/music/CREDITS.txt</code>. ${op('[VERIFY MUSIC LICENSING]', '[VERIFY MUSIC LICENSING]')}
+            <code>/music/CREDITS.txt</code>. The background track "Cipher" (Kevin MacLeod,
+            incompetech.com) is used under the Creative Commons Attribution 4.0 International licence
+            (CC BY 4.0); the required attribution is in that file and in the in-game audio settings.
+            The sound effects under <code>/sfx/</code> carry no accompanying licence documentation and
+            are treated as unverified until it exists: a rights holder may request removal through the
+            procedure on the Takedown page.
           </p>
 
           <h2>Project repository</h2>
@@ -923,7 +1002,7 @@ const DMCA_RU = `
           </ol>
 
           <h2>Куда отправлять</h2>
-          <p>${OPERATOR_EMAIL} с темой «Copyright complaint».</p>
+          <p>${mail(COPYRIGHT_EMAIL_ADDR)} с темой «Copyright complaint».</p>
 
           <h2>Встречное уведомление</h2>
           <p>
@@ -955,7 +1034,7 @@ const DMCA_EN = `
           </ol>
 
           <h2>Where to send</h2>
-          <p>${OPERATOR_EMAIL} with the subject "Copyright complaint".</p>
+          <p>${mail(COPYRIGHT_EMAIL_ADDR)} with the subject "Copyright complaint".</p>
 
           <h2>Counter-notice</h2>
           <p>
@@ -1028,9 +1107,26 @@ const PAGES = [
 
 if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
 
+/**
+ * A placeholder that reaches production is the exact failure this generator
+ * exists to prevent, so it is a hard error rather than a lint warning:
+ * `span.todo` was the old marker, and bare [BRACKETED CAPS] is how a new one
+ * would most likely be written by hand.
+ */
+function assertNoPlaceholders(file, html) {
+  const problems = [];
+  if (html.includes('class="todo"')) problems.push('span.todo marker');
+  const bracketed = html.match(/\[[A-ZА-Я][A-ZА-Я \/.-]{3,}\]/g);
+  if (bracketed) problems.push(`bracketed placeholder(s): ${[...new Set(bracketed)].join(', ')}`);
+  if (problems.length) {
+    throw new Error(`${file}: ${problems.join('; ')} — fill scripts/legal-operator.json`);
+  }
+}
+
 let stale = 0;
 for (const spec of PAGES) {
   const html = page(spec);
+  assertNoPlaceholders(spec.file, html);
   const out = join(OUT_DIR, spec.file);
   if (CHECK) {
     const current = existsSync(out) ? readFileSync(out, 'utf8') : '';
