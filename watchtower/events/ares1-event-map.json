@@ -184,6 +184,14 @@
     "notes": "Observed program event; not a complete token accounting ledger."
   },
   {
+    "on_chain_event": "RewardGrantedOnce",
+    "normalized_event": "RewardGrantedOnce",
+    "category": "economy",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "Replay-safe reward rail (G-1): distinct from RewardGranted (legacy signature-only rail); payout bound to a nonce reward_claim PDA."
+  },
+  {
     "on_chain_event": "RewardSignerUpdated",
     "normalized_event": "AuthorityChanged",
     "category": "security",

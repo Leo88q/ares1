@@ -83,7 +83,7 @@ version и row lock. Сбой/обрыв соединения откатывае
   пересборки игрового IDL snapshot перегенерируется одной командой:
   `node scripts/sync-idl.mjs` (обновляет также `idlSha256` в
   `integration-manifest.json` и падает, если event-map разошёлся с IDL).
-- `events/ares1-event-map.json` покрывает **30 существующих событий**. Gameplay,
+- `events/ares1-event-map.json` покрывает **31 существующее событие**. Gameplay,
   покупки, рынок, rewards, treasury и authority/config changes сохраняются по
   фактически испущенным событиям. u64/i64 экспортируются десятичными **строками**.
 - `PresalePurchase.sol_amount` исторически неоднозначен: `buy_field_skr` → SKR,

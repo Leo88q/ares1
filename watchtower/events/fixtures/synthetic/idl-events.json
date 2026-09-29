@@ -221,6 +221,16 @@
   },
   {
     "provenance": "synthetic",
+    "onChainEvent": "RewardGrantedOnce",
+    "base64": "kV5qr0Qhb08AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHwEAAAAAAAAAAQAAAAAAIAA=",
+    "expected": {
+      "recipient": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
+      "nonce": "1",
+      "amount_micro": "9007199254740993"
+    }
+  },
+  {
+    "provenance": "synthetic",
     "onChainEvent": "RewardSignerUpdated",
     "base64": "BAxQsA4/rsgAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHw==",
     "expected": {

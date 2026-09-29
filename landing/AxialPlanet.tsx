@@ -186,6 +186,7 @@ export function AxialPlanet({
   const { ref, active } = useLivingScene<HTMLDivElement>();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [ready, setReady] = useState(false);
+  const [supported, setSupported] = useState(true);
   const angleRef = useRef(0);
 
   useEffect(() => {
@@ -193,6 +194,8 @@ export function AxialPlanet({
     const context = canvas?.getContext("2d", { alpha: true });
 
     if (!canvas || !context) {
+      // Нет 2D-контекста — оставляем статичный арт как фолбэк.
+      setSupported(false);
       return;
     }
 
@@ -300,7 +303,9 @@ export function AxialPlanet({
 
   return (
     <div ref={ref} className="axial-planet" aria-hidden="true">
-      {children}
+      {/* Статичный арт — только фолбэк для сред без canvas 2D: иначе он
+          накладывается на новый процедурный шар и выглядит как две планеты. */}
+      {!supported && children}
       <canvas
         ref={canvasRef}
         className="axial-planet-surface"
