@@ -505,6 +505,7 @@ const es419: Record<string, string> = {
   'Установите Phantom Wallet': 'Instala Phantom Wallet',
   'Громкость музыки': 'Volumen de la música',
   'Игра упала': 'El juego se cayó',
+  'Игра не запустилась: не заданы VITE_PROGRAM_ID / VITE_RPC_URL. На Cloudflare Pages задай их в Settings → Environment variables; локально — в apps/web/.env (см. .env.example).': 'El juego no pudo iniciarse: no están definidos VITE_PROGRAM_ID / VITE_RPC_URL. En Cloudflare Pages configúralos en Settings → Environment variables; localmente, en apps/web/.env (ver .env.example).',
   'СИГНАЛ КОЛОНИИ ПРИНЯТ': 'SEÑAL DE LA COLONIA RECIBIDA',
   'Транзакция не пройдёт на сети:': 'La transacción fallará en la red:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'La transacción se envió, pero no llegó la confirmación. Revisa tu billetera antes de reintentar: la acción puede haberse completado ya.',

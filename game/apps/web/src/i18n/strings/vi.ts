@@ -505,6 +505,7 @@ const vi: Record<string, string> = {
   'Установите Phantom Wallet': 'Hãy cài Phantom Wallet',
   'Громкость музыки': 'Âm lượng nhạc',
   'Игра упала': 'Trò chơi đã gặp sự cố',
+  'Игра не запустилась: не заданы VITE_PROGRAM_ID / VITE_RPC_URL. На Cloudflare Pages задай их в Settings → Environment variables; локально — в apps/web/.env (см. .env.example).': 'Trò chơi không khởi động được: chưa đặt VITE_PROGRAM_ID / VITE_RPC_URL. Trên Cloudflare Pages, đặt chúng trong Settings → Environment variables; cục bộ — trong apps/web/.env (xem .env.example).',
   'СИГНАЛ КОЛОНИИ ПРИНЯТ': 'ĐÃ NHẬN TÍN HIỆU THUỘC ĐỊA',
   'Транзакция не пройдёт на сети:': 'Giao dịch sẽ thất bại trên mạng:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'Giao dịch đã được gửi nhưng chưa có xác nhận. Hãy kiểm tra ví trước khi thử lại — thao tác có thể đã hoàn tất.',
