@@ -56,16 +56,15 @@
   letter-spacing: 0.16em;
 }
 
-/* Feature housings use a stamped tooling recess. */
+/* Feature housings use a stamped tooling recess — без тёмной плашки:
+   эмблема сама по себе (латунь/янтарь), фон только мягкое тёплое свечение. */
 [data-ares-hull="true"] .feature-icon {
   position: relative;
-  border: 1px solid #51434D;
+  border: 1px solid rgba(222, 167, 127, 0.34);
   border-radius: 2px;
   background:
-    linear-gradient(135deg, #2A1D25, #17131B);
-  box-shadow:
-    inset 2px 2px 0 rgba(0, 0, 0, 0.32),
-    inset -1px -1px 0 rgba(208, 168, 146, 0.08);
+    radial-gradient(circle at 50% 40%, rgba(255, 179, 71, 0.15), rgba(255, 179, 71, 0.02) 62%, transparent 76%);
+  box-shadow: inset 0 0 0 1px rgba(255, 179, 71, 0.05);
   color: #DEA77F;
 }
 

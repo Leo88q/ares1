@@ -156,7 +156,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
         color: 'var(--pf-text-muted)',
         marginBottom: 8,
        }}>
-        t('ПРОГРЕСС') · {currentStep + 1} / {TUTORIAL_STEPS.length}
+        {t('ПРОГРЕСС')} · {currentStep + 1} / {TUTORIAL_STEPS.length}
        </div>
        <div style={{
         display: 'flex',
