@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "Единственный источник правды для реквизитов в юридических документах.",
+    "scripts/build-legal-pages.mjs читает этот файл; заглушек в генераторе больше нет —",
+    "пустое обязательное поле роняет сборку, а не печатает [PLACEHOLDER] на проде.",
+    "",
+    "discloseIdentity=false — оператор не раскрывает наименование и адрес: документы",
+    "рендерятся в варианте «контакт только по email». Это осознанный выбор владельца",
+    "проекта. Юридический риск задокументирован в docs/PRODUCTION_DEPLOY_CHECKLIST.md",
+    "(L-01): GDPR art. 13(1)(a) требует identity and contact details контролёра, поэтому",
+    "для аудитории из ЕЭЗ такой вариант неполон. Чтобы раскрыть реквизиты — поставьте",
+    "discloseIdentity=true и заполните legalName/registeredAddress.",
+    "",
+    "governingLaw=null — оговорка о применимом праве в документах отсутствует; спор",
+    "разрешается по коллизионным нормам, а императивные права потребителя сохраняются",
+    "в любом случае (об этом прямо сказано в Условиях).",
+    "",
+    "Адреса: security@ares1.is-a.dev — единственный канал, который проект уже публикует",
+    "(/.well-known/security.txt и футер лендинга). Если заведёте отдельные ящики для",
+    "privacy/DSAR и copyright — поменяйте значения здесь и перегенерируйте страницы."
+  ],
+  "discloseIdentity": false,
+  "legalName": null,
+  "registeredAddress": null,
+  "governingLaw": null,
+  "contactEmail": "security@ares1.is-a.dev",
+  "privacyEmail": "security@ares1.is-a.dev",
+  "copyrightEmail": "security@ares1.is-a.dev"
+}

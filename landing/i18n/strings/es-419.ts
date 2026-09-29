@@ -380,7 +380,7 @@ const es419: Record<string, string> = {
   // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
   'Правовые документы': 'Documentos legales',
   'Настройки cookies': 'Configuración de cookies',
-  'Оператор': 'Operador',
+  'Связь с командой': 'Contacto con el equipo',
   'Cookies и локальное хранилище': 'Cookies y almacenamiento local',
   'Мы не используем аналитику и рекламу и не устанавливаем cookies. Данные ниже остаются в вашем браузере и нужны только для работы сайта. Решение можно изменить в любой момент.': 'No usamos analítica ni publicidad y no instalamos cookies. Todo lo de abajo queda en tu navegador y solo sirve para que el sitio funcione. Puedes cambiar tu decisión cuando quieras.',
   'Необходимое': 'Necesario',

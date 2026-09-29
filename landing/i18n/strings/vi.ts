@@ -380,7 +380,7 @@ const vi: Record<string, string> = {
   // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
   'Правовые документы': 'Tài liệu pháp lý',
   'Настройки cookies': 'Cài đặt cookie',
-  'Оператор': 'Đơn vị vận hành',
+  'Связь с командой': 'Liên hệ với nhóm',
   'Cookies и локальное хранилище': 'Cookie và bộ nhớ cục bộ',
   'Мы не используем аналитику и рекламу и не устанавливаем cookies. Данные ниже остаются в вашем браузере и нужны только для работы сайта. Решение можно изменить в любой момент.': 'Chúng tôi không dùng phân tích hay quảng cáo và không đặt cookie. Mọi dữ liệu bên dưới chỉ nằm trong trình duyệt của bạn và chỉ để trang web hoạt động. Bạn có thể thay đổi lựa chọn bất cứ lúc nào.',
   'Необходимое': 'Bắt buộc',

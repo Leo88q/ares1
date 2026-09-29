@@ -380,7 +380,7 @@ const id: Record<string, string> = {
   // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
   'Правовые документы': 'Dokumen hukum',
   'Настройки cookies': 'Pengaturan cookie',
-  'Оператор': 'Operator',
+  'Связь с командой': 'Hubungi tim',
   'Cookies и локальное хранилище': 'Cookie dan penyimpanan lokal',
   'Мы не используем аналитику и рекламу и не устанавливаем cookies. Данные ниже остаются в вашем браузере и нужны только для работы сайта. Решение можно изменить в любой момент.': 'Kami tidak memakai analitik maupun iklan dan tidak memasang cookie. Semua data di bawah tetap di peramban Anda dan hanya dipakai agar situs berfungsi. Keputusan ini bisa diubah kapan saja.',
   'Необходимое': 'Wajib',

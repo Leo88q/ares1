@@ -380,7 +380,7 @@ const tl: Record<string, string> = {
   // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
   'Правовые документы': 'Mga legal na dokumento',
   'Настройки cookies': 'Mga setting ng cookie',
-  'Оператор': 'Operator',
+  'Связь с командой': 'Makipag-ugnayan sa team',
   'Cookies и локальное хранилище': 'Cookies at lokal na imbakan',
   'Мы не используем аналитику и рекламу и не устанавливаем cookies. Данные ниже остаются в вашем браузере и нужны только для работы сайта. Решение можно изменить в любой момент.': 'Hindi kami gumagamit ng analytics o advertising at hindi kami naglalagay ng cookies. Ang lahat sa ibaba ay nananatili sa iyong browser at para lang gumana ang site. Puwede mong baguhin ang desisyon anumang oras.',
   'Необходимое': 'Kinakailangan',
