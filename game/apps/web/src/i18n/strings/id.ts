@@ -505,6 +505,7 @@ const id: Record<string, string> = {
   'Установите Phantom Wallet': 'Pasang Phantom Wallet',
   'Громкость музыки': 'Volume musik',
   'Игра упала': 'Game mengalami crash',
+  'Игра не запустилась: не заданы VITE_PROGRAM_ID / VITE_RPC_URL. На Cloudflare Pages задай их в Settings → Environment variables; локально — в apps/web/.env (см. .env.example).': 'Game gagal dimulai: VITE_PROGRAM_ID / VITE_RPC_URL tidak diatur. Di Cloudflare Pages atur di Settings → Environment variables; secara lokal di apps/web/.env (lihat .env.example).',
   'СИГНАЛ КОЛОНИИ ПРИНЯТ': 'SINYAL KOLONI DITERIMA',
   'Транзакция не пройдёт на сети:': 'Transaksi akan gagal di jaringan:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'Transaksi terkirim, tetapi konfirmasi belum diterima. Periksa dompet sebelum mencoba lagi — tindakan mungkin sudah berhasil.',

@@ -26,9 +26,11 @@ import {
 } from '../utils/txSafety'
 
 // Fail-fast: без VITE_PROGRAM_ID сборка не должна молча указывать на старый адрес.
+// Обычная сборка (vite build) сюда не доходит: vite.config.ts подставляет
+// публичные devnet-значения из .env.example, если переменных нет в окружении.
 const rawProgramId = import.meta.env.VITE_PROGRAM_ID
 if (!rawProgramId) {
-  throw new Error('VITE_PROGRAM_ID не задан (см. apps/web/.env.example) — отказ от запуска вместо старого захардкоженного program id')
+  throw new Error('VITE_PROGRAM_ID не задан (см. apps/web/.env.example). Задай его в окружении сборки (Cloudflare Pages → Settings → Environment variables) — отказ от запуска вместо старого захардкоженного program id')
 }
 export const PROGRAM_ID = new PublicKey(rawProgramId)
 export const CLUSTER = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet'

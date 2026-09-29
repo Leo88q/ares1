@@ -55,6 +55,17 @@ yarn build:web                     # apps/web/dist
 python3 economy/simulate.py        # отчёт по экономике в markdown
 ```
 
+### Сборка web-клиента на Cloudflare Pages
+
+Проект `ares1-play` (play.ares1.is-a.dev) собирается командой `yarn build:web`.
+Задавать `VITE_*` в окружении сборки не обязательно: если их нет, `vite.config.ts`
+берёт публичные devnet-значения из `apps/web/.env.example` и громко печатает
+об этом в лог сборки. Для продакшена задай `VITE_PROGRAM_ID`, `VITE_RPC_URL` и
+`VITE_SOLANA_CLUSTER` в Cloudflare Pages → Settings → Environment variables —
+переменные окружения всегда имеют приоритет над фолбэком. При отсутствии
+конфигурации в рантайме игра показывает понятный экран ошибки вместо белого
+экрана.
+
 ### Деплой и инициализация
 
 ```bash
