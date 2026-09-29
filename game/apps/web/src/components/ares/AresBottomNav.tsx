@@ -1,10 +1,9 @@
 import { memo } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { t } from '../../i18n'
 
 import { haptics } from '../../utils/haptic';
 import { AresHullFrame } from '../../ui/AresHullFrame';
-import { MotionIcon } from '../../ui/MotionIcon';
-import { Emblem } from '../../ui/Emblem';
 
 export type AresTab = 'main' | 'market' | 'stats' | 'profile';
 
@@ -16,57 +15,55 @@ export interface AresBottomNavProps {
 interface NavItem {
  id: AresTab;
  label: string;
+ code: string;
+ lamp: 'green' | 'amber' | 'magenta';
 }
 
 const NAV_ITEMS: NavItem[] = [
- { id: 'main', label: t('АГРО') },
- { id: 'market', label: t('СНАБ') },
- { id: 'stats', label: t('ЖУРНАЛ') },
- { id: 'profile', label: t('КАЮТА') },
+ { id: 'main', label: t('АГРО'), code: 'K1', lamp: 'green' },
+ { id: 'market', label: t('СНАБ'), code: 'K2', lamp: 'amber' },
+ { id: 'stats', label: t('ЖУРНАЛ'), code: 'K3', lamp: 'magenta' },
+ { id: 'profile', label: t('КАЮТА'), code: 'K4', lamp: 'green' },
 ];
 
-function renderIcon(tab: AresTab, active: boolean): JSX.Element {
- // эмблемы единого арт-сета; активная вкладка подсвечивается рамкой клавиши
- const filter = active ? 'brightness(1.25) drop-shadow(0 0 5px rgba(255,170,60,0.45))' : 'brightness(0.82)'
- switch (tab) {
-  case 'main':
-   return <Emblem name="sprout" size={18} style={{ filter }} />;
-  case 'market':
-   return <Emblem name="crate" size={18} style={{ filter }} />;
-  case 'stats':
-   return <Emblem name="clipboard" size={18} style={{ filter }} />;
-  case 'profile':
-   return <Emblem name="bunk" size={18} style={{ filter }} />;
-  default:
-   return <Emblem name="sprout" size={18} style={{ filter }} />;
- }
-}
-
+/**
+ * Пульт секций (MK-редизайн, 2026-09-28): вместо плоской панели иконок —
+ * ряд клавиш пульта. Активная клавиша защёлкнута в нажатом положении
+ * (mk-key--engaged: утоплена, грань подсвечена), над ней горит лампа реле.
+ * Пропсы не менялись: `active` / `onChange`.
+ */
 export const AresBottomNav = memo(function AresBottomNav({
  active,
  onChange,
 }: AresBottomNavProps): JSX.Element {
+ const reducedMotion = useReducedMotion();
  return (
   <div className="hull-nav-wrap">
    <nav className="hull-panel hull-nav" aria-label={t("Разделы колонии")}>
-    <AresHullFrame variant="default" runningLight />
+    <AresHullFrame variant="default" runningLight={false} />
     <div className="hull-panel-content">
      {NAV_ITEMS.map((item) => {
       const isActive = item.id === active;
       return (
-       <button
+       <motion.button
         key={item.id}
         type="button"
-        className="hull-nav-button"
+        className={`mk-key hull-nav-key${isActive ? ' mk-key--engaged' : ''}`}
         aria-current={isActive ? 'page' : undefined}
+        aria-pressed={isActive}
+        whileTap={reducedMotion || isActive ? undefined : { y: 3 }}
+        transition={{ type: 'spring', stiffness: 520, damping: 26, mass: 0.9 }}
         onClick={() => {
          haptics.navigate();
          onChange(item.id);
         }}
        >
-        <MotionIcon active={isActive}>{renderIcon(item.id, isActive)}</MotionIcon>
-        <span>{item.label}</span>
-       </button>
+        <span className="hull-nav-key__lamp">
+         <span className={`mk-lamp ${isActive ? `mk-lamp--${item.lamp}` : 'mk-lamp--off'}`} />
+        </span>
+        <span className="hull-nav-key__label">{item.label}</span>
+        <span className="hull-nav-key__code" aria-hidden="true">{item.code}</span>
+       </motion.button>
       );
      })}
     </div>

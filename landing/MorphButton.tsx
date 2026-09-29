@@ -4,7 +4,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { Glyph } from "./Glyph";
 import type {
   AnchorHTMLAttributes,
   ButtonHTMLAttributes,
@@ -85,11 +84,12 @@ interface ClickEffect {
 }
 
 const particleColors = [
-  "#FFFFFF",
+  // MK: искры клавиши — горячий металл и лампы, без неона
+  "#FFE2B4",
   "#FFB347",
-  "#FF2E93",
-  "#6B93D6",
-  "#7CFF6B",
+  "#D8558F",
+  "#C9A176",
+  "#9FBE7A",
 ] as const;
 
 const metalEase = [0.19, 1, 0.22, 1] as const;
@@ -153,19 +153,31 @@ function SuccessMark({
   readonly reducedMotion: boolean;
 }): JSX.Element {
   return (
-    <motion.span
-      className="morph-success-mark"
-      style={{ display: "inline-flex" }}
-      initial={reducedMotion ? false : { scale: 0.4, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{
-        duration: reducedMotion ? 0 : 0.35,
-        delay: reducedMotion ? 0 : 0.12,
-        ease: metalEase,
-      }}
+    <svg
+      width="27"
+      height="27"
+      viewBox="0 0 28 28"
+      fill="none"
+      aria-hidden="true"
     >
-      <Glyph name="check" size={27} />
-    </motion.span>
+      <motion.path
+        d="M6 14.5 11.5 20 22 8"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        initial={{
+          pathLength: reducedMotion ? 1 : 0,
+          opacity: reducedMotion ? 1 : 0,
+        }}
+        animate={{ pathLength: 1, opacity: 1 }}
+        transition={{
+          duration: reducedMotion ? 0 : 0.35,
+          delay: reducedMotion ? 0 : 0.12,
+          ease: metalEase,
+        }}
+      />
+    </svg>
   );
 }
 
@@ -578,7 +590,7 @@ export function MorphButton(props: MorphButtonProps): JSX.Element {
                   : activeHover
                     ? 1.03
                     : 1,
-              y: reducedMotion ? 0 : pressed ? 1 : 0,
+              y: reducedMotion ? 0 : pressed ? 4 : 0,
               rotate:
                 animated && activeFocus && !pressed
                   ? [-0.5, 0.5, -0.5]

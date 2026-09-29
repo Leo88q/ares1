@@ -73,30 +73,35 @@
   align-items: center;
 }
 
-.hull-nav-button {
+.hull-nav-key {
   display: flex;
   flex: 1;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  min-height: 48px;
-  padding: 6px 4px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: #8C7B98;
-  font-family: var(--ares-font-mono, "JetBrains Mono", monospace);
-  font-size: 8px;
-  letter-spacing: 0.1em;
+  gap: 3px;
+  min-height: 54px;
+  padding: 7px 4px 5px;
+  font-family: var(--ares-font-stencil, "Oswald", sans-serif);
   cursor: pointer;
 }
 
-.hull-nav-button[aria-current="page"] {
-  color: #E6B589;
+.hull-nav-key__lamp { display: flex; height: 10px; align-items: center; }
+.hull-nav-key__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: #B9A48C;
 }
+.hull-nav-key__code {
+  font-family: var(--ares-font-mono, "JetBrains Mono", monospace);
+  font-size: 7px;
+  letter-spacing: 0.3em;
+  color: rgba(185, 164, 140, 0.5);
+}
+.hull-nav-key.mk-key--engaged .hull-nav-key__label { color: #E6B589; text-shadow: 0 1px 0 rgba(0,0,0,0.7); }
 
-.hull-nav-button:focus-visible {
-  outline: 2px solid #7CFF6B;
+.hull-nav-key:focus-visible {
+  outline: 2px solid var(--mk-lamp-green, #9FBE7A);
   outline-offset: 3px;
 }
 
@@ -155,7 +160,7 @@
   position: relative;
   min-width: 0;
   width: 100%;
-  height: var(--spark-height, 24px);
+  height: var(--spark-height, 5px);
   isolation: isolate;
 }
 
@@ -163,33 +168,16 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  border: 0 solid transparent;
-  border-width: 10px;
-  border-image: url('/ares/kit/track.webp') 34 fill / 10px;
-  border-radius: 0;
-  background: none;
+  border-radius: 4px;
+  background: #342639;
   transform-origin: center;
 }
 
 .spark-progress-fill {
   width: 100%;
   height: 100%;
-  border-radius: 6px;
+  border-radius: inherit;
   transform-origin: left;
-  transform: scale(0.97);
-  background: url('/ares/kit/fill.webp');
-  background-size: 220px 100%;
-  background-repeat: repeat-x;
-  box-shadow: inset 0 0 6px rgba(255, 170, 40, 0.65), 0 0 14px -3px rgba(255, 150, 30, 0.55);
-  animation: kit-flow 2.6s linear infinite;
-}
-
-@keyframes kit-flow {
-  0% { background-position: 0 0; }
-  100% { background-position: 220px 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .spark-progress-fill { animation: none; }
 }
 
 .spark-progress-head {
@@ -461,77 +449,65 @@
 
 .market-filter-field > input {
   width: 100%;
-  padding: 8px 14px;
-  border: 0 solid transparent;
-  border-width: 9px;
-  border-image: url('/ares/kit/input.webp') 30 fill / 9px;
-  border-radius: 0;
-  background: none;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 179, 71, 0.28);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.4);
   color: var(--pf-text, #f3e8dc);
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  transition: filter 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .market-filter-field > input:focus {
   outline: none;
-  filter: brightness(1.25);
-  box-shadow: 0 0 18px -6px rgba(255, 179, 71, 0.55);
+  border-color: var(--ares-hud-amber, #ffb347);
+  box-shadow: 0 0 0 1px rgba(255, 179, 71, 0.35), 0 0 14px -4px rgba(255, 179, 71, 0.5);
 }
 
 .market-filter-field > input::placeholder {
-  color: rgba(255, 179, 71, 0.5);
+  color: rgba(255, 179, 71, 0.35);
 }
 
 .market-filter-apply {
-  padding: 9px 20px;
-  border: 0 solid transparent;
-  border-width: 13px;
-  border-image: url('/ares/kit/btn-primary.webp') 40 fill / 13px;
-  border-radius: 0;
-  background: none;
-  color: #2B1403;
-  text-shadow: 0 1px 0 rgba(255, 220, 150, 0.55);
+  padding: 9px 18px;
+  border: 1px solid rgba(255, 179, 71, 0.6);
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(255, 179, 71, 0.22), rgba(193, 68, 14, 0.28));
+  color: var(--ares-hud-amber, #ffb347);
   font-size: 11px;
-  font-weight: 700;
   letter-spacing: 0.12em;
   cursor: pointer;
   transition: filter 0.2s ease, transform 0.15s ease;
 }
 
 .market-filter-apply:hover {
-  filter: brightness(1.14);
+  filter: brightness(1.25);
 }
 
 .market-filter-apply:active {
-  transform: translateY(2px);
-  filter: brightness(0.9);
+  transform: scale(0.97);
 }
 
 .market-filter-reset {
-  padding: 9px 20px;
-  border: 0 solid transparent;
-  border-width: 13px;
-  border-image: url('/ares/kit/btn-secondary.webp') 40 fill / 13px;
-  border-radius: 0;
-  background: none;
-  color: #E9DBC4;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  padding: 9px 18px;
+  border: 1px solid rgba(219, 191, 233, 0.28);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(224, 205, 233, 0.8);
   font-size: 11px;
-  font-weight: 700;
   letter-spacing: 0.12em;
   cursor: pointer;
-  transition: filter 0.2s ease, transform 0.15s ease;
+  transition: background 0.2s ease, transform 0.15s ease;
 }
 
 .market-filter-reset:hover {
-  filter: brightness(1.22);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .market-filter-reset:active {
-  transform: translateY(2px);
-  filter: brightness(0.85);
+  transform: scale(0.97);
 }
 
 /* ── Табы биржи в hull-стиле ── */
@@ -548,30 +524,20 @@
 }
 
 /* ── Табы биржи: фаски через clip-path + ::before ── */
-/* ── Табы биржи: литые пластины, активная с янтарным стеклом ── */
 .market-tab {
   position: relative;
   isolation: isolate;
-  border: 0 solid transparent;
-  border-width: 12px;
-  border-image: url('/ares/kit/tab.webp') 44 fill / 12px;
-  background: none;
-  clip-path: none;
-  padding: 8px 18px;
-  color: #CBB69D;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
-  transition: color 0.2s ease, filter 0.2s ease;
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
+  background: rgba(255, 179, 71, 0.32);
 }
 
-.market-tab:not(.market-tab--active):hover {
-  color: #F0DFC4 !important;
-  filter: brightness(1.18);
-}
-
-.market-tab--active {
-  border-image-source: url('/ares/kit/tab-active.webp');
-  color: #2B1403;
-  text-shadow: 0 1px 0 rgba(255, 214, 140, 0.6);
+.market-tab::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 1px;
+  clip-path: polygon(11px 0, calc(100% - 11px) 0, 100% 11px, 100% calc(100% - 11px), calc(100% - 11px) 100%, 11px 100%, 0 calc(100% - 11px), 0 11px);
+  background: linear-gradient(180deg, #141821, #0D1017);
 }
 
 .market-tab--active {
@@ -582,14 +548,15 @@
   background: linear-gradient(180deg, rgba(255, 179, 71, 0.14), rgba(13, 16, 23, 0.95));
 }
 
-.ares-hull-frame .ares-hull-svg{display:block;width:100%;height:100%;max-width:none}
-.ares-hull-glow{position:absolute;inset:0;pointer-events:none}
-.ares-hull-plate{position:absolute;top:2px;left:36px;padding:2px 12px 2px 8px;clip-path:polygon(0 0,100% 0,calc(100% - 7px) 100%,0 100%);background:#2e292b;color:#d8c4ad;font:6.5px/1.5 'JetBrains Mono',monospace;letter-spacing:1.3px}
-.ares-hull-corner{position:absolute;right:14px;bottom:8px;width:10px;height:2px}
-.ares-hull-sweep{position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 32%,rgba(255,204,140,.12) 46%,rgba(255,232,190,.2) 50%,rgba(255,204,140,.12) 54%,transparent 68%);background-size:320% 100%;background-position:130% 0;animation:ares-hull-sweep 3.6s ease-in-out infinite}
-@keyframes ares-hull-sweep{0%{background-position:130% 0}55%{background-position:-70% 0}100%{background-position:-70% 0}}
-@media (prefers-reduced-motion: reduce){.ares-hull-sweep{animation:none;display:none}}
-
-.hull-frame-mount img{display:block;width:100%;height:100%;max-width:none;transition:filter .25s ease}
-.hull-skin:hover .hull-frame-mount img,.hull-skin:focus-within .hull-frame-mount img{filter:brightness(1.3) saturate(1.15)}
-@media (prefers-reduced-motion: reduce){.hull-frame-mount img{transition:none}}
+/* C «Поход»: поле готово к сбору — янтарная краска по верхнему краю */
+.field-hull--ready::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #C99232, #E8A03C 60%, #C99232);
+  opacity: 0.9;
+  z-index: 2;
+}
+.field-hull--ready { box-shadow: inset 0 0 0 1px rgba(255, 179, 71, 0.3), inset 0 1px 0 rgba(255, 210, 160, 0.14), inset 0 -2px 0 rgba(0, 0, 0, 0.45), 0 10px 18px -12px #000; }
+.field-hull--gold { border-color: #8A6430; }

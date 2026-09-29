@@ -10,45 +10,43 @@
   --ares-dust: #e0a183;
   --ares-sky: #d9a06b;
   --ares-blueset: #6b93d6;
-  --ares-grow: #ff2e93;
-  --ares-grow-violet: #b85cff;
-  --ares-bio: #7cff6b;
-  --ares-bio-teal: #12e7c4;
+  /* MK (2026-09-28): тёплый свет — купольная маджента, лампа-зелёный,
+     стальной лиловый вместо неона; стекло убрано. */
+  --ares-grow: #d8558f;
+  --ares-grow-violet: #a57bc8;
+  --ares-bio: #9fbe7a;
+  --ares-bio-teal: #a57bc8;
   --ares-hud: #ffb347;
   --ares-hud-orange: #ff7a1a;
   --ares-metal: #2a2d34;
   --ares-metal-light: #4a4f5a;
-  --ares-glass: rgba(180, 220, 255, 0.1);
+  --ares-glass: rgba(26, 17, 10, 0.72);
   --ares-ink: #f6f1ed;
   --ares-muted: #bfb7c8;
   --ares-danger: #ff9caa;
   --ares-header-height: 80px;
-  --border: rgba(193, 184, 212, 0.19);
+  --border: rgba(138, 74, 34, 0.55);
   --mono: "JetBrains Mono", monospace;
   --display: "Oswald", "Arial Narrow", sans-serif;
   --body: "Inter", system-ui, sans-serif;
-}
 
-  /* ══ ЕДИНАЯ СИСТЕМА ПОВЕРХНОСТЕЙ (--s-*, 2026-09-28) ══
-     Единственный источник значений панелей/шапки/тостов.
-     Меняется здесь → применяется везде, где поверхность ссылается на --s-*.
-     Значения зафиксированы по фактическому рендеру на 28.09.2026. */
-  --s-panel-bg: rgba(20, 14, 26, 0.55);
-  --s-panel-bg-strong: rgba(16, 10, 22, 0.85);
-  --s-panel-border: rgba(184, 160, 214, 0.2);
-  --s-panel-border-soft: rgba(184, 160, 214, 0.12);
-  --s-panel-radius: 14px;
-  --s-panel-radius-lg: 20px;
-  --s-panel-blur: blur(14px);
-  --s-panel-shadow: 0 18px 44px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  --s-pop-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
-  --s-header-bg: #08050acc;
-  --s-toast-bg: #1b1024;
-  --s-z-header: 60;
-  --s-z-overlay: 90;
-  --s-z-modal: 100;
-  --s-z-toast: 110;
-  --s-z-cursor: 110;
+  /* MK — штампованный металл (те же токены, что в игре) */
+  --mk-face-hi: #3A2D21;
+  --mk-face: #2C221A;
+  --mk-face-lo: #211913;
+  --mk-edge-hi: rgba(255, 214, 170, 0.16);
+  --mk-edge-lo: rgba(0, 0, 0, 0.72);
+  --mk-seam: #120C07;
+  --mk-bevel: #8A4A22;
+  --mk-bevel-lo: #2A1508;
+  --mk-paint-amber-edge: #5F3410;
+  --mk-paint-amber-ink: #2A1206;
+  --mk-lamp-green: #9FBE7A;
+  --mk-lamp-magenta: #E06CA4;
+  --mk-lamp-amber: #FFB347;
+  --mk-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  --mk-scratches: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cg stroke='%23E6C7A5' stroke-opacity='0.05' stroke-linecap='round'%3E%3Cpath d='M12 40l38-14'/%3E%3Cpath d='M180 220l46-8'/%3E%3Cpath d='M60 190l24 12'/%3E%3Cpath d='M200 60l30 18'/%3E%3Cpath d='M110 24l18-10'/%3E%3C/g%3E%3Cg stroke='%23000' stroke-opacity='0.10' stroke-linecap='round'%3E%3Cpath d='M30 140l44-6'/%3E%3Cpath d='M150 120l36 14'/%3E%3Cpath d='M84 236l30-10'/%3E%3C/g%3E%3C/svg%3E");
+}
 
 *,
 *::before,
@@ -70,12 +68,7 @@ body {
   min-width: 320px;
   overflow-x: clip;
   color: var(--ares-ink);
-  background:
-    linear-gradient(180deg, rgba(7, 4, 2, 0.82), rgba(7, 4, 2, 0.9)),
-    url('/ares/bg-plates.jpg');
-  background-size: auto, 512px 512px;
-  background-repeat: no-repeat, repeat;
-  background-attachment: fixed;
+  background: var(--ares-space);
   font-family: var(--body);
   font-size: 16px;
   line-height: 1.7;
@@ -263,13 +256,13 @@ input:focus-visible {
 .mesh--blue {
   right: -50%;
   top: 5%;
-  background: radial-gradient(circle, #6b93d626, transparent 68%);
+  background: radial-gradient(circle, rgba(193, 68, 14, 0.14), transparent 68%);
 }
 
 .mesh--grow {
   left: 10%;
   bottom: -75%;
-  background: radial-gradient(circle, #ff2e932e, transparent 68%);
+  background: radial-gradient(circle, rgba(216, 85, 143, 0.16), transparent 68%);
 }
 
 .noise {
@@ -315,17 +308,17 @@ input:focus-visible {
   width: 20px;
   height: 20px;
   margin: -10px 0 0 -10px;
-  border: 1px solid #ff2e93a6;
-  background: #ff2e9314;
+  border: 1px solid rgba(255, 179, 71, 0.65);
+  background: rgba(255, 179, 71, 0.08);
 }
 
 .header {
   position: fixed;
-  z-index: var(--s-z-header);
+  z-index: 60;
   inset: 0 0 auto;
   min-height: var(--ares-header-height);
   border-bottom: 1px solid transparent;
-  background: linear-gradient(var(--s-header-bg), #08050a00);
+  background: linear-gradient(#08050acc, #08050a00);
 }
 
 .header--scrolled {
@@ -409,7 +402,7 @@ input:focus-visible {
   height: 6px;
   border-radius: 50%;
   background: var(--ares-bio);
-  box-shadow: 0 0 10px #7cff6b55;
+  box-shadow: 0 0 8px rgba(159, 190, 122, 0.45);
 }
 
 .status-dot--amber {
@@ -420,15 +413,15 @@ input:focus-visible {
 .wallet-button {
   min-height: 44px;
   padding: 10px 14px;
-  border: 1px solid #ff2e9360;
+  border: 1px solid rgba(138, 74, 34, 0.7);
   border-radius: 6px;
-  color: #ff9bca;
-  background: #ff2e930e;
+  color: #e0a183;
+  background: rgba(0, 0, 0, 0.28);
   font: 11px var(--mono);
 }
 
 .wallet-button:hover {
-  background: #ff2e9321;
+  background: rgba(201, 122, 43, 0.14);
 }
 
 .wallet-full {
@@ -563,22 +556,19 @@ input:focus-visible {
   position: relative;
   isolation: isolate;
   display: inline-flex;
-  min-height: 56px;
+  min-height: 52px;
   width: 100%;
   align-items: center;
   justify-content: center;
   padding: 14px 22px;
-  border: 0 solid transparent;
-  border-width: 15px;
-  border-image: url('/ares/kit/btn-secondary.webp') 40 fill / 15px;
-  border-radius: 0;
-  background: none;
-  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.85);
+  border: 1px solid #ffffff2e;
+  border-radius: 7px;
+  box-shadow: inset 0 1px 0 #ffffff38, 0 3px 0 #0006;
   font-weight: 700;
   font-size: 13px;
   line-height: 1.5;
   text-align: center;
-  transition: transform 150ms ease, filter 150ms ease;
+  transition: transform 150ms ease;
   touch-action: manipulation;
 }
 
@@ -591,23 +581,14 @@ input:focus-visible {
 }
 
 .action--primary {
-  border-image-source: url('/ares/kit/btn-primary.webp');
-  color: #2B1403;
-  text-shadow: 0 1px 0 rgba(255, 220, 150, 0.55);
+  background: var(--ares-grow);
+  color: #16030d;
 }
 
 .action--secondary {
-  color: #E9DBC4;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.action:hover:not(:disabled) {
-  transform: translateY(1px);
-  filter: brightness(1.15);
-}
-
-.action--primary:hover:not(:disabled) {
-  box-shadow: 0 6px 22px -6px rgba(0, 0, 0, 0.85), 0 0 24px -4px rgba(255, 158, 44, 0.5);
+  border-color: #80708975;
+  background: #15101deb;
+  color: #f3eaf6;
 }
 
 .action:disabled {
@@ -628,7 +609,7 @@ input:focus-visible {
   z-index: -1;
   inset: 4px;
   border-radius: inherit;
-  box-shadow: 0 0 40px 10px #ff2e9366;
+  box-shadow: 0 0 34px 8px rgba(255, 179, 71, 0.28);
   pointer-events: none;
 }
 
@@ -692,8 +673,8 @@ input:focus-visible {
 .progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: var(--ares-grow);
-  box-shadow: 0 0 12px #ff2e9366;
+  background: linear-gradient(180deg, #e89a4b, #c97a2b);
+  box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.4);
 }
 
 .presale-bottom {
@@ -820,8 +801,7 @@ input:focus-visible {
   inset: 0;
   background:
     radial-gradient(ellipse at 88% 48%, #7399d22b, transparent 37%),
-    linear-gradient(180deg, rgba(12, 9, 19, 0.25) 3%, rgba(43, 24, 40, 0.3) 38%, rgba(100, 62, 71, 0.35) 65%, rgba(142, 73, 46, 0.4) 88%),
-    url('/ares/bg-mars.jpg') center / cover no-repeat;
+    linear-gradient(180deg, #0c0913 3%, #2b1828 38%, #643e47 65%, #8e492e 88%);
 }
 
 .star-field {
@@ -1046,32 +1026,6 @@ input:focus-visible {
   margin-top: 3px;
 }
 
-/* Текст не должен вылезать за пределы панелей и карточек — ни по ширине,
-   ни обрезаться по высоте. Панели растягиваются под содержимое. */
-.panel,
-.feature-card,
-.comparison,
-.tier-panel,
-.colony-manual,
-.waitlist-panel {
-  min-width: 0;
-  height: auto;
-  overflow: visible;
-}
-
-.comparison li > span,
-.feature-description,
-.feature-card h3,
-.tier-panel p,
-.colony-manual p,
-.body-copy,
-.section-description,
-.hero-description,
-.section-footnote {
-  min-width: 0;
-  overflow-wrap: break-word;
-}
-
 .comparison--before {
   border-color: #d566663d;
 }
@@ -1131,10 +1085,10 @@ input:focus-visible {
   width: 76px;
   height: 76px;
   place-items: center;
-  border: 1px solid rgba(255, 179, 71, 0.26);
+  border: 1px solid #ff2e9330;
   border-radius: 16px;
-  color: #ffcf8f;
-  background: radial-gradient(circle, rgba(255, 179, 71, 0.13), rgba(255, 179, 71, 0.02) 70%, transparent 78%);
+  color: #ff8bc4;
+  background: radial-gradient(circle, #ff2e931c, #ff2e9303);
 }
 
 .feature-number {
@@ -1943,14 +1897,10 @@ input:focus-visible {
 
 .faq-item {
   position: relative;
-  padding: 6px 14px;
-  border-style: solid;
-  border-width: 13px;
-  border-image: url('/ares/kit/card-bronze-small.webp') 20 fill / 13px;
-  border-radius: 0;
-  margin-bottom: 10px;
+  padding-inline: 14px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 8px;
 }
-.faq-item + .faq-item { border-top-style: solid; }
 
 .faq-item h3 {
   font-family: var(--body);
@@ -2042,12 +1992,8 @@ input:focus-visible {
   gap: 18px;
   width: min(100%, 340px);
   margin-top: 30px;
-  padding: 13px 17px;
-  border: 0 solid transparent;
-  border-width: 16px;
-  border-image: url('/ares/kit/card-bone-small.webp') 20 fill / 16px;
-  border-radius: 0;
-  background: none;
+  padding: 17px;
+  border: 1px dashed #b588b657;
   border-radius: 8px;
   background: #09060e47;
   transform: rotate(-3deg);
@@ -2126,12 +2072,10 @@ input:focus-visible {
   display: block;
   width: 100%;
   min-height: 52px;
-  padding: 13px 18px;
-  border: 0 solid transparent;
-  border-width: 10px;
-  border-image: url('/ares/kit/input.webp') 30 fill / 10px;
-  border-radius: 0;
-  background: none;
+  padding: 13px 15px;
+  border: 1px solid #8c69915e;
+  border-radius: 6px;
+  background: #0b0710d9;
   color: #f6eaf9;
   font-size: 16px;
   line-height: 1.5;
@@ -2143,8 +2087,7 @@ input:focus-visible {
 }
 
 .form-field input[aria-invalid="true"] {
-  border-image-source: url('/ares/kit/input.webp');
-  filter: hue-rotate(-30deg) saturate(1.4);
+  border-color: var(--ares-danger);
 }
 
 .form-field input:disabled {
@@ -2295,8 +2238,8 @@ input:focus-visible {
   gap: 16px;
   margin-left: auto;
   padding: 18px 14px 18px 22px;
-  background: var(--s-toast-bg);
-  box-shadow: var(--s-pop-shadow);
+  background: #1b1024;
+  box-shadow: 0 15px 60px #0008;
   pointer-events: auto;
 }
 
@@ -2307,15 +2250,15 @@ input:focus-visible {
   line-height: 1.8;
 }
 
-@supports (backdrop-filter: blur(20px)) {
-  .header--scrolled {
-    background: rgba(9, 7, 14, 0.88);
-    backdrop-filter: blur(20px);
-  }
+/* MK: матовая штампованная шапка — стекло убрано */
+.header--scrolled {
+  background: rgba(16, 11, 7, 0.94);
+  border-bottom: 1px solid var(--mk-seam);
+  box-shadow: inset 0 -1px 0 var(--mk-edge-hi), 0 8px 18px rgba(0, 0, 0, 0.45);
+}
 
-  .liquid-glass:hover {
-    backdrop-filter: blur(20px) hue-rotate(10deg) saturate(1.4);
-  }
+.liquid-glass:hover {
+  filter: brightness(1.05);
 }
 
 @media (min-width: 640px) {
@@ -2885,27 +2828,22 @@ input:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 28px;
-  border: 0 solid transparent;
-  border-width: 16px;
-  border-image: url('/ares/kit/btn-primary.webp') 40 fill / 16px;
-  border-radius: 0;
-  background: none;
-  color: #2B1403;
+  padding: 15px 28px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #FFB347, #FF8A2A);
+  color: #1a1208;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-size: 14px;
   font-family: "JetBrains Mono", ui-monospace, monospace;
-  text-shadow: 0 1px 0 rgba(255, 220, 150, 0.55);
-  box-shadow: 0 8px 26px -10px rgba(0, 0, 0, 0.85);
-  transition: transform 0.2s ease, filter 0.2s ease;
+  box-shadow: 0 8px 30px rgba(255, 138, 42, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   text-decoration: none;
 }
 .cta-play:hover {
   transform: translateY(-2px);
-  filter: brightness(1.14);
-  box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.9), 0 0 26px -4px rgba(255, 158, 44, 0.55);
+  box-shadow: 0 12px 36px rgba(255, 138, 42, 0.5);
 }
 .cta-play:active { transform: translateY(0); }
 
@@ -2913,23 +2851,19 @@ input:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 14px;
-  border: 0 solid transparent;
-  border-width: 13px;
-  border-image: url('/ares/kit/btn-primary.webp') 40 fill / 13px;
-  border-radius: 0;
-  background: none;
-  color: #2B1403;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #FFB347, #FF8A2A);
+  color: #1a1208;
   font-weight: 700;
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-family: "JetBrains Mono", ui-monospace, monospace;
-  text-shadow: 0 1px 0 rgba(255, 220, 150, 0.55);
   text-decoration: none;
-  transition: transform 0.2s ease, filter 0.2s ease;
+  transition: transform 0.2s ease;
 }
-.header-play:hover { transform: translateY(-1px); filter: brightness(1.14); }
+.header-play:hover { transform: translateY(-1px); }
 @media (max-width: 720px) {
   .header-play-full { display: none; }
   .header-play { padding: 8px 10px; }
@@ -2965,11 +2899,9 @@ input:focus-visible {
   gap: 16px;
 }
 .pack-card {
-  background: none;
-  border: 0 solid transparent;
-  border-width: 18px;
-  border-image: url('/ares/kit/card-bronze-small.webp') 20 fill / 18px;
-  border-radius: 0;
+  background: rgba(20,20,30,0.6);
+  border: 2px solid;
+  border-radius: 12px;
   padding: 20px;
   text-align: center;
 }
@@ -2995,19 +2927,15 @@ input:focus-visible {
 }
 .pack-buy {
   width: 100%;
-  padding: 10px 12px;
-  border: 0 solid transparent;
-  border-width: 14px;
-  border-image: url('/ares/kit/btn-primary.webp') 40 fill / 14px;
-  border-radius: 0;
-  background: none;
-  color: #2B1403;
-  text-shadow: 0 1px 0 rgba(255, 220, 150, 0.55);
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  color: #1a1208;
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.08em;
   cursor: pointer;
-  transition: transform 0.2s, filter 0.2s;
+  transition: transform 0.2s;
 }
 .pack-buy:hover:not(:disabled) {
   transform: translateY(-2px);
@@ -3036,12 +2964,10 @@ input:focus-visible {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 8px 12px;
-  border-style: solid;
-  border-width: 11px;
-  border-image: url('/ares/kit/card-bronze-small.webp') 20 fill / 11px;
-  background: none;
-  border-radius: 0;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 8px;
   margin-bottom: 10px;
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 13px;
@@ -3077,20 +3003,20 @@ input:focus-visible {
 .lang-switcher { position: relative; display: inline-flex; flex-shrink: 0; }
 .lang-switcher__button {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 2px 12px; border: 0 solid transparent;
-  border-width: 8px; border-image: url('/ares/kit/btn-secondary.webp') 40 fill / 8px;
-  border-radius: 0; background: none;
+  padding: 8px 12px; border-radius: 999px;
+  border: 1px solid rgba(255, 179, 71, 0.35);
+  background: rgba(255, 179, 71, 0.06);
   color: #ffb347; font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
-  cursor: pointer; transition: filter 0.2s ease;
+  cursor: pointer; transition: background 0.2s ease, border-color 0.2s ease;
   min-height: 40px;
 }
-.lang-switcher__button:hover { filter: brightness(1.22); }
+.lang-switcher__button:hover { background: rgba(255, 179, 71, 0.14); border-color: rgba(255, 179, 71, 0.6); }
 .lang-switcher__menu {
   position: absolute; right: 0; top: calc(100% + 8px); z-index: 80;
-  border-style: solid; border-width: 12px;
-  border-image: url('/ares/kit/card-bronze-small.webp') 20 fill / 12px;
-  border-radius: 0; padding: 2px 6px; min-width: 200px; background: none;
+  background: rgba(12, 10, 16, 0.97);
+  border: 1px solid rgba(255, 179, 71, 0.35);
+  border-radius: 12px; padding: 6px; min-width: 200px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
 }
 .lang-switcher__item {
@@ -3197,30 +3123,3 @@ input:focus-visible {
   color: #ff8f6b;
   border-bottom: 1px dashed #ff8f6b;
 }
-
-/* MK-art: сгенерированный купол — те же габариты, что у прежней SVG-сцены */
-.dome-art-img {
-  width: 100%;
-  height: auto;
-  display: block;
-  user-select: none;
-  filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.55));
-}
-
-/* ── Живописные фоны секций ── */
-.section { position: relative; }
-.section-bg-art {
-  position: absolute;
-  inset: 0;
-  background-image: var(--section-bg);
-  background-repeat: no-repeat;
-  background-position: center 42%;
-  /* Масштаб ограничен: фон — плашка за контентом, а не во весь экран. */
-  background-size: min(1040px, 68%) auto;
-  opacity: 0.22;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
-  pointer-events: none;
-}
-.section-bg-art + .section-orbit { opacity: 0.5; }
-.section .container { position: relative; z-index: 1; }
