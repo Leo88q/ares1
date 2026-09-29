@@ -505,6 +505,7 @@ const tl: Record<string, string> = {
   'Установите Phantom Wallet': 'I-install ang Phantom Wallet',
   'Громкость музыки': 'Lakas ng musika',
   'Игра упала': 'Nag-crash ang laro',
+  'Игра не запустилась: не заданы VITE_PROGRAM_ID / VITE_RPC_URL. На Cloudflare Pages задай их в Settings → Environment variables; локально — в apps/web/.env (см. .env.example).': 'Hindi nakasimula ang laro: hindi nakatakda ang VITE_PROGRAM_ID / VITE_RPC_URL. Sa Cloudflare Pages itakda ang mga ito sa Settings → Environment variables; lokal naman sa apps/web/.env (tingnan ang .env.example).',
   'СИГНАЛ КОЛОНИИ ПРИНЯТ': 'NATANGGAP ANG SIGNAL NG KOLONYA',
   'Транзакция не пройдёт на сети:': 'Mabibigo ang transaksyon sa network:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'Naipadala ang transaksyon pero walang kumpirmasyon. Tingnan ang iyong wallet bago subukan ulit — maaaring natuloy na ang aksyon.',
