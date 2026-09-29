@@ -1,8 +1,7 @@
-import { Fragment, useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { t } from '../i18n'
 
-import { Glyph } from '../ui/Emblem'
-import { Emblem } from '../ui/Emblem'
+import { Copy, Check, Users, Gift, Share2 } from 'lucide-react'
 import { useSolana } from '../contexts/SolanaContext'
 import { useToast } from './Toast'
 import { buildRefLink } from '../utils/referral'
@@ -15,18 +14,6 @@ import { haptics } from '../utils/haptic'
  * рефереру — 0.5 % от суммы сделки (не больше burn-доли комиссии).
  * Без Telegram и backend: идентичность — кошелёк, ссылка — ?ref=<wallet>.
  */
-
-/** Заменяет маркер 🥔 в строках локализации на иконку монеты (эмодзи в UI запрещены). */
-function coinText(text: string): ReactNode {
- const parts = text.split('🥔')
- if (parts.length === 1) return text
- return parts.map((p, i) => (
-  <Fragment key={i}>
-   {i > 0 && <img src="/ares/potato-coin.png" alt="POTATO" width={13} height={13} style={{ verticalAlign: '-2px', margin: '0 2px' }} />}
-   {p}
-  </Fragment>
- ))}
-
 export function ReferralSection() {
  const { publicKey } = useSolana()
  const { show } = useToast()
@@ -70,8 +57,8 @@ export function ReferralSection() {
   <div style={{ marginBottom: 24 }}>
    {/* Заголовок секции */}
    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-    <Emblem name="sprout" size={20} />
-    <h2 className="ares-stencil" style={{ fontSize: 16, margin: 0, color: 'var(--ares-hud-amber, #FFB347)', textShadow: '0 0 10px rgba(255,179,71,0.35)' }}>{t("ВЫЗОВ ПОСЕЛЕНЦЕВ")}</h2>
+    <Users size={20} color="var(--pf-teal)" />
+    <h2 className="ares-stencil" style={{ fontSize: 16, margin: 0, color: 'var(--ares-hud-amber, #FFB347)' }}>{t("ВЫЗОВ ПОСЕЛЕНЦЕВ")}</h2>
    </div>
 
    {/* Карточка с описанием */}
@@ -83,7 +70,7 @@ export function ReferralSection() {
     marginBottom: 16,
    }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-     <Emblem name="gift" size={32} />
+     <Gift size={32} color="var(--pf-gold)" />
      <div>
       <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--pf-text-primary)' }}>
        {t('Вызови поселенца — дели комиссию!')}
@@ -95,16 +82,16 @@ export function ReferralSection() {
     </div>
 
     {/* Правила: кто и что платит (раньше было отдельным блоком в «Журнале») */}
-    <div style={{ marginBottom: 14, padding: '8px 12px', borderStyle: 'solid', borderWidth: 12, borderImage: "url('/ares/kit/card-bronze-small.webp') 20 fill / 12px", background: 'none' }}>
+    <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,214,170,0.12)' }}>
      {[
       t('Ссылка бесплатна — приглашающий платит ничего'),
       t('Приглашённый открывает ссылку с ?ref= — регистрируется автоматически (on-chain, одноразово)'),
       t('Антиспам: 5 🥔 сгорает с баланса приглашённого, разово'),
       t('−1 % продавцу на сделках приглашённого — на каждой покупке'),
       t('Твоя награда: 0.5 % от комиссии маркета по его сделкам'),
-     ].map((rule, i) => (
+     ].map((t, i) => (
       <div key={i} style={{ display: 'flex', gap: 6, padding: '2px 0', fontSize: 11, color: 'var(--pf-text-secondary)', lineHeight: 1.5 }}>
-       <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true"><Glyph name="check" size={12} /></span> <span>{coinText(rule)}</span>
+       <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span> {t}
       </div>
      ))}
     </div>
@@ -121,7 +108,7 @@ export function ReferralSection() {
       padding: '10px 12px',
       borderRadius: 10,
       background: 'rgba(0,0,0,0.25)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      border: '1px solid rgba(255,214,170,0.12)',
       fontFamily: 'monospace',
       fontSize: 11,
       color: 'var(--pf-text-secondary)',
@@ -152,7 +139,7 @@ export function ReferralSection() {
        transition: 'all 0.2s',
       }}
      >
-      {copied ? <Glyph name="check" size={16} /> : <Glyph name="copy" size={16} />}
+      {copied ? <Check size={16} /> : <Copy size={16} />}
       {copied ? t('Скопировано!') : t('Скопировать ссылку')}
      </button>
 
@@ -160,9 +147,9 @@ export function ReferralSection() {
       onClick={handleShare}
       style={{
        padding: '12px 20px',
-       borderRadius: 'var(--s-radius-chip)',
-       background: 'var(--s-subtle-bg)',
-       border: '1px solid var(--s-subtle-border)',
+       borderRadius: 12,
+       background: 'rgba(0,0,0,0.3)',
+       border: '1px solid rgba(255,255,255,0.15)',
        color: 'white',
        fontSize: 14,
        fontWeight: 600,
@@ -173,7 +160,7 @@ export function ReferralSection() {
        gap: 8,
       }}
      >
-      <Glyph name="share" size={16} />
+      <Share2 size={16} />
       {t('Поделиться')}
      </button>
     </div>

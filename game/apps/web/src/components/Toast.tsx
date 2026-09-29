@@ -1,6 +1,6 @@
 import { useState, createContext, useContext, ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Glyph, Emblem } from '../ui/Emblem'
+import { AlertTriangle, CheckCircle, Info, X } from 'lucide-react'
 
 type ToastType = 'success' | 'error' | 'warning' | 'info'
 interface ToastData { id: number; type: ToastType; title: string; message?: string }
@@ -19,7 +19,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
  return (
   <ToastContext.Provider value={{ show }}>
    {children}
-   <div style={{ position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '440px', zIndex: 'var(--s-z-toast)', padding: '0 16px', pointerEvents: 'none' }}>
+   <div style={{ position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '440px', zIndex: 500, padding: '0 16px', pointerEvents: 'none' }}>
     <AnimatePresence>
      {toasts.map((t, i) => <ToastItem key={t.id} toast={t} index={i} onClose={() => setToasts(p => p.filter(x => x.id !== t.id))} />)}
     </AnimatePresence>
@@ -36,10 +36,10 @@ export function useToast() {
 
 function ToastItem({ toast, index, onClose }: { toast: ToastData; index: number; onClose: () => void }) {
  const config = {
-  success: { icon: <Glyph name="check" size={20} />, color: 'var(--pf-teal)', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(193, 68, 14, 0.45)' },
-  error:  { icon: <Glyph name="x" size={20} />,     color: 'var(--pf-red)', bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.4)' },
-  warning: { icon: <Glyph name="warning" size={20} />, color: 'var(--pf-gold)', bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.4)' },
-  info:  { icon: <Emblem name="clipboard" size={20} />,    color: 'var(--ares-blueset, #6B93D6)', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.4)' },
+  success: { icon: <CheckCircle size={20} />, color: 'var(--pf-teal)', bg: 'rgba(159, 190, 122, 0.14)', border: 'rgba(193, 68, 14, 0.45)' },
+  error:  { icon: <X size={20} />,     color: 'var(--pf-red)', bg: 'rgba(224, 108, 90, 0.13)', border: 'rgba(224, 108, 90, 0.45)' },
+  warning: { icon: <AlertTriangle size={20} />, color: 'var(--pf-gold)', bg: 'rgba(255, 179, 71, 0.13)', border: 'rgba(245, 158, 11, 0.4)' },
+  info:  { icon: <Info size={20} />,    color: 'var(--ares-blueset, #6B93D6)', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.4)' },
  }[toast.type]
 
  return (
@@ -50,16 +50,16 @@ function ToastItem({ toast, index, onClose }: { toast: ToastData; index: number;
    role={toast.type === 'error' ? 'alert' : 'status'}
    onClick={onClose}
    style={{
-    marginTop: '10px', padding: '12px 16px', cursor: 'pointer',
-    borderStyle: 'solid', borderWidth: 14, borderImage: "url('/ares/kit/card-bronze-small.webp') 20 fill / 14px",
-    background: 'none',
+    marginTop: '10px', padding: '14px 16px', borderRadius: '14px', cursor: 'pointer',
+    background: config.bg, border: `1px solid ${config.border}`,
+    backdropFilter: 'blur(20px)',
     display: 'flex', alignItems: 'flex-start', gap: '12px',
-    pointerEvents: 'auto', boxShadow: '0 14px 34px -12px rgba(0,0,0,0.9)',
+    pointerEvents: 'auto', boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
    }}>
    <div style={{ color: config.color, marginTop: '2px' }}>{config.icon}</div>
    <div style={{ flex: 1 }}>
-    <div style={{ fontSize: '14px', fontWeight: '700', color: config.color, textShadow: '0 0 10px -2px currentColor', marginBottom: toast.message ? '4px' : 0 }}>{toast.title}</div>
-    {toast.message && <div style={{ fontSize: '12px', color: '#E6D8C4', lineHeight: 1.5 }}>{toast.message}</div>}
+    <div style={{ fontSize: '14px', fontWeight: '700', color: 'white', marginBottom: toast.message ? '4px' : 0 }}>{toast.title}</div>
+    {toast.message && <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: 1.5 }}>{toast.message}</div>}
    </div>
   </motion.div>
  )

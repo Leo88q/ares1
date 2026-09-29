@@ -120,44 +120,72 @@
 @keyframes pf-spin { to { transform: rotate(360deg); } }
 
 /* ═══════════════════════════════════════════════════════════════════
-   ЕДИНАЯ СИСТЕМА ПОВЕРХНОСТЕЙ (--s-*, 2026-09-28)
-   ─────────────────────────────────────────────────────────────────
-   Единственный источник значений для ВСЕХ панелей/клавиш/приборов.
-   CSS-конструкция ровно одна: styles/kit.css (.k-*).
-   Исторические классы (.pf-card, .ares-glass-panel, .hull-panel)
-   остаются как алиасы/варианты и обязаны ссылаться только на --s-*.
-   Значения зафиксированы по фактическому рендеру на 28.09.2026 —
-   подключение системы НЕ меняет внешний вид.
+   MK — «martian kit»: штампованный металл и приборный свет.
+   (Редизайн слоя представления, 2026-09-28. См. docs/UI_REDESIGN_AUDIT.)
+   Материал: матовая плита с фаской, тиснение, клёпка. Без неона:
+   свет тёплый — янтарь, ржавчина, маджента от ламп купола.
+   Правило то же: в компонентах — только var(--pf-*)/var(--ares-*)/var(--mk-*).
    ═══════════════════════════════════════════════════════════════════ */
 :root {
-  /* поверхности */
-  --s-panel-bg: rgba(22, 17, 13, 0.28);
-  --s-panel-blur: blur(14px);
-  --s-panel-image: var(--ares-rust-panel);
-  --s-panel-pad: 20px;
-  --s-panel-radius: var(--pf-radius-card);
-  --s-panel-edge-dark: #2A1508;
-  --s-panel-edge: #8A4A22;
-  --s-panel-edge-soft: rgba(160, 82, 40, 0.65);
-  --s-panel-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.7),
-    0 12px 28px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 214, 170, 0.14),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.45),
-    inset 0 0 24px rgba(0, 0, 0, 0.65);
-  /* мелкие вложенные боксы (строки, инфо-чипы) */
-  --s-radius-chip: 8px;
-  /* всплывающие окна поверх панелей */
-  --s-pop-bg: var(--pf-bg-elevated);
-  --s-pop-shadow: 0 24px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(0, 0, 0, 0.7);
-  /* служебная тихая поверхность (строки, списки, детали) */
-  --s-subtle-bg: rgba(0, 0, 0, 0.3);
-  --s-subtle-border: var(--pf-border-soft);
-  /* z-шкала: больше нигде не выдумывать числа */
-  --s-z-content: 2;
-  --s-z-sticky: 40;
-  --s-z-header: 60;
-  --s-z-overlay: 200;
-  --s-z-modal: 210;
-  --s-z-toast: 300;
+  /* Шрифты: трафарет/конденсед с кириллицей (Oswald), показания — LCD-моно */
+  --pf-font-display: 'Oswald', 'Anton', 'Archivo Black', sans-serif;
+  --ares-font-stencil: 'Oswald', 'Anton', sans-serif;
+
+  /* Форма: тяжёлая плита почти без скруглений — силуэт ≠ стеклянные панели */
+  --pf-radius-card: 6px;
+  --pf-radius-btn: 5px;
+
+  /* Тёплый свет: приборный янтарь, лампа купола, ржавчина.
+     Неоновые циан/фиолет уходят: teal → лампа-зелёный, pink → купольная
+     маджента, purple → приглушённый лиловый. */
+  --pf-teal: #8FAE6F;
+  --pf-green: #8FAE6F;
+  --pf-pink: #D8558F;
+  --pf-purple: #A57BC8;
+  --ares-bio-green: #D8558F;   /* растения под фитолампами */
+  --ares-bio-cyan: #A57BC8;    /* питательный раствор */
+  --pf-grad-border: linear-gradient(135deg, rgba(255,201,74,0.55), rgba(201,122,43,0.15) 55%, rgba(255,201,74,0.35));
+  --pf-grad-border-green: var(--pf-grad-border);
+
+  /* Материал плиты */
+  --mk-face-hi: #3A2D21;
+  --mk-face: #2C221A;
+  --mk-face-lo: #211913;
+  --mk-edge-hi: rgba(255, 214, 170, 0.16);
+  --mk-edge-lo: rgba(0, 0, 0, 0.72);
+  --mk-seam: #120C07;
+  --mk-bevel: #8A4A22;
+  --mk-bevel-lo: #2A1508;
+  --mk-rivet-hi: #E6A26A;
+
+  /* Гравировка и краска */
+  --mk-ink: rgba(0, 0, 0, 0.55);
+  --mk-ink-hi: rgba(255, 214, 170, 0.10);
+  --mk-paint-amber: linear-gradient(180deg, #E89A4B 0%, #C97A2B 100%);
+  --mk-paint-amber-edge: #7A4514;
+  --mk-paint-amber-ink: #2A1206;
+
+  /* Лампы и приборы */
+  --mk-lamp-green: #9FBE7A;
+  --mk-lamp-green-off: rgba(159, 190, 122, 0.18);
+  --mk-lamp-magenta: #E06CA4;
+  --mk-lamp-amber: #FFB347;
+
+  /* Фактура: зерно и царапины (SVG feTurbulence, data-uri заглушки) */
+  --mk-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  --mk-scratches: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cg stroke='%23E6C7A5' stroke-opacity='0.05' stroke-linecap='round'%3E%3Cpath d='M12 40l38-14'/%3E%3Cpath d='M180 220l46-8'/%3E%3Cpath d='M60 190l24 12'/%3E%3Cpath d='M200 60l30 18'/%3E%3Cpath d='M110 24l18-10'/%3E%3C/g%3E%3Cg stroke='%23000' stroke-opacity='0.10' stroke-linecap='round'%3E%3Cpath d='M30 140l44-6'/%3E%3Cpath d='M150 120l36 14'/%3E%3Cpath d='M84 236l30-10'/%3E%3C/g%3E%3C/svg%3E");
+
+  /* Тени: глубина вместо свечения */
+  --pf-glow-orange: 0 10px 24px -10px rgba(0, 0, 0, 0.8);
+  --pf-glow-pink: 0 10px 24px -10px rgba(0, 0, 0, 0.8);
+  --pf-glow-teal: 0 10px 24px -10px rgba(0, 0, 0, 0.8);
+  --pf-glow-gold: 0 10px 24px -10px rgba(0, 0, 0, 0.8);
+  --pf-glow-green: 0 10px 24px -10px rgba(0, 0, 0, 0.8);
+  --pf-glow-red: 0 10px 24px -12px rgba(120, 20, 10, 0.7);
+
+  /* Движение: пружина с овершутом для вдавливания */
+  --mk-press: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+  /* C «Поход»: крупные ржавые пятна-разводы (feTurbulence, низкая частота) */
+  --po-blotch: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='b'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='3' seed='9'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .1 0 0 0 0 .04 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23b)'/%3E%3C/svg%3E");

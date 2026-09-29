@@ -2,8 +2,7 @@ import { ReactNode, useState } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { Glyph } from '../ui/Emblem'
-import { Emblem } from '../ui/Emblem'
+import { Volume2, VolumeX, Music, X, Bell, Vibrate, Settings } from 'lucide-react'
 import { ambientMusic } from '../utils/ambientMusic'
 import { useNotifications } from '../hooks/useNotifications'
 import { setHapticEnabled, isHapticEnabled } from '../utils/haptic'
@@ -48,9 +47,9 @@ export default function AudioSettings() {
     whileTap={{ scale: 0.9 }}
     onClick={() => setIsOpen(true)}
     aria-label={t("Настройки звука и уведомлений")}
-    style={{ position: 'relative', top: 0, left: 0, width: 44, height: 44, borderRadius: '50%', background: 'rgba(22, 17, 13, 0.9)', backdropFilter: 'blur(10px)', border: '1px solid rgba(160, 82, 40, 0.65)', boxShadow: '0 0 18px -4px rgba(193,68,14,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 'var(--s-z-sticky)' }}
+    style={{ position: 'relative', top: 0, left: 0, width: 44, height: 44, borderRadius: '50%', background: 'rgba(24, 17, 12, 0.94)', border: '1px solid rgba(160, 82, 40, 0.65)', boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.12), 0 8px 16px -8px rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
    >
-    {musicOn ? <Emblem name="flame" size={18} /> : <Emblem name="gear" size={18} />}
+    {musicOn ? <Music size={18} color="var(--pf-teal)" /> : <Settings size={18} color="var(--pf-text-secondary)" />}
    </motion.button>
 
    <AnimatePresence>
@@ -58,33 +57,33 @@ export default function AudioSettings() {
      <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       onClick={() => setIsOpen(false)}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', zIndex: 'var(--s-z-overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(8, 5, 2, 0.78)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
      >
       <motion.div
        role="dialog" aria-modal="true" aria-labelledby="settings-title"
        initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
        onClick={(e) => e.stopPropagation()}
        className="pf-card hull-skin"
-       style={{ width: '100%', maxWidth: 360, padding: 28 }}
+       style={{ width: '100%', maxWidth: 360, borderRadius: 24, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,214,170,0.1)' }}
       >
        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h2 id="settings-title" style={{ fontSize: 20 }}>{t("НАСТРОЙКИ")}</h2>
         <button onClick={() => setIsOpen(false)} aria-label={t("Закрыть")} style={{ width: 44, height: 44, margin: -6, borderRadius: 8, background: 'rgba(160, 82, 40, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-         <Glyph name="x" size={16} style={{ opacity: 0.8 }} />
+         <X size={16} color="var(--pf-text-secondary)" />
         </button>
        </div>
 
-       <SettingRow icon={<Glyph name="music" size={18} />} title={t("Фоновая музыка")} subtitle={t("Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0")} on={musicOn} onToggle={toggleMusic} />
+       <SettingRow icon={<Music size={18} color="var(--pf-teal)" />} title={t("Фоновая музыка")} subtitle={t("Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0")} on={musicOn} color="var(--pf-teal)" onToggle={toggleMusic} />
        {musicOn && (
         <label style={{ display: 'block', margin: '-8px 0 20px 28px' }}>
          <span style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8, display: 'block' }}> {t("Громкость")}: {Math.round(musicVolume * 100)}%</span>
-         <input type="range" className="ares-range" min="0" max="1" step="0.05" value={musicVolume} onChange={(e) => changeVolume(parseFloat(e.target.value))} style={{ width: '100%' }} aria-label={t("Громкость музыки")} />
+         <input type="range" min="0" max="1" step="0.05" value={musicVolume} onChange={(e) => changeVolume(parseFloat(e.target.value))} style={{ width: '100%' }} />
         </label>
        )}
-       <SettingRow icon={soundsOn ? <Glyph name="speaker" size={18} /> : <Glyph name="speaker" size={18} style={{ opacity: 0.45 }} />} title={t("Звуковые эффекты")} subtitle={t("Сбор урожая, покупки, достижения")} on={soundsOn} onToggle={toggleSfx} />
-       <SettingRow icon={<Glyph name="vibrate" size={18} />} title={t("Вибрация")} subtitle={t("Тактильный отклик (Web Vibration API)")} on={hapticOn} onToggle={toggleHaptic} />
+       <SettingRow icon={soundsOn ? <Volume2 size={18} color="var(--ares-hud-amber, #FFB347)" /> : <VolumeX size={18} color="var(--ares-hud-amber, #FFB347)" />} title={t("Звуковые эффекты")} subtitle={t("Сбор урожая, покупки, достижения")} on={soundsOn} color="var(--ares-hud-amber, #FFB347)" onToggle={toggleSfx} />
+       <SettingRow icon={<Vibrate size={18} color="#FF2E93" />} title={t("Вибрация")} subtitle={t("Тактильный отклик (Web Vibration API)")} on={hapticOn} color="#FF2E93" onToggle={toggleHaptic} />
        <SettingRow
-        icon={<Glyph name="bell" size={18} />} title={t("Уведомления")}
+        icon={<Bell size={18} color="var(--pf-gold)" />} title={t("Уведомления")} color="var(--pf-gold)"
         subtitle={permissionGranted ? t('Урожай готов, истекает налог, низкая прочность') : t('Браузер попросит разрешение')}
         on={notificationsEnabled && permissionGranted} onToggle={() => void toggleNotifications()}
        />
@@ -94,7 +93,7 @@ export default function AudioSettings() {
         </button>
        )}
 
-       <div style={{ padding: 8, borderStyle: 'solid', borderWidth: 10, borderImage: "url('/ares/kit/btn-secondary.webp') 40 fill / 10px", background: 'none', fontSize: 11, color: 'var(--pf-text-secondary)', lineHeight: 1.5 }}>
+       <div style={{ padding: 12, borderRadius: 12, background: 'rgba(193, 68, 14, 0.10)', border: '1px solid rgba(160, 82, 40, 0.5)', fontSize: 11, color: 'var(--pf-text-secondary)', lineHeight: 1.5 }}>
         {t('Настройки хранятся только в этом браузере.')}
        </div>
       </motion.div>
@@ -110,10 +109,11 @@ interface RowProps {
  title: string
  subtitle: string
  on: boolean
+ color: string
  onToggle: () => void
 }
 
-function SettingRow({ icon, title, subtitle, on, onToggle }: RowProps) {
+function SettingRow({ icon, title, subtitle, on, color, onToggle }: RowProps) {
  return (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -126,16 +126,10 @@ function SettingRow({ icon, title, subtitle, on, onToggle }: RowProps) {
    <button
     role="switch" aria-checked={on} aria-label={title}
     onClick={onToggle}
-    style={{ width: 52, height: 26, borderRadius: 0, borderStyle: 'solid', borderWidth: 6, borderImage: "url('/ares/kit/input.webp') 30 fill / 6px", background: on ? 'linear-gradient(90deg, rgba(255,150,30,0.55), rgba(255,179,71,0.2))' : 'rgba(0,0,0,0.55)', position: 'relative', transition: 'background 0.25s', flexShrink: 0 }}
+    style={{ width: 48, height: 26, borderRadius: 13, background: on ? color : 'rgba(255,255,255,0.1)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}
    >
-    <motion.img
-     src="/ares/kit/knob.webp"
-     alt=""
-     aria-hidden="true"
-     animate={{ x: on ? 22 : 2, rotate: on ? 150 : 0 }}
-     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-     style={{ width: 22, height: 22, position: 'absolute', top: -1, filter: on ? 'drop-shadow(0 0 6px rgba(255,150,30,0.6))' : 'none' }}
-    />
+    <motion.div animate={{ x: on ? 22 : 2 }} transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+     style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--ares-parchment, #F2E8DA)', position: 'absolute', top: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.5)' }} />
    </button>
   </div>
  )

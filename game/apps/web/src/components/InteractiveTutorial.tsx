@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { Glyph } from '../ui/Emblem'
+import { X, ChevronRight } from 'lucide-react'
 import { HullPanel } from '../ui/HullPanel'
 
 interface TutorialStep {
@@ -104,7 +104,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
      inset: 0,
      background: 'rgba(0, 0, 0, 0.85)',
      backdropFilter: 'blur(8px)',
-     zIndex: 'var(--s-z-toast)',
+     zIndex: 1000,
      display: 'flex',
      alignItems: step.position === 'center' ? 'center' : step.position === 'top' ? 'flex-start' : 'flex-end',
      justifyContent: 'center',
@@ -134,7 +134,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
        width: '44px',
        height: '44px',
        borderRadius: '6px',
-       background: 'var(--s-subtle-bg)',
+       background: 'rgba(0,0,0,0.25)',
        border: '1px solid rgba(255,255,255,0.1)',
        display: 'flex',
        alignItems: 'center',
@@ -143,7 +143,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
        zIndex: 10,
       }}
      >
-      <Glyph name="x" size={16} style={{ opacity: 0.7 }} />
+      <X size={16} color="var(--pf-text-muted)" />
      </button>
 
      <HullPanel style={{ padding: '24px 20px' }}>
@@ -164,14 +164,14 @@ export default function InteractiveTutorial({ onComplete }: Props) {
         height: 4,
         borderRadius: 2,
         overflow: 'hidden',
-        background: 'var(--s-subtle-bg)',
+        background: 'rgba(0,0,0,0.25)',
        }}>
         {TUTORIAL_STEPS.map((_, i) => (
          <div
           key={i}
           style={{
            flex: 1,
-           background: i <= currentStep ? 'var(--pf-teal)' : 'var(--s-subtle-bg)',
+           background: i <= currentStep ? 'var(--pf-teal)' : 'rgba(255,214,170,0.1)',
            transition: 'background 0.3s',
           }}
          />
@@ -222,7 +222,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
           padding: '12px 16px',
           borderRadius: 8,
           border: '1px solid rgba(255,255,255,0.15)',
-          background: 'var(--s-subtle-bg)',
+          background: 'rgba(0,0,0,0.25)',
           color: 'var(--pf-text-secondary)',
           fontSize: 13,
           fontWeight: 600,
@@ -234,15 +234,12 @@ export default function InteractiveTutorial({ onComplete }: Props) {
        )}
        <button
         onClick={handleNext}
+        className="gradient-gold"
         style={{
          flex: isLast ? 1 : 2,
-         padding: '10px 20px',
-         borderStyle: 'solid',
-         borderWidth: 14,
-         borderImage: "url('/ares/kit/btn-primary.webp') 40 fill / 14px",
-         background: 'none',
-         color: '#2B1403',
-         textShadow: '0 1px 0 rgba(255,220,150,0.55)',
+         padding: '12px 20px',
+         borderRadius: 8,
+         border: 'none',
          fontSize: 14,
          fontWeight: 700,
          cursor: 'pointer',
@@ -253,7 +250,7 @@ export default function InteractiveTutorial({ onComplete }: Props) {
         }}
        >
         {isLast ? t('Завершить') : t('Далее')}
-        {!isLast && <Glyph name="chevron-right" size={16} />}
+        {!isLast && <ChevronRight size={16} />}
        </button>
       </div>
      </HullPanel>
