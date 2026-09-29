@@ -380,7 +380,7 @@ const ptBR: Record<string, string> = {
   // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
   'Правовые документы': 'Documentos legais',
   'Настройки cookies': 'Configurações de cookies',
-  'Оператор': 'Operador',
+  'Связь с командой': 'Fale com a equipe',
   'Cookies и локальное хранилище': 'Cookies e armazenamento local',
   'Мы не используем аналитику и рекламу и не устанавливаем cookies. Данные ниже остаются в вашем браузере и нужны только для работы сайта. Решение можно изменить в любой момент.': 'Não usamos analytics nem publicidade e não gravamos cookies. Tudo abaixo fica no seu navegador e serve apenas para o site funcionar. Você pode mudar essa decisão quando quiser.',
   'Необходимое': 'Necessário',
