@@ -14,7 +14,7 @@ import {
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { env } from "./env.js";
 import { assertPayerInstructionsAllowed } from "./policy.js";
-import { anchorDiscriminator, u64LE, decodeGameConfig, decodeEpoch, GameConfig, EpochAccount } from "./anchorRaw.js";
+import { anchorDiscriminator, u64LE, i64LE, decodeGameConfig, decodeEpoch, GameConfig, EpochAccount } from "./anchorRaw.js";
 
 export const programId = new PublicKey(env.programId);
 export const connection = new Connection(env.rpcUrl, "confirmed");
@@ -56,6 +56,15 @@ export async function fetchEpoch(epochId: bigint): Promise<EpochAccount> {
   return decodeEpoch(info.data);
 }
 
+/**
+ * DEPRECATED — replayable. Authorises purely by signature, so the same signed
+ * transaction can be landed twice and an off-chain "already paid" flag loses
+ * the race (the Aurory reward-replay class of bug). Kept only because the
+ * Anchor test-suite uses it to fund accounts; no production path may call it.
+ * Use {@link buildGrantRewardOnceIx} for anything that pays real users.
+ *
+ * @deprecated Use buildGrantRewardOnceIx.
+ */
 export function buildGrantRewardIx(params: {
   config: PublicKey;
   epoch: PublicKey;
@@ -71,6 +80,48 @@ export function buildGrantRewardIx(params: {
     { pubkey: params.authority, isSigner: true, isWritable: false },
     { pubkey: params.potatoMint, isSigner: false, isWritable: true },
     { pubkey: params.userPotato, isSigner: false, isWritable: true },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  ];
+  return new TransactionInstruction({ programId, keys, data });
+}
+
+/** Replay marker PDA: `["reward", recipient ATA, nonce]`. */
+export function rewardClaimPda(userPotato: PublicKey, nonce: bigint): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from("reward"), userPotato.toBuffer(), u64LE(nonce)], programId)[0];
+}
+
+/**
+ * Replay-proof reward payout (gate G-1). The on-chain `reward_claim` PDA is
+ * created with `init`, so a duplicate (recipient ATA, nonce) is rejected by the
+ * runtime rather than by backend bookkeeping. `expiresAt` must be within
+ * MAX_REWARD_EXPIRY_SECONDS (900s) of chain time: a pre-signed durable-nonce
+ * transaction that an attacker holds past the deadline mints nothing.
+ */
+export function buildGrantRewardOnceIx(params: {
+  config: PublicKey;
+  epoch: PublicKey;
+  authority: PublicKey;
+  potatoMint: PublicKey;
+  userPotato: PublicKey;
+  nonce: bigint;
+  amountMicro: bigint;
+  expiresAt: bigint;
+}): TransactionInstruction {
+  const data = Buffer.concat([
+    anchorDiscriminator("global", "grant_reward_once"),
+    u64LE(params.nonce),
+    u64LE(params.amountMicro),
+    i64LE(params.expiresAt),
+  ]);
+  const keys = [
+    { pubkey: params.config, isSigner: false, isWritable: true },
+    { pubkey: params.epoch, isSigner: false, isWritable: true },
+    // Also the rent payer for the claim marker.
+    { pubkey: params.authority, isSigner: true, isWritable: true },
+    { pubkey: params.potatoMint, isSigner: false, isWritable: true },
+    { pubkey: params.userPotato, isSigner: false, isWritable: true },
+    { pubkey: rewardClaimPda(params.userPotato, params.nonce), isSigner: false, isWritable: true },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   ];
   return new TransactionInstruction({ programId, keys, data });
