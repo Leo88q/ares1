@@ -188,69 +188,30 @@ function createHullGeometry(width: number, height: number): HullGeometry {
   const right = Math.max(35, width - 1);
   const bottom = Math.max(35, height - 1);
 
-  const shoulder = Math.min(22, width * 0.08, height * 0.12);
-  const heel = Math.min(14, width * 0.06, height * 0.1);
-  const inset = 5;
-
-  const serviceTop = Math.max(
-    shoulder + 16,
-    Math.min(height * 0.4, height - 64),
-  );
-
-  const serviceBottom = Math.min(
-    bottom - heel - 14,
-    serviceTop + Math.min(40, height * 0.18),
-  );
-
-  const lockStart = Math.max(48, width * 0.67);
-  const lockEnd = Math.min(right - shoulder - 8, lockStart + 28);
-  const lockEnabled = width >= 190 && lockEnd > lockStart + 8;
-  const serviceEnabled = height >= 150;
+  const shoulder = Math.min(12, width * 0.05, height * 0.08);
+  const heel = Math.min(10, width * 0.04, height * 0.06);
+  const inset = 4;
 
   const outerPoints: Point[] = [
     { x: left + shoulder, y: top },
     { x: right - heel, y: top },
     { x: right, y: top + heel },
-  ];
-
-  if (serviceEnabled) {
-    outerPoints.push(
-      { x: right, y: serviceTop },
-      { x: right - 5, y: serviceTop + 5 },
-      { x: right - 5, y: serviceBottom - 5 },
-      { x: right, y: serviceBottom },
-    );
-  }
-
-  outerPoints.push(
     { x: right, y: bottom - shoulder },
     { x: right - shoulder, y: bottom },
-  );
-
-  if (lockEnabled) {
-    outerPoints.push(
-      { x: lockEnd, y: bottom },
-      { x: lockEnd - 4, y: bottom - 5 },
-      { x: lockStart + 4, y: bottom - 5 },
-      { x: lockStart, y: bottom },
-    );
-  }
-
-  outerPoints.push(
     { x: left + heel, y: bottom },
     { x: left, y: bottom - heel },
     { x: left, y: top + shoulder },
-  );
+  ];
 
   const inner = polygonPath([
-    { x: left + shoulder + 2, y: top + inset },
-    { x: right - heel - 2, y: top + inset },
-    { x: right - inset, y: top + heel + 2 },
-    { x: right - inset, y: bottom - shoulder - 2 },
-    { x: right - shoulder - 2, y: bottom - inset },
-    { x: left + heel + 2, y: bottom - inset },
-    { x: left + inset, y: bottom - heel - 2 },
-    { x: left + inset, y: top + shoulder + 2 },
+    { x: left + shoulder + 1, y: top + inset },
+    { x: right - heel - 1, y: top + inset },
+    { x: right - inset, y: top + heel + 1 },
+    { x: right - inset, y: bottom - shoulder - 1 },
+    { x: right - shoulder - 1, y: bottom - inset },
+    { x: left + heel + 1, y: bottom - inset },
+    { x: left + inset, y: bottom - heel - 1 },
+    { x: left + inset, y: top + shoulder + 1 },
   ]);
 
   const outer = polygonPath(outerPoints);
@@ -260,28 +221,26 @@ function createHullGeometry(width: number, height: number): HullGeometry {
     inner,
     route: outer,
     topBracket:
-      `M${left} ${top + shoulder + 18}` +
+      `M${left} ${top + shoulder + 14}` +
       ` V${top + shoulder}` +
       ` L${left + shoulder} ${top}` +
-      ` H${left + shoulder + 42}`,
+      ` H${left + shoulder + 24}`,
     bottomBracket:
-      `M${right - shoulder - 43} ${bottom}` +
+      `M${right - shoulder - 24} ${bottom}` +
       ` H${right - shoulder}` +
       ` L${right} ${bottom - shoulder}` +
-      ` V${bottom - shoulder - 20}`,
+      ` V${bottom - shoulder - 14}`,
     rightBracket:
-      `M${right - heel - 27} ${top}` +
+      `M${right - heel - 18} ${top}` +
       ` H${right - heel}` +
       ` L${right} ${top + heel}` +
-      ` V${top + heel + 13}`,
-    servicePath: serviceEnabled
-      ? `M${right - 2} ${serviceTop + 8} V${serviceBottom - 8}`
-      : "",
+      ` V${top + heel + 12}`,
+    servicePath: "",
     fasteners: [
-      { x: left + 12, y: top + shoulder + 13 },
-      { x: right - heel - 12, y: top + 12 },
-      { x: right - 12, y: bottom - shoulder - 13 },
-      { x: left + heel + 12, y: bottom - 12 },
+      { x: left + 10, y: top + shoulder + 8 },
+      { x: right - heel - 8, y: top + 10 },
+      { x: right - 10, y: bottom - shoulder - 8 },
+      { x: left + heel + 8, y: bottom - 10 },
     ],
   };
 }

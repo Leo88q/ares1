@@ -125,18 +125,64 @@ function ConnectHint() {
 
  return (
   <div style={{ gridColumn: '1 / -1' }}>
-   <div className="po-card" style={{ padding: '32px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-    <div className="po-hazard" aria-hidden="true" />
-    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, marginTop: 8 }}>
-     <Tuber9 mood="sleep" size={96} />
+   <div
+    style={{
+     padding: '36px 24px',
+     textAlign: 'center',
+     position: 'relative',
+     borderRadius: 12,
+     background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
+     border: '1px solid #4D331D',
+     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
+    }}
+   >
+    <div
+     style={{
+      width: 100,
+      height: 100,
+      borderRadius: '50%',
+      background: 'radial-gradient(circle, rgba(232, 160, 60, 0.14) 0%, transparent 70%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      margin: '0 auto 16px',
+     }}
+    >
+     <Tuber9 mood="sleep" size={90} />
     </div>
-    <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.22em', color: '#D4A576', marginBottom: 8 }}>
+    <div
+     style={{
+      fontFamily: 'var(--ares-font-stencil)',
+      fontSize: 11,
+      letterSpacing: '0.2em',
+      color: '#D4A576',
+      marginBottom: 8,
+      textTransform: 'uppercase',
+     }}
+    >
      {t("ТЕРМИНАЛ ЭКИПАЖА // ОЖИДАНИЕ АВТОРИЗАЦИИ")}
     </div>
-    <h2 style={{ fontSize: 21, marginBottom: 10, fontFamily: 'var(--ares-font-stencil)', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#F6F1ED' }}>
+    <h2
+     style={{
+      fontSize: 21,
+      marginBottom: 10,
+      fontFamily: 'var(--ares-font-stencil)',
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      color: '#F6F1ED',
+     }}
+    >
      {t("Подключи кошелёк")}
     </h2>
-    <p style={{ color: 'var(--ares-dust, #E0A183)', fontSize: 13, maxWidth: 380, margin: '0 auto 20px', lineHeight: 1.5 }}>
+    <p
+     style={{
+      color: 'var(--ares-dust, #E0A183)',
+      fontSize: 13,
+      maxWidth: 380,
+      margin: '0 auto 20px',
+      lineHeight: 1.5,
+     }}
+    >
      {t("Делянки и биомасса хранятся on-chain на Solana. Авторизуй бортовой интерфейс для доступа к гидропонике.")}
     </p>
 
@@ -146,7 +192,7 @@ function ConnectHint() {
      disabled={connecting}
      className="mk-key mk-key--paint"
      style={{
-      padding: '13px 28px',
+      padding: '12px 26px',
       fontSize: 13,
       fontWeight: 700,
       display: 'inline-flex',
@@ -161,7 +207,18 @@ function ConnectHint() {
      {connecting ? t('Авторизация…') : t('Подключить кошелёк')}
     </motion.button>
 
-    <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 22, fontSize: 10, color: 'var(--pf-text-muted)', letterSpacing: '0.08em' }} className="ares-mono">
+    <div
+     style={{
+      display: 'flex',
+      justifyContent: 'center',
+      gap: 16,
+      marginTop: 22,
+      fontSize: 10,
+      color: 'rgba(255, 179, 71, 0.55)',
+      letterSpacing: '0.08em',
+     }}
+     className="ares-mono"
+    >
      <span>• SOLANA DEVNET</span>
      <span>• PHANTOM / SOLFLARE</span>
      <span>• ZERO-KNOWLEDGE</span>
@@ -179,9 +236,9 @@ interface BuyProps {
 }
 
 const TIER_META = [
- { label: 'TIER I · ОБЫЧНАЯ КАССЕТА', tag: 'COMMON', borderColor: '#5C4028', accentColor: '#C9A176' },
- { label: 'TIER II · ФИТО-РЕАКТОР', tag: 'RARE', borderColor: '#7E4C24', accentColor: '#ED8A45' },
- { label: 'TIER III · БИО-КАССЕТА', tag: 'EPIC', borderColor: '#96632B', accentColor: '#FFC94A' },
+ { label: 'TIER I · ОБЫЧНАЯ КАССЕТА', tag: 'COMMON', borderColor: '#4D331D', accentColor: '#C9A176' },
+ { label: 'TIER II · ФИТО-РЕАКТОР', tag: 'RARE', borderColor: '#6E4522', accentColor: '#ED8A45' },
+ { label: 'TIER III · БИО-КАССЕТА', tag: 'EPIC', borderColor: '#8A5826', accentColor: '#FFC94A' },
 ]
 
 function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyProps) {
@@ -189,13 +246,30 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
   <motion.div
    initial={{ opacity: 0, y: 20 }}
    animate={{ opacity: 1, y: 0 }}
-   className="po-card"
-   style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', overflow: 'hidden' }}
+   style={{
+    borderRadius: 12,
+    background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
+    border: '1px solid #4D331D',
+    boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
+    padding: '20px 18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 14,
+    position: 'relative',
+   }}
   >
-   <div className="po-hazard" aria-hidden="true" />
-   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
     <div>
-     <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, fontWeight: 600, letterSpacing: '0.2em', color: '#D4A576', textTransform: 'uppercase' }}>
+     <div
+      style={{
+       fontFamily: 'var(--ares-font-stencil)',
+       fontSize: 11,
+       fontWeight: 600,
+       letterSpacing: '0.2em',
+       color: '#D4A576',
+       textTransform: 'uppercase',
+      }}
+     >
       {t("ИНКУБАТОР АГРО-ОТСЕКА")}
      </div>
      <div style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginTop: 2 }}>
@@ -205,7 +279,7 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
     <span className="po-lamp po-lamp--green" aria-hidden="true" />
    </div>
 
-   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
+   <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
     {FIELD_TYPES.map((type) => {
      const meta = TIER_META[type.id] ?? TIER_META[0]
      const price = fieldPriceMicro(type.id)
@@ -218,42 +292,42 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
        style={{
         borderRadius: 8,
         border: `1px solid ${meta.borderColor}`,
-        background: 'linear-gradient(170deg, rgba(38,26,17,0.7) 0%, rgba(22,14,9,0.85) 100%)',
-        padding: '14px 16px',
+        background: 'linear-gradient(180deg, rgba(34,22,14,0.8) 0%, rgba(18,12,8,0.9) 100%)',
+        padding: '12px 14px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 12,
-        boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.08), 0 4px 12px rgba(0,0,0,0.4)',
+        gap: 10,
+        boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.06), 0 3px 8px rgba(0,0,0,0.3)',
        }}
       >
-       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <img
          src={type.image}
          alt={meta.tag}
-         width={44}
-         height={48}
+         width={40}
+         height={44}
          loading="lazy"
-         style={{ width: 44, height: 48, objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.6))' }}
+         style={{ width: 40, height: 44, objectFit: 'contain', flexShrink: 0, filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.6))' }}
         />
         <div style={{ flex: 1, minWidth: 0 }}>
          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 13, letterSpacing: '0.12em', color: meta.accentColor }}>
+          <span style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 12, letterSpacing: '0.12em', color: meta.accentColor }}>
            {meta.label}
           </span>
-          <span className="ares-mono" style={{ fontSize: 10, color: '#A8895C', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: 4 }}>
+          <span className="ares-mono" style={{ fontSize: 9, color: '#C9A176', background: 'rgba(0,0,0,0.35)', padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.05)' }}>
            ×{yieldMul} КПД
           </span>
          </div>
-         <div style={{ display: 'flex', gap: 14, marginTop: 4, fontSize: 11, color: 'var(--pf-text-secondary)' }} className="ares-mono">
+         <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 10, color: 'var(--pf-text-secondary)' }} className="ares-mono">
           <span>СБОР: ~{((type.yieldBps / 10_000) * 100).toFixed(0)} 🥔 / СОЛ</span>
           <span>РЕСУРС: 100%</span>
          </div>
         </div>
        </div>
 
-       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10 }}>
-        <div className="ares-mono" style={{ fontSize: 13, fontWeight: 700, color: affordable ? '#EFD9AC' : 'var(--pf-text-muted)' }}>
-         {fmtPotato(price, 0)} <span style={{ fontSize: 10, opacity: 0.8 }}>POTATO</span>
+       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8 }}>
+        <div className="ares-mono" style={{ fontSize: 12, fontWeight: 700, color: affordable ? '#EFD9AC' : 'rgba(255,179,71,0.5)' }}>
+         {fmtPotato(price, 0)} <span style={{ fontSize: 9, opacity: 0.8 }}>POTATO</span>
         </div>
 
         <motion.button
@@ -267,8 +341,8 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
          }}
          className={affordable ? 'mk-key mk-key--paint' : 'mk-key'}
          style={{
-          padding: '8px 18px',
-          fontSize: 12,
+          padding: '7px 16px',
+          fontSize: 11,
           fontWeight: 700,
           cursor: affordable ? 'pointer' : 'not-allowed',
           opacity: affordable ? 1 : 0.45,
