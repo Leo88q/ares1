@@ -1,144 +1,91 @@
 import { ReactNode } from 'react'
-import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
-import { useLocation } from 'react-router-dom'
-
-type Variant = 'farm' | 'market' | 'profile' | 'stats'
+import { motion, useScroll, useTransform } from 'framer-motion'
 
 interface Props {
- variant?: Variant
  children?: ReactNode
 }
 
-const BG_PHOTOS: Record<Variant, string> = {
- farm: '/ares/bg-colony.jpg',
- market: '/ares/bg-market.jpg',
- stats: '/ares/bg-engine.jpg',
- profile: '/ares/bg-cabin.jpg',
-}
-
 /**
- * Атмосферная марсианская подножка под окошки интерфейса ARES-1:
- * На каждой вкладке под панелями располагается тематическое окружение колонии:
- * - АГРО: гидропонный купол и био-ферма
- * - СНАБЖЕНИЕ: грузовой шлюз и торговый терминал
- * - ЖУРНАЛ: командный центр и отсек телеметрии
- * - КАЮТА: жилой отсек экипажа и персональный терминал
+ * Атмосферная марсианская подложка по телефонной раскладке:
+ * Располагается внутри телефонного контейнера (max-width: 480px),
+ * создавая глубину жилого купола и био-отсека без растянутых внешних фото.
  */
-export default function BackgroundScene({ variant, children }: Props) {
- const location = useLocation()
+export default function BackgroundScene({ children }: Props) {
  const { scrollY } = useScroll()
- const y1 = useTransform(scrollY, [0, 1000], [0, -30])
- const y2 = useTransform(scrollY, [0, 1000], [0, -60])
-
- const activeVariant: Variant =
-  variant ?? (
-   location.pathname === '/market' ? 'market'
-   : location.pathname === '/stats' ? 'stats'
-   : location.pathname === '/profile' ? 'profile'
-   : 'farm'
-  )
-
- const photoSrc = BG_PHOTOS[activeVariant]
+ const y1 = useTransform(scrollY, [0, 1000], [0, -40])
+ const y2 = useTransform(scrollY, [0, 1000], [0, -80])
 
  return (
   <div
+   className="pf-phone-backdrop"
    style={{
-    position: 'fixed',
+    position: 'absolute',
     inset: 0,
     zIndex: 0,
-    backgroundColor: '#080504',
+    backgroundColor: '#0E0805',
     overflow: 'hidden',
     pointerEvents: 'none',
    }}
   >
-   {/* Полноразмерная сгенерированная марсианская фотография отсека под окошками */}
-   <AnimatePresence mode="wait">
-    <motion.div
-     key={activeVariant}
-     initial={{ opacity: 0, scale: 1.03 }}
-     animate={{ opacity: 1, scale: 1 }}
-     exit={{ opacity: 0 }}
-     transition={{ duration: 0.5, ease: 'easeOut' }}
-     style={{
-      position: 'absolute',
-      inset: 0,
-      width: '100%',
-      height: '100%',
-     }}
-    >
-     <img
-      src={photoSrc}
-      alt=""
-      style={{
-       width: '100%',
-       height: '100%',
-       objectFit: 'cover',
-       objectPosition: 'center 35%',
-       filter: 'brightness(0.86) contrast(1.1) saturate(1.18)',
-      }}
-     />
+   {/* Глубокий марсианский градиент отсека */}
+   <div
+    style={{
+     position: 'absolute',
+     inset: 0,
+     background: `
+      linear-gradient(180deg, rgba(28, 17, 10, 0.45) 0%, rgba(18, 11, 7, 0.75) 45%, rgba(10, 6, 4, 0.95) 100%),
+      radial-gradient(ellipse at 50% 20%, rgba(193, 68, 14, 0.14) 0%, transparent 65%)
+     `,
+    }}
+   />
 
-     {/* Атмосферная марсианская виньетка: прозрачная, сохраняющая выразительность иллюстрации отсека */}
-     <div
-      style={{
-       position: 'absolute',
-       inset: 0,
-       background: `
-        linear-gradient(180deg, rgba(8,5,4,0.18) 0%, rgba(12,7,5,0.32) 30%, rgba(10,6,4,0.62) 75%, rgba(8,5,4,0.92) 100%),
-        radial-gradient(ellipse at 50% 32%, transparent 45%, rgba(8,5,4,0.65) 100%)
-       `,
-      }}
-     />
-    </motion.div>
-   </AnimatePresence>
-
-   {/* Атмосферный марсианский свет 1 */}
+   {/* Атмосферный марсианский свет 1: тёплое янтарное свечение ламп */}
    <motion.div
     style={{
      position: 'absolute',
-     top: '5%',
-     left: '-5%',
-     width: '65%',
-     height: '65%',
-     background: 'radial-gradient(circle, rgba(193, 68, 14, 0.12) 0%, transparent 70%)',
-     filter: 'blur(90px)',
+     top: '10%',
+     left: '-20%',
+     width: '90%',
+     height: '60%',
+     background: 'radial-gradient(circle, rgba(232, 160, 60, 0.08) 0%, transparent 70%)',
+     filter: 'blur(70px)',
      y: y1,
     }}
     animate={{
-     x: [0, 25, 0],
-     y: [0, 15, 0],
+     x: [0, 15, 0],
+     y: [0, 10, 0],
     }}
     transition={{
-     duration: 22,
+     duration: 18,
      repeat: Infinity,
      ease: 'easeInOut',
     }}
    />
 
-   {/* Атмосферный марсианский свет 2 */}
+   {/* Атмосферный марсианский свет 2: терракотовый рефлекс купола */}
    <motion.div
     style={{
      position: 'absolute',
-     bottom: '5%',
-     right: '-5%',
-     width: '70%',
-     height: '70%',
-     background: 'radial-gradient(circle, rgba(232, 160, 60, 0.09) 0%, transparent 70%)',
-     filter: 'blur(100px)',
+     bottom: '15%',
+     right: '-20%',
+     width: '90%',
+     height: '55%',
+     background: 'radial-gradient(circle, rgba(193, 68, 14, 0.09) 0%, transparent 70%)',
+     filter: 'blur(80px)',
      y: y2,
     }}
     animate={{
-     x: [0, -25, 0],
-     y: [0, -15, 0],
+     x: [0, -15, 0],
+     y: [0, -12, 0],
     }}
     transition={{
-     duration: 28,
+     duration: 24,
      repeat: Infinity,
      ease: 'easeInOut',
     }}
    />
 
-   {/* Тактическая координатная сетка шлюза */}
+   {/* Тактическая координатная сетка купола */}
    <div
     style={{
      position: 'absolute',
@@ -147,7 +94,16 @@ export default function BackgroundScene({ variant, children }: Props) {
       linear-gradient(rgba(217, 160, 107, 0.025) 1px, transparent 1px),
       linear-gradient(90deg, rgba(217, 160, 107, 0.025) 1px, transparent 1px)
      `,
-     backgroundSize: '48px 48px',
+     backgroundSize: '40px 40px',
+    }}
+   />
+
+   {/* Внутренняя виньетка по краям телефонной рамки */}
+   <div
+    style={{
+     position: 'absolute',
+     inset: 0,
+     boxShadow: 'inset 0 0 45px rgba(0, 0, 0, 0.75)',
     }}
    />
 

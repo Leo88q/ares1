@@ -149,8 +149,37 @@ button:disabled {
 .pf-app-bg {
   position: relative;
   min-height: 100vh;
+  background: radial-gradient(ellipse at 50% 15%, #180F0A 0%, #0D0807 50%, #060405 100%);
   color: var(--pf-text-primary);
   font-family: var(--pf-font-ui);
+  display: flex;
+  justify-content: center;
+  overflow-x: hidden;
+}
+
+/* Телефонная раскладка: ограниченная подножка-шасси вместо растянутого экрана */
+.pf-phone-chassis {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  margin: 0 auto;
+  background: linear-gradient(180deg, #1C120B 0%, #130C07 50%, #0A0604 100%);
+  border-left: 1px solid rgba(255, 214, 170, 0.12);
+  border-right: 1px solid rgba(255, 214, 170, 0.12);
+  box-shadow:
+    0 0 50px rgba(0, 0, 0, 0.9),
+    0 0 100px -20px rgba(193, 68, 14, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 480px) {
+  .pf-phone-chassis {
+    border-left: none;
+    border-right: none;
+    box-shadow: none;
+  }
 }
 
 /* --pf-glow-green / --pf-grad-border-green — в theme/tokens.css */
@@ -961,3 +990,183 @@ body { color: var(--pf-text-primary); }
   border-radius: 0;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 9px) 100%, 0 100%);
 }
+
+/* ── Тактильные заклёпки и винты обшивки (система C «Поход») ── */
+.po-screw {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #F5BE72 0%, #B37A3C 45%, #4A2B12 85%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  z-index: 3;
+}
+.po-screw::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 1px;
+  right: 1px;
+  height: 1px;
+  background: #170E05;
+}
+.po-screw--tl { top: 7px; left: 7px; }
+.po-screw--tr { top: 7px; right: 7px; }
+.po-screw--bl { bottom: 7px; left: 7px; }
+.po-screw--br { bottom: 7px; right: 7px; }
+
+/* Угловой hazard-треугольник */
+.po-hazard-corner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  background: repeating-linear-gradient(-45deg, #C99232 0 5px, #1F1309 5px 10px);
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Тиснёная латунная плашка-бейдж */
+.po-badge-brass {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid #7E5728;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #D4A968 0%, #A6783A 60%, #7E5728 100%);
+  color: #1E1005;
+  font-family: var(--ares-font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 235, 195, 0.6);
+}
+
+/* Вентиляционные жалюзи */
+.po-louvers {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 0;
+}
+.po-louvers span {
+  display: block;
+  height: 2px;
+  background: #170E05;
+  box-shadow: 0 1px 0 rgba(255, 214, 160, 0.12);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ВАРИАЦИИ КАСТОМИЗИРОВАННЫХ ПЛИТ: миксованные, не одинаковые
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* 1. Плита канала связи (COMM CHANNEL) */
+.po-plate--comm {
+  background-color: #382717;
+  background-image:
+    var(--po-blotch),
+    var(--mk-grain),
+    linear-gradient(160deg, #44301D 0%, #352414 55%, #24170B 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 160, 0.14),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.55),
+    inset 0 0 24px rgba(0, 0, 0, 0.45),
+    0 10px 20px -8px #000;
+}
+
+/* 2. Плита РАНГА: бронзовая патина, акцентные винты */
+.po-plate--stat-rank {
+  background-color: #3B2B18;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(155deg, #4A351E 0%, #3B2B18 60%, #261A0E 100%);
+  border: 1px solid #2B1D0E;
+}
+
+/* 3. Плита РАСТЕНИЙ: литой металл, верхняя микро-hazard полоска */
+.po-plate--stat-plants {
+  background-color: #342616;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(155deg, #402E1B 0%, #322313 60%, #22160C 100%);
+  border: 1px solid #24170C;
+}
+
+/* 4. Плита СТАЖА: чернёный сплав, отпечаток времени */
+.po-plate--stat-tenure {
+  background-color: #322314;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(155deg, #3D2B19 0%, #2F2012 60%, #1F140A 100%);
+  border: 1px solid #20140A;
+}
+
+/* 5. Плита ПРЕСЕЙЛА (PRESALE ORDNANCE VAULT) */
+.po-plate--presale {
+  border: 1px solid #140C04;
+  background-color: #382717;
+  background-image:
+    var(--po-blotch),
+    var(--mk-grain),
+    linear-gradient(165deg, #46321D 0%, #362515 50%, #26190D 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 160, 0.16),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.65),
+    inset 0 0 50px rgba(0, 0, 0, 0.5),
+    0 18px 30px -12px #000;
+}
+
+/* 6. Плита ИНКУБАТОРА (AGRO INCUBATOR BAY) */
+.po-plate--incubator {
+  border: 1px solid #1F140A;
+  background-color: #342516;
+  background-image:
+    var(--po-blotch),
+    var(--mk-grain),
+    linear-gradient(160deg, #402E1C 0%, #322314 55%, #22160C 100%);
+}
+
+/* 7. Плита ДЕЛЯНКИ (FIELD TRAY) */
+.po-plate--field {
+  border: 1px solid #24170C;
+  background-color: #362617;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(160deg, #3F2C1B 0%, #302113 55%, #20140A 100%);
+}
+
+/* 8. Плита СНАБЖЕНИЯ / РЫНКА (MARKET CARGO TERMINAL) */
+.po-plate--market {
+  border: 1px solid #1C1208;
+  background-color: #352516;
+  background-image:
+    var(--po-blotch),
+    var(--mk-grain),
+    linear-gradient(160deg, #422F1D 0%, #332313 55%, #21150A 100%);
+}
+
+/* 9. Плита ЖУРНАЛА МИССИИ (TACTICAL MISSION LOG) */
+.po-plate--journal {
+  border: 1px solid #1E1309;
+  background-color: #362617;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(160deg, #43301D 0%, #342414 55%, #22160C 100%);
+}
+
+/* 10. Плита КАЮТЫ / ДОСЬЕ (CREW CABIN & DOSSIER) */
+.po-plate--cabin {
+  border: 1px solid #20140A;
+  background-color: #382717;
+  background-image:
+    var(--po-blotch),
+    var(--mk-grain),
+    linear-gradient(160deg, #45311E 0%, #362515 55%, #23170D 100%);
+}
+

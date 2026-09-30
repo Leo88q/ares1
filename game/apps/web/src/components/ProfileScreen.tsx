@@ -142,12 +142,18 @@ function ProfileScreenInner() {
 
    {/* Лицензия экспортёра */}
    <div
-    className="po-card"
+    className="po-plate po-plate--cabin"
     style={{
      marginBottom: 16,
      padding: '18px 20px',
+     position: 'relative',
+     overflow: 'hidden',
     }}
    >
+    <span className="po-screw po-screw--tl" aria-hidden="true" />
+    <span className="po-screw po-screw--tr" aria-hidden="true" />
+    <span className="po-screw po-screw--bl" aria-hidden="true" />
+    <span className="po-screw po-screw--br" aria-hidden="true" />
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
      <div style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.18em', color: '#D4A576', textTransform: 'uppercase' }}>
       {t("ЛИЦЕНЗИЯ ЭКСПОРТЁРА // ТОРГОВЫЙ ДОПУСК")}
@@ -212,13 +218,20 @@ function ProfileScreenInner() {
 
    {/* Паёк на складе */}
    <div
-    className="po-card"
+    className="po-plate po-plate--stat-tenure"
     style={{
      marginBottom: 16,
      padding: '22px 18px',
      textAlign: 'center',
+     position: 'relative',
+     overflow: 'hidden',
     }}
    >
+    <div className="po-hazard" style={{ height: 4 }} aria-hidden="true" />
+    <span className="po-screw po-screw--tl" aria-hidden="true" />
+    <span className="po-screw po-screw--tr" aria-hidden="true" />
+    <span className="po-screw po-screw--bl" aria-hidden="true" />
+    <span className="po-screw po-screw--br" aria-hidden="true" />
     <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.2em', color: '#D4A576', marginBottom: 10, textTransform: 'uppercase' }}>
      {t('ПАЁК НА СКЛАДЕ')}
     </div>
@@ -238,12 +251,18 @@ function ProfileScreenInner() {
 
    {/* Ранг колониста */}
    <div
-    className="po-card"
+    className="po-plate po-plate--cabin"
     style={{
      marginBottom: 16,
      padding: 20,
+     position: 'relative',
+     overflow: 'hidden',
     }}
    >
+    <span className="po-screw po-screw--tl" aria-hidden="true" />
+    <span className="po-screw po-screw--tr" aria-hidden="true" />
+    <span className="po-screw po-screw--bl" aria-hidden="true" />
+    <span className="po-screw po-screw--br" aria-hidden="true" />
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
      <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -285,12 +304,18 @@ function ProfileScreenInner() {
 
    {/* Стена нашивок */}
    <div
-    className="po-card"
+    className="po-plate po-plate--journal"
     style={{
      marginBottom: 16,
      padding: 20,
+     position: 'relative',
+     overflow: 'hidden',
     }}
    >
+    <span className="po-screw po-screw--tl" aria-hidden="true" />
+    <span className="po-screw po-screw--tr" aria-hidden="true" />
+    <span className="po-screw po-screw--bl" aria-hidden="true" />
+    <span className="po-screw po-screw--br" aria-hidden="true" />
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <Trophy size={18} color="#FFC94A" aria-hidden="true" />
@@ -306,12 +331,18 @@ function ProfileScreenInner() {
 
    {/* Диагностика скафандра */}
    <div
-    className="po-card"
+    className="po-plate po-plate--cabin"
     style={{
      marginBottom: 16,
      padding: 20,
+     position: 'relative',
+     overflow: 'hidden',
     }}
    >
+    <span className="po-screw po-screw--tl" aria-hidden="true" />
+    <span className="po-screw po-screw--tr" aria-hidden="true" />
+    <span className="po-screw po-screw--bl" aria-hidden="true" />
+    <span className="po-screw po-screw--br" aria-hidden="true" />
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
      <h3 className="ares-mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: '#ED8A45', margin: 0, textTransform: 'uppercase' }}>
       {t('ДИАГНОСТИКА СКАФАНДРА // СИСТЕМЫ ЖИЗНЕОБЕСПЕЧЕНИЯ')}

@@ -244,15 +244,21 @@ function StatsScreenInner() {
        initial={{ opacity: 0, x: -20 }}
        animate={{ opacity: 1, x: 0 }}
        transition={{ delay: i * 0.05 }}
-       className="po-card"
+       className="po-plate po-plate--journal"
        style={{
         padding: '14px 16px',
         border: row.isMe ? '1px solid #FFB347' : undefined,
         display: 'flex',
         alignItems: 'center',
         gap: 12,
+        position: 'relative',
+        overflow: 'hidden',
        }}
       >
+       <span className="po-screw po-screw--tl" aria-hidden="true" />
+       <span className="po-screw po-screw--tr" aria-hidden="true" />
+       <span className="po-screw po-screw--bl" aria-hidden="true" />
+       <span className="po-screw po-screw--br" aria-hidden="true" />
        <div style={{ width: 28, fontSize: 16, fontWeight: 800, color: i === 0 ? 'var(--pf-gold)' : i === 1 ? 'var(--pf-text-secondary)' : i === 2 ? '#b45309' : 'var(--pf-text-muted)' }}>{i + 1}</div>
        <div style={{ flex: 1 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: row.isMe ? 'var(--ares-hud-amber, #FFB347)' : 'var(--ares-parchment, #F2E8DA)' }}>
