@@ -63,6 +63,71 @@ card: {"tag":"ARTICLE","className":"panel feature-card ares-equipment-card","pos
    [data-ares-hull="true"] .tier { border-radius: 0px; background: rgb(16, 16, 21); box-shadow: rgb(6, 6, 9) 0px -3px inset; }
    [data-ares-hull="true"] .tier-dot { box-shadow: none; }
    [data-ares-hull="true"] .form-field input { border-radius: 3px; border-color: rgb(91, 71, 89); background: rgb(12, 11, 16); box-shadow: rgba(0, 0, 0, 0.5) 0px 2px inset, rgba(227, 196, 172, 0.04) 0px 1px; }
+=== branch-preview ===
+styleSheets=1 rules=871 hullFrameRule=true hullHostRule=true hullSvgRule=true dataAresHullCount=23
+failures: none
+card: {"tag":"ARTICLE","className":"panel feature-card ares-equipment-card","position":"relative","inset":"0px 0px 0px 0px","display":"block","width":"283.25px","height":"607.484px","zIndex":"auto","rect":"283x607 @3751"}
+   tree SPAN.ares-hull-frame pos=relative inset=0px 0px 0px 0px 241x241 @3777 241.25pxx241.25px
+   tree IMG.ares-hull-svg pos=static inset=auto auto auto auto 241x241 @3777 241.25pxx241.25px
+   tree SPAN.ares-hull-glow pos=absolute inset=0px 0px 0px 0px 241x241 @3777 241.25pxx241.25px
+   tree SPAN.ares-hull-plate pos=absolute inset=2px 153.438px 225.5px 36px 52x14 @3779 51.8125pxx13.75px
+   tree SPAN.ares-hull-corner pos=absolute inset=231.25px 14px 8px 217.25px 10x2 @4008 10pxx2px
+   tree SPAN.ares-hull-sweep pos=absolute inset=0px 0px 0px 0px 241x241 @3777 241.25pxx241.25px
+   tree DIV.feature-top pos=relative inset=0px 0px 0px 0px 241x76 @4018 241.25pxx76px
+   tree DIV.feature-icon pos=relative inset=0px 0px 0px 0px 76x76 @4018 76pxx76px
+   tree IMG. pos=static inset=auto auto auto auto 48x48 @4032 48pxx48px
+   tree SPAN.feature-number pos=static inset=auto auto auto auto 16x14 @4018 16.2188pxx14px
+   tree P.eyebrow feature-label pos=relative inset=0px 0px 0px 0px 241x17 @4122 241.25pxx17px
+   tree H3. pos=relative inset=0px 0px 0px 0px 241x29 @4149 241.25pxx28.5938px
+   tree P.feature-description pos=relative inset=0px 0px 0px 0px 241x111 @4193 241.25pxx110.75px
+   tree SPAN.card-corner pos=relative inset=-18px 25px 18px -25px 9x20 @4290 autoxauto
+   frame {"tag":"SPAN","className":"ares-hull-frame","position":"relative","inset":"0px 0px 0px 0px","display":"block","width":"382px","height":"382px","zIndex":"1","rect":"382x382 @675"}
+   frame {"tag":"SPAN","className":"ares-hull-frame","position":"relative","inset":"0px 0px 0px 0px","display":"block","width":"511px","height":"511px","zIndex":"1","rect":"511x511 @2513"}
+   frame {"tag":"SPAN","className":"ares-hull-frame","position":"relative","inset":"0px 0px 0px 0px","display":"block","width":"511px","height":"511px","zIndex":"1","rect":"511x511 @2513"}
+   svg {"tag":"IMG","className":"ares-hull-svg","position":"static","inset":"auto auto auto auto","display":"block","width":"382px","height":"382px","zIndex":"auto","rect":"382x382 @675"}
+   svg {"tag":"IMG","className":"ares-hull-svg","position":"static","inset":"auto auto auto auto","display":"block","width":"511px","height":"511px","zIndex":"auto","rect":"511x511 @2513"}
+   svg {"tag":"IMG","className":"ares-hull-svg","position":"static","inset":"auto auto auto auto","display":"block","width":"511px","height":"511px","zIndex":"auto","rect":"511x511 @2513"}
+-- matched rules --
+   .liquid-panel { position: relative; min-width: 0px; padding: 26px; border: 1px solid var(--mk-seam, #120c07); border-radius: 2px; background-color: var(--mk-face, #2c221a); background-image: var(--mk-grain),var(--mk-scratches),linear-gradient(168deg,#40331f,#3
+   .liquid-panel::before { content: ""; position: absolute; inset: 11px; border-radius: 2px; border-width: 1px; border-style: solid; border-color: rgba(0, 0, 0, 0.5) rgba(255, 224, 178, 0.05) rgba(255, 224, 178, 0.09) rgba(0, 0, 0, 0.38); pointer-events: none; z-
+   [data-liquid-panel="accent"].liquid-panel::after, .liquid-panel--feature::after { content: ""; position: absolute; inset: 0px; pointer-events: none; background: radial-gradient(7px 7px at 20px 20px, rgb(30, 21, 11) 38%, rgba(255, 224, 178, 0.2) 46%, rgba(0, 0,
+   [data-liquid-panel] > :not(.liquid-panel-decoration) { position: relative; z-index: 1; }
+   [data-liquid-panel] { position: relative; border-color: transparent !important; }
+   [data-liquid-panel] > :not(.liquid-panel-decoration) { text-shadow: rgba(0, 0, 0, 0.4) 0px 1px 2px; }
+   .liquid-panel-decoration { position: absolute; z-index: 2; inset: 0px; display: block; border-radius: inherit; overflow: visible; pointer-events: none; user-select: none; }
+   .liquid-panel-svg { position: absolute; inset: 0px; display: block; width: 100%; height: 100%; max-width: none; overflow: visible; pointer-events: none; }
+   .liquid-panel-inner-glow, .liquid-panel-hover-glow { position: absolute; inset: 0px; display: block; border-radius: inherit; pointer-events: none; }
+   .liquid-panel-inner-glow { box-shadow: rgba(0, 0, 0, 0.42) 0px 0px 24px inset, rgba(255, 214, 170, 0.12) 0px 1px inset; }
+   .liquid-panel-hover-glow { opacity: 0; box-shadow: rgba(255, 179, 71, 0.16) 0px 0px 26px inset, rgba(255, 179, 71, 0.28) 0px 0px 0px 1px inset; }
+   [data-liquid-variant="accent"] .liquid-panel-inner-glow { box-shadow: rgba(255, 179, 71, 0.3) 0px 0px 0px 1px inset, rgba(255, 179, 71, 0.12) 0px 0px 28px inset; }
+   [data-liquid-variant="danger"] .liquid-panel-inner-glow { box-shadow: rgba(224, 108, 90, 0.35) 0px 0px 0px 1px inset, rgba(120, 30, 16, 0.25) 0px 0px 28px inset; }
+   [data-liquid-variant="danger"] .liquid-panel-hover-glow { box-shadow: rgba(255, 108, 131, 0.35) 0px 0px 30px inset, rgba(255, 179, 192, 0.3) 0px 0px 3px inset; }
+   .liquid-panel--feature { height: 100%; }
+   .liquid-panel--stats { font-variant-numeric: tabular-nums; }
+   .liquid-panel--quest { background: radial-gradient(at right top, rgba(124, 255, 107, 0.043), transparent 60%), linear-gradient(135deg, rgb(25, 17, 30), rgb(14, 11, 20)); }
+   .liquid-panel--presale { background: radial-gradient(at left top, rgba(255, 46, 147, 0.08), transparent 60%), linear-gradient(135deg, rgb(25, 17, 30), rgb(14, 11, 20)); }
+   .panel[data-liquid-panel] { background-image: linear-gradient(135deg, rgba(25, 17, 30, 0.85), rgba(14, 11, 20, 0.96)); }
+   .waitlist-panel[data-liquid-panel] { background-image: radial-gradient(at 0% 0%, rgba(255, 46, 147, 0.1), transparent 60%), linear-gradient(125deg, rgb(32, 16, 38), rgb(16, 10, 24)); }
+   .comparison--before[data-liquid-panel] { background-image: radial-gradient(at left top, rgba(255, 108, 131, 0.035), transparent 65%), linear-gradient(135deg, rgba(25, 17, 30, 0.85), rgba(14, 11, 20, 0.96)); }
+   .comparison--after[data-liquid-panel] { background-image: radial-gradient(at left top, rgba(255, 46, 147, 0.06), transparent 65%), linear-gradient(135deg, rgba(25, 17, 30, 0.85), rgba(14, 11, 20, 0.96)); }
+   [data-ares-hull="true"][data-liquid-panel][data-liquid-panel] { position: relative; isolation: isolate; border-color: transparent !important; border-radius: 0px !important; background: none transparent !important; box-shadow: none !important; backdrop-filter: 
+   [data-ares-hull="true"][data-liquid-panel][data-liquid-panel]:hover { backdrop-filter: none !important; }
+   .ares-hull-frame { position: absolute; z-index: -1; inset: 0px; display: block; overflow: visible; pointer-events: none; user-select: none; }
+   .ares-hull-svg { display: block; width: 100%; height: 100%; max-width: none; overflow: visible; pointer-events: none; }
+   [data-ares-hull="true"][data-liquid-panel] > :not(.ares-hull-frame) { text-shadow: none; }
+   [data-ares-hull="true"] .panel-label { border-width: 0px 0px 0px 2px; border-top-style: initial; border-right-style: initial; border-bottom-style: initial; border-top-color: initial; border-right-color: initial; border-bottom-color: initial; border-image: init
+   [data-ares-hull="true"] .feature-icon { position: relative; border: 1px solid rgba(222, 167, 127, 0.34); border-radius: 2px; background: radial-gradient(circle at 50% 40%, rgba(255, 179, 71, 0.15), rgba(255, 179, 71, 0.02) 62%, transparent 76%); box-shadow: rg
+   [data-ares-hull="true"] .feature-icon::before { position: absolute; top: -1px; left: -1px; width: 12px; height: 12px; border-top: 2px solid rgb(237, 138, 69); border-left: 2px solid rgb(237, 138, 69); content: ""; pointer-events: none; }
+   [data-ares-hull="true"] .feature-icon::after { position: absolute; right: 5px; bottom: 5px; width: 12px; height: 2px; background: rgb(130, 112, 96); content: ""; pointer-events: none; }
+   [data-ares-hull="true"] .feature-number { color: rgb(187, 158, 134); letter-spacing: 0.1em; }
+   [data-ares-hull="true"] .card-corner { right: 25px; bottom: 18px; color: rgb(212, 165, 118); font-size: 17px; }
+   [data-ares-hull="true"][data-ares-skin="danger"] .panel-label, [data-ares-hull="true"][data-ares-skin="danger"] li > svg { color: rgb(231, 163, 163); }
+   [data-ares-hull="true"][data-ares-skin="accent"] .panel-label { color: rgb(230, 181, 137); }
+   [data-ares-hull="true"] .allocation-row { border-radius: 0px; }
+   [data-ares-hull="true"] .allocation-row--active { border-color: transparent transparent transparent rgb(237, 138, 69); border-left-width: 2px; border-left-style: solid; background: rgba(237, 138, 69, 0.043); box-shadow: none; }
+   [data-ares-hull="true"] .tier { border-radius: 0px; background: rgb(16, 16, 21); box-shadow: rgb(6, 6, 9) 0px -3px inset; }
+   [data-ares-hull="true"] .tier-dot { box-shadow: none; }
+   [data-ares-hull="true"] .form-field input { border-radius: 3px; border-color: rgb(91, 71, 89); background: rgb(12, 11, 16); box-shadow: rgba(0, 0, 0, 0.5) 0px 2px inset, rgba(227, 196, 172, 0.04) 0px 1px; }
 === pre45-preview ===
 styleSheets=1 rules=876 hullFrameRule=true hullHostRule=true hullSvgRule=true dataAresHullCount=23
 failures: none
