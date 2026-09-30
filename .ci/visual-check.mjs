@@ -142,6 +142,18 @@ try {
   await dump(page, ".pack-buy-main", "pack-buy-main (кнопка покупки модуля)");
   await dump(page, ".morph-control", "morph-control");
   await dump(page, ".xp-hud", "XP HUD");
+  for (const [name, selector] of [["packs", ".packs-panel"], ["mechanics", ".feature-grid"], ["tier", ".tier-panel"], ["presale", ".presale-panel"]]) {
+    try {
+      const locator = page.locator(selector).first();
+      if ((await locator.count()) > 0) {
+        await locator.scrollIntoViewIfNeeded({ timeout: 5000 });
+        await page.waitForTimeout(500);
+        await locator.screenshot({ path: `.ci/out/landing-${name}.jpg`, type: "jpeg", quality: 65, timeout: 15000 });
+      }
+    } catch (error) {
+      log(`shot ${name}: ${String(error).slice(0, 90)}`);
+    }
+  }
   await page.screenshot({ path: ".ci/out/landing-full.jpg", type: "jpeg", quality: 50, fullPage: true });
   await page.close();
 } catch (error) {
