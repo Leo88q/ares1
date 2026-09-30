@@ -19,7 +19,11 @@
   -webkit-backdrop-filter: none !important;
 }
 
-/* The surface is structural and opaque, not a glass overlay. */
+/* The surface is structural and opaque, not a glass overlay.
+   Specificity (0,3,0) гарантирует, что никакое правило контента панели
+   (например `[data-liquid-panel] > :not(...)` = 0,2,0) не переведёт рамку
+   в поток и не выдавит текст из окна. */
+[data-ares-hull][data-liquid-panel] > .ares-hull-frame,
 .ares-hull-frame {
   position: absolute;
   z-index: -1;
