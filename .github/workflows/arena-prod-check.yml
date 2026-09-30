@@ -1,0 +1,26 @@
+name: Arena prod check (temporary)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - arena/01a0efbd-ares1
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+
+      - name: Install playwright + chromium
+        run: |
+          npm init -y >/dev/null 2>&1 || true
+          npm i --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+
+      - name: Compare production builds with the merged main build
+        run: node .ci/prod-check.mjs
