@@ -85,12 +85,12 @@ function ProfileScreenInner() {
  }, [stats.playerLevel, t])
 
  const patches = [
-  { id: 'a1', label: t('Первый росток'), earned: Boolean(claimed.a1) },
-  { id: 'a2', label: t('Первый урожай'), earned: Boolean(claimed.a2) },
-  { id: 'a3', label: t('Тысячник'), earned: Boolean(claimed.a3) },
-  { id: 'a4', label: t('Фермер-магнат'), earned: Boolean(claimed.a4) },
-  { id: 'a5', label: t('Картофельный барон'), earned: Boolean(claimed.a5) },
-  { id: 'a6', label: t('Ветеран'), earned: Boolean(claimed.a6) },
+  { id: 'a1', label: t('Первый росток'), imageSrc: '/ares/patch-sprout.webp', earned: Boolean(claimed.a1) },
+  { id: 'a2', label: t('Первый урожай'), imageSrc: '/ares/patch-harvest.webp', earned: Boolean(claimed.a2) },
+  { id: 'a3', label: t('Тысячник'), imageSrc: '/ares/patch-thousand.webp', earned: Boolean(claimed.a3) },
+  { id: 'a4', label: t('Фермер-магнат'), imageSrc: '/ares/patch-magnat.webp', earned: Boolean(claimed.a4) },
+  { id: 'a5', label: t('Картофельный барон'), imageSrc: '/ares/patch-baron.webp', earned: Boolean(claimed.a5) },
+  { id: 'a6', label: t('Ветеран'), imageSrc: '/ares/patch-veteran.webp', earned: Boolean(claimed.a6) },
  ]
 
  // Задачи смены — живой чеклист из состояния игры: показываем только то,
