@@ -293,7 +293,6 @@ const instrument = (v: string) => v.replace(/^(\d+)/, (_m, d: string) => d.padSt
 function StatCard({ label, value, primary = false }: { icon?: ReactNode; label: string; value: string; primary?: boolean }) {
  return (
   <div
-   className="po-card"
    style={{
     padding: primary ? '14px 12px' : '12px 10px',
     display: 'flex',
@@ -301,15 +300,36 @@ function StatCard({ label, value, primary = false }: { icon?: ReactNode; label: 
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.12), 0 4px 14px rgba(0,0,0,0.4)',
-    border: `1px solid ${primary ? 'rgba(232, 160, 60, 0.45)' : 'rgba(77, 50, 29, 0.8)'}`,
+    borderRadius: 8,
+    background: primary
+     ? 'linear-gradient(180deg, #2D1E13 0%, #1D130B 100%)'
+     : 'linear-gradient(180deg, #22170F 0%, #160E08 100%)',
+    border: `1px solid ${primary ? '#8A5222' : '#4A301C'}`,
+    boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.1), 0 4px 12px rgba(0,0,0,0.45)',
    }}
   >
-   <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 9, letterSpacing: '0.16em', color: primary ? '#FFC94A' : '#B3946A', textTransform: 'uppercase', textAlign: 'center' }}>
+   <div
+    style={{
+     fontFamily: 'var(--ares-font-stencil)',
+     fontSize: 10,
+     letterSpacing: '0.14em',
+     color: primary ? '#FFC94A' : '#C9A176',
+     textTransform: 'uppercase',
+     textAlign: 'center',
+    }}
+   >
     {label}
    </div>
    <div style={{ textAlign: 'center', width: '100%' }}>
-    <span className="ares-mono lcd-readout" style={{ display: 'block', fontSize: primary ? 18 : 15, fontWeight: 700, padding: '4px 8px' }}>
+    <span
+     className="ares-mono lcd-readout"
+     style={{
+      display: 'inline-block',
+      fontSize: primary ? 17 : 14,
+      fontWeight: 700,
+      padding: '4px 10px',
+     }}
+    >
      {instrument(value)}
     </span>
    </div>
@@ -331,7 +351,7 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
  return (
   <motion.div
    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 8) * 0.05 }}
-   className="pf-card hull-skin" style={{ padding: 16, borderRadius: 16 }}
+   className="pf-card" style={{ padding: 16, borderRadius: 12 }}
   >
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
