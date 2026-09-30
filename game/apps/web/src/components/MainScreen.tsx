@@ -125,26 +125,24 @@ function ConnectHint() {
 
  return (
   <div style={{ gridColumn: '1 / -1' }}>
+  <div className="po-plate po-plate--comm" style={{ padding: '36px 20px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+   <span className="po-hazard-corner" aria-hidden="true" />
+   <span className="po-screw po-screw--tl" aria-hidden="true" />
+   <span className="po-screw po-screw--tr" aria-hidden="true" />
+   <span className="po-screw po-screw--bl" aria-hidden="true" />
+   <span className="po-screw po-screw--br" aria-hidden="true" />
    <div
-    className="po-card"
     style={{
-     padding: '36px 24px',
-     textAlign: 'center',
-     position: 'relative',
+     width: 100,
+     height: 100,
+     borderRadius: '50%',
+     background: 'radial-gradient(circle, rgba(232, 160, 60, 0.14) 0%, transparent 70%)',
+     display: 'flex',
+     alignItems: 'center',
+     justifyContent: 'center',
+     margin: '0 auto 16px',
     }}
    >
-    <div
-     style={{
-      width: 100,
-      height: 100,
-      borderRadius: '50%',
-      background: 'radial-gradient(circle, rgba(232, 160, 60, 0.14) 0%, transparent 70%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      margin: '0 auto 16px',
-     }}
-    >
      <Tuber9 mood="sleep" size={90} />
     </div>
     <div
@@ -244,15 +242,24 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
   <motion.div
    initial={{ opacity: 0, y: 20 }}
    animate={{ opacity: 1, y: 0 }}
-   className="po-card"
+   className="po-plate po-plate--incubator"
    style={{
     padding: '20px 18px',
     display: 'flex',
     flexDirection: 'column',
     gap: 14,
     position: 'relative',
+    overflow: 'hidden',
+    marginTop: 8,
    }}
   >
+   <div className="po-hazard" style={{ height: 5 }} aria-hidden="true" />
+   <span className="po-screw po-screw--tl" aria-hidden="true" />
+   <span className="po-screw po-screw--tr" aria-hidden="true" />
+   <span className="po-screw po-screw--bl" aria-hidden="true" />
+   <span className="po-screw po-screw--br" aria-hidden="true" />
+   <span className="po-patch" style={{ right: 8, bottom: 8, width: 44, height: 16 }} aria-hidden="true" />
+
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
     <div>
      <div

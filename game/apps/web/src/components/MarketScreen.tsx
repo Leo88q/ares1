@@ -163,8 +163,12 @@ function MarketScreenInner() {
     <>
      {error && <ErrorState inline message={error} onRetry={reload} />}
      {filteredOrders.length === 0 ? (
-      <div className="po-card" style={{ padding: '36px 20px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <div className="po-plate po-plate--market" style={{ padding: '36px 20px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
        <div className="po-hazard" aria-hidden="true" />
+       <span className="po-screw po-screw--tl" aria-hidden="true" />
+       <span className="po-screw po-screw--tr" aria-hidden="true" />
+       <span className="po-screw po-screw--bl" aria-hidden="true" />
+       <span className="po-screw po-screw--br" aria-hidden="true" />
        <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.2em', color: '#D4A576', marginBottom: 10, textTransform: 'uppercase' }}>
         {t("ТЕРМИНАЛ СНАБЖЕНИЯ // СТАТУС: СВОБОДЕН")}
        </div>
@@ -351,8 +355,12 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
  return (
   <motion.div
    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 8) * 0.05 }}
-   className="po-card" style={{ padding: '16px 18px' }}
+   className="po-plate po-plate--market" style={{ padding: '16px 18px', position: 'relative', overflow: 'hidden' }}
   >
+   <span className="po-screw po-screw--tl" aria-hidden="true" />
+   <span className="po-screw po-screw--tr" aria-hidden="true" />
+   <span className="po-screw po-screw--bl" aria-hidden="true" />
+   <span className="po-screw po-screw--br" aria-hidden="true" />
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
      <div style={{ width: 36, height: 36, borderRadius: 10, background: order.isOwn ? 'rgba(201, 161, 118, 0.16)' : 'rgba(0, 0, 0, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">

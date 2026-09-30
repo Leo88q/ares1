@@ -66,7 +66,12 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
    animate={{ opacity: 1, y: 0 }}
    transition={{ delay: Math.min(index * 0.06, 0.4) }}
   >
-   <div className={`po-card field-hull${rare === 'gold' ? ' field-hull--gold' : ''}${canHarvest ? ' field-hull--ready' : ''}`}>
+   <div className={`po-plate po-plate--field field-hull${rare === 'gold' ? ' field-hull--gold' : ''}${canHarvest ? ' field-hull--ready' : ''}`} style={{ position: 'relative', overflow: 'hidden' }}>
+    <span className="po-screw po-screw--tl" aria-hidden="true" />
+    <span className="po-screw po-screw--tr" aria-hidden="true" />
+    <span className="po-screw po-screw--bl" aria-hidden="true" />
+    <span className="po-screw po-screw--br" aria-hidden="true" />
+    {canHarvest && <span className="po-hazard-corner" style={{ width: 24, height: 24 }} aria-hidden="true" />}
     {/* Заголовок */}
     <div style={{
      padding: '16px 20px 12px',

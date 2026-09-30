@@ -19,7 +19,6 @@ export const StatsBay = memo(function StatsBay({ children, o2Percent, h2oPercent
   <DomeFrame
    phase={phase}
    label={t("ЖУРНАЛ МИССИИ")}
-   bandImage="/ares/bg-engine.jpg"
    hud={<SolHud o2Percent={o2Percent} h2oPercent={h2oPercent} rationLabel={rationLabel} />}
   >
    {children}
