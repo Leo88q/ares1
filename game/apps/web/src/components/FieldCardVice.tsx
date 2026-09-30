@@ -4,7 +4,6 @@ import { t } from '../i18n'
 import { motion } from 'framer-motion'
 import { PublicKey } from '@solana/web3.js'
 
-import Button from './Button'
 import AnimatedNumber from './AnimatedNumber'
 import { Field } from '../contexts/GameContext'
 import {

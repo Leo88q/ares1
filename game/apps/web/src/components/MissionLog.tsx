@@ -193,26 +193,3 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose?: (
   </motion.div>
  )
 }
-
-function Overlay({ children, onClose }: { children: React.ReactNode; onClose?: () => void }) {
- return (
-  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-   style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, backdropFilter: 'blur(6px)' }}
-   onClick={onClose}>
-   <motion.div role="dialog" aria-modal="true" initial={{ scale: 0.9 }} animate={{ scale: 1 }}
-    style={{
-     width: '100%',
-     maxWidth: 360,
-     padding: 24,
-     textAlign: 'center',
-     borderRadius: 14,
-     background: 'linear-gradient(180deg, #261A11 0%, #160E08 100%)',
-     border: '1px solid #5A381E',
-     boxShadow: '0 16px 40px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,214,170,0.14)',
-    }}
-    onClick={(e) => e.stopPropagation()}>
-    {children}
-   </motion.div>
-  </motion.div>
- )
-}
