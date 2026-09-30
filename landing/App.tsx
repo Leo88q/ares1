@@ -45,7 +45,7 @@ import {
 import { LiquidPanelBorder } from "./LiquidPanel";
 import type { LiquidPanelVariant } from "./LiquidPanel";
 import { MorphButton } from "./MorphButton";
-import { Glyph, Emblem } from "./Glyph";
+import { Glyph } from "./Glyph";
 import { InterstellarSection } from "./InterstellarBridge";
 import { LivingPhobos } from "./LivingPhobos";
 import { RarityModules } from "./RarityModules";
@@ -895,7 +895,6 @@ function Hero(): JSX.Element {
               className="cta-buy"
               href={SC.hero.primaryHref}
             >
-              <Emblem name="flame" size={16} style={{ marginRight: 8 }} />
               {SC.hero.primaryCta}
             </a>
           </Reveal>
@@ -1874,7 +1873,7 @@ function PacksSection(): JSX.Element {
                 onClick={() => { void buyPack(); }}
                 disabled={purchasing || !balanceOk || soldOut}
               >
-                <Emblem name="flame" size={15} style={{ marginRight: 6 }} />{purchasing ? t("Отправка транзакции…") : soldOut ? t("Волна распродана") : t("Купить модуль · 1053 SKR")}
+                {purchasing ? t("Отправка транзакции…") : soldOut ? t("Волна распродана") : t("Купить модуль · 1053 SKR")}
               </button>
               {soldOut && (
                 <p className="pack-note">{t("Все {n} модулей первой волны проданы.", { n: live.cap })}</p>
@@ -1890,7 +1889,7 @@ function PacksSection(): JSX.Element {
                 onClick={() => { void connect(); }}
                 disabled={connecting}
               >
-                {connecting ? t("Подключение…") : (<span><Emblem name="flame" size={15} style={{ marginRight: 6 }} />{t("Подключить кошелёк")}</span>)}
+                {connecting ? t("Подключение…") : t("Подключить кошелёк")}
               </button>
               <p className="pack-note">
                 {t("Phantom или Solflare. После подключения кнопка покупки станет активной.")}
