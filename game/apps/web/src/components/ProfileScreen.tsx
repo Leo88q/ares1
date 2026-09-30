@@ -1,5 +1,5 @@
 import { CheckCircle, XCircle, Trophy } from 'lucide-react'
-import { t, plural } from '../i18n'
+import { useI18n, plural } from '../i18n'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -15,7 +15,6 @@ import { pdas, decodeExportLicense, ixBuyExportLicense, treasurySolPda, treasury
 import { getAssociatedTokenAddress } from '@solana/spl-token'
 import { CabinBay } from './ares/CabinBay'
 import AudioSettings from './AudioSettings'
-import { HullPanel } from '../ui/HullPanel'
 import { RollingNumber } from '../ui/RollingNumber'
 import { SparkProgress } from '../ui/SparkProgress'
 import { PatchWall } from './ares/PatchWall'
@@ -23,6 +22,7 @@ import { useToast } from './Toast'
 import { describeError } from '../utils/errors'
 
 function ProfileScreenInner() {
+ const { t } = useI18n()
  const { connected, publicKey, ready, programId, connection, sendIx } = useSolana()
  const { stats, claimed, fields } = useGame()
  const navigate = useNavigate()
@@ -82,7 +82,7 @@ function ProfileScreenInner() {
    t('Марсианская Легенда'),
   ]
   return titles[Math.min(Math.max(0, stats.playerLevel - 1), titles.length - 1)]
- }, [stats.playerLevel])
+ }, [stats.playerLevel, t])
 
  const patches = [
   { id: 'a1', label: t('Первый росток'), imageSrc: '/ares/patch-sprout.webp', earned: Boolean(claimed.a1) },
@@ -120,7 +120,7 @@ function ProfileScreenInner() {
    list.push({ id: 'all-clear', title: t('Все системы в норме'), done: true })
   }
   return list
- }, [stats, claimed, fields])
+ }, [stats, claimed, fields, t])
 
  const handleTaskComplete = (id: string) => {
   navigate(id === 'claim-patch' ? '/stats' : '/')
@@ -140,9 +140,19 @@ function ProfileScreenInner() {
 
    <ReferralSection />
 
-   <HullPanel style={{ marginBottom: 16, padding: '16px 18px' }}>
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-     <div style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.2em', color: '#D4A576', textTransform: 'uppercase' }}>
+   {/* Лицензия экспортёра */}
+   <div
+    style={{
+     marginBottom: 16,
+     padding: '18px 20px',
+     borderRadius: 12,
+     background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
+     border: '1px solid #4D331D',
+     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
+    }}
+   >
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+     <div style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.18em', color: '#D4A576', textTransform: 'uppercase' }}>
       {t("ЛИЦЕНЗИЯ ЭКСПОРТЁРА // ТОРГОВЫЙ ДОПУСК")}
      </div>
      <span className={`po-lamp ${license?.active ? 'po-lamp--green' : 'po-lamp--off'}`} aria-hidden="true" />
@@ -158,7 +168,7 @@ function ProfileScreenInner() {
         {t('КОМИССИЯ −3%')}
        </span>
       </div>
-      <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 12, lineHeight: 1.4 }}>
+      <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 14, lineHeight: 1.4 }}>
        {t('Торговый сертификат снижает комиссию на P2P бирже Снабжения и даёт приоритет в стакане.')}
       </p>
       <button
@@ -167,7 +177,7 @@ function ProfileScreenInner() {
        className="mk-key mk-key--paint"
        style={{
         cursor: 'pointer',
-        padding: '10px 14px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
+        padding: '11px 16px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
         opacity: buyingLicense || !publicKey ? 0.6 : 1, width: '100%',
        }}
       >
@@ -176,14 +186,14 @@ function ProfileScreenInner() {
      </div>
     ) : (
      <div>
-      <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 10, lineHeight: 1.4 }}>
+      <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 12, lineHeight: 1.4 }}>
        {t('Лицензия даёт скидку −3% на торговые сборы P2P биржи и статус верифицированного экспортёра колонии.')}
       </p>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: '#120B07', border: '1px solid #3E2413' }}>
        <span className="ares-mono" style={{ fontSize: 14, fontWeight: 700, color: '#F6F1ED' }}>
         {fmtSkr(EXPORT_LICENSE_PRICE_SKR_ATOMS, 0)} SKR
        </span>
-       <span className="ares-mono" style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>
+       <span className="ares-mono" style={{ fontSize: 11, color: '#C9A176' }}>
         {t('СРОК ДЕЙСТВИЯ: 30 ДНЕЙ')}
        </span>
       </div>
@@ -193,7 +203,7 @@ function ProfileScreenInner() {
        className="mk-key mk-key--paint"
        style={{
         cursor: 'pointer',
-        padding: '10px 14px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
+        padding: '11px 16px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
         opacity: buyingLicense || !publicKey ? 0.6 : 1, width: '100%',
        }}
       >
@@ -201,107 +211,146 @@ function ProfileScreenInner() {
       </button>
      </div>
     )}
-   </HullPanel>
+   </div>
 
-   <HullPanel variant="primary" style={{ marginBottom: 16 }}>
-    <div style={{ padding: '20px 16px', textAlign: 'center' }}>
-     <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.2em', color: '#D4A576', marginBottom: 10, textTransform: 'uppercase' }}>
-      {t('ПАЁК НА СКЛАДЕ')}
-     </div>
-     <div className="po-lcd lcd-readout" style={{ display: 'inline-block', padding: '10px 24px', fontSize: 32, marginBottom: 8 }}>
-      <RollingNumber value={stats.potatoBalance / 1000000} decimals={2} /> POTATO
-     </div>
-     {stats.pendingHarvest > 0 && (
-      <div style={{ fontSize: 12, color: '#9FBE7A', marginTop: 6 }} className="ares-mono">
-       +{fmtPotato(stats.pendingHarvest, 3)} {t('POTATO ждёт жатвы на делянках')}
-      </div>
-     )}
+   {/* Паёк на складе */}
+   <div
+    style={{
+     marginBottom: 16,
+     padding: '22px 18px',
+     textAlign: 'center',
+     borderRadius: 12,
+     background: 'linear-gradient(180deg, #2A1C12 0%, #1A110A 100%)',
+     border: '1px solid #5A361A',
+     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.16), 0 10px 28px rgba(0, 0, 0, 0.6)',
+    }}
+   >
+    <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.2em', color: '#D4A576', marginBottom: 10, textTransform: 'uppercase' }}>
+     {t('ПАЁК НА СКЛАДЕ')}
     </div>
-   </HullPanel>
+    <div className="po-lcd lcd-readout" style={{ display: 'inline-block', padding: '10px 24px', fontSize: 32, marginBottom: 8 }}>
+     <RollingNumber value={stats.potatoBalance / 1000000} decimals={2} /> POTATO
+    </div>
+    {stats.pendingHarvest > 0 && (
+     <div style={{ fontSize: 12, color: '#9FBE7A', marginTop: 6 }} className="ares-mono">
+      +{fmtPotato(stats.pendingHarvest, 3)} {t('POTATO ждёт жатвы на делянках')}
+     </div>
+    )}
+   </div>
 
    <div style={{ marginBottom: 16 }}>
     <ShiftTasksList tasks={tasks} onComplete={handleTaskComplete} />
    </div>
 
-   <HullPanel style={{ marginBottom: 16 }}>
-    <div style={{ padding: 20 }}>
-     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-      <div>
-       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Trophy size={18} color="#FFC94A" aria-hidden="true" />
-        <span style={{ fontSize: 16, fontWeight: 700, color: '#F6F1ED' }}>{rankTitle}</span>
-       </div>
-       <div className="ares-mono" style={{ fontSize: 11, color: '#A8895C', marginTop: 2 }}>
-        {t('РАНГ')} {stats.playerLevel} · {stats.totalFields} {plural(stats.totalFields, { one: t('делянка'), few: t('делянки'), many: t('делянок') })}
-       </div>
+   {/* Ранг колониста */}
+   <div
+    style={{
+     marginBottom: 16,
+     padding: 20,
+     borderRadius: 12,
+     background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
+     border: '1px solid #4D331D',
+     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
+    }}
+   >
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+     <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+       <Trophy size={18} color="#FFC94A" aria-hidden="true" />
+       <span style={{ fontSize: 16, fontWeight: 700, color: '#F6F1ED' }}>{rankTitle}</span>
       </div>
-      <span className="ares-mono" style={{ fontSize: 12, color: '#FFC94A', background: 'rgba(255,201,74,0.12)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(255,201,74,0.3)' }}>
-       <RollingNumber value={Math.floor(stats.experience)} /> {t('XP')}
-      </span>
+      <div className="ares-mono" style={{ fontSize: 11, color: '#C9A176', marginTop: 3 }}>
+       {t('РАНГ')} {stats.playerLevel} · {stats.totalFields} {plural(stats.totalFields, { one: t('делянка'), few: t('делянки'), many: t('делянок') })}
+      </div>
      </div>
+     <span className="ares-mono" style={{ fontSize: 12, color: '#FFC94A', background: 'rgba(255,201,74,0.12)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(255,201,74,0.3)' }}>
+      <RollingNumber value={Math.floor(stats.experience)} /> {t('XP')}
+     </span>
+    </div>
 
-     <div style={{ marginBottom: 10 }}>
-      <SparkProgress value={(stats.totalFields % 3) / 3 * 100} label={t("Прогресс до следующего ранга")} color="#FFC94A" />
+    <div style={{ marginBottom: 10 }}>
+     <SparkProgress value={(stats.totalFields % 3) / 3 * 100} label={t("Прогресс до следующего ранга")} color="#FFC94A" />
+    </div>
+
+    <div style={{ fontSize: 11, color: 'var(--ares-dust, #E0A183)', marginBottom: 14, lineHeight: 1.4 }}>
+     {t('До ранга {next}: ещё {plots}. Каждые 3 действующие делянки повышают ранг колониста.', {
+      next: stats.playerLevel + 1,
+      plots: plural(fieldsToNext, { one: t('поле'), few: t('поля'), many: t('полей') }),
+     })}
+    </div>
+
+    <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+     <div style={{ fontSize: 11, color: '#9FBE7A', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span>✓</span> <span>{t('Биосинтез и культивация делянок разблокированы')}</span>
      </div>
-
-     <div style={{ fontSize: 11, color: 'var(--ares-dust, #E0A183)', marginBottom: 14, lineHeight: 1.4 }}>
-      {t('До ранга {next}: ещё {plots}. Каждые 3 действующие делянки повышают ранг колониста.', {
-       next: stats.playerLevel + 1,
-       plots: plural(fieldsToNext, { one: t('поле'), few: t('поля'), many: t('полей') }),
-      })}
+     <div style={{ fontSize: 11, color: '#9FBE7A', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span>✓</span> <span>{t('Доступ к открытой P2P бирже Снабжения')}</span>
      </div>
-
-     <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ fontSize: 11, color: '#9FBE7A', display: 'flex', alignItems: 'center', gap: 6 }}>
-       <span>✓</span> <span>{t('Биосинтез и культивация делянок разблокированы')}</span>
-      </div>
-      <div style={{ fontSize: 11, color: '#9FBE7A', display: 'flex', alignItems: 'center', gap: 6 }}>
-       <span>✓</span> <span>{t('Доступ к открытой P2P бирже Снабжения')}</span>
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--pf-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-       <span>🔒</span> <span>{t('Ранг {n}: улучшенная сопротивляемость износу кассет', { n: stats.playerLevel + 1 })}</span>
-      </div>
+     <div style={{ fontSize: 11, color: 'rgba(255,179,71,0.5)', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span>🔒</span> <span>{t('Ранг {n}: улучшенная сопротивляемость износу кассет', { n: stats.playerLevel + 1 })}</span>
      </div>
     </div>
-   </HullPanel>
+   </div>
 
-   <HullPanel style={{ marginBottom: 16 }}>
-    <div style={{ padding: 20 }}>
-     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+   {/* Стена нашивок */}
+   <div
+    style={{
+     marginBottom: 16,
+     padding: 20,
+     borderRadius: 12,
+     background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
+     border: '1px solid #4D331D',
+     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
+    }}
+   >
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <Trophy size={18} color="#FFC94A" aria-hidden="true" />
       <span style={{ fontSize: 16, fontWeight: 700, color: '#F6F1ED' }}>{t('Стена нашивок')}</span>
      </div>
-     <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 10, lineHeight: 1.4 }}>
-      {t('Официальные знаки отличия марсианской миссии. Выполняй цели в Журнале экспедиции.')}
-     </p>
-     <PatchWall patches={patches} />
+     <span className="po-lamp po-lamp--green" aria-hidden="true" />
     </div>
-   </HullPanel>
+    <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 14, lineHeight: 1.4 }}>
+     {t('Официальные знаки отличия марсианской миссии. Выполняй цели в Журнале экспедиции.')}
+    </p>
+    <PatchWall patches={patches} />
+   </div>
 
-   <HullPanel variant="danger" style={{ marginBottom: 16 }}>
-    <div style={{ padding: 20 }}>
-     <h3 className="ares-mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: '#ED8A45', marginBottom: 14 }}>
+   {/* Диагностика скафандра */}
+   <div
+    style={{
+     marginBottom: 16,
+     padding: 20,
+     borderRadius: 12,
+     background: 'linear-gradient(180deg, #26170E 0%, #180D07 100%)',
+     border: '1px solid #5E2E16',
+     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
+    }}
+   >
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+     <h3 className="ares-mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: '#ED8A45', margin: 0, textTransform: 'uppercase' }}>
       {t('ДИАГНОСТИКА СКАФАНДРА // СИСТЕМЫ ЖИЗНЕОБЕСПЕЧЕНИЯ')}
      </h3>
-     <StatusRow label={t("Бортовой кошелёк")} ok={connected} value={publicKey ? `${publicKey.toString().slice(0, 4)}…${publicKey.toString().slice(-4)}` : t('Не авторизован')} />
-     <StatusRow label={t("Связь с Solana")} ok={ready} value={ready ? t('В норме ({cluster})', { cluster: CLUSTER }) : t('Синхронизация…')} />
-     <StatusRow label={t("Кислород O₂")} ok={true} value="98.4% (НОРМА)" />
-     <StatusRow label={t("Водный контур H₂O")} ok={true} value="76.2% (РЕЦИРКУЛЯЦИЯ)" />
-     <StatusRow label={t("Радиационный фон")} ok={true} value="0.12 mSv/h (ФОНОВЫЙ)" />
+     <span className="po-lamp po-lamp--green" aria-hidden="true" />
     </div>
-   </HullPanel>
+    <StatusRow label={t("Бортовой кошелёк")} ok={connected} value={publicKey ? `${publicKey.toString().slice(0, 4)}…${publicKey.toString().slice(-4)}` : t('Не авторизован')} />
+    <StatusRow label={t("Связь с Solana")} ok={ready} value={ready ? t('В норме ({cluster})', { cluster: CLUSTER }) : t('Синхронизация…')} />
+    <StatusRow label={t("Кислород O₂")} ok={true} value={t("98.4% (НОРМА)")} />
+    <StatusRow label={t("Водный контур H₂O")} ok={true} value={t("76.2% (РЕЦИРКУЛЯЦИЯ)")} />
+    <StatusRow label={t("Радиационный фон")} ok={true} value={t("0.12 mSv/h (ФОНОВЫЙ)")} />
+   </div>
   </div>
  )
 }
 
 function StatusRow({ label, ok, value }: { label: string; ok: boolean; value: string }) {
  return (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,214,170,0.08)' }}>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid rgba(255,214,170,0.08)' }}>
    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
     {ok ? <CheckCircle size={16} color="var(--pf-teal)" aria-hidden="true" /> : <XCircle size={16} color="var(--pf-red)" aria-hidden="true" />}
-    <span style={{ fontSize: 14 }}>{label}</span>
+    <span style={{ fontSize: 13, color: '#F6F1ED' }}>{label}</span>
    </div>
-   <span style={{ fontSize: 13, color: ok ? 'var(--pf-teal)' : 'var(--pf-red)' }}>{value}</span>
+   <span style={{ fontSize: 12, color: ok ? 'var(--pf-teal)' : 'var(--pf-red)' }} className="ares-mono">{value}</span>
   </div>
  )
 }

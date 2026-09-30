@@ -1,6 +1,6 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { t } from '../../i18n'
+import { useI18n } from '../../i18n';
 
 import { haptics } from '../../utils/haptic';
 import { AresHullFrame } from '../../ui/AresHullFrame';
@@ -19,30 +19,32 @@ interface NavItem {
  lamp: 'green' | 'amber' | 'magenta';
 }
 
-const NAV_ITEMS: NavItem[] = [
- { id: 'main', label: t('АГРО'), code: 'K1', lamp: 'green' },
- { id: 'market', label: t('СНАБ'), code: 'K2', lamp: 'amber' },
- { id: 'stats', label: t('ЖУРНАЛ'), code: 'K3', lamp: 'amber' },
- { id: 'profile', label: t('КАЮТА'), code: 'K4', lamp: 'green' },
-];
-
 /**
  * Пульт секций (MK-редизайн, 2026-09-28): вместо плоской панели иконок —
  * ряд клавиш пульта. Активная клавиша защёлкнута в нажатом положении
  * (mk-key--engaged: утоплена, грань подсвечена), над ней горит лампа реле.
- * Пропсы не менялись: `active` / `onChange`.
+ * Пропсы: `active` / `onChange`. Динамический i18n перевод на всех языках.
  */
 export const AresBottomNav = memo(function AresBottomNav({
  active,
  onChange,
 }: AresBottomNavProps): JSX.Element {
  const reducedMotion = useReducedMotion();
+ const { t } = useI18n();
+
+ const navItems: NavItem[] = useMemo(() => [
+  { id: 'main', label: t('АГРО'), code: 'K1', lamp: 'green' },
+  { id: 'market', label: t('СНАБ'), code: 'K2', lamp: 'amber' },
+  { id: 'stats', label: t('ЖУРНАЛ'), code: 'K3', lamp: 'amber' },
+  { id: 'profile', label: t('КАЮТА'), code: 'K4', lamp: 'green' },
+ ], [t]);
+
  return (
   <div className="hull-nav-wrap">
    <nav className="hull-panel hull-nav" aria-label={t("Разделы колонии")}>
     <AresHullFrame variant="default" runningLight={false} />
     <div className="hull-panel-content">
-     {NAV_ITEMS.map((item) => {
+     {navItems.map((item) => {
       const isActive = item.id === active;
       return (
        <motion.button

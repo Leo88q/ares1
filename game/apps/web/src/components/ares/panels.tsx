@@ -114,25 +114,24 @@ export const ConsolePanel = memo(function ConsolePanel({
  title,
  children,
  tone = 'neutral',
- className,
+ className = '',
 }: ConsolePanelProps): JSX.Element {
- void tone;
  return (
   <section
-   className={`hull-skin${className ? ` ${className}` : ''}`}
+   className={`po-card${className ? ` ${className}` : ''}`}
    style={{
     position: 'relative',
-    borderRadius: 10,
-    padding: '14px 16px',
-    boxShadow: `inset 0 1px 0 var(--mk-edge-hi, rgba(255,214,170,0.16)), inset 0 -1px 0 var(--mk-edge-lo, rgba(0,0,0,0.72)), inset 0 0 20px rgba(0,0,0,0.4), 0 10px 22px rgba(0,0,0,0.4)`,
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: 'var(--mk-bevel, #8A4A22) var(--mk-bevel-lo, #2A1508) var(--mk-bevel-lo, #2A1508) var(--mk-bevel-lo, #2A1508)',
+    borderRadius: 12,
+    padding: '18px 18px',
+    background: 'linear-gradient(180deg, #251B12 0%, #17100A 100%)',
+    border: '1px solid #4E341E',
+    boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.55)',
    }}
   >
    {title ? (
-    <header style={{ marginBottom: 8 }}>
+    <header style={{ marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
      <StencilPlate tone={tone}>{title}</StencilPlate>
+     <span className="po-lamp po-lamp--green" aria-hidden="true" />
     </header>
    ) : null}
    <div>{children}</div>

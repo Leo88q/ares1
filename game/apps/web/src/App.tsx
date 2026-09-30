@@ -56,7 +56,7 @@ export default function App() {
    <GrainOverlay />
    <MkRoughFilters />
    <HullSkinMounter />
-   <BackgroundScene variant="farm" />
+   <BackgroundScene />
    <div style={{ maxWidth: 480, margin: '0 auto', position: 'relative', minHeight: '100vh', zIndex: 1 }}>
     <ErrorBoundary>
      <ToastProvider>

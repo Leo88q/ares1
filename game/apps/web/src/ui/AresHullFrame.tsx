@@ -70,7 +70,7 @@ const skins = {
   danger: {
     accent: "#D97B58",
     trace: "#FFA88A",
-    plate: "ИЗОЛЯЦИЯ",
+    plate: "HAZARD",
     surface: "#261513",
     inner: "#190D0C",
     caution: "#C45B3A",
