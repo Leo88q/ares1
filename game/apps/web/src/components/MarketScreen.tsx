@@ -351,7 +351,7 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
  return (
   <motion.div
    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 8) * 0.05 }}
-   className="pf-card" style={{ padding: 16, borderRadius: 12 }}
+   className="po-card" style={{ padding: '16px 18px' }}
   >
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>

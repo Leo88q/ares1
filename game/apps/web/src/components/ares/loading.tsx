@@ -232,17 +232,15 @@ export const LandingSequence = memo(function LandingSequence({
      position: 'relative',
      zIndex: 2,
      width: '100%',
-     maxWidth: 460,
+     maxWidth: 480,
      padding: '0 20px 32px',
     }}
    >
     <div
+     className="po-card"
      style={{
-      borderRadius: 12,
-      background: 'linear-gradient(180deg, rgba(36,24,16,0.92) 0%, rgba(20,13,8,0.96) 100%)',
-      border: '1px solid #5A3920',
-      padding: '16px 20px',
-      boxShadow: '0 12px 32px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,214,170,0.15)',
+      padding: '18px 22px',
+      boxShadow: '0 16px 40px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,224,178,0.25)',
       backdropFilter: 'blur(8px)',
      }}
     >

@@ -98,12 +98,10 @@ export function MissionLog() {
        initial={{ opacity: 0, x: -20 }}
        animate={{ opacity: 1, x: 0 }}
        transition={{ delay: i * 0.06 }}
+       className="po-card"
        style={{
         padding: '16px 18px',
-        borderRadius: 12,
-        background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
-        border: done && !isClaimed ? '1px solid #8A5222' : '1px solid #4D331D',
-        boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.1), 0 4px 14px rgba(0,0,0,0.45)',
+        border: done && !isClaimed ? '1px solid #8A5222' : undefined,
         opacity: done ? 1 : 0.85,
        }}
       >

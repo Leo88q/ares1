@@ -120,21 +120,16 @@ export const ConsolePanel = memo(function ConsolePanel({
   <section
    className={`po-card${className ? ` ${className}` : ''}`}
    style={{
-    position: 'relative',
-    borderRadius: 12,
     padding: '18px 18px',
-    background: 'linear-gradient(180deg, #251B12 0%, #17100A 100%)',
-    border: '1px solid #4E341E',
-    boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.55)',
    }}
   >
    {title ? (
-    <header style={{ marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <header style={{ marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
      <StencilPlate tone={tone}>{title}</StencilPlate>
      <span className="po-lamp po-lamp--green" aria-hidden="true" />
     </header>
    ) : null}
-   <div>{children}</div>
+   <div style={{ minWidth: 0 }}>{children}</div>
   </section>
  );
 });

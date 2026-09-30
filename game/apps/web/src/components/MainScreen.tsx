@@ -126,14 +126,11 @@ function ConnectHint() {
  return (
   <div style={{ gridColumn: '1 / -1' }}>
    <div
+    className="po-card"
     style={{
      padding: '36px 24px',
      textAlign: 'center',
      position: 'relative',
-     borderRadius: 12,
-     background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
-     border: '1px solid #4D331D',
-     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
     }}
    >
     <div
@@ -247,11 +244,8 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
   <motion.div
    initial={{ opacity: 0, y: 20 }}
    animate={{ opacity: 1, y: 0 }}
+   className="po-card"
    style={{
-    borderRadius: 12,
-    background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
-    border: '1px solid #4D331D',
-    boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
     padding: '20px 18px',
     display: 'flex',
     flexDirection: 'column',

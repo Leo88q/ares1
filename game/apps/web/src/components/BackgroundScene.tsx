@@ -74,18 +74,18 @@ export default function BackgroundScene({ variant, children }: Props) {
        height: '100%',
        objectFit: 'cover',
        objectPosition: 'center 35%',
-       filter: 'brightness(0.50) contrast(1.12) saturate(0.9)',
+       filter: 'brightness(0.86) contrast(1.1) saturate(1.18)',
       }}
      />
 
-     {/* Глубокая атмосферная виньетка: сохраняет 100% читаемость металлических окошек */}
+     {/* Атмосферная марсианская виньетка: прозрачная, сохраняющая выразительность иллюстрации отсека */}
      <div
       style={{
        position: 'absolute',
        inset: 0,
        background: `
-        linear-gradient(180deg, rgba(8,5,4,0.72) 0%, rgba(12,7,5,0.78) 35%, rgba(10,6,4,0.88) 75%, #080504 100%),
-        radial-gradient(ellipse at 50% 35%, transparent 20%, rgba(8,5,4,0.82) 90%)
+        linear-gradient(180deg, rgba(8,5,4,0.18) 0%, rgba(12,7,5,0.32) 30%, rgba(10,6,4,0.62) 75%, rgba(8,5,4,0.92) 100%),
+        radial-gradient(ellipse at 50% 32%, transparent 45%, rgba(8,5,4,0.65) 100%)
        `,
       }}
      />

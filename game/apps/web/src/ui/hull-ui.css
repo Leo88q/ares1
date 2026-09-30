@@ -235,26 +235,54 @@
 
 .hull-skin {
   position: relative;
+  isolation: isolate;
   border-radius: 10px;
-  background-color: #1F150E;
+  background-color: #20150E;
   background-image:
     var(--mk-grain),
-    linear-gradient(180deg, #271B11 0%, #1D130C 55%, #150E08 100%);
-  background-size: 120px 120px, 100% 100%;
-  border: 1px solid #4D331D;
+    repeating-linear-gradient(135deg, rgba(255, 214, 170, 0.015) 0, rgba(255, 214, 170, 0.015) 1px, transparent 1px, transparent 4px),
+    linear-gradient(180deg, #2A1C12 0%, #1F150E 50%, #150E08 100%);
+  background-size: 120px 120px, auto, 100% 100%;
+  border: 1px solid #6E4522;
   box-shadow:
-    inset 0 1px 0 rgba(255, 214, 170, 0.12),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.6),
-    0 8px 20px rgba(0, 0, 0, 0.5);
+    inset 0 1px 0 rgba(255, 224, 178, 0.25),
+    inset 0 0 0 1px rgba(18, 12, 7, 0.85),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.75),
+    inset 0 0 24px rgba(0, 0, 0, 0.35),
+    0 10px 28px -6px rgba(0, 0, 0, 0.75);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.hull-skin::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 0 0 / 8px 8px,
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 100% 0 / 8px 8px,
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 0 100% / 8px 8px,
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 100% 100% / 8px 8px;
+  z-index: 1;
+}
+
+.hull-skin > * {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
 }
 
 .hull-skin:hover {
-  border-color: #6E492B;
+  border-color: #8A5C30;
   box-shadow:
-    inset 0 1px 0 rgba(255, 214, 170, 0.16),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.6),
-    0 10px 26px rgba(0, 0, 0, 0.6);
+    inset 0 1px 0 rgba(255, 224, 178, 0.3),
+    inset 0 0 0 1px rgba(18, 12, 7, 0.85),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.75),
+    inset 0 0 28px rgba(0, 0, 0, 0.4),
+    0 12px 32px rgba(0, 0, 0, 0.8);
 }
 
 /* ── Бегущий свет по канту: постоянно, на всех каркасах ── */

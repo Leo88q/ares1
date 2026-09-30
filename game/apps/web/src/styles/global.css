@@ -101,21 +101,40 @@ button:disabled {
 .pf-mono { font-family: var(--pf-font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
 .pf-card {
   position: relative;
-  background-color: #1E140C;
+  isolation: isolate;
+  min-width: 0;
+  box-sizing: border-box;
+  background-color: #20150E;
   background-image:
     var(--mk-grain),
-    linear-gradient(180deg, #271B11 0%, #1D130C 55%, #140D07 100%);
-  background-size: 120px 120px, 100% 100%;
-  border-radius: var(--pf-radius-card);
+    repeating-linear-gradient(135deg, rgba(255, 214, 170, 0.015) 0, rgba(255, 214, 170, 0.015) 1px, transparent 1px, transparent 4px),
+    linear-gradient(180deg, #2A1C12 0%, #1E140C 50%, #140D07 100%);
+  background-size: 120px 120px, auto, 100% 100%;
+  border-radius: 10px;
   padding: 18px 20px;
-  border: 1px solid #4D331D;
+  border: 1px solid #6E4522;
   box-shadow:
-    inset 0 1px 0 rgba(255, 214, 170, 0.12),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.6),
-    0 8px 20px rgba(0, 0, 0, 0.5);
+    inset 0 1px 0 rgba(255, 224, 178, 0.25),
+    inset 0 0 0 1px rgba(18, 12, 7, 0.85),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.75),
+    inset 0 0 24px rgba(0, 0, 0, 0.35),
+    0 10px 28px -6px rgba(0, 0, 0, 0.75);
 }
-.pf-card--rare { border-color: var(--mk-bevel); box-shadow: inset 0 1px 0 var(--mk-edge-hi), inset 0 -1px 0 var(--mk-edge-lo), inset 0 0 0 1px rgba(255,201,74,0.22), inset 0 0 0 4px rgba(0,0,0,0.28), 0 12px 26px rgba(0,0,0,0.5); }
-.pf-card--rare::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; background: var(--pf-grad-border); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; opacity: 0.8; }
+.pf-card::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 0 0 / 8px 8px,
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 100% 0 / 8px 8px,
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 0 100% / 8px 8px,
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 100% 100% / 8px 8px;
+  z-index: 1;
+}
+.pf-card > * { position: relative; z-index: 2; min-width: 0; }
+.pf-card--rare { border-color: #8A5C30; box-shadow: inset 0 1px 0 rgba(255,214,170,0.3), inset 0 0 0 1px rgba(255,201,74,0.3), 0 14px 30px rgba(0,0,0,0.65); }
 .pf-caps { text-transform: uppercase; letter-spacing: 0.08em; }
 .pf-flex-center { display: flex; align-items: center; justify-content: center; }
 /* FIX: в оригинальном гайде были лишние скобки — здесь исправлено */
@@ -789,24 +808,41 @@ body { color: var(--pf-text-primary); }
 }
 .po-rim > * { position: relative; z-index: 1; }
 
-/* Тихая C-плита (без рамы): чистая марсианская обшивка */
+/* Тихая C-плита с тактильным металлическим каркасом и клёпкой */
 .po-card {
   position: relative;
   isolation: isolate;
   min-width: 0;
-  border: 1px solid #4D331D;
-  border-radius: 8px;
-  background-color: #1E140C;
+  box-sizing: border-box;
+  border: 1px solid #6E4522;
+  border-radius: 10px;
+  background-color: #20150E;
   background-image:
     var(--mk-grain),
-    linear-gradient(180deg, #271B11 0%, #1D130C 55%, #140D07 100%);
-  background-size: 120px 120px, 100% 100%;
+    repeating-linear-gradient(135deg, rgba(255, 214, 170, 0.015) 0, rgba(255, 214, 170, 0.015) 1px, transparent 1px, transparent 4px),
+    linear-gradient(180deg, #2A1C12 0%, #1E140C 50%, #140D07 100%);
+  background-size: 120px 120px, auto, 100% 100%;
   box-shadow:
-    inset 0 1px 0 rgba(255, 214, 170, 0.12),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.6),
-    0 8px 20px rgba(0, 0, 0, 0.5);
+    inset 0 1px 0 rgba(255, 224, 178, 0.25),
+    inset 0 0 0 1px rgba(18, 12, 7, 0.85),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.75),
+    inset 0 0 24px rgba(0, 0, 0, 0.35),
+    0 10px 28px -6px rgba(0, 0, 0, 0.75);
 }
-.po-card > * { position: relative; z-index: 1; }
+.po-card::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 0 0 / 8px 8px,
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 100% 0 / 8px 8px,
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 0 100% / 8px 8px,
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 100% 100% / 8px 8px;
+  z-index: 1;
+}
+.po-card > * { position: relative; z-index: 2; min-width: 0; }
 
 /* Пояс hazard-ленты — только верх героя */
 .po-hazard {
