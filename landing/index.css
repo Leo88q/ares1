@@ -2768,48 +2768,60 @@ input:focus-visible {
 }
 .cycle-columns {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-  padding: 8px 4px 12px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 20px;
+  padding: 6px 4px 10px;
+}
+.cycle-column {
+  min-width: 0;
 }
 .cycle-column ul {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
   margin: 0;
   padding: 0;
 }
 .cycle-column li {
-  font-size: 14px;
-  line-height: 1.65;
-  color: rgba(255, 179, 71, 0.88);
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(255, 179, 71, 0.9);
   font-family: "JetBrains Mono", ui-monospace, monospace;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .cycle-column-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   margin-bottom: 12px;
   font-family: "JetBrains Mono", ui-monospace, monospace;
+  text-transform: uppercase;
 }
 .cycle-column:nth-child(1) .cycle-column-title { color: #0DE1B9; }
 .cycle-column:nth-child(2) .cycle-column-title { color: #398FFF; }
 .cycle-column:nth-child(3) .cycle-column-title { color: #FF249D; }
-@media (max-width: 900px) {
-  .cycle-columns { grid-template-columns: 1fr; }
-}
 
 /* ── Правка Фазы 1: модуль цикла просторнее, readout одной строкой ── */
 .tokenomics-grid {
+  display: grid;
   grid-template-columns: minmax(300px, 0.75fr) minmax(0, 1.45fr);
+  gap: 24px;
   align-items: start;
 }
 .cycle-panel {
-  padding: 18px 22px 20px;
+  padding: 24px 28px 24px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .cycle-panel .panel-topline {
-  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 .reactor-readout--solo {
   justify-content: flex-start;
@@ -2819,8 +2831,9 @@ input:focus-visible {
   font-size: 20px;
   line-height: 1.4;
 }
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .tokenomics-grid { grid-template-columns: 1fr; }
+  .cycle-columns { grid-template-columns: 1fr; }
 }
 
 /* ── CTA «Начать играть»: золото как в игре ── */

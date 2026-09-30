@@ -142,13 +142,10 @@ function ProfileScreenInner() {
 
    {/* Лицензия экспортёра */}
    <div
+    className="po-card"
     style={{
      marginBottom: 16,
      padding: '18px 20px',
-     borderRadius: 12,
-     background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
-     border: '1px solid #4D331D',
-     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
     }}
    >
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -215,14 +212,11 @@ function ProfileScreenInner() {
 
    {/* Паёк на складе */}
    <div
+    className="po-card"
     style={{
      marginBottom: 16,
      padding: '22px 18px',
      textAlign: 'center',
-     borderRadius: 12,
-     background: 'linear-gradient(180deg, #2A1C12 0%, #1A110A 100%)',
-     border: '1px solid #5A361A',
-     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.16), 0 10px 28px rgba(0, 0, 0, 0.6)',
     }}
    >
     <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.2em', color: '#D4A576', marginBottom: 10, textTransform: 'uppercase' }}>
@@ -244,13 +238,10 @@ function ProfileScreenInner() {
 
    {/* Ранг колониста */}
    <div
+    className="po-card"
     style={{
      marginBottom: 16,
      padding: 20,
-     borderRadius: 12,
-     background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
-     border: '1px solid #4D331D',
-     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
     }}
    >
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
@@ -294,13 +285,10 @@ function ProfileScreenInner() {
 
    {/* Стена нашивок */}
    <div
+    className="po-card"
     style={{
      marginBottom: 16,
      padding: 20,
-     borderRadius: 12,
-     background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
-     border: '1px solid #4D331D',
-     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
     }}
    >
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -318,13 +306,10 @@ function ProfileScreenInner() {
 
    {/* Диагностика скафандра */}
    <div
+    className="po-card"
     style={{
      marginBottom: 16,
      padding: 20,
-     borderRadius: 12,
-     background: 'linear-gradient(180deg, #26170E 0%, #180D07 100%)',
-     border: '1px solid #5E2E16',
-     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
     }}
    >
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>

@@ -19,6 +19,7 @@ export const SupplyBay = memo(function SupplyBay({ children, o2Percent, h2oPerce
   <DomeFrame
    phase={phase}
    label={t("СНАБЖЕНИЕ")}
+   bandImage="/ares/bg-market.jpg"
    hud={<SolHud o2Percent={o2Percent} h2oPercent={h2oPercent} rationLabel={rationLabel} />}
   >
    {children}

@@ -19,6 +19,7 @@ export const CabinBay = memo(function CabinBay({ children, o2Percent, h2oPercent
   <DomeFrame
    phase={phase}
    label={t("КАЮТА")}
+   bandImage="/ares/bg-cabin.jpg"
    hud={<SolHud o2Percent={o2Percent} h2oPercent={h2oPercent} rationLabel={rationLabel} />}
   >
    {children}

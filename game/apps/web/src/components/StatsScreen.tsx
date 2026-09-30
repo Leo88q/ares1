@@ -244,12 +244,10 @@ function StatsScreenInner() {
        initial={{ opacity: 0, x: -20 }}
        animate={{ opacity: 1, x: 0 }}
        transition={{ delay: i * 0.05 }}
+       className="po-card"
        style={{
         padding: '14px 16px',
-        borderRadius: 10,
-        background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
-        border: row.isMe ? '1px solid #FFB347' : '1px solid #4D331D',
-        boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.1), 0 4px 12px rgba(0,0,0,0.4)',
+        border: row.isMe ? '1px solid #FFB347' : undefined,
         display: 'flex',
         alignItems: 'center',
         gap: 12,

@@ -115,16 +115,13 @@ export default function WalletManagement() {
     whileTap={{ scale: 0.98 }}
     onClick={() => { setIsOpen(!isOpen); sounds.click(); haptics.buttonPress() }}
     aria-expanded={isOpen}
+    className="po-card"
     style={{
      width: '100%',
      padding: '16px 18px',
-     borderRadius: 12,
      display: 'flex',
      alignItems: 'center',
      justifyContent: 'space-between',
-     background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
-     border: '1px solid #4D331D',
-     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
      cursor: 'pointer',
     }}
    >
@@ -151,13 +148,10 @@ export default function WalletManagement() {
     {isOpen && (
      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} style={{ overflow: 'hidden' }}>
       <div
+       className="po-card"
        style={{
         padding: 18,
         marginTop: 8,
-        borderRadius: 12,
-        background: 'linear-gradient(180deg, #20150E 0%, #140D07 100%)',
-        border: '1px solid #4D331D',
-        boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.08), 0 8px 20px rgba(0, 0, 0, 0.5)',
        }}
       >
        <div style={{ padding: 12, borderRadius: 8, background: '#100A05', marginBottom: 16, border: '1px solid #3A2312' }}>

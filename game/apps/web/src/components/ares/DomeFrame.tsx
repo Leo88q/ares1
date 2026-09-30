@@ -11,6 +11,7 @@ export interface DomeFrameProps {
  hud?: ReactNode;
  label?: string;
  className?: string;
+ bandImage?: string;
 }
 
 interface PhaseVisuals {
@@ -42,16 +43,26 @@ const ParallaxLayer = memo(function ParallaxLayer({ src, fallback, filter }: Par
   <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', willChange: 'transform' }}>
    {failed ? fallback : (
     <img src={src} alt="" onError={() => setFailed(true)}
-     style={{ position: 'absolute', left: '-10%', width: '120%', height: '100%', objectFit: 'cover', objectPosition: 'center 62%', filter, transition: 'filter 0.8s ease' }} />
+     style={{ position: 'absolute', left: '-10%', width: '120%', height: '100%', objectFit: 'cover', objectPosition: 'center 50%', filter: `${filter ? `${filter} ` : ''}brightness(0.9) contrast(1.08)`, transition: 'filter 0.8s ease' }} />
    )}
   </div>
  );
 });
 
-function BandMedia({ filter }: { filter: string }): JSX.Element {
+function BandMedia({ filter, imageSrc }: { filter: string; imageSrc?: string }): JSX.Element {
  const reducedMotion = usePrefersReducedMotion();
  const [videoFailed, setVideoFailed] = useState(false);
- const showVideo = !reducedMotion && !videoFailed;
+ const isCustomImage = Boolean(imageSrc && imageSrc !== '/ares/plantation.webp');
+ const showVideo = !reducedMotion && !videoFailed && !isCustomImage;
+
+ if (isCustomImage && imageSrc) {
+  return (
+   <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+    <ParallaxLayer src={imageSrc} fallback={<BandFallback />} filter={filter} />
+   </div>
+  );
+ }
+
  return (
   <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
    {showVideo ? (
@@ -106,7 +117,7 @@ const GlassArc = memo(function GlassArc({ tint }: { tint: string }): JSX.Element
 
 const PARALLAX_MAX_OFFSET = 12;
 
-export const DomeFrame = memo(function DomeFrame({ children, phase, dustStormActive = false, hud, className }: DomeFrameProps): JSX.Element {
+export const DomeFrame = memo(function DomeFrame({ children, phase, dustStormActive = false, hud, className, bandImage }: DomeFrameProps): JSX.Element {
  const visuals = useMemo(() => PHASE_VISUALS[phase], [phase]);
  const bandRef = useRef<HTMLDivElement | null>(null);
  const pointerX = useMotionValue(0);
@@ -123,11 +134,11 @@ export const DomeFrame = memo(function DomeFrame({ children, phase, dustStormAct
 
  return (
   <div className={className} style={{ position: 'relative', minHeight: '100%', display: 'flex', flexDirection: 'column', background: 'transparent' }}>
-   {/* ОКНО-ИЛЛЮМИНАТОР: живая плантация */}
+   {/* ОКНО-ИЛЛЮМИНАТОР: живая плантация или отсек */}
    <div ref={bandRef} onPointerMove={handlePointerMove}
     style={{ position: 'relative', height: BAND_HEIGHT, flexShrink: 0, overflow: 'hidden', background: `linear-gradient(180deg, ${visuals.skyTop}, ${visuals.skyBottom})` }}>
     <motion.div style={{ x: farX, position: 'absolute', inset: 0 }}>
-     <BandMedia filter={visuals.imgFilter} />
+     <BandMedia filter={visuals.imgFilter} imageSrc={bandImage} />
     </motion.div>
     <div aria-hidden="true" style={{ position: 'absolute', inset: 0 }}>
      {phase === 'night' ? <StarField count={22} /> : null}
@@ -142,8 +153,18 @@ export const DomeFrame = memo(function DomeFrame({ children, phase, dustStormAct
     <div aria-hidden="true" style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 -22px 30px -20px rgba(5,3,8,0.95)', pointerEvents: 'none' }} />
    </div>
 
-   {/* ПАНЕЛЬ ОБИТАНИЯ: полупрозрачное стекло поверх интерьера */}
-   <div style={{ position: 'relative', flex: 1, zIndex: 1, marginTop: -16, borderRadius: '20px 20px 0 0', background: 'linear-gradient(180deg, rgba(24,16,11,0.55) 0%, rgba(14,9,6,0.7) 40%, rgba(8,5,3,0.85) 100%)', borderTop: '1px solid rgba(255,214,170,0.18)', boxShadow: '0 -8px 32px rgba(0,0,0,0.7)' }}>
+   {/* ПАНЕЛЬ ОБИТАНИЯ: лёгкая тонировка поверх фоновой марсианской локации */}
+   <div style={{
+    position: 'relative',
+    flex: 1,
+    zIndex: 1,
+    marginTop: -16,
+    borderRadius: '20px 20px 0 0',
+    background: 'linear-gradient(180deg, rgba(20,13,8,0.38) 0%, rgba(14,9,6,0.50) 40%, rgba(8,5,3,0.68) 100%)',
+    borderTop: '1px solid rgba(255,214,170,0.22)',
+    boxShadow: '0 -8px 32px rgba(0,0,0,0.6)',
+    backdropFilter: 'blur(2px)',
+   }}>
     {children}
    </div>
   </div>

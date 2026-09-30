@@ -59,12 +59,9 @@ export function ReferralSection() {
   <div style={{ marginBottom: 20 }}>
    {/* Карточка терминала рекрутинга */}
    <div
+    className="po-card"
     style={{
      padding: 20,
-     borderRadius: 12,
-     background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
-     border: '1px solid #4D331D',
-     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
     }}
    >
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
