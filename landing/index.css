@@ -1036,14 +1036,14 @@ input:focus-visible {
 }
 
 .comparison--after {
-  border-color: #ff2e9359;
-  box-shadow: inset 0 0 55px #ff2e930b;
+  border-color: #d8558f59;
+  box-shadow: inset 0 0 55px #d8558f0b;
 }
 
 .comparison--after .panel-label,
 .comparison--after li > svg,
 .mini-mark {
-  color: #ff8ec6;
+  color: #e0a183;
 }
 
 .mini-mark {
@@ -1085,10 +1085,10 @@ input:focus-visible {
   width: 76px;
   height: 76px;
   place-items: center;
-  border: 1px solid #ff2e9330;
+  border: 1px solid #d8558f30;
   border-radius: 16px;
-  color: #ff8bc4;
-  background: radial-gradient(circle, #ff2e931c, #ff2e9303);
+  color: #e0a183;
+  background: radial-gradient(circle, #d8558f1c, #d8558f03);
 }
 
 .feature-number {
@@ -1166,7 +1166,7 @@ input:focus-visible {
   position: relative;
   padding: 17px 7px;
   border: 1px solid var(--border);
-  border-top: 2px solid var(--tier-color);
+  border-top: 2px solid var(--tier-color, var(--ares-hud));
   border-radius: 5px;
   background: #0c0911;
   text-align: center;
@@ -1178,14 +1178,14 @@ input:focus-visible {
   height: 8px;
   margin: 0 auto 10px;
   border-radius: 2px;
-  background: var(--tier-color);
-  box-shadow: 0 0 18px var(--tier-color);
+  background: var(--tier-color, var(--ares-hud));
+  box-shadow: 0 0 18px var(--tier-color, var(--ares-hud));
   transform: rotate(45deg);
 }
 
 .tier strong {
   display: block;
-  color: var(--tier-color);
+  color: var(--tier-color, var(--ares-hud));
   font: 10px var(--mono);
 }
 
@@ -1291,7 +1291,7 @@ input:focus-visible {
   width: 65%;
   height: 40px;
   border-radius: 50%;
-  background: radial-gradient(ellipse, #ff2e932c, transparent 70%);
+  background: radial-gradient(ellipse, #d8558f2c, transparent 70%);
   transform: translateX(-50%);
 }
 
@@ -1335,7 +1335,7 @@ input:focus-visible {
   position: absolute;
   right: 18px;
   top: -18px;
-  color: #ff2e9326;
+  color: #d8558f26;
   font-family: Georgia, serif;
   font-size: 120px;
   line-height: 1;
@@ -1370,7 +1370,7 @@ input:focus-visible {
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
-  border: 1px solid #7cff6b26;
+  border: 1px solid #9fbe7a26;
   border-radius: 4px;
   color: #c4d5bc;
   font-size: 9px;
@@ -1405,7 +1405,7 @@ input:focus-visible {
   aspect-ratio: 1;
   padding: 26px;
   border-radius: 50%;
-  box-shadow: 0 0 100px #ff2e9310;
+  box-shadow: 0 0 100px #d8558f10;
 }
 
 .token-donut-center {
@@ -1481,9 +1481,9 @@ input:focus-visible {
 }
 
 .allocation-row--active {
-  border-color: #ff2e934f;
-  background: #ff2e9309;
-  box-shadow: inset 0 0 25px #ff2e9307;
+  border-color: #d8558f4f;
+  background: #d8558f09;
+  box-shadow: inset 0 0 25px #d8558f07;
 }
 
 .allocation-title {
@@ -1496,7 +1496,7 @@ input:focus-visible {
 }
 
 .allocation-title strong {
-  color: var(--allocation-color);
+  color: var(--allocation-color, var(--ares-hud));
   font: 14px var(--mono);
 }
 
@@ -1511,7 +1511,7 @@ input:focus-visible {
 .allocation-track > div {
   height: 100%;
   border-radius: inherit;
-  background: var(--allocation-color);
+  background: var(--allocation-color, var(--ares-hud));
 }
 
 .deflation-panel {
@@ -1599,7 +1599,7 @@ input:focus-visible {
   position: absolute;
   inset: 1px;
   border-radius: inherit;
-  box-shadow: 0 0 20px #b85cff66;
+  box-shadow: 0 0 20px #a57bc866;
   pointer-events: none;
 }
 
@@ -1631,9 +1631,9 @@ input:focus-visible {
 }
 
 .roadmap-done .roadmap-period small {
-  border-color: #7cff6b33;
+  border-color: #9fbe7a33;
   color: var(--ares-bio);
-  background: #7cff6b08;
+  background: #9fbe7a08;
 }
 
 .roadmap h3 {
@@ -1860,7 +1860,7 @@ input:focus-visible {
 }
 
 .social-links > button:hover {
-  border-color: #ff2e9380;
+  border-color: #d8558f80;
   color: #ff9acc;
 }
 
@@ -1965,7 +1965,7 @@ input:focus-visible {
   background:
     radial-gradient(circle at 11px 11px, #c297bc 0 1px, #48304d 2px 3px, transparent 4px),
     radial-gradient(circle at calc(100% - 11px) 11px, #c297bc 0 1px, #48304d 2px 3px, transparent 4px),
-    radial-gradient(ellipse at 0% 0%, #ff2e9319, transparent 60%),
+    radial-gradient(ellipse at 0% 0%, #d8558f19, transparent 60%),
     linear-gradient(125deg, #201026, #100a18);
 }
 
@@ -2128,9 +2128,9 @@ input:focus-visible {
   align-items: flex-start;
   margin-bottom: 22px;
   padding: 15px;
-  border: 1px solid #7cff6b42;
+  border: 1px solid #9fbe7a42;
   border-radius: 7px;
-  background: #7cff6b09;
+  background: #9fbe7a09;
   color: #d7edcb;
   font-size: 12px;
   line-height: 1.8;
@@ -2143,7 +2143,7 @@ input:focus-visible {
   height: 32px;
   place-items: center;
   border-radius: 50%;
-  background: #7cff6b1f;
+  background: #9fbe7a1f;
   color: var(--ares-bio);
 }
 
@@ -2584,7 +2584,7 @@ input:focus-visible {
     inset: 15px 10% auto 0;
     width: auto;
     height: 1px;
-    background: linear-gradient(90deg, #ff2e93, #68426a 30%, #68426a40);
+    background: linear-gradient(90deg, #d8558f, #68426a 30%, #68426a40);
   }
 
   .roadmap-marker {
@@ -2978,8 +2978,8 @@ input:focus-visible {
   padding: 16px 20px;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(100deg, #a05a20, #8e2f7f);
-  color: #fff;
+  background: linear-gradient(100deg, #c97a2b, #8a2e08);
+  color: #2a1206; /* --mk-paint-amber-ink */
   font-weight: 800;
   font-size: 15px;
   letter-spacing: 0.03em;
@@ -2988,7 +2988,7 @@ input:focus-visible {
 }
 .pack-buy-main:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(142, 47, 127, 0.35);
+  box-shadow: 0 10px 30px rgba(201, 122, 43, 0.35);
 }
 .pack-buy-main:disabled { opacity: 0.55; cursor: not-allowed; }
 .pack-note {

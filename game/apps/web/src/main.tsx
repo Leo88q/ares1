@@ -125,7 +125,7 @@ const mobileWallet = new SolanaMobileWalletAdapter({
  addressSelector: createDefaultAddressSelector(),
  // identity = фактический origin страницы (как делает авто-адаптер
  // wallet-adapter-react) — кошелёк связывает авторизацию именно с ним
- appIdentity: { name: 'Solana Potato', uri: typeof window !== 'undefined' ? window.location.origin : 'https://play.pages.dev' },
+ appIdentity: { name: 'Solana Potato', uri: typeof window !== 'undefined' ? window.location.origin : 'https://play.ares1.is-a.dev' },
  authorizationResultCache: createDefaultAuthorizationResultCache(),
  chain: configuredCluster() as 'devnet' | 'testnet' | 'mainnet-beta',
  onWalletNotFound: async () => {

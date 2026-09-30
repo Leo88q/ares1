@@ -20,6 +20,16 @@ async function dismissCookies(page) {
   }
 }
 
+async function scrollAll(page) {
+  const height = await page.evaluate(() => document.body.scrollHeight);
+  for (let index = 0; index <= 24; index += 1) {
+    await page.evaluate((y) => window.scrollTo(0, y), Math.round((height / 24) * index));
+    await page.waitForTimeout(120);
+  }
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(400);
+}
+
 async function tapThrough(page) {
   for (let step = 0; step < 10; step += 1) {
     let clicked = false;
@@ -95,6 +105,10 @@ out.push(await page.evaluate(() => {
 out.push("=== GAME: stylesheet list ===");
 out.push(await page.evaluate(() => [...document.styleSheets].map((sheet) => (sheet.href || "inline").split("/").slice(-1)[0]).join(", ")));
 
+out.push("=== GAME: after-fix surfaces ===");
+await dump(page, ".k-panel", "k-panel");
+await dump(page, ".pf-card", "pf-card");
+
 // language popup
 try {
   const candidates = await page.evaluate(() =>
@@ -134,6 +148,27 @@ for (const [label, path] of [["profile", "/profile"], ["market", "/market"]]) {
 }
 
 await page.close();
+
+// ---------- LANDING: leftovers after the palette sweep ----------
+{
+  const landingPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  await landingPage.goto("https://arena-01a0efbd-ares1.ares1-7e1.pages.dev/", { waitUntil: "networkidle", timeout: 60000 });
+  await landingPage.waitForTimeout(1500);
+  await dismissCookies(landingPage);
+  await scrollAll(landingPage);
+  out.push("=== LANDING: surfaces after palette sweep ===");
+  await dump(landingPage, ".pack-buy-main", "pack-buy-main (кнопка покупки модуля)");
+  await dump(landingPage, ".morph-control", "morph-control");
+  await dump(landingPage, ".xp-hud", "XP HUD");
+  out.push(await landingPage.evaluate(() => {
+    const control = document.querySelector(".morph-control");
+    if (!control) return "no morph-control";
+    return `focus-visible color -> ${getComputedStyle(control).outlineColor}`;
+  }));
+  await landingPage.screenshot({ path: ".ci/out/landing-after.jpg", type: "jpeg", quality: 60, fullPage: true });
+  await landingPage.close();
+}
+
 writeFileSync(".ci/out/checks.txt", out.join("\n"));
 console.log(out.join("\n"));
 await browser.close();

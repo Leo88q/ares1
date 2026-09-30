@@ -56,7 +56,7 @@ export interface MutationInfo {
 
 const MUTATIONS: MutationInfo[] = [
  { id: 0, name: 'Стандарт', code: 'STD', effect: 'Базовая генетика', color: '#64748b' },
- { id: 1, name: 'Золотой росток', code: 'GOLD', effect: '+25% к урожаю', color: 'var(--pf-gold)' },
+ { id: 1, name: 'Золотой росток', code: 'GOLD', effect: '+25% к урожаю', color: 'var(--ares-hud)' },
  { id: 2, name: 'Кремниевая оболочка', code: 'SILI', effect: 'Износ x0.5', color: '#94a3b8' },
 ]
 

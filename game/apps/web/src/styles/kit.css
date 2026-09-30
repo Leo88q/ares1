@@ -2,71 +2,61 @@
    KIT — единственная конструкция поверхностей (2026-09-28)
    ─────────────────────────────────────────────────────────────────
    Панель, клавиша, шильдик, лампа, LCD, скелетон описаны ЗДЕСЬ один раз.
-   Значения — только var(--s-*) / var(--pf-*) / var(--ares-*).
-   Новые компоненты используют .k-*; старые классы подключены алиасами,
-   так что существующая разметка получает ту же конструкцию.
+   Значения — только var(--mk-*) / var(--pf-*) / var(--s-*).
+   Новые компоненты используют .k-*; старые классы (.pf-card, .glass) НЕ
+   переопределяются здесь — их материал живёт в styles/global.css (MK-плита).
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── Панель: базовая поверхность. Алиасы: .pf-card, .glass ── */
-.k-panel,
-.pf-card,
-.glass {
+/* ── Панель: базовая поверхность ──
+   Материал — MK-плита (штампованный металл), она описана в styles/global.css
+   (.pf-card/.glass). Здесь кит НЕ переопределяет её: до 2026-09-30 алиасы
+   `.pf-card`/`.glass` вешали сюда легаси-рамку из `kit/panel-bronze.webp`
+   (30px border-image), которая перебивала MK-плиту — один и тот же класс
+   давал то старую бронзу, то новый металл в зависимости от порядка бандлов. */
+.k-panel {
   position: relative;
-  background: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 0 solid transparent;
-  border-width: 30px;
-  border-image: url('/ares/kit/panel-bronze.webp') 88 fill / 30px;
-  border-radius: 0;
+  background-color: var(--mk-face, #2C221A);
+  border: 1px solid var(--mk-seam, #120C07);
+  border-radius: var(--pf-radius-card);
   padding: var(--s-panel-pad);
-  box-shadow: 0 18px 44px -16px rgba(0, 0, 0, 0.85);
+  box-shadow:
+    inset 0 1px 0 var(--mk-edge-hi, rgba(255, 214, 170, 0.16)),
+    inset 0 -1px 0 var(--mk-edge-lo, rgba(0, 0, 0, 0.72)),
+    inset 0 0 24px rgba(0, 0, 0, 0.45),
+    0 12px 26px rgba(0, 0, 0, 0.45);
 }
 
-/* редкая панель: латунное кольцо по контуру */
-.k-panel--rare,
-.pf-card--rare {
-  border-image-source: url('/ares/kit/panel-bone.webp');
-  border-image-slice: 84 fill;
-}
-.k-panel--rare { filter: saturate(1.05); }
-.pf-card--rare::before { display: none; }
-.k-panel--rare::before,
-.pf-card--rare::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: var(--pf-grad-border);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  -webkit-mask-composite: xor;
-  pointer-events: none;
-  opacity: 0.8;
+/* редкая панель: латунная фаска по контуру (MK-цвет, без растровой рамки) */
+.k-panel--rare {
+  border-color: var(--mk-bevel);
+  box-shadow:
+    inset 0 1px 0 var(--mk-edge-hi),
+    inset 0 -1px 0 var(--mk-edge-lo),
+    inset 0 0 0 1px rgba(255, 201, 74, 0.22),
+    0 12px 26px rgba(0, 0, 0, 0.5);
 }
 
 /* тихая панель: строки, детали, второстепенное */
 .k-panel--quiet {
   background-color: var(--s-subtle-bg);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   border: 1px solid var(--s-subtle-border);
   box-shadow: inset 0 1px 0 rgba(255, 214, 170, 0.05);
 }
 
-/* всплывающая панель: модалки, попапы */
+/* всплывающая панель: модалки, попапы
+   (border-image из kit/panel-bronze.webp убран: MK-плита без растровых рамок) */
 .k-panel--pop {
-  border-width: 34px;
-  border-image-slice: 88 fill;
-  border-image-width: 34px;
-  box-shadow: 0 30px 70px -18px rgba(0, 0, 0, 0.95), 0 0 40px -18px rgba(255, 179, 71, 0.35);
+  background-color: var(--s-pop-bg);
+  border: 1px solid var(--s-panel-edge-soft);
+  box-shadow: var(--s-pop-shadow);
 }
 
 /* чип: мелкий вложенный бокс (инфо-строки, предупреждения) */
 .k-panel--chip {
-  border-width: 12px;
-  border-image: url('/ares/kit/btn-secondary.webp') 40 fill / 12px;
+  background-color: var(--s-subtle-bg);
+  border: 1px solid var(--s-subtle-border);
+  border-radius: var(--pf-radius-btn);
+  padding: 8px 10px;
   box-shadow: none;
 }
 
