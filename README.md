@@ -4,8 +4,8 @@ First potato colony on Mars. Grow, trade, upgrade - 100% of $POTATO is born in p
 
 ## Demo
 
-- Landing: https://ares1.is-a.dev
-- Game: https://ares1-play.pages.dev (CNAME / alias: https://play.ares1.is-a.dev)
+- Landing: https://ares1-7e1.pages.dev (домен `ares1.is-a.dev` **не зарегистрирован** в is-a.dev — см. docs/DOMAIN_DEPLOY_FINDINGS_2026-09-30.md)
+- Game: https://ares1-play.pages.dev (алиас `play.ares1.is-a.dev` отдаёт ошибку TLS: не привязан к проекту Cloudflare Pages)
 - Network: Solana Devnet
 
 ## Structure

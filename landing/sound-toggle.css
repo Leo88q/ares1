@@ -17,9 +17,9 @@
 }
 
 .sound-toggle[aria-pressed="true"] {
-  border-color: rgba(124, 255, 107, 0.45);
-  color: #b9f3aa;
-  background: #132017;
+  border-color: rgba(159, 190, 122, 0.45);
+  color: #e0a183;
+  background: #1d1409;
 }
 
 .sound-toggle[aria-disabled="true"] {
@@ -28,7 +28,7 @@
 }
 
 .sound-toggle:focus-visible {
-  outline: 3px solid #7cff6b;
+  outline: 3px solid #9fbe7a;
   outline-offset: 4px;
 }
 

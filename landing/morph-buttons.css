@@ -104,7 +104,7 @@
 }
 
 .morph-control:focus-visible {
-  outline: 3px solid #7cff6b;
+  outline: 3px solid #9fbe7a;
   outline-offset: 5px;
 }
 
@@ -212,7 +212,7 @@
 }
 
 .morph-button[data-focused="true"] {
-  --morph-ring: rgba(124, 255, 107, 0.65);
+  --morph-ring: rgba(159, 190, 122, 0.65);
 }
 
 .morph-button[data-variant="secondary"] {
@@ -263,13 +263,13 @@
     #8a2e08,
     #c1440e 25%,
     #cf2859 55%,
-    #ff2e93 80%,
+    #d8558f 80%,
     #8c3155
   );
 }
 
 .morph-button[data-success="true"] .morph-control {
-  border-color: rgba(124, 255, 107, 0.6);
+  border-color: rgba(159, 190, 122, 0.6);
 }
 
 .morph-success-mark {
@@ -324,8 +324,8 @@
 }
 
 .morph-spinner-orbit--1 > span {
-  background: #7cff6b;
-  box-shadow: 0 0 7px rgba(124, 255, 107, 0.45);
+  background: #9fbe7a;
+  box-shadow: 0 0 7px rgba(159, 190, 122, 0.45);
 }
 
 .morph-spinner-orbit--2 {
@@ -334,7 +334,7 @@
 
 .morph-spinner-orbit--2 > span {
   background: #ff82c1;
-  box-shadow: 0 0 7px rgba(255, 46, 147, 0.5);
+  box-shadow: 0 0 7px rgba(216, 85, 143, 0.5);
 }
 
 .morph-reduced-label {

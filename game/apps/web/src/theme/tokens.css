@@ -179,9 +179,33 @@
   --pf-glow-orange: 0 10px 24px -10px rgba(0, 0, 0, 0.8);
   --pf-glow-pink: 0 10px 24px -10px rgba(0, 0, 0, 0.8);
   --pf-glow-teal: 0 10px 24px -10px rgba(0, 0, 0, 0.8);
+  --pf-glow-purple: 0 10px 24px -10px rgba(0, 0, 0, 0.8);
   --pf-glow-gold: 0 10px 24px -10px rgba(0, 0, 0, 0.8);
   --pf-glow-green: 0 10px 24px -10px rgba(0, 0, 0, 0.8);
   --pf-glow-red: 0 10px 24px -12px rgba(120, 20, 10, 0.7);
+
+  /* Поверхности (--s-*): слой, на который опираются components/ui/kit и
+     LangSwitcher. Блок был определён в PR #45-предшественнике и потерялся при
+     восстановлении MK-редизайна: без него `var(--s-pop-bg)`,
+     `var(--s-panel-edge-soft)`, `var(--s-z-header)` и др. не имеют значения —
+     попап языка и тихие панели рендерятся прозрачными. Значения — MK-палитра. */
+  --s-panel-pad: 20px;
+  --s-panel-radius: var(--pf-radius-card);
+  --s-panel-edge-soft: rgba(160, 82, 40, 0.65);
+  --s-subtle-bg: rgba(0, 0, 0, 0.3);
+  --s-subtle-border: var(--pf-border-soft);
+  --s-pop-bg: #241B14;
+  --s-pop-shadow: 0 24px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(0, 0, 0, 0.7);
+  /* z-шкала: числа не выдумывать в компонентах — только эти токены.
+     Внимание: в inline-стилях React они должны быть ЧИСЛОМ
+     (`zIndex: 60`), строка `'var(--s-z-header)'` молча игнорируется и
+     элемент оказывается под соседями (клики уходят сквозь него). */
+  --s-z-content: 2;
+  --s-z-sticky: 40;
+  --s-z-header: 60;
+  --s-z-overlay: 200;
+  --s-z-modal: 210;
+  --s-z-toast: 300;
 
   /* Движение: пружина с овершутом для вдавливания */
   --mk-press: cubic-bezier(0.34, 1.56, 0.64, 1);
