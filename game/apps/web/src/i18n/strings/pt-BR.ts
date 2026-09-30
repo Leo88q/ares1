@@ -594,6 +594,8 @@ const ptBR: Record<string, string> = {
   'СИГНАЛ КОЛОНИИ ПРИНЯТ': 'SINAL DA COLÔNIA RECEBIDO',
   'Транзакция не пройдёт на сети:': 'A transação vai falhar na rede:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'A transação foi enviada, mas não houve confirmação. Verifique a carteira antes de tentar de novo — a ação pode já ter sido concluída.',
+  'Требуется владеть 6 делянками, и хотя бы одна должна быть 3-го уровня (сейчас макс. ур. {lvl}).': 'Requer 6 parcelas com pelo menos uma no nível 3 (nível máx. atual {lvl}).',
+  'нужен ур. 3 (сейчас {n})': 'nível 3 necessário (atual {n})',
 };
 
 export default ptBR;

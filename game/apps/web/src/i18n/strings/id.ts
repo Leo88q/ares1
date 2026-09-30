@@ -594,6 +594,8 @@ const id: Record<string, string> = {
   'СИГНАЛ КОЛОНИИ ПРИНЯТ': 'SINYAL KOLONI DITERIMA',
   'Транзакция не пройдёт на сети:': 'Transaksi akan gagal di jaringan:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'Transaksi terkirim, tetapi konfirmasi belum diterima. Periksa dompet sebelum mencoba lagi — tindakan mungkin sudah berhasil.',
+  'Требуется владеть 6 делянками, и хотя бы одна должна быть 3-го уровня (сейчас макс. ур. {lvl}).': 'Membutuhkan 6 lahan dengan setidaknya satu di level 3 (level maks saat ini {lvl}).',
+  'нужен ур. 3 (сейчас {n})': 'butuh level 3 (sekarang {n})',
 };
 
 export default id;
