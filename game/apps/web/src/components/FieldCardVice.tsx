@@ -157,7 +157,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
     <div style={{ padding: '4px 20px 20px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
      <Button
       variant={canHarvest ? 'primary' : 'secondary'}
-      glow={canHarvest ? (rare === 'gold' ? 'gold' : 'amber') : 'none'}
+      glow={canHarvest ? (rare === 'gold' ? 'gold' : 'orange') : 'none'}
       disabled={!canHarvest || busy !== null}
       onClick={() => run('harvest', onHarvest, () => sounds.harvest(), () => haptics.harvest())}
       className={canHarvest ? 'gradient-gold' : ''}

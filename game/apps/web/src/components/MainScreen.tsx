@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion'
 import { t } from '../i18n'
 
-import { MiniHydroModules } from '../ui/MiniHydroModules'
 import { useGame } from '../contexts/GameContext'
 import { useSolana } from '../contexts/SolanaContext'
 import FieldCardVice from './FieldCardVice'
@@ -246,7 +245,7 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
           </span>
          </div>
          <div style={{ display: 'flex', gap: 14, marginTop: 4, fontSize: 11, color: 'var(--pf-text-secondary)' }} className="ares-mono">
-          <span>СБОР: ~{(type.baseYieldPerDayMicro / 1_000_000).toFixed(0)} 🥔 / СОЛ</span>
+          <span>СБОР: ~{((type.yieldBps / 10_000) * 100).toFixed(0)} 🥔 / СОЛ</span>
           <span>РЕСУРС: 100%</span>
          </div>
         </div>

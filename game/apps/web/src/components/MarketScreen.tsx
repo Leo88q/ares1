@@ -11,7 +11,7 @@ import { useGame } from '../contexts/GameContext'
 import { fmtPotato, fmtSol, MICRO, CANCEL_COOLDOWN_HOURS } from '../utils/constants'
 import { SupplyBay } from './ares/SupplyBay';
 import { HullPanel } from '../ui/HullPanel';
-import { ErrorState, EmptyState as SharedEmptyState, LoadingState } from '../ui/states'
+import { ErrorState, LoadingState } from '../ui/states'
 function MarketScreenInner() {
  const { orders, myOrders, stats, loading, actionLoading, error, createOrder, fillOrder, cancelOrder, reload } = useMarketplace()
  const { stats: gameStats } = useGame()
@@ -290,7 +290,7 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
 
 const instrument = (v: string) => v.replace(/^(\d+)/, (_m, d: string) => d.padStart(4, '0'))
 
-function StatCard({ icon, label, value, primary = false }: { icon?: ReactNode; label: string; value: string; primary?: boolean }) {
+function StatCard({ label, value, primary = false }: { icon?: ReactNode; label: string; value: string; primary?: boolean }) {
  return (
   <div
    className="po-card"
