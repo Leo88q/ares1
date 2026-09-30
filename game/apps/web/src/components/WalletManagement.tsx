@@ -23,7 +23,20 @@ interface Currency {
 }
 
 const CURRENCIES: Currency[] = [
- { id: 'SOL', name: 'Solana', symbol: 'SOL', icon: '◎', color: '#9FBE7A', min: 0.001 },
+ {
+  id: 'SOL',
+  name: 'Solana',
+  symbol: 'SOL',
+  icon: (
+   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 17.5l3.5-3.5h12.5" />
+    <path d="M20 12l-3.5 3.5H4" />
+    <path d="M4 6.5l3.5-3.5h12.5" />
+   </svg>
+  ),
+  color: '#9FBE7A',
+  min: 0.001,
+ },
  { id: 'POTATO', name: 'Potato', symbol: 'POTATO', icon: <img src="/ares/potato-coin.png" alt="" width={22} height={22} style={{ width: 22, height: 22, borderRadius: '50%' }} />, color: 'var(--pf-gold)', min: 0.01 },
 ]
 

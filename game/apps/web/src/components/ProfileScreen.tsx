@@ -291,13 +291,16 @@ function ProfileScreenInner() {
 
     <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
      <div style={{ fontSize: 11, color: '#9FBE7A', display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span>✓</span> <span>{t('Биосинтез и культивация делянок разблокированы')}</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+      <span>{t('Биосинтез и культивация делянок разблокированы')}</span>
      </div>
      <div style={{ fontSize: 11, color: '#9FBE7A', display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span>✓</span> <span>{t('Доступ к открытой P2P бирже Снабжения')}</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+      <span>{t('Доступ к открытой P2P бирже Снабжения')}</span>
      </div>
      <div style={{ fontSize: 11, color: 'rgba(255,179,71,0.5)', display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span>🔒</span> <span>{t('Ранг {n}: улучшенная сопротивляемость износу кассет', { n: stats.playerLevel + 1 })}</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+      <span>{t('Ранг {n}: улучшенная сопротивляемость износу кассет', { n: stats.playerLevel + 1 })}</span>
      </div>
     </div>
    </div>

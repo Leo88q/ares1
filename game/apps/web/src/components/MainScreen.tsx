@@ -321,7 +321,7 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
           </span>
          </div>
          <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 10, color: 'var(--pf-text-secondary)' }} className="ares-mono">
-          <span>{t('СБОР: ~{n} 🥔 / СОЛ', { n: ((type.yieldBps / 10_000) * 100).toFixed(0) })}</span>
+          <span>{t('СБОР: ~{n} POTATO / СОЛ', { n: ((type.yieldBps / 10_000) * 100).toFixed(0) })}</span>
           <span>{t('РЕСУРС: 100%')}</span>
          </div>
         </div>

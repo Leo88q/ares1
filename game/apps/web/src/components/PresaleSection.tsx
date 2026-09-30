@@ -178,7 +178,7 @@ export default function PresaleSection() {
    </div>
 
    {/* Сварная заплатка в правом углу */}
-   <span className="po-patch" style={{ right: 8, bottom: 8, width: 50, height: 20, transform: 'rotate(-1deg)' }} aria-hidden="true" />
+   <span className="po-patch" style={{ right: 8, bottom: 8, width: 50, height: 20 }} aria-hidden="true" />
 
    {/* Кнопка покупки: тактильная клавиша пульта */}
    <motion.button
