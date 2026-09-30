@@ -1,0 +1,14 @@
+=== GAME: card surfaces ===
+--- pf-card (0)
+--- k-panel (0)
+--- hull host (0)
+lang button not found
+=== LANDING: leftovers ===
+--- pack-buy-main (магазин модулей) (1)
+    {"className":"pack-buy-main","padding":"16px 20px","border":"0px none rgb(255, 255, 255)","borderImage":"none","background":"rgba(0, 0, 0, 0) linear-gradient(100deg, rgb(160, 90, 32), rgb(142, 47, 127)) repeat scrol","radius":"12px","shadow":"none","opacity":"1","zIndex":"auto","rect":"407x73 @12153"}
+--- morph-control (4)
+    {"className":"morph-control","padding":"0px","border":"1px solid rgba(0, 0, 0, 0.45)","borderImage":"none","background":"rgba(0, 0, 0, 0) linear-gradient(rgb(232, 154, 75) 0%, rgb(201, 122, 43) 55%, rgb(168, 95,","radius":"8px","shadow":"rgba(255, 226, 180, 0.5) 0px 1px 0px 0px inset, rgba(0, 0, 0, 0.3) 0px","opacity":"1","zIndex":"auto","rect":"162x54 @561"}
+    {"className":"morph-control","padding":"0px","border":"1px solid rgba(177, 153, 197, 0.48)","borderImage":"none","background":"rgb(25, 16, 31) none repeat scroll 0% 0% / auto padding-box border-box","radius":"8px","shadow":"rgba(255, 226, 180, 0.5) 0px 1px 0px 0px inset, rgba(0, 0, 0, 0.3) 0px","opacity":"1","zIndex":"auto","rect":"167x54 @561"}
+    {"className":"morph-control","padding":"0px","border":"1px solid rgba(0, 0, 0, 0.45)","borderImage":"none","background":"rgba(0, 0, 0, 0) linear-gradient(rgb(232, 154, 75) 0%, rgb(201, 122, 43) 55%, rgb(168, 95,","radius":"8px","shadow":"rgba(255, 226, 180, 0.5) 0px 1px 0px 0px inset, rgba(0, 0, 0, 0.3) 0px","opacity":"1","zIndex":"auto","rect":"149x54 @1573"}
+    {"className":"morph-control","padding":"0px","border":"1px solid rgba(0, 0, 0, 0.45)","borderImage":"none","background":"rgba(0, 0, 0, 0) linear-gradient(rgb(232, 154, 75) 0%, rgb(201, 122, 43) 55%, rgb(168, 95,","radius":"8px","shadow":"rgba(255, 226, 180, 0.5) 0px 1px 0px 0px inset, rgba(0, 0, 0, 0.3) 0px","opacity":"1","zIndex":"auto","rect":"216x54 @9157"}
+morph-control:focus-visible -> outline=rgb(42, 18, 6) none 0px outlineColor=rgb(42, 18, 6)
