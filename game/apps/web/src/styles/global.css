@@ -965,39 +965,24 @@ body { color: var(--pf-text-primary); }
 }
 .po-rim > * { position: relative; z-index: 1; }
 
-/* Тихая C-плита с тактильным металлическим каркасом и клёпкой */
+/* Тихая C-плита с тактильным металлическим каркасом */
 .po-card {
   position: relative;
   isolation: isolate;
   min-width: 0;
   box-sizing: border-box;
-  border: 1px solid #6E4522;
-  border-radius: 10px;
-  background-color: #20150E;
+  border: 1px solid rgba(255, 179, 71, 0.22);
+  border-radius: 8px;
+  background-color: #150F0A;
   background-image:
-    var(--mk-grain),
-    repeating-linear-gradient(135deg, rgba(255, 214, 170, 0.015) 0, rgba(255, 214, 170, 0.015) 1px, transparent 1px, transparent 4px),
-    linear-gradient(180deg, #2A1C12 0%, #1E140C 50%, #140D07 100%);
-  background-size: 120px 120px, auto, 100% 100%;
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 160, 50, 0.06) 0%, transparent 60%),
+    linear-gradient(180deg, #1A120C 0%, #120D08 50%, #0C0805 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 224, 178, 0.25),
-    inset 0 0 0 1px rgba(18, 12, 7, 0.85),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.75),
-    inset 0 0 24px rgba(0, 0, 0, 0.35),
-    0 10px 28px -6px rgba(0, 0, 0, 0.75);
+    inset 0 1px 0 rgba(255, 214, 160, 0.14),
+    0 8px 24px -4px rgba(0, 0, 0, 0.7);
 }
 .po-card::before {
-  content: '';
-  position: absolute;
-  inset: 5px;
-  border-radius: inherit;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 0 0 / 8px 8px,
-    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 100% 0 / 8px 8px,
-    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 0 100% / 8px 8px,
-    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 100% 100% / 8px 8px;
-  z-index: 1;
+  display: none !important;
 }
 .po-card > * { position: relative; z-index: 2; min-width: 0; }
 
@@ -1082,25 +1067,21 @@ body { color: var(--pf-text-primary); }
 }
 .po-stamp--ok { color: #C4B075; border-color: rgba(196, 176, 117, 0.75); }
 
-/* Лампа в защитной клетке */
+/* Лампа индикатора: чистый круглый светодиод без решётки-креста */
 .po-lamp {
   position: relative;
   display: inline-block;
-  width: 12px;
-  height: 12px;
-  background: radial-gradient(circle at 36% 30%, #E9C58B, #7E4E14 78%);
-  box-shadow: 0 0 8px rgba(255, 180, 80, 0.3);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9FBE7A;
+  box-shadow: 0 0 8px rgba(159, 190, 122, 0.6);
 }
 .po-lamp::after {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  background:
-    linear-gradient(45deg, transparent 46%, rgba(20, 12, 4, 0.9) 46% 54%, transparent 54%),
-    linear-gradient(-45deg, transparent 46%, rgba(20, 12, 4, 0.9) 46% 54%, transparent 54%);
+  display: none !important;
 }
-.po-lamp--green { background: radial-gradient(circle at 36% 30%, #CBD9A2, #5F7434 78%); box-shadow: 0 0 8px rgba(170, 200, 110, 0.25); }
-.po-lamp--off { background: radial-gradient(circle at 36% 30%, #4A443A, #221E17 78%); box-shadow: none; }
+.po-lamp--green { background: #9FBE7A; box-shadow: 0 0 8px rgba(159, 190, 122, 0.7); }
+.po-lamp--off { background: #3A3228; box-shadow: none; }
 
 /* LCD на походной плите */
 .po-lcd {
