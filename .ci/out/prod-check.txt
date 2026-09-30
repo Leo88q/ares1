@@ -1,0 +1,25 @@
+=== landing PROD (ares1-7e1) :: https://ares1-7e1.pages.dev/
+    assets: index-Dh--_To_.js | index-CHTymu_d.css
+    markers: {"newPalette":true,"oldPalette":true,"panelFrameFix":false}
+    body has old marker "t('ПРОГРЕСС')": false
+    crash screen: false
+=== landing build 5aa07a7 (preview) :: https://6aa08b50.ares1-7e1.pages.dev/
+    assets: index-Dh--_To_.js | index-CHTymu_d.css
+    markers: {"newPalette":true,"oldPalette":true,"panelFrameFix":false}
+    body has old marker "t('ПРОГРЕСС')": false
+    crash screen: false
+=== game PROD (ares1-play) :: https://ares1-play.pages.dev/
+    assets: index-Ceu3eesf.js | react-CpZpowJN.js | motion-DaHLlTag.js | solana-BD4FU2qX.js | wallets-DF5zbXGJ.js | index-BkEq2h2N.css
+    markers: {"gameOldCopy":false,"gameNewCopy":false,"sPopBg":false}
+    body has old marker "t('ПРОГРЕСС')": true
+    crash screen: false
+=== game alias main :: https://main.ares1-play.pages.dev/
+    assets: index-DgXYL6ym.js | react-CpZpowJN.js | solana-BZLeLOLn.js | wallets-DEHUSQwx.js | motion-CWXyNh2j.js | index-DZdkzD4B.css
+    markers: {"gameOldCopy":false,"gameNewCopy":false,"sPopBg":true}
+    body has old marker "t('ПРОГРЕСС')": false
+    crash screen: false
+=== game build 5aa07a7 (preview) :: https://01c6cafb.ares1-play.pages.dev/
+    assets: index-DgXYL6ym.js | react-CpZpowJN.js | solana-BZLeLOLn.js | wallets-DEHUSQwx.js | motion-CWXyNh2j.js | index-DZdkzD4B.css
+    markers: {"gameOldCopy":false,"gameNewCopy":false,"sPopBg":true}
+    body has old marker "t('ПРОГРЕСС')": false
+    crash screen: false
