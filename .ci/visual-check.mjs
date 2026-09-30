@@ -3,6 +3,7 @@ import { chromium } from "playwright";
 
 const TARGETS = [
   { name: "post45-prod", url: "https://ares1-7e1.pages.dev/" },
+  { name: "branch-preview", url: process.env.BRANCH_PREVIEW_URL || "https://arena-01a0efbd-ares1.ares1-7e1.pages.dev/" },
   { name: "pre45-preview", url: "https://44f63419.ares1-7e1.pages.dev/" },
 ];
 

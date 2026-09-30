@@ -49,7 +49,14 @@
     radial-gradient(7px 7px at calc(100% - 20px) calc(100% - 20px), #1e150b 38%, rgba(255, 224, 178, 0.2) 46%, rgba(0, 0, 0, 0.35) 58%, transparent 66%);
   z-index: 0;
 }
-[data-liquid-panel] > :not(.liquid-panel-decoration) { position: relative; z-index: 1; }
+/* Рамка панели (MK-редизайн) — тоже декор, а не контент: если её не исключить,
+   правило `:not(.liquid-panel-decoration)` перебивает `.ares-hull-frame`
+   (0,2,0 против 0,1,0) и делает рамку строчной (position: relative), из-за чего
+   она занимает место в потоке и выдавливает текст из окна. */
+[data-liquid-panel] > :not(.liquid-panel-decoration):not(.ares-hull-frame) {
+  position: relative;
+  z-index: 1;
+}
 
 
 [data-liquid-panel] {
@@ -57,7 +64,7 @@
   border-color: transparent !important;
 }
 
-[data-liquid-panel] > :not(.liquid-panel-decoration) {
+[data-liquid-panel] > :not(.liquid-panel-decoration):not(.ares-hull-frame) {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
