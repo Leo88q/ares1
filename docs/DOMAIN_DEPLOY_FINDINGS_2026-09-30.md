@@ -30,7 +30,38 @@
 проекту/зоне с сертификатом на edge. После шага 1.2 (Custom domain в проекте
 `ares1-play`) сертификат выпустится автоматически.
 
-## 3. Прод-домен Pages отстаёт от `main`
+## 3. Проект `ares1-play`: `main` собирается как веточный превью, прод не обновляется
+
+Проверено 30.09.2026 после мержа PR #47 по хэшам ассетов (playwright в CI, скоуп — те же
+файлы, что отдаёт браузер):
+
+| URL | JS-бандл | CSS | Вердикт |
+|---|---|---|---|
+| `ares1-play.pages.dev` (прод) | `index-Ceu3eesf.js` | `index-BkEq2h2N.css` | **старая сборка** (в HTML есть `t('ПРОГРЕСС')` — до #45) |
+| `main.ares1-play.pages.dev` (алиас) | `index-DgXYL6ym.js` | `index-DZdkzD4B.css` | сборка `5aa07a7` (в CSS есть `--s-pop-bg`) |
+| `01c6cafb.ares1-play.pages.dev` (превью `5aa07a7`) | `index-DgXYL6ym.js` | `index-DZdkzD4B.css` | то же самое |
+
+Почему так: в check-run'е сборки на `main` для этого проекта Cloudflare пишет
+«Branch Preview URL: https://main.ares1-play.pages.dev», а не прод-деплой. То есть для
+проекта `ares1-play` ветка `main` считается **не продакшн-веткой**: каждая сборка `main`
+уходит в веточный превью-алиас, а прод-деплой (который обслуживает `ares1-play.pages.dev`)
+не обновляется. У проекта лендинга `ares1` такой строки нет — там `main` = продакшн, и
+после мержа прод `ares1-7e1.pages.dev` уже отдаёт ту же сборку, что превью `5aa07a7`
+(`index-Dh--_To_.js` / `index-CHTymu_d.css` совпадают) ✅.
+
+Что сделать (панель Cloudflare, доступ из репозитория недоступен):
+1. **Pages → проект `ares1-play` → Settings → Builds & deployments → Production branch.**
+   Поставить `main` (сейчас там другая ветка — возможно, дефолт из старой настройки).
+2. **Deployments →** выбрать деплой `main.ares1-play.pages.dev` (или `01c6cafb…`) →
+   **Promote to production** / **Retry deployment** с прод-веткой `main`, чтобы
+   `ares1-play.pages.dev` переключился на сборку `5aa07a7` не дожидаясь следующего пуша.
+3. `create-react-app`-подобные настройки (build command / output dir) менять не нужно —
+   сборка проходит; дело только в ветке.
+
+После этого проверить: `https://ares1-play.pages.dev/` должен отдавать `index-DgXYL6ym.js`
+и текст «Emission is player harvests…» вместо `t('ПРОГРЕСС')`.
+
+### Историческая справка: как это выглядело раньше
 
 - `https://ares1-7e1.pages.dev/` — прод-URL проекта `ares1`; на момент разбора отдавал
   сборку коммита `3caa1a9` (merge #45), хотя после этого в `main` уже были коммиты.
