@@ -125,9 +125,9 @@
 .xp-last-reward {
   margin: 16px 0 0;
   padding: 10px;
-  border: 1px solid rgba(124, 255, 107, 0.18);
+  border: 1px solid rgba(159, 190, 122, 0.18);
   border-radius: 5px;
-  background: rgba(124, 255, 107, 0.035);
+  background: rgba(159, 190, 122, 0.035);
   color: #cbefbf;
   font: 9px/1.8 "JetBrains Mono", monospace;
 }
@@ -153,11 +153,11 @@
   display: inline-flex;
   align-items: center;
   padding: 7px 10px;
-  border: 1px solid rgba(124, 255, 107, 0.4);
+  border: 1px solid rgba(159, 190, 122, 0.4);
   border-radius: 6px;
   background: #17211b;
   color: #c4ffb8;
-  box-shadow: 0 0 18px rgba(124, 255, 107, 0.12);
+  box-shadow: 0 0 18px rgba(159, 190, 122, 0.12);
   font: 600 13px/1.5 "JetBrains Mono", monospace;
   white-space: nowrap;
   pointer-events: none;

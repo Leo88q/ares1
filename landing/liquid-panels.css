@@ -142,7 +142,7 @@
   background:
     radial-gradient(
       ellipse at top right,
-      rgba(124, 255, 107, 0.045),
+      rgba(159, 190, 122, 0.045),
       transparent 60%
     ),
     linear-gradient(135deg, #19111e, #0e0b14);
@@ -152,7 +152,7 @@
   background:
     radial-gradient(
       ellipse at top left,
-      rgba(255, 46, 147, 0.08),
+      rgba(216, 85, 143, 0.08),
       transparent 60%
     ),
     linear-gradient(135deg, #19111e, #0e0b14);
@@ -168,7 +168,7 @@
   background-image:
     radial-gradient(
       ellipse at 0% 0%,
-      rgba(255, 46, 147, 0.1),
+      rgba(216, 85, 143, 0.1),
       transparent 60%
     ),
     linear-gradient(125deg, #201026, #100a18);
@@ -188,7 +188,7 @@
   background-image:
     radial-gradient(
       ellipse at top left,
-      rgba(255, 46, 147, 0.06),
+      rgba(216, 85, 143, 0.06),
       transparent 65%
     ),
     linear-gradient(135deg, #19111ed9, #0e0b14f5);

@@ -55,7 +55,7 @@ export default function LangSwitcher({ compact = false }: { compact?: boolean })
     <div
      role="menu"
      style={{
-      position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 'var(--s-z-header)',
+      position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 60, // = --s-z-header (theme/tokens.css); число, а не var(): в inline-стилях строка игнорируется и попап уходит под соседей
       background: 'var(--s-pop-bg)', border: '1px solid var(--s-panel-edge-soft)', boxShadow: 'var(--s-pop-shadow)',
       borderRadius: 12, padding: 6, minWidth: 190,
      }}

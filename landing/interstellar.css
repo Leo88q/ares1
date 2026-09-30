@@ -84,7 +84,7 @@
 }
 
 .interstellar-planet-button:focus-visible {
-  outline: 2px solid #7cff6b;
+  outline: 2px solid #9fbe7a;
   outline-offset: 5px;
 }
 
@@ -153,7 +153,7 @@
 }
 
 .interstellar-world--earth .interstellar-benefits li > span {
-  color: #7cff6b;
+  color: #9fbe7a;
 }
 
 .interstellar-wide-route {
@@ -434,7 +434,7 @@
 
 .interstellar-close:focus-visible,
 .interstellar-detail-link:focus-visible {
-  outline: 3px solid #7cff6b;
+  outline: 3px solid #9fbe7a;
   outline-offset: 4px;
 }
 
