@@ -410,22 +410,36 @@ input:focus-visible {
   box-shadow: 0 0 10px #ffb34744;
 }
 
-.wallet-button {
-  min-height: 44px;
-  padding: 10px 14px;
-  border: 1px solid rgba(138, 74, 34, 0.7);
-  border-radius: 6px;
-  color: #e0a183;
-  background: rgba(0, 0, 0, 0.28);
-  font: 11px var(--mono);
+.wallet-button,
+button.morph-button--header {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 179, 71, 0.4);
+  border-radius: 8px;
+  color: #f5cf9e;
+  background: rgba(30, 20, 14, 0.65);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 226, 180, 0.15), 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
 }
 
-.wallet-button:hover {
-  background: rgba(201, 122, 43, 0.14);
+.wallet-button:hover,
+button.morph-button--header:hover {
+  border-color: rgba(255, 179, 71, 0.75);
+  color: #ffffff;
+  background: rgba(255, 179, 71, 0.15);
+  box-shadow: 0 0 10px rgba(255, 179, 71, 0.35);
 }
 
 .wallet-full {
-  display: none;
+  display: inline;
 }
 
 .icon-button {
@@ -2878,75 +2892,111 @@ input:focus-visible {
   .cycle-columns { grid-template-columns: 1fr; gap: 20px; }
 }
 
-/* ── CTA «Начать играть»: золото как в игре ── */
-.cta-play {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 15px 28px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #FFB347, #FF8A2A);
-  color: #1a1208;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-size: 14px;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  box-shadow: 0 8px 30px rgba(255, 138, 42, 0.35);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  text-decoration: none;
+/* ── Ares 1 Golden Button Theme ──
+   Единый фирменный золотой марсианский стиль кнопок ARES-1 (как кнопка «Играть в ARES-1»)
+*/
+:root {
+  --ares-btn-gold-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 24%, rgba(0, 0, 0, 0.18) 100%),
+    radial-gradient(ellipse at 20% 30%, rgba(255, 179, 71, 0.55), transparent 38%),
+    linear-gradient(115deg, #8a2e08 8%, #c1440e 26%, #7a4514 52%, #e89a4b 74%, #8a2e08 94%);
+  --ares-btn-gold-border: rgba(255, 179, 71, 0.65);
+  --ares-btn-gold-shadow:
+    inset 0 1px 0 rgba(255, 226, 180, 0.5),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3),
+    0 3px 0 #7a4514,
+    0 10px 18px -8px rgba(0, 0, 0, 0.7);
+  --ares-btn-gold-shadow-hover:
+    inset 0 1px 0 rgba(255, 226, 180, 0.65),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3),
+    0 3px 0 #7a4514,
+    0 0 14px 2px rgba(255, 179, 71, 0.5),
+    0 12px 24px -8px rgba(0, 0, 0, 0.8);
+  --ares-btn-gold-shadow-active:
+    inset 0 1px 0 rgba(255, 226, 180, 0.25),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 1px 0 #7a4514,
+    0 4px 10px -4px rgba(0, 0, 0, 0.6);
 }
-.cta-play:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 36px rgba(255, 138, 42, 0.5);
-}
-.cta-play:active { transform: translateY(0); }
 
-/* ── CTA «Купить модуль»: яркий марсианский огонь, высокая контрастность ── */
+/* ── CTA «Начать играть» и «Купить модуль»: единый золотой стиль ARES-1 ── */
+.cta-play,
 .cta-buy {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  padding: 15px 28px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #FF7336 0%, #FF4D1C 50%, #D42E0C 100%);
+  min-height: 52px;
+  padding: 14px 28px;
+  border-radius: 8px;
+  background: var(--ares-btn-gold-bg);
+  background-color: #c1440e;
+  border: 1px solid var(--ares-btn-gold-border);
   color: #FFFFFF;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  font-weight: 700;
   font-size: 14px;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  box-shadow: 0 8px 30px rgba(255, 77, 28, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.38), inset 0 -2px 0 rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 160, 130, 0.65);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.01em;
+  box-shadow: var(--ares-btn-gold-shadow);
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease, filter 0.15s ease;
   text-decoration: none;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
+.cta-play:hover,
 .cta-buy:hover {
   transform: translateY(-2px);
-  filter: brightness(1.1);
-  box-shadow: 0 12px 36px rgba(255, 77, 28, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  filter: brightness(1.08);
+  box-shadow: var(--ares-btn-gold-shadow-hover);
+  color: #FFFFFF;
 }
-.cta-buy:active { transform: translateY(0); }
+.cta-play:active,
+.cta-buy:active {
+  transform: translateY(2px);
+  filter: brightness(0.96);
+  box-shadow: var(--ares-btn-gold-shadow-active);
+}
 
 .header-play {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 8px 14px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #FFB347, #FF8A2A);
-  color: #1a1208;
+  background: var(--ares-btn-gold-bg);
+  background-color: #c1440e;
+  border: 1px solid var(--ares-btn-gold-border);
+  color: #FFFFFF;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   font-weight: 700;
   font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.02em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 226, 180, 0.5),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3),
+    0 2px 0 #7a4514,
+    0 6px 14px -4px rgba(0, 0, 0, 0.6);
   text-decoration: none;
-  transition: transform 0.2s ease;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
-.header-play:hover { transform: translateY(-1px); }
+.header-play:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 226, 180, 0.65),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3),
+    0 2px 0 #7a4514,
+    0 0 10px 2px rgba(255, 179, 71, 0.45);
+  color: #FFFFFF;
+}
+.header-play:active {
+  transform: translateY(1px);
+  filter: brightness(0.96);
+}
 @media (max-width: 720px) {
   .header-play-full { display: none; }
   .header-play { padding: 8px 10px; }
@@ -3010,35 +3060,59 @@ input:focus-visible {
 }
 .pack-buy {
   width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 12px;
-  border: none;
   border-radius: 8px;
-  color: #1a1208;
+  background: var(--ares-btn-gold-bg);
+  background-color: #c1440e;
+  border: 1px solid var(--ares-btn-gold-border);
+  color: #FFFFFF;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
   font-weight: 700;
   font-size: 13px;
-  letter-spacing: 0.08em;
   cursor: pointer;
-  transition: transform 0.2s;
+  box-shadow: var(--ares-btn-gold-shadow);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }
 .pack-buy:hover:not(:disabled) {
   transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: var(--ares-btn-gold-shadow-hover);
+  color: #FFFFFF;
 }
 .pack-buy:disabled {
-  opacity: 0.5;
+  opacity: 0.55;
   cursor: not-allowed;
+  filter: grayscale(0.5);
 }
 .packs-connect {
   margin-top: 20px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 14px 24px;
-  background: linear-gradient(135deg, #FFB347, #FF8A2A);
-  border: none;
-  border-radius: 10px;
-  color: #1a1208;
+  border-radius: 8px;
+  background: var(--ares-btn-gold-bg);
+  background-color: #c1440e;
+  border: 1px solid var(--ares-btn-gold-border);
+  color: #FFFFFF;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
   font-weight: 700;
   font-size: 14px;
-  letter-spacing: 0.08em;
   cursor: pointer;
-  width: 100%;
+  box-shadow: var(--ares-btn-gold-shadow);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.packs-connect:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: var(--ares-btn-gold-shadow-hover);
+  color: #FFFFFF;
 }
 
 /* ── PacksSection: строки кошелька и кнопка покупки (стиль waitlist) ── */
@@ -3058,33 +3132,41 @@ input:focus-visible {
 .pack-wallet-line span { opacity: 0.6; }
 .pack-buy-main {
   width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
   padding: 16px 24px;
-  border: 1px solid rgba(255, 179, 71, 0.5);
-  border-radius: 12px;
-  background: linear-gradient(135deg, #FF7336 0%, #FF5722 50%, #D83B01 100%);
+  border: 1px solid var(--ares-btn-gold-border);
+  border-radius: 8px;
+  background: var(--ares-btn-gold-bg);
+  background-color: #c1440e;
   color: #FFFFFF;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 14px;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(255, 87, 34, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  box-shadow: var(--ares-btn-gold-shadow);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease, filter 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 .pack-buy-main:hover:not(:disabled) {
   transform: translateY(-2px);
   filter: brightness(1.08);
-  box-shadow: 0 12px 32px rgba(255, 87, 34, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  box-shadow: var(--ares-btn-gold-shadow-hover);
+  color: #FFFFFF;
 }
 .pack-buy-main:active:not(:disabled) {
-  transform: translateY(0);
+  transform: translateY(2px);
+  filter: brightness(0.96);
+  box-shadow: var(--ares-btn-gold-shadow-active);
 }
 .pack-buy-main:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-  filter: grayscale(0.4);
+  filter: grayscale(0.5);
 }
 .pack-note {
   font-size: 12px;
