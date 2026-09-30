@@ -30,22 +30,22 @@ const ShiftTaskRow = memo(function ShiftTaskRow({ task, onComplete }: ShiftTaskR
   <motion.button
    type="button"
    onClick={handleClick}
-   whileTap={task.done ? undefined : { scale: 0.98 }}
+   whileTap={task.done ? undefined : { y: 2 }}
    style={{
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
     width: '100%',
-    padding: '10px 14px',
-    borderRadius: 8,
-    border: `1px solid ${task.done ? 'rgba(159,190,122,0.3)' : 'rgba(232,160,60,0.35)'}`,
+    padding: '11px 14px',
+    borderRadius: 4,
+    border: `1px solid ${task.done ? '#2D3820' : '#5E3D22'}`,
     background: task.done
-     ? 'linear-gradient(170deg, rgba(30,42,22,0.6) 0%, rgba(18,26,14,0.7) 100%)'
-     : 'linear-gradient(170deg, rgba(46,30,18,0.7) 0%, rgba(24,15,9,0.85) 100%)',
+     ? 'linear-gradient(170deg, #1A2414 0%, #10180B 100%)'
+     : 'linear-gradient(170deg, #3A2718 0%, #25170D 100%)',
     cursor: task.done ? 'default' : 'pointer',
     textAlign: 'left',
-    boxShadow: task.done ? 'none' : '0 2px 8px rgba(0,0,0,0.35)',
+    boxShadow: task.done ? 'none' : 'inset 0 1px 0 rgba(255,214,160,0.15), 0 3px 0 #120A05, 0 6px 12px rgba(0,0,0,0.5)',
    }}
   >
    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>

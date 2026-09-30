@@ -673,43 +673,59 @@ body { color: var(--pf-text-primary); }
 }
 .mk-lamp--blink { animation: mk-lamp-blink 2.2s steps(1) infinite; }
 
-/* — Клавиша (общая база для тумблеров и пульта) — */
+/* ═══════════════════════════════════════════════════════════════════
+   ТАКТИЛЬНЫЕ АППАРАТНЫЕ КЛАВИШИ И ПУЛЬТЫ ARES-1 (СИСТЕМА C «ПОХОД»)
+   Физические механические кнопки со скосом, фаской, 3D-ступенью
+   и чётким тактильным ходом при нажатии.
+   ═══════════════════════════════════════════════════════════════════ */
+
 .mk-key {
   position: relative;
-  border-radius: var(--pf-radius-btn);
-  border: 1px solid rgba(0, 0, 0, 0.5);
+  box-sizing: border-box;
+  border-radius: 4px;
+  border: 1px solid #5C3A1F;
   background-color: #33271D;
-  background-image: var(--mk-grain), linear-gradient(180deg, #3E3024 0%, #33271D 45%, #241B14 100%);
+  background-image: var(--mk-grain), linear-gradient(180deg, #463321 0%, #342516 48%, #22170D 100%);
   background-size: 120px 120px, 100% 100%;
-  color: var(--pf-text-primary);
+  color: #F5BE72;
+  font-family: var(--ares-font-stencil, "Oswald", sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   box-shadow:
-    inset 0 1px 0 rgba(255, 214, 170, 0.16),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.5),
-    0 3px 0 var(--mk-seam),
-    0 6px 12px -4px rgba(0, 0, 0, 0.6);
-  transition: transform 90ms var(--mk-press), box-shadow 90ms var(--mk-press), filter 120ms ease;
+    inset 0 1px 0 rgba(255, 224, 178, 0.28),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.65),
+    0 3px 0 #140A05,
+    0 6px 14px -3px rgba(0, 0, 0, 0.8);
+  transition: transform 80ms cubic-bezier(0.2, 0.8, 0.4, 1), box-shadow 80ms cubic-bezier(0.2, 0.8, 0.4, 1), filter 100ms ease;
 }
-.mk-key:hover { filter: brightness(1.08); }
-.mk-key:focus-visible { outline: 2px solid var(--mk-lamp-green); outline-offset: 2px; }
+.mk-key:hover { filter: brightness(1.1); }
+.mk-key:focus-visible { outline: 2px solid #FFB347; outline-offset: 2px; }
 .mk-key:active,
 .mk-key--engaged {
   transform: translateY(3px);
   box-shadow:
-    inset 0 2px 4px rgba(0, 0, 0, 0.6),
-    inset 0 -1px 0 rgba(255, 214, 170, 0.06),
-    0 0 0 var(--mk-seam),
-    0 2px 6px -2px rgba(0, 0, 0, 0.6);
-  filter: brightness(0.94);
+    inset 0 2px 5px rgba(0, 0, 0, 0.7),
+    inset 0 0 0 1px rgba(255, 179, 71, 0.3),
+    0 0 0 #140A05;
+  filter: brightness(0.95);
 }
-.mk-key:disabled { opacity: 0.45; transform: none; }
+.mk-key:disabled {
+  opacity: 0.42;
+  transform: none !important;
+  cursor: not-allowed;
+  filter: grayscale(0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 0 #140A05;
+}
 
 /* Нажатая (защёлкнутая) клавиша с подсветкой грани */
 .mk-key--engaged {
   background-image: var(--mk-grain), linear-gradient(180deg, #4A3826 0%, #3E3024 60%, #2C221A 100%);
   box-shadow:
     inset 0 2px 4px rgba(0, 0, 0, 0.55),
-    inset 0 0 0 1px rgba(255, 179, 71, 0.28),
-    0 0 0 var(--mk-seam);
+    inset 0 0 0 1px rgba(255, 179, 71, 0.35),
+    0 0 0 #140A05;
 }
 
 /* — Скелетон загрузки: заглушка плиты, не стекло — */
@@ -753,34 +769,148 @@ body { color: var(--pf-text-primary); }
   .mk-key, .mk-key:active, .mk-key--engaged { transition: none; }
 }
 
-/* Краска на клавише: крашеный янтарь с гравировкой по дереву трафарета */
+/* ── Главная CTA-клавиша действия (СОБРАТЬ / ПОДКЛЮЧИТЬ / КУПИТЬ / ОТГРУЗИТЬ) ── */
 .mk-key--paint {
-  border-radius: 3px;
-  background-color: #C97A2B;
-  background-image: var(--mk-grain), linear-gradient(180deg, #D08A3E 0%, #B06A22 58%, #96551A 100%);
+  border-radius: 4px;
+  background-color: #D47926;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(180deg, #F5A642 0%, #D47926 50%, #A85412 100%) !important;
   background-size: 120px 120px, 100% 100%;
-  color: var(--mk-paint-amber-ink);
-  border-color: rgba(0, 0, 0, 0.45);
+  color: #241104 !important;
+  font-family: var(--ares-font-stencil, "Oswald", sans-serif);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid #5A2A08 !important;
+  text-shadow: 0 1px 0 rgba(255, 235, 195, 0.65) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 232, 185, 0.6),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.25),
-    0 4px 0 #5F3410,
-    0 9px 14px -7px rgba(0, 0, 0, 0.8);
+    inset 0 1px 0 rgba(255, 245, 220, 0.85),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35),
+    0 4px 0 #5E2F09,
+    0 8px 16px -4px rgba(0, 0, 0, 0.85);
+}
+.mk-key--paint:hover {
+  filter: brightness(1.12);
 }
 .mk-key--paint:active,
 .mk-key--paint.mk-key--engaged {
   transform: translateY(4px);
   box-shadow:
-    inset 0 2px 6px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 232, 185, 0.25),
-    0 0 0 #5F3410;
+    inset 0 2px 6px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 235, 195, 0.3),
+    0 0 0 #5E2F09 !important;
 }
+
+/* ── Клавиша опасного/отменяющего действия ── */
+.mk-key--danger {
+  border-radius: 4px;
+  background: linear-gradient(180deg, #5C221B 0%, #441611 50%, #2E0B08 100%) !important;
+  border: 1px solid #78281E !important;
+  color: #FFC0B8 !important;
+  font-family: var(--ares-font-stencil, "Oswald", sans-serif);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 180, 170, 0.28),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.5),
+    0 3px 0 #180605,
+    0 6px 12px rgba(0, 0, 0, 0.7);
+}
+.mk-key--danger:active {
+  transform: translateY(3px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 0 #180605;
+}
+
 .mk-key--ghost {
   background-color: transparent;
   background-image: none;
   border-color: rgba(255, 214, 170, 0.22);
   box-shadow: none;
   color: var(--ares-dust, #E0A183);
+}
+
+/* ── Кнопки управления делянкой (Field Action Buttons) ── */
+.field-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 10px 7px;
+  border-radius: 4px;
+  border: 1px solid #57391F;
+  background-color: #33271D;
+  background-image: var(--mk-grain), linear-gradient(180deg, #443222 0%, #302214 50%, #20150A 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 224, 178, 0.25),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.6),
+    0 3px 0 #140A05,
+    0 6px 12px -3px rgba(0, 0, 0, 0.7);
+  cursor: pointer;
+  position: relative;
+  transition: transform 70ms ease, box-shadow 70ms ease, filter 100ms ease;
+  user-select: none;
+}
+.field-action-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.field-action-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.6),
+    0 0 0 #140A05;
+}
+.field-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 0 #140A05;
+}
+.field-action-btn__title {
+  font-family: var(--ares-font-stencil, "Oswald", sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #F5BE72;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.field-action-btn__badge {
+  font-family: var(--ares-font-mono, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  color: #E6C59A;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 214, 160, 0.12);
+  border-radius: 3px;
+  padding: 2px 6px;
+  letter-spacing: 0.05em;
+}
+
+/* Готовая к жатве кнопка сбора */
+.field-action-btn--harvest-ready {
+  background-color: #D47926;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(180deg, #FFAE42 0%, #E68529 50%, #BA5D13 100%) !important;
+  border: 1px solid #5A2A08 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 225, 0.9),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+    0 4px 0 #68340A,
+    0 0 16px rgba(255, 179, 71, 0.5) !important;
+}
+.field-action-btn--harvest-ready .field-action-btn__title {
+  color: #200E03 !important;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(255, 235, 195, 0.7);
+}
+.field-action-btn--harvest-ready .field-action-btn__badge {
+  background: rgba(40, 18, 5, 0.35);
+  border-color: rgba(60, 25, 8, 0.4);
+  color: #200E03;
+  font-weight: 800;
 }
 
 /* ═══════════════════════════════════════════════════════════════════

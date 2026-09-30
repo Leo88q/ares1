@@ -158,58 +158,78 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
      )}
     </div>
 
-    {/* Действия */}
-    <div style={{ padding: '4px 20px 20px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-     <Button
-      variant={canHarvest ? 'primary' : 'secondary'}
-      glow={canHarvest ? (rare === 'gold' ? 'gold' : 'orange') : 'none'}
+    {/* Действия: аппаратные клавиши пульта управления делянкой */}
+    <div style={{ padding: '4px 18px 18px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+     <button
+      type="button"
       disabled={!canHarvest || busy !== null}
       onClick={() => run('harvest', onHarvest, () => sounds.harvest(), () => haptics.harvest())}
-      className={canHarvest ? 'gradient-gold' : ''}
-      style={{ fontSize: 11, padding: '10px 8px' }}
+      className={`field-action-btn${canHarvest ? ' field-action-btn--harvest-ready' : ''}`}
      >
-      {t('Собрать')}
-     </Button>
+      <span className="field-action-btn__title">
+       {canHarvest ? '⚡ ' : ''}{t('Собрать')}
+      </span>
+      <span className="field-action-btn__badge">
+       {canHarvest ? `+${accumulated.toFixed(2)} POTATO` : '≥ 1.00 POTATO'}
+      </span>
+     </button>
 
-     <Button
-      variant="secondary"
+     <button
+      type="button"
       disabled={busy !== null}
       onClick={() => run('upgrade', onUpgrade, () => sounds.upgrade(), () => haptics.upgradeField())}
-      style={{ fontSize: 11, padding: '10px 8px' }}
+      className="field-action-btn"
      >
-      {t('Апгрейд модуля')}
-      <span style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{fmtPotatoExact(upgradeCostMicro(field.level, field.fieldType))} POTATO</span>
-     </Button>
+      <span className="field-action-btn__title">
+       ▲ {t('Апгрейд модуля')}
+      </span>
+      <span className="field-action-btn__badge">
+       {fmtPotatoExact(upgradeCostMicro(field.level, field.fieldType))} POTATO
+      </span>
+     </button>
 
-     <Button
-      variant="secondary"
+     <button
+      type="button"
       disabled={!needsRepair || busy !== null}
       onClick={() => run('repair', onRepair, () => sounds.repair(), () => haptics.repairField())}
-      style={{ fontSize: 11, padding: '10px 8px' }}
+      className="field-action-btn"
      >
-      {t('Полив')}
-      <span style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{fmtPotatoExact(repairCostMicro(field.level, field.fieldType))} POTATO</span>
-     </Button>
+      <span className="field-action-btn__title">
+       💧 {t('Полив')}
+      </span>
+      <span className="field-action-btn__badge">
+       {fmtPotatoExact(repairCostMicro(field.level, field.fieldType))} POTATO
+      </span>
+     </button>
 
-     <Button
-      variant="secondary"
+     <button
+      type="button"
       disabled={busy !== null}
       onClick={() => run('tax', onPayTax, () => sounds.payTax(), () => haptics.payTax())}
-      style={{ fontSize: 11, padding: '10px 8px' }}
+      className="field-action-btn"
      >
-      {t('Пошлина')}
-      <span style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{fmtPotatoExact(taxCostMicro(field.level, field.fieldType))} POTATO</span>
-     </Button>
+      <span className="field-action-btn__title">
+       🏷️ {t('Пошлина')}
+      </span>
+      <span className="field-action-btn__badge">
+       {fmtPotatoExact(taxCostMicro(field.level, field.fieldType))} POTATO
+      </span>
+     </button>
 
-     <Button
-      variant="secondary"
+     <button
+      type="button"
       disabled={fertActive || busy !== null}
       onClick={() => run('fert', onApplyFertilizer, () => sounds.fertilizer(), () => haptics.applyFertilizer())}
-      style={{ fontSize: 11, gridColumn: '1 / -1' }}
+      className="field-action-btn"
+      style={{ gridColumn: '1 / -1' }}
      >
-      {fertActive ? t('Удобрено ') : t('Питание +50% · 24ч')}
-      <span style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{fmtPotatoExact(fertilizerCostMicro(field.fieldType))} POTATO</span>
-     </Button>
+      <span className="field-action-btn__title">
+       🧪 {fertActive ? t('Удобрено ') : t('Питание +50% · 24ч')}
+      </span>
+      <span className="field-action-btn__badge">
+       {fmtPotatoExact(fertilizerCostMicro(field.fieldType))} POTATO
+      </span>
+     </button>
     </div>
    </div>
   </motion.div>

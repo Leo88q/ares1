@@ -63,12 +63,13 @@ function MarketScreenInner() {
      </div>
     </div>
     <motion.button
-     whileTap={{ scale: 0.95 }}
+     whileTap={{ y: 2 }}
+     transition={{ type: 'spring', stiffness: 520, damping: 26 }}
      onClick={() => { haptics.tap(); setShowCreate(true) }}
-     className="gradient-gold"
-     style={{ padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
+     className="mk-key mk-key--paint"
+     style={{ padding: '9px 16px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
     >
-     <Plus size={18} aria-hidden="true" /> {t('Отгрузить')}
+     <Plus size={16} aria-hidden="true" /> {t('Отгрузить')}
     </motion.button>
    </div>
 
@@ -224,17 +225,18 @@ function MarketScreenInner() {
        </p>
       </div>
       <div style={{ display: 'flex', gap: 10 }}>
-       <button onClick={() => setCancelTarget(null)} style={{ flex: 1, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
+       <button onClick={() => setCancelTarget(null)} className="mk-key" style={{ flex: 1, padding: 12, fontSize: 13, cursor: 'pointer' }}>
         {t('Оставить')}
        </button>
        <motion.button
-        whileTap={{ scale: 0.95 }}
+        whileTap={{ y: 2 }}
         onClick={async () => {
          const ok = await cancelOrder(cancelTarget.publicKey)
          setCancelTarget(null)
          if (ok) setCancelInfo(true)
         }}
-        style={{ flex: 1, padding: 12, borderRadius: 12, background: 'var(--pf-red)', color: 'white', fontSize: 14, fontWeight: 700 }}
+        className="mk-key mk-key--danger"
+        style={{ flex: 1, padding: 12, fontSize: 13, cursor: 'pointer' }}
        >
         {t('Отменить')}
        </motion.button>
@@ -251,7 +253,7 @@ function MarketScreenInner() {
         {t('Токены возвращены на баланс. Новый ордер можно выставить через')} <b>{t('{hours} часа', { hours: CANCEL_COOLDOWN_HOURS })}</b>{t(' — так мы защищаем рынок от спама.')}
        </p>
       </div>
-      <button onClick={() => setCancelInfo(false)} style={{ marginTop: 20, width: '100%', padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
+      <button onClick={() => setCancelInfo(false)} className="mk-key mk-key--paint" style={{ marginTop: 20, width: '100%', padding: 12, fontSize: 13, cursor: 'pointer' }}>
        {t('Понятно')}
       </button>
      </Modal>
@@ -387,13 +389,13 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
     <div style={{ color: 'var(--pf-gold)' }}>{t('Комиссия продавца')}: {((order.feeMicro / order.amountMicro) * 100).toFixed(1)}%</div>
    </div>
    {order.isOwn ? (
-    <motion.button whileTap={{ scale: 0.95 }} onClick={onCancel} disabled={busy}
-     style={{ width: '100%', padding: 12, borderRadius: 10, background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--pf-red)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+    <motion.button whileTap={{ y: 2 }} onClick={onCancel} disabled={busy} className="mk-key mk-key--danger"
+     style={{ width: '100%', padding: '11px 16px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: busy ? 'not-allowed' : 'pointer' }}>
      {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <X size={16} />} {t('Отменить ордер')}
     </motion.button>
    ) : (
-    <motion.button whileTap={{ scale: 0.95 }} onClick={onBuy} disabled={busy} className="gradient-primary"
-     style={{ width: '100%', padding: 12, borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+    <motion.button whileTap={{ y: 2 }} onClick={onBuy} disabled={busy} className="mk-key mk-key--paint"
+     style={{ width: '100%', padding: '11px 16px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: busy ? 'not-allowed' : 'pointer' }}>
      {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null  } {t('Купить за {price} SOL', { price: fmtSol(order.totalLamports, 4) })}
     </motion.button>
    )}

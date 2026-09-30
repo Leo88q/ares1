@@ -220,7 +220,8 @@ export default function WalletManagement() {
               : `${t('$POTATO можно купить на вкладке «Рынок» за SOL или получить переводом на адрес выше')}${config ? t(' (mint {mint}…)', { mint: config.potatoMint.toString().slice(0, 6) }) : ''}.`}
            </div>
            <motion.button
-            whileTap={{ scale: 0.96 }}
+            whileTap={{ y: 2 }}
+            transition={{ type: 'spring', stiffness: 520, damping: 26 }}
             onClick={handleDeposit}
             disabled={loading}
             className="mk-key mk-key--paint"
@@ -246,7 +247,8 @@ export default function WalletManagement() {
             style={inputStyle} />
            <p style={{ fontSize: 11, color: '#ED8A45', marginBottom: 10 }}>{t('Проверь адрес дважды — транзакцию в блокчейне нельзя отменить.')}</p>
            <motion.button
-            whileTap={{ scale: 0.96 }}
+            whileTap={{ y: 2 }}
+            transition={{ type: 'spring', stiffness: 520, damping: 26 }}
             onClick={handleWithdraw}
             disabled={loading || !amount || !recipient}
             className="mk-key mk-key--paint"

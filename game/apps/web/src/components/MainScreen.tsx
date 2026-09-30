@@ -333,7 +333,8 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
         </div>
 
         <motion.button
-         whileTap={{ scale: 0.95 }}
+         whileTap={purchasing || !affordable ? undefined : { y: 2 }}
+         transition={{ type: 'spring', stiffness: 520, damping: 26 }}
          disabled={purchasing || !affordable}
          aria-label={t('Купить {name} за {price} POTATO', { name: type.name, price: fmtPotato(price, 0) })}
          onClick={() => {
@@ -343,11 +344,10 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
          }}
          className={affordable ? 'mk-key mk-key--paint' : 'mk-key'}
          style={{
-          padding: '7px 16px',
+          padding: '8px 18px',
           fontSize: 11,
-          fontWeight: 700,
+          fontWeight: 800,
           cursor: affordable ? 'pointer' : 'not-allowed',
-          opacity: affordable ? 1 : 0.45,
          }}
         >
          {purchasing ? t('Монтаж…') : affordable ? t('Развернуть') : t('Нехватка пайка')}
