@@ -39,6 +39,8 @@
       "rect": "581x290 @2096"
     }
   ],
+  "frameFixOk": true,
+  "frameCount": 23,
   "svgs": [
     {
       "tag": "IMG",
