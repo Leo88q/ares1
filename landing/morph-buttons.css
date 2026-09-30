@@ -8,11 +8,11 @@
   --morph-height: 54px;
   --morph-padding-inline: 23px;
   --morph-font-size: 13px;
-  /* MK: крашеный янтарь, тёмная гравировка, нижний край клавиши */
-  --morph-ring: rgba(255, 179, 71, 0.55);
-  --morph-text: #2a1206;
-  --morph-border: rgba(0, 0, 0, 0.45);
-  --morph-background: linear-gradient(180deg, #e89a4b 0%, #c97a2b 55%, #a85f1e 100%);
+  /* MK: яркий янтарь, светлая гравировка, контрастный край */
+  --morph-ring: rgba(255, 179, 71, 0.7);
+  --morph-text: #FFFFFF;
+  --morph-border: rgba(255, 179, 71, 0.65);
+  --morph-background: linear-gradient(180deg, #FF9E42 0%, #E6751C 55%, #C2530A 100%);
 }
 
 .morph-button--full {
@@ -159,7 +159,7 @@
 .morph-surface-shade {
   position: absolute;
   inset: 0;
-  background: rgba(21, 4, 22, 0.55);
+  background: rgba(21, 4, 22, 0.15);
 }
 
 .morph-surface-highlight {

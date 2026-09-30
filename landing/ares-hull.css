@@ -41,11 +41,22 @@
   pointer-events: none;
 }
 
-/* Remove generic glass text treatment on solid equipment surfaces */
+/* Remove generic glass text treatment on solid equipment surfaces and guarantee safe clearance */
+[data-ares-hull="true"] {
+  box-sizing: border-box !important;
+}
+
 [data-ares-hull="true"][data-liquid-panel] > :not(.ares-hull-frame) {
   position: relative;
   z-index: 1;
   text-shadow: none;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+[data-ares-hull="true"] .panel-topline {
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Equipment plate labels */

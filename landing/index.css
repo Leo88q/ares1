@@ -631,12 +631,13 @@ input:focus-visible {
 }
 
 .presale-panel {
-  max-width: 420px;
+  max-width: 440px;
   margin-top: 30px;
-  padding: 17px 18px;
+  padding: 26px 30px 22px 30px;
   border: 1px solid #8b71854d;
   border-radius: 7px;
   background: #0d0813e8;
+  box-sizing: border-box;
 }
 
 .presale-top,
@@ -646,12 +647,14 @@ input:focus-visible {
   justify-content: space-between;
   gap: 12px;
   font-family: var(--mono);
+  padding-inline: 4px;
 }
 
 .presale-top {
   color: #c3afc8;
-  font-size: 9px;
-  letter-spacing: 0.07em;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  margin-bottom: 2px;
 }
 
 .presale-top > span:last-child {
@@ -1004,21 +1007,22 @@ input:focus-visible {
 }
 
 .comparison {
-  padding: 28px;
+  padding: 34px 34px 28px 34px;
+  box-sizing: border-box;
 }
 
 .comparison ul {
   display: grid;
-  gap: 21px;
+  gap: 18px;
 }
 
 .comparison li {
   display: flex;
   align-items: flex-start;
-  gap: 13px;
+  gap: 12px;
   color: #d1c3d7;
-  font-size: 13px;
-  line-height: 1.85;
+  font-size: 12.5px;
+  line-height: 1.6;
 }
 
 .comparison li > svg {
@@ -1070,7 +1074,8 @@ input:focus-visible {
 
 .feature-card {
   height: 100%;
-  padding: 27px;
+  padding: 30px 26px 24px 26px;
+  box-sizing: border-box;
   transform-style: preserve-3d;
 }
 
@@ -1097,23 +1102,24 @@ input:focus-visible {
 }
 
 .feature-label {
-  margin-top: 28px;
-  margin-bottom: 10px;
+  margin-top: 24px;
+  margin-bottom: 8px;
   color: #bbaaC2;
   font-size: 8px;
 }
 
 .feature-card h3 {
-  max-width: 250px;
-  font-size: 23px;
+  max-width: 100%;
+  font-size: 20px;
+  line-height: 1.25;
 }
 
 .feature-description {
-  margin-top: 15px;
-  padding-bottom: 22px;
+  margin-top: 12px;
+  padding-bottom: 16px;
   color: var(--ares-muted);
-  font-size: 13px;
-  line-height: 1.85;
+  font-size: 12px;
+  line-height: 1.65;
 }
 
 .card-corner {
@@ -1141,19 +1147,22 @@ input:focus-visible {
 
 .tier-panel {
   display: grid;
-  gap: 26px;
+  gap: 24px;
   margin-top: 34px;
-  padding: 28px;
+  padding: 34px 36px 30px 36px;
+  box-sizing: border-box;
 }
 
 .tier-intro h3 {
-  font-size: 24px;
+  font-size: 22px;
+  line-height: 1.25;
 }
 
 .tier-intro > p:last-child {
-  margin-top: 15px;
+  margin-top: 12px;
   color: var(--ares-muted);
-  font-size: 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
 .tiers {
@@ -1675,28 +1684,35 @@ input:focus-visible {
 .live-stat {
   display: grid;
   justify-items: center;
-  gap: 8px;
-  padding: 22px 14px 18px;
+  gap: 6px;
+  padding: 26px 18px 22px;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .live-stat-figure {
   color: #f2dfea;
-  font: clamp(24px, 3.4vw, 34px)/1.1 var(--mono);
-  letter-spacing: -0.04em;
+  font: clamp(20px, 2.6vw, 28px)/1.1 var(--mono);
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .live-stat-label {
   color: #c9b2d2;
-  font-size: 11px;
-  letter-spacing: 0.06em;
+  font-size: 10px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  max-width: 100%;
 }
 
 .live-stat-sub {
   color: #bca8c8;
-  font: 9px/1.8 "JetBrains Mono", monospace;
+  font: 8.5px/1.6 "JetBrains Mono", monospace;
+  max-width: 100%;
 }
 
 .live-offline-note {
@@ -2518,11 +2534,13 @@ input:focus-visible {
   }
 
   .feature-card {
-    padding: 25px 20px;
+    padding: 28px 24px;
+    box-sizing: border-box;
   }
 
   .feature-card h3 {
-    font-size: 22px;
+    font-size: 20px;
+    line-height: 1.25;
   }
 
   .feature-description {
@@ -2530,21 +2548,25 @@ input:focus-visible {
   }
 
   .comparison {
-    padding: 35px;
+    padding: 34px 34px 28px 34px;
+    box-sizing: border-box;
   }
 
   .comparison li {
-    font-size: 14px;
+    font-size: 13px;
+    line-height: 1.6;
   }
 
   .tier-panel {
     grid-template-columns: 0.7fr 1.3fr;
     gap: 20px 50px;
-    padding: 35px;
+    padding: 34px 38px 30px 38px;
+    box-sizing: border-box;
   }
 
   .tier-intro h3 {
-    font-size: 30px;
+    font-size: 26px;
+    line-height: 1.25;
   }
 
   .mascot-grid {
@@ -2768,9 +2790,9 @@ input:focus-visible {
 }
 .cycle-columns {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 20px;
-  padding: 6px 4px 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  padding: 0 4px;
 }
 .cycle-column {
   min-width: 0;
@@ -2779,31 +2801,35 @@ input:focus-visible {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
   padding: 0;
 }
 .cycle-column li {
-  font-size: 13px;
-  line-height: 1.55;
-  color: rgba(255, 179, 71, 0.9);
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(255, 235, 215, 0.88);
   font-family: "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: -0.015em;
   overflow-wrap: break-word;
-  word-break: break-word;
+  word-break: normal;
 }
 .cycle-column-title {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 800;
   letter-spacing: 0.12em;
   margin-bottom: 12px;
   font-family: "JetBrains Mono", ui-monospace, monospace;
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .cycle-column:nth-child(1) .cycle-column-title { color: #0DE1B9; }
 .cycle-column:nth-child(2) .cycle-column-title { color: #398FFF; }
 .cycle-column:nth-child(3) .cycle-column-title { color: #FF249D; }
 
-/* ── Правка Фазы 1: модуль цикла просторнее, readout одной строкой ── */
+/* ── Токеномика: модуль цикла просторнее, безопасные отступы от рамки ── */
 .tokenomics-grid {
   display: grid;
   grid-template-columns: minmax(300px, 0.75fr) minmax(0, 1.45fr);
@@ -2811,17 +2837,32 @@ input:focus-visible {
   align-items: start;
 }
 .cycle-panel {
-  padding: 24px 28px 24px;
+  padding: 34px 40px 28px 40px;
   min-width: 0;
   box-sizing: border-box;
+  overflow: hidden;
 }
 .cycle-panel .panel-topline {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-bottom: 22px;
+  padding-inline: 4px;
+}
+.cycle-panel .panel-label {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  font-weight: 800;
+  color: #FFC98A;
+}
+.cycle-panel .small-code {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgba(255, 179, 71, 0.75);
+  font-weight: 700;
+  margin-right: 6px;
 }
 .reactor-readout--solo {
   justify-content: flex-start;
@@ -2831,9 +2872,10 @@ input:focus-visible {
   font-size: 20px;
   line-height: 1.4;
 }
-@media (max-width: 960px) {
+@media (max-width: 1080px) {
   .tokenomics-grid { grid-template-columns: 1fr; }
-  .cycle-columns { grid-template-columns: 1fr; }
+  .cycle-panel { padding: 30px 28px 24px 28px; }
+  .cycle-columns { grid-template-columns: 1fr; gap: 20px; }
 }
 
 /* ── CTA «Начать играть»: золото как в игре ── */
@@ -2859,6 +2901,34 @@ input:focus-visible {
   box-shadow: 0 12px 36px rgba(255, 138, 42, 0.5);
 }
 .cta-play:active { transform: translateY(0); }
+
+/* ── CTA «Купить модуль»: яркий марсианский огонь, высокая контрастность ── */
+.cta-buy {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 28px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #FF7336 0%, #FF4D1C 50%, #D42E0C 100%);
+  color: #FFFFFF;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 14px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  box-shadow: 0 8px 30px rgba(255, 77, 28, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.38), inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 160, 130, 0.65);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  text-decoration: none;
+  cursor: pointer;
+}
+.cta-buy:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+  box-shadow: 0 12px 36px rgba(255, 77, 28, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.cta-buy:active { transform: translateY(0); }
 
 .header-play {
   display: inline-flex;
