@@ -1,6 +1,6 @@
 import { memo, useState } from 'react';
 import { Lock, Check } from 'lucide-react';
-import { t } from '../../i18n';
+import { useI18n } from '../../i18n';
 
 export interface MissionPatch {
  id: string;
@@ -134,6 +134,7 @@ const PatchBadge = memo(function PatchBadge({ patch, tone }: PatchBadgeProps): J
 });
 
 export const PatchWall = memo(function PatchWall({ patches }: PatchWallProps): JSX.Element {
+ const { t } = useI18n();
  const earnedCount = patches.filter((p) => p.earned).length;
 
  return (
@@ -149,7 +150,7 @@ export const PatchWall = memo(function PatchWall({ patches }: PatchWallProps): J
     }}
     className="ares-mono"
    >
-    <span>СТАТУС: КОЛЛЕКЦИЯ НАШИВОК</span>
+    <span>{t("СТАТУС: КОЛЛЕКЦИЯ НАШИВОК")}</span>
     <span style={{ color: '#FFC94A', fontWeight: 700 }}>
      {earnedCount} / {patches.length} {t('ПОЛУЧЕНО')}
     </span>

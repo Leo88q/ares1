@@ -34,13 +34,6 @@ const STAGE_TITLES: Record<LandingStage, string> = {
  ready: 'СИСТЕМЫ В НОРМЕ · ДОБРО ПОЖАЛОВАТЬ',
 };
 
-const TELEMETRY_LINES_STATIC = [
- 'O2 .................. 98.4% (НОРМА)',
- 'H2O ................. 76.2% (РЕЦИРКУЛЯЦИЯ)',
- 'ДАВЛЕНИЕ ............ 0.6 кПа (МАРС)',
- 'ТЕМПЕРАТУРА ......... -62°C',
-];
-
 function useTypedLines(lines: string[], active: boolean, charIntervalMs = 12): string[] {
  const [revealed, setRevealed] = useState<string[]>(() => lines.map(() => ''));
  const timerRef = useRef<number | null>(null);
@@ -90,8 +83,11 @@ export const LandingSequence = memo(function LandingSequence({
 
  const telemetryLines = useMemo(
   () => [
-   ...TELEMETRY_LINES_STATIC,
-   `БИО-ПАЁК ............ ${t('ГОТОВ К КУЛЬТИВАЦИИ')}`,
+   `O2 .................. 98.4% (${t('НОРМА')})`,
+   `H2O ................. 76.2% (${t('РЕЦИРКУЛЯЦИЯ')})`,
+   `${t('ДАВЛЕНИЕ')} ............ 0.6 ${t('кПа (МАРС)')}`,
+   `${t('ТЕМПЕРАТУРА')} ......... -62°C`,
+   `${t('БИО-ПАЁК')} ............ ${t('ГОТОВ К КУЛЬТИВАЦИИ')}`,
    'SOLANA .............. DEVNET SYNCED',
   ],
   [t, lang],
@@ -191,13 +187,13 @@ export const LandingSequence = memo(function LandingSequence({
        textShadow: '0 0 10px rgba(229,168,110,0.5)',
       }}
      >
-      ARES-1 // ЭКСПЕДИЦИЯ МАРС
+      ARES-1 // {t('ЭКСПЕДИЦИЯ МАРС')}
      </div>
      <div
       className="ares-mono"
       style={{ fontSize: 10, color: 'rgba(255,179,71,0.65)', letterSpacing: '0.1em', marginTop: 2 }}
      >
-      КУПОЛ-01 · СОЛ 0272 · ТЕМПЕРАТУРА: -62°C
+      {t('КУПОЛ-01')} · {t('СОЛ')} 0272 · {t('ТЕМПЕРАТУРА')}: -62°C
      </div>
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { t } from '../i18n'
+import { useI18n, t } from '../i18n'
 
 import { useGame } from '../contexts/GameContext'
 import { useSolana } from '../contexts/SolanaContext'
@@ -242,6 +242,7 @@ const TIER_META = [
 ]
 
 function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyProps) {
+ const { t } = useI18n()
  return (
   <motion.div
    initial={{ opacity: 0, y: 20 }}
@@ -312,15 +313,15 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
         <div style={{ flex: 1, minWidth: 0 }}>
          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 12, letterSpacing: '0.12em', color: meta.accentColor }}>
-           {meta.label}
+           {t(meta.label)}
           </span>
           <span className="ares-mono" style={{ fontSize: 9, color: '#C9A176', background: 'rgba(0,0,0,0.35)', padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.05)' }}>
-           ×{yieldMul} КПД
+           ×{yieldMul} {t('КПД')}
           </span>
          </div>
          <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 10, color: 'var(--pf-text-secondary)' }} className="ares-mono">
-          <span>СБОР: ~{((type.yieldBps / 10_000) * 100).toFixed(0)} 🥔 / СОЛ</span>
-          <span>РЕСУРС: 100%</span>
+          <span>{t('СБОР: ~{n} 🥔 / СОЛ', { n: ((type.yieldBps / 10_000) * 100).toFixed(0) })}</span>
+          <span>{t('РЕСУРС: 100%')}</span>
          </div>
         </div>
        </div>

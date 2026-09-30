@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { t } from '../i18n'
+import { useI18n } from '../i18n'
 
 import { Copy, Check, Users, Gift, Share2 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useSolana } from '../contexts/SolanaContext'
 import { useToast } from './Toast'
 import { buildRefLink } from '../utils/referral'
@@ -15,6 +16,7 @@ import { haptics } from '../utils/haptic'
  * Без Telegram и backend: идентичность — кошелёк, ссылка — ?ref=<wallet>.
  */
 export function ReferralSection() {
+ const { t } = useI18n()
  const { publicKey } = useSolana()
  const { show } = useToast()
  const [copied, setCopied] = useState(false)
@@ -54,64 +56,72 @@ export function ReferralSection() {
  }
 
  return (
-  <div style={{ marginBottom: 24 }}>
-   {/* Заголовок секции */}
-   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-    <Users size={20} color="var(--pf-teal)" />
-    <h2 className="ares-stencil" style={{ fontSize: 16, margin: 0, color: 'var(--ares-hud-amber, #FFB347)' }}>{t("ВЫЗОВ ПОСЕЛЕНЦЕВ")}</h2>
-   </div>
+  <div style={{ marginBottom: 20 }}>
+   {/* Карточка терминала рекрутинга */}
+   <div
+    style={{
+     padding: 20,
+     borderRadius: 12,
+     background: 'linear-gradient(180deg, #241A12 0%, #160F09 100%)',
+     border: '1px solid #4D331D',
+     boxShadow: 'inset 0 1px 0 rgba(255, 214, 170, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5)',
+    }}
+   >
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <Users size={18} color="#FFB347" />
+      <span className="ares-stencil" style={{ fontSize: 13, color: '#FFB347', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+       {t("ВЫЗОВ ПОСЕЛЕНЦЕВ")}
+      </span>
+     </div>
+     <span className="po-lamp po-lamp--green" aria-hidden="true" />
+    </div>
 
-   {/* Карточка с описанием */}
-   <div className="pf-card hull-skin" style={{
-    padding: 20,
-    borderRadius: 16,
-    background: 'linear-gradient(135deg, rgba(193,68,14,0.10) 0%, rgba(184,92,255,0.08) 100%)',
-    border: '1px solid rgba(160,82,40,0.6)',
-    marginBottom: 16,
-   }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-     <Gift size={32} color="var(--pf-gold)" />
+     <div style={{ width: 44, height: 44, borderRadius: 10, background: 'linear-gradient(135deg, #8A2E08, #C1440E)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} aria-hidden="true">
+      <Gift size={24} color="#FFD166" />
+     </div>
      <div>
-      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--pf-text-primary)' }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: '#F6F1ED' }}>
        {t('Вызови поселенца — дели комиссию!')}
       </div>
-      <div style={{ fontSize: 13, color: 'var(--pf-text-secondary)', marginTop: 4 }}>
+      <div style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginTop: 2, lineHeight: 1.4 }}>
        {t('Продавцу −1 % от сделки, когда покупатель пришёл по ссылке; рефереру — 0.5 % от суммы каждой такой сделки (on-chain)')}
       </div>
      </div>
     </div>
 
-    {/* Правила: кто и что платит (раньше было отдельным блоком в «Журнале») */}
-    <div style={{ marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,214,170,0.12)' }}>
+    {/* Правила в утопленном слоте */}
+    <div style={{ marginBottom: 14, padding: '12px 14px', borderRadius: 8, background: '#120B07', border: '1px solid #3E2413' }}>
      {[
       t('Ссылка бесплатна — приглашающий платит ничего'),
       t('Приглашённый открывает ссылку с ?ref= — регистрируется автоматически (on-chain, одноразово)'),
       t('Антиспам: 5 🥔 сгорает с баланса приглашённого, разово'),
       t('−1 % продавцу на сделках приглашённого — на каждой покупке'),
       t('Твоя награда: 0.5 % от комиссии маркета по его сделкам'),
-     ].map((t, i) => (
-      <div key={i} style={{ display: 'flex', gap: 6, padding: '2px 0', fontSize: 11, color: 'var(--pf-text-secondary)', lineHeight: 1.5 }}>
-       <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span> {t}
+     ].map((rule, i) => (
+      <div key={i} style={{ display: 'flex', gap: 8, padding: '3px 0', fontSize: 11, color: 'rgba(255,179,71,0.8)', lineHeight: 1.5 }} className="ares-mono">
+       <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true">✓</span> {rule}
       </div>
      ))}
     </div>
 
     {!publicKey && (
-     <p style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 12 }}>
+     <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 12, textAlign: 'center' }}>
       {t('Подключи кошелёк, чтобы получить свою реферальную ссылку.')}
      </p>
     )}
 
     {publicKey && (
      <div style={{
-      marginBottom: 12,
+      marginBottom: 14,
       padding: '10px 12px',
-      borderRadius: 10,
-      background: 'rgba(0,0,0,0.25)',
-      border: '1px solid rgba(255,214,170,0.12)',
+      borderRadius: 8,
+      background: '#100A05',
+      border: '1px solid #3A2312',
       fontFamily: 'monospace',
       fontSize: 11,
-      color: 'var(--pf-text-secondary)',
+      color: '#F6F1ED',
       wordBreak: 'break-all',
      }}>
       {referralLink}
@@ -120,41 +130,35 @@ export function ReferralSection() {
 
     {/* Кнопки */}
     <div style={{ display: 'flex', gap: 10 }}>
-     <button
+     <motion.button
+      whileTap={{ scale: 0.96 }}
       onClick={handleCopy}
+      className="mk-key mk-key--paint"
       style={{
        flex: 1,
        padding: '12px 16px',
-       borderRadius: 12,
-       background: copied ? 'var(--pf-green)' : 'var(--pf-grad-cta)',
-       border: 'none',
-       color: 'white',
-       fontSize: 14,
+       fontSize: 13,
        fontWeight: 700,
        cursor: 'pointer',
        display: 'flex',
        alignItems: 'center',
        justifyContent: 'center',
        gap: 8,
-       transition: 'all 0.2s',
       }}
      >
       {copied ? <Check size={16} /> : <Copy size={16} />}
       {copied ? t('Скопировано!') : t('Скопировать ссылку')}
-     </button>
+     </motion.button>
 
-     <button
+     <motion.button
+      whileTap={{ scale: 0.96 }}
       onClick={handleShare}
+      className="mk-key"
       style={{
-       padding: '12px 20px',
-       borderRadius: 12,
-       background: 'rgba(0,0,0,0.3)',
-       border: '1px solid rgba(255,255,255,0.15)',
-       color: 'white',
-       fontSize: 14,
-       fontWeight: 600,
+       padding: '12px 18px',
+       fontSize: 13,
+       fontWeight: 700,
        cursor: 'pointer',
-       transition: 'all 0.2s',
        display: 'flex',
        alignItems: 'center',
        gap: 8,
@@ -162,7 +166,7 @@ export function ReferralSection() {
      >
       <Share2 size={16} />
       {t('Поделиться')}
-     </button>
+     </motion.button>
     </div>
    </div>
   </div>

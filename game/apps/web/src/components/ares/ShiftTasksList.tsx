@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { t } from '../../i18n';
+import { useI18n } from '../../i18n';
 import { motion } from 'framer-motion';
 import { CheckCircle2, ChevronRight, AlertCircle } from 'lucide-react';
 import { ConsolePanel } from './panels';
@@ -94,6 +94,7 @@ export const ShiftTasksList = memo(function ShiftTasksList({
  tasks,
  onComplete,
 }: ShiftTasksListProps): JSX.Element {
+ const { t } = useI18n();
  const activeCount = tasks.filter((t) => !t.done).length;
 
  return (
@@ -110,8 +111,8 @@ export const ShiftTasksList = memo(function ShiftTasksList({
      }}
      className="ares-mono"
     >
-     <span>АКТИВНЫХ ПОРУЧЕНИЙ: {activeCount}</span>
-     <span>ТАП ДЛЯ ПЕРЕХОДА ➔</span>
+     <span>{t('АКТИВНЫХ ПОРУЧЕНИЙ: {n}', { n: activeCount })}</span>
+     <span>{t('ТАП ДЛЯ ПЕРЕХОДА ➔')}</span>
     </div>
     {tasks.map((task) => (
      <ShiftTaskRow key={task.id} task={task} onComplete={onComplete} />
