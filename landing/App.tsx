@@ -1179,7 +1179,7 @@ function Mechanics(): JSX.Element {
       <Reveal className="tier-panel panel" panel="accent">
         <div className="tier-intro">
           <p className="eyebrow">{t("ЛОТЕРЕЯ МОДУЛЕЙ")}</p>
-          <h3>{t("ОДНА ЦЕНА.")}<br />{t("ТРИ ХАРАКТЕРА.")}</h3>
+          <h3>{t("ОДНА ЦЕНА.")}{" "}<br />{t("ТРИ ХАРАКТЕРА.")}</h3>
           <p>{t("1 053 SKR за модуль. Тир определяется случайно.")}</p>
         </div>
         <RarityModules />

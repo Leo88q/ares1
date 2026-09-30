@@ -55,7 +55,14 @@ export default function LangSwitcher({ compact = false }: { compact?: boolean })
     <div
      role="menu"
      style={{
-      position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 'var(--s-z-header)',
+      // Компактный переключатель стоит у левого края шапки: при `right: 0`
+      // попап шириной 190px уезжает за левую границу экрана на мобильном
+      // (текст пунктов обрезан). В compact-режиме раскрываемся вправо.
+      position: 'absolute', right: compact ? 'auto' : 0, left: compact ? 0 : 'auto',
+      top: 'calc(100% + 6px)',
+      // Число, а не var(): в inline-стилях React строка `'var(--s-z-header)'`
+      // молча игнорируется, и попап оказывается под соседями (клики сквозь).
+      zIndex: 60, // = --s-z-header (theme/tokens.css)
       background: 'var(--s-pop-bg)', border: '1px solid var(--s-panel-edge-soft)', boxShadow: 'var(--s-pop-shadow)',
       borderRadius: 12, padding: 6, minWidth: 190,
      }}
