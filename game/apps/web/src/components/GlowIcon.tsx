@@ -14,20 +14,20 @@ interface Props {
 export default function GlowIcon({ children, color = 'teal', size = 48 }: Props) {
  const colors: Record<Color, string> = {
   orange: 'var(--pf-orange)',
-  pink: 'var(--pf-pink)',
-  teal: 'var(--pf-teal)',
+  pink: '#ED8A45',
+  teal: '#9FBE7A',
   gold: 'var(--pf-gold)',
-  purple: 'var(--ares-grow-violet, #B85CFF)',
-  green: 'var(--pf-green)',
+  purple: '#ED8A45',
+  green: '#9FBE7A',
  }
 
  const glows: Record<Color, string> = {
   orange: 'var(--pf-glow-orange)',
-  pink: 'var(--pf-glow-pink)',
-  teal: 'var(--pf-glow-teal)',
+  pink: '0 0 20px rgba(237, 138, 69, 0.4)',
+  teal: '0 0 20px rgba(159, 190, 122, 0.4)',
   gold: 'var(--pf-glow-gold)',
-  purple: 'var(--pf-glow-purple)',
-  green: '0 0 20px rgba(124, 255, 107, 0.4)',
+  purple: '0 0 20px rgba(237, 138, 69, 0.4)',
+  green: '0 0 20px rgba(159, 190, 122, 0.4)',
  }
 
  return (

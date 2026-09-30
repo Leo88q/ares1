@@ -22,7 +22,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
  { id: 'main', label: t('АГРО'), code: 'K1', lamp: 'green' },
  { id: 'market', label: t('СНАБ'), code: 'K2', lamp: 'amber' },
- { id: 'stats', label: t('ЖУРНАЛ'), code: 'K3', lamp: 'magenta' },
+ { id: 'stats', label: t('ЖУРНАЛ'), code: 'K3', lamp: 'amber' },
  { id: 'profile', label: t('КАЮТА'), code: 'K4', lamp: 'green' },
 ];
 

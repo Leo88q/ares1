@@ -163,10 +163,28 @@ function MarketScreenInner() {
     <>
      {error && <ErrorState inline message={error} onRetry={reload} />}
      {filteredOrders.length === 0 ? (
-      <SharedEmptyState
-       title={filter === 'mine' ? t('У тебя нет активных ордеров') : t('Пока нет предложений')}
-       hint={filter === 'mine' ? t('Создай свой первый ордер на продажу') : t('Будь первым, кто выставит картофель на продажу!')}
-      />
+      <div className="po-card" style={{ padding: '36px 20px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+       <div className="po-hazard" aria-hidden="true" />
+       <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.2em', color: '#D4A576', marginBottom: 10, textTransform: 'uppercase' }}>
+        {t("ТЕРМИНАЛ СНАБЖЕНИЯ // СТАТУС: СВОБОДЕН")}
+       </div>
+       <div style={{ fontSize: 18, fontWeight: 700, color: '#F6F1ED', marginBottom: 8, fontFamily: 'var(--ares-font-stencil)' }}>
+        {filter === 'mine' ? t('У тебя нет активных ордеров') : t('В грузовом стакане нет заявок')}
+       </div>
+       <p style={{ fontSize: 13, color: 'var(--ares-dust, #E0A183)', maxWidth: 360, margin: '0 auto 20px', lineHeight: 1.5 }}>
+        {filter === 'mine'
+         ? t('Отгрузи собранный марсианский картофель со склада, чтобы получить SOL.')
+         : t('Стань первым поставщиком пайка в колонии и отгрузи партию на P2P биржу!')}
+       </p>
+       <motion.button
+        whileTap={{ scale: 0.96 }}
+        onClick={() => { haptics.tap(); setShowCreate(true) }}
+        className="mk-key mk-key--paint"
+        style={{ padding: '12px 24px', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+       >
+        <Plus size={16} aria-hidden="true" /> {t('Отгрузить на биржу')}
+       </motion.button>
+      </div>
      ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
        {filteredOrders.map((order, i) => (
@@ -274,15 +292,27 @@ const instrument = (v: string) => v.replace(/^(\d+)/, (_m, d: string) => d.padSt
 
 function StatCard({ icon, label, value, primary = false }: { icon?: ReactNode; label: string; value: string; primary?: boolean }) {
  return (
-  <div className={primary ? 'mk-plate mk-plate--primary' : 'mk-plate mk-plate--quiet'} style={{ padding: primary ? 16 : 12 }}>
-   <div className="mk-tag" style={{ fontSize: 10, marginBottom: 8, display: primary ? undefined : 'none' }}>{label}</div>
-   <div style={{ display: primary ? 'none' : 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', marginBottom: 6 }}>
-    <span aria-hidden="true">{icon}</span>
-    <span style={{ fontSize: 11, color: 'var(--pf-text-secondary)', textAlign: 'center' }}>{label}</span>
+  <div
+   className="po-card"
+   style={{
+    padding: primary ? '14px 12px' : '12px 10px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.12), 0 4px 14px rgba(0,0,0,0.4)',
+    border: `1px solid ${primary ? 'rgba(232, 160, 60, 0.45)' : 'rgba(77, 50, 29, 0.8)'}`,
+   }}
+  >
+   <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 9, letterSpacing: '0.16em', color: primary ? '#FFC94A' : '#B3946A', textTransform: 'uppercase', textAlign: 'center' }}>
+    {label}
    </div>
-   <div style={{ textAlign: 'center' }}>
-     <span className="ares-mono lcd-readout" style={{ display: 'block', fontSize: primary ? 22 : 16, fontWeight: 700 }}>{instrument(value)}</span>
-    </div>
+   <div style={{ textAlign: 'center', width: '100%' }}>
+    <span className="ares-mono lcd-readout" style={{ display: 'block', fontSize: primary ? 18 : 15, fontWeight: 700, padding: '4px 8px' }}>
+     {instrument(value)}
+    </span>
+   </div>
   </div>
  )
 }

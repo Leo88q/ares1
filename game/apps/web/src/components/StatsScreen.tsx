@@ -98,7 +98,7 @@ function EconomySection({ data }: { data: EconomyData }) {
     <ConsoleStatRow icon={<Moon size={16} />} label={t("ЛУННЫЙ ЦИКЛ: {phase}", { phase: data.lunarPhase })} value={`x${data.lunarMultiplier.toFixed(2)}`} pct={data.lunarMultiplier * 100 - 85} color="#E0D8C0" />
     <ConsoleStatRow icon={<Percent size={16} />} label={t("НАЛОГ НА ХАРВЕСТ")} value={`${(data.taxBps / 100).toFixed(2)}%`} pct={(data.taxBps - 200) / 8} color="var(--ares-rust, #C1440E)" />
     <ConsoleStatRow icon={<Shield size={16} />} label={t("ЭЛАСТИЧНЫЙ КАП")} value={`${fmtBig(data.elasticCap)} POTATO`} pct={pct(data.elasticCap - 250_000, 750_000 - 250_000)} color="var(--ares-blueset, #6B93D6)" />
-    <ConsoleStatRow icon={<Landmark size={16} />} label={t("ВСЕГО ДЕЛЯНОК")} value={data.fieldCount.toString()} color="var(--ares-grow-violet, #B85CFF)" />
+    <ConsoleStatRow icon={<Landmark size={16} />} label={t("ВСЕГО ДЕЛЯНОК")} value={data.fieldCount.toString()} color="#ED8A45" />
     <ConsoleStatRow icon={<Trophy size={16} />} label={t("ЭКИПАЖ С ДЕЛЯНКАМИ")} value={data.players.toString()} color="#FFC94A" />
     <ConsoleStatRow icon={<Coins size={16} />} label={t("МАКС. SUPPLY")} value={`${(data.maxSupply / 1e6).toFixed(0)}M POTATO`} color="var(--ares-hud-amber, #FFB347)" />
 
@@ -227,7 +227,7 @@ function StatsScreenInner() {
     <ol style={{ display: 'flex', flexDirection: 'column', gap: 10, listStyle: 'none' }}>
      {leaders.map((row, i) => (
       <motion.li key={row.address} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-       className="pf-card hull-skin" style={{ padding: '14px 16px', borderRadius: 14, display: 'flex', alignItems: 'center', gap: 12, border: row.isMe ? '1px solid var(--pf-teal)' : undefined }}>
+       className="pf-card hull-skin" style={{ padding: '14px 16px', borderRadius: 14, display: 'flex', alignItems: 'center', gap: 12, border: row.isMe ? '1px solid var(--ares-hud-amber, #FFB347)' : undefined }}>
        <div style={{ width: 28, fontSize: 16, fontWeight: 800, color: i === 0 ? 'var(--pf-gold)' : i === 1 ? 'var(--pf-text-secondary)' : i === 2 ? '#b45309' : 'var(--pf-text-muted)' }}>{i + 1}</div>
        <div style={{ flex: 1 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: row.isMe ? 'var(--ares-hud-amber, #FFB347)' : 'var(--ares-parchment, #F2E8DA)' }}>

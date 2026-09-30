@@ -29,7 +29,7 @@ interface Props {
 const TIER_BY_TYPE: Array<'basic' | 'meadow' | 'gold'> = ['basic', 'meadow', 'gold']
 
 const RARE_LABEL: Record<'basic' | 'meadow' | 'gold', string> = { basic: 'COMMON', meadow: 'RARE', gold: 'EPIC' }
-const RARE_COLOR: Record<'basic' | 'meadow' | 'gold', string> = { basic: '#9AA0AC', meadow: '#B85CFF', gold: '#FFC94A' }
+const RARE_COLOR: Record<'basic' | 'meadow' | 'gold', string> = { basic: '#C9A176', meadow: '#ED8A45', gold: '#FFC94A' }
 
 /**
  * Карточка поля в стиле Vice Potato.
@@ -130,9 +130,9 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       fontWeight: 600,
       padding: '4px 10px',
       borderRadius: 999,
-      background: taxExpired ? 'rgba(255, 59, 59, 0.15)' : taxDaysLeft <= 2 ? 'rgba(255, 122, 26, 0.15)' : 'rgba(18, 231, 196, 0.12)',
-      color: taxExpired ? 'var(--pf-red)' : taxDaysLeft <= 2 ? 'var(--pf-orange)' : 'var(--pf-teal)',
-      border: `1px solid ${taxExpired ? 'rgba(255,59,59,0.4)' : taxDaysLeft <= 2 ? 'rgba(255,122,26,0.4)' : 'rgba(18,231,196,0.35)'}`,
+      background: taxExpired ? 'rgba(255, 59, 59, 0.15)' : taxDaysLeft <= 2 ? 'rgba(255, 122, 26, 0.15)' : 'rgba(159, 190, 122, 0.15)',
+      color: taxExpired ? 'var(--pf-red)' : taxDaysLeft <= 2 ? 'var(--pf-orange)' : '#9FBE7A',
+      border: `1px solid ${taxExpired ? 'rgba(255,59,59,0.4)' : taxDaysLeft <= 2 ? 'rgba(255,122,26,0.4)' : 'rgba(159,190,122,0.35)'}`,
       boxShadow: taxExpired ? '0 0 10px rgba(255,59,59,0.3)' : 'none',
      }}>
 {taxExpired ? t('Пошлина просрочен!') : taxDaysLeft <= 1 ? t('Пошлина: {h} ч', { h: taxHoursLeft }) : t('Пошлина: {d} дн', { d: taxDaysLeft })}
@@ -144,9 +144,9 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
        fontWeight: 600,
        padding: '4px 10px',
        borderRadius: 999,
-       background: 'rgba(124, 255, 107, 0.12)',
-       color: 'var(--pf-green)',
-       border: '1px solid rgba(124,255,107,0.35)',
+       background: 'rgba(232, 160, 60, 0.15)',
+       color: '#F5BE72',
+       border: '1px solid rgba(232, 160, 60, 0.4)',
       }}>
         {t('Питание: {h} ч', { h: fertHoursLeft })}
       </span>
@@ -157,7 +157,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
     <div style={{ padding: '4px 20px 20px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
      <Button
       variant={canHarvest ? 'primary' : 'secondary'}
-      glow={canHarvest ? (rare === 'gold' ? 'gold' : 'teal') : 'none'}
+      glow={canHarvest ? (rare === 'gold' ? 'gold' : 'amber') : 'none'}
       disabled={!canHarvest || busy !== null}
       onClick={() => run('harvest', onHarvest, () => sounds.harvest(), () => haptics.harvest())}
       className={canHarvest ? 'gradient-gold' : ''}

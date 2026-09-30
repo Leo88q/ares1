@@ -21,9 +21,9 @@ interface Props {
 const inputStyle: CSSProperties = {
  width: '100%',
  padding: '12px 14px',
- borderRadius: 12,
- border: '1px solid rgba(124, 255, 107, 0.25)',
- background: 'rgba(10, 6, 3, 0.68)',
+ borderRadius: 8,
+ border: '1px solid rgba(255, 179, 71, 0.3)',
+ background: 'rgba(10, 6, 3, 0.75)',
  color: 'var(--pf-text-primary)',
  fontSize: 15,
  fontFamily: 'var(--pf-font-mono)',
@@ -145,8 +145,8 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
       }}>
        <span style={{
         display: 'inline-flex',
-        color: 'var(--pf-green)',
-        filter: 'drop-shadow(var(--pf-glow-green))',
+        color: 'var(--ares-hud-amber, #FFB347)',
+        filter: 'drop-shadow(0 0 10px rgba(255, 179, 71, 0.4))',
        }}>
         <ShoppingCart size={22} />
        </span>
@@ -158,9 +158,8 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
         style={{
          background: 'rgba(0,0,0,0.28)',
          border: '1px solid var(--pf-border-soft)',
-         borderRadius: 10,
-         padding: 14,
-         margin: -8,
+         borderRadius: 8,
+         padding: 10,
          cursor: 'pointer',
          color: 'var(--pf-text-secondary)',
          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -182,8 +181,8 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
          value={amount}
          min="0"
          onChange={(e) => setAmount(e.target.value)}
-         onFocus={(e) => { e.target.style.borderColor = 'var(--pf-green)'; e.target.style.boxShadow = 'var(--pf-glow-green)' }}
-         onBlur={(e) => { e.target.style.borderColor = 'rgba(124, 255, 107, 0.25)'; e.target.style.boxShadow = 'none' }}
+         onFocus={(e) => { e.target.style.borderColor = 'var(--ares-hud-amber, #FFB347)'; e.target.style.boxShadow = '0 0 10px rgba(255,179,71,0.3)' }}
+         onBlur={(e) => { e.target.style.borderColor = 'rgba(255, 179, 71, 0.3)'; e.target.style.boxShadow = 'none' }}
          style={inputStyle}
          placeholder="100"
         />
@@ -200,8 +199,8 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
          min="0"
          step="0.000000001"
          onChange={(e) => setPrice(e.target.value)}
-         onFocus={(e) => { e.target.style.borderColor = 'var(--pf-green)'; e.target.style.boxShadow = 'var(--pf-glow-green)' }}
-         onBlur={(e) => { e.target.style.borderColor = 'rgba(124, 255, 107, 0.25)'; e.target.style.boxShadow = 'none' }}
+         onFocus={(e) => { e.target.style.borderColor = 'var(--ares-hud-amber, #FFB347)'; e.target.style.boxShadow = '0 0 10px rgba(255,179,71,0.3)' }}
+         onBlur={(e) => { e.target.style.borderColor = 'rgba(255, 179, 71, 0.3)'; e.target.style.boxShadow = 'none' }}
          style={inputStyle}
          placeholder="0.0001"
         />
@@ -209,9 +208,9 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
 
        {/* Сводка */}
        <div style={{
-        borderRadius: 12,
-        border: '1px solid rgba(124, 255, 107, 0.2)',
-        background: 'rgba(159, 190, 122, 0.08)',
+        borderRadius: 8,
+        border: '1px solid rgba(255, 179, 71, 0.25)',
+        background: 'rgba(232, 160, 60, 0.08)',
         padding: '12px 14px',
         display: 'flex',
         flexDirection: 'column',

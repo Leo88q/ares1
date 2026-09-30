@@ -1,9 +1,8 @@
 import { memo } from 'react';
-import { t } from '../../i18n'
-
+import { t } from '../../i18n';
 import { motion } from 'framer-motion';
+import { CheckCircle2, ChevronRight, AlertCircle } from 'lucide-react';
 import { ConsolePanel } from './panels';
-import { Emblem } from '../../ui/Emblem';
 
 export interface ShiftTask {
  id: string;
@@ -36,33 +35,57 @@ const ShiftTaskRow = memo(function ShiftTaskRow({ task, onComplete }: ShiftTaskR
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 12,
     width: '100%',
-    padding: '8px 10px',
-    borderRadius: 6,
-    border: 'none',
-    background: task.done ? 'rgba(124,255,107,0.08)' : 'rgba(0,0,0,0.3)',
+    padding: '10px 14px',
+    borderRadius: 8,
+    border: `1px solid ${task.done ? 'rgba(159,190,122,0.3)' : 'rgba(232,160,60,0.35)'}`,
+    background: task.done
+     ? 'linear-gradient(170deg, rgba(30,42,22,0.6) 0%, rgba(18,26,14,0.7) 100%)'
+     : 'linear-gradient(170deg, rgba(46,30,18,0.7) 0%, rgba(24,15,9,0.85) 100%)',
     cursor: task.done ? 'default' : 'pointer',
     textAlign: 'left',
+    boxShadow: task.done ? 'none' : '0 2px 8px rgba(0,0,0,0.35)',
    }}
   >
-   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-    <Emblem name="gear" size={14} />
+   <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+    {task.done ? (
+     <CheckCircle2 size={16} color="#9FBE7A" style={{ flexShrink: 0 }} />
+    ) : (
+     <AlertCircle size={16} color="#ED8A45" style={{ flexShrink: 0 }} />
+    )}
     <span
      style={{
-      fontSize: 12,
-      color: task.done ? 'var(--ares-bio-green, #7CFF6B)' : 'rgba(255,179,71,0.9)',
+      fontSize: 13,
+      fontWeight: task.done ? 500 : 600,
+      color: task.done ? 'var(--pf-text-secondary)' : '#F6F1ED',
       textDecoration: task.done ? 'line-through' : undefined,
+      lineHeight: 1.3,
      }}
     >
      {task.title}
     </span>
    </div>
-   {task.rewardLabel ? (
-    <span className="ares-mono" style={{ fontSize: 10, color: 'var(--ares-hud-amber, #FFB347)' }}>
-     {task.rewardLabel}
-    </span>
-   ) : null}
+
+   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+    {task.rewardLabel ? (
+     <span
+      className="ares-mono"
+      style={{
+       fontSize: 10,
+       fontWeight: 700,
+       color: task.done ? '#9FBE7A' : '#FFC94A',
+       background: 'rgba(0,0,0,0.4)',
+       padding: '3px 7px',
+       borderRadius: 4,
+       border: '1px solid rgba(255,255,255,0.06)',
+      }}
+     >
+      {task.rewardLabel}
+     </span>
+    ) : null}
+    {!task.done && <ChevronRight size={14} color="#A8895C" />}
+   </div>
   </motion.button>
  );
 });
@@ -71,9 +94,25 @@ export const ShiftTasksList = memo(function ShiftTasksList({
  tasks,
  onComplete,
 }: ShiftTasksListProps): JSX.Element {
+ const activeCount = tasks.filter((t) => !t.done).length;
+
  return (
-  <ConsolePanel title={t("ЗАДАЧИ СМЕНЫ")} tone="neutral">
-   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+  <ConsolePanel title={t("ЗАДАЧИ СМЕНЫ")} tone="amber">
+   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div
+     style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingBottom: 4,
+      fontSize: 11,
+      color: 'var(--ares-dust, #E0A183)',
+     }}
+     className="ares-mono"
+    >
+     <span>АКТИВНЫХ ПОРУЧЕНИЙ: {activeCount}</span>
+     <span>ТАП ДЛЯ ПЕРЕХОДА ➔</span>
+    </div>
     {tasks.map((task) => (
      <ShiftTaskRow key={task.id} task={task} onComplete={onComplete} />
     ))}
