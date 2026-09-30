@@ -31,11 +31,11 @@ export function HullLightCircuit({
     <g aria-hidden="true">
       <defs>
         <linearGradient id={`${id}-spectrum`} x1="0" y1="0" x2="1" y2="1">
-          <stop stopColor={danger ? "#FF9CAA" : "#8BCBFF"} stopOpacity="0.8" />
-          <stop offset="0.25" stopColor="#4067A9" stopOpacity="0.15" />
-          <stop offset="0.53" stopColor="#FF2E93" stopOpacity="0.65" />
-          <stop offset="0.78" stopColor="#B85CFF" stopOpacity="0.2" />
-          <stop offset="1" stopColor="#FFCB83" stopOpacity="0.9" />
+          <stop stopColor={danger ? "#FF9CAA" : "#E5A86E"} stopOpacity="0.8" />
+          <stop offset="0.25" stopColor="#C1440E" stopOpacity="0.4" />
+          <stop offset="0.53" stopColor="#ED8A45" stopOpacity="0.65" />
+          <stop offset="0.78" stopColor="#FFB347" stopOpacity="0.4" />
+          <stop offset="1" stopColor="#FFD166" stopOpacity="0.9" />
         </linearGradient>
       </defs>
 

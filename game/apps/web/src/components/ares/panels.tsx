@@ -7,7 +7,7 @@ export type PanelTone = 'neutral' | 'amber' | 'magenta' | 'danger';
 const TONE_GLOW: Record<PanelTone, string> = {
  neutral: '#C9A176',
  amber: 'var(--ares-hud-amber, #FFB347)',
- magenta: 'var(--mk-lamp-magenta, #E06CA4)',
+ magenta: 'var(--ares-dust, #E0A183)',
  danger: '#E8823F',
 };
 
@@ -215,7 +215,7 @@ export const DockKey = memo(function DockKey({
   setPressed(false);
  };
 
- const glow = active ? 'var(--ares-grow-pink, #FF2E93)' : 'rgba(180,220,255,0.25)';
+ const glow = active ? 'var(--ares-hud-amber, #FFB347)' : 'rgba(217,160,107,0.3)';
 
  return (
   <motion.button

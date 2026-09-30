@@ -143,7 +143,7 @@ export const DomeFrame = memo(function DomeFrame({ children, phase, dustStormAct
    </div>
 
    {/* ПАНЕЛЬ ОБИТАНИЯ: полупрозрачное стекло поверх интерьера */}
-   <div style={{ position: 'relative', flex: 1, zIndex: 1, marginTop: -16, borderRadius: '20px 20px 0 0', background: 'linear-gradient(180deg, rgba(12,7,16,0.32) 0%, rgba(5,3,8,0.42) 40%, rgba(5,3,8,0.58) 100%)', borderTop: '1px solid rgba(180,220,255,0.14)', boxShadow: '0 -8px 30px rgba(0,0,0,0.5)' }}>
+   <div style={{ position: 'relative', flex: 1, zIndex: 1, marginTop: -16, borderRadius: '20px 20px 0 0', background: 'linear-gradient(180deg, rgba(24,16,11,0.55) 0%, rgba(14,9,6,0.7) 40%, rgba(8,5,3,0.85) 100%)', borderTop: '1px solid rgba(255,214,170,0.18)', boxShadow: '0 -8px 32px rgba(0,0,0,0.7)' }}>
     {children}
    </div>
   </div>

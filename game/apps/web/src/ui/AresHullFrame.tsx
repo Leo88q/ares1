@@ -52,28 +52,28 @@ const frameInterval = 1000 / 30;
 
 const skins = {
   default: {
-    accent: "#D4A576",
-    trace: "#E5C7A5",
+    accent: "#E5A86E",
+    trace: "#FFC98A",
     plate: "",
-    surface: "#191E2A",
-    inner: "#10141E",
-    caution: "#B17C4F",
+    surface: "#241912",
+    inner: "#17100A",
+    caution: "#C47C3D",
   },
   accent: {
     accent: "#ED8A45",
     trace: "#FFB347",
     plate: "ARES-1",
-    surface: "#1C1928",
-    inner: "#11121D",
+    surface: "#281A12",
+    inner: "#19100B",
     caution: "#D77A36",
   },
   danger: {
-    accent: "#DE8C8C",
-    trace: "#FFB0A8",
+    accent: "#D97B58",
+    trace: "#FFA88A",
     plate: "ИЗОЛЯЦИЯ",
-    surface: "#1C1317",
-    inner: "#150F14",
-    caution: "#B96D69",
+    surface: "#261513",
+    inner: "#190D0C",
+    caution: "#C45B3A",
   },
 } as const;
 
@@ -602,7 +602,7 @@ export function AresHullFrame({
         <path
           d={geometry.outer}
           fill={skin.surface}
-          stroke="#56515A"
+          stroke="#5A3D26"
           strokeWidth="1"
           vectorEffect="non-scaling-stroke"
         />
@@ -610,7 +610,7 @@ export function AresHullFrame({
         <path
           d={geometry.inner}
           fill={skin.inner}
-          stroke="#93818E"
+          stroke="#8A5C36"
           strokeOpacity="0.22"
           strokeWidth="0.75"
           vectorEffect="non-scaling-stroke"

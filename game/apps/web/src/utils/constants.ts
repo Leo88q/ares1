@@ -212,6 +212,6 @@ export interface PresaleDropInfo { type: number; label: string; chance: number; 
 /** Шансы дропа модуля в пресейле: цена одна — тир случайный */
 export const PRESALE_DROP: PresaleDropInfo[] = [
  { type: 0, label: 'COMMON', chance: 70, color: '#9AA0AC' },
- { type: 1, label: 'RARE', chance: 25, color: '#B85CFF' },
+ { type: 1, label: 'RARE', chance: 25, color: '#ED8A45' },
  { type: 2, label: 'EPIC', chance: 5, color: '#FFC94A' },
 ]

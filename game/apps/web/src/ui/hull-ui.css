@@ -395,8 +395,8 @@
 .astronaut-loader-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #ed8a45 0%, #ff2e93 55%, #7cff6b 100%);
-  box-shadow: 0 0 12px rgba(184, 92, 255, 0.45);
+  background: linear-gradient(90deg, #C1440E 0%, #E8A03C 55%, #FFD166 100%);
+  box-shadow: 0 0 10px rgba(232, 160, 60, 0.35);
   transition: width 0.35s ease;
 }
 
@@ -541,7 +541,7 @@
 }
 
 .market-tab--active {
-  background: linear-gradient(135deg, rgba(255, 179, 71, 0.85), rgba(255, 46, 147, 0.55));
+  background: linear-gradient(135deg, rgba(255, 179, 71, 0.85), rgba(209, 84, 30, 0.6));
 }
 
 .market-tab--active::before {

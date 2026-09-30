@@ -332,7 +332,7 @@ export interface BezelProps {
 
 const BEZEL_TONE_COLORS: Record<NonNullable<BezelProps['tone']>, string> = {
  amber: 'var(--ares-hud-amber, #FFB347)',
- magenta: 'var(--ares-grow-pink, #FF2E93)',
+ magenta: 'var(--ares-dust, #E0A183)',
 };
 
 const HEX_CLIP_PATH =

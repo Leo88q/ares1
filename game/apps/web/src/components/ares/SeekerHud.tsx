@@ -70,10 +70,10 @@ const HudCell = memo(function HudCell({
 });
 
 const PHASE_ACCENT: Record<SolPhase, string> = {
- dawn: 'var(--ares-grow-violet, #B85CFF)',
+ dawn: '#ED8A45',
  day: 'var(--ares-hud-amber, #FFB347)',
- blueset: 'var(--ares-blueset, #6B93D6)',
- night: 'var(--ares-grow-pink, #E86A3C)',
+ blueset: '#D48742',
+ night: '#C1440E',
 };
 
 export const SolHud = memo(function SolHud({

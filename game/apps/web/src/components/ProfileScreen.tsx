@@ -72,6 +72,18 @@ function ProfileScreenInner() {
 
  const fieldsToNext = 3 - (stats.totalFields % 3)
 
+ const rankTitle = useMemo(() => {
+  const titles = [
+   t('Кадет-Агроном'),
+   t('Младший Колонист'),
+   t('Старший Оператор'),
+   t('Мастер Купола'),
+   t('Командир Сектора'),
+   t('Марсианская Легенда'),
+  ]
+  return titles[Math.min(Math.max(0, stats.playerLevel - 1), titles.length - 1)]
+ }, [stats.playerLevel])
+
  const patches = [
   { id: 'a1', label: t('Первый росток'), imageSrc: '/ares/patch-sprout.webp', earned: Boolean(claimed.a1) },
   { id: 'a2', label: t('Первый урожай'), imageSrc: '/ares/patch-harvest.webp', earned: Boolean(claimed.a2) },
@@ -115,9 +127,12 @@ function ProfileScreenInner() {
  }
 
  return (
-  <div style={{ padding: 20, paddingBottom: 140 }}>
+  <div style={{ padding: '24px 20px', paddingBottom: 140, position: 'relative' }}>
    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-    <h1 className="pf-h1" style={{ fontSize: 26 }}>{t("КАЮТА")}</h1>
+    <div>
+     <h1 className="pf-h1 po-spray" style={{ fontSize: 26, letterSpacing: '0.18em', color: '#EFD9AC' }}>{t("КАЮТА")}</h1>
+     <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginTop: 2 }}>{t("Персональный отсек колониста и статус экспедиции")}</p>
+    </div>
     <AudioSettings />
    </div>
 
@@ -125,25 +140,34 @@ function ProfileScreenInner() {
 
    <ReferralSection />
 
-   <HullPanel style={{ marginBottom: 16, padding: '14px 16px' }}>
-    <div style={{ fontFamily: 'ui-monospace, "JetBrains Mono", monospace', fontSize: 10, letterSpacing: 1.5, opacity: 0.65, marginBottom: 8 }}>
-     EXPORT LICENSE
+   <HullPanel style={{ marginBottom: 16, padding: '16px 18px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+     <div style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.2em', color: '#D4A576', textTransform: 'uppercase' }}>
+      {t("ЛИЦЕНЗИЯ ЭКСПОРТЁРА // ТОРГОВЫЙ ДОПУСК")}
+     </div>
+     <span className={`po-lamp ${license?.active ? 'po-lamp--green' : 'po-lamp--off'}`} aria-hidden="true" />
     </div>
+
     {license?.active ? (
      <div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--pf-gold)', marginBottom: 4, fontFamily: 'ui-monospace, monospace' }}>
-       {t('АКТИВНА · {d} ДН.', { d: licenseDays })}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+       <span style={{ fontSize: 15, fontWeight: 700, color: '#FFC94A', fontFamily: 'var(--ares-font-mono)' }}>
+        {t('СТАТУС: АКТИВНА · ОСТАЛОСЬ {d} ДН.', { d: licenseDays })}
+       </span>
+       <span className="ares-mono" style={{ fontSize: 11, color: '#9FBE7A', background: 'rgba(159,190,122,0.15)', padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(159,190,122,0.3)' }}>
+        {t('КОМИССИЯ −3%')}
+       </span>
       </div>
-      <div style={{ fontSize: 12, opacity: 0.75, fontFamily: 'ui-monospace, monospace', marginBottom: 8 }}>
-       {t('КОМИССИЯ РЫНКА −3%')}
-      </div>
+      <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 12, lineHeight: 1.4 }}>
+       {t('Торговый сертификат снижает комиссию на P2P бирже Снабжения и даёт приоритет в стакане.')}
+      </p>
       <button
        onClick={buyLicense}
        disabled={buyingLicense || !publicKey}
        className="mk-key mk-key--paint"
        style={{
         cursor: 'pointer',
-        padding: '9px 14px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
+        padding: '10px 14px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
         opacity: buyingLicense || !publicKey ? 0.6 : 1, width: '100%',
        }}
       >
@@ -152,8 +176,16 @@ function ProfileScreenInner() {
      </div>
     ) : (
      <div>
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, opacity: 0.9, fontFamily: 'ui-monospace, monospace' }}>
-       {fmtSkr(EXPORT_LICENSE_PRICE_SKR_ATOMS, 0)} SKR · {t('30 ДН.')}
+      <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 10, lineHeight: 1.4 }}>
+       {t('Лицензия даёт скидку −3% на торговые сборы P2P биржи и статус верифицированного экспортёра колонии.')}
+      </p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+       <span className="ares-mono" style={{ fontSize: 14, fontWeight: 700, color: '#F6F1ED' }}>
+        {fmtSkr(EXPORT_LICENSE_PRICE_SKR_ATOMS, 0)} SKR
+       </span>
+       <span className="ares-mono" style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>
+        {t('СРОК ДЕЙСТВИЯ: 30 ДНЕЙ')}
+       </span>
       </div>
       <button
        onClick={buyLicense}
@@ -161,7 +193,7 @@ function ProfileScreenInner() {
        className="mk-key mk-key--paint"
        style={{
         cursor: 'pointer',
-        padding: '9px 14px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
+        padding: '10px 14px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
         opacity: buyingLicense || !publicKey ? 0.6 : 1, width: '100%',
        }}
       >
@@ -172,13 +204,17 @@ function ProfileScreenInner() {
    </HullPanel>
 
    <HullPanel variant="primary" style={{ marginBottom: 16 }}>
-    <div style={{ padding: 20, textAlign: 'center' }}>
-     <div className="mk-tag" style={{ marginBottom: 10 }}>{t('ПАЁК НА СКЛАДЕ')}</div>
-     <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--pf-gold)' }}>
+    <div style={{ padding: '20px 16px', textAlign: 'center' }}>
+     <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.2em', color: '#D4A576', marginBottom: 10, textTransform: 'uppercase' }}>
+      {t('ПАЁК НА СКЛАДЕ')}
+     </div>
+     <div className="po-lcd lcd-readout" style={{ display: 'inline-block', padding: '10px 24px', fontSize: 32, marginBottom: 8 }}>
       <RollingNumber value={stats.potatoBalance / 1000000} decimals={2} /> POTATO
      </div>
      {stats.pendingHarvest > 0 && (
-      <div style={{ fontSize: 12, color: 'var(--pf-teal)', marginTop: 4 }}>+{fmtPotato(stats.pendingHarvest, 3)} {t('POTATO ждёт жатвы на делянках')}</div>
+      <div style={{ fontSize: 12, color: '#9FBE7A', marginTop: 6 }} className="ares-mono">
+       +{fmtPotato(stats.pendingHarvest, 3)} {t('POTATO ждёт жатвы на делянках')}
+      </div>
      )}
     </div>
    </HullPanel>
@@ -189,32 +225,54 @@ function ProfileScreenInner() {
 
    <HullPanel style={{ marginBottom: 16 }}>
     <div style={{ padding: 20 }}>
-     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-       <Trophy size={18} color="var(--pf-gold)" aria-hidden="true" />
-       <span style={{ fontSize: 16, fontWeight: 700 }}>{t('Ранг')} {stats.playerLevel}</span>
+     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+      <div>
+       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Trophy size={18} color="#FFC94A" aria-hidden="true" />
+        <span style={{ fontSize: 16, fontWeight: 700, color: '#F6F1ED' }}>{rankTitle}</span>
+       </div>
+       <div className="ares-mono" style={{ fontSize: 11, color: '#A8895C', marginTop: 2 }}>
+        {t('РАНГ')} {stats.playerLevel} · {stats.totalFields} {plural(stats.totalFields, { one: t('делянка'), few: t('делянки'), many: t('делянок') })}
+       </div>
       </div>
-      <span className="ares-mono" style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>
-       <RollingNumber value={Math.floor(stats.experience)} /> {t('стажа')}
+      <span className="ares-mono" style={{ fontSize: 12, color: '#FFC94A', background: 'rgba(255,201,74,0.12)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(255,201,74,0.3)' }}>
+       <RollingNumber value={Math.floor(stats.experience)} /> {t('XP')}
       </span>
      </div>
-     <div style={{ marginBottom: 8 }}>
+
+     <div style={{ marginBottom: 10 }}>
       <SparkProgress value={(stats.totalFields % 3) / 3 * 100} label={t("Прогресс до следующего ранга")} color="#FFC94A" />
      </div>
-     <p style={{ fontSize: 12, color: 'var(--pf-text-secondary)' }}>
- {t('До ранга {next}: ещё {plots}. Ранг игрока растёт с каждыми 3 полями.', { next: stats.playerLevel + 1, plots: plural(fieldsToNext, { one: t('поле'), few: t('поля'), many: t('полей') }) })}
-     </p>
+
+     <div style={{ fontSize: 11, color: 'var(--ares-dust, #E0A183)', marginBottom: 14, lineHeight: 1.4 }}>
+      {t('До ранга {next}: ещё {plots}. Каждые 3 действующие делянки повышают ранг колониста.', {
+       next: stats.playerLevel + 1,
+       plots: plural(fieldsToNext, { one: t('поле'), few: t('поля'), many: t('полей') }),
+      })}
+     </div>
+
+     <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ fontSize: 11, color: '#9FBE7A', display: 'flex', alignItems: 'center', gap: 6 }}>
+       <span>✓</span> <span>{t('Биосинтез и культивация делянок разблокированы')}</span>
+      </div>
+      <div style={{ fontSize: 11, color: '#9FBE7A', display: 'flex', alignItems: 'center', gap: 6 }}>
+       <span>✓</span> <span>{t('Доступ к открытой P2P бирже Снабжения')}</span>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--pf-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+       <span>🔒</span> <span>{t('Ранг {n}: улучшенная сопротивляемость износу кассет', { n: stats.playerLevel + 1 })}</span>
+      </div>
+     </div>
     </div>
    </HullPanel>
 
    <HullPanel style={{ marginBottom: 16 }}>
     <div style={{ padding: 20 }}>
      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-      <Trophy size={18} color="var(--pf-gold)" aria-hidden="true" />
-      <span style={{ fontSize: 16, fontWeight: 700 }}>{t('Стена нашивок')}</span>
+      <Trophy size={18} color="#FFC94A" aria-hidden="true" />
+      <span style={{ fontSize: 16, fontWeight: 700, color: '#F6F1ED' }}>{t('Стена нашивок')}</span>
      </div>
-     <p style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8 }}>
-      {t('Награды экипажа из журнала. Серые — ещё не получены.')}
+     <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 10, lineHeight: 1.4 }}>
+      {t('Официальные знаки отличия марсианской миссии. Выполняй цели в Журнале экспедиции.')}
      </p>
      <PatchWall patches={patches} />
     </div>
@@ -222,9 +280,14 @@ function ProfileScreenInner() {
 
    <HullPanel variant="danger" style={{ marginBottom: 16 }}>
     <div style={{ padding: 20 }}>
-    <h3 className="ares-mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'rgba(255,179,71,0.85)', marginBottom: 12 }}>{t('ДИАГНОСТИКА СКАФАНДРА')}</h3>
-    <StatusRow label={t("Кошелёк")} ok={connected} value={publicKey ? `${publicKey.toString().slice(0, 4)}…${publicKey.toString().slice(-4)}` : t('Не подключён')} />
-    <StatusRow label={t("Блокчейн")} ok={ready} value={ready ? t('Подключён ({cluster})', { cluster: CLUSTER }) : t('Загрузка…')} />
+     <h3 className="ares-mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: '#ED8A45', marginBottom: 14 }}>
+      {t('ДИАГНОСТИКА СКАФАНДРА // СИСТЕМЫ ЖИЗНЕОБЕСПЕЧЕНИЯ')}
+     </h3>
+     <StatusRow label={t("Бортовой кошелёк")} ok={connected} value={publicKey ? `${publicKey.toString().slice(0, 4)}…${publicKey.toString().slice(-4)}` : t('Не авторизован')} />
+     <StatusRow label={t("Связь с Solana")} ok={ready} value={ready ? t('В норме ({cluster})', { cluster: CLUSTER }) : t('Синхронизация…')} />
+     <StatusRow label={t("Кислород O₂")} ok={true} value="98.4% (НОРМА)" />
+     <StatusRow label={t("Водный контур H₂O")} ok={true} value="76.2% (РЕЦИРКУЛЯЦИЯ)" />
+     <StatusRow label={t("Радиационный фон")} ok={true} value="0.12 mSv/h (ФОНОВЫЙ)" />
     </div>
    </HullPanel>
   </div>

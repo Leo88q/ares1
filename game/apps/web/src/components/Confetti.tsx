@@ -26,7 +26,7 @@ export default function Confetti({ trigger, onComplete }: Props) {
    return
   }
 
-  const colors = ['var(--pf-gold)', 'var(--pf-teal)', 'var(--ares-blueset, #6B93D6)', 'var(--ares-grow-violet, #B85CFF)', 'var(--pf-red)', 'var(--pf-pink)']
+  const colors = ['#FFC94A', '#9FBE7A', '#E5A86E', '#ED8A45', '#C1440E', '#FFB347']
   const newParticles: Particle[] = Array.from({ length: 100 }, (_, i) => ({
    id: i,
    x: Math.random() * window.innerWidth,

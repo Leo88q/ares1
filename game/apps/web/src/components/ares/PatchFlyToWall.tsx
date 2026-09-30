@@ -64,7 +64,7 @@ export const PatchFlyToWall = memo(function PatchFlyToWall({
      sprite={<PatchSprite patchSrc={patchSrc} label={label} />}
     />
    ) : (
-    <ParticleBurst x={to.x} y={to.y} color="var(--ares-grow-pink, #FF2E93)" count={14} />
+    <ParticleBurst x={to.x} y={to.y} color="var(--ares-hud-amber, #FFB347)" count={14} />
    )}
   </div>
  );

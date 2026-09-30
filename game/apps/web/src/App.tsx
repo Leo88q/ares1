@@ -58,7 +58,6 @@ export default function App() {
    <HullSkinMounter />
    <BackgroundScene variant="farm" />
    <div style={{ maxWidth: 480, margin: '0 auto', position: 'relative', minHeight: '100vh', zIndex: 1 }}>
-    <div className="ares-habitat-bg" aria-hidden="true" />
     <ErrorBoundary>
      <ToastProvider>
       <WalletErrorReporter />

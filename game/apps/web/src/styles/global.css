@@ -99,7 +99,24 @@ button:disabled {
 .pf-h2 { font-family: var(--pf-font-display); font-size: 20px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--pf-text-primary); margin: 0; }
 .pf-subtitle { font-family: var(--pf-font-ui); font-weight: 500; font-size: 14px; color: var(--pf-text-secondary); margin: 0; }
 .pf-mono { font-family: var(--pf-font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
-.pf-card { position: relative; background-color: var(--mk-face, #2C221A); background-image: var(--mk-grain), var(--mk-scratches), var(--ares-rust-panel); background-repeat: repeat, repeat, no-repeat; background-size: 120px 120px, 260px 260px, 100% 100%; border-radius: var(--pf-radius-card); padding: 20px; border: 1px solid var(--mk-seam, #120C07); box-shadow: inset 0 1px 0 var(--mk-edge-hi), inset 0 -1px 0 var(--mk-edge-lo), inset 0 0 24px rgba(0,0,0,0.45), 0 12px 26px rgba(0,0,0,0.45); }
+.pf-card {
+  position: relative;
+  background-color: var(--mk-face, #261B12);
+  background-image:
+    url('/ares/textures/card-metal-bg.webp'),
+    var(--mk-grain),
+    var(--mk-scratches);
+  background-repeat: no-repeat, repeat, repeat;
+  background-size: cover, 120px 120px, 260px 260px;
+  border-radius: var(--pf-radius-card);
+  padding: 20px;
+  border: 1px solid #4D321D;
+  box-shadow:
+    inset 0 1px 0 var(--mk-edge-hi),
+    inset 0 -1px 0 var(--mk-edge-lo),
+    inset 0 0 24px rgba(0,0,0,0.55),
+    0 12px 26px rgba(0,0,0,0.6);
+}
 .pf-card--rare { border-color: var(--mk-bevel); box-shadow: inset 0 1px 0 var(--mk-edge-hi), inset 0 -1px 0 var(--mk-edge-lo), inset 0 0 0 1px rgba(255,201,74,0.22), inset 0 0 0 4px rgba(0,0,0,0.28), 0 12px 26px rgba(0,0,0,0.5); }
 .pf-card--rare::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; background: var(--pf-grad-border); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; opacity: 0.8; }
 .pf-caps { text-transform: uppercase; letter-spacing: 0.08em; }
@@ -148,10 +165,10 @@ button:disabled {
   --ares-sky: #D9A06B;
   --ares-blueset: #6B93D6;
   --ares-space: #050308;
-  --ares-grow-pink: #FF2E93;
-  --ares-grow-violet: #B85CFF;
-  --ares-bio-green: #7CFF6B;
-  --ares-bio-cyan: #12E7C4;
+  --ares-grow-pink: #E86A3C;
+  --ares-grow-violet: #C97A42;
+  --ares-bio-green: #9FBE7A;
+  --ares-bio-cyan: #D4A576;
   --ares-hud-amber: #FFB347;
   --ares-hud-orange: #FF7A1A;
   --ares-metal-dark: #2A2D34;
@@ -275,21 +292,9 @@ button:disabled {
     inset 0 -1px 0 rgba(0,0,0,0.4);
 }
 
-/* HABITAT BACKDROP: вертикальный интерьер купола за всеми панелями */
+/* HABITAT BACKDROP: убрана растровая фотография, заменена чистым градиентом атмосферы купола */
 .ares-habitat-bg {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: url('/ares/habitat-bg.png') center top / 100% 100% no-repeat;
-  opacity: 1;
-  filter: saturate(1) brightness(0.95);
-  pointer-events: none;
-}
-.ares-habitat-bg::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(5,3,8,0) 0%, rgba(5,3,8,0.15) 45%, rgba(5,3,8,0.45) 100%);
+  display: none;
 }
 
 /* COLONY TEXT PASS: white/Inter retired - parchment body, dust secondary, stencil headings */
@@ -329,7 +334,6 @@ body { color: var(--pf-text-primary); }
 .ares-liquid-bar {
   position: relative;
   height: 14px;
-  borderRadius: 7px;
   border-radius: 7px;
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(160, 82, 40, 0.5);
@@ -788,23 +792,24 @@ body { color: var(--pf-text-primary); }
 }
 .po-rim > * { position: relative; z-index: 1; }
 
-/* Тихая C-плита (без рамы): обшивка попроще */
+/* Тихая C-плита (без рамы): обшивка с марсианской текстурой */
 .po-card {
   position: relative;
   isolation: isolate;
   min-width: 0;
-  border: 1px solid #170E05;
-  border-radius: 2px;
-  background-color: #362716;
+  border: 1px solid #4A301C;
+  border-radius: 8px;
+  background-color: #241A12;
   background-image:
+    url('/ares/textures/card-metal-bg.webp'),
     var(--mk-grain),
-    linear-gradient(160deg, #44321D 0%, #382817 55%, #2C1F11 100%);
-  background-size: 120px 120px, 100% 100%;
+    linear-gradient(160deg, #382717 0%, #261B11 55%, #18100A 100%);
+  background-size: cover, 120px 120px, 100% 100%;
   box-shadow:
-    inset 0 1px 0 rgba(255, 210, 160, 0.1),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.45),
-    inset 0 0 30px rgba(0, 0, 0, 0.35),
-    0 10px 18px -12px #000;
+    inset 0 1px 0 rgba(255, 210, 160, 0.15),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.6),
+    inset 0 0 30px rgba(0, 0, 0, 0.5),
+    0 12px 24px -8px rgba(0, 0, 0, 0.7);
 }
 .po-card > * { position: relative; z-index: 1; }
 

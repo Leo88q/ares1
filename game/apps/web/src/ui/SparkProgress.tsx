@@ -53,7 +53,7 @@ export function SparkProgress({
   max = 100,
   label,
   valueText,
-  color = "#FF2E93",
+  color = "#E8A03C",
   className = "",
 }: SparkProgressProps): JSX.Element {
   const reducedMotion = usePrefersReducedMotion();

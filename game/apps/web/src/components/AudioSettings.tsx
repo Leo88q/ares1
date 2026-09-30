@@ -73,7 +73,7 @@ export default function AudioSettings() {
         </button>
        </div>
 
-       <SettingRow icon={<Music size={18} color="var(--pf-teal)" />} title={t("Фоновая музыка")} subtitle={t("Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0")} on={musicOn} color="var(--pf-teal)" onToggle={toggleMusic} />
+       <SettingRow icon={<Music size={18} color="#9FBE7A" />} title={t("Фоновая музыка")} subtitle={t("Трек: Cipher — Kevin MacLeod (incompetech.com), CC BY 4.0")} on={musicOn} color="#9FBE7A" onToggle={toggleMusic} />
        {musicOn && (
         <label style={{ display: 'block', margin: '-8px 0 20px 28px' }}>
          <span style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8, display: 'block' }}> {t("Громкость")}: {Math.round(musicVolume * 100)}%</span>
@@ -81,7 +81,7 @@ export default function AudioSettings() {
         </label>
        )}
        <SettingRow icon={soundsOn ? <Volume2 size={18} color="var(--ares-hud-amber, #FFB347)" /> : <VolumeX size={18} color="var(--ares-hud-amber, #FFB347)" />} title={t("Звуковые эффекты")} subtitle={t("Сбор урожая, покупки, достижения")} on={soundsOn} color="var(--ares-hud-amber, #FFB347)" onToggle={toggleSfx} />
-       <SettingRow icon={<Vibrate size={18} color="#FF2E93" />} title={t("Вибрация")} subtitle={t("Тактильный отклик (Web Vibration API)")} on={hapticOn} color="#FF2E93" onToggle={toggleHaptic} />
+       <SettingRow icon={<Vibrate size={18} color="var(--ares-hud-amber, #FFB347)" />} title={t("Вибрация")} subtitle={t("Тактильный отклик (Web Vibration API)")} on={hapticOn} color="var(--ares-hud-amber, #FFB347)" onToggle={toggleHaptic} />
        <SettingRow
         icon={<Bell size={18} color="var(--pf-gold)" />} title={t("Уведомления")} color="var(--pf-gold)"
         subtitle={permissionGranted ? t('Урожай готов, истекает налог, низкая прочность') : t('Браузер попросит разрешение')}
