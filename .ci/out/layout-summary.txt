@@ -1,6 +1,6 @@
 === post45-prod ===
 styleSheets=1 rules=871 hullFrameRule=true hullHostRule=true hullSvgRule=true dataAresHullCount=23
-failures: none
+failures: 404 https://ares1-7e1.pages.dev/tuber9-happy.png
 CARD: {"tag":"ARTICLE","className":"panel feature-card ares-equipment-card","position":"relative","inset":"0px 0px 0px 0px","display":"block","width":"283.25px","height":"607.484px","zIndex":"auto","rect":"283x607 @3751"}
 FRAME FIX: frameCount=23 allAbsolute=false
    tree SPAN.ares-hull-frame pos=relative inset=0px 0px 0px 0px 241x241 @3777 241.25pxx241.25px
@@ -66,7 +66,7 @@ FRAME FIX: frameCount=23 allAbsolute=false
    [data-ares-hull="true"] .form-field input { border-radius: 3px; border-color: rgb(91, 71, 89); background: rgb(12, 11, 16); box-shadow: rgba(0, 0, 0, 0.5) 0px 2px inset, rgba(227, 196, 172, 0.04) 0px 1px; }
 === branch-preview ===
 styleSheets=1 rules=871 hullFrameRule=true hullHostRule=true hullSvgRule=true dataAresHullCount=23
-failures: none
+failures: 404 https://arena-01a0efbd-ares1.ares1-7e1.pages.dev/tuber9-happy.png
 CARD: {"tag":"ARTICLE","className":"panel feature-card ares-equipment-card","position":"relative","inset":"0px 0px 0px 0px","display":"block","width":"283.25px","height":"366.234px","zIndex":"auto","rect":"283x366 @2858"}
 FRAME FIX: frameCount=23 allAbsolute=true
    tree SPAN.ares-hull-frame pos=absolute inset=0px 0px 0px 0px 281x364 @2859 281.25pxx364.234px
@@ -132,7 +132,7 @@ FRAME FIX: frameCount=23 allAbsolute=true
    [data-ares-hull="true"] .form-field input { border-radius: 3px; border-color: rgb(91, 71, 89); background: rgb(12, 11, 16); box-shadow: rgba(0, 0, 0, 0.5) 0px 2px inset, rgba(227, 196, 172, 0.04) 0px 1px; }
 === pre45-preview ===
 styleSheets=1 rules=876 hullFrameRule=true hullHostRule=true hullSvgRule=true dataAresHullCount=23
-failures: none
+failures: 404 https://44f63419.ares1-7e1.pages.dev/tuber9-happy.png
 CARD: {"tag":"ARTICLE","className":"panel feature-card ares-equipment-card","position":"relative","inset":"0px 0px 0px 0px","display":"block","width":"283.25px","height":"337.344px","zIndex":"auto","rect":"283x337 @2858"}
 FRAME FIX: frameCount=23 allAbsolute=true
    tree SPAN.ares-hull-frame pos=absolute inset=0px 0px 0px 0px 281x335 @2859 281.25pxx335.344px

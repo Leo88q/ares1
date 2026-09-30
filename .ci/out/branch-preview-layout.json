@@ -286,5 +286,7 @@
     "[data-ares-hull=\"true\"] .form-field input { border-radius: 3px; border-color: rgb(91, 71, 89); background: rgb(12, 11, 16); box-shadow: rgba(0, 0, 0, 0.5) 0px 2px inset, rgba(227, 196, 172, 0.04) 0px 1px; }"
   ],
   "hasDataAresHull": 23,
-  "failures": []
+  "failures": [
+    "404 https://arena-01a0efbd-ares1.ares1-7e1.pages.dev/tuber9-happy.png"
+  ]
 }
