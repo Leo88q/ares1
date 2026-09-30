@@ -1,10 +1,31 @@
-=== GAME: where .pf-card / .k-* come from ===
-.glass { background: var(--pf-glass); backdrop-filter: blur(10px); border: 1px solid var(--pf-border-soft); },.pf-card { position: relative; background-color: var(--mk-face, #2C221A); background-image: var(--mk-grain),var(--mk-scra },.pf-card--rare { border-color: var(--mk-bevel); box-shadow: inset 0 1px 0 var(--mk-edge-hi),inset 0 -1px 0 var(--mk-edge-lo),in },.pf-card--rare::before { content: ""; position: absolute; inset: 0px; border-radius: inherit; padding: 1px; background: var(--pf-grad-b },.pf-card:not(.pf-card--rare)::before, .glass:not(.pf-card--rare)::before { display: none; content: ""; position: absolute; inset: 0px; border-radius: inherit; padding: 1px; background:  },.glass { position: relative; border-color: transparent; box-shadow: var(--pf-glow-green); },.pf-card { border-width: 1px; border-style: solid; border-color: var(--mk-bevel) var(--mk-bevel-lo) var(--mk-bevel-lo) va },.k-panel, .pf-card, .glass { position: relative; background: none; backdrop-filter: none; border-style: solid; border-color: transparent; b },.k-panel--rare, .pf-card--rare { border-image-source: url("/ares/kit/panel-bone.webp"); border-image-slice: 84 fill; },.k-panel--rare { filter: saturate(1.05); },.pf-card--rare::before { display: none; },.k-panel--rare::before, .pf-card--rare::before { content: ""; position: absolute; inset: 0px; border-radius: inherit; padding: 1px; background: var(--pf-grad-b },.k-panel--quiet { background-color: var(--s-subtle-bg); backdrop-filter: none; border: 1px solid var(--s-subtle-border); box-sha },.k-panel--pop { border-width: 34px; border-image-slice: 88 fill; border-image-width: 34px; box-shadow: rgba(0, 0, 0, 0.95) 0px },.k-panel--chip { border-width: 12px; border-image: url("/ares/kit/btn-secondary.webp") 40 fill / 12px / 0 stretch; box-shadow:  },.k-key { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--pf-space-2) },.k-key:hover { filter: brightness(1.14) saturate(1.06); box-shadow: rgba(0, 0, 0, 0.85) 0px 6px 22px -6px, rgba(255, 158, 44, },.k-key:focus-visible { outline: 2px solid var(--pf-info); outline-offset: 2px; },.k-key:active, .k-key--engaged { transform: translateY(2px); filter: brightness(0.9) saturate(1.05); box-shadow: rgba(0, 0, 0, 0.9) 0px 2px 8px },.k-key:disabled { opacity: 0.55; cursor: not-allowed; transform: none; filter: saturate(0.4) brightness(0.8); },.k-key--ghost { border-image-source: url("/ares/kit/btn-secondary.webp"); color: rgb(233, 219, 196); text-shadow: rgba(0, 0, 0 },.k-key--ghost:hover { filter: brightness(1.22); },.k-key--danger { border-image-source: url("/ares/kit/btn-primary.webp"); filter: hue-rotate(-32deg) saturate(1.25); },.k-key--danger:hover { filter: hue-rotate(-32deg) saturate(1.3) brightness(1.12); },.pf-card > *, .k-panel > *, .ares-panel > *, [class*="-row"] > *, [class*="-grid"] > * { min-width: 0px; }
+=== GAME: kit/MK rules in the loaded CSS ===
+.pf-card { position: relative; background-color: var(--mk-face, #2C221A); background-image: var(--mk- }
+.pf-card--rare { border-color: var(--mk-bevel); box-shadow: inset 0 1px 0 var(--mk-edge-hi),inset 0 -1px 0  }
+.pf-card--rare::before { content: ""; position: absolute; inset: 0px; border-radius: inherit; padding: 1px; backgro }
+.pf-card:not(.pf-card--rare)::before, .glass:not(.pf-card--rare)::before { display: none; content: ""; position: absolute; inset: 0px; border-radius: inherit; paddin }
+.pf-card { border-width: 1px; border-style: solid; border-color: var(--mk-bevel) var(--mk-bevel-lo) v }
+.k-panel { position: relative; background-color: var(--mk-face, #2C221A); border: 1px solid var(--mk- }
+.k-panel--rare { border-color: var(--mk-bevel); box-shadow: inset 0 1px 0 var(--mk-edge-hi),inset 0 -1px 0  }
+.k-panel--quiet { background-color: var(--s-subtle-bg); border: 1px solid var(--s-subtle-border); box-shadow }
+.k-panel--pop { background-color: var(--s-pop-bg); border: 1px solid var(--s-panel-edge-soft); box-shadow: }
+.k-panel--chip { background-color: var(--s-subtle-bg); border: 1px solid var(--s-subtle-border); border-rad }
+.k-skel { position: relative; overflow: hidden; border-radius: var(--s-panel-radius); border: 1px so }
+.k-skel::after { content: ""; position: absolute; inset: 0px; transform: translate(-100%); background: line }
+.pf-card > *, .k-panel > *, .ares-panel > *, [class*="-row"] > *, [class*="-grid"] > * { min-width: 0px; }
 === GAME: computed surfaces ===
-pf-card n=2 :: pf-card | pad=7px 10px border=1px/solid bi=none bg=rgba(0, 0, 0, 0) radius=10px rect=87x44,mk-skel n=0 :: null,k-panel n=0
-=== GAME: stylesheet list ===
-inline, index-BGGKW_3T.css, App-33wgROyW.css
-lang candidates: [{"index":0,"label":"Language","expanded":"false"}]
-menu: z=auto bg=rgba(0, 0, 0, 0) border=0px none rgb(242, 232, 218) shadow=none radius=12px
-profile: pf-card=2 png=9
-market: pf-card=0 png=2
+--- pf-card (2)
+    pf-card | border=1px solid bi=none pad=7px 10px radius=10px bg=rgba(0, 0, 0, 0) z=auto rect=87x44
+    pf-card hull-skin ares-presale | border=1px solid bi=none pad=24px radius=0px bg=rgba(0, 0, 0, 0) z=auto rect=356x359
+--- skeleton (0)
+.k-skel probe: radius=6px border=1px rgba(160, 82, 40, 0.65) bg=rgba(0, 0, 0, 0.3)
+lang menu: z=60 bg=rgb(36, 27, 20) border=1px rgba(160, 82, 40, 0.65) shadow=rgba(0, 0, 0, 0.65) 0px 24px 48px 0px, rgba(0, 0, 0, 0.
+=== LANDING: surfaces (палитра после чистки) ===
+--- pack-buy-main (кнопка покупки модуля) (1)
+    pack-buy-main | border=0px none bi=none pad=16px 20px radius=12px bg=rgba(0, 0, 0, 0) z=auto rect=407x73
+--- morph-control (4)
+    morph-control | border=1px solid bi=none pad=0px radius=8px bg=rgba(0, 0, 0, 0) z=auto rect=162x54
+    morph-control | border=1px solid bi=none pad=0px radius=8px bg=rgb(25, 16, 31) z=auto rect=167x54
+    morph-control | border=1px solid bi=none pad=0px radius=8px bg=rgba(0, 0, 0, 0) z=auto rect=149x54
+    morph-control | border=1px solid bi=none pad=0px radius=8px bg=rgba(0, 0, 0, 0) z=auto rect=216x54
+--- XP HUD (1)
+    xp-hud | border=1px solid bi=none pad=0px radius=12px bg=rgba(24, 16, 10, 0.94) z=75 rect=218x82
