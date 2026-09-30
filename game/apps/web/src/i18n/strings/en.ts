@@ -594,6 +594,8 @@ const en: Record<string, string> = {
   'СИГНАЛ КОЛОНИИ ПРИНЯТ': 'COLONY SIGNAL RECEIVED',
   'Транзакция не пройдёт на сети:': 'Transaction will fail on the network:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'The transaction was sent but no confirmation arrived. Check your wallet before retrying — the action may already have gone through.',
+  'Требуется владеть 6 делянками, и хотя бы одна должна быть 3-го уровня (сейчас макс. ур. {lvl}).': 'Requires 6 fields with at least one at level 3 (current max lvl {lvl}).',
+  'нужен ур. 3 (сейчас {n})': 'lvl 3 needed (now {n})',
 };
 
 export default en;

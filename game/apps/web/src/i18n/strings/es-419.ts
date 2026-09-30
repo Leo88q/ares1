@@ -594,6 +594,8 @@ const es419: Record<string, string> = {
   'СИГНАЛ КОЛОНИИ ПРИНЯТ': 'SEÑAL DE LA COLONIA RECIBIDA',
   'Транзакция не пройдёт на сети:': 'La transacción fallará en la red:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'La transacción se envió, pero no llegó la confirmación. Revisa tu billetera antes de reintentar: la acción puede haberse completado ya.',
+  'Требуется владеть 6 делянками, и хотя бы одна должна быть 3-го уровня (сейчас макс. ур. {lvl}).': 'Requiere 6 parcelas con al menos una en nivel 3 (nivel máx. actual {lvl}).',
+  'нужен ур. 3 (сейчас {n})': 'nivel 3 requerido (actual {n})',
 };
 
 export default es419;

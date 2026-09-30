@@ -594,6 +594,8 @@ const vi: Record<string, string> = {
   'СИГНАЛ КОЛОНИИ ПРИНЯТ': 'ĐÃ NHẬN TÍN HIỆU THUỘC ĐỊA',
   'Транзакция не пройдёт на сети:': 'Giao dịch sẽ thất bại trên mạng:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'Giao dịch đã được gửi nhưng chưa có xác nhận. Hãy kiểm tra ví trước khi thử lại — thao tác có thể đã hoàn tất.',
+  'Требуется владеть 6 делянками, и хотя бы одна должна быть 3-го уровня (сейчас макс. ур. {lvl}).': 'Yêu cầu 6 ô đất với ít nhất một ô đạt cấp 3 (cấp tối đa hiện tại {lvl}).',
+  'нужен ур. 3 (сейчас {n})': 'cần cấp 3 (hiện tại {n})',
 };
 
 export default vi;

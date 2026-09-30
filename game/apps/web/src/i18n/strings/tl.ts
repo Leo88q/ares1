@@ -594,6 +594,8 @@ const tl: Record<string, string> = {
   'СИГНАЛ КОЛОНИИ ПРИНЯТ': 'NATANGGAP ANG SIGNAL NG KOLONYA',
   'Транзакция не пройдёт на сети:': 'Mabibigo ang transaksyon sa network:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'Naipadala ang transaksyon pero walang kumpirmasyon. Tingnan ang iyong wallet bago subukan ulit — maaaring natuloy na ang aksyon.',
+  'Требуется владеть 6 делянками, и хотя бы одна должна быть 3-го уровня (сейчас макс. ур. {lvl}).': 'Kailangan ng 6 na lote na may kahit isa sa antas 3 (kasalukuyang max lvl {lvl}).',
+  'нужен ур. 3 (сейчас {n})': 'kailangan ang lvl 3 (ngayon {n})',
 };
 
 export default tl;
