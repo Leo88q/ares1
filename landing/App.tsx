@@ -891,19 +891,13 @@ function Hero(): JSX.Element {
               <Play size={18} aria-hidden="true" />
               {PC.label}
             </a>
-            <Action href={SC.hero.primaryHref}>
-              <Emblem name="flame" size={15} style={{ marginRight: 6 }} />
-              {SC.hero.primaryCta}
-            </Action>
-            <Action
-              variant="secondary"
-              href={SC.hero.secondaryHref}
-              target="_blank"
-              rel="noopener noreferrer"
+            <a
+              className="cta-buy"
+              href={SC.hero.primaryHref}
             >
-              {SC.hero.secondaryCta}
-              <ArrowUpRight size={16} aria-hidden="true" />
-            </Action>
+              <Emblem name="flame" size={16} style={{ marginRight: 8 }} />
+              {SC.hero.primaryCta}
+            </a>
           </Reveal>
 
           <Reveal className="presale-panel" delay={0.35} panel="accent">
