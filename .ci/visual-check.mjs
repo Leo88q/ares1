@@ -79,6 +79,10 @@ for (const target of TARGETS) {
       hasAresHullHostRule,
       hasAresHullSvgRule,
       frames: [...document.querySelectorAll(".ares-hull-frame")].slice(0, 3).map((element) => describe(element)),
+      frameFixOk: [...document.querySelectorAll(".ares-hull-frame")].every(
+        (element) => getComputedStyle(element).position === "absolute",
+      ),
+      frameCount: document.querySelectorAll(".ares-hull-frame").length,
       svgs: [...document.querySelectorAll(".ares-hull-svg")].slice(0, 3).map((element) => describe(element)),
       card: describe(card),
       cardTree,
@@ -93,7 +97,8 @@ for (const target of TARGETS) {
   summary.push(`=== ${target.name} ===`);
   summary.push(`styleSheets=${report.styleSheetCount} rules=${report.totalRules} hullFrameRule=${report.hasHullFrameRule} hullHostRule=${report.hasAresHullHostRule} hullSvgRule=${report.hasAresHullSvgRule} dataAresHullCount=${report.hasDataAresHull}`);
   summary.push(`failures: ${failures.length ? failures.join(" | ") : "none"}`);
-  summary.push(`card: ${JSON.stringify(report.card)}`);
+  summary.push(`CARD: ${JSON.stringify(report.card)}`);
+  summary.push(`FRAME FIX: frameCount=${report.frameCount} allAbsolute=${report.frameFixOk}`);
   for (const node of report.cardTree) {
     summary.push(`   tree ${node.tag}.${node.className} pos=${node.position} inset=${node.inset} ${node.rect} ${node.width}x${node.height}`);
   }
