@@ -91,6 +91,26 @@ for (const target of TARGETS) {
     };
   });
 
+  // Screenshots for visual before/after proof.
+  await page.screenshot({ path: `.ci/out/${target.name}-viewport.jpg`, type: "jpeg", quality: 65 });
+  for (const selector of [".feature-grid", ".tier-panel", ".waitlist-panel", ".problem-grid"]) {
+    try {
+      const locator = page.locator(selector).first();
+      if ((await locator.count()) > 0) {
+        await locator.scrollIntoViewIfNeeded({ timeout: 5000 });
+        await page.waitForTimeout(600);
+        await locator.screenshot({
+          path: `.ci/out/${target.name}-${selector.replace(/[^a-z0-9]+/gi, "-")}.jpg`,
+          type: "jpeg",
+          quality: 65,
+          timeout: 15000,
+        });
+      }
+    } catch (error) {
+      summary.push(`shot ${target.name} ${selector}: ${String(error).slice(0, 80)}`);
+    }
+  }
+
   report.failures = failures;
   writeFileSync(`.ci/out/${target.name}-layout.json`, JSON.stringify(report, null, 2));
 
