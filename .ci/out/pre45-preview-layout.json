@@ -286,5 +286,7 @@
     ".faq-item[data-ares-hull=\"true\"] .faq-number { color: rgb(232, 175, 127); }"
   ],
   "hasDataAresHull": 23,
-  "failures": []
+  "failures": [
+    "404 https://44f63419.ares1-7e1.pages.dev/tuber9-happy.png"
+  ]
 }
