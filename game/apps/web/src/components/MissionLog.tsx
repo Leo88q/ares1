@@ -9,9 +9,31 @@ import { haptics } from '../utils/haptic'
 import { useSolana } from '../contexts/SolanaContext'
 import { useGame } from '../contexts/GameContext'
 import { getAchievements, type Achievement } from '../utils/achievements'
-import { TacticalInsignia } from './ares/TacticalInsignia'
 
 import { MICRO } from '../utils/constants'
+
+function PatchImg({ src, title, done }: { src: string; title: string; done: boolean }): JSX.Element | null {
+ const [failed, setFailed] = useState(false)
+ if (failed) return null
+ return (
+  <img
+   src={src}
+   alt={title}
+   width={52}
+   height={52}
+   loading="lazy"
+   onError={() => setFailed(true)}
+   style={{
+    width: 52,
+    height: 52,
+    objectFit: 'contain',
+    flexShrink: 0,
+    opacity: done ? 1 : 0.55,
+    filter: done ? 'drop-shadow(0 0 10px rgba(255,179,71,0.45))' : 'grayscale(0.6)',
+   }}
+  />
+ )
+}
 
 function formatProgress(v: number): string {
  return v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}K` : `${Math.floor(v)}`
@@ -98,7 +120,7 @@ export function MissionLog() {
        }}
       >
        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <TacticalInsignia id={ach.id} code={ach.code} earned={done || isClaimed} size={46} />
+        <PatchImg src={ach.patch} title={ach.title} done={done || isClaimed} />
         <div style={{ flex: 1, minWidth: 0 }}>
          <div className="ares-stencil" style={{ fontSize: 13, marginBottom: 3, color: '#FFB347', letterSpacing: '0.1em' }}>{ach.title}</div>
          <div style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8, lineHeight: 1.4 }}>{ach.desc}</div>
