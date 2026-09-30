@@ -123,7 +123,8 @@ export function MissionLog() {
           </span>
          ) : done ? (
           <motion.button
-           whileTap={{ scale: 0.95 }}
+           whileTap={{ y: 2 }}
+           transition={{ type: 'spring', stiffness: 520, damping: 26 }}
            onClick={() => handleClaim(ach.id)}
            disabled={claiming === ach.id || !questsAvailable}
            className="mk-key mk-key--paint"

@@ -152,16 +152,13 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
        </span>
        <h2 className="pf-h2" style={{ fontSize: 18, flex: 1 }}>{t("Отгрузить $POTATO")}</h2>
        <motion.button
-        whileTap={{ scale: 0.9 }}
+        whileTap={{ y: 2 }}
         onClick={onClose}
         aria-label={t("Закрыть")}
+        className="mk-key"
         style={{
-         background: 'rgba(0,0,0,0.28)',
-         border: '1px solid var(--pf-border-soft)',
-         borderRadius: 8,
-         padding: 10,
+         padding: '7px 10px',
          cursor: 'pointer',
-         color: 'var(--pf-text-secondary)',
          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         }}
        >

@@ -128,7 +128,8 @@ export function ReferralSection() {
     {/* Кнопки */}
     <div style={{ display: 'flex', gap: 10 }}>
      <motion.button
-      whileTap={{ scale: 0.96 }}
+      whileTap={{ y: 2 }}
+      transition={{ type: 'spring', stiffness: 520, damping: 26 }}
       onClick={handleCopy}
       className="mk-key mk-key--paint"
       style={{
@@ -148,7 +149,8 @@ export function ReferralSection() {
      </motion.button>
 
      <motion.button
-      whileTap={{ scale: 0.96 }}
+      whileTap={{ y: 2 }}
+      transition={{ type: 'spring', stiffness: 520, damping: 26 }}
       onClick={handleShare}
       className="mk-key"
       style={{

@@ -180,34 +180,21 @@ export default function PresaleSection() {
    {/* Сварная заплатка в правом углу */}
    <span className="po-patch" style={{ right: 8, bottom: 8, width: 50, height: 20, transform: 'rotate(-1deg)' }} aria-hidden="true" />
 
-   {/* Кнопка покупки */}
+   {/* Кнопка покупки: тактильная клавиша пульта */}
    <motion.button
-    whileTap={disabled ? {} : { scale: 0.96 }}
-    whileHover={disabled ? {} : { scale: 1.02 }}
-    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+    whileTap={disabled ? undefined : { y: 3 }}
+    transition={{ type: 'spring', stiffness: 520, damping: 26 }}
     disabled={disabled}
     onClick={() => handleBuy()}
+    className={soldOut || disabled ? 'mk-key' : 'mk-key mk-key--paint'}
     style={{
      width: '100%',
      padding: '14px 22px',
-     borderRadius: 3,
-     border: '1px solid rgba(0,0,0,0.45)',
-     background: soldOut
-      ? 'rgba(0,0,0,0.28)'
-      : 'linear-gradient(180deg, #E89A4B 0%, #C97A2B 55%, #A85F1E 100%)',
-     color: soldOut ? 'var(--pf-text-muted)' : '#2A1206',
-     fontSize: 15,
-     fontWeight: 800,
-     textTransform: 'uppercase',
-     letterSpacing: '0.05em',
-     cursor: disabled ? 'not-allowed' : 'pointer',
-     opacity: disabled && !soldOut ? 0.6 : 1,
-     boxShadow: soldOut ? 'inset 0 1px 0 rgba(255,214,170,0.08)' : 'inset 0 1px 0 rgba(255,232,185,0.55), 0 4px 0 #5F3410, 0 9px 14px -7px rgba(0,0,0,0.8)',
+     fontSize: 14,
      display: 'flex',
      alignItems: 'center',
      justifyContent: 'center',
-     gap: 8,
-     fontFamily: 'var(--pf-font-ui)',
+     gap: 10,
     }}
    >
     {soldOut ? (
