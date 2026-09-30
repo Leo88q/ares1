@@ -98,7 +98,7 @@ export function ReferralSection() {
       t('Твоя награда: 0.5 % от комиссии маркета по его сделкам'),
      ].map((rule, i) => (
       <div key={i} style={{ display: 'flex', gap: 8, padding: '3px 0', fontSize: 11, color: 'rgba(255,179,71,0.8)', lineHeight: 1.5 }} className="ares-mono">
-       <span style={{ color: 'var(--ares-hud-amber, #FFB347)', flexShrink: 0 }} aria-hidden="true">✓</span> {rule}
+       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ares-hud-amber, #FFB347)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg> {rule}
       </div>
      ))}
     </div>

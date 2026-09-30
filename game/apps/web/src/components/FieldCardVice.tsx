@@ -66,12 +66,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
    animate={{ opacity: 1, y: 0 }}
    transition={{ delay: Math.min(index * 0.06, 0.4) }}
   >
-   <div className={`po-plate po-plate--field field-hull${rare === 'gold' ? ' field-hull--gold' : ''}${canHarvest ? ' field-hull--ready' : ''}`} style={{ position: 'relative', overflow: 'hidden' }}>
-    <span className="po-screw po-screw--tl" aria-hidden="true" />
-    <span className="po-screw po-screw--tr" aria-hidden="true" />
-    <span className="po-screw po-screw--bl" aria-hidden="true" />
-    <span className="po-screw po-screw--br" aria-hidden="true" />
-    {canHarvest && <span className="po-hazard-corner" style={{ width: 24, height: 24 }} aria-hidden="true" />}
+   <div className={`plant-module-panel${rare === 'gold' ? ' plant-module-panel--gold' : rare === 'meadow' ? ' plant-module-panel--rare' : ''}${canHarvest ? ' plant-module-panel--ready' : ''}`}>
     {/* Заголовок */}
     <div style={{
      padding: '16px 20px 12px',
@@ -167,7 +162,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       className={`field-action-btn${canHarvest ? ' field-action-btn--harvest-ready' : ''}`}
      >
       <span className="field-action-btn__title">
-       {canHarvest ? '⚡ ' : ''}{t('Собрать')}
+       {t('Собрать')}
       </span>
       <span className="field-action-btn__badge">
        {canHarvest ? `+${accumulated.toFixed(2)} POTATO` : '≥ 1.00 POTATO'}
@@ -181,7 +176,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       className="field-action-btn"
      >
       <span className="field-action-btn__title">
-       ▲ {t('Апгрейд модуля')}
+       {t('Апгрейд модуля')}
       </span>
       <span className="field-action-btn__badge">
        {fmtPotatoExact(upgradeCostMicro(field.level, field.fieldType))} POTATO
@@ -195,7 +190,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       className="field-action-btn"
      >
       <span className="field-action-btn__title">
-       💧 {t('Полив')}
+       {t('Полив')}
       </span>
       <span className="field-action-btn__badge">
        {fmtPotatoExact(repairCostMicro(field.level, field.fieldType))} POTATO
@@ -209,7 +204,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       className="field-action-btn"
      >
       <span className="field-action-btn__title">
-       🏷️ {t('Пошлина')}
+       {t('Пошлина')}
       </span>
       <span className="field-action-btn__badge">
        {fmtPotatoExact(taxCostMicro(field.level, field.fieldType))} POTATO
@@ -224,7 +219,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       style={{ gridColumn: '1 / -1' }}
      >
       <span className="field-action-btn__title">
-       🧪 {fertActive ? t('Удобрено ') : t('Питание +50% · 24ч')}
+       {fertActive ? t('Удобрено ') : t('Питание +50% · 24ч')}
       </span>
       <span className="field-action-btn__badge">
        {fmtPotatoExact(fertilizerCostMicro(field.fieldType))} POTATO

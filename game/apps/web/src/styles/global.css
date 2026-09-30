@@ -606,11 +606,11 @@ body { color: var(--pf-text-primary); }
   box-shadow: 0 0 0 1px #1E150B, 0 0 7px rgba(255, 170, 60, 0.35);
 }
 
-/* — Штамп статуса (наклон 1–2°, оттиск краской) — */
+/* — Штамп статуса — ровный, чёткий оттиск — */
 .mk-stamp {
   display: inline-block;
   padding: 3px 10px 2px;
-  transform: rotate(-1.6deg);
+  transform: none;
   border: 2px solid currentColor;
   border-radius: 2px;
   font-family: var(--ares-font-stencil);
@@ -620,29 +620,27 @@ body { color: var(--pf-text-primary); }
   text-transform: uppercase;
   line-height: 1.4;
   mix-blend-mode: screen;
-  opacity: 0.92;
-  filter: url(#mk-rough);
+  opacity: 0.95;
 }
 .mk-stamp--ok { color: var(--mk-lamp-green); }
 .mk-stamp--warn { color: var(--mk-lamp-amber); }
 .mk-stamp--danger { color: #E06C5A; }
 
-/* — Бирка-стикер с реальными данными (1–2° наклона) — */
+/* — Бирка-стикер с реальными данными — */
 .mk-sticker {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
   padding: 3px 9px 2px;
-  transform: rotate(1.4deg);
+  transform: none;
   background: linear-gradient(180deg, #F2E3C8, #E4CFA8);
   color: #3A2A14;
-  border-radius: 1px;
+  border-radius: 2px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), inset 0 0 6px rgba(120, 90, 40, 0.25);
   font-family: var(--ares-font-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  clip-path: polygon(0 0, 100% 0, 97% 42%, 100% 62%, 94% 100%, 3% 100%);
 }
 .mk-sticker .mk-sticker__label { opacity: 0.62; letter-spacing: 0.14em; font-size: 9px; }
 
@@ -1045,13 +1043,13 @@ body { color: var(--pf-text-primary); }
   border: 1px dashed rgba(255, 214, 160, 0.22);
 }
 
-/* Трафарет-спрей: рваный край */
-.po-spray { filter: url(#po-spray); }
+/* Трафарет-спрей: ровный, чёткий текст без искажений */
+.po-spray { filter: none !important; }
 
-/* Грузовая лента-стикер */
+/* Грузовая лента-стикер: ровное горизонтальное выравнивание */
 .po-tape {
   display: inline-block;
-  transform: rotate(1.8deg);
+  transform: none;
   background: linear-gradient(180deg, #DDC48E, #C9AC70);
   color: #2E1F0C;
   font-family: var(--ares-font-mono);
@@ -1060,16 +1058,17 @@ body { color: var(--pf-text-primary); }
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 4px 12px;
-  clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%);
+  border-radius: 2px;
+  clip-path: none;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
   opacity: 0.94;
 }
 
-/* Штамп-спрей (светлее и грубее А-штампа) */
+/* Штамп-спрей: ровный, чёткий шрифт без наклона и без искажений */
 .po-stamp {
   display: inline-block;
   padding: 3px 12px;
-  transform: rotate(3deg);
+  transform: none;
   border: 2px solid rgba(217, 143, 92, 0.8);
   color: #D98F5C;
   font-family: var(--ares-font-stencil);
@@ -1077,9 +1076,9 @@ body { color: var(--pf-text-primary); }
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  filter: url(#po-spray);
-  mix-blend-mode: screen;
-  opacity: 0.92;
+  filter: none !important;
+  mix-blend-mode: normal;
+  opacity: 0.96;
 }
 .po-stamp--ok { color: #C4B075; border-color: rgba(196, 176, 117, 0.75); }
 
@@ -1262,13 +1261,72 @@ body { color: var(--pf-text-primary); }
     linear-gradient(160deg, #402E1C 0%, #322314 55%, #22160C 100%);
 }
 
-/* 7. Плита ДЕЛЯНКИ (FIELD TRAY) */
+/* ═══════════════════════════════════════════════════════════════════
+   ПАНЕЛЬ ДЕЛЯНКИ РАСТЕНИЯ (PLANT MODULE PANEL)
+   Кастомизированный корпус делянки: глубокий графитово-обсидиановый
+   фон с высокотехнологичными кромками, чистой геометрией без винтов
+   и без мутно-коричневых плит.
+   ═══════════════════════════════════════════════════════════════════ */
+.plant-module-panel {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 179, 71, 0.24);
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 160, 50, 0.07) 0%, transparent 60%),
+    linear-gradient(180deg, #1A130E 0%, #120E0A 50%, #0B0806 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 160, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.8),
+    0 10px 24px -6px rgba(0, 0, 0, 0.75);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.plant-module-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 179, 71, 0.5) 50%, transparent 100%);
+  pointer-events: none;
+}
+.plant-module-panel--rare {
+  border-color: rgba(237, 138, 69, 0.38);
+}
+.plant-module-panel--gold {
+  border-color: rgba(255, 201, 74, 0.48);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 235, 160, 0.25),
+    0 10px 24px -6px rgba(0, 0, 0, 0.75);
+}
+.plant-module-panel--ready {
+  border-color: rgba(255, 179, 71, 0.75);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 235, 180, 0.35),
+    inset 0 0 24px rgba(255, 150, 30, 0.12),
+    0 0 22px -2px rgba(255, 179, 71, 0.35),
+    0 10px 24px -6px rgba(0, 0, 0, 0.8);
+}
+.plant-module-panel--ready::before {
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 190, 80, 0.95) 50%, transparent 100%);
+  box-shadow: 0 0 8px rgba(255, 179, 71, 0.8);
+}
+
+/* 7. Плита ДЕЛЯНКИ (FIELD TRAY) — тёмный чистый фон */
 .po-plate--field {
-  border: 1px solid #24170C;
-  background-color: #362617;
+  border: 1px solid rgba(255, 179, 71, 0.22);
+  background-color: #150F0B;
   background-image:
-    var(--mk-grain),
-    linear-gradient(160deg, #3F2C1B 0%, #302113 55%, #20140A 100%);
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 160, 50, 0.06) 0%, transparent 60%),
+    linear-gradient(180deg, #1C1510 0%, #120D09 50%, #0B0806 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 160, 0.14),
+    inset 0 0 30px rgba(0, 0, 0, 0.6),
+    0 10px 24px -6px rgba(0, 0, 0, 0.75);
 }
 
 /* 8. Плита СНАБЖЕНИЯ / РЫНКА (MARKET CARGO TERMINAL) */

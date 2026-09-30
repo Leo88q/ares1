@@ -75,7 +75,7 @@ export default function Header({ stats }: Props) {
        <RankGauge level={stats.playerLevel} progress={(stats.totalFields % 3) / 3} />
       </div>
      </div>
-     <span className="po-patch" style={{ right: 10, bottom: 10, width: 66, height: 24, transform: 'rotate(1.4deg)' }} aria-hidden="true" />
+     <span className="po-patch" style={{ right: 10, bottom: 10, width: 66, height: 24 }} aria-hidden="true" />
      <span className="po-chip po-chip--br" aria-hidden="true" />
     </div>
 

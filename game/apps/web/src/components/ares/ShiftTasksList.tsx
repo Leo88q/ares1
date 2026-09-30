@@ -112,7 +112,7 @@ export const ShiftTasksList = memo(function ShiftTasksList({
      className="ares-mono"
     >
      <span>{t('АКТИВНЫХ ПОРУЧЕНИЙ: {n}', { n: activeCount })}</span>
-     <span>{t('ТАП ДЛЯ ПЕРЕХОДА ➔')}</span>
+     <span>{t('ТАП ДЛЯ ПЕРЕХОДА →')}</span>
     </div>
     {tasks.map((task) => (
      <ShiftTaskRow key={task.id} task={task} onComplete={onComplete} />
