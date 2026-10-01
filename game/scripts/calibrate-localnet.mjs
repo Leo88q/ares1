@@ -33,6 +33,10 @@ import {
 } from './deploy-budget.mjs';
 
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
+// Ход калибровки и заметки: их читает и `main()`, и верхнеуровневый `catch`
+// (аннотация — единственный канал наружу из CI, R10).
+const notes = [];
+const steps = [];
 
 /** Проверки залога деплоя: замер против модели (детерминированно, §5.1/§5.2). */
 export function checkDeploy({ maxLen, pdSpace, pdLamports, programLamports, rent }) {
@@ -140,8 +144,6 @@ async function main() {
   const { rate, rent0 } = await fetchRate(rpc);
   const rent = (n) => rent0 + rate * n; // rent(0) уже включает 128 байт оверхеда
   const checks = [];
-  const notes = [];
-  const steps = [];
 
   sh('solana-keygen', ['new', '--no-bip39-passphrase', '--silent', '-o', payerKeypair]);
   sh('solana-keygen', ['new', '--no-bip39-passphrase', '--silent', '-o', programKeypair]);
@@ -292,7 +294,15 @@ async function main() {
   console.log(JSON.stringify(payload, jsonReplacer, 2));
   if (args.out) writeFileSync(args.out, JSON.stringify(payload, jsonReplacer, 2));
   if (!pass) {
+    // Расхождение чеков тоже обязано быть видно аннотацией: логи джоб недоступны.
     const problems = [...failed.map((check) => check.name), ...stepProblems];
+    const detail = [
+      ...failed.map((check) => `${check.name}: ${check.measured} vs ${check.expected} (Δ${check.delta})`),
+      ...stepProblems,
+      `steps: ${steps.map((step) => `${step.step}${step.ok === undefined ? '' : `=${step.ok}`}${step.attempt ? `#${step.attempt}` : ''}${step.error ? ` (${step.error})` : ''}`).join('; ')}`,
+      `notes: ${notes.join(' | ')}`,
+    ].join(' | ');
+    console.log(`::error title=ares-calibrate-error::${safeDiagnostic(detail, 900).replace(/[\r\n]+/g, ' ')}`);
     console.error(`calibrate-localnet: РАСХОЖДЕНИЕ: ${problems.join(', ')}`);
     process.exit(2);
   }
