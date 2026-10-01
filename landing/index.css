@@ -1594,9 +1594,10 @@ button.morph-button--header:hover {
   top: 15px;
   bottom: 40px;
   left: 13px;
-  width: 1px;
+  width: 2px;
   content: "";
-  background: linear-gradient(var(--ares-grow), #654767 50%, #65476733);
+  background: linear-gradient(180deg, #FFB347 0%, #E6751C 40%, rgba(255, 179, 71, 0.25) 85%, transparent 100%);
+  box-shadow: 0 0 10px rgba(255, 179, 71, 0.35);
 }
 
 .roadmap li {
@@ -1611,10 +1612,10 @@ button.morph-button--header:hover {
   width: 28px;
   height: 28px;
   place-items: center;
-  border: 1px solid #8a6b8d;
+  border: 1px solid rgba(255, 179, 71, 0.4);
   border-radius: 50%;
-  background: #150d1d;
-  color: #c6aecd;
+  background: #140d12;
+  color: #f5cf9e;
   font: 10px var(--mono);
 }
 
@@ -1622,14 +1623,15 @@ button.morph-button--header:hover {
   position: absolute;
   inset: 1px;
   border-radius: inherit;
-  box-shadow: 0 0 20px #a57bc866;
+  box-shadow: 0 0 20px rgba(255, 179, 71, 0.5);
   pointer-events: none;
 }
 
 .roadmap-done .roadmap-marker {
-  border-color: var(--ares-grow);
-  background: var(--ares-grow);
-  color: #18020e;
+  border-color: #FFB347;
+  background: linear-gradient(135deg, #FFB347 0%, #E6751C 100%);
+  color: #1a1208;
+  box-shadow: 0 0 16px rgba(255, 179, 71, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .roadmap-period {
@@ -1638,25 +1640,25 @@ button.morph-button--header:hover {
   align-items: center;
   gap: 10px;
   font: 11px var(--mono);
-  color: #ceb6d5;
+  color: #f5cf9e;
 }
 
 .roadmap-period small {
   padding: 3px 6px;
-  border: 1px solid #87668e40;
+  border: 1px solid rgba(255, 179, 71, 0.3);
   border-radius: 3px;
-  color: #bca4c5;
+  color: #d5baaa;
   font-size: 8px;
 }
 
 .roadmap-done .roadmap-period > span {
-  color: #ff81bd;
+  color: #FFC98A;
 }
 
 .roadmap-done .roadmap-period small {
-  border-color: #9fbe7a33;
-  color: var(--ares-bio);
-  background: #9fbe7a08;
+  border-color: rgba(255, 179, 71, 0.45);
+  color: #FFD4A3;
+  background: rgba(255, 179, 71, 0.12);
 }
 
 .roadmap h3 {
@@ -2619,8 +2621,9 @@ button.morph-button--header:hover {
     display: block;
     inset: 15px 10% auto 0;
     width: auto;
-    height: 1px;
-    background: linear-gradient(90deg, #d8558f, #68426a 30%, #68426a40);
+    height: 2px;
+    background: linear-gradient(90deg, #FFB347 0%, #E6751C 40%, rgba(255, 179, 71, 0.3) 80%, rgba(255, 179, 71, 0.08) 100%);
+    box-shadow: 0 0 10px rgba(255, 179, 71, 0.4);
   }
 
   .roadmap-marker {
@@ -2846,9 +2849,9 @@ button.morph-button--header:hover {
 /* ── Токеномика: модуль цикла просторнее, безопасные отступы от рамки ── */
 .tokenomics-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 0.75fr) minmax(0, 1.45fr);
-  gap: 24px;
-  align-items: start;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  gap: 36px;
+  align-items: center;
 }
 .cycle-panel {
   padding: 34px 40px 28px 40px;
@@ -3130,7 +3133,9 @@ button.morph-button--header:hover {
   font-size: 13px;
 }
 .pack-wallet-line span { opacity: 0.6; }
-.pack-buy-main {
+.pack-buy-main,
+button.pack-buy-main,
+.waitlist-form-area .pack-buy-main {
   width: 100%;
   display: inline-flex;
   align-items: center;
@@ -3139,9 +3144,9 @@ button.morph-button--header:hover {
   padding: 16px 24px;
   border: 1px solid var(--ares-btn-gold-border);
   border-radius: 8px;
-  background: var(--ares-btn-gold-bg);
-  background-color: #c1440e;
-  color: #FFFFFF;
+  background: var(--ares-btn-gold-bg) !important;
+  background-color: #c1440e !important;
+  color: #FFFFFF !important;
   font-weight: 700;
   font-size: 14px;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
@@ -3152,18 +3157,24 @@ button.morph-button--header:hover {
   transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease, filter 0.15s ease;
   -webkit-tap-highlight-color: transparent;
 }
-.pack-buy-main:hover:not(:disabled) {
+.pack-buy-main:hover:not(:disabled),
+button.pack-buy-main:hover:not(:disabled),
+.waitlist-form-area .pack-buy-main:hover:not(:disabled) {
   transform: translateY(-2px);
   filter: brightness(1.08);
   box-shadow: var(--ares-btn-gold-shadow-hover);
-  color: #FFFFFF;
+  color: #FFFFFF !important;
 }
-.pack-buy-main:active:not(:disabled) {
+.pack-buy-main:active:not(:disabled),
+button.pack-buy-main:active:not(:disabled),
+.waitlist-form-area .pack-buy-main:active:not(:disabled) {
   transform: translateY(2px);
   filter: brightness(0.96);
   box-shadow: var(--ares-btn-gold-shadow-active);
 }
-.pack-buy-main:disabled {
+.pack-buy-main:disabled,
+button.pack-buy-main:disabled,
+.waitlist-form-area .pack-buy-main:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   filter: grayscale(0.5);

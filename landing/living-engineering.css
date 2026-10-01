@@ -111,18 +111,29 @@
 
 .reactor-stage {
   position: relative;
-  width: min(100%, 490px);
-  aspect-ratio: 500 / 540;
+  width: min(100%, 340px);
+  height: 350px;
   margin-inline: auto;
   perspective: 1000px;
   isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .reactor-perspective {
   position: absolute;
-  inset: 0;
+  width: 500px;
+  height: 500px;
+  top: 50%;
+  left: 50%;
+  margin-top: -250px;
+  margin-left: -250px;
   transform-style: preserve-3d;
-  transform-origin: 50% 45%;
+  transform-origin: 50% 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .reactor-svg {
@@ -135,10 +146,10 @@
 .reactor-floor-shadow {
   position: absolute;
   z-index: -1;
-  left: 13%;
-  right: 13%;
-  bottom: 12%;
-  height: 13%;
+  left: 10%;
+  right: 10%;
+  bottom: 8%;
+  height: 12%;
   border-radius: 50%;
   background: radial-gradient(ellipse, #000B, transparent 72%);
 }
@@ -300,8 +311,12 @@
   }
 }
 
-/* ── CSS-диал реактора (SVG заменён слоями-градиентами) ── */
-.reactor-dial{position:relative;width:500px;height:500px;margin:0 auto}
+/* ── CSS-диал реактора (компактный марсианский прибор ARES-1) ── */
+.reactor-dial{position:relative;width:500px;height:500px;margin:0 auto;transform:scale(0.66);transform-origin:center center}
+@media (max-width: 480px) {
+  .reactor-stage { width: 280px; height: 290px; }
+  .reactor-dial { transform: scale(0.55); }
+}
 .reactor-field{position:absolute;inset:-8px;border-radius:50%;background:radial-gradient(circle,rgba(255,46,147,.18) 0%,rgba(130,79,255,.04) 70%,rgba(130,79,255,0) 100%)}
 .reactor-shell{position:absolute;inset:8px;border-radius:50%;background:#080811;border:1px solid #413447}
 .reactor-sectors{position:absolute;inset:54px;border-radius:50%;background:#20202C;border:1px solid #6C5A76;overflow:hidden}
