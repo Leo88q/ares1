@@ -222,6 +222,18 @@ export function deriveRate(rent0, rent1) {
   return rate;
 }
 
+/**
+ * Баланс аккаунта. В отличие от getMinimumBalanceForRentExemption, у getBalance
+ * результат обёрнут в RpcResponse: {context, value} — BigInt(object) падает
+ * («Cannot convert [object Object] to a BigInt»). Принимаем обе формы: заглушки
+ * и часть прокси отдают голое число.
+ */
+export async function fetchBalance(url, address) {
+  const result = await rpcCall(url, 'getBalance', [address]);
+  const value = result && typeof result === 'object' && 'value' in result ? result.value : result;
+  return BigInt(value);
+}
+
 export async function fetchRate(url) {
   const rent0 = BigInt(await rpcCall(url, 'getMinimumBalanceForRentExemption', [0]));
   const rent1 = BigInt(await rpcCall(url, 'getMinimumBalanceForRentExemption', [1]));
@@ -510,7 +522,7 @@ async function main() {
 
   let balanceLamports = null;
   if (deployer && !offline) {
-    balanceLamports = BigInt(await rpcCall(rpc, 'getBalance', [deployer]));
+    balanceLamports = await fetchBalance(rpc, deployer);
   }
   const result = await budget({ step, rent, fees, setupLamports: setup.total, reserveLamports, balanceLamports });
 

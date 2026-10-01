@@ -237,7 +237,8 @@ test('V6: онлайн-расчёт через RPC повторяет модел
       if (method === 'getMinimumBalanceForRentExemption') return ok((128 + params[0]) * RATE);
       if (method === 'getGenesisHash') return ok('stub-genesis');
       if (method === 'getSlot') return ok(1);
-      if (method === 'getBalance') return ok(10000000000);
+      // Форма Agave: getBalance отдаёт RpcResponse {context, value} (регрессия «[object Object]»).
+      if (method === 'getBalance') return ok({ context: { slot: 1 }, value: 10000000000 });
       if (method === 'getProgramAccounts') return ok([]);
       if (method === 'getAccountInfo') {
         const [address, options] = params;
@@ -263,6 +264,7 @@ test('V6: онлайн-расчёт через RPC повторяет модел
         const url = `http://127.0.0.1:${server.address().port}`;
         const run = await promisify(execFile)(process.execPath, [
           path.join(here, 'deploy-budget.mjs'), '--so-len', '971392', '--rpc', url,
+          '--deployer', 'HW4ekULcWHiVhDMfWpg8MwJwLqZHYskGMrue44WZ3vJ9',
           '--mode', 'upgrade', '--cur-cap', '715008', '--programdata-lamports', '3633119480', '--json',
         ]);
         const out = JSON.parse(run.stdout);

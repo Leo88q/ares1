@@ -123,7 +123,7 @@ process.exit(0);
         response.end(JSON.stringify({ jsonrpc: '2.0', id: 1, result }));
       };
       if (method === 'getMinimumBalanceForRentExemption') return ok(Number(rent(BigInt(params[0]))));
-      if (method === 'getBalance') return ok(state.payerBalance);
+      if (method === 'getBalance') return ok({ context: { slot: 1 }, value: state.payerBalance }); // форма Agave
       if (method === 'getGenesisHash') return ok('stub-genesis');
       if (method === 'getSlot') return ok(1);
       if (method === 'getAccountInfo') {

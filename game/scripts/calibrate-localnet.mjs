@@ -26,6 +26,7 @@ import path from 'node:path';
 import {
   CONSTANTS,
   computeFees,
+  fetchBalance,
   fetchProgramState,
   fetchRate,
   rpcCall,
@@ -123,12 +124,12 @@ async function main() {
     sh('solana', ['program', 'deploy', '--url', rpc, '--keypair', payerKeypair, '--program-id', programKeypair, '--max-len', maxLen.toString(), soPath], options);
 
   // ── Шаг 1: первый деплой, max_len = размер .so ─────────────────────────────
-  const before1 = BigInt(await rpcCall(rpc, 'getBalance', [payer]));
+  const before1 = await fetchBalance(rpc, payer);
   const deploy1 = deploy(soLen);
   const state1 = await readProgram(rpc, programId);
   const modelFees = computeFees(soLen, {});
   const locked = rent(CONSTANTS.PROGRAMDATA_META + soLen) + rent(CONSTANTS.PROGRAM_ACC);
-  const spent1 = before1 - BigInt(await rpcCall(rpc, 'getBalance', [payer]));
+  const spent1 = before1 - (await fetchBalance(rpc, payer));
   for (const check of checkDeploy({
     maxLen: soLen,
     pdSpace: state1.space,
@@ -173,10 +174,10 @@ async function main() {
   }
 
   if (autoExtended || extend?.ok) {
-    const before4 = BigInt(await rpcCall(rpc, 'getBalance', [payer]));
+    const before4 = await fetchBalance(rpc, payer);
     const deploy4 = deploy(maxLen2, { allowFailure: true });
     const state4 = await readProgram(rpc, programId);
-    const spent4 = before4 - BigInt(await rpcCall(rpc, 'getBalance', [payer]));
+    const spent4 = before4 - (await fetchBalance(rpc, payer));
     final = { ok: deploy4.ok, spent: spent4 };
     for (const check of checkDeploy({
       maxLen: maxLen2,
