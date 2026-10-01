@@ -179,22 +179,28 @@ if RPC_URL="$RPC" PROGRAM_ID="$PROGRAM_ID" DEPLOYER="$DEPLOYER" LEGACY_PROGRAM_I
     node scripts/legacy-recovery-audit.mjs >"$AUDIT_FILE" 2>"$AUDIT_ERR" \
     && jq -e '.schemaVersion == 1 and .readOnly == true and .ids != null' >/dev/null 2>&1 <"$AUDIT_FILE"; then
   LEGACY_SUMMARY=$(jq -c '{readOnly,rpc,cluster,ids,legacyProgram,legacyProgramData,
+    legacyProgramDataHistory:{measured:.legacyProgramDataHistory.measured,
+      countReturned:.legacyProgramDataHistory.countReturned,latest:.legacyProgramDataHistory.latest},
+    legacyProgramDataDeployment,
     legacyHistory:{measured:.legacyHistory.measured,countReturned:.legacyHistory.countReturned,
       latest:.legacyHistory.latest,oldestInPage:.legacyHistory.oldestInPage},
     legacyLatestTransaction,
     currentProgram:{exists:.currentProgram.exists,valid:.currentProgram.valid,
       programId:.currentProgram.programId,programDataAddress:.currentProgram.programDataAddress,
       lamports:.currentProgram.lamports,sol:.currentProgram.sol},
-    currentProgramAuthorityMatchesOperator,
+    currentProgramData,
+    currentProgramDataHistory:{measured:.currentProgramDataHistory.measured,
+      countReturned:.currentProgramDataHistory.countReturned,latest:.currentProgramDataHistory.latest},
+    currentProgramDataDeployment,currentProgramAuthorityMatchesOperator,
     currentProgramHistory:{measured:.currentProgramHistory.measured,
       countReturned:.currentProgramHistory.countReturned,latest:.currentProgramHistory.latest},
     recovery,provenance}' "$AUDIT_FILE")
-  BUFFER_SUMMARY=$(jq -c '.buffers | {measured,authority,count,lamports,sol,contextSlot,
+  BUFFER_SUMMARY=$(jq -c '.buffers | {measured,authority,count,lamports,sol,contextSlot,query,
     buffers,unexpectedMatches,relationNote}' "$AUDIT_FILE")
   WALLET_SUMMARY=$(jq -c '.operatorWallet | {address,balance,
     history:{measured:.history.measured,countReturned:.history.countReturned,
       latest:.history.latest,oldestInPage:.history.oldestInPage,recent:(.history.recent[:10])},
-    knownCurrentDeployment}' "$AUDIT_FILE")
+    repositoryRecordedTransaction}' "$AUDIT_FILE")
   note ares-legacy "$LEGACY_SUMMARY"
   note ares-buffers "$BUFFER_SUMMARY"
   note ares-operator-wallet "$WALLET_SUMMARY"
