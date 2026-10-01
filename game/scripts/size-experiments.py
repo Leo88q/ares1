@@ -39,11 +39,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 LIB = Path("programs/solana_potato/src/lib.rs")
 SO = Path("target/deploy/solana_potato.so")
-# Нестрипнутый ELF сборки build-sbf (в target/deploy лежит strip-копия).
-UNSTRIPPED = [
-    Path("target/sbf-solana-solana/release/solana_potato.so"),
-    Path("target/sbf-solana-solana/release/deps/solana_potato.so"),
-]
+# Нестрипнутый ELF сборки build-sbf (в target/deploy лежит strip-копия): путь
+# зависит от версии CLI и --arch, поэтому ищем самый крупный файл в target.
+ELF_PATTERNS = ["target/**/solana_potato.so", "target/**/solana_potato-*.so"]
 
 VARIANTS = {
     "z": {"drop_fns": [], "drop_mod": None, "build": "anchor", "anchor_args": [], "note": "контроль (anchor build, opt-level z)"},
@@ -167,18 +165,33 @@ def build_variant(variant: str) -> None:
     note("ares-exp-build", {"variant": variant, "cmd": " ".join(cmd), "optLevel": "z", "lockUnchanged": True})
 
 
+def find_elf() -> Path | None:
+    """Самый крупный ELF в target — нестрипнутая сборка (strip-копия меньше)."""
+    candidates = []
+    for pattern in ELF_PATTERNS:
+        candidates.extend(REPO.glob(pattern))
+    if not candidates:
+        return None
+    return max(candidates, key=lambda path: path.stat().st_size)
+
+
 def symbols_note(variant: str) -> None:
     """Разбивка `.text` по символам нестрипнутого ELF (топ-15 + суммы по префиксам)."""
-    elf = next((p for p in UNSTRIPPED if (REPO / p).exists()), None)
+    elf = find_elf()
     if elf is None:
         note("ares-symbols", {"variant": variant, "measured": False, "reason": "нестрипнутый ELF не найден"})
         return
-    nm = subprocess.run(["bash", "-lc", "command -v llvm-nm || find ~/.local/share/solana -name llvm-nm -type f | head -1"], cwd=REPO, text=True, capture_output=True)
+    nm = subprocess.run(
+        ["bash", "-lc", "command -v llvm-nm || find ~/.cache/solana ~/.local/share/solana -name 'llvm-nm*' -type f 2>/dev/null | head -1"],
+        cwd=REPO,
+        text=True,
+        capture_output=True,
+    )
     nm_path = nm.stdout.strip().splitlines()[-1] if nm.stdout.strip() else ""
     if not nm_path:
         note("ares-symbols", {"variant": variant, "measured": False, "reason": "llvm-nm не найден"})
         return
-    out = subprocess.run([nm_path, "--size-sort", "-C", "--print-size", str(REPO / elf)], cwd=REPO, text=True, capture_output=True)
+    out = subprocess.run([nm_path, "--size-sort", "-C", "--print-size", str(elf)], cwd=REPO, text=True, capture_output=True)
     entries = []
     for line in out.stdout.splitlines():
         parts = line.split(" ", 2)
@@ -186,7 +199,7 @@ def symbols_note(variant: str) -> None:
             entries.append((int(parts[1], 16), parts[2]))
     top = [{"bytes": size, "symbol": name[:120]} for size, name in entries[-15:][::-1]]
     total = sum(size for size, _ in entries)
-    payload = {"variant": variant, "elf": str(elf), "symbols": len(entries), "totalBytes": total, "top": top}
+    payload = {"variant": variant, "elf": str(elf.relative_to(REPO)), "elfBytes": elf.stat().st_size, "symbols": len(entries), "totalBytes": total, "top": top}
     note("ares-symbols", payload)
 
 
