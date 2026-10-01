@@ -14,9 +14,9 @@
  *     вызываемой»;
  *   - idl.json и автогенерированные types/** исключены — иначе весь ABI
  *     «используется» самим собой;
- *   - комментарии удаляются перед поиском, строки сохраняются; совпадение по
- *     границам идентификатора: `grant_reward` не засчитывается за
- *     `grant_reward_once`;
+ *   - комментарии удаляются перед поиском, строки сохраняются; ищутся snake,
+ *     camel/Pascal и `ix`+Pascal имена; совпадение по границам: `grant_reward`
+ *     не засчитывается за `grant_reward_once`;
  *   - имя встречается в строке/коде — это статическое упоминание, а не гарантия
  *     рабочего пути вызова; динамические и внешние вызовы не видны.
  *
@@ -65,6 +65,7 @@ function walk(entry) {
 }
 
 const camel = (name) => name.replace(/_([a-z0-9])/g, (_, ch) => ch.toUpperCase());
+const pascal = (name) => camel(name).replace(/^[a-z]/, (ch) => ch.toUpperCase());
 
 // Ignore comments without stripping quoted strings: an instruction name in a
 // discriminator string is useful evidence, while a prose comment is not a
@@ -150,7 +151,7 @@ for (const [label, entries] of Object.entries(BUCKETS)) {
 }
 
 const rows = instructions.map((name) => {
-  const needles = [name, camel(name)];
+  const needles = [...new Set([name, camel(name), pascal(name), `ix${pascal(name)}`])];
   const per = {};
   let total = 0;
   const where = new Set();
