@@ -190,6 +190,31 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /** Баланс плательщика по confirmed: finalized на localnet отстаёт. */
 const balanceAt = (rpc, address, commitment = 'confirmed') => fetchBalance(rpc, address, commitment);
 
+/**
+ * Буферы деплоера: аккаунты loader-v3 с тегом Buffer(1) и authority = плательщик.
+ * Каждый держит залог (при авто-буфере CLI — как rent(45 + len)); успешный
+ * деплой буфер закрывает, а неудачный — оставляет висеть. Без их учёта расход
+ * баланса выглядит как «комиссии» (наблюдено: fees_underestimated на 8fc8d25).
+ */
+async function fetchPayerBuffers(rpc, payer) {
+  const accounts = await rpcCall(rpc, 'getProgramAccounts', [
+    'BPFLoaderUpgradeab1e11111111111111111111111',
+    {
+      encoding: 'base64',
+      filters: [{ memcmp: { offset: 4, bytes: payer } }],
+    },
+  ]);
+  const buffers = [];
+  for (const entry of accounts ?? []) {
+    const raw = Buffer.from(entry.account.data[0], 'base64');
+    if (raw.length < 4 || raw.readUInt32LE(0) !== 1) continue; // не Buffer
+    buffers.push({ address: entry.pubkey, lamports: BigInt(entry.account.lamports) });
+  }
+  buffers.sort((a, b) => (a.lamports === b.lamports ? 0 : a.lamports > b.lamports ? -1 : 1));
+  const lamports = buffers.reduce((sum, buffer) => sum + buffer.lamports, 0n);
+  return { count: buffers.length, lamports, addresses: buffers.map((buffer) => buffer.address) };
+}
+
 /** Обе точки чтения в компактном виде — печатаются в payload. */
 async function snapshot(rpc, programId) {
   const [confirmed, finalized] = await Promise.all([
@@ -402,8 +427,14 @@ async function main() {
   // оценивает стоимость одной операции, поэтому сверяем с её запасом на три операции.
   const spentTotal = before1 - (await balanceAt(rpc, payer));
   const lockedFinal = state4.pd.lamports + state4.programLamports;
-  // Из общего расхода вычитаем залог (он остаётся на аккаунтах, не «сгорает»).
-  const feesMeasured = spentTotal - lockedFinal;
+  const buffers = await fetchPayerBuffers(rpc, payer);
+  // Из общего расхода вычитаем ВСЁ, что осталось на аккаунтах (не «сгорает»):
+  // залог программы и залоги буферов. Незакрытый буфер — частый случай: CLI
+  // оставляет его после провалившегося апгрейда (его возвращают вручную).
+  const feesMeasured = spentTotal - lockedFinal - buffers.lamports;
+  if (buffers.count > 0) {
+    notes.push(`буферы плательщика: ${buffers.count} шт. держат ${buffers.lamports} лампортов — их залог исключён из комиссий (возвращается закрытием буфера)`);
+  }
   const modelFees = computeFees(soLen2, {}) * 3n + computeFees(soLen, {});
   // null — расход не сошёлся с залогом (баланс двигался помимо наших шагов):
   // честно помечаем «не измерено», а не подгоняем вердикт.
@@ -428,7 +459,7 @@ async function main() {
     authority: state1.pd.authority,
     checks,
     pass,
-    fees: { measured: feesMeasured, lockedFinal, modelAllowance: modelFees, modelCovers: feesWithinModel },
+    fees: { measured: feesMeasured, lockedFinal, buffers, modelAllowance: modelFees, modelCovers: feesWithinModel },
     extend,
     states: { afterNew: snapshotNew, afterExtend: extend?.states ?? null, afterUpgrade: snapshotUpgrade },
     notes,

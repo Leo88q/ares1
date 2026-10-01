@@ -26,6 +26,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const RATE = 5080n; // ставка только в заглушке: живьём приходит из RPC (R3)
 const rent = (n) => (CONSTANTS.RENT_OVERHEAD + n) * RATE;
 const FAKE_FEES = 30000; // меньше оценки модели (computeFees покрывает)
+const LOADER_V3 = 'BPFLoaderUpgradeab1e11111111111111111111111';
 test('safeDiagnostic: аннотация не уносит seed-фразу промежуточного буфера (R11)', () => {
   const noisy = [
     'solana program deploy --url http://127.0.0.1:8899 --max-len 971392 target/deploy/solana_potato.so: ============',
@@ -130,7 +131,22 @@ if (args[0] === 'program' && args[1] === 'deploy') {
   if (state.program) {
     // Апгрейд: loader-v3 (4.2.2) НЕ расширяет ProgramData сам — если новый
     // размер не влезает, ошибка; auto-extend выключен флагом --no-auto-extend.
-    if (BigInt(state.program.pdSpace) < target) { console.error('Error: ProgramData account is too small to hold the program'); process.exit(1); }
+    // Буфер CLI создаёт ДО проверки размера, поэтому провал апгрейда оставляет
+    // буфер висеть с залогом (как в CI 8fc8d25) — успех буфер закрывает.
+    if (BigInt(state.program.pdSpace) < target) {
+      const bufferLamports = Number(rent(target));
+      // Каждая неудачная попытка — свой буфер (CLI создаёт новый ключ): они
+      // остаются висеть до ручного закрытия, и все обязаны попасть в расчёт.
+      state.buffers = [...(state.buffers ?? []), { address: process.env.FAKE_BUFFER_PUB + '/' + (state.buffers?.length ?? 0), lamports: bufferLamports }];
+      state.payerBalance -= bufferLamports;
+      save();
+      console.error('Error: ProgramData account is too small to hold the program');
+      process.exit(1);
+    }
+    if (state.buffers && state.buffers.length > 0) {
+      state.payerBalance += state.buffers.reduce((sum, buffer) => sum + buffer.lamports, 0);
+      state.buffers = [];
+    }
     state.payerBalance -= ${FAKE_FEES}; save(); console.log('Program Id: ' + state.program.id); process.exit(0);
   }
   const pdSpace = Number(target);
@@ -147,6 +163,11 @@ if (args[0] === 'program' && args[1] === 'extend') {
   // confirmed, и на localnet рост видно не мгновенно — заглушка это повторяет:
   // состояние обновится только через FAKE_EXTEND_SLOW_MS (проверка ожидания).
   const additional = BigInt(args[3]); // solana program extend <ID> <BYTES>
+  if (process.env.FAKE_EXTEND_NOOP === '1') {
+    // Как в прогоне 8fc8d25: команда отчитывается об успехе, аккаунт не растёт.
+    console.log('Extended Program Id ' + state.program.id + ' by ' + args[3] + ' bytes');
+    process.exit(0);
+  }
   const pdSpace = BigInt(state.program.pdSpace) + additional;
   const lamports = rent(pdSpace);
   state.payerBalance -= Number(lamports) - state.program.pdLamports;
@@ -197,6 +218,20 @@ process.exit(0);
         delete state.pendingExtend;
         writeFileSync(statePath, JSON.stringify(state));
       }
+      if (method === 'getProgramAccounts') {
+        const buffers = (state.buffers ?? []).map((buffer) => ({
+          pubkey: buffer.address,
+          account: {
+            lamports: buffer.lamports,
+            // Тег Buffer(1) + authority-заглушка: скрипт обязан отфильтровать буферы по тегу.
+            data: [Buffer.concat([Buffer.from([1, 0, 0, 0]), Buffer.alloc(32, 0x21)]).toString('base64'), 'base64'],
+            owner: LOADER_V3,
+            executable: false,
+            space: 37 + 11240,
+          },
+        }));
+        return ok(buffers);
+      }
       if (method === 'getAccountInfo') {
         // Явный commitment обязателен (по умолчанию RPC — finalized: именно эта
         // ловушка дала «успех без эффекта» в прогоне 8fc8d25). Какие именно
@@ -229,6 +264,7 @@ process.exit(0);
     FAKE_PROGRAM_PUB: programPub,
     FAKE_PAYER_PUB: payerPub,
     FAKE_PD_PUB: pdPub,
+    FAKE_BUFFER_PUB: base58(Buffer.alloc(32, 0x44)),
     FAKE_FAIL_FIRST: '1',
     FAKE_NOISY: '1',
     FAKE_EXTEND_SLOW_MS: '800',
@@ -251,6 +287,7 @@ process.exit(0);
   // Апгрейд без extend обязан упасть (модель §5.3), затем extend и апгрейд — ок.
   assert.equal(payload.steps.find((step) => step.step === 'upgrade-no-extend').ok, false);
   assert.equal(payload.steps.find((step) => step.step === 'upgrade-no-extend').fitsInCurrent, false);
+  assert.equal(payload.fees.buffers.count, 0, JSON.stringify(payload.fees)); // успешный апгрейд закрыл буфер
   assert.equal(payload.steps.some((step) => step.step === 'extend' && step.ok === true), true);
   assert.equal(payload.steps.find((step) => step.step === 'upgrade').ok, true);
   // Первая попытка деплоя упала (заглушка), скрипт продолжил на буфере.
@@ -258,9 +295,12 @@ process.exit(0);
   assert.equal(payload.notes.some((note) => note.includes('попытка 1 не прошла')), true);
   assert.equal(payload.notes.some((note) => note.includes('CLI напечатал seed-фразу')), true);
   assert.equal(payload.notes.some((note) => /[a-z]{3,8}( [a-z]{3,8}){11}/.test(note)), false, 'seed-фраза не должна попадать в заметки');
-  // Комиссии: модель обязана не занижать измеренный расход (залог вычтен).
+  // Комиссии: модель обязана не занижать измеренный расход (из расхода вычтен
+  // залог программы; буферы успешный апгрейд закрывает — их залог 0).
+  assert.equal(payload.fees.buffers.lamports, '0', JSON.stringify(payload.fees));
   assert.equal(typeof payload.fees.measured, 'string');
   assert.equal(payload.fees.modelCovers, true, JSON.stringify(payload.fees));
+  assert.equal(payload.pass, true, JSON.stringify(payload.checks));
 
   // CLI extend расширяет ProgramData; рост проверяется по аккаунту (confirmed),
   // а не по отчёту команды: прогон 8fc8d25 показал «успех» без движения из-за
@@ -278,6 +318,37 @@ process.exit(0);
   assert.equal(payload.states.afterExtend.after.confirmed.space, String(CONSTANTS.PROGRAMDATA_META + 1000n + 10240n));
   assert.equal(payload.states.afterExtend.after.confirmed.space, payload.states.afterExtend.after.finalized.space);
   assert.equal(payload.states.afterUpgrade.confirmed.space, String(CONSTANTS.PROGRAMDATA_META + 1000n + 10240n));
+
+  // Случай 8fc8d25: extend не вырастил аккаунт, финальный апгрейд не влез и
+  // оставил буфер. Калибровка обязана (а) не пройти по чекам, (б) учесть залог
+  // буфера — иначе ложный fees_underestimated, как в том прогоне.
+  const stateNoExtend = path.join(workdir, 'state-noextend.json');
+  writeFileSync(stateNoExtend, JSON.stringify({ payer: payerPub, payerBalance: 50_000_000_000, program: null }));
+  statePath = stateNoExtend;
+  const noExtendEnv = { ...env, FAKE_STATE: stateNoExtend, FAKE_EXTEND_NOOP: '1' };
+  activeEnv = noExtendEnv;
+  const server4 = createServer(handleRequest);
+  await new Promise((resolve) => server4.listen(0, '127.0.0.1', resolve));
+  const noExtend = await promisify(execFile)(process.execPath, [
+    path.join(here, 'calibrate-localnet.mjs'),
+    '--so', soPath,
+    '--so2', so2Path,
+    '--wait-ms', '2000',
+    '--rpc', `http://127.0.0.1:${server4.address().port}`,
+  ], { env: noExtendEnv, maxBuffer: 8 * 1024 * 1024 }).catch((error) => ({ failed: error }));
+  server4.close();
+  statePath = mainStatePath;
+  activeEnv = env;
+  assert.ok(noExtend.failed, 'без роста ProgramData калибровка обязана упасть');
+  assert.equal(noExtend.failed.code, 2);
+  const noExtendPayload = payloadFrom(String(noExtend.failed.stdout));
+  assert.equal(noExtendPayload.extend.ok, false, JSON.stringify(noExtendPayload.extend));
+  // 1 буфер от «upgrade-no-extend» + по одному на каждую из 3 попыток апгрейда.
+  assert.equal(noExtendPayload.fees.buffers.count, 4, JSON.stringify(noExtendPayload.fees));
+  const bufferUnit = (CONSTANTS.RENT_OVERHEAD + CONSTANTS.PROGRAMDATA_META + 1000n + 10240n) * RATE;
+  assert.equal(noExtendPayload.fees.buffers.lamports, String(bufferUnit * 4n), JSON.stringify(noExtendPayload.fees));
+  assert.equal(noExtendPayload.fees.modelCovers, true, JSON.stringify(noExtendPayload.fees));
+  assert.match(String(noExtend.failed.stdout), /буферы плательщика/);
 
   // Провал airdrop обязан дать аннотацию ares-calibrate-error и код 2, а не
   // молчаливый ReferenceError в catch (аннотации — единственный канал из CI).
