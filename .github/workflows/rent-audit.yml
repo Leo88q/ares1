@@ -1,0 +1,145 @@
+name: Rent audit
+
+# Измерительный контур стоимости деплоя (reports/rent-audit/). Отдельный файл:
+# существующие workflow не правим (R13). Только чтение devnet; ключей, секретов
+# и транзакций здесь нет (R2). Наружу уходят только публичные данные (R11).
+#
+# workflow_dispatch срабатывает лишь для файлов в default-ветке, поэтому
+# основной путь — push в main/arena/** и pull_request по списку paths.
+
+on:
+  push:
+    branches: [main, 'arena/**']
+    paths:
+      - 'game/programs/**'
+      - 'game/Cargo.toml'
+      - 'game/Anchor.toml'
+      - 'game/scripts/build-program.sh'
+      - 'game/scripts/ci-metrics.py'
+      - 'game/scripts/probe-devnet.sh'
+      - 'game/scripts/deploy-budget.mjs'
+      - 'game/scripts/rent-audit.config.json'
+      - '.github/workflows/rent-audit.yml'
+  pull_request:
+    paths:
+      - 'game/programs/**'
+      - 'game/Cargo.toml'
+      - 'game/Anchor.toml'
+      - 'game/scripts/build-program.sh'
+      - 'game/scripts/ci-metrics.py'
+      - 'game/scripts/probe-devnet.sh'
+      - 'game/scripts/deploy-budget.mjs'
+      - 'game/scripts/rent-audit.config.json'
+      - '.github/workflows/rent-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rent-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOLANA_VERSION: '4.2.2'
+  ANCHOR_VERSION: '0.31.2'
+
+defaults:
+  run:
+    working-directory: game
+    shell: bash
+
+jobs:
+  # Чтение состояния кластера: ставка rent, ProgramData, баланс деплоера,
+  # буферы, легаси-программа, счётчики аккаунтов игры. Без ключей.
+  probe-devnet:
+    name: "Rent audit: probe devnet"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Solana CLI
+        run: |
+          curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
+          sh /tmp/solana-install.sh
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Probe devnet (read-only)
+        run: ./scripts/probe-devnet.sh
+
+  # Матрица размеров `.so` по opt-level. Сборка тем же скриптом, что в ci.yml
+  # (build-program.sh запрещает любое изменение Cargo.lock). Переменная профиля
+  # Cargo.lock не меняет: CARGO_PROFILE_RELEASE_OPT_LEVEL переопределяет
+  # [profile.release] из Cargo.toml только на время сборки.
+  size-matrix:
+    name: "Rent audit: size ${{ matrix.opt }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        opt: [base, '3', s, z]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.97.1'
+      - name: Install pinned Solana CLI
+        run: |
+          curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
+          sh /tmp/solana-install.sh
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache/restore@v4
+        id: anchor-cache
+        with:
+          path: ~/.cargo/bin/anchor
+          key: anchor-cli-${{ runner.os }}-${{ runner.arch }}-rust-1.97.1-${{ env.ANCHOR_VERSION }}
+      - name: Install pinned Anchor CLI
+        run: |
+          if ! command -v anchor >/dev/null || [[ "$(anchor --version | awk '{print $2}')" != "$ANCHOR_VERSION" ]]; then
+            cargo install anchor-cli --version "=$ANCHOR_VERSION" --locked
+          fi
+      - uses: actions/cache/save@v4
+        if: steps.anchor-cache.outputs.cache-hit != 'true'
+        with:
+          path: ~/.cargo/bin/anchor
+          key: ${{ steps.anchor-cache.outputs.cache-primary-key }}
+      - name: Verify toolchain
+        run: |
+          test "$(rustc --version | awk '{print $2}')" = '1.97.1'
+          test "$(solana --version | awk '{print $2}')" = "$SOLANA_VERSION"
+          test "$(anchor --version | awk '{print $2}')" = "$ANCHOR_VERSION"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: game
+          cache-on-failure: true
+          key: solana-${{ env.SOLANA_VERSION }}-anchor-${{ env.ANCHOR_VERSION }}-opt-${{ matrix.opt }}
+      - name: Build program (opt-level ${{ matrix.opt }})
+        env:
+          OPT: ${{ matrix.opt }}
+        run: |
+          # `base` — как в Cargo.toml (неявный opt-level=3): контроль, что env-var
+          # действительно управляет профилем, — совпадение sha256 с вариантом `3`.
+          if [ "$OPT" = "base" ]; then
+            ./scripts/build-program.sh
+          else
+            CARGO_PROFILE_RELEASE_OPT_LEVEL="$OPT" ./scripts/build-program.sh
+          fi
+      - name: Program size metrics (annotation ares-so-${{ matrix.opt }})
+        if: ${{ !cancelled() }}
+        run: python3 scripts/ci-metrics.py --variant '${{ matrix.opt }}'
+      - name: Record lockfile unchanged
+        if: ${{ !cancelled() }}
+        run: |
+          git diff --exit-code -- Cargo.lock || {
+            echo '::error title=ares-lockfile::Cargo.lock изменился при сборке — измерение недействительно'
+            exit 1
+          }
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: so-${{ matrix.opt }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            game/target/deploy/solana_potato.so
+            game/target/idl/solana_potato.json

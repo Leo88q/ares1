@@ -1,0 +1,30 @@
+# Окружение агента (Этап 0.1) — 2026-10-01T15:39:05Z
+## git
+03ec833d1b38b952fe07e49f09ffe23c1db9162d
+arena/01a0f81d-ares1
+?? reports/rent-audit/
+## gh
+github.com
+  ✓ Logged in to github.com as arena-ai-coding-agent[bot] (GH_TOKEN)
+  ✓ Git operations for github.com configured to use https protocol.
+  ✓ Token: [REDACTED]
+## tools
+solana: ОТСУТСТВУЕТ
+anchor: ОТСУТСТВУЕТ
+cargo: ОТСУТСТВУЕТ
+rustc: ОТСУТСТВУЕТ
+node: /usr/local/bin/node
+yarn: /usr/local/bin/yarn
+jq: /usr/bin/jq
+python3: /usr/bin/python3
+readelf: /usr/bin/readelf
+gh: /usr/bin/gh
+curl: /usr/bin/curl
+node: v22.22.3
+python3: Python 3.11.2
+jq: jq-1.6
+## network
+curl: (35) OpenSSL SSL_connect: SSL_ERROR_SYSCALL in connection to api.devnet.solana.com:443 
+api.devnet.solana.com: http=000
+api.devnet.solana.com: НЕТ ДОСТУПА (curl exit 35)
+Leo88q/ares1 default_branch=main

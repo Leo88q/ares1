@@ -1,0 +1,9 @@
+{
+  "comment": "Публичный конфиг измерительного контура rent-audit (reports/rent-audit/). Секретов нет: только публичные адреса и URL. Обновляется вручную при смене программы.",
+  "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+  "deployer": "HW4ekULcWHiVhDMfWpg8MwJwLqZHYskGMrue44WZ3vJ9",
+  "rpc": "https://api.devnet.solana.com",
+  "legacyProgramId": "",
+  "legacyProgramIdNote": "Старая devnet-программа 48D2… (game/README.md) — полного адреса в репозитории нет (вопрос Q1). Пустая строка = проба ares-legacy печатает НЕ ИЗМЕРЕНО.",
+  "growthHeadroomBytes": 0
+}
