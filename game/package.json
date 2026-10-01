@@ -18,7 +18,7 @@
     "test:unit": "cargo test -p solana_potato --lib",
     "test:guards": "node --test scripts/security-guards.test.mjs",
     "test:deploy-budget": "node --test scripts/deploy-budget.test.mjs scripts/calibrate-localnet.test.mjs",
-    "test:rent-tools": "node --test scripts/cu-profile.test.mjs scripts/instruction-coverage.test.mjs scripts/legacy-recovery-audit.test.mjs",
+    "test:rent-tools": "node --test scripts/buffer-inventory.test.mjs scripts/warm-start-reclaim.test.mjs scripts/cu-profile.test.mjs scripts/instruction-coverage.test.mjs scripts/legacy-recovery-audit.test.mjs",
     "test:mutation": "node scripts/mutation-probe.mjs",
     "check:unicode": "node scripts/check-invisible-unicode.mjs",
     "test:unicode": "node --test scripts/check-invisible-unicode.test.mjs",
