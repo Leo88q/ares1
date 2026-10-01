@@ -11,12 +11,34 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONSTANTS, base58 } from './deploy-budget.mjs';
-import { checkDeploy, checkExtend, verdict } from './calibrate-localnet.mjs';
+import { checkDeploy, checkExtend, safeDiagnostic, verdict } from './calibrate-localnet.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const RATE = 5080n; // ставка только в заглушке: живьём приходит из RPC (R3)
 const rent = (n) => (CONSTANTS.RENT_OVERHEAD + n) * RATE;
 const FAKE_FEES = 30000; // меньше оценки модели (computeFees покрывает)
+
+test('safeDiagnostic: аннотация не уносит seed-фразу промежуточного буфера (R11)', () => {
+  const noisy = [
+    'solana program deploy --url http://127.0.0.1:8899 --max-len 971392 target/deploy/solana_potato.so: ============',
+    "Recover the intermediate account's ephemeral keypair file with `solana-keygen recover` and the following 12-word seed phrase:",
+    'abandon ability able about above absent absorb abstract absurd abuse access accident',
+    'To resume a deploy, pass the recovered keypair as the [BUFFER_SIGNER]',
+  ].join('\n');
+  const safe = safeDiagnostic(noisy);
+  assert.equal(/[a-z]{3,8}( [a-z]{3,8}){11}/.test(safe), false, safe);
+  assert.equal(safe.includes('Recover the intermediate'), false, safe);
+  assert.match(safe, /solana program deploy/);
+  assert.equal(
+    safeDiagnostic('Error: Max length specified not large enough to accommodate desired program\nnext line'),
+    'Error: Max length specified not large enough to accommodate desired program | next line',
+  );
+  // Фраза в одну строку с текстом тоже вырезается.
+  assert.equal(
+    safeDiagnostic('seed: abandon ability able about above absent absorb abstract absurd abuse access accident ok').includes('abandon ability'),
+    false,
+  );
+});
 
 test('калибровка: дельты залога считаются на BigInt и не прячут расхождение', () => {
   const maxLen = 1000n;
@@ -55,7 +77,9 @@ test('калибровка: сквозной прогон (new → рост бе
   const keygenStub = `#!/usr/bin/env node
 const fs = require('node:fs');
 const args = process.argv.slice(2);
-if (args[0] === 'new') { fs.writeFileSync(args[args.indexOf('-o') + 1], '[]'); process.exit(0); }
+const outIndex = args.indexOf('-o');
+if (args[0] === 'new') { fs.writeFileSync(args[outIndex + 1], '[]'); process.exit(0); }
+if (args[0] === 'recover') { fs.writeFileSync(args[outIndex + 1], fs.readFileSync(0, 'utf8')); process.exit(0); }
 if (args[0] === 'pubkey') {
   const file = args[1];
   console.log(file.includes('program') ? process.env.FAKE_PROGRAM_PUB : process.env.FAKE_PAYER_PUB);
@@ -73,6 +97,14 @@ const args = process.argv.slice(2);
 const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : null; };
 if (args[0] === 'airdrop') { state.payerBalance += 50_000_000_000; save(); console.log('Airdrop ok'); process.exit(0); }
 if (args[0] === 'program' && args[1] === 'deploy') {
+  // Первая попытка падает и печатает 12 слов буфера — как CLI при исчерпании
+  // попыток подписи; скрипт обязан восстановить ключ и продолжить на буфере.
+  if (process.env.FAKE_FAIL_FIRST === '1' && process.env.FAKE_ATTEMPT_FILE) {
+    const file = process.env.FAKE_ATTEMPT_FILE;
+    let n = 0; try { n = Number(fs.readFileSync(file, 'utf8')); } catch {}
+    n += 1; fs.writeFileSync(file, String(n));
+    if (n === 1) { console.log('abandon ability able about above absent absorb abstract absurd abuse access accident'); process.exit(1); }
+  }
   const maxLen = BigInt(flag('--max-len'));
   const soLen = BigInt(fs.statSync(args[args.length - 1]).size);
   if (maxLen < soLen) { console.error('Error: Max length specified not large enough to accommodate desired program'); process.exit(1); }
@@ -151,6 +183,8 @@ process.exit(0);
     FAKE_PROGRAM_PUB: programPub,
     FAKE_PAYER_PUB: payerPub,
     FAKE_PD_PUB: pdPub,
+    FAKE_FAIL_FIRST: '1',
+    FAKE_ATTEMPT_FILE: path.join(workdir, 'deploy-attempts'),
     ANNOTATE: '0',
   };
   const run = await promisify(execFile)(process.execPath, [
@@ -165,6 +199,9 @@ process.exit(0);
   assert.equal(payload.autoExtended, false); // без extend рост отклоняется (SIMD-0433 выключена)
   assert.equal(payload.checks.every((check) => check.delta === '0'), true, JSON.stringify(payload.checks));
   assert.equal(payload.steps.some((step) => step.step === 'extend' && step.ok === true), true);
+  // Первая попытка деплоя упала (заглушка), скрипт продолжил на буфере.
+  assert.equal(payload.steps.find((step) => step.step === 'new').attempt, 2, JSON.stringify(payload.notes));
+  assert.equal(payload.notes.some((note) => note.includes('продолжаем на буфере')), true);
 
   // Негативный контроль: +1 лампорт на extend обязан провалить калибровку
   writeFileSync(statePath, JSON.stringify({ payer: payerPub, payerBalance: 50_000_000_000, program: null }));
