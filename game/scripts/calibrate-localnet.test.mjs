@@ -68,7 +68,8 @@ test('калибровка: сквозной прогон (new → рост бе
   const workdir = mkdtempSync(path.join(os.tmpdir(), 'calib-test-'));
   const bindir = path.join(workdir, 'bin');
   mkdirSync(bindir);
-  const statePath = path.join(workdir, 'state.json');
+  const mainStatePath = path.join(workdir, 'state.json');
+  let statePath = mainStatePath;
   const payerPub = base58(Buffer.alloc(32, 0x21));
   const programPub = base58(Buffer.alloc(32, 0x22));
   const pdPub = base58(Buffer.alloc(32, 0x33));
@@ -95,7 +96,10 @@ const state = JSON.parse(fs.readFileSync(process.env.FAKE_STATE, 'utf8'));
 const save = () => fs.writeFileSync(process.env.FAKE_STATE, JSON.stringify(state));
 const args = process.argv.slice(2);
 const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : null; };
-if (args[0] === 'airdrop') { state.payerBalance += 50_000_000_000; save(); console.log('Airdrop ok'); process.exit(0); }
+if (args[0] === 'airdrop') {
+  if (process.env.FAKE_AIRDROP_FAIL === '1') { console.error('airdrop: заглушка отказала'); process.exit(1); }
+  state.payerBalance += 50_000_000_000; save(); console.log('Airdrop ok'); process.exit(0);
+}
 if (args[0] === 'program' && args[1] === 'deploy') {
   // Первая попытка падает и печатает 12 слов буфера — как CLI при исчерпании
   // попыток подписи; скрипт обязан восстановить ключ и продолжить на буфере.
@@ -202,6 +206,25 @@ process.exit(0);
   // Первая попытка деплоя упала (заглушка), скрипт продолжил на буфере.
   assert.equal(payload.steps.find((step) => step.step === 'new').attempt, 2, JSON.stringify(payload.notes));
   assert.equal(payload.notes.some((note) => note.includes('продолжаем на буфере')), true);
+
+  // Провал airdrop обязан дать аннотацию ares-calibrate-error и код 2, а не
+  // молчаливый ReferenceError в catch (аннотации — единственный канал из CI).
+  const stateEmpty = path.join(workdir, 'state-empty.json');
+  writeFileSync(stateEmpty, JSON.stringify({ payer: payerPub, payerBalance: 0, program: null }));
+  statePath = stateEmpty; // заглушка-сервер читает файл из этой переменной
+  const server3 = createServer(handleRequest);
+  await new Promise((resolve) => server3.listen(0, '127.0.0.1', resolve));
+  const noFunds = await promisify(execFile)(process.execPath, [
+    path.join(here, 'calibrate-localnet.mjs'),
+    '--so', soPath,
+    '--rpc', `http://127.0.0.1:${server3.address().port}`,
+  ], { env: { ...env, FAKE_STATE: stateEmpty, FAKE_AIRDROP_FAIL: '1' }, maxBuffer: 8 * 1024 * 1024 }).catch((error) => ({ failed: error }));
+  server3.close();
+  assert.ok(noFunds.failed, 'без средств калибровка обязана упасть');
+  assert.equal(noFunds.failed.code, 2);
+  assert.match(String(noFunds.failed.stdout), /ares-calibrate-error::/);
+  assert.match(String(noFunds.failed.stdout), /airdrop не пополнил плательщика/);
+  statePath = mainStatePath; // возвращаем сервер к основному состоянию
 
   // Негативный контроль: +1 лампорт на extend обязан провалить калибровку
   writeFileSync(statePath, JSON.stringify({ payer: payerPub, payerBalance: 50_000_000_000, program: null }));
