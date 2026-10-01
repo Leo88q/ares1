@@ -17,6 +17,7 @@ on:
       - 'game/scripts/build-program.sh'
       - 'game/scripts/ci-metrics.py'
       - 'game/scripts/probe-devnet.sh'
+      - 'game/scripts/probe-features.mjs'
       - 'game/scripts/deploy-budget.mjs'
       - 'game/scripts/calibrate-localnet.mjs'
       - 'game/scripts/rent-audit.config.json'
@@ -29,6 +30,7 @@ on:
       - 'game/scripts/build-program.sh'
       - 'game/scripts/ci-metrics.py'
       - 'game/scripts/probe-devnet.sh'
+      - 'game/scripts/probe-features.mjs'
       - 'game/scripts/deploy-budget.mjs'
       - 'game/scripts/calibrate-localnet.mjs'
       - 'game/scripts/rent-audit.config.json'
@@ -67,6 +69,11 @@ jobs:
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
       - name: Probe devnet (read-only)
         run: ./scripts/probe-devnet.sh
+      # Состояние SIMD-фич, от которых зависит вердикт модели §5: SIMD-0431
+      # (минимальный extend), SIMD-0433 (ProgramData = длина ELF), SIMD-0500
+      # (запрет SBPF v0-v2 при деплое). Одна аннотация ares-features.
+      - name: SIMD features (read-only, annotation ares-features)
+        run: node scripts/probe-features.mjs
       # SETUP_ONCHAIN: разовые расходы init-onchain по факту кластера (какие
       # аккаунты уже существуют). Заодно — smoke-тест RPC-пути калькулятора.
       - name: SETUP_ONCHAIN (init-onchain accounts, measured)
