@@ -87,15 +87,19 @@ function sh(command, args, { allowFailure = false, input } = {}) {
  * берём только первые безопасные строки ошибки.
  */
 export function safeDiagnostic(text, limit = 400) {
+  // Строки блока восстановления ВЫБРАСЫВАЕМ, а не обрываем на них вывод: CLI
+  // печатает причину сбоя до блока, и обрыв прятал диагностику (см. коммиты
+  // «диагностика пуста» в reports/rent-audit/00-baseline.md).
   const lines = String(text)
     .split('\n')
     .map((line) => line.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((line) => !/^=+$/.test(line))
+    .filter((line) => !/recover the intermediate|seed phrase|buffer_signer/i.test(line))
+    .filter((line) => !/^[a-z]{3,8}( [a-z]{3,8}){11}$/.test(line) && !/\b[a-z]{3,8}(?: [a-z]{3,8}){11,}\b/.test(line));
   const kept = [];
   let used = 0;
   for (const line of lines) {
-    if (/^=+$/.test(line) || /recover the intermediate|seed phrase|buffer_signer/i.test(line)) break;
-    if (/^[a-z]{3,8}( [a-z]{3,8}){11}$/.test(line)) continue;
     kept.push(line);
     used += line.length;
     if (kept.length >= 12 || used >= limit) break;
@@ -195,8 +199,9 @@ async function main() {
     for (attempt = 1; attempt <= attempts; attempt++) {
       last = sh('solana', deployArgs(maxLen), { allowFailure: true });
       if (last.ok) return { ...last, attempt };
-      const detail = safeDiagnostic(last.detail ?? `${last.stderr}\n${last.stdout}`, 2500);
-      notes.push(`деплой: попытка ${attempt} не прошла — ${detail}`);
+      const raw = `${last.stderr ?? ''}${last.stdout ?? ''}`;
+      const detail = safeDiagnostic(last.detail ?? raw, 2500);
+      notes.push(`деплой: попытка ${attempt} не прошла (код ${last.code}, вывод ${raw.length} Б): ${detail}`);
       if (attempt === attempts) break;
       const words = `${last.stderr}\n${last.stdout}`
         .split('\n')
