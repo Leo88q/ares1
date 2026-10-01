@@ -54,7 +54,7 @@ function MarketScreenInner() {
  }), [baseOrders, fPriceMin, fPriceMax, fAmtMin, fAmtMax])
 
  return (
-  <div style={{ padding: 20, paddingBottom: 140 }}>
+  <div className="main-screen-container">
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
      <div>

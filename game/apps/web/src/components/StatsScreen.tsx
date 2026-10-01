@@ -209,14 +209,14 @@ function StatsScreenInner() {
    return <ErrorState message={loadError} onRetry={() => void load()} />
   }
   return (
-   <div style={{ padding: 20, paddingBottom: 140 }}>
+   <div className="main-screen-container">
     <LoadingState label={ready ? t('Загрузка журнала…') : t('Ждём подключения к блокчейну…')} />
    </div>
   )
  }
 
  return (
-  <div style={{ padding: 20, paddingBottom: 140 }}>
+  <div className="main-screen-container">
    <h1 className="pf-h1" style={{ fontSize: 26, marginBottom: 8 }}>{t("ЖУРНАЛ МИССИИ")}</h1>
    <p className="pf-subtitle" style={{ marginBottom: 20 }}>{t("Задачи смены, нашивки и показатели экипажа")}</p>
    {loadError && <ErrorState inline message={loadError} onRetry={() => void load()} />}

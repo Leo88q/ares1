@@ -205,8 +205,25 @@
 
 @media (max-width: 480px) {
     .wallet-adapter-modal-container {
-        margin: 1rem;
-        min-height: calc(100vh - 2rem); /* 100vh - 2 * margin */
+        margin: 0.5rem;
+        min-height: calc(100vh - 1rem);
+    }
+    .wallet-adapter-modal-wrapper {
+        max-width: calc(100vw - 24px);
+        width: 100%;
+    }
+    .wallet-adapter-modal-title {
+        font-size: 19px;
+        line-height: 26px;
+        padding: 36px 20px 20px 20px;
+    }
+    .wallet-adapter-modal-list {
+        padding: 0 10px;
+    }
+    .wallet-adapter-modal-list .wallet-adapter-button {
+        padding: 0 16px;
+        font-size: 14px;
+        height: 44px;
     }
 }
 

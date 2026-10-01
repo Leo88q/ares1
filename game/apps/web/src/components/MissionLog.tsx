@@ -202,6 +202,9 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose?: (
     style={{
      width: '100%',
      maxWidth: 360,
+     maxHeight: 'min(90vh, 560px)',
+     overflowY: 'auto',
+     WebkitOverflowScrolling: 'touch',
      padding: 24,
      textAlign: 'center',
      borderRadius: 14,

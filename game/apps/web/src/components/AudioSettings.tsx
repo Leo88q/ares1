@@ -64,7 +64,16 @@ export default function AudioSettings() {
        initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
        onClick={(e) => e.stopPropagation()}
        className="pf-card hull-skin"
-       style={{ width: '100%', maxWidth: 360, borderRadius: 24, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,214,170,0.1)' }}
+       style={{
+        width: '100%',
+        maxWidth: 360,
+        maxHeight: 'min(90vh, 580px)',
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        borderRadius: 24,
+        padding: '24px 20px',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,214,170,0.1)',
+       }}
       >
        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h2 id="settings-title" style={{ fontSize: 20 }}>{t("НАСТРОЙКИ")}</h2>

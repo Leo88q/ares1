@@ -570,6 +570,95 @@
   font: 10px/1.85 "Inter", system-ui, sans-serif;
 }
 
+@media (max-width: 639px) {
+  .interstellar-worlds {
+    gap: 8px;
+    margin-top: 24px;
+  }
+
+  .interstellar-wide-route {
+    top: 42px;
+  }
+
+  .interstellar-planet-button > strong {
+    font-size: clamp(17px, 4.4vw, 22px);
+    letter-spacing: 0.03em;
+  }
+
+  .interstellar-world-planet {
+    font-size: 8px;
+    letter-spacing: 0.1em;
+  }
+
+  .interstellar-world-description {
+    font-size: 10px;
+    line-height: 1.45;
+    min-height: 42px;
+    padding: 0 2px;
+  }
+
+  .interstellar-benefits {
+    padding: 8px 2px;
+    gap: 6px;
+  }
+
+  .interstellar-benefits li {
+    font-size: 9.5px;
+    line-height: 1.5;
+    padding-left: 10px;
+  }
+
+  .ares-action-link,
+  .neuroforge-action-link {
+    width: 100%;
+    max-width: 175px;
+    padding: 8px 8px;
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .interstellar-game-panel {
+    padding: 18px 14px;
+  }
+
+  .interstellar-story {
+    padding: 20px 16px;
+  }
+
+  .interstellar-dialog-content {
+    padding: 18px 14px;
+  }
+
+  .interstellar-close {
+    width: 38px;
+    height: 38px;
+    font-size: 20px;
+  }
+
+  .interstellar-reserve-note {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 380px) {
+  .interstellar-planet-button > strong {
+    font-size: 16px;
+  }
+
+  .interstellar-benefits li {
+    font-size: 9px;
+  }
+
+  .ares-action-link,
+  .neuroforge-action-link {
+    padding: 7px 4px;
+    font-size: 9px;
+  }
+}
+
 @media (min-width: 640px) {
   .interstellar-worlds {
     gap: 90px;
