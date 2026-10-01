@@ -1,0 +1,154 @@
+{
+ "bytes": 756424,
+ "headers": {
+  "elfHeader": 64,
+  "phnum": 4,
+  "phentsize": 56,
+  "shnum": 9,
+  "shentsize": 64,
+  "headerBytes": 864
+ },
+ "sumCheck": {
+  "sectionsOnDisk": 755558,
+  "headers": 864,
+  "total": 756422,
+  "fileBytes": 756424,
+  "matches": false
+ },
+ "sections": [
+  {
+   "name": ".text",
+   "type": 1,
+   "bytes": 659240,
+   "onDisk": 659240,
+   "offset": 288,
+   "entropy": 3.582,
+   "gzipRatio": 0.2236
+  },
+  {
+   "name": ".rodata",
+   "type": 1,
+   "bytes": 21936,
+   "onDisk": 21936,
+   "offset": 659528,
+   "entropy": 5.722,
+   "gzipRatio": 0.4386
+  },
+  {
+   "name": ".data.rel.ro",
+   "type": 1,
+   "bytes": 14552,
+   "onDisk": 14552,
+   "offset": 681464,
+   "entropy": 2.504,
+   "gzipRatio": 0.2075
+  },
+  {
+   "name": ".dynamic",
+   "type": 6,
+   "bytes": 176,
+   "onDisk": 176,
+   "offset": 696016,
+   "entropy": 1.416,
+   "gzipRatio": 0.4091
+  },
+  {
+   "name": ".dynsym",
+   "type": 11,
+   "bytes": 432,
+   "onDisk": 432,
+   "offset": 696192,
+   "entropy": 0.896,
+   "gzipRatio": 0.1991
+  },
+  {
+   "name": ".dynstr",
+   "type": 3,
+   "bytes": 270,
+   "onDisk": 270,
+   "offset": 696624,
+   "entropy": 4.242,
+   "gzipRatio": 0.5593
+  },
+  {
+   "name": ".rel.dyn",
+   "type": 9,
+   "bytes": 58880,
+   "onDisk": 58880,
+   "offset": 696896,
+   "entropy": 2.192,
+   "gzipRatio": 0.1328
+  },
+  {
+   "name": ".shstrtab",
+   "type": 3,
+   "bytes": 72,
+   "onDisk": 72,
+   "offset": 755776,
+   "entropy": 3.793,
+   "gzipRatio": 0.8611
+  }
+ ],
+ "symtab": {
+  "symtab": false,
+  "strtab": false,
+  "debugSections": [],
+  "dynsymBytes": 432
+ },
+ "rodata": {
+  "bytes": 21936,
+  "strings": 114,
+  "stringBytes": 17268,
+  "markers": {
+   "panicked at": 1,
+   ".rs:": 0,
+   "/rustc/": 0,
+   "src/": 36,
+   "unwrap": 3,
+   "RUST_BACKTRACE": 0
+  },
+  "top": [
+   {
+    "bytes": 6255,
+    "text": "failed to fill whole buffera Display implementation returned an error "
+   },
+   {
+    "bytes": 1611,
+    "text": "potato_mintuser_potatoownertoken_programsystem_programauthorityfieldne"
+   },
+   {
+    "bytes": 1514,
+    "text": " try again next epochDaily cap cannot be raised above 250K POTATOGloba"
+   },
+   {
+    "bytes": 1361,
+    "text": "The arguments provided to a program instruction were invalidAn instruc"
+   },
+   {
+    "bytes": 1334,
+    "text": "anchor:idlInstruction: IdlCreateAccountInstruction: IdlResizeAccountda"
+   },
+   {
+    "bytes": 972,
+    "text": "A signer constraint was violatedAn owner constraint was violatedInstru"
+   },
+   {
+    "bytes": 736,
+    "text": "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyzUnsupported "
+   },
+   {
+    "bytes": 400,
+    "text": "quest_treasuryPresale emergency stop: price set to 0, both rails close"
+   },
+   {
+    "bytes": 300,
+    "text": ",0x0001020304050607080910111213141516171819202122232425262728293031323"
+   },
+   {
+    "bytes": 178,
+    "text": "attempt to add with overflowattempt to subtract with overflowattempt t"
+   }
+  ]
+ },
+ "so": "target/deploy/solana_potato.so"
+}

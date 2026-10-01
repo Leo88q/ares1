@@ -1,0 +1,13 @@
+{
+ "measured": false,
+ "log": "/tmp/anchor-test.log",
+ "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+ "instructionsSeen": 0,
+ "instructionLogLines": 0,
+ "consumedLines": 0,
+ "foreignConsumedLines": 0,
+ "instructions": [],
+ "top": [],
+ "note": "CU из лога localnet (anchor test); для каждой инструкции — min/median/max по вызовам",
+ "reason": "в логе нет строк `Program <наш id> consumed N of M compute units`; диагностика — инструкций в логе: 0, CU-строк: 0"
+}

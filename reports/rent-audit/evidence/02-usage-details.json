@@ -1,0 +1,1183 @@
+{
+ "provenance": {
+  "generatedBy": "game/scripts/instruction-coverage.mjs --json",
+  "matchingCiAnnotation": {
+   "run": 36919450348,
+   "jobCheckRun": 110561535903,
+   "commit": "a17b038d8524346b6166d06c8b70e7c9d3da1081"
+  },
+  "note": "summary сверена с аннотацией ares-usage этого check-run; rows содержит полный слойный разбор, которого нет в CI-аннотации."
+ },
+ "summary": {
+  "idl": "apps/web/src/idl.json",
+  "instructions": 44,
+  "layerFiles": {
+   "web-ui": 84,
+   "web-builder": 1,
+   "web-utils": 25,
+   "backend": 22,
+   "tests": 24,
+   "scripts": 44
+  },
+  "layerInstructionCounts": {
+   "web-ui": 16,
+   "web-builder": 27,
+   "web-utils": 6,
+   "backend": 8,
+   "tests": 43,
+   "scripts": 14
+  },
+  "withUiPath": 16,
+  "uiMissing": [
+   "accept_authority",
+   "apply_pending_presale_price",
+   "apply_pending_skr_mint",
+   "buy_field_sol",
+   "cancel_withdrawal",
+   "close_expired_order",
+   "close_old_epoch",
+   "grant_reward",
+   "grant_reward_once",
+   "init_epoch",
+   "init_presale",
+   "initialize",
+   "migrate_admin_state",
+   "migrate_config",
+   "migrate_epoch",
+   "migrate_field",
+   "migrate_presale_authority",
+   "propose_authority",
+   "propose_withdrawal",
+   "set_paused",
+   "update_config",
+   "update_guardian",
+   "update_presale_price",
+   "update_reward_signer",
+   "update_skr_mint",
+   "withdraw_skr_treasury",
+   "withdraw_treasury",
+   "withdraw_treasury_sol"
+  ],
+  "noWebBuilder": [
+   "accept_authority",
+   "cancel_withdrawal",
+   "close_expired_order",
+   "grant_reward",
+   "grant_reward_once",
+   "init_epoch",
+   "initialize",
+   "migrate_presale_authority",
+   "propose_authority",
+   "propose_withdrawal",
+   "roll_epoch",
+   "set_paused",
+   "update_config",
+   "update_guardian",
+   "withdraw_skr_treasury",
+   "withdraw_treasury",
+   "withdraw_treasury_sol"
+  ],
+  "noWebRefs": [
+   "accept_authority",
+   "cancel_withdrawal",
+   "close_expired_order",
+   "grant_reward",
+   "grant_reward_once",
+   "init_epoch",
+   "initialize",
+   "migrate_presale_authority",
+   "propose_authority",
+   "propose_withdrawal",
+   "set_paused",
+   "update_config",
+   "update_guardian",
+   "withdraw_skr_treasury",
+   "withdraw_treasury",
+   "withdraw_treasury_sol"
+  ],
+  "onlyWebUtils": [],
+  "onlyBuilder": [],
+  "onlyBackend": [],
+  "onlyTestsScripts": [
+   "accept_authority",
+   "cancel_withdrawal",
+   "close_expired_order",
+   "migrate_presale_authority",
+   "propose_authority",
+   "propose_withdrawal",
+   "set_paused",
+   "update_config",
+   "update_guardian",
+   "withdraw_treasury",
+   "withdraw_treasury_sol"
+  ],
+  "unreferenced": [
+   "withdraw_skr_treasury"
+  ],
+  "note": "статическая лексическая проверка имён по слоям; комментарии исключены, строки сохраняются; упоминание не доказывает runtime-вызов, динамические/внешние вызовы могут не обнаружиться; UI и web-builder считаются отдельно; programs/ и idl.json исключены"
+ },
+ "rows": [
+  {
+   "name": "accept_authority",
+   "camel": "acceptAuthority",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 5,
+    "scripts": 1
+   },
+   "total": 6,
+   "usage": [
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "scripts/security-guards.test.mjs",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "apply_fertilizer",
+   "camel": "applyFertilizer",
+   "hits": {
+    "web-ui": 10,
+    "web-builder": 2,
+    "web-utils": 1,
+    "backend": 0,
+    "tests": 5,
+    "scripts": 0
+   },
+   "total": 18,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "web-utils",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/components/FieldCard.tsx",
+    "apps/web/src/components/FieldCardVice.tsx",
+    "apps/web/src/components/MainScreen.tsx",
+    "apps/web/src/contexts/GameContext.tsx",
+    "apps/web/src/utils/anchorClient.ts",
+    "apps/web/src/utils/haptic.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/offchain/economyRules.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "apply_pending_presale_price",
+   "camel": "applyPendingPresalePrice",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 4,
+    "scripts": 0
+   },
+   "total": 6,
+   "usage": [
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "apply_pending_skr_mint",
+   "camel": "applyPendingSkrMint",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 1,
+    "tests": 4,
+    "scripts": 1
+   },
+   "total": 8,
+   "usage": [
+    "web-builder",
+    "backend",
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "apps/backend/src/solana.ts",
+    "apps/web/src/utils/anchorClient.ts",
+    "scripts/security-guards.test.mjs",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "batch_harvest",
+   "camel": "batchHarvest",
+   "hits": {
+    "web-ui": 6,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 8,
+    "scripts": 0
+   },
+   "total": 16,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/contexts/GameContext.tsx",
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "buy_export_license",
+   "camel": "buyExportLicense",
+   "hits": {
+    "web-ui": 2,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 3,
+    "scripts": 0
+   },
+   "total": 7,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/components/ProfileScreen.tsx",
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/offchain/economyRules.test.ts"
+   ]
+  },
+  {
+   "name": "buy_field_skr",
+   "camel": "buyFieldSkr",
+   "hits": {
+    "web-ui": 2,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 4,
+    "scripts": 7
+   },
+   "total": 15,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "apps/web/src/contexts/GameContext.tsx",
+    "apps/web/src/utils/anchorClient.ts",
+    "scripts/devnet-legacy/sim_buy.ts",
+    "scripts/devnet-legacy/sim_buy2.ts",
+    "scripts/devnet-legacy/sim_buy3.ts",
+    "scripts/security-guards.test.mjs",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/offchain/economyRules.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "buy_field_sol",
+   "camel": "buyFieldSol",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 5,
+    "scripts": 0
+   },
+   "total": 7,
+   "usage": [
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "cancel_order",
+   "camel": "cancelOrder",
+   "hits": {
+    "web-ui": 6,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 4,
+    "scripts": 0
+   },
+   "total": 12,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/components/MarketScreen.tsx",
+    "apps/web/src/hooks/useMarketplace.ts",
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "cancel_withdrawal",
+   "camel": "cancelWithdrawal",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 3,
+    "scripts": 0
+   },
+   "total": 3,
+   "usage": [
+    "tests"
+   ],
+   "where": [
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "claim_achievement",
+   "camel": "claimAchievement",
+   "hits": {
+    "web-ui": 2,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 5,
+    "scripts": 0
+   },
+   "total": 9,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/contexts/GameContext.tsx",
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "close_expired_order",
+   "camel": "closeExpiredOrder",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 2,
+    "scripts": 0
+   },
+   "total": 2,
+   "usage": [
+    "tests"
+   ],
+   "where": [
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "close_field",
+   "camel": "closeField",
+   "hits": {
+    "web-ui": 6,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 7,
+    "scripts": 0
+   },
+   "total": 15,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/contexts/GameContext.tsx",
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/offchain/txSafety.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "close_old_epoch",
+   "camel": "closeOldEpoch",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 4,
+    "scripts": 0
+   },
+   "total": 6,
+   "usage": [
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "create_field",
+   "camel": "createField",
+   "hits": {
+    "web-ui": 2,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 10,
+    "scripts": 0
+   },
+   "total": 14,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/contexts/GameContext.tsx",
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/offchain/economyRules.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "create_sell_order",
+   "camel": "createSellOrder",
+   "hits": {
+    "web-ui": 2,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 11,
+    "scripts": 0
+   },
+   "total": 15,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/hooks/useMarketplace.ts",
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "fill_order",
+   "camel": "fillOrder",
+   "hits": {
+    "web-ui": 6,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 12,
+    "scripts": 5
+   },
+   "total": 25,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "apps/web/src/components/MarketScreen.tsx",
+    "apps/web/src/hooks/useMarketplace.ts",
+    "apps/web/src/utils/anchorClient.ts",
+    "scripts/cu-profile.test.mjs",
+    "scripts/devnet-legacy/fill_test.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "grant_reward",
+   "camel": "grantReward",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 2,
+    "tests": 18,
+    "scripts": 2
+   },
+   "total": 22,
+   "usage": [
+    "backend",
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "apps/backend/src/gameops/intents.ts",
+    "apps/backend/src/solana.ts",
+    "apps/backend/tests/policy.test.ts",
+    "apps/backend/tests/reward-rail.test.ts",
+    "scripts/grant-skr.ts",
+    "scripts/init-onchain.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "grant_reward_once",
+   "camel": "grantRewardOnce",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 1,
+    "tests": 4,
+    "scripts": 0
+   },
+   "total": 5,
+   "usage": [
+    "backend",
+    "tests"
+   ],
+   "where": [
+    "apps/backend/src/solana.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "harvest",
+   "camel": "harvest",
+   "hits": {
+    "web-ui": 18,
+    "web-builder": 2,
+    "web-utils": 41,
+    "backend": 0,
+    "tests": 12,
+    "scripts": 9
+   },
+   "total": 82,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "web-utils",
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "apps/web/src/components/FieldCard.tsx",
+    "apps/web/src/components/FieldCardVice.tsx",
+    "apps/web/src/components/MainScreen.tsx",
+    "apps/web/src/components/ProfileScreen.tsx",
+    "apps/web/src/components/StatsScreen.tsx",
+    "apps/web/src/contexts/GameContext.tsx",
+    "apps/web/src/i18n/strings/en.ts",
+    "apps/web/src/i18n/strings/es-419.ts",
+    "apps/web/src/i18n/strings/id.ts",
+    "apps/web/src/i18n/strings/pt-BR.ts",
+    "apps/web/src/i18n/strings/tl.ts",
+    "apps/web/src/i18n/strings/vi.ts",
+    "apps/web/src/utils/achievements.ts",
+    "apps/web/src/utils/anchorClient.ts",
+    "apps/web/src/utils/haptic.ts",
+    "apps/web/src/utils/notifications.ts",
+    "apps/web/src/utils/sounds.ts",
+    "scripts/cu-profile.test.mjs",
+    "scripts/verify-sqlite-immutability.test.mjs",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/offchain/txSafety.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "init_epoch",
+   "camel": "initEpoch",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 2,
+    "tests": 3,
+    "scripts": 2
+   },
+   "total": 7,
+   "usage": [
+    "backend",
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "apps/backend/src/policy.ts",
+    "apps/backend/src/solana.ts",
+    "apps/backend/tests/policy.test.ts",
+    "scripts/init-onchain.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "init_presale",
+   "camel": "initPresale",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 5,
+    "scripts": 3
+   },
+   "total": 10,
+   "usage": [
+    "web-builder",
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "apps/web/src/utils/anchorClient.ts",
+    "scripts/devnet-legacy/init_presale_skr.ts",
+    "scripts/init-onchain.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "initialize",
+   "camel": "initialize",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 1,
+    "tests": 5,
+    "scripts": 2
+   },
+   "total": 8,
+   "usage": [
+    "backend",
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "apps/backend/src/solana.ts",
+    "scripts/init-onchain.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "migrate_admin_state",
+   "camel": "migrateAdminState",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 2,
+    "scripts": 0
+   },
+   "total": 4,
+   "usage": [
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/migrations.test.ts"
+   ]
+  },
+  {
+   "name": "migrate_config",
+   "camel": "migrateConfig",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 6,
+    "scripts": 0
+   },
+   "total": 8,
+   "usage": [
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/offchain/migrations.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "migrate_epoch",
+   "camel": "migrateEpoch",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 4,
+    "scripts": 0
+   },
+   "total": 6,
+   "usage": [
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/offchain/migrations.test.ts"
+   ]
+  },
+  {
+   "name": "migrate_field",
+   "camel": "migrateField",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 4,
+    "scripts": 0
+   },
+   "total": 6,
+   "usage": [
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/offchain/migrations.test.ts"
+   ]
+  },
+  {
+   "name": "migrate_presale_authority",
+   "camel": "migratePresaleAuthority",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 4,
+    "scripts": 0
+   },
+   "total": 4,
+   "usage": [
+    "tests"
+   ],
+   "where": [
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "pay_tax",
+   "camel": "payTax",
+   "hits": {
+    "web-ui": 12,
+    "web-builder": 2,
+    "web-utils": 5,
+    "backend": 0,
+    "tests": 11,
+    "scripts": 1
+   },
+   "total": 31,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "web-utils",
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "apps/web/src/components/FieldCard.tsx",
+    "apps/web/src/components/FieldCardVice.tsx",
+    "apps/web/src/components/MainScreen.tsx",
+    "apps/web/src/contexts/GameContext.tsx",
+    "apps/web/src/utils/anchorClient.ts",
+    "apps/web/src/utils/haptic.ts",
+    "apps/web/src/utils/sounds.ts",
+    "scripts/cu-profile.test.mjs",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/offchain/economyRules.test.ts",
+    "tests/offchain/upkeepCosts.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "propose_authority",
+   "camel": "proposeAuthority",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 4,
+    "scripts": 1
+   },
+   "total": 5,
+   "usage": [
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "scripts/security-guards.test.mjs",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "propose_withdrawal",
+   "camel": "proposeWithdrawal",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 7,
+    "scripts": 0
+   },
+   "total": 7,
+   "usage": [
+    "tests"
+   ],
+   "where": [
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "register_referrer",
+   "camel": "registerReferrer",
+   "hits": {
+    "web-ui": 6,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 13,
+    "scripts": 0
+   },
+   "total": 21,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/hooks/useReferral.ts",
+    "apps/web/src/hooks/useReferralRegistration.ts",
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/offchain/economyRules.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "repair_field",
+   "camel": "repairField",
+   "hits": {
+    "web-ui": 11,
+    "web-builder": 2,
+    "web-utils": 1,
+    "backend": 0,
+    "tests": 10,
+    "scripts": 0
+   },
+   "total": 24,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "web-utils",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/components/FieldCard.tsx",
+    "apps/web/src/components/FieldCardVice.tsx",
+    "apps/web/src/components/MainScreen.tsx",
+    "apps/web/src/contexts/GameContext.tsx",
+    "apps/web/src/utils/anchorClient.ts",
+    "apps/web/src/utils/haptic.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/offchain/economyRules.test.ts",
+    "tests/offchain/upkeepCosts.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "roll_epoch",
+   "camel": "rollEpoch",
+   "hits": {
+    "web-ui": 1,
+    "web-builder": 0,
+    "web-utils": 12,
+    "backend": 3,
+    "tests": 6,
+    "scripts": 0
+   },
+   "total": 22,
+   "usage": [
+    "web-ui",
+    "web-utils",
+    "backend",
+    "tests"
+   ],
+   "where": [
+    "apps/backend/src/epochRoller.ts",
+    "apps/backend/src/policy.ts",
+    "apps/backend/src/solana.ts",
+    "apps/backend/tests/policy.test.ts",
+    "apps/web/src/components/StatsScreen.tsx",
+    "apps/web/src/i18n/strings/en.ts",
+    "apps/web/src/i18n/strings/es-419.ts",
+    "apps/web/src/i18n/strings/id.ts",
+    "apps/web/src/i18n/strings/pt-BR.ts",
+    "apps/web/src/i18n/strings/tl.ts",
+    "apps/web/src/i18n/strings/vi.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "set_paused",
+   "camel": "setPaused",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 13,
+    "scripts": 1
+   },
+   "total": 14,
+   "usage": [
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "scripts/security-guards.test.mjs",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "update_config",
+   "camel": "updateConfig",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 6,
+    "scripts": 0
+   },
+   "total": 6,
+   "usage": [
+    "tests"
+   ],
+   "where": [
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "update_guardian",
+   "camel": "updateGuardian",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 3,
+    "scripts": 0
+   },
+   "total": 3,
+   "usage": [
+    "tests"
+   ],
+   "where": [
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "update_presale_price",
+   "camel": "updatePresalePrice",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 5,
+    "scripts": 0
+   },
+   "total": 7,
+   "usage": [
+    "web-builder",
+    "tests"
+   ],
+   "where": [
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "update_reward_signer",
+   "camel": "updateRewardSigner",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 1,
+    "tests": 5,
+    "scripts": 0
+   },
+   "total": 8,
+   "usage": [
+    "web-builder",
+    "backend",
+    "tests"
+   ],
+   "where": [
+    "apps/backend/src/solana.ts",
+    "apps/web/src/utils/anchorClient.ts",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "update_skr_mint",
+   "camel": "updateSkrMint",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 2,
+    "web-utils": 0,
+    "backend": 1,
+    "tests": 7,
+    "scripts": 2
+   },
+   "total": 12,
+   "usage": [
+    "web-builder",
+    "backend",
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "apps/backend/src/solana.ts",
+    "apps/web/src/utils/anchorClient.ts",
+    "scripts/security-guards.test.mjs",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "upgrade_field",
+   "camel": "upgradeField",
+   "hits": {
+    "web-ui": 10,
+    "web-builder": 2,
+    "web-utils": 1,
+    "backend": 0,
+    "tests": 4,
+    "scripts": 1
+   },
+   "total": 18,
+   "usage": [
+    "web-ui",
+    "web-builder",
+    "web-utils",
+    "tests",
+    "scripts"
+   ],
+   "where": [
+    "apps/web/src/components/FieldCard.tsx",
+    "apps/web/src/components/FieldCardVice.tsx",
+    "apps/web/src/components/MainScreen.tsx",
+    "apps/web/src/contexts/GameContext.tsx",
+    "apps/web/src/utils/anchorClient.ts",
+    "apps/web/src/utils/haptic.ts",
+    "scripts/security-guards.test.mjs",
+    "tests/offchain/clientAbi.test.ts",
+    "tests/offchain/economyRules.test.ts",
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "withdraw_skr_treasury",
+   "camel": "withdrawSkrTreasury",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 0,
+    "scripts": 0
+   },
+   "total": 0,
+   "usage": [],
+   "where": []
+  },
+  {
+   "name": "withdraw_treasury",
+   "camel": "withdrawTreasury",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 4,
+    "scripts": 0
+   },
+   "total": 4,
+   "usage": [
+    "tests"
+   ],
+   "where": [
+    "tests/solana_potato.ts"
+   ]
+  },
+  {
+   "name": "withdraw_treasury_sol",
+   "camel": "withdrawTreasurySol",
+   "hits": {
+    "web-ui": 0,
+    "web-builder": 0,
+    "web-utils": 0,
+    "backend": 0,
+    "tests": 3,
+    "scripts": 0
+   },
+   "total": 3,
+   "usage": [
+    "tests"
+   ],
+   "where": [
+    "tests/solana_potato.ts"
+   ]
+  }
+ ]
+}
