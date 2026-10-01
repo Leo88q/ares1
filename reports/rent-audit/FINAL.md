@@ -135,9 +135,13 @@ reviewed change нужно убрать/заменить активный init s
 - Stage 6 local: `cd game && yarn test:rent-tools` — **22/22 PASS**;
   `bash -n game/scripts/warm-start-devnet.sh`, `git diff --check` и
   `game/package.json` JSON parse — PASS. ShellCheck в среде не установлен.
-- PR #50 GitHub checks после открытия: secret scan и deploy-readiness прошли;
-  остальные CI/checks были ещё pending на момент первичного просмотра. Актуальный
-  статус — на [странице PR](https://github.com/Leo88q/ares1/pull/50).
+- Все GitHub checks PR #50 на head `8901a1d113c89a39b5beb7e4172245e863f805f9`
+  прошли: Anchor program, web/backend, DB, build gates, rent-audit probe/size /
+  localnet calibration, secret scan/gitleaks, deploy-readiness и Cloudflare Pages.
+  Runs: CI `36934957314`, rent audit `36934957305`, security `36934957184`,
+  readiness `36934947615`. Финальный report-only commit добавлен после этого
+  зелёного прогона; актуальные проверки видны на
+  [странице PR](https://github.com/Leo88q/ares1/pull/50).
 - Полные evidence сохранены в `reports/rent-audit/evidence/`; бюджеты всех этапов
   — в [`budget-history.csv`](budget-history.csv).
 
