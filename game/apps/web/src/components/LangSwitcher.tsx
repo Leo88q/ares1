@@ -33,19 +33,12 @@ export default function LangSwitcher({ compact = false }: { compact?: boolean })
     onClick={() => setOpen((v) => !v)}
     aria-label={t('Язык')}
     aria-expanded={open}
-    className="pf-card"
+    className="mk-key"
     style={{
      display: 'flex', alignItems: 'center', gap: 6,
-     padding: compact ? '7px 10px' : '9px 12px',
-     borderRadius: 10,
-     border: '1px solid rgba(160, 82, 40, 0.65)',
+     padding: compact ? '6px 10px' : '8px 12px',
      cursor: 'pointer',
-     background: 'transparent',
-     color: 'var(--ares-hud-amber, #FFB347)',
-     fontFamily: 'inherit',
      fontSize: compact ? 11 : 12,
-     fontWeight: 700,
-     letterSpacing: '0.08em',
     }}
    >
     <Glyph name="globe" size={compact ? 13 : 15} aria-hidden="true" />

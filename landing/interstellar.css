@@ -54,7 +54,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  margin-top: 50px;
+  margin-top: 36px;
 }
 
 .interstellar-worlds > :not(.interstellar-wide-route) {
@@ -97,63 +97,146 @@
 }
 
 .interstellar-world-planet {
-  margin-top: 5px;
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 8px;
   color: #dfbca7;
-  font: 9px/1.7 "JetBrains Mono", monospace;
+  font: 9px/1.6 "JetBrains Mono", monospace;
   letter-spacing: 0.2em;
 }
 
 .interstellar-world--earth .interstellar-world-planet {
-  color: #a4d8e5;
+  color: #00E5FF;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.45);
+}
+
+.interstellar-world--earth strong {
+  background: linear-gradient(135deg, #FFFFFF 20%, #A5F3FC 60%, #C084FC 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .interstellar-planet-button > strong {
-  margin-top: 8px;
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 4px;
   font-family: "Oswald", "Inter", sans-serif;
-  font-size: clamp(21px, 3vw, 34px);
+  font-size: clamp(22px, 3.2vw, 36px);
   font-weight: 500;
-  line-height: 1.3;
+  line-height: 1.2;
   letter-spacing: 0.05em;
 }
 
 .interstellar-world-description {
-  max-width: 280px;
-  min-height: 63px;
-  margin-top: 13px;
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  min-height: 38px;
+  margin-top: 6px;
   color: #bfaecb;
-  font: 11px/1.9 "Inter", system-ui, sans-serif;
+  font: 11px/1.6 "Inter", system-ui, sans-serif;
+  text-align: center;
 }
 
 .interstellar-benefit-slot {
-  min-height: 174px;
-  margin-top: 16px;
+  margin-top: 8px;
 }
 
 .interstellar-benefits {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   max-width: 340px;
   margin: 0 auto;
-  padding: 15px 10px;
+  padding: 10px 10px;
   border-top: 1px solid #aa789530;
   list-style: none;
 }
 
 .interstellar-benefits li {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
+  position: relative;
+  display: block;
+  padding-left: 14px;
   color: #d3becf;
-  font: 10px/1.8 "Inter", system-ui, sans-serif;
+  font: 10.5px/1.7 "Inter", system-ui, sans-serif;
+  text-align: left;
 }
 
-.interstellar-benefits li > span {
-  flex-shrink: 0;
-  color: #ffb347;
+.interstellar-benefits li::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #FFB347;
+  font-weight: 600;
 }
 
-.interstellar-world--earth .interstellar-benefits li > span {
-  color: #9fbe7a;
+.interstellar-world--earth .interstellar-benefits li::before {
+  color: #00E5FF;
+}
+
+.interstellar-world-action {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.ares-action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 8px;
+  background: var(--ares-btn-gold-bg);
+  background-color: #c1440e;
+  border: 1px solid var(--ares-btn-gold-border);
+  color: #FFFFFF;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  box-shadow: var(--ares-btn-gold-shadow);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.ares-action-link:hover {
+  filter: brightness(1.08);
+  box-shadow: var(--ares-btn-gold-shadow-hover);
+  transform: translateY(-2px);
+  color: #FFFFFF;
+}
+
+.neuroforge-action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border: 1px solid rgba(0, 229, 255, 0.45);
+  border-radius: 8px;
+  background: rgba(0, 229, 255, 0.1);
+  color: #38BDF8;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.2);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.neuroforge-action-link:hover {
+  border-color: #00E5FF;
+  background: rgba(0, 229, 255, 0.22);
+  color: #FFFFFF;
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.5);
+  transform: translateY(-2px);
 }
 
 .interstellar-wide-route {
@@ -487,6 +570,95 @@
   font: 10px/1.85 "Inter", system-ui, sans-serif;
 }
 
+@media (max-width: 639px) {
+  .interstellar-worlds {
+    gap: 8px;
+    margin-top: 24px;
+  }
+
+  .interstellar-wide-route {
+    top: 42px;
+  }
+
+  .interstellar-planet-button > strong {
+    font-size: clamp(17px, 4.4vw, 22px);
+    letter-spacing: 0.03em;
+  }
+
+  .interstellar-world-planet {
+    font-size: 8px;
+    letter-spacing: 0.1em;
+  }
+
+  .interstellar-world-description {
+    font-size: 10px;
+    line-height: 1.45;
+    min-height: 42px;
+    padding: 0 2px;
+  }
+
+  .interstellar-benefits {
+    padding: 8px 2px;
+    gap: 6px;
+  }
+
+  .interstellar-benefits li {
+    font-size: 9.5px;
+    line-height: 1.5;
+    padding-left: 10px;
+  }
+
+  .ares-action-link,
+  .neuroforge-action-link {
+    width: 100%;
+    max-width: 175px;
+    padding: 8px 8px;
+    font-size: 10px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .interstellar-game-panel {
+    padding: 18px 14px;
+  }
+
+  .interstellar-story {
+    padding: 20px 16px;
+  }
+
+  .interstellar-dialog-content {
+    padding: 18px 14px;
+  }
+
+  .interstellar-close {
+    width: 38px;
+    height: 38px;
+    font-size: 20px;
+  }
+
+  .interstellar-reserve-note {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 380px) {
+  .interstellar-planet-button > strong {
+    font-size: 16px;
+  }
+
+  .interstellar-benefits li {
+    font-size: 9px;
+  }
+
+  .ares-action-link,
+  .neuroforge-action-link {
+    padding: 7px 4px;
+    font-size: 9px;
+  }
+}
+
 @media (min-width: 640px) {
   .interstellar-worlds {
     gap: 90px;
@@ -569,9 +741,9 @@
   }
 }
 
-/* ── Квантовый маршрут: SVG заменён CSS-дугами и пакетами ── */
-.quantum-route-arc{position:absolute;left:-50%;width:200%;height:200%;border-radius:50%;pointer-events:none;background:linear-gradient(90deg,#C1440E,#FF2E93,#12E7C4);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));opacity:.2}
+/* ── Квантовый маршрут: неоновый мост между Марсом и NeuroForge ── */
+.quantum-route-arc{position:absolute;left:-50%;width:200%;height:200%;border-radius:50%;pointer-events:none;background:linear-gradient(90deg,#E6751C 15%,#A855F7 50%,#00E5FF 85%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));opacity:.35}
 .quantum-route-arc--top{bottom:50%}
 .quantum-route-arc--bottom{top:50%}
-.quantum-route-line{position:absolute;top:50%;left:2.5%;right:2.5%;height:1px;background:repeating-linear-gradient(90deg,rgba(255,179,71,.55) 0 3px,transparent 3px 12px);opacity:.5;pointer-events:none}
+.quantum-route-line{position:absolute;top:50%;left:2.5%;right:2.5%;height:1px;background:repeating-linear-gradient(90deg,rgba(255,179,71,.55) 0 3px,transparent 3px 12px,rgba(0,229,255,.55) 12px 15px,transparent 15px 24px);opacity:.55;pointer-events:none}
 .quantum-route-packet{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;pointer-events:none}

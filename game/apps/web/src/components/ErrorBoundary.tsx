@@ -32,8 +32,8 @@ export default class ErrorBoundary extends Component<Props, State> {
      <p style={{ fontSize: 13, color: 'var(--pf-text-secondary)', marginBottom: 16, wordBreak: 'break-word' }}>{this.state.error.message}</p>
      <button
       onClick={() => window.location.reload()}
-      className="gradient-primary"
-      style={{ width: '100%', padding: 12, borderRadius: 12, color: 'var(--ares-parchment, #F2E8DA)', fontWeight: 700 }}
+      className="mk-key mk-key--paint"
+      style={{ width: '100%', padding: 12, fontSize: 13, cursor: 'pointer' }}
      >
       {t('Перезагрузить')}
      </button>

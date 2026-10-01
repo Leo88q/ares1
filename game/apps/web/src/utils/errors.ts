@@ -14,7 +14,7 @@ const IDL_ERRORS = new Map<number, IdlError>(
 /** Player-facing translations of the on-chain error codes. */
 const RU: Record<string, string> = {
  AlreadyClaimed: 'Награда уже получена.',
- BadProof: 'Не выполнены условия награды.',
+ BadProof: 'Не выполнены условия награды (проверь уровень делянок или баланс).',
  Paused: 'Игра на паузе. Попробуй позже.',
  FieldInactive: 'Поле неактивно.',
  NothingToHarvest: 'Пока нечего собирать.',
@@ -102,9 +102,16 @@ export function describeError(err: unknown): string {
  if (/insufficient funds/i.test(raw) && /Token/i.test(raw)) return t('Недостаточно $POTATO.')
  if (/blockhash not found|block height exceeded|was not confirmed|not confirmed in/i.test(raw)) return t('Сеть не подтвердила транзакцию вовремя. Повтори.')
 
+ const jsonCustom = raw.match(/"Custom":\s*(\d+)/i) ?? raw.match(/Custom:\s*(\d+)/i)
  const custom = raw.match(/custom program error: 0x([0-9a-fA-F]+)/)
  const numbered = raw.match(/Error Number: (\d+)/)
- const code = custom ? parseInt(custom[1], 16) : numbered ? parseInt(numbered[1], 10) : null
+ const code = jsonCustom
+  ? parseInt(jsonCustom[1], 10)
+  : custom
+  ? parseInt(custom[1], 16)
+  : numbered
+  ? parseInt(numbered[1], 10)
+  : null
  if (code !== null) {
   const idlErr = IDL_ERRORS.get(code)
   if (idlErr && RU[idlErr.name]) return t(RU[idlErr.name])

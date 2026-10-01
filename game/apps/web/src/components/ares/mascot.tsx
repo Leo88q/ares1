@@ -116,7 +116,7 @@ export const Tuber9 = memo(function Tuber9({
     <ParticleBurst
      x={size / 2}
      y={size / 2}
-     color="var(--ares-grow-pink, #FF2E93)"
+     color="var(--ares-hud-amber, #FFB347)"
      count={18}
      onDone={() => setBurstKey(null)}
     />

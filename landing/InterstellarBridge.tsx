@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { Emblem } from "./Glyph";
 import type { RefObject } from "react";
 import {
   AnimatePresence,
@@ -21,7 +20,6 @@ import {
 import { LiquidPanel } from "./LiquidPanel";
 import { MorphButton } from "./MorphButton";
 import { useSounds } from "./useSounds";
-import { AxialPlanet } from "./AxialPlanet";
 import { usePrefersReducedMotion } from "./hooks";
 import "./interstellar.css";
 
@@ -126,35 +124,26 @@ function PlanetArt({
   planet,
   className = "",
 }: PlanetArtProps): JSX.Element {
-  return (
-    <AxialPlanet planet={planet}>
-      <StaticPlanetArt planet={planet} className={className} />
-    </AxialPlanet>
-  );
-}
+  if (planet === "mars") {
+    return (
+      <div className={`axial-planet axial-planet--mars ${className}`} aria-hidden="true">
+        <img
+          src="/ares/planet-interstellar.webp"
+          alt=""
+          draggable={false}
+          className="mars-planet-img"
+        />
+      </div>
+    );
+  }
 
-function StaticPlanetArt({
-  planet,
-  className = "",
-}: PlanetArtProps): JSX.Element {
-  const mars = planet === "mars";
-
   return (
-    <div className={`interstellar-planet-art ${className}`} aria-hidden="true">
-      {/* MK-art: сгенерированная планета вместо SVG-градиентов.
-          Не-марсианские миры тонируются в холодный стальной оттенок. */}
+    <div className={`axial-planet axial-planet--neuroforge ${className}`} aria-hidden="true">
       <img
-        src="/ares/planet-interstellar.webp"
+        src="/ares/planet-neuroforge.webp"
         alt=""
         draggable={false}
-        style={{
-          width: 300,
-          height: 300,
-          objectFit: "contain",
-          display: "block",
-          userSelect: "none",
-          filter: mars ? undefined : "hue-rotate(160deg) saturate(0.7) brightness(0.9)",
-        }}
+        className="neuroforge-planet-img"
       />
     </div>
   );
@@ -181,12 +170,16 @@ function QuantumRoute({
       {Array.from({ length: 12 }, (_, index) => {
         const reverse = index % 2 === 1;
         const restingLeft = `${8 + index * 7.5}%`;
+        const packetColor = reverse ? (index % 4 === 1 ? "#00E5FF" : "#C084FC") : "#FFB347";
 
         return (
           <motion.span
             key={index}
             className="quantum-route-packet"
-            style={{ background: reverse ? "#7CFF6B" : "#FFB347" }}
+            style={{
+              background: packetColor,
+              boxShadow: `0 0 10px ${packetColor}`,
+            }}
             initial={false}
             animate={
               animated
@@ -443,12 +436,37 @@ function PlanetCard({
         >
           {copy.benefits.map((benefit) => (
             <li key={benefit}>
-              <span aria-hidden="true" style={{ display: "inline-flex" }}><Emblem name="flame" size={12} /></span>
               {benefit}
             </li>
           ))}
         </motion.ul>
       </div>
+
+      {planet === "mars" && (
+        <div className="interstellar-world-action">
+          <a
+            href="https://arena-01a0f067-ares1.ares1-play.pages.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ares-action-link"
+          >
+            {t("Играть в ARES-1 ↗")}
+          </a>
+        </div>
+      )}
+
+      {planet === "earth" && interstellarConfig.ageOfFarmingUrl && (
+        <div className="interstellar-world-action">
+          <a
+            href={interstellarConfig.ageOfFarmingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="neuroforge-action-link"
+          >
+            {SC.gameCta}
+          </a>
+        </div>
+      )}
     </div>
   );
 }

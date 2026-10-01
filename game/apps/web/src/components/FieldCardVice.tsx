@@ -4,7 +4,6 @@ import { t } from '../i18n'
 import { motion } from 'framer-motion'
 import { PublicKey } from '@solana/web3.js'
 
-import Button from './Button'
 import AnimatedNumber from './AnimatedNumber'
 import { Field } from '../contexts/GameContext'
 import {
@@ -29,7 +28,7 @@ interface Props {
 const TIER_BY_TYPE: Array<'basic' | 'meadow' | 'gold'> = ['basic', 'meadow', 'gold']
 
 const RARE_LABEL: Record<'basic' | 'meadow' | 'gold', string> = { basic: 'COMMON', meadow: 'RARE', gold: 'EPIC' }
-const RARE_COLOR: Record<'basic' | 'meadow' | 'gold', string> = { basic: '#9AA0AC', meadow: '#B85CFF', gold: '#FFC94A' }
+const RARE_COLOR: Record<'basic' | 'meadow' | 'gold', string> = { basic: '#C9A176', meadow: '#ED8A45', gold: '#FFC94A' }
 
 /**
  * Карточка поля в стиле Vice Potato.
@@ -66,7 +65,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
    animate={{ opacity: 1, y: 0 }}
    transition={{ delay: Math.min(index * 0.06, 0.4) }}
   >
-   <div className={`po-card field-hull${rare === 'gold' ? ' field-hull--gold' : ''}${canHarvest ? ' field-hull--ready' : ''}`}>
+   <div className={`plant-module-panel${rare === 'gold' ? ' plant-module-panel--gold' : rare === 'meadow' ? ' plant-module-panel--rare' : ''}${canHarvest ? ' plant-module-panel--ready' : ''}`}>
     {/* Заголовок */}
     <div style={{
      padding: '16px 20px 12px',
@@ -130,9 +129,9 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
       fontWeight: 600,
       padding: '4px 10px',
       borderRadius: 999,
-      background: taxExpired ? 'rgba(255, 59, 59, 0.15)' : taxDaysLeft <= 2 ? 'rgba(255, 122, 26, 0.15)' : 'rgba(18, 231, 196, 0.12)',
-      color: taxExpired ? 'var(--pf-red)' : taxDaysLeft <= 2 ? 'var(--pf-orange)' : 'var(--pf-teal)',
-      border: `1px solid ${taxExpired ? 'rgba(255,59,59,0.4)' : taxDaysLeft <= 2 ? 'rgba(255,122,26,0.4)' : 'rgba(18,231,196,0.35)'}`,
+      background: taxExpired ? 'rgba(255, 59, 59, 0.15)' : taxDaysLeft <= 2 ? 'rgba(255, 122, 26, 0.15)' : 'rgba(159, 190, 122, 0.15)',
+      color: taxExpired ? 'var(--pf-red)' : taxDaysLeft <= 2 ? 'var(--pf-orange)' : '#9FBE7A',
+      border: `1px solid ${taxExpired ? 'rgba(255,59,59,0.4)' : taxDaysLeft <= 2 ? 'rgba(255,122,26,0.4)' : 'rgba(159,190,122,0.35)'}`,
       boxShadow: taxExpired ? '0 0 10px rgba(255,59,59,0.3)' : 'none',
      }}>
 {taxExpired ? t('Пошлина просрочен!') : taxDaysLeft <= 1 ? t('Пошлина: {h} ч', { h: taxHoursLeft }) : t('Пошлина: {d} дн', { d: taxDaysLeft })}
@@ -144,67 +143,87 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
        fontWeight: 600,
        padding: '4px 10px',
        borderRadius: 999,
-       background: 'rgba(124, 255, 107, 0.12)',
-       color: 'var(--pf-green)',
-       border: '1px solid rgba(124,255,107,0.35)',
+       background: 'rgba(232, 160, 60, 0.15)',
+       color: '#F5BE72',
+       border: '1px solid rgba(232, 160, 60, 0.4)',
       }}>
         {t('Питание: {h} ч', { h: fertHoursLeft })}
       </span>
      )}
     </div>
 
-    {/* Действия */}
-    <div style={{ padding: '4px 20px 20px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-     <Button
-      variant={canHarvest ? 'primary' : 'secondary'}
-      glow={canHarvest ? (rare === 'gold' ? 'gold' : 'teal') : 'none'}
+    {/* Действия: аппаратные клавиши пульта управления делянкой */}
+    <div style={{ padding: '4px 18px 18px', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+     <button
+      type="button"
       disabled={!canHarvest || busy !== null}
       onClick={() => run('harvest', onHarvest, () => sounds.harvest(), () => haptics.harvest())}
-      className={canHarvest ? 'gradient-gold' : ''}
-      style={{ fontSize: 11, padding: '10px 8px' }}
+      className={`field-action-btn${canHarvest ? ' field-action-btn--harvest-ready' : ''}`}
      >
-      {t('Собрать')}
-     </Button>
+      <span className="field-action-btn__title">
+       {t('Собрать')}
+      </span>
+      <span className="field-action-btn__badge">
+       {canHarvest ? `+${accumulated.toFixed(2)} POTATO` : '≥ 1.00 POTATO'}
+      </span>
+     </button>
 
-     <Button
-      variant="secondary"
+     <button
+      type="button"
       disabled={busy !== null}
       onClick={() => run('upgrade', onUpgrade, () => sounds.upgrade(), () => haptics.upgradeField())}
-      style={{ fontSize: 11, padding: '10px 8px' }}
+      className="field-action-btn"
      >
-      {t('Апгрейд модуля')}
-      <span style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{fmtPotatoExact(upgradeCostMicro(field.level, field.fieldType))} POTATO</span>
-     </Button>
+      <span className="field-action-btn__title">
+       {t('Апгрейд модуля')}
+      </span>
+      <span className="field-action-btn__badge">
+       {fmtPotatoExact(upgradeCostMicro(field.level, field.fieldType))} POTATO
+      </span>
+     </button>
 
-     <Button
-      variant="secondary"
+     <button
+      type="button"
       disabled={!needsRepair || busy !== null}
       onClick={() => run('repair', onRepair, () => sounds.repair(), () => haptics.repairField())}
-      style={{ fontSize: 11, padding: '10px 8px' }}
+      className="field-action-btn"
      >
-      {t('Полив')}
-      <span style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{fmtPotatoExact(repairCostMicro(field.level, field.fieldType))} POTATO</span>
-     </Button>
+      <span className="field-action-btn__title">
+       {t('Полив')}
+      </span>
+      <span className="field-action-btn__badge">
+       {fmtPotatoExact(repairCostMicro(field.level, field.fieldType))} POTATO
+      </span>
+     </button>
 
-     <Button
-      variant="secondary"
+     <button
+      type="button"
       disabled={busy !== null}
       onClick={() => run('tax', onPayTax, () => sounds.payTax(), () => haptics.payTax())}
-      style={{ fontSize: 11, padding: '10px 8px' }}
+      className="field-action-btn"
      >
-      {t('Пошлина')}
-      <span style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{fmtPotatoExact(taxCostMicro(field.level, field.fieldType))} POTATO</span>
-     </Button>
+      <span className="field-action-btn__title">
+       {t('Пошлина')}
+      </span>
+      <span className="field-action-btn__badge">
+       {fmtPotatoExact(taxCostMicro(field.level, field.fieldType))} POTATO
+      </span>
+     </button>
 
-     <Button
-      variant="secondary"
+     <button
+      type="button"
       disabled={fertActive || busy !== null}
       onClick={() => run('fert', onApplyFertilizer, () => sounds.fertilizer(), () => haptics.applyFertilizer())}
-      style={{ fontSize: 11, gridColumn: '1 / -1' }}
+      className="field-action-btn"
+      style={{ gridColumn: '1 / -1' }}
      >
-      {fertActive ? t('Удобрено ') : t('Питание +50% · 24ч')}
-      <span style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{fmtPotatoExact(fertilizerCostMicro(field.fieldType))} POTATO</span>
-     </Button>
+      <span className="field-action-btn__title">
+       {fertActive ? t('Удобрено ') : t('Питание +50% · 24ч')}
+      </span>
+      <span className="field-action-btn__badge">
+       {fmtPotatoExact(fertilizerCostMicro(field.fieldType))} POTATO
+      </span>
+     </button>
     </div>
    </div>
   </motion.div>

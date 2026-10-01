@@ -14,11 +14,11 @@ const GRID_ROWS = 5;
 const HALF_COLUMNS = Math.ceil(GRID_COLUMNS / 2);
 
 const AVATAR_COLORS = [
- 'var(--ares-grow-pink, #FF2E93)',
- 'var(--ares-bio-cyan, #12E7C4)',
+ '#E5A86E',
+ '#ED8A45',
  'var(--ares-hud-amber, #FFB347)',
- 'var(--ares-blueset, #6B93D6)',
- 'var(--ares-bio-green, #7CFF6B)',
+ '#D48742',
+ '#9FBE7A',
 ];
 
 function hashString(input: string): number {

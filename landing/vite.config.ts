@@ -10,14 +10,16 @@ export default defineConfig({
     }),
   ],
   server: {
+    host: "0.0.0.0",
+    port: 5173,
     // Превью-хосты Arena: {port}-{sandboxId}.e2b.app
-    allowedHosts: [".e2b.app"],
+    allowedHosts: true,
   },
   preview: {
     host: true,
     // Тот же список, что и для dev: preview-сервер иначе отклоняет
     // прокси-хост по Host-заголовку.
-    allowedHosts: [".e2b.app"],
+    allowedHosts: true,
   },
   define: {
     "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV || "development"),

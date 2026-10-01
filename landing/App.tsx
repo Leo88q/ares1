@@ -45,7 +45,7 @@ import {
 import { LiquidPanelBorder } from "./LiquidPanel";
 import type { LiquidPanelVariant } from "./LiquidPanel";
 import { MorphButton } from "./MorphButton";
-import { Glyph, Emblem } from "./Glyph";
+import { Glyph } from "./Glyph";
 import { InterstellarSection } from "./InterstellarBridge";
 import { LivingPhobos } from "./LivingPhobos";
 import { RarityModules } from "./RarityModules";
@@ -891,19 +891,12 @@ function Hero(): JSX.Element {
               <Play size={18} aria-hidden="true" />
               {PC.label}
             </a>
-            <Action href={SC.hero.primaryHref}>
-              <Emblem name="flame" size={15} style={{ marginRight: 6 }} />
-              {SC.hero.primaryCta}
-            </Action>
-            <Action
-              variant="secondary"
-              href={SC.hero.secondaryHref}
-              target="_blank"
-              rel="noopener noreferrer"
+            <a
+              className="cta-buy"
+              href={SC.hero.primaryHref}
             >
-              {SC.hero.secondaryCta}
-              <ArrowUpRight size={16} aria-hidden="true" />
-            </Action>
+              {SC.hero.primaryCta}
+            </a>
           </Reveal>
 
           <Reveal className="presale-panel" delay={0.35} panel="accent">
@@ -1144,7 +1137,7 @@ function Mechanics(): JSX.Element {
 
       <div className="feature-grid">
         {FEATURES.map((feature, index) => (
-          <Reveal key={feature.id} delay={index * 0.08}>
+          <Reveal key={feature.id} delay={index * 0.08} className="feature-reveal">
             <TiltCard xpKey={feature.id}>
               <div className="feature-top">
                 <div className="feature-icon">
@@ -1876,11 +1869,11 @@ function PacksSection(): JSX.Element {
                 </strong>
               </div>
               <button
-                className="pack-buy-main"
+                className="pack-buy-main cta-buy"
                 onClick={() => { void buyPack(); }}
                 disabled={purchasing || !balanceOk || soldOut}
               >
-                <Emblem name="flame" size={15} style={{ marginRight: 6 }} />{purchasing ? t("Отправка транзакции…") : soldOut ? t("Волна распродана") : t("Купить модуль · 1053 SKR")}
+                {purchasing ? t("Отправка транзакции…") : soldOut ? t("Волна распродана") : t("Купить модуль · 1053 SKR")}
               </button>
               {soldOut && (
                 <p className="pack-note">{t("Все {n} модулей первой волны проданы.", { n: live.cap })}</p>
@@ -1892,11 +1885,11 @@ function PacksSection(): JSX.Element {
           ) : (
             <>
               <button
-                className="pack-buy-main"
+                className="pack-buy-main cta-buy"
                 onClick={() => { void connect(); }}
                 disabled={connecting}
               >
-                {connecting ? t("Подключение…") : (<span><Emblem name="flame" size={15} style={{ marginRight: 6 }} />{t("Подключить кошелёк")}</span>)}
+                {connecting ? t("Подключение…") : t("Подключить кошелёк")}
               </button>
               <p className="pack-note">
                 {t("Phantom или Solflare. После подключения кнопка покупки станет активной.")}

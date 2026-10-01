@@ -35,8 +35,7 @@ export default function App() {
  const [booted, setBooted] = useState(() => getItem("functional", "potato_landed") === "1")
  useReferralRegistration()
 
- // Фоновая музыка глобальная: запускается один раз на всю игру,
- // независимо от того, на каком экране пользователь находится.
+ // Фоновая музыка глобальная: запускается один раз на всю игру
  useEffect(() => {
   ambientMusic.init()
  }, [])
@@ -56,32 +55,33 @@ export default function App() {
    <GrainOverlay />
    <MkRoughFilters />
    <HullSkinMounter />
-   <BackgroundScene variant="farm" />
-   <div style={{ maxWidth: 480, margin: '0 auto', position: 'relative', minHeight: '100vh', zIndex: 1 }}>
-    <div className="ares-habitat-bg" aria-hidden="true" />
-    <ErrorBoundary>
-     <ToastProvider>
-      <WalletErrorReporter />
-      {/* Consent UI: mounted last so it paints above the game chrome. The
-          banner is not a modal — rejecting must not block play (§4.3). */}
-      <CookieConsent />
-      <GameProvider>
-       {showTutorial && <InteractiveTutorial onComplete={() => setShowTutorial(false)} />}
-       {booted ? (
-        <AppRoutes />
-       ) : (
-        <div style={{ minHeight: '100vh' }}>
-         <LandingSequence
-          onLanded={() => {
-           setItem("functional", "potato_landed", "1")
-           setBooted(true)
-          }}
-         />
-        </div>
-       )}
-             </GameProvider>
-     </ToastProvider>
-    </ErrorBoundary>
+
+   {/* Телефонная подножка: центрированный корпус интерфейса колониста */}
+   <div className="pf-phone-chassis">
+    <BackgroundScene />
+    <div style={{ position: 'relative', minHeight: '100vh', zIndex: 1, display: 'flex', flexDirection: 'column' }}>
+     <ErrorBoundary>
+      <ToastProvider>
+       <WalletErrorReporter />
+       <CookieConsent />
+       <GameProvider>
+        {showTutorial && <InteractiveTutorial onComplete={() => setShowTutorial(false)} />}
+        {booted ? (
+         <AppRoutes />
+        ) : (
+         <div style={{ minHeight: '100vh' }}>
+          <LandingSequence
+           onLanded={() => {
+            setItem("functional", "potato_landed", "1")
+            setBooted(true)
+           }}
+          />
+         </div>
+        )}
+       </GameProvider>
+      </ToastProvider>
+     </ErrorBoundary>
+    </div>
    </div>
   </div>
  )

@@ -40,6 +40,7 @@ export interface Field {
 
 export interface GameStats {
  totalFields: number
+ maxFieldLevel: number
  pendingHarvest: number
  playerLevel: number
  experience: number
@@ -170,14 +171,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
  }, [rawFields, config, nowSec])
 
  const stats = useMemo<GameStats>(
-  () => ({
-   totalFields: fields.length,
-   pendingHarvest: fields.reduce((s, f) => s + f.accumulated, 0),
-   playerLevel: Math.floor(fields.length / 3) + 1,
-   experience: fields.length * 100 + potatoBalance / MICRO,
-   potatoBalance,
-   skrBalance,
-  }),
+  () => {
+   const maxLevel = fields.reduce((m, f) => Math.max(m, f.level), 0)
+   return {
+    totalFields: fields.length,
+    maxFieldLevel: maxLevel,
+    pendingHarvest: fields.reduce((s, f) => s + f.accumulated, 0),
+    playerLevel: Math.floor(fields.length / 3) + 1,
+    experience: fields.length * 100 + potatoBalance / MICRO,
+    potatoBalance,
+    skrBalance,
+   }
+  },
   [fields, potatoBalance, skrBalance],
  )
 
@@ -460,6 +465,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
   async (questId: string, _rewardMicro?: number): Promise<boolean> => {
    const qid = QUEST_ID_BY_ACH[questId]
    if (qid === undefined || !publicKey || !ready || !config) return false
+
+   // Валидация перед отправкой: предотвращает сбойные транзакции с ошибкой 6001
+   if (qid === 5) {
+    const maxLvl = fields.reduce((m, f) => Math.max(m, f.level), 0)
+    const hasL3 = fields.some((f) => f.level >= 3)
+    if (fields.length < 6 || !hasL3) {
+     notify(
+      'error',
+      t('Награда не выдана'),
+      t('Требуется владеть 6 делянками, и хотя бы одна должна быть 3-го уровня (сейчас макс. ур. {lvl}).', { lvl: maxLvl }),
+     )
+     return false
+    }
+   }
+
    try {
     const userAta = getAssociatedTokenAddressSync(config.potatoMint, publicKey, true)
     const questTreasury = questTreasuryPda(programId)
