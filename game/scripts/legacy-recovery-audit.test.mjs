@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   UPGRADEABLE_LOADER_ID,
   base58Encode,
+  findRepositoryRecordedDeploySignature,
   parseBufferAccounts,
   parseProgramAccount,
   parseProgramDataAccount,
@@ -55,6 +56,12 @@ test('base58 encoder preserves leading zero bytes and encodes 32-byte public key
   assert.equal(base58Encode(Buffer.from([0, 0, 1])), '112');
   const key = Buffer.from(Array.from({ length: 32 }, (_, i) => i));
   assert.equal(base58Encode(key).length > 32, true);
+});
+
+test('deployment signature is read from the README record instead of hardcoded as secret-shaped text', () => {
+  const signature = '1'.repeat(87);
+  assert.equal(findRepositoryRecordedDeploySignature(`| Redeploy devnet | slot 1, tx \`${signature}\` |`), signature);
+  assert.equal(findRepositoryRecordedDeploySignature('| no deployment receipt |'), null);
 });
 
 test('SOL rendering is exact to one lamport', () => {
