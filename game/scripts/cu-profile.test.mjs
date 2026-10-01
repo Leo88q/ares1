@@ -39,11 +39,34 @@ test('CU считаются по инструкциям и по нашей пр�
   const payload = JSON.parse(run(['--log', log, '--program-id', PROGRAM, '--json']));
   assert.equal(payload.measured, true);
   assert.equal(payload.foreignConsumedLines, 1, 'CU SPL Token не должны попадать в профиль');
-  const harvest = payload.instructions.find((r) => r.instruction === 'Harvest');
-  assert.deepEqual([harvest.calls, harvest.cuMin, harvest.cuMax], [2, 39876, 41234]);
-  const fill = payload.instructions.find((r) => r.instruction === 'FillOrder');
-  assert.equal(fill.cuMedian, 121000);
-  assert.equal(payload.top[0].instruction, 'FillOrder', 'топ сортируется по медиане CU');
+  const harvest = payload.instructions.find((r) => r.i === 'Harvest');
+  assert.deepEqual([harvest.n, harvest.min, harvest.max], [2, 39876, 41234]);
+  const fill = payload.instructions.find((r) => r.i === 'FillOrder');
+  assert.equal(fill.med, 121000);
+  assert.equal(payload.top[0].i, 'FillOrder', 'топ сортируется по медиане CU');
+});
+
+test('длинный профиль разбивается на аннотации и склеивается без потерь', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'cu-profile-'));
+  const log = path.join(dir, 'big.log');
+  const lines = [];
+  for (let i = 0; i < 60; i += 1) {
+    lines.push(`Program log: Instruction: Ix${String(i).padStart(2, '0')}`);
+    lines.push(`Program ${PROGRAM} consumed ${1000 + i} of 200000 compute units`);
+  }
+  writeFileSync(log, lines.join('\n'));
+  const out = run(['--log', log, '--program-id', PROGRAM, '--annotate']);
+  const parts = out
+    .split('\n')
+    .filter((line) => line.startsWith('::notice title=ares-cu'))
+    .map((line) => JSON.parse(line.slice(line.indexOf('::', 2) + 2)));
+  assert.ok(parts.length > 1, 'профиль обязан разбиться: аннотация GitHub обрезается на ~4 КБ');
+  const merged = parts.flatMap((p) => p.instructions);
+  assert.equal(merged.length, parts[0].itemsTotal);
+  assert.equal(new Set(merged.map((r) => r.i)).size, 60);
+  for (const line of out.split('\n').filter((l) => l.startsWith('::notice'))) {
+    assert.ok(line.length < 4000, `аннотация длиннее лимита: ${line.length}`);
+  }
 });
 
 test('без строк «consumed» профиль честно не измерен', () => {
