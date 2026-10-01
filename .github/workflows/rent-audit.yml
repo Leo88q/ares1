@@ -190,21 +190,34 @@ jobs:
           curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
           sh /tmp/solana-install.sh
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
-      - name: Download the reference build (so-base)
+      - name: Download the reference build (so-base) — цель апгрейда
         uses: actions/download-artifact@v4
         with:
           name: so-base
           path: game/target
-      - name: Verify toolchain and artifact
+      - name: Download the small build (so-z) — стартовый .so
+        # Первый деплой делается маленьким .so, апгрейд — базовым: только так
+        # проверяется extend (на CLI 4.2.2 сам deploy ProgramData не расширяет).
+        uses: actions/download-artifact@v4
+        with:
+          name: so-z
+          path: game/target-small
+      - name: Verify toolchain and artifacts
         run: |
           test "$(solana --version | awk '{print $2}')" = "$SOLANA_VERSION"
-          # download-artifact кладёт файлы от общего предка — нормализуем путь, если он другой.
+          # download-artifact кладёт файлы от общего предка — нормализуем пути.
           if [ ! -s target/deploy/solana_potato.so ]; then
-            found="$(find . -name 'solana_potato.so' -not -path './target/*' -print -quit)"
+            found="$(find target -name 'solana_potato.so' -print -quit)"
             [ -n "$found" ] && mkdir -p target/deploy && cp "$found" target/deploy/solana_potato.so
           fi
           test -s target/deploy/solana_potato.so
-          stat -c '%s bytes %n' target/deploy/solana_potato.so
+          mkdir -p target-small
+          small="$(find target-small -name 'solana_potato.so' -print -quit)"
+          if [ -n "$small" ] && [ "$small" != "target-small/solana_potato.so" ]; then
+            cp "$small" target-small/solana_potato.so
+          fi
+          test -s target-small/solana_potato.so
+          stat -c '%s bytes %n' target/deploy/solana_potato.so target-small/solana_potato.so
       - name: Start solana-test-validator (localnet only)
         # Тестовый валидатор включает ВСЕ фичи по умолчанию (включая
         # disable_sbpf_v0_v1_v2_deployment), и тогда .so, собранный пиннутым
@@ -224,7 +237,7 @@ jobs:
           done
           solana cluster-version --url http://127.0.0.1:8899
       - name: Calibrate (annotation ares-calibrate)
-        run: node scripts/calibrate-localnet.mjs --so target/deploy/solana_potato.so --out /tmp/calibrate-report.json
+        run: node scripts/calibrate-localnet.mjs --so target-small/solana_potato.so --so2 target/deploy/solana_potato.so --out /tmp/calibrate-report.json
       - name: Upload calibration report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
