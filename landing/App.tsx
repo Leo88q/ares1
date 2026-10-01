@@ -1137,7 +1137,7 @@ function Mechanics(): JSX.Element {
 
       <div className="feature-grid">
         {FEATURES.map((feature, index) => (
-          <Reveal key={feature.id} delay={index * 0.08}>
+          <Reveal key={feature.id} delay={index * 0.08} className="feature-reveal">
             <TiltCard xpKey={feature.id}>
               <div className="feature-top">
                 <div className="feature-icon">
