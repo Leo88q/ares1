@@ -9,7 +9,7 @@ On-chain фарм-игра на Solana с реальной экономикой:
 ## Структура
 
 ```
-programs/solana_potato/     Anchor 0.31.2 программа (Rust) — 39 инструкций, 12 типов аккаунтов
+programs/solana_potato/     Anchor 0.31.2 программа (Rust) — 44 инструкции, 13 типов аккаунтов
 apps/web/                   PWA / dApp (React 18 + Vite 5 + wallet-adapter) — целим в Solana dApp Store
 apps/backend/               Сервис эпох и конфига: держит authority-ключ, роллит эпохи, отдаёт on-chain config
 tests/                      Интеграционные тесты anchor test (ts-mocha)
@@ -35,10 +35,10 @@ libs/                       sentinel, solana-tx-guard — отдельные р�
 
 | Инструмент | Версия | Примечание |
 |---|---|---|
-| Rust | stable ≥ 1.79 | host-юниттесты |
-| Solana CLI (Agave) | **4.2.x** (platform-tools ≥ v1.5) | `Cargo.lock` v4; 1.18.x не соберёт |
-| Anchor | **0.30.1** через avm | `Anchor.toml [toolchain]` пинит `solana_version = "4.2.2"` — иначе avm подменит тулчейн на 1.18 |
-| Rust nightly для IDL | `nightly-2025-03-01` | Anchor 0.30.1 строит IDL каналом `nightly`; nightly новее апреля 2025 не имеет `proc_macro::SourceFile`. Установите датированный nightly и слинкуйте его как `nightly` (`ln -sfn ~/.rustup/toolchains/nightly-2025-03-01-* ~/.rustup/toolchains/nightly-<host>`). `proc-macro2` запинен в `Cargo.lock` на 1.0.94 по той же причине |
+| Rust | **1.97.1** (`rust-toolchain.toml`) | host-юниттесты; версия фиксирована |
+| Solana CLI (Agave) | **4.2.2** (`Anchor.toml [toolchain]`, пин CI) | `Cargo.lock` v4; 1.18.x не соберёт |
+| Anchor | **0.31.2** через avm | `Anchor.toml` пинит `solana_version = "4.2.2"` — иначе avm подменит тулчейн на 1.18 |
+| JS-клиент `@coral-xyz/anchor` | **0.30.1** | Запинен отдельно от CLI (см. [docs/OPERATIONS.md](docs/OPERATIONS.md)); это не версия `anchor` |
 | Node | 20+ и yarn 1.22 (corepack) | workspaces: web, backend |
 | Python | 3.10+ | только для `economy/simulate.py` |
 
