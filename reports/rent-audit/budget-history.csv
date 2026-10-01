@@ -21,3 +21,4 @@ stage,commit,so_len,rate,need_before_reserve,need_total,note
 3,716d191,736912,5080,3755840280,4055840280,"no-buy-field-sol: только buy_field_sol удалена; run 36920831012/job 110566156029; −19512 Б; ΔNEED_TOTAL −99279360 lamports (−0.099279360 SOL); CI-only, ABI не сохраняется"
 4,d71ad54,756424,5080,3855119640,4155119640,"Q1 read-only recovery run 36928825557; carry-forward z, no product/NEED change; 36.808925372 SOL gross potential is separate liquidity, not deployment budget; no transactions"
 5,93263e6,756424,5080,3855119640,4155119640,"Read-only Q2/Q3/Q4 gate audit; carry-forward z from run 36928825557; no product changes; Q3 NO-GO, Q2/Q4 deletions not approved"
+6,2d80316,756424,5080,3855119640,4155119640,"Q5 runbook hardening only; carry-forward z from Stage 4 run 36928825557; no close/airdrop/deploy; NEED unchanged"

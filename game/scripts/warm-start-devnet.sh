@@ -4,14 +4,15 @@
 #
 #   1. anchor keys sync + anchor build (+ синхронизация IDL) — SOL не тратит,
 #      но размер `.so` нужен расчёту, поэтому сборка идёт ПЕРВОЙ;
-#   2. показывает застрявшие буферы деплоера и ПЕРВЫМ делом предлагает их вернуть
-#      (reclaim: замороженный залог — ликвидность; возврат только CONFIRM_RECLAIM=1);
+#   2. показывает confirmed-инвентарь authority-owned буферов и ПЕРВЫМ делом
+#      предлагает reclaim до airdrop (это отдельная ликвидность, не экономия NEED);
+#      закрытие — только по точным сумме/адресам, повторной сверке и TTY-подтверждению;
 #   3. считает NEED_TOTAL калькулятором scripts/deploy-budget.mjs: ставка rent
 #      читается из RPC, размер — из собранного `.so`, залог = ставка × (45 + max_len)
 #      + ставка × 36 (loader-v3), плюс комиссии, SETUP_ONCHAIN и резерв;
 #   4. доливает SOL деплоеру (airdrop с ретраями), пока баланс < NEED_TOTAL,
-#      и только ПОСЛЕ предложения вернуть буферы: faucet имеет суточный лимит,
-#      а reclaim возвращает уже потраченный залог;
+#      только если authority-owned buffers отсутствуют; при их наличии сначала
+#      останавливается для ручной проверки/reclaim, а reclaim возвращает уже потраченный залог;
 #   5. деплой с ЯВНЫМ --max-len: первый деплой (нет программы) или апгрейд
 #      (FORCE_DEPLOY=1 при существующей программе); при обрыве продолжает на
 #      том же буфере, не тратя залог заново;
@@ -27,7 +28,11 @@
 #    RPC_URL           RPC для ВСЕХ вызовов             (по умолчанию публичный devnet)
 #    DRY_RUN=1         ничего не отправлять: считать, печатать и остановиться
 #    PRINT_NEED=1      синоним DRY_RUN (явно напечатать NEED и выйти)
-#    CONFIRM_RECLAIM=1 закрыть застрявшие буферы деплоера (вернуть SOL на кошелёк)
+#    CONFIRM_RECLAIM=1 закрыть только показанные буферы после отдельной ручной проверки
+#    CONFIRM_RECLAIM_GENESIS=<hash> cluster genesis из свежего read-only снимка
+#    CONFIRM_RECLAIM_SUM=<lamports> точная сумма из confirmed-инвентаря
+#    CONFIRM_RECLAIM_ADDRESSES=<addr1,addr2,...> точный отсортированный список из инвентаря
+#                      затем нужен интерактивный TTY и точная фраза CLOSE-BUFFERS <genesis> <authority> <sum> <addresses>
 #    FORCE_DEPLOY=1    апгрейд, даже если программа уже задеплоена
 #    BUFFER_KEYPAIR    путь к ключу буфера для ПРОДОЛЖЕНИЯ прерванного деплоя:
 #                      CLI 4.2.2 не читает seed-фразу из stdin (`solana-keygen recover`
@@ -47,9 +52,13 @@ PRESERVE_STATE="${PRESERVE_STATE:-0}"
 DRY_RUN="${DRY_RUN:-0}"
 PRINT_NEED="${PRINT_NEED:-0}"
 CONFIRM_RECLAIM="${CONFIRM_RECLAIM:-0}"
+CONFIRM_RECLAIM_GENESIS="${CONFIRM_RECLAIM_GENESIS:-}"
+CONFIRM_RECLAIM_SUM="${CONFIRM_RECLAIM_SUM:-}"
+CONFIRM_RECLAIM_ADDRESSES="${CONFIRM_RECLAIM_ADDRESSES:-}"
 FORCE_DEPLOY="${FORCE_DEPLOY:-}"
 BUFFER_KEYPAIR="${BUFFER_KEYPAIR:-}"
 GROWTH_HEADROOM_BYTES="${GROWTH_HEADROOM_BYTES:-0}"
+BUFFER_GENESIS_HASH=""
 KEYPAIR_FILE=target/deploy/solana_potato-keypair.json
 if [ "$PRINT_NEED" = "1" ]; then DRY_RUN=1; fi
 
@@ -85,6 +94,48 @@ lamports_to_sol() {
   case "$l" in -*) sign="-"; l="${l#-}";; esac
   whole=$((l / 1000000000)); frac=$(printf '%09d' $((l % 1000000000)))
   printf '%s%s.%s' "$sign" "$whole" "$frac"
+}
+
+# Read one confirmed CLI snapshot; Node uses BigInt so the exact lamport sum
+# and the address list used for confirmation cannot be rounded by JSON tooling.
+fetch_buffer_inventory() {
+  local genesis raw normalized
+  if ! genesis="$(solana genesis-hash --url "$RPC_URL" 2>&1)"; then
+    echo "✖ Не удалось определить genesis hash RPC; закрытие/airdrop остановлены:" >&2
+    printf '%s\n' "$genesis" >&2
+    return 1
+  fi
+  if [ -n "$BUFFER_GENESIS_HASH" ] && [ "$genesis" != "$BUFFER_GENESIS_HASH" ]; then
+    echo "✖ RPC genesis hash изменился между проверками; закрытие/airdrop остановлены." >&2
+    return 1
+  fi
+  if ! raw="$(solana program show --buffers --keypair "$ADMIN_KEYPAIR" --lamports --url "$RPC_URL" --commitment confirmed --output json 2>&1)"; then
+    echo "✖ Не удалось получить confirmed-инвентарь буферов; закрытие/airdrop остановлены:" >&2
+    printf '%s\n' "$raw" >&2
+    return 1
+  fi
+  if ! normalized="$(node scripts/buffer-inventory.mjs "$ADMIN" <<<"$raw")"; then
+    echo "✖ Инвентарь буферов неполон или не принадлежит $ADMIN; закрытие/airdrop остановлены." >&2
+    return 1
+  fi
+  BUFFER_GENESIS_HASH="$genesis"
+  BUFFER_INVENTORY_JSON="$normalized"
+  BUFFERS_SUM="$(jq -r '.sumLamports' <<<"$BUFFER_INVENTORY_JSON")"
+  BUFFERS_SUM_SOL="$(jq -r '.sumSol' <<<"$BUFFER_INVENTORY_JSON")"
+  BUFFERS_ADDRESSES="$(jq -r '.addresses' <<<"$BUFFER_INVENTORY_JSON")"
+  BUFFERS_COUNT="$(jq -r '.buffers | length' <<<"$BUFFER_INVENTORY_JSON")"
+}
+
+print_buffer_inventory() {
+  echo "    RPC genesis hash: $BUFFER_GENESIS_HASH"
+  if [ "$BUFFERS_COUNT" = "0" ]; then
+    echo "    authority-owned buffers: none (confirmed)"
+    return
+  fi
+  echo "    confirmed authority-owned buffers ($BUFFERS_COUNT):"
+  jq -r '.buffers[] | "      \(.address) — \(.lamports) lamports"' <<<"$BUFFER_INVENTORY_JSON"
+  echo "    точная сумма: $BUFFERS_SUM lamports ($BUFFERS_SUM_SOL SOL)"
+  echo "    отсортированный список для подтверждения: $BUFFERS_ADDRESSES"
 }
 
 # ── 1) Build: keypair программы → keys sync → anchor build → IDL ─────────────
@@ -125,32 +176,75 @@ else
   echo "    программы ещё нет — будет первый деплой"
 fi
 
-# ── 2) Застрявшие буферы: показать всегда, вернуть — только по CONFIRM_RECLAIM ─
+# ── 2) Застрявшие буферы: read-only inventory; reclaim — отдельное действие ──
 # Буфер и есть залог: после неудачного деплоя он держит ~залог программы.
 # Возврат НЕ уменьшает NEED_TOTAL (нужен полный залог заново), но увеличивает баланс.
-echo "==> 2/7 застрявшие буферы деплоера..."
-BUFFERS_RAW="$(solana program show --buffers --keypair "$ADMIN_KEYPAIR" --lamports --url "$RPC_URL" 2>&1)" || true
-printf '%s\n' "$BUFFERS_RAW"
-BUFFERS_JSON="$(solana program show --buffers --keypair "$ADMIN_KEYPAIR" --lamports --url "$RPC_URL" --output json 2>/dev/null || true)"
-BUFFERS_SUM="$(jq -r 'if type=="array" then ([.[].lamports] | add // 0) else ((.buffers // .accounts // []) | [.[].lamports] | add // 0) end' <<<"${BUFFERS_JSON:-[]}" 2>/dev/null || echo '')"
-if [ -n "$BUFFERS_SUM" ] && [ "$BUFFERS_SUM" != "0" ]; then
-  echo "    СНАЧАЛА reclaim: можно вернуть $BUFFERS_SUM лампортов ($(lamports_to_sol "$BUFFERS_SUM") SOL) —"
-  echo "    это ЛИКВИДНОСТЬ (деньги уже потрачены и лежат в буферах), а не экономия NEED_TOTAL."
-  echo "    Возврат — до airdrop: у faucet суточный лимит, а reclaim возвращает своё."
+echo "==> 2/7 authority-owned buffers (confirmed inventory)..."
+if ! fetch_buffer_inventory; then exit 1; fi
+print_buffer_inventory
+if [ "$BUFFERS_COUNT" != "0" ]; then
+  echo "    СНАЧАЛА вручную проверьте адреса и сумму; reclaim до airdrop рекомендуется."
+  echo "    Это отдельная ликвидность, а не экономия NEED_TOTAL."
 fi
+
 if [ "$CONFIRM_RECLAIM" = "1" ]; then
   if [ "$DRY_RUN" = "1" ]; then
-    echo "    DRY_RUN: пропускаю возврат. Боевая команда:"
-    echo "      solana program close --buffers --keypair \"$ADMIN_KEYPAIR\" --url \"$RPC_URL\""
+    echo "    DRY_RUN: close не выполняется. После ручной сверки отдельный повтор требует:"
+    echo "      CONFIRM_RECLAIM=1 CONFIRM_RECLAIM_GENESIS=$BUFFER_GENESIS_HASH CONFIRM_RECLAIM_SUM=$BUFFERS_SUM CONFIRM_RECLAIM_ADDRESSES='$BUFFERS_ADDRESSES' $0"
+    echo "    и интерактивную точную фразу: CLOSE-BUFFERS $BUFFER_GENESIS_HASH $ADMIN $BUFFERS_SUM $BUFFERS_ADDRESSES"
+  elif [ "$BUFFERS_COUNT" = "0" ]; then
+    echo "    Буферов для close нет; транзакция не отправлялась."
+    echo "    Funding/deploy не входят в этот inventory-only запуск; при необходимости запустите их отдельно."
+    exit 0
+  elif [ "$CONFIRM_RECLAIM_GENESIS" != "$BUFFER_GENESIS_HASH" ] || [ "$CONFIRM_RECLAIM_SUM" != "$BUFFERS_SUM" ] || [ "$CONFIRM_RECLAIM_ADDRESSES" != "$BUFFERS_ADDRESSES" ]; then
+    echo "✖ Подтверждение не совпало со свежим confirmed-инвентарём; close не выполнялся."
+    echo "  После ручной проверки повторите с:"
+    echo "    CONFIRM_RECLAIM=1 CONFIRM_RECLAIM_GENESIS=$BUFFER_GENESIS_HASH CONFIRM_RECLAIM_SUM=$BUFFERS_SUM CONFIRM_RECLAIM_ADDRESSES='$BUFFERS_ADDRESSES' $0"
+    exit 1
+  elif [ ! -t 0 ]; then
+    echo "✖ Для отдельного финального подтверждения нужен интерактивный TTY; close не выполнялся." >&2
+    exit 1
   else
-    echo "    CONFIRM_RECLAIM=1 — возвращаю залог буферов на $ADMIN..."
-    solana program close --buffers --keypair "$ADMIN_KEYPAIR" --url "$RPC_URL"
-    BUFFERS_RAW="$(solana program show --buffers --keypair "$ADMIN_KEYPAIR" --lamports --url "$RPC_URL" 2>&1)" || true
-    echo "    после возврата:"
-    printf '%s\n' "$BUFFERS_RAW"
+    EXPECTED_RECLAIM_CONFIRMATION="CLOSE-BUFFERS $BUFFER_GENESIS_HASH $ADMIN $BUFFERS_SUM $BUFFERS_ADDRESSES"
+    echo "    Сверьте confirmed-инвентарь выше. Будут закрыты только эти адреса:"
+    echo "      authority: $ADMIN"
+    echo "      lamports:  $BUFFERS_SUM"
+    echo "      addresses: $BUFFERS_ADDRESSES"
+    printf 'Для продолжения введите точно: %s\n' "$EXPECTED_RECLAIM_CONFIRMATION"
+    read -r -p ' > ' RECLAIM_CONFIRMATION
+    if [ "$RECLAIM_CONFIRMATION" != "$EXPECTED_RECLAIM_CONFIRMATION" ]; then
+      echo "✖ Точная фраза не совпала; close не выполнялся." >&2
+      exit 1
+    fi
+
+    INVENTORY_BEFORE_CLOSE="$BUFFER_INVENTORY_JSON"
+    GENESIS_BEFORE_CLOSE="$BUFFER_GENESIS_HASH"
+    if ! fetch_buffer_inventory; then exit 1; fi
+    if [ "$BUFFER_GENESIS_HASH" != "$GENESIS_BEFORE_CLOSE" ] || [ "$BUFFER_INVENTORY_JSON" != "$INVENTORY_BEFORE_CLOSE" ]; then
+      echo "✖ Инвентарь изменился после подтверждения; close остановлен. Новый снимок:" >&2
+      print_buffer_inventory
+      exit 1
+    fi
+
+    while IFS= read -r BUFFER_ADDRESS; do
+      [ -n "$BUFFER_ADDRESS" ] || continue
+      echo "    закрываю подтверждённый buffer: $BUFFER_ADDRESS"
+      solana program close "$BUFFER_ADDRESS" --keypair "$ADMIN_KEYPAIR" --url "$RPC_URL" --commitment confirmed
+    done < <(jq -r '.buffers[].address' <<<"$BUFFER_INVENTORY_JSON")
+
+    if ! fetch_buffer_inventory; then exit 1; fi
+    print_buffer_inventory
+    if [ "$BUFFERS_COUNT" != "0" ]; then
+      echo "✖ После close остались authority-owned buffers; проверьте новый inventory вручную." >&2
+      exit 1
+    fi
+    echo "    все адреса из подтверждённого списка закрыты; остаточный инвентарь пуст."
+    echo "    Этот запуск завершён после reclaim; funding/airdrop/deploy требуют отдельного запуска."
+    exit 0
   fi
-elif [ -n "$BUFFERS_SUM" ] && [ "$BUFFERS_SUM" != "0" ]; then
-  echo "    вернуть: CONFIRM_RECLAIM=1 $0   (возврат необратим для адресов буферов)"
+elif [ "$BUFFERS_COUNT" != "0" ]; then
+  echo "    После ручной проверки и отдельного подтверждения можно выполнить reclaim так:"
+  echo "      CONFIRM_RECLAIM=1 CONFIRM_RECLAIM_GENESIS=$BUFFER_GENESIS_HASH CONFIRM_RECLAIM_SUM=$BUFFERS_SUM CONFIRM_RECLAIM_ADDRESSES='$BUFFERS_ADDRESSES' $0"
 fi
 
 # ── 3) Расчёт NEED_TOTAL калькулятором (единственный источник правды о цене) ──
@@ -191,17 +285,21 @@ if [ "$DRY_RUN" = "1" ]; then
     MISSING=$((NEED_TOTAL - BALANCE))
     echo "    DRY_RUN: airdrop не выполняется; не хватает $MISSING лампортов ($(lamports_to_sol "$MISSING") SOL)."
     if [ -n "$BUFFERS_SUM" ] && [ "$BUFFERS_SUM" != "0" ]; then
-      echo "    1) сначала вернуть буферы (reclaim, шаг 2): CONFIRM_RECLAIM=1 $0"
-      echo "       на кошелёк вернётся до $(lamports_to_sol "$BUFFERS_SUM") SOL — это уже потраченный залог;"
+      echo "    1) после ручной проверки/отдельного подтверждения вернуть буферы:"
+      echo "       CONFIRM_RECLAIM=1 CONFIRM_RECLAIM_GENESIS=$BUFFER_GENESIS_HASH CONFIRM_RECLAIM_SUM=$BUFFERS_SUM CONFIRM_RECLAIM_ADDRESSES='$BUFFERS_ADDRESSES' $0"
+      echo "       на кошелёк вернётся до $BUFFERS_SUM_SOL SOL — это уже потраченный залог;"
     fi
     echo "    2) затем airdrop: solana airdrop 2 \"$ADMIN\" --url \"$RPC_URL\""
   else
     echo "    баланса достаточно."
   fi
 else
-  if [ "$BALANCE" -lt "$NEED_TOTAL" ] && [ -n "$BUFFERS_SUM" ] && [ "$BUFFERS_SUM" != "0" ]; then
-    echo "    сначала стоит вернуть буферы (reclaim, шаг 2): CONFIRM_RECLAIM=1 $0 — до $(lamports_to_sol "$BUFFERS_SUM") SOL;"
-    echo "    только потом airdrop (faucet имеет суточный лимит)."
+  if [ "$BALANCE" -lt "$NEED_TOTAL" ] && [ "$BUFFERS_COUNT" != "0" ]; then
+    echo "✖ Airdrop остановлен: сначала вручную проверьте и reclaim-ните confirmed buffers."
+    echo "  Точная сумма: $BUFFERS_SUM lamports ($BUFFERS_SUM_SOL SOL); адреса: $BUFFERS_ADDRESSES"
+    echo "  Отдельный reclaim: CONFIRM_RECLAIM=1 CONFIRM_RECLAIM_GENESIS=$BUFFER_GENESIS_HASH CONFIRM_RECLAIM_SUM=$BUFFERS_SUM CONFIRM_RECLAIM_ADDRESSES='$BUFFERS_ADDRESSES' $0"
+    echo "  После подтверждённого reclaim запустите warm-start отдельно; только тогда возможен airdrop."
+    exit 1
   fi
   TRIES=0
   while [ "$BALANCE" -lt "$NEED_TOTAL" ] && [ "$TRIES" -lt 4 ]; do
@@ -218,7 +316,8 @@ else
     MISSING=$((NEED_TOTAL - BALANCE))
     echo "✖ Не хватает $MISSING лампортов ($(lamports_to_sol "$MISSING") SOL) до NEED_TOTAL."
     echo "  Транзакции деплоя НЕ отправлялись. Варианты (в порядке предпочтения):"
-    echo "    (a) вернуть залог застрявших буферов — это ликвидность: CONFIRM_RECLAIM=1 $0;"
+    echo "    (a) после ручной проверки вернуть залог буферов — это ликвидность:"
+    echo "        CONFIRM_RECLAIM=1 CONFIRM_RECLAIM_GENESIS=$BUFFER_GENESIS_HASH CONFIRM_RECLAIM_SUM=$BUFFERS_SUM CONFIRM_RECLAIM_ADDRESSES='$BUFFERS_ADDRESSES' $0;"
     echo "    (b) докинуть SOL на $ADMIN (devnet-faucet имеет суточный лимит);"
     echo "    (c) уменьшить программу (opt-level, удаление мёртвого кода) — NEED_ пересчитается сам."
     exit 1
