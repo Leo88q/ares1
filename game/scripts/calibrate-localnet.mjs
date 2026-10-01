@@ -62,12 +62,22 @@ export function verdict(checks) {
 }
 
 function sh(command, args, { allowFailure = false, input } = {}) {
+  // Сборка/деплой ~1 МБ печатает прогресс по строке на транзакцию: дефолтный
+  // maxBuffer (1 МиБ) переполняется и убивает дочерний процесс с пустой
+  // диагностикой — увеличиваем буфер и всегда отдаём причину.
+  const options = {
+    encoding: 'utf8',
+    stdio: [input ? 'pipe' : 'ignore', 'pipe', 'pipe'],
+    maxBuffer: 256 * 1024 * 1024,
+    input,
+  };
   try {
-    const stdout = execFileSync(command, args, { encoding: 'utf8', stdio: [input ? 'pipe' : 'ignore', 'pipe', 'pipe'], input });
+    const stdout = execFileSync(command, args, options);
     return { ok: true, stdout, stderr: '' };
   } catch (error) {
-    if (!allowFailure) throw new Error(`${command} ${args.join(' ')}: ${safeDiagnostic(`${error.stderr ?? ''}\n${error.stdout ?? ''}`)}`);
-    return { ok: false, stdout: error.stdout ?? '', stderr: error.stderr ?? '', code: error.status };
+    const detail = `${error.stderr ?? ''}\n${error.stdout ?? ''}\n${error.message ?? ''}`.trim();
+    if (!allowFailure) throw new Error(`${command} ${args.join(' ')}: ${safeDiagnostic(detail)}`);
+    return { ok: false, stdout: error.stdout ?? '', stderr: error.stderr ?? '', message: error.message ?? '', signal: error.signal ?? null, code: error.status ?? null, detail };
   }
 }
 
@@ -151,21 +161,24 @@ async function main() {
   const programId = sh('solana-keygen', ['pubkey', programKeypair]).stdout.trim();
   // Некоторые валидаторы ограничивают разовый airdrop — просим по 2 SOL и
   // проверяем, что баланс действительно вырос (иначе деплой упадёт мгновенно).
-  const airdropTarget = 20n * 1_000_000_000n;
+  // Разовый airdrop ограничен (и провайдером, и валидатором): просим по 1 SOL,
+  // цель — 40 SOL, но жёстко требуем лишь залог деплоя + запас на повтор.
+  const airdropTarget = 40n * 1_000_000_000n;
+  const required = rent(CONSTANTS.PROGRAMDATA_META + soLen) + rent(CONSTANTS.PROGRAM_ACC) + 1_000_000_000n;
   let airdropError = null;
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 60; i++) {
     if ((await fetchBalance(rpc, payer)) >= airdropTarget) break;
-    const run = sh('solana', ['airdrop', '2', payer, '--url', rpc], { allowFailure: true });
+    const run = sh('solana', ['airdrop', '1', payer, '--url', rpc], { allowFailure: true });
     if (!run.ok) {
-      airdropError = safeDiagnostic(`${run.stderr}\n${run.stdout}`);
+      airdropError = safeDiagnostic(run.detail ?? `${run.stderr}\n${run.stdout}`);
       break;
     }
   }
   const startBalance = await fetchBalance(rpc, payer);
-  if (startBalance < airdropTarget / 4n) {
-    throw new Error(`airdrop не пополнил плательщика: баланс ${startBalance} лампортов${airdropError ? `, ошибка: ${airdropError}` : ''}`);
+  if (startBalance < required) {
+    throw new Error(`airdrop не пополнил плательщика: баланс ${startBalance} < требуемого ${required} лампортов${airdropError ? `, ошибка: ${airdropError}` : ''}`);
   }
-  notes.push(`плательщик: стартовый баланс ${startBalance} лампортов`);
+  notes.push(`плательщик: стартовый баланс ${startBalance} лампортов (залог деплоя ${required})`);
   const deployArgs = (maxLen, extra = []) => [
     'program', 'deploy', '--url', rpc, '--keypair', payerKeypair, '--program-id', programKeypair,
     '--max-len', maxLen.toString(), '--max-sign-attempts', '60', '--use-rpc', ...extra, soPath,
@@ -175,7 +188,7 @@ async function main() {
   // Продолжаем на восстановленном буфере, как это делает warm-start-devnet.sh.
   const deploy = (maxLen, { attempts = 3 } = {}) => {
     let extra = [];
-    let last = { ok: false, stdout: '', stderr: 'попыток не было', code: null };
+    let last = { ok: false, stdout: '', stderr: 'попыток не было', detail: 'попыток не было', code: null };
     let attempt = 0;
     for (attempt = 1; attempt <= attempts; attempt++) {
       last = sh('solana', deployArgs(maxLen, extra), { allowFailure: true });
@@ -187,7 +200,7 @@ async function main() {
         .find((line) => /^[a-z]{3,8}( [a-z]{3,8}){11}$/.test(line));
       const bufferFile = path.join(workdir, `buffer-${attempt}.json`);
       const recovered = words && sh('solana-keygen', ['recover', '--stdin', '-o', bufferFile], { input: `${words}\n`, allowFailure: true }).ok;
-      notes.push(recovered ? `деплой: попытка ${attempt} не прошла, продолжаем на буфере` : `деплой: попытка ${attempt} не прошла — ${safeDiagnostic(last.stderr)}`);
+      notes.push(recovered ? `деплой: попытка ${attempt} не прошла, продолжаем на буфере` : `деплой: попытка ${attempt} не прошла — ${safeDiagnostic(last.detail ?? `${last.stderr}\n${last.stdout}`)}`);
       if (!recovered) break;
       extra = ['--buffer', bufferFile];
     }
@@ -198,7 +211,7 @@ async function main() {
   const before1 = await fetchBalance(rpc, payer);
   const deploy1 = deploy(soLen);
   if (!deploy1.ok) {
-    throw new Error(`деплой .so (${soLen} Б) не прошёл за ${deploy1.attempt} попыт(ок): ${safeDiagnostic(`${deploy1.stderr}\n${deploy1.stdout}`)}`);
+    throw new Error(`деплой .so (${soLen} Б) не прошёл за ${deploy1.attempt} попыт(ок): ${safeDiagnostic(deploy1.detail ?? `${deploy1.stderr}\n${deploy1.stdout}`)}`);
   }
   const state1 = await readProgram(rpc, programId);
   const modelFees = computeFees(soLen, {});

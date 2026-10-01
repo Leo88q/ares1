@@ -109,6 +109,12 @@ if (args[0] === 'program' && args[1] === 'deploy') {
     n += 1; fs.writeFileSync(file, String(n));
     if (n === 1) { console.log('abandon ability able about above absent absorb abstract absurd abuse access accident'); process.exit(1); }
   }
+  // Шумный прогресс (как у CLI на большом .so): проверяем, что буфер вывода
+  // не переполняется и деплой не «падает» с пустой диагностикой.
+  if (process.env.FAKE_NOISY === '1') {
+    const filler = 'Writing buffer: '.padEnd(160, '.');
+    for (let i = 0; i < 12000; i++) console.log(filler + ' ' + i);
+  }
   const maxLen = BigInt(flag('--max-len'));
   const soLen = BigInt(fs.statSync(args[args.length - 1]).size);
   if (maxLen < soLen) { console.error('Error: Max length specified not large enough to accommodate desired program'); process.exit(1); }
@@ -188,6 +194,7 @@ process.exit(0);
     FAKE_PAYER_PUB: payerPub,
     FAKE_PD_PUB: pdPub,
     FAKE_FAIL_FIRST: '1',
+    FAKE_NOISY: '1',
     FAKE_ATTEMPT_FILE: path.join(workdir, 'deploy-attempts'),
     ANNOTATE: '0',
   };
@@ -206,6 +213,8 @@ process.exit(0);
   // Первая попытка деплоя упала (заглушка), скрипт продолжил на буфере.
   assert.equal(payload.steps.find((step) => step.step === 'new').attempt, 2, JSON.stringify(payload.notes));
   assert.equal(payload.notes.some((note) => note.includes('продолжаем на буфере')), true);
+  // Заглушка печатает ~2 МиБ прогресса: деплой обязан пройти (maxBuffer хватает).
+  assert.equal(payload.steps.find((step) => step.step === 'new').spent !== undefined, true);
 
   // Провал airdrop обязан дать аннотацию ares-calibrate-error и код 2, а не
   // молчаливый ReferenceError в catch (аннотации — единственный канал из CI).
