@@ -1869,7 +1869,7 @@ function PacksSection(): JSX.Element {
                 </strong>
               </div>
               <button
-                className="pack-buy-main"
+                className="pack-buy-main cta-buy"
                 onClick={() => { void buyPack(); }}
                 disabled={purchasing || !balanceOk || soldOut}
               >
@@ -1885,7 +1885,7 @@ function PacksSection(): JSX.Element {
           ) : (
             <>
               <button
-                className="pack-buy-main"
+                className="pack-buy-main cta-buy"
                 onClick={() => { void connect(); }}
                 disabled={connecting}
               >
