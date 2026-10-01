@@ -11,6 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   CONSTANTS,
+  base58,
   budget,
   ceilDiv,
   checkReserveFloor,
@@ -211,7 +212,11 @@ test('ceilDiv: только целые лампорты', () => {
 // иначе «Promise × BigInt» падал в рантайме, а шаг арес-setup в CI — вместе с ним.
 test('V6: онлайн-расчёт через RPC повторяет модель §5.1 и §5.2', () => {
   const RATE = 5080; // ставка живёт только в заглушке RPC (R3: в расчёте её нет)
+  // Первый байт — 0x00: адрес ProgramData начинается с '1' (ведущий нулевой байт),
+  // именно на этом ломался base58 (RPC отвечал WrongSize).
   const pda = Buffer.from(Array.from({ length: 32 }, (_, i) => i));
+  const pdAddress = base58(pda);
+  const programId = 'DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf'; // scripts/rent-audit.config.json
   const program36 = Buffer.concat([Buffer.from([2, 0, 0, 0]), pda]);
   const programData45 = Buffer.concat([
     Buffer.from([3, 0, 0, 0]),
@@ -235,11 +240,14 @@ test('V6: онлайн-расчёт через RPC повторяет модел
       if (method === 'getBalance') return ok(10000000000);
       if (method === 'getProgramAccounts') return ok([]);
       if (method === 'getAccountInfo') {
-        const length = params[1]?.dataSlice?.length;
-        if (length === 36) {
+        const [address, options] = params;
+        const length = options?.dataSlice?.length;
+        // Адреса сверяются точно: неверно закодированный pubkey публичный RPC
+        // отвергает (WrongSize), и заглушка обязана вести себя так же.
+        if (address === programId && length === 36) {
           return ok({ context: { slot: 1 }, value: { lamports: 1, data: [program36.toString('base64'), 'base64'], owner: LOADER, executable: true, space: 36 } });
         }
-        if (length === 45) {
+        if (address === pdAddress && length === 45) {
           return ok({ context: { slot: 1 }, value: { lamports: 3633119480, data: [programData45.toString('base64'), 'base64'], owner: LOADER, executable: false, space: 715053 } });
         }
         return ok({ context: { slot: 1 }, value: null });
@@ -279,4 +287,31 @@ test('V6: онлайн-расчёт через RPC повторяет модел
       }
     });
   });
+});
+
+// ── base58: адреса из данных аккаунтов (регрессия WrongSize) ────────────────
+test('base58: ведущие нулевые байты дают ровно столько же "1", сколько байт', () => {
+  const decode = (text) => {
+    const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+    let n = 0n;
+    for (const char of text) n = n * 58n + BigInt(alphabet.indexOf(char));
+    const zeros = text.match(/^1*/)[0].length;
+    const hex = n.toString(16).padStart(2 * Math.ceil(n.toString(16).length / 2), '0');
+    return Buffer.concat([Buffer.alloc(zeros), n === 0n ? Buffer.alloc(0) : Buffer.from(hex, 'hex')]);
+  };
+  // System Program: 32 нулевых байта → 32 единицы (канонический адрес Solana).
+  assert.equal(base58(Buffer.alloc(32)), '1'.repeat(32));
+  assert.equal(decode(base58(Buffer.alloc(32))).length, 32);
+  const cases = [
+    Buffer.from(Array.from({ length: 32 }, (_, i) => i)),
+    Buffer.concat([Buffer.alloc(5), Buffer.from('deadbeef', 'hex'), Buffer.alloc(23, 7)]),
+    Buffer.alloc(32, 0xff),
+    Buffer.from('00'.repeat(31) + '01', 'hex'),
+  ];
+  for (const bytes of cases) {
+    assert.equal(bytes.length, 32);
+    const text = base58(bytes);
+    assert.equal(decode(text).length, 32, `адрес ${text} должен декодироваться в 32 байта`);
+    assert.deepEqual(decode(text), bytes, `round-trip base58(${bytes.toString('hex')})`);
+  }
 });

@@ -256,16 +256,24 @@ function makeRentFn(url, rate, offline) {
   return rent;
 }
 
-/** Публичный base58 (для декодирования адресов из данных аккаунтов). */
+/**
+ * Публичный base58 (для адресов, прочитанных из данных аккаунтов).
+ * Ведущие НУЛЕВЫЕ БАЙТЫ кодируются как '1' (по одному на байт) — считать все
+ * нулевые байты нельзя: адрес получится короче 32 байт, и RPC ответит
+ * «Invalid param: WrongSize» (регрессия Этапа 0 — закрыта тестом base58).
+ */
 export function base58(bytes) {
   const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  let n = BigInt(`0x${Buffer.from(bytes).toString('hex') || '0'}`);
+  const buffer = Buffer.from(bytes);
+  const firstNonZero = buffer.findIndex((byte) => byte !== 0);
+  const zeros = firstNonZero === -1 ? buffer.length : firstNonZero;
+  let n = BigInt(`0x${buffer.toString('hex') || '0'}`);
   let out = '';
   while (n > 0n) {
     out = alphabet[Number(n % 58n)] + out;
     n /= 58n;
   }
-  return '1'.repeat(bytes.length - bytes.filter((b) => b === 0).length) + out;
+  return '1'.repeat(zeros) + out;
 }
 
 /** Состояние программы в кластере (Program/ProgramData через RPC, без ключей). */
