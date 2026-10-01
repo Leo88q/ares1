@@ -212,8 +212,9 @@ process.exit(0);
   assert.equal(payload.steps.some((step) => step.step === 'extend' && step.ok === true), true);
   // Первая попытка деплоя упала (заглушка), скрипт продолжил на буфере.
   assert.equal(payload.steps.find((step) => step.step === 'new').attempt, 2, JSON.stringify(payload.notes));
-  assert.equal(typeof payload.bufferPubkey, 'string');
-  assert.equal(payload.notes.some((note) => note.includes('продолжаем на том же буфере')), true);
+  assert.equal(payload.notes.some((note) => note.includes('попытка 1 не прошла')), true);
+  assert.equal(payload.notes.some((note) => note.includes('CLI напечатал seed-фразу')), true);
+  assert.equal(payload.notes.some((note) => /[a-z]{3,8}( [a-z]{3,8}){11}/.test(note)), false, 'seed-фраза не должна попадать в заметки');
   // Заглушка печатает ~2 МиБ прогресса: деплой обязан пройти (maxBuffer хватает).
   assert.equal(payload.steps.find((step) => step.step === 'new').spent !== undefined, true);
 
