@@ -197,11 +197,15 @@ const balanceAt = (rpc, address, commitment = 'confirmed') => fetchBalance(rpc, 
  * баланса выглядит как «комиссии» (наблюдено: fees_underestimated на 8fc8d25).
  */
 async function fetchPayerBuffers(rpc, payer) {
+  // Layout Buffer-аккаунта: tag u32 (4 Б) + Option<Pubkey> (1 Б признака + 32 Б
+  // адреса) = 37 Б (`BUFFER_META`), поэтому authority лежит по смещению 5.
+  // Смещение 4 (как у ProgramData) даёт пустой список — проверено прогоном
+  // 110518228621: залог буфера не находился и попадал в «комиссии».
   const accounts = await rpcCall(rpc, 'getProgramAccounts', [
     'BPFLoaderUpgradeab1e11111111111111111111111',
     {
       encoding: 'base64',
-      filters: [{ memcmp: { offset: 4, bytes: payer } }],
+      filters: [{ memcmp: { offset: 5, bytes: payer } }],
     },
   ]);
   const buffers = [];
