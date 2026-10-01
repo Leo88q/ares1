@@ -116,10 +116,12 @@ const rows = instructions.map((name) => {
 });
 
 const byUsage = (label) => rows.filter((r) => r.usage === label).map((r) => r.name);
-const payload = {
+// Аннотация GitHub обрезается на ~4 КБ, поэтому в неё идёт сводка без `rows`
+// (построчный разбор остаётся в `--json`). Списки имён — самое ценное.
+const summary = {
   idl: 'apps/web/src/idl.json',
   instructions: rows.length,
-  layers: Object.fromEntries(Object.entries(files).map(([k, v]) => [k, v.length])),
+  layerFiles: Object.fromEntries(Object.entries(files).map(([k, v]) => [k, v.length])),
   withUiPath: rows.filter((r) => r.usage === 'есть путь из UI').length,
   uiMissing: byUsage('есть путь из UI').length ? instructions.filter((n) => !byUsage('есть путь из UI').includes(n)) : instructions,
   noWebBuilder: rows.filter((r) => r.hits['web-builder'] === 0).map((r) => r.name),
@@ -129,14 +131,15 @@ const payload = {
   onlyTestsScripts: byUsage('только тесты/скрипты'),
   unreferenced: byUsage('нет ссылок'),
   note: 'статическая проверка ссылок; имя в коде = ссылка, не гарантия вызова; UI вызывает обёртки utils — отсутствие ссылки в UI-слое не доказывает отсутствия пути; programs/ и idl.json исключены',
-  rows,
 };
+const payload = { ...summary, rows };
 
 if (process.argv.includes('--json')) {
   console.log(JSON.stringify(payload, null, 1));
 } else if (process.argv.includes('--annotate')) {
   const escape = (v) => v.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
-  console.log(`::notice title=ares-usage::${escape(JSON.stringify(payload))}`);
+  // Сводка + отдельные аннотации, если список не поместился.
+  console.log(`::notice title=ares-usage::${escape(JSON.stringify(summary))}`);
   console.log(
     `Инструкций: ${rows.length}; путь из UI: ${payload.withUiPath}; без ссылок: ${payload.unreferenced.length}`,
   );
