@@ -4,6 +4,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -201,4 +204,79 @@ test('ceilDiv: только целые лампорты', () => {
   assert.equal(ceilDiv(0n, 800n), 0n);
   assert.throws(() => ceilDiv(10, 3), TypeError);
   assert.throws(() => ceilDiv(10n, 0n), RangeError);
+});
+
+// ── V6: онлайн-режим (ставка и залог из RPC) ────────────────────────────────
+// Регрессия: planning-функции синхронные, поэтому rent обязан быть предзагружен;
+// иначе «Promise × BigInt» падал в рантайме, а шаг арес-setup в CI — вместе с ним.
+test('V6: онлайн-расчёт через RPC повторяет модель §5.1 и §5.2', () => {
+  const RATE = 5080; // ставка живёт только в заглушке RPC (R3: в расчёте её нет)
+  const pda = Buffer.from(Array.from({ length: 32 }, (_, i) => i));
+  const program36 = Buffer.concat([Buffer.from([2, 0, 0, 0]), pda]);
+  const programData45 = Buffer.concat([
+    Buffer.from([3, 0, 0, 0]),
+    Buffer.alloc(8),
+    Buffer.from([1]),
+    Buffer.alloc(32, 7),
+  ]);
+  const LOADER = 'BPFLoaderUpgradeab1e11111111111111111111111';
+  const server = createServer((request, response) => {
+    let raw = '';
+    request.on('data', (chunk) => { raw += chunk; });
+    request.on('end', () => {
+      const { method, params } = JSON.parse(raw);
+      const ok = (result) => {
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({ jsonrpc: '2.0', id: 1, result }));
+      };
+      if (method === 'getMinimumBalanceForRentExemption') return ok((128 + params[0]) * RATE);
+      if (method === 'getGenesisHash') return ok('stub-genesis');
+      if (method === 'getSlot') return ok(1);
+      if (method === 'getBalance') return ok(10000000000);
+      if (method === 'getProgramAccounts') return ok([]);
+      if (method === 'getAccountInfo') {
+        const length = params[1]?.dataSlice?.length;
+        if (length === 36) {
+          return ok({ context: { slot: 1 }, value: { lamports: 1, data: [program36.toString('base64'), 'base64'], owner: LOADER, executable: true, space: 36 } });
+        }
+        if (length === 45) {
+          return ok({ context: { slot: 1 }, value: { lamports: 3633119480, data: [programData45.toString('base64'), 'base64'], owner: LOADER, executable: false, space: 715053 } });
+        }
+        return ok({ context: { slot: 1 }, value: null });
+      }
+      return ok(null);
+    });
+  });
+  server.listen(0, '127.0.0.1');
+  // spawnSync заблокировал бы event loop — заглушка RPC не смогла бы ответить.
+  return new Promise((resolve, reject) => {
+    server.on('listening', async () => {
+      try {
+        const url = `http://127.0.0.1:${server.address().port}`;
+        const run = await promisify(execFile)(process.execPath, [
+          path.join(here, 'deploy-budget.mjs'), '--so-len', '971392', '--rpc', url,
+          '--mode', 'upgrade', '--cur-cap', '715008', '--programdata-lamports', '3633119480', '--json',
+        ]);
+        const out = JSON.parse(run.stdout);
+        assert.equal(out.offline, false);
+        assert.equal(out.mode, 'upgrade');
+        assert.equal(out.rate, '5080');
+        assert.equal(out.ext, '1302430720'); // rent(45 + 971392) − 3 633 119 480
+        assert.equal(out.fees, '8043200');
+        assert.equal(out.peak, '6246024120');
+        assert.equal(out.upgradeNet, '1310473920');
+        assert.equal(out.minRemaining, '650240');
+        assert.equal(out.setupOnchain, '7665720'); // без SKR-минта: 7 665 720
+        assert.equal(out.needBeforeReserve, '6254340080');
+        assert.equal(out.needTotal, '6554340080'); // + RESERVE 0.30 SOL
+        assert.equal(out.balance, '10000000000');
+        assert.equal(out.shortfall, '0'); // кода выхода 3 не будет
+        resolve();
+      } catch (error) {
+        reject(error);
+      } finally {
+        server.close();
+      }
+    });
+  });
 });

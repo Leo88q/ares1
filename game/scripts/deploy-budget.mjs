@@ -219,14 +219,32 @@ export async function fetchRate(url) {
   return { rate: deriveRate(rent0, rent1), rent0 };
 }
 
+/**
+ * Функция rent размером n байт. Планировщики синхронные (все величины — BigInt),
+ * поэтому онлайн-режим сначала ПРЕДЗАГРУЖАЕТ нужные размеры (prefetch), а сама
+ * функция только читает кэш: async-функция вернула бы Promise и «Promise + BigInt»
+ * упало бы в рантайме (это уже случалось — регрессия закрыта тестом V6).
+ */
 function makeRentFn(url, rate, offline) {
   const cache = new Map();
-  if (offline) return (n) => (CONSTANTS.RENT_OVERHEAD + n) * rate;
-  return async (n) => {
-    const key = n.toString();
-    if (!cache.has(key)) cache.set(key, BigInt(await rpcCall(url, 'getMinimumBalanceForRentExemption', [Number(n)])));
-    return cache.get(key);
+  if (offline) {
+    const rent = (n) => (CONSTANTS.RENT_OVERHEAD + n) * rate;
+    rent.prefetch = async () => {};
+    return rent;
+  }
+  const rent = (n) => {
+    const value = cache.get(n.toString());
+    if (value === undefined) throw new Error(`rent(${n}) не предзагружен из RPC — внутренняя ошибка расчёта`);
+    return value;
   };
+  rent.prefetch = async (sizes) => {
+    for (const size of [...new Set([...sizes].map((s) => s.toString()))]) {
+      if (!cache.has(size)) {
+        cache.set(size, BigInt(await rpcCall(url, 'getMinimumBalanceForRentExemption', [Number(size)])));
+      }
+    }
+  };
+  return rent;
 }
 
 /** Публичный base58 (для декодирования адресов из данных аккаунтов). */
@@ -422,6 +440,28 @@ async function main() {
     });
   }
   if (mode === 'auto') mode = programState ? 'upgrade' : 'new';
+
+  // Предзагрузка rent: планировщики синхронные, поэтому все нужные размеры
+  // берутся из RPC заранее (см. makeRentFn).
+  const rentSizes = new Set([
+    0n,
+    CONSTANTS.PROGRAM_ACC,
+    ...SETUP_ACCOUNTS.map((account) => account.space),
+    ...SETUP_SKR_ATAS.map((account) => account.space),
+  ]);
+  if (mode === 'new') {
+    rentSizes.add(CONSTANTS.PROGRAMDATA_META + soLen + growthHeadroomBytes);
+  } else if (mode === 'upgrade') {
+    const preCap = args.curCap ?? (programState ? programState.dataLen : null);
+    if (preCap === null) throw new Error('Для апгрейда нужны --cur-cap и --programdata-lamports (или доступный кластер)');
+    const preGrowth = soLen - preCap;
+    const cap = Boolean(args.simd0433Active)
+      ? soLen
+      : (soLen <= preCap ? preCap : preCap + (preGrowth > CONSTANTS.MIN_EXTEND ? preGrowth : CONSTANTS.MIN_EXTEND));
+    rentSizes.add(CONSTANTS.PROGRAMDATA_META + cap);
+    rentSizes.add(CONSTANTS.PROGRAMDATA_META + soLen);
+  }
+  await rent.prefetch(rentSizes);
 
   let step;
   if (mode === 'new') {
