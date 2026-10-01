@@ -14,12 +14,12 @@
  * деплой) и `--so2` (большой — апгрейд требует extend). Иначе рост не проверить:
  * на CLI 4.2.2 `--max-len` больше текущего ProgramData сам deploy не расширяет.
  *
- * Штатный путь роста — `solana program extend` (тот же, что в runbook для
- * человека). Если команда отчиталась об успехе, а space НЕ вырос (наблюдено в
- * CI 8fc8d25: exit 0, но space и слот ProgramData без изменений), скрипт
- * отправляет ExtendProgram сам — сырой транзакцией с логированием симуляции.
- * Так измерение не зависит от того, что CLI напечатал, а инструмент один и тот
- * же: содержимое аккаунта до/после.
+ * Все чтения калибровки идут с `commitment: 'confirmed'`: на localnet
+ * finalized-состояние отстаёт на десятки слотов, а CLI сообщает по confirmed —
+ * без этого шаг выглядит «успехом без эффекта» (прогон 8fc8d25: space и слот
+ * не менялись, хотя команда прошла). После каждого шага состояние ожидается
+ * (до `--wait-ms`, по умолчанию 30 с), и печатаются обе точки — confirmed и
+ * finalized: расхождение между ними видно, а не сглаживается.
  *
  * Транзакции здесь — ТОЛЬКО localnet (R2: одноразовые ключи на
  * solana-test-validator). Скрипт отказывается работать с не-local RPC.
@@ -33,13 +33,11 @@
  * Коды выхода: 0 — совпало; 2 — расхождение/ошибка измерения.
  */
 import { execFileSync } from 'node:child_process';
-import { createPrivateKey, createPublicKey, sign as ed25519Sign } from 'node:crypto';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
   CONSTANTS,
-  base58,
   computeFees,
   fetchBalance,
   fetchProgramState,
@@ -90,131 +88,6 @@ export function verdict(checks) {
   return { ok: failed.length === 0, failed };
 }
 
-// ── Сырой ExtendProgram: страховка от «успеха без эффекта» у CLI ──────────────
-// loader-v3 (agave v4.2.2, svm/loader-v3-interface): UpgradeableLoaderInstruction
-// с `#[repr(u8)]` сериализуется bincode как тег-байт + fixed-int поля, поэтому
-// ExtendProgram = [6, additional: u32 LE], аккаунты [ProgramData, Program,
-// SystemProgram, payer]; пейер обязан подписать (check_authority = false — по
-// SIMD-0431 authority не требуется, но плательщик нужен для доплаты за rent).
-const LOADER_V3 = 'BPFLoaderUpgradeab1e11111111111111111111111';
-const SYSTEM_PROGRAM = '11111111111111111111111111111111';
-const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-const PKCS8_ED25519 = Buffer.from('302e020100300506032b657004220420', 'hex');
-
-/** base58 → байты (нужен для blockhash и адресов внутри сырой транзакции). */
-export function base58Decode(text) {
-  let value = 0n;
-  for (const char of text) {
-    const digit = BASE58_ALPHABET.indexOf(char);
-    if (digit < 0) throw new Error(`base58: недопустимый символ «${char}»`);
-    value = value * 58n + BigInt(digit);
-  }
-  const leading = text.length - text.replace(/^1+/, '').length;
-  const hex = value.toString(16);
-  const body = value === 0n ? Buffer.alloc(0) : Buffer.from(hex.padStart(hex.length + (hex.length % 2), '0'), 'hex');
-  return Buffer.concat([Buffer.alloc(leading), body]);
-}
-
-/** u32 LE — формат fixed-int полей bincode. */
-function u32le(value) {
-  const buffer = Buffer.alloc(4);
-  buffer.writeUInt32LE(Number(value));
-  return buffer;
-}
-
-/** shortvec (compact-u16) — длина массивов в сообщении транзакции. */
-function shortvec(value) {
-  const out = [];
-  let rest = value;
-  do {
-    let byte = rest & 0x7f;
-    rest >>= 7;
-    if (rest > 0) byte |= 0x80;
-    out.push(byte);
-  } while (rest > 0);
-  return Buffer.from(out);
-}
-
-/**
- * Ключ Ed25519 из файла solana-keygen (64 Б: seed || pubkey). Публичный ключ,
- * выведенный из seed, обязан совпасть с записанным — иначе подпись была бы
- * сделана «не тем» ключом, и это лучше поймать до отправки транзакции.
- */
-export function ed25519Signer(keypairPath) {
-  const bytes = Buffer.from(JSON.parse(readFileSync(keypairPath, 'utf8')));
-  if (bytes.length !== 64) {
-    throw new Error(`ключ ${path.basename(keypairPath)}: ожидалось 64 байта (seed||pubkey), получено ${bytes.length}`);
-  }
-  const seed = bytes.subarray(0, 32);
-  const publicKey = bytes.subarray(32, 64);
-  const key = createPrivateKey({ key: Buffer.concat([PKCS8_ED25519, seed]), format: 'der', type: 'pkcs8' });
-  const derived = createPublicKey(key).export({ format: 'der', type: 'spki' }).subarray(-32);
-  if (!derived.equals(publicKey)) {
-    throw new Error(`ключ ${path.basename(keypairPath)}: публичный ключ не выводится из seed`);
-  }
-  return { publicKey, sign: (message) => ed25519Sign(null, message, key) };
-}
-
-/** Сырая legacy-транзакция с одной инструкцией ExtendProgram (без compute budget). */
-export function buildExtendTransaction({ signer, programId, programData, additional, blockhash }) {
-  const keys = [
-    signer.publicKey,                 // 0: плательщик (signer, writable, fee payer)
-    base58Decode(programData),        // 1: ProgramData (writable)
-    base58Decode(programId),          // 2: Program (writable)
-    base58Decode(SYSTEM_PROGRAM),     // 3: SystemProgram (readonly)
-    base58Decode(LOADER_V3),          // 4: loader-v3 (readonly, program id инструкции)
-  ];
-  for (const [index, key] of keys.entries()) {
-    if (key.length !== 32) throw new Error(`ключ #${index} в транзакции: ${key.length} байт вместо 32`);
-  }
-  const data = Buffer.concat([Buffer.from([6]), u32le(additional)]);
-  const message = Buffer.concat([
-    Buffer.from([1, 0, 2]),           // подписей 1, readonly-подписантов 0, readonly без подписи 2
-    shortvec(keys.length),
-    ...keys,
-    base58Decode(blockhash),
-    shortvec(1),
-    Buffer.from([4]),                 // programIdIndex: loader-v3
-    shortvec(4),
-    Buffer.from([1, 2, 3, 0]),        // ProgramData, Program, SystemProgram, payer
-    shortvec(data.length),
-    data,
-  ]);
-  const signature = signer.sign(message);
-  return { signature, transaction: Buffer.concat([shortvec(1), signature, message]) };
-}
-
-/**
- * Отправка ExtendProgram и подтверждение. Логи симуляции возвращаются всегда:
- * при отказе они объясняют причину (единственный публичный след в CI, R10).
- */
-export async function sendRawExtend({ rpc, signer, programId, programData, additional }) {
-  const latest = await rpcCall(rpc, 'getLatestBlockhash', [{ commitment: 'confirmed' }]);
-  const blockhash = latest?.value?.blockhash;
-  if (!blockhash) throw new Error('getLatestBlockhash не вернул blockhash');
-  const { signature: expected, transaction } = buildExtendTransaction({ signer, programId, programData, additional, blockhash });
-  const base64 = transaction.toString('base64');
-  const simulation = await rpcCall(rpc, 'simulateTransaction', [base64, { encoding: 'base64', sigVerify: false, commitment: 'confirmed' }]);
-  const logs = (simulation?.value?.logs ?? []).map((line) => safeDiagnostic(String(line), 200));
-  if (simulation?.value?.err) {
-    return { ok: false, signature: null, logs, error: safeDiagnostic(JSON.stringify(simulation.value.err), 300) };
-  }
-  const signature = await rpcCall(rpc, 'sendTransaction', [base64, { encoding: 'base64', skipPreflight: false }]);
-  if (signature !== base58(expected)) {
-    // Возвращённая подпись обязана совпадать с посчитанной: иначе это не наша транзакция.
-    return { ok: false, signature, logs, error: `RPC вернул другую подпись: ${signature}` };
-  }
-  let status = null;
-  for (let attempt = 0; attempt < 40; attempt++) {
-    const result = await rpcCall(rpc, 'getSignatureStatuses', [[signature], { searchTransactionHistory: true }]);
-    status = result?.value?.[0] ?? null;
-    if (status && (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized')) break;
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  if (!status) return { ok: false, signature, logs, error: 'транзакция не подтвердилась за 20 с' };
-  return { ok: !status.err, signature, logs, error: status.err ? safeDiagnostic(JSON.stringify(status.err), 300) : null };
-}
-
 function sh(command, args, { allowFailure = false, input } = {}) {
   // Сборка/деплой ~1 МБ печатает прогресс по строке на транзакцию: дефолтный
   // maxBuffer (1 МиБ) переполняется и убивает дочерний процесс с пустой
@@ -229,7 +102,12 @@ function sh(command, args, { allowFailure = false, input } = {}) {
     const stdout = execFileSync(command, args, options);
     return { ok: true, stdout, stderr: '' };
   } catch (error) {
-    const detail = `${error.stderr ?? ''}\n${error.stdout ?? ''}\n${error.message ?? ''}`.trim();
+    // stderr/stdout при обрыве могут быть пустыми: сигнал/код/message тогда —
+    // единственное объяснение (например, переполнение буфера вывода).
+    let detail = `${error.stderr ?? ''}\n${error.stdout ?? ''}\n${error.message ?? ''}`.trim();
+    const meta = [error.signal ? `signal=${error.signal}` : null, error.status !== null && error.status !== undefined ? `code=${error.status}` : null]
+      .filter(Boolean).join(' ');
+    if (detail === '') detail = meta || 'пустая диагностика (дочерний процесс убит?)';
     if (!allowFailure) throw new Error(`${command} ${args.join(' ')}: ${safeDiagnostic(detail)}`);
     return { ok: false, stdout: error.stdout ?? '', stderr: error.stderr ?? '', message: error.message ?? '', signal: error.signal ?? null, code: error.status ?? null, detail };
   }
@@ -272,6 +150,7 @@ function parseArgs(argv) {
     else if (key === '--so2') args.so2 = argv[++i];
     else if (key === '--rpc') args.rpc = argv[++i];
     else if (key === '--out') args.out = argv[++i];
+    else if (key === '--wait-ms') args.waitMs = Number(argv[++i]);
     else throw new Error(`Неизвестный аргумент: ${key}`);
   }
   return args;
@@ -281,26 +160,67 @@ function parseArgs(argv) {
 const jsonReplacer = (key, value) => (typeof value === 'bigint' ? value.toString() : value);
 const row = (name, measured, expected) => ({ name, measured, expected, delta: measured - expected });
 
-async function readProgram(rpc, programId) {
-  // Чтение может опережать видимость аккаунта в finalized-состоянии сразу
-  // после деплоя — ждём (до ~15 с), а не падаем с «не найден».
+/**
+ * Состояние программы на выбранном уровне подтверждения. На localnet
+ * finalized отстаёт от confirmed на десятки слотов, поэтому измеряем на
+ * confirmed (как CLI) и параллельно печатаем finalized — для контроля.
+ */
+async function readProgram(rpc, programId, commitment = 'confirmed') {
   for (let attempt = 1; attempt <= 10; attempt++) {
     const [program, pd] = await Promise.all([
-      rpcCall(rpc, 'getAccountInfo', [programId, { encoding: 'base64', dataSlice: { offset: 0, length: 36 } }]),
-      fetchProgramState(rpc, programId),
+      rpcCall(rpc, 'getAccountInfo', [programId, { encoding: 'base64', dataSlice: { offset: 0, length: 36 }, commitment }]),
+      fetchProgramState(rpc, programId, commitment),
     ]);
     if (program?.value) {
-      return { programLamports: BigInt(program.value.lamports), pd, space: pd.dataLen + CONSTANTS.PROGRAMDATA_META, slot: pd.slot };
+      return {
+        programLamports: BigInt(program.value.lamports),
+        pd,
+        space: pd.dataLen + CONSTANTS.PROGRAMDATA_META,
+        slot: pd.slot,
+        commitment,
+      };
     }
-    if (attempt < 10) await new Promise((resolve) => setTimeout(resolve, 1500));
+    if (attempt < 10) await sleep(1500);
   }
-  throw new Error('program-аккаунт не найден после 10 попыток чтения (деплой не состоялся?)');
+  throw new Error(`program-аккаунт не найден после 10 попыток чтения (commitment=${commitment}, деплой не состоялся?)`);
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Баланс плательщика по confirmed: finalized на localnet отстаёт. */
+const balanceAt = (rpc, address, commitment = 'confirmed') => fetchBalance(rpc, address, commitment);
+
+/** Обе точки чтения в компактном виде — печатаются в payload. */
+async function snapshot(rpc, programId) {
+  const [confirmed, finalized] = await Promise.all([
+    readProgram(rpc, programId, 'confirmed'),
+    readProgram(rpc, programId, 'finalized'),
+  ]);
+  const brief = (state) => ({ space: state.space, lamports: state.pd.lamports, slot: state.slot });
+  return { confirmed: brief(confirmed), finalized: brief(finalized) };
+}
+
+/**
+ * Ожидание состояния: после команды confirmed-чтение может ещё не показывать
+ * эффект (обработка транзакции идёт следом за подтверждением). Ждём до waitMs,
+ * возвращаем последнее прочитанное состояние.
+ */
+async function waitForSpace(rpc, programId, expected, waitMs) {
+  const deadline = Date.now() + waitMs;
+  let state = null;
+  for (;;) {
+    state = await readProgram(rpc, programId, 'confirmed');
+    if (state.space === expected) return { ok: true, state };
+    if (Date.now() >= deadline) return { ok: false, state };
+    await sleep(1000);
+  }
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const rpc = args.rpc ?? process.env.LOCALNET_RPC ?? 'http://127.0.0.1:8899';
   const soPath = args.so ?? 'target/deploy/solana_potato.so';
+  const waitMs = Number.isFinite(args.waitMs) && args.waitMs > 0 ? args.waitMs : 30000;
 
   if (!LOCAL_HOSTS.has(new URL(rpc).hostname)) {
     throw new Error(`калибровка разрешена только на localnet, получен RPC ${rpc} (R2)`);
@@ -331,14 +251,14 @@ async function main() {
   const required = rent(CONSTANTS.PROGRAMDATA_META + soLen) + rent(CONSTANTS.PROGRAM_ACC) + 1_000_000_000n;
   let airdropError = null;
   for (let i = 0; i < 60; i++) {
-    if ((await fetchBalance(rpc, payer)) >= airdropTarget) break;
+    if ((await balanceAt(rpc, payer)) >= airdropTarget) break;
     const run = sh('solana', ['airdrop', '1', payer, '--url', rpc], { allowFailure: true });
     if (!run.ok) {
       airdropError = safeDiagnostic(run.detail ?? `${run.stderr}\n${run.stdout}`);
       break;
     }
   }
-  const startBalance = await fetchBalance(rpc, payer);
+  const startBalance = await balanceAt(rpc, payer);
   if (startBalance < required) {
     throw new Error(`airdrop не пополнил плательщика: баланс ${startBalance} < требуемого ${required} лампортов${airdropError ? `, ошибка: ${airdropError}` : ''}`);
   }
@@ -359,7 +279,8 @@ async function main() {
       if (last.ok) return { ...last, attempt };
       const raw = `${last.stderr ?? ''}${last.stdout ?? ''}`;
       const detail = safeDiagnostic(last.detail ?? raw, 2500);
-      notes.push(`деплой: попытка ${attempt} не прошла (код ${last.code}, вывод ${raw.length} Б): ${detail}`);
+      const cause = [last.code !== null ? `код ${last.code}` : null, last.signal ? `signal ${last.signal}` : null].filter(Boolean).join(', ') || 'без кода';
+      notes.push(`деплой: попытка ${attempt} не прошла (${cause}, вывод ${raw.length} Б): ${detail}`);
       if (attempt === attempts) break;
       const words = `${last.stderr}\n${last.stdout}`
         .split('\n')
@@ -371,12 +292,16 @@ async function main() {
   };
 
   // ── Шаг 1: первый деплой, max_len = размер .so ─────────────────────────────
-  const before1 = await fetchBalance(rpc, payer);
+  const before1 = await balanceAt(rpc, payer);
   const deploy1 = deploy(soPath, soLen);
   if (!deploy1.ok) {
     throw new Error(`деплой .so (${soLen} Б) не прошёл за ${deploy1.attempt} попыт(ок): ${safeDiagnostic(deploy1.detail ?? `${deploy1.stderr}\n${deploy1.stdout}`, 2500)}`);
   }
-  const state1 = await readProgram(rpc, programId);
+  // После деплоя ждём, пока confirmed покажет ожидаемый залог (до waitMs).
+  const settled1 = await waitForSpace(rpc, programId, CONSTANTS.PROGRAMDATA_META + soLen, waitMs);
+  const state1 = settled1.state;
+  if (!settled1.ok) notes.push(`деплой: space не сошёлся с ожидаемым за ${waitMs} мс (${state1.space} vs ${CONSTANTS.PROGRAMDATA_META + soLen})`);
+  const snapshotNew = await snapshot(rpc, programId);
   for (const check of checkDeploy({
     maxLen: soLen,
     pdSpace: state1.space,
@@ -407,68 +332,55 @@ async function main() {
   }
 
   // ── Шаг 3: явный extend ровно на недостающее (модель §5.3) ─────────────────
-  // Сначала штатная команда (её же выполнит человек по runbook), затем проверка
-  // ФАКТА: вырос ли аккаунт. Отчёт CLI «успех» без роста — не измерение, а
-  // повод отправить ExtendProgram самим и посмотреть логи/ошибку RPC.
+  // Штатная команда (её же выполнит человек по runbook). Рост проверяется по
+  // состоянию аккаунта на confirmed: отчёт CLI сам по себе не измерение.
   const needed = CONSTANTS.PROGRAMDATA_META + soLen2 - state2.space; // сколько не хватает до 45 + soLen2
   let extend = null;
   if (needed > 0n) {
-    const before3 = await readProgram(rpc, programId);
+    const before3 = await readProgram(rpc, programId, 'confirmed');
+    const snapshotBeforeExtend = await snapshot(rpc, programId);
     const cli = sh('solana', ['program', 'extend', programId, needed.toString(), '--url', rpc, '--keypair', payerKeypair], { allowFailure: true });
-    const afterCli = await readProgram(rpc, programId);
-    const cliGrew = afterCli.space - before3.space;
+    // Ждём ровно ожидаемый размер: команда подтверждается, обработка идёт следом.
+    const settled3 = await waitForSpace(rpc, programId, before3.space + needed, waitMs);
+    const after3 = settled3.state;
+    const states = { before: snapshotBeforeExtend };
     extend = {
       additional: needed,
       spaceBefore: before3.space,
-      spaceAfter: afterCli.space,
+      spaceAfter: after3.space,
       slotBefore: before3.slot,
-      slotAfter: afterCli.slot,
+      slotAfter: after3.slot,
+      grew: after3.space - before3.space,
+      ok: settled3.ok && after3.space - before3.space === needed,
       cli: {
         ok: cli.ok,
         exitCode: cli.code ?? 0,
-        grew: cliGrew,
         stdout: safeDiagnostic(cli.stdout ?? '', 300),
         error: cli.ok ? null : safeDiagnostic(`${cli.stderr}\n${cli.stdout}`, 1500),
       },
-      raw: null,
     };
-    let final = afterCli;
-    if (cliGrew !== needed) {
-      notes.push(`extend: CLI ${cli.ok ? 'отчитался об успехе' : 'завершился ошибкой'}, но space ${before3.space}→${afterCli.space} (слот ${before3.slot}→${afterCli.slot}) — отправляем ExtendProgram сами`);
-      const raw = await sendRawExtend({
-        rpc,
-        signer: ed25519Signer(payerKeypair),
-        programId,
-        programData: before3.pd.programDataAddress,
-        additional: needed,
-      });
-      final = await readProgram(rpc, programId);
-      extend.raw = {
-        ok: raw.ok,
-        signature: raw.signature,
-        error: raw.error,
-        logs: raw.logs,
-        grew: final.space - afterCli.space,
-      };
-      notes.push(`extend: raw-транзакция ${raw.ok ? 'прошла' : 'не прошла'}: space ${afterCli.space}→${final.space}${raw.error ? ` (${raw.error})` : ''}`);
+    if (!settled3.ok) {
+      notes.push(`extend: за ${waitMs} мс space не вырос до ожидаемого (${before3.space} → ${after3.space}, нужно ${before3.space + needed}; слот ${before3.slot} → ${after3.slot})`);
     }
-    extend.spaceAfter = final.space;
-    extend.slotAfter = final.slot;
-    extend.via = cliGrew === needed ? 'cli' : 'raw';
-    extend.ok = final.space - before3.space === needed;
     const expectedSpace = before3.space + needed;
-    checks.push(row('extend_space', final.space, expectedSpace));
-    checks.push(row('extend_lamports', final.pd.lamports, rent(expectedSpace)));
+    checks.push(row('extend_space', after3.space, expectedSpace));
+    checks.push(row('extend_lamports', after3.pd.lamports, rent(expectedSpace)));
     if (!extend.ok) checks.push(row('extend_failed', 1n, 0n));
-    steps.push({ step: 'extend', additional: needed, ok: extend.ok, via: extend.via, spaceAfter: final.space, slotAfter: final.slot });
+    states.after = await snapshot(rpc, programId);
+    extend.states = states;
+    steps.push({ step: 'extend', additional: needed, ok: extend.ok, spaceAfter: after3.space, slotAfter: after3.slot });
   } else {
     notes.push('extend не нужен: ProgramData уже вмещает новый размер (модель §5.3)');
   }
 
   // ── Шаг 4: апгрейд с auto-extend на новый .so ─────────────────────────────
-  const before4 = await fetchBalance(rpc, payer);
+  const before4 = await balanceAt(rpc, payer);
   const deploy4 = deploy(so2Path, soLen2);
-  const state4 = await readProgram(rpc, programId);
+  // auto-extend в CLI доводит space до 45 + soLen2: ждём этот размер.
+  const settled4 = await waitForSpace(rpc, programId, CONSTANTS.PROGRAMDATA_META + soLen2, waitMs);
+  const state4 = settled4.state;
+  if (!settled4.ok) notes.push(`апгрейд: space не сошёлся с ожидаемым за ${waitMs} мс (${state4.space} vs ${CONSTANTS.PROGRAMDATA_META + soLen2})`);
+  const snapshotUpgrade = await snapshot(rpc, programId);
   const expectedSpace = CONSTANTS.PROGRAMDATA_META + soLen2;
   for (const check of [
     { name: 'final_programdata_space', measured: state4.space, expected: expectedSpace },
@@ -488,7 +400,7 @@ async function main() {
   // ── Комиссии: модель обязана не занижать расход всего потока ──────────────
   // Поток = деплой + неудачная попытка апгрейда + extend + апгрейд. Модель
   // оценивает стоимость одной операции, поэтому сверяем с её запасом на три операции.
-  const spentTotal = before1 - (await fetchBalance(rpc, payer));
+  const spentTotal = before1 - (await balanceAt(rpc, payer));
   const lockedFinal = state4.pd.lamports + state4.programLamports;
   // Из общего расхода вычитаем залог (он остаётся на аккаунтах, не «сгорает»).
   const feesMeasured = spentTotal - lockedFinal;
@@ -518,11 +430,15 @@ async function main() {
     pass,
     fees: { measured: feesMeasured, lockedFinal, modelAllowance: modelFees, modelCovers: feesWithinModel },
     extend,
+    states: { afterNew: snapshotNew, afterExtend: extend?.states ?? null, afterUpgrade: snapshotUpgrade },
     notes,
     steps,
   };
   annotate('notice', 'ares-calibrate', JSON.stringify(payload, jsonReplacer));
+  // Маркеры: по ним payload вычитывается из stdout целиком (аннотации режутся).
+  console.log('--- ares-calibrate payload ---');
   console.log(JSON.stringify(payload, jsonReplacer, 2));
+  console.log('--- конец payload ---');
   if (args.out) writeFileSync(args.out, JSON.stringify(payload, jsonReplacer, 2));
   if (!pass) {
     // Расхождение чеков тоже обязано быть видно аннотацией: логи джоб недоступны.

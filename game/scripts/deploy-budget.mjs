@@ -227,9 +227,14 @@ export function deriveRate(rent0, rent1) {
  * результат обёрнут в RpcResponse: {context, value} — BigInt(object) падает
  * («Cannot convert [object Object] to a BigInt»). Принимаем обе формы: заглушки
  * и часть прокси отдают голое число.
+ *
+ * `commitment` необязателен: без него действует умолчание RPC (finalized).
+ * Калибровка передаёт 'confirmed' — иначе на localnet чтение отстаёт от
+ * состояния, о котором сообщает CLI, и шаг выглядит «успехом без эффекта».
  */
-export async function fetchBalance(url, address) {
-  const result = await rpcCall(url, 'getBalance', [address]);
+export async function fetchBalance(url, address, commitment) {
+  const params = commitment ? [address, { commitment }] : [address];
+  const result = await rpcCall(url, 'getBalance', params);
   const value = result && typeof result === 'object' && 'value' in result ? result.value : result;
   return BigInt(value);
 }
@@ -288,16 +293,21 @@ export function base58(bytes) {
   return '1'.repeat(zeros) + out;
 }
 
-/** Состояние программы в кластере (Program/ProgramData через RPC, без ключей). */
-export async function fetchProgramState(url, programId) {
-  const info = await rpcCall(url, 'getAccountInfo', [programId, { encoding: 'base64', dataSlice: { offset: 0, length: 36 } }]);
+/**
+ * Состояние программы в кластере (Program/ProgramData через RPC, без ключей).
+ * `commitment` — как у fetchBalance: без него умолчание RPC (finalized),
+ * калибровка просит 'confirmed'.
+ */
+export async function fetchProgramState(url, programId, commitment) {
+  const level = commitment ? { commitment } : {};
+  const info = await rpcCall(url, 'getAccountInfo', [programId, { encoding: 'base64', dataSlice: { offset: 0, length: 36 }, ...level }]);
   if (!info?.value) return null;
   const raw = Buffer.from(info.value.data[0], 'base64');
   if (raw.length < 36 || raw.readUInt32LE(0) !== 2) {
     throw new Error('Program-аккаунт не соответствует loader-v3 (tag != 2)');
   }
   const programDataAddress = base58(raw.subarray(4, 36));
-  const pd = await rpcCall(url, 'getAccountInfo', [programDataAddress, { encoding: 'base64', dataSlice: { offset: 0, length: 45 } }]);
+  const pd = await rpcCall(url, 'getAccountInfo', [programDataAddress, { encoding: 'base64', dataSlice: { offset: 0, length: 45 }, ...level }]);
   if (!pd?.value) throw new Error('ProgramData-аккаунт не найден');
   const pdRaw = Buffer.from(pd.value.data[0], 'base64');
   if (pdRaw.readUInt32LE(0) !== 3) throw new Error('ProgramData tag != 3');
