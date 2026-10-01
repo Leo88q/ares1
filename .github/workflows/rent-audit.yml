@@ -18,6 +18,7 @@ on:
       - 'game/scripts/ci-metrics.py'
       - 'game/scripts/probe-devnet.sh'
       - 'game/scripts/deploy-budget.mjs'
+      - 'game/scripts/calibrate-localnet.mjs'
       - 'game/scripts/rent-audit.config.json'
       - '.github/workflows/rent-audit.yml'
   pull_request:
@@ -29,6 +30,7 @@ on:
       - 'game/scripts/ci-metrics.py'
       - 'game/scripts/probe-devnet.sh'
       - 'game/scripts/deploy-budget.mjs'
+      - 'game/scripts/calibrate-localnet.mjs'
       - 'game/scripts/rent-audit.config.json'
       - '.github/workflows/rent-audit.yml'
   workflow_dispatch:
@@ -68,8 +70,18 @@ jobs:
       # SETUP_ONCHAIN: разовые расходы init-onchain по факту кластера (какие
       # аккаунты уже существуют). Заодно — smoke-тест RPC-пути калькулятора.
       - name: SETUP_ONCHAIN (init-onchain accounts, measured)
+        # Код 3 (деплоеру не хватает SOL) — нормальный результат измерения, не сбой.
+        # Сбой = нет JSON: тогда печатаем текст ошибки аннотацией (логи CI недоступны).
         run: |
-          node scripts/deploy-budget.mjs --so-len 0 --mode init-only --json > /tmp/init-only.json
+          set +e
+          node scripts/deploy-budget.mjs --so-len 0 --mode init-only --json > /tmp/init-only.json 2> /tmp/init-only.err
+          code=$?
+          set -e
+          if [ ! -s /tmp/init-only.json ]; then
+            echo "::error title=ares-setup-error::exit=$code $(tail -c 500 /tmp/init-only.err | tr '\n' ' ')"
+            exit 1
+          fi
+          echo "$code" > /tmp/init-only.code
           python3 - <<'PY'
           import json
           data = json.load(open('/tmp/init-only.json'))
@@ -78,6 +90,9 @@ jobs:
               'setupParts': data['setupParts'],
               'needTotalInitOnly': data['needTotal'],
               'rate': data['rate'],
+              'rpc': data['rpc'],
+              'deployerBalance': data['balance'],
+              'cliExit': int(open('/tmp/init-only.code').read().strip()),
           }
           print('::notice title=ares-setup::' + json.dumps(payload, separators=(',', ':'), ensure_ascii=True))
           PY
@@ -159,3 +174,55 @@ jobs:
           path: |
             game/target/deploy/solana_potato.so
             game/target/idl/solana_potato.json
+
+  # Калибровка §5.7: модель залога проверяется на живом solana-test-validator
+  # (одноразовые ключи, localnet — исключение из R2). Расхождение хотя бы на
+  # 1 лампорт валит job: по брифу это СТОП-условие, а не «шум».
+  calibrate-localnet:
+    name: "Rent audit: calibrate localnet"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [size-matrix]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Solana CLI
+        run: |
+          curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
+          sh /tmp/solana-install.sh
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Download the reference build (so-base)
+        uses: actions/download-artifact@v4
+        with:
+          name: so-base
+          path: game/target
+      - name: Verify toolchain and artifact
+        run: |
+          test "$(solana --version | awk '{print $2}')" = "$SOLANA_VERSION"
+          # download-artifact кладёт файлы от общего предка — нормализуем путь, если он другой.
+          if [ ! -s target/deploy/solana_potato.so ]; then
+            found="$(find . -name 'solana_potato.so' -not -path './target/*' -print -quit)"
+            [ -n "$found" ] && mkdir -p target/deploy && cp "$found" target/deploy/solana_potato.so
+          fi
+          test -s target/deploy/solana_potato.so
+          stat -c '%s bytes %n' target/deploy/solana_potato.so
+      - name: Start solana-test-validator (localnet only)
+        run: |
+          solana-test-validator --reset --quiet --ledger /tmp/calib-ledger > /tmp/validator.log 2>&1 &
+          for i in $(seq 1 60); do
+            solana cluster-version --url http://127.0.0.1:8899 >/dev/null 2>&1 && break
+            sleep 1
+          done
+          solana cluster-version --url http://127.0.0.1:8899
+      - name: Calibrate (annotation ares-calibrate)
+        run: node scripts/calibrate-localnet.mjs --so target/deploy/solana_potato.so --out /tmp/calibrate-report.json
+      - name: Upload calibration report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibrate-report
+          retention-days: 7
+          if-no-files-found: warn
+          path: /tmp/calibrate-report.json
+      - name: Validator log on failure
+        if: ${{ failure() }}
+        run: tail -50 /tmp/validator.log || true
