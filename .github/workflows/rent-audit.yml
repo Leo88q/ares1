@@ -206,8 +206,18 @@ jobs:
           test -s target/deploy/solana_potato.so
           stat -c '%s bytes %n' target/deploy/solana_potato.so
       - name: Start solana-test-validator (localnet only)
+        # Тестовый валидатор включает ВСЕ фичи по умолчанию (включая
+        # disable_sbpf_v0_v1_v2_deployment), и тогда .so, собранный пиннутым
+        # тулчейном (SBPF v0-v2), не ставится: loader отвечает «Detected
+        # sbpf_version required by the executable which are not enabled».
+        # `anchor test` в ci.yml этого не ловит: он встраивает программу в
+        # genesis (`--bpf-program`), а не деплоит её через loader-v3.
+        # Снимаем ровно эту фичу — конфигурация валидатора приводится к
+        # состоянию devnet, где v0-v2 ещё разрешены (SIMD-0161 не активирован).
         run: |
-          solana-test-validator --reset --quiet --ledger /tmp/calib-ledger > /tmp/validator.log 2>&1 &
+          solana-test-validator --reset --quiet --ledger /tmp/calib-ledger \
+            --deactivate-feature B8JJXCy5amZyWG9r7EnUYLwzXSXTxG7GZ1qZ1qggo83g \
+            > /tmp/validator.log 2>&1 &
           for i in $(seq 1 60); do
             solana cluster-version --url http://127.0.0.1:8899 >/dev/null 2>&1 && break
             sleep 1
