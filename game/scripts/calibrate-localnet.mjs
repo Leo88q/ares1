@@ -108,12 +108,19 @@ const jsonReplacer = (key, value) => (typeof value === 'bigint' ? value.toString
 const row = (name, measured, expected) => ({ name, measured, expected, delta: measured - expected });
 
 async function readProgram(rpc, programId) {
-  const [program, pd] = await Promise.all([
-    rpcCall(rpc, 'getAccountInfo', [programId, { encoding: 'base64', dataSlice: { offset: 0, length: 36 } }]),
-    fetchProgramState(rpc, programId),
-  ]);
-  if (!program?.value) throw new Error('program-аккаунт не найден');
-  return { programLamports: BigInt(program.value.lamports), pd, space: pd.dataLen + CONSTANTS.PROGRAMDATA_META };
+  // Чтение может опережать видимость аккаунта в finalized-состоянии сразу
+  // после деплоя — ждём (до ~15 с), а не падаем с «не найден».
+  for (let attempt = 1; attempt <= 10; attempt++) {
+    const [program, pd] = await Promise.all([
+      rpcCall(rpc, 'getAccountInfo', [programId, { encoding: 'base64', dataSlice: { offset: 0, length: 36 } }]),
+      fetchProgramState(rpc, programId),
+    ]);
+    if (program?.value) {
+      return { programLamports: BigInt(program.value.lamports), pd, space: pd.dataLen + CONSTANTS.PROGRAMDATA_META };
+    }
+    if (attempt < 10) await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+  throw new Error('program-аккаунт не найден после 10 попыток чтения (деплой не состоялся?)');
 }
 
 async function main() {
@@ -140,8 +147,23 @@ async function main() {
   sh('solana-keygen', ['new', '--no-bip39-passphrase', '--silent', '-o', programKeypair]);
   const payer = sh('solana-keygen', ['pubkey', payerKeypair]).stdout.trim();
   const programId = sh('solana-keygen', ['pubkey', programKeypair]).stdout.trim();
-  sh('solana', ['airdrop', '100', payer, '--url', rpc], { allowFailure: true });
+  // Некоторые валидаторы ограничивают разовый airdrop — просим по 2 SOL и
+  // проверяем, что баланс действительно вырос (иначе деплой упадёт мгновенно).
+  const airdropTarget = 20n * 1_000_000_000n;
+  let airdropError = null;
+  for (let i = 0; i < 30; i++) {
+    if ((await fetchBalance(rpc, payer)) >= airdropTarget) break;
+    const run = sh('solana', ['airdrop', '2', payer, '--url', rpc], { allowFailure: true });
+    if (!run.ok) {
+      airdropError = safeDiagnostic(`${run.stderr}\n${run.stdout}`);
+      break;
+    }
+  }
   const startBalance = await fetchBalance(rpc, payer);
+  if (startBalance < airdropTarget / 4n) {
+    throw new Error(`airdrop не пополнил плательщика: баланс ${startBalance} лампортов${airdropError ? `, ошибка: ${airdropError}` : ''}`);
+  }
+  notes.push(`плательщик: стартовый баланс ${startBalance} лампортов`);
   const deployArgs = (maxLen, extra = []) => [
     'program', 'deploy', '--url', rpc, '--keypair', payerKeypair, '--program-id', programKeypair,
     '--max-len', maxLen.toString(), '--max-sign-attempts', '60', '--use-rpc', ...extra, soPath,
@@ -173,6 +195,9 @@ async function main() {
   // ── Шаг 1: первый деплой, max_len = размер .so ─────────────────────────────
   const before1 = await fetchBalance(rpc, payer);
   const deploy1 = deploy(soLen);
+  if (!deploy1.ok) {
+    throw new Error(`деплой .so (${soLen} Б) не прошёл за ${deploy1.attempt} попыт(ок): ${safeDiagnostic(`${deploy1.stderr}\n${deploy1.stdout}`)}`);
+  }
   const state1 = await readProgram(rpc, programId);
   const modelFees = computeFees(soLen, {});
   const locked = rent(CONSTANTS.PROGRAMDATA_META + soLen) + rent(CONSTANTS.PROGRAM_ACC);
@@ -280,7 +305,9 @@ if (isMain) {
     .then((code) => process.exit(code))
     .catch((error) => {
       // Аннотация — единственный канал наружу из CI: логи джоб недоступны.
-      console.log(`::error title=ares-calibrate-error::${safeDiagnostic(String(error.message), 700).replace(/[\r\n]+/g, ' ')}`);
+      const context = notes.length > 0 ? ` | ход: ${notes.join(' | ')}` : '';
+      const message = `${String(error.message)}${context}`;
+      console.log(`::error title=ares-calibrate-error::${safeDiagnostic(message, 900).replace(/[\r\n]+/g, ' ')}`);
       console.error(`calibrate-localnet: ошибка: ${error.message}`);
       process.exit(2);
     });
