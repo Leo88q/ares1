@@ -240,9 +240,9 @@ const es419: Record<string, string> = {
   'Отныне картошка, собранная под красным солнцем Марса, может быть отправлена через квантовый мост в нейро-лаборатории NeuroForge. Там она сжигается ради ускорения обучения моделей, квантового синтеза 27 ресурсов и крафта редких кибер-инструментов. А ончейн-достижения NeuroForge открывают уникальные модули в ARES-1. Экономика стала межпланетной.': 'De ahora en adelante, las papas cosechadas bajo el sol rojo de Marte pueden enviarse por el puente cuántico a los laboratorios neuronales de NeuroForge. Allí se quema para acelerar el entrenamiento de modelos, la síntesis cuántica de 27 recursos y el crafteo de herramientas cibernéticas raras. Y a su vez, los logros on-chain en NeuroForge desbloquean módulos únicos en ARES-1. La economía se volvió interplanetaria.',
   'МАРС': 'MARTE',
   'Гидропоника под стеклом. Жизнь под красным небом.': 'Hidroponía bajo vidrio. Vida bajo el cielo rojo.',
-  'Урожай $POTATO под марсианским куполом': 'Cosecha de $POTATO bajo el cúpula marciano',
-  'Эксклюзивные модули за достижения в NeuroForge': 'Módulos exclusivos por logros en NeuroForge',
-  'Один игровой токен для двух миров': 'Un token de juego para dos mundos',
+  'Урожай $POTATO каждую секунду под марсианским куполом': 'Cosecha $POTATO cada segundo bajo la cúpula marciana',
+  '3 тира модулей: Common, Rare и Epic с шансом мутаций': '3 niveles de módulos: Common, Rare y Epic con probabilidad de mutación',
+  '60% комиссии рынка сжигается навсегда для дефляции': 'El 60% de las comisiones del mercado se queman para deflación',
   'КИБЕРПРОСТРАНСТВО · SOLANA': 'CIBERESPACIO · SOLANA',
   'Нейро-лаборатории на Solana. Обучение моделей. Квантовый синтез.': 'Laboratorios neuronales en Solana. Entrenamiento de modelos. Síntesis cuántica.',
   '27 ресурсов и 8 цепочек крафта для квантового синтеза': '27 recursos y 8 cadenas de crafteo para síntesis cuántica',
@@ -422,6 +422,9 @@ const es419: Record<string, string> = {
   'Игра упала': 'El juego se cayó',
   'Транзакция не пройдёт на сети:': 'La transacción fallará en la red:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'La transacción se envió, pero no llegó la confirmación. Revisa tu billetera antes de reintentar: la acción puede haberse completado ya.',
+  '28 лунных эпох Фобоса с множителями урожайности': '28 épocas lunares de Fobos con multiplicadores de rendimiento',
+  'Эксклюзивные модули за ончейн-достижения в NeuroForge': 'Módulos exclusivos por logros on-chain en NeuroForge',
+  'Играть в ARES-1 ↗': 'Jugar ARES-1 ↗',
 };
 
 export default es419;

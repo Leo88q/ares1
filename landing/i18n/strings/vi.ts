@@ -240,9 +240,9 @@ const vi: Record<string, string> = {
   'Отныне картошка, собранная под красным солнцем Марса, может быть отправлена через квантовый мост в нейро-лаборатории NeuroForge. Там она сжигается ради ускорения обучения моделей, квантового синтеза 27 ресурсов и крафта редких кибер-инструментов. А ончейн-достижения NeuroForge открывают уникальные модули в ARES-1. Экономика стала межпланетной.': 'Từ nay trở đi, khoai tây thu hoạch dưới ánh mặt trời đỏ của Sao Hỏa có thể được gửi qua cầu lượng tử đến các phòng thí nghiệm thần kinh của NeuroForge. Tại đó, nó được đốt cháy để tăng tốc huấn luyện mô hình, cung cấp năng lượng cho quá trình tổng hợp lượng tử qua 27 tài nguyên và chế tạo các công cụ mạng hiếm. Đổi lại, các thành tựu on-chain trong NeuroForge mở khóa các mô-đun độc đáo trong ARES-1. Nền kinh tế đã trở thành liên hành tinh.',
   'МАРС': 'SAO HOÀ',
   'Гидропоника под стеклом. Жизнь под красным небом.': 'Trồng thủy canh dưới lớp kính. Sự sống dưới bầu trời đỏ.',
-  'Урожай $POTATO под марсианским куполом': 'Thu hoạch $POTATO dưới mái vòm Sao Hỏa',
-  'Эксклюзивные модули за достижения в NeuroForge': 'Các mô-đun độc quyền cho thành tích trong NeuroForge',
-  'Один игровой токен для двух миров': 'Một token game cho hai thế giới',
+  'Урожай $POTATO каждую секунду под марсианским куполом': 'Thu hoạch $POTATO mỗi giây dưới mái vòm Sao Hỏa',
+  '3 тира модулей: Common, Rare и Epic с шансом мутаций': '3 cấp độ mô-đun: Common, Rare và Epic với cơ hội đột biến',
+  '60% комиссии рынка сжигается навсегда для дефляции': '60% phí thị trường bị đốt vĩnh viễn để giảm phát',
   'КИБЕРПРОСТРАНСТВО · SOLANA': 'KHÔNG GIAN MẠNG · SOLANA',
   'Нейро-лаборатории на Solana. Обучение моделей. Квантовый синтез.': 'Phòng thí nghiệm thần kinh trên Solana. Huấn luyện mô hình. Tổng hợp lượng tử.',
   '27 ресурсов и 8 цепочек крафта для квантового синтеза': '27 tài nguyên và 8 chuỗi chế tạo cho tổng hợp lượng tử',
@@ -422,6 +422,9 @@ const vi: Record<string, string> = {
   'Игра упала': 'Trò chơi đã gặp sự cố',
   'Транзакция не пройдёт на сети:': 'Giao dịch sẽ thất bại trên mạng:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'Giao dịch đã được gửi nhưng chưa có xác nhận. Hãy kiểm tra ví trước khi thử lại — thao tác có thể đã hoàn tất.',
+  '28 лунных эпох Фобоса с множителями урожайности': '28 kỷ nguyên mặt trăng Phobos với hệ số nhân sản lượng',
+  'Эксклюзивные модули за ончейн-достижения в NeuroForge': 'Các mô-đun độc quyền cho thành tích on-chain trong NeuroForge',
+  'Играть в ARES-1 ↗': 'Chơi ARES-1 ↗',
 };
 
 export default vi;
