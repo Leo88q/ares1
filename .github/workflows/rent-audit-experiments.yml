@@ -1,11 +1,11 @@
 name: Rent audit experiments
 
-# Измерительные варианты размера `.so` — цифры к вопросам человеку Q3/Q4
-# (сколько SOL стоит срезать группу M / grant_reward / IDL / перейти на SBPF v3).
+# Измерительные варианты размера `.so` — цифры к вопросам человеку Q2/Q3/Q4:
+# группа M, отдельный grant_reward, buy_field_sol, IDL и SBPF v3.
 #
-# НЕ ДЛЯ МЕРЖА: варианты no-m/no-grant меняют ABI измерительной сборки
-# (вырезаются инструкции), arch-v3 меняет целевую платформу. Здесь только
-# измерение размера; продуктовый код и Cargo.toml не меняются.
+# НЕ ДЛЯ МЕРЖА: no-m/no-grant/no-grant-legacy/no-buy-field-sol меняют ABI
+# измерительной сборки; arch-v3 меняет целевую платформу. Только замер размера;
+# продуктовый код и Cargo.toml не меняются.
 #
 # Триггер — workflow_dispatch и push при правках самого измерителя: обычный CI
 # (R20) не должен тратить 8 минут сборки на каждый коммит программы.
@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        exp: [z, sbf, no-idl, no-m, no-grant, arch-v3]
+        exp: [z, sbf, no-idl, no-m, no-grant, no-grant-legacy, no-buy-field-sol, arch-v3]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master

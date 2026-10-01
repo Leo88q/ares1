@@ -7,16 +7,18 @@
 содержит `soBytes` и дельту к контрольному варианту `z`.
 
 Варианты:
-    z         контроль: `anchor build` с CARGO_PROFILE_RELEASE_OPT_LEVEL=z;
-    no-idl    то же + `anchor build --no-idl` (IDL не генерируется; проверяем,
-              попадает ли idl-build в `.so`);
-    no-m      то же, но из lib.rs вырезаны инструкции группы M (migrate_*) и
-              модуль migrations — верхняя оценка, ABI в этом варианте НЕ
-              сохраняется (измерение, а не продуктовый код);
-    no-grant  то же, но вырезаны `grant_reward` и `grant_reward_once`
-              (кандидат Q3; ABI также не сохраняется);
-    arch-v3   `anchor build --arch v3` — гипотеза ревью: часть `.rel.dyn`
-              (≈59 КиБ) исчезнет при SBPF v3.
+    z                 контроль: `anchor build` с CARGO_PROFILE_RELEASE_OPT_LEVEL=z;
+    no-idl            то же + `anchor build --no-idl` (проверка влияния idl-build);
+    no-m              вырезаны инструкции группы M (migrate_*) и migrations;
+                      верхняя оценка, ABI не сохраняется;
+    no-grant          вырезаны `grant_reward` и `grant_reward_once` (оценка пары);
+    no-grant-legacy   вырезан только `grant_reward`, `grant_reward_once` оставлен
+                      (изолированная цена legacy rail для Q3);
+    no-buy-field-sol  вырезан только `buy_field_sol` (кандидат Q4);
+    arch-v3           `cargo build-sbf --arch v3`, смена платформы на SBPF v3.
+
+Все варианты с удалением instruction меняют ABI и предназначены только для CI-
+измерения, не для продуктового кода или мержа.
 
 Порядок в CI (job `size-experiments`, только workflow_dispatch):
     1) python3 scripts/size-experiments.py --apply <вариант>
@@ -75,6 +77,20 @@ VARIANTS = {
         "build": "anchor",
         "anchor_args": [],
         "note": "без grant_reward/grant_reward_once (ABI не сохраняется — только измерение)",
+    },
+    "no-grant-legacy": {
+        "drop_fns": ["grant_reward"],
+        "drop_mod": None,
+        "build": "anchor",
+        "anchor_args": [],
+        "note": "без grant_reward; grant_reward_once оставлена (ABI не сохраняется — только измерение Q3)",
+    },
+    "no-buy-field-sol": {
+        "drop_fns": ["buy_field_sol"],
+        "drop_mod": None,
+        "build": "anchor",
+        "anchor_args": [],
+        "note": "без buy_field_sol (ABI не сохраняется — только измерение Q4)",
     },
     "arch-v3": {"drop_fns": [], "drop_mod": None, "build": "cargo", "anchor_args": ["--arch", "v3"], "note": "cargo build-sbf --arch v3 (гипотеза: минус .rel.dyn)"},
 }
