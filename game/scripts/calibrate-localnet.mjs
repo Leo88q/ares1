@@ -37,7 +37,6 @@ const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 // (аннотация — единственный канал наружу из CI, R10).
 const notes = [];
 const steps = [];
-let bufferPubkey = null; // публичный адрес буфера: попадает в отчёт
 
 /** Проверки залога деплоя: замер против модели (детерминированно, §5.1/§5.2). */
 export function checkDeploy({ maxLen, pdSpace, pdLamports, programLamports, rent }) {
@@ -93,11 +92,13 @@ export function safeDiagnostic(text, limit = 400) {
     .map((line) => line.trim())
     .filter(Boolean);
   const kept = [];
+  let used = 0;
   for (const line of lines) {
     if (/^=+$/.test(line) || /recover the intermediate|seed phrase|buffer_signer/i.test(line)) break;
     if (/^[a-z]{3,8}( [a-z]{3,8}){11}$/.test(line)) continue;
     kept.push(line);
-    if (kept.length === 3) break;
+    used += line.length;
+    if (kept.length >= 12 || used >= limit) break;
   }
   const joined = kept.join(' | ') || 'диагностика пуста';
   // Страховка: любая последовательность из 12+ слов подряд — потенциальная
@@ -180,17 +181,13 @@ async function main() {
     throw new Error(`airdrop не пополнил плательщика: баланс ${startBalance} < требуемого ${required} лампортов${airdropError ? `, ошибка: ${airdropError}` : ''}`);
   }
   notes.push(`плательщик: стартовый баланс ${startBalance} лампортов (залог деплоя ${required})`);
-  // Ключ буфера свой и постоянный: CLI создаёт буфер им же (create_buffer под
-  // payer'а) и при обрыве продолжает на нём — без seed-фразы. Фразу CLI печатает
-  // только когда буфер не передан, а `solana-keygen recover` в 4.2.2 не имеет
-  // `--stdin` (фраза читается лишь с TTY), восстанавливать её нечем.
-  const bufferKeypair = path.join(workdir, 'buffer.json');
-  sh('solana-keygen', ['new', '--no-bip39-passphrase', '--silent', '-o', bufferKeypair]);
-  bufferPubkey = sh('solana-keygen', ['pubkey', bufferKeypair]).stdout.trim();
+  // Буфер создаёт сам CLI (эфемерный ключ), как в обычном `program deploy`.
+  // Попытка `--buffer <свой ключ>` в CI 4.2.2 детерминированно упиралась в
+  // `invalid account data` на create/final — см. reports/rent-audit/00-baseline.md.
+  // Ретраи — свежими попытками (каждая создаёт свой буфер), пока хватает баланса.
   const deployArgs = (maxLen) => [
     'program', 'deploy', '--url', rpc, '--keypair', payerKeypair, '--program-id', programKeypair,
-    '--buffer', bufferKeypair, '--max-len', maxLen.toString(), '--max-sign-attempts', '60',
-    '--use-rpc', soPath,
+    '--max-len', maxLen.toString(), '--max-sign-attempts', '60', '--use-rpc', soPath,
   ];
   const deploy = (maxLen, { attempts = 3 } = {}) => {
     let last = { ok: false, stdout: '', stderr: 'попыток не было', detail: 'попыток не было', code: null };
@@ -198,8 +195,14 @@ async function main() {
     for (attempt = 1; attempt <= attempts; attempt++) {
       last = sh('solana', deployArgs(maxLen), { allowFailure: true });
       if (last.ok) return { ...last, attempt };
+      const detail = safeDiagnostic(last.detail ?? `${last.stderr}\n${last.stdout}`, 2500);
+      notes.push(`деплой: попытка ${attempt} не прошла — ${detail}`);
       if (attempt === attempts) break;
-      notes.push(`деплой: попытка ${attempt} не прошла, продолжаем на том же буфере — ${safeDiagnostic(last.detail ?? `${last.stderr}\n${last.stdout}`)}`);
+      const words = `${last.stderr}\n${last.stdout}`
+        .split('\n')
+        .map((line) => line.trim())
+        .find((line) => /^[a-z]{3,8}( [a-z]{3,8}){11}$/.test(line));
+      if (words) notes.push('CLI напечатал seed-фразу буфера (не сохраняем, R11) — попытка заново');
     }
     return { ...last, attempt };
   };
@@ -208,7 +211,7 @@ async function main() {
   const before1 = await fetchBalance(rpc, payer);
   const deploy1 = deploy(soLen);
   if (!deploy1.ok) {
-    throw new Error(`деплой .so (${soLen} Б) не прошёл за ${deploy1.attempt} попыт(ок): ${safeDiagnostic(deploy1.detail ?? `${deploy1.stderr}\n${deploy1.stdout}`)}`);
+    throw new Error(`деплой .so (${soLen} Б) не прошёл за ${deploy1.attempt} попыт(ок): ${safeDiagnostic(deploy1.detail ?? `${deploy1.stderr}\n${deploy1.stdout}`, 2500)}`);
   }
   const state1 = await readProgram(rpc, programId);
   const modelFees = computeFees(soLen, {});
@@ -291,7 +294,6 @@ async function main() {
     growth,
     payerBalanceBeforeDeploy: startBalance,
     programId,
-    bufferPubkey,
     programData: state1.pd.programDataAddress,
     authority: state1.pd.authority,
     checks,
@@ -328,7 +330,7 @@ if (isMain) {
       // Аннотация — единственный канал наружу из CI: логи джоб недоступны.
       const context = notes.length > 0 ? ` | ход: ${notes.join(' | ')}` : '';
       const message = `${String(error.message)}${context}`;
-      console.log(`::error title=ares-calibrate-error::${safeDiagnostic(message, 900).replace(/[\r\n]+/g, ' ')}`);
+      console.log(`::error title=ares-calibrate-error::${safeDiagnostic(message, 3000).replace(/[\r\n]+/g, ' ')}`);
       console.error(`calibrate-localnet: ошибка: ${error.message}`);
       process.exit(2);
     });

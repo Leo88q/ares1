@@ -26,11 +26,11 @@
 #    PRINT_NEED=1      синоним DRY_RUN (явно напечатать NEED и выйти)
 #    CONFIRM_RECLAIM=1 закрыть застрявшие буферы деплоера (вернуть SOL на кошелёк)
 #    FORCE_DEPLOY=1    апгрейд, даже если программа уже задеплоена
-#    BUFFER_KEYPAIR    путь к ключу буфера (по умолчанию target/deploy/.buffer-deploy-$$.json):
-#                      скрипт создаёт его сам и передаёт в deploy как --buffer, поэтому
-#                      прерванный деплой продолжается на том же буфере без seed-фразы
-#                      (в CLI 4.2.2 `solana-keygen recover` не читает stdin, а фразу CLI
-#                      печатает только когда буфер не передан)
+#    BUFFER_KEYPAIR    путь к ключу буфера для ПРОДОЛЖЕНИЯ прерванного деплоя:
+#                      CLI 4.2.2 не читает seed-фразу из stdin (`solana-keygen recover`
+#                      спрашивает её только с TTY), поэтому фразу CLI печатает, а
+#                      восстановить её сам скрипт не может — см. подсказку в конце
+#                      неудачной попытки (фраза сохраняется в target/deploy/)
 #    PRESERVE_STATE=1  после апгрейда выполнить migrate-v2 (старые аккаунты → v2 layout)
 #    GROWTH_HEADROOM_BYTES=N  запас к --max-len сверх размера `.so` (по умолчанию 0)
 #    RESERVE_SOL, FEE_SAFETY_PCT, PRIORITY_MICROLAMPORTS — см. scripts/deploy-budget.mjs
@@ -232,13 +232,10 @@ fi
 printf '%s' "$SOL_DEPLOY_HELP" | grep -q "max-sign-attempts" && DEPLOY_EXTRA="$DEPLOY_EXTRA --max-sign-attempts 60"
 printf '%s' "$SOL_DEPLOY_HELP" | grep -q "use-rpc" && DEPLOY_EXTRA="$DEPLOY_EXTRA --use-rpc"
 DEPLOY_BUFFER=""
-if printf '%s' "$SOL_DEPLOY_HELP" | grep -q -- "--buffer"; then
-  if [ ! -f "$BUFFER_KEYPAIR" ]; then
-    solana-keygen new --no-bip39-passphrase --silent -o "$BUFFER_KEYPAIR" >/dev/null 2>&1 \
-      || { echo "✖ Не удалось создать ключ буфера: $BUFFER_KEYPAIR"; exit 1; }
-  fi
+if [ -n "$BUFFER_KEYPAIR" ]; then
+  [ -f "$BUFFER_KEYPAIR" ] || { echo "✖ Ключ буфера не найден: $BUFFER_KEYPAIR"; exit 1; }
   DEPLOY_BUFFER="--buffer $BUFFER_KEYPAIR"
-  echo "    Буфер: $BUFFER_KEYPAIR (ключ создаёт скрипт; при обрыве попытка продолжит на нём)"
+  echo "    Продолжаем деплой на существующем буфере: $BUFFER_KEYPAIR"
 fi
 
 deploy_once() {
@@ -281,11 +278,20 @@ while [ "$DEPLOYED" != "1" ] && [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
     break
   fi
   printf '%s\n' "$DEPLOY_OUT" | grep -vE '^[a-z]+( [a-z]+){11}$' || true
-  if [ -n "$DEPLOY_BUFFER" ]; then
-    echo "    Продолжаю на том же буфере ($BUFFER_KEYPAIR — секретный файл, не коммитить)."
+  WORDS=$(printf '%s\n' "$DEPLOY_OUT" | grep -E '^[a-z]+( [a-z]+){11}$' | head -1) || true
+  if [ -n "$WORDS" ]; then
+    PHRASE_FILE="target/deploy/.buffer-resume-$$.phrase"
+    ( umask 077; printf '%s\n' "$WORDS" > "$PHRASE_FILE" )
+    echo "    CLI напечатал seed-фразу промежуточного буфера — она сохранена в $PHRASE_FILE"
+    echo "    (секрет, не коммитить; target/ в .gitignore). Восстановить ключ можно только"
+    echo "    интерактивно (фраза читается с TTY), затем повторить деплой с ним:"
+    echo "      solana-keygen recover -o target/deploy/.buffer-resume-$$.json   # вставить фразу"
+    echo "      BUFFER_KEYPAIR=target/deploy/.buffer-resume-$$.json $0"
+    break
+  elif [ -n "$DEPLOY_BUFFER" ]; then
+    echo "    Повторяю на том же буфере ($BUFFER_KEYPAIR)."
   else
-    echo "✖ Деплой не прошёл (CLI без --buffer — продолжить не на чем)."
-    echo "  Через 1-2 часа (сеть свободнее) повтори команду заново."
+    echo "✖ Деплой не прошёл, seed-фразы в выводе нет — продолжить не на чем."
     break
   fi
   sleep 5
