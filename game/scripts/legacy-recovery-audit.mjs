@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Read-only inventory for the retired 48D2… program and all loader-v3 buffers
+ * Read-only inventory for the historical 48D2… program and all loader-v3 buffers
  * owned by the configured operator wallet. This script never loads key files
  * and only calls Solana JSON-RPC read methods; it has no transaction builder.
  *
@@ -13,7 +13,7 @@ import path from 'node:path';
 
 export const UPGRADEABLE_LOADER_ID = 'BPFLoaderUpgradeab1e11111111111111111111111';
 export const EXPECTED_DEVNET_GENESIS = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
-export const KNOWN_CURRENT_DEPLOY_SIGNATURE = '29V5xNzs3MqQHjJS7tGyfFCz5cPaeLNmQMgWuGZPeHzXHD63cj5WoTaeeuG7WpWJ4Vyeeubg4MxmHsas5jMPGaCj';
+export const REPOSITORY_RECORDED_DEPLOY_SIGNATURE = '29V5xNzs3MqQHjJS7tGyfFCz5cPaeLNmQMgWuGZPeHzXHD63cj5WoTaeeuG7WpWJ4Vyeeubg4MxmHsas5jMPGaCj';
 export const LAMPORTS_PER_SOL = 1_000_000_000n;
 
 const CONFIG_PATH = fileURLToPath(new URL('./rent-audit.config.json', import.meta.url));
@@ -193,6 +193,8 @@ function transactionSummary(signature, tx, focusIds) {
   const accountKeys = keyRecords.map((entry) => entry.pubkey).filter(Boolean);
   const instructions = Array.isArray(message.instructions) ? message.instructions : [];
   const programIds = [...new Set(instructions.map((ix) => ix?.programId).filter((id) => typeof id === 'string'))];
+  const innerInstructions = Array.isArray(tx.meta?.innerInstructions) ? tx.meta.innerInstructions.flatMap((group) => group.instructions ?? []) : [];
+  const innerProgramIds = [...new Set(innerInstructions.map((ix) => ix?.programId).filter((id) => typeof id === 'string'))];
   return {
     signature,
     found: true,
@@ -202,6 +204,7 @@ function transactionSummary(signature, tx, focusIds) {
     signers: keyRecords.filter((entry) => entry.signer === true).map((entry) => entry.pubkey),
     mentions: Object.fromEntries(focusIds.map((id) => [id, accountKeys.includes(id)])),
     topLevelProgramIds: programIds,
+    innerProgramIds,
     accountKeyCount: accountKeys.length,
   };
 }
@@ -249,7 +252,7 @@ export async function runLegacyRecoveryAudit({
   legacyProgramId,
   currentProgramId,
   authority,
-  knownDeploySignature = KNOWN_CURRENT_DEPLOY_SIGNATURE,
+  knownDeploySignature = REPOSITORY_RECORDED_DEPLOY_SIGNATURE,
   fetchImpl = globalThis.fetch,
 }) {
   const host = (() => {
@@ -303,6 +306,18 @@ export async function runLegacyRecoveryAudit({
     ? parseProgramDataAccount(currentProgram.programDataAddress, currentProgramDataInfo.result?.value ?? null)
     : { exists: null, address: currentProgram.programDataAddress, valid: false, reason: currentProgramDataInfo.reason };
 
+  const legacyProgramDataHistoryRaw = legacyProgramData.valid
+    ? await safeRpc(rpcUrl, 'getSignaturesForAddress', [legacyProgramData.address, { commitment, limit: 20 }], fetchImpl)
+    : { measured: true, result: [] };
+  const legacyProgramDataHistory = legacyProgramDataHistoryRaw.measured
+    ? historySummary(legacyProgramDataHistoryRaw.result)
+    : { measured: false, recent: [], reason: legacyProgramDataHistoryRaw.reason };
+  const currentProgramDataHistoryRaw = currentProgramData.valid
+    ? await safeRpc(rpcUrl, 'getSignaturesForAddress', [currentProgramData.address, { commitment, limit: 20 }], fetchImpl)
+    : { measured: true, result: [] };
+  const currentProgramDataHistory = currentProgramDataHistoryRaw.measured
+    ? historySummary(currentProgramDataHistoryRaw.result)
+    : { measured: false, recent: [], reason: currentProgramDataHistoryRaw.reason };
   const currentHistoryRaw = await safeRpc(rpcUrl, 'getSignaturesForAddress', [currentProgramId, { commitment, limit: 5 }], fetchImpl);
   const currentHistory = currentHistoryRaw.measured
     ? historySummary(currentHistoryRaw.result)
@@ -326,17 +341,20 @@ export async function runLegacyRecoveryAudit({
   const buffersRaw = await safeRpc(rpcUrl, 'getProgramAccounts', [UPGRADEABLE_LOADER_ID, {
     commitment,
     encoding: 'base64',
-    filters: [
-      { memcmp: { offset: 0, bytes: base58Encode(Buffer.from([1, 0, 0, 0])) } },
-      { memcmp: { offset: 4, bytes: base58Encode(Buffer.from([1])) } },
-      { memcmp: { offset: 5, bytes: authority } },
-    ],
+    // Buffer layout is [tag:u32][Option<Pubkey>], authority at offset 5.
+    // Filter only on authority, then validate loader tag + embedded authority
+    // locally; this avoids false negatives from encoding enum/Option variants.
+    filters: [{ memcmp: { offset: 5, bytes: authority } }],
     dataSlice: { offset: 0, length: 37 },
+    withContext: true,
   }], fetchImpl);
-  const buffers = buffersRaw.measured
-    ? parseBufferAccounts(buffersRaw.result?.value, authority)
-    : { measured: false, authority, count: null, lamports: null, sol: null, buffers: [], unexpectedMatches: [], reason: buffersRaw.reason };
-  buffers.contextSlot = buffersRaw.measured ? numeric(buffersRaw.result?.context?.slot) : null;
+  const bufferResult = buffersRaw.measured ? buffersRaw.result : null;
+  const bufferRows = Array.isArray(bufferResult) ? bufferResult : bufferResult?.value;
+  const buffers = buffersRaw.measured && Array.isArray(bufferRows)
+    ? parseBufferAccounts(bufferRows, authority)
+    : { measured: false, authority, count: null, lamports: null, sol: null, buffers: [], unexpectedMatches: [], reason: buffersRaw.measured ? 'getProgramAccounts result was not an array' : buffersRaw.reason };
+  buffers.contextSlot = buffersRaw.measured ? numeric(bufferResult?.context?.slot) : null;
+  buffers.query = 'getProgramAccounts(loader-v3) memcmp authority at offset 5; locally require Buffer tag=1 and Some(authority)';
 
   const oldLatestSignature = legacyHistory.measured ? legacyHistory.latest?.signature : null;
   const oldLatestTx = oldLatestSignature
@@ -348,12 +366,31 @@ export async function runLegacyRecoveryAudit({
     ? transactionSummary(oldLatestSignature, oldLatestTx.result, [legacyProgramId, currentProgramId, authority])
     : { signature: oldLatestSignature, found: false, reason: oldLatestTx.reason };
 
-  const knownDeployTxRaw = await safeRpc(rpcUrl, 'getTransaction', [knownDeploySignature, {
+  const signatureAtDataSlot = (history, dataAccount) => dataAccount.valid
+    ? history.recent.find((entry) => entry.slot === dataAccount.slot)?.signature ?? null
+    : null;
+  const legacyDeploySignature = signatureAtDataSlot(legacyProgramDataHistory, legacyProgramData);
+  const currentDeploySignature = signatureAtDataSlot(currentProgramDataHistory, currentProgramData);
+  const transactionAtSignature = async (signature) => {
+    if (!signature) return { signature: null, found: false };
+    const tx = await safeRpc(rpcUrl, 'getTransaction', [signature, {
+      encoding: 'jsonParsed', commitment, maxSupportedTransactionVersion: 0,
+    }], fetchImpl);
+    return tx.measured
+      ? transactionSummary(signature, tx.result, [legacyProgramId, currentProgramId, authority])
+      : { signature, found: false, reason: tx.reason };
+  };
+  const legacyProgramDataDeployment = legacyDeploySignature === oldLatestSignature
+    ? oldLatestTransaction
+    : await transactionAtSignature(legacyDeploySignature);
+  const currentProgramDataDeployment = await transactionAtSignature(currentDeploySignature);
+
+  const repositoryRecordedTxRaw = await safeRpc(rpcUrl, 'getTransaction', [knownDeploySignature, {
     encoding: 'jsonParsed', commitment, maxSupportedTransactionVersion: 0,
   }], fetchImpl);
-  const knownCurrentDeployment = knownDeployTxRaw.measured
-    ? transactionSummary(knownDeploySignature, knownDeployTxRaw.result, [legacyProgramId, currentProgramId, authority])
-    : { signature: knownDeploySignature, found: false, reason: knownDeployTxRaw.reason };
+  const repositoryRecordedTransaction = repositoryRecordedTxRaw.measured
+    ? transactionSummary(knownDeploySignature, repositoryRecordedTxRaw.result, [legacyProgramId, currentProgramId, authority])
+    : { signature: knownDeploySignature, found: false, reason: repositoryRecordedTxRaw.reason };
 
   const clusterGenesisHash = clusterGenesis.measured ? clusterGenesis.result : null;
   const isExpectedDevnet = clusterGenesisHash === EXPECTED_DEVNET_GENESIS;
@@ -365,6 +402,11 @@ export async function runLegacyRecoveryAudit({
   const bufferLamports = buffers.measured ? BigInt(buffers.lamports) : null;
   const totalPotential = bufferLamports === null ? null : oldProgramLamports + bufferLamports;
   const currentAuthorityMatchesWallet = currentProgramData.valid && currentProgramData.authority === authority;
+  const latestLegacyReferenceSlot = legacyHistory.measured ? legacyHistory.latest?.slot ?? null : null;
+  const legacyLastReferencePredatesCurrentDeployment = Number.isSafeInteger(latestLegacyReferenceSlot)
+    && Number.isSafeInteger(currentProgramData.slot)
+    ? latestLegacyReferenceSlot < currentProgramData.slot
+    : null;
 
   return {
     schemaVersion: 1,
@@ -384,17 +426,21 @@ export async function runLegacyRecoveryAudit({
     ids: { legacyProgramId, currentProgramId, operatorWallet: authority },
     legacyProgram,
     legacyProgramData,
+    legacyProgramDataHistory,
+    legacyProgramDataDeployment,
     legacyHistory,
     legacyLatestTransaction: oldLatestTransaction,
     currentProgram,
     currentProgramData,
+    currentProgramDataHistory,
+    currentProgramDataDeployment,
     currentProgramAuthorityMatchesOperator: currentAuthorityMatchesWallet,
     currentProgramHistory: currentHistory,
     operatorWallet: {
       address: authority,
       balance: walletBalance,
       history: walletHistory,
-      knownCurrentDeployment,
+      repositoryRecordedTransaction,
     },
     buffers,
     recovery: {
@@ -405,15 +451,19 @@ export async function runLegacyRecoveryAudit({
       authorityBuffersSol: buffers.measured ? buffers.sol : null,
       totalPotentialLamports: totalPotential === null ? null : totalPotential.toString(),
       totalPotentialSol: totalPotential === null ? null : solFromLamports(totalPotential),
+      legacyLatestReferenceSlot: latestLegacyReferenceSlot,
+      currentProgramDataDeploymentSlot: numeric(currentProgramData.slot),
+      legacyLastReferencePredatesCurrentDeployment,
+      grossBalancesBeforeTransactionFees: true,
       exactRecipientCandidate: authority,
       recipientBasis: currentAuthorityMatchesWallet
-        ? 'configured operator wallet matches the current DUUBi… ProgramData upgrade authority and the buffer-owner filter'
-        : 'configured operator wallet is the buffer-owner filter; verify the signer public key independently before any close',
+        ? 'configured operator wallet matches the current DUUBi… ProgramData upgrade authority; each buffer is separately validated against its embedded authority'
+        : 'configured operator wallet is the buffer-owner query key; verify the signer public key independently before any close',
       approval: 'potential recovery only; no account is safe-to-close until individually reviewed and separately approved by the owner',
     },
     provenance: {
-      knownCurrentDeploymentSignature: knownDeploySignature,
-      knownCurrentDeploymentSource: 'game/README.md deployment record; query is getTransaction only',
+      repositoryRecordedSignature: knownDeploySignature,
+      repositoryRecordedSource: 'game/README.md deployment record; decoded through getTransaction and not assumed to target the current program',
       secretKeyRead: false,
       transactionSent: false,
     },

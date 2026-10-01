@@ -127,6 +127,7 @@ test('RPC audit stays read-only and reports absence separately from authority-ow
   bufferBytes[4] = 1;
   authorityBytes.copy(bufferBytes, 5);
   const methods = [];
+  let bufferQueryConfig;
 
   const fetchImpl = async (_url, init) => {
     const request = JSON.parse(init.body);
@@ -156,12 +157,16 @@ test('RPC audit stays read-only and reports absence separately from authority-ow
         break;
       }
       case 'getBalance': result = { context: { slot: 100 }, value: 24_000_000 }; break;
-      case 'getProgramAccounts': result = { context: { slot: 100 }, value: [{
-        pubkey: 'owned-buffer', account: {
-          owner: UPGRADEABLE_LOADER_ID, executable: false, lamports: 3_000_000_000,
-          space: 50_037, data: [b64(bufferBytes), 'base64'],
-        },
-      }] }; break;
+      case 'getProgramAccounts': {
+        bufferQueryConfig = request.params[1];
+        result = { context: { slot: 100 }, value: [{
+          pubkey: 'owned-buffer', account: {
+            owner: UPGRADEABLE_LOADER_ID, executable: false, lamports: 3_000_000_000,
+            space: 50_037, data: [b64(bufferBytes), 'base64'],
+          },
+        }] };
+        break;
+      }
       case 'getTransaction': result = {
         slot: 80, blockTime: 1_799_000_000, meta: { err: null },
         transaction: { message: {
@@ -186,9 +191,12 @@ test('RPC audit stays read-only and reports absence separately from authority-ow
   assert.equal(audit.operatorWallet.balance.lamports, 24_000_000);
   assert.equal(audit.buffers.count, 1);
   assert.equal(audit.buffers.lamports, '3000000000');
+  assert.equal(audit.buffers.contextSlot, 100);
+  assert.equal(bufferQueryConfig.withContext, true);
+  assert.deepEqual(bufferQueryConfig.filters, [{ memcmp: { offset: 5, bytes: authority } }]);
   assert.equal(audit.recovery.programAndProgramDataLamports, '0');
   assert.equal(audit.recovery.totalPotentialLamports, '3000000000');
   assert.equal(audit.recovery.exactRecipientCandidate, authority);
-  assert.equal(audit.operatorWallet.knownCurrentDeployment.signers[0], authority);
+  assert.equal(audit.operatorWallet.repositoryRecordedTransaction.signers[0], authority);
   assert.equal(methods.every((method) => !/send|airdrop|close/i.test(method)), true);
 });
