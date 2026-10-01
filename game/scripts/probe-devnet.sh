@@ -6,9 +6,9 @@
 #  печатается в аннотации, — публичные данные: адреса, размеры, лампорты,
 #  хэши, версии (R11).
 #
-#  Каждая проба печатает ровно одну аннотацию `ares-<ключ>`; недоступность
-#  публичного RPC — не провал job'а, а `{"measured":false,"reason":…}`: тогда
-#  цифры помечаются НЕ ИЗМЕРЕНО и в отчёте указывается причина.
+#  Пробы печатают компактные аннотации `ares-<ключ>`; composite-результаты
+#  разбиваются на части ниже лимита GitHub. Недоступность публичного RPC — не
+#  провал job'а, а `{"measured":false,"reason":…}`: причина остаётся видимой.
 #
 #  Использование:
 #    RPC_URL=<url> ./scripts/probe-devnet.sh
@@ -28,9 +28,15 @@ PROBE_ERRORS=0
 # Пустое тело означает ошибку в jq-выражении (не «нет данных»): это провал job'а,
 # иначе аннотация молча уедет пустой и её прочитают как отсутствие факта.
 note() {
-  local title="$1" body="$2"
+  local title="$1" body="$2" body_bytes
   if [ -z "$body" ]; then
     printf '::error title=%s::пустая аннотация — ошибка формирования JSON (jq-выражение)\n' "$title"
+    PROBE_ERRORS=$((PROBE_ERRORS + 1))
+    return 0
+  fi
+  body_bytes=$(printf '%s' "$body" | wc -c | tr -d '[:space:]')
+  if [ "$body_bytes" -gt 3800 ]; then
+    printf '::error title=%s::annotation body %s bytes exceeds safe 3800-byte limit\n' "$title" "$body_bytes"
     PROBE_ERRORS=$((PROBE_ERRORS + 1))
     return 0
   fi
@@ -170,9 +176,10 @@ else
   unmeasured ares-deployer "solana balance: $(printf '%s' "$BAL_OUT" | head -c 300)"
 fi
 
-# ── ares-legacy / ares-buffers / ares-operator-wallet: read-only inventory ──
+# ── ares-legacy / ares-deployments / ares-recovery / ares-buffers / wallet ──
 # The helper uses only confirmed JSON-RPC reads; no keypair or transaction API.
-# Preserve the complete response as a CI artifact so annotations can stay <4 KiB.
+# Preserve the complete response as a CI artifact and split annotations below
+# GitHub's 4 KiB limit so none of the decision-relevant evidence is truncated.
 AUDIT_FILE="${RUNNER_TEMP:-/tmp}/legacy-recovery-audit.json"
 AUDIT_ERR="${RUNNER_TEMP:-/tmp}/legacy-recovery-audit.stderr"
 if RPC_URL="$RPC" PROGRAM_ID="$PROGRAM_ID" DEPLOYER="$DEPLOYER" LEGACY_PROGRAM_ID="$LEGACY" \
@@ -181,20 +188,19 @@ if RPC_URL="$RPC" PROGRAM_ID="$PROGRAM_ID" DEPLOYER="$DEPLOYER" LEGACY_PROGRAM_I
   LEGACY_SUMMARY=$(jq -c '{readOnly,rpc,cluster,ids,legacyProgram,legacyProgramData,
     legacyProgramDataHistory:{measured:.legacyProgramDataHistory.measured,
       countReturned:.legacyProgramDataHistory.countReturned,latest:.legacyProgramDataHistory.latest},
-    legacyProgramDataDeployment,
     legacyHistory:{measured:.legacyHistory.measured,countReturned:.legacyHistory.countReturned,
       latest:.legacyHistory.latest,oldestInPage:.legacyHistory.oldestInPage},
-    legacyLatestTransaction,
     currentProgram:{exists:.currentProgram.exists,valid:.currentProgram.valid,
       programId:.currentProgram.programId,programDataAddress:.currentProgram.programDataAddress,
       lamports:.currentProgram.lamports,sol:.currentProgram.sol},
-    currentProgramData,
+    currentProgramData,currentProgramAuthorityMatchesOperator}' "$AUDIT_FILE")
+  DEPLOYMENT_SUMMARY=$(jq -c '{legacyProgramDataDeployment,legacyLatestTransaction,
     currentProgramDataHistory:{measured:.currentProgramDataHistory.measured,
       countReturned:.currentProgramDataHistory.countReturned,latest:.currentProgramDataHistory.latest},
-    currentProgramDataDeployment,currentProgramAuthorityMatchesOperator,
+    currentProgramDataDeployment,
     currentProgramHistory:{measured:.currentProgramHistory.measured,
-      countReturned:.currentProgramHistory.countReturned,latest:.currentProgramHistory.latest},
-    recovery,provenance}' "$AUDIT_FILE")
+      countReturned:.currentProgramHistory.countReturned,latest:.currentProgramHistory.latest}}' "$AUDIT_FILE")
+  RECOVERY_SUMMARY=$(jq -c '{recovery,provenance}' "$AUDIT_FILE")
   BUFFER_SUMMARY=$(jq -c '.buffers | {measured,authority,count,lamports,sol,contextSlot,query,
     buffers,unexpectedMatches,relationNote}' "$AUDIT_FILE")
   WALLET_SUMMARY=$(jq -c '.operatorWallet | {address,balance,
@@ -202,10 +208,14 @@ if RPC_URL="$RPC" PROGRAM_ID="$PROGRAM_ID" DEPLOYER="$DEPLOYER" LEGACY_PROGRAM_I
       latest:.history.latest,oldestInPage:.history.oldestInPage,recent:(.history.recent[:10])},
     repositoryRecordedTransaction}' "$AUDIT_FILE")
   note ares-legacy "$LEGACY_SUMMARY"
+  note ares-deployments "$DEPLOYMENT_SUMMARY"
+  note ares-recovery "$RECOVERY_SUMMARY"
   note ares-buffers "$BUFFER_SUMMARY"
   note ares-operator-wallet "$WALLET_SUMMARY"
 else
   unmeasured ares-legacy "read-only recovery audit produced no valid JSON: $(head -c 300 "$AUDIT_ERR" 2>/dev/null || true)"
+  unmeasured ares-deployments "see ares-legacy; full JSON: $AUDIT_FILE"
+  unmeasured ares-recovery "see ares-legacy; full JSON: $AUDIT_FILE"
   unmeasured ares-buffers "see ares-legacy; full JSON: $AUDIT_FILE"
   unmeasured ares-operator-wallet "see ares-legacy; full JSON: $AUDIT_FILE"
 fi

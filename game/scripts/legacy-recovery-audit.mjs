@@ -13,7 +13,6 @@ import path from 'node:path';
 
 export const UPGRADEABLE_LOADER_ID = 'BPFLoaderUpgradeab1e11111111111111111111111';
 export const EXPECTED_DEVNET_GENESIS = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
-export const REPOSITORY_RECORDED_DEPLOY_SIGNATURE = '29V5xNzs3MqQHjJS7tGyfFCz5cPaeLNmQMgWuGZPeHzXHD63cj5WoTaeeuG7WpWJ4Vyeeubg4MxmHsas5jMPGaCj';
 export const LAMPORTS_PER_SOL = 1_000_000_000n;
 
 const CONFIG_PATH = fileURLToPath(new URL('./rent-audit.config.json', import.meta.url));
@@ -41,6 +40,12 @@ export function solFromLamports(value) {
   const whole = lamports / LAMPORTS_PER_SOL;
   const fraction = (lamports % LAMPORTS_PER_SOL).toString().padStart(9, '0');
   return `${whole}.${fraction}`;
+}
+
+/** Read the public transaction id from the repo's own deployment record. */
+export function findRepositoryRecordedDeploySignature(readmeText) {
+  const deployRow = String(readmeText).split(/\r?\n/).find((line) => /Redeploy devnet/i.test(line));
+  return deployRow?.match(/\btx\s+`([1-9A-HJ-NP-Za-km-z]{87,88})`/)?.[1] ?? null;
 }
 
 function numeric(value) {
@@ -252,7 +257,7 @@ export async function runLegacyRecoveryAudit({
   legacyProgramId,
   currentProgramId,
   authority,
-  knownDeploySignature = REPOSITORY_RECORDED_DEPLOY_SIGNATURE,
+  knownDeploySignature = null,
   fetchImpl = globalThis.fetch,
 }) {
   const host = (() => {
@@ -385,9 +390,11 @@ export async function runLegacyRecoveryAudit({
     : await transactionAtSignature(legacyDeploySignature);
   const currentProgramDataDeployment = await transactionAtSignature(currentDeploySignature);
 
-  const repositoryRecordedTxRaw = await safeRpc(rpcUrl, 'getTransaction', [knownDeploySignature, {
-    encoding: 'jsonParsed', commitment, maxSupportedTransactionVersion: 0,
-  }], fetchImpl);
+  const repositoryRecordedTxRaw = knownDeploySignature
+    ? await safeRpc(rpcUrl, 'getTransaction', [knownDeploySignature, {
+      encoding: 'jsonParsed', commitment, maxSupportedTransactionVersion: 0,
+    }], fetchImpl)
+    : { measured: true, result: null };
   const repositoryRecordedTransaction = repositoryRecordedTxRaw.measured
     ? transactionSummary(knownDeploySignature, repositoryRecordedTxRaw.result, [legacyProgramId, currentProgramId, authority])
     : { signature: knownDeploySignature, found: false, reason: repositoryRecordedTxRaw.reason };
@@ -476,11 +483,14 @@ function configValue(name, fallback) {
 
 async function main() {
   const config = JSON.parse(readFileSync(CONFIG_PATH, 'utf8'));
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  const knownDeploySignature = findRepositoryRecordedDeploySignature(readme);
   const result = await runLegacyRecoveryAudit({
     rpcUrl: configValue('RPC_URL', config.rpc),
     legacyProgramId: configValue('LEGACY_PROGRAM_ID', config.legacyProgramId),
     currentProgramId: configValue('PROGRAM_ID', config.programId),
     authority: configValue('DEPLOYER', config.deployer),
+    knownDeploySignature,
   });
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
