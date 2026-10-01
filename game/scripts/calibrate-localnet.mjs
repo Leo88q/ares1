@@ -14,6 +14,13 @@
  * деплой) и `--so2` (большой — апгрейд требует extend). Иначе рост не проверить:
  * на CLI 4.2.2 `--max-len` больше текущего ProgramData сам deploy не расширяет.
  *
+ * Штатный путь роста — `solana program extend` (тот же, что в runbook для
+ * человека). Если команда отчиталась об успехе, а space НЕ вырос (наблюдено в
+ * CI 8fc8d25: exit 0, но space и слот ProgramData без изменений), скрипт
+ * отправляет ExtendProgram сам — сырой транзакцией с логированием симуляции.
+ * Так измерение не зависит от того, что CLI напечатал, а инструмент один и тот
+ * же: содержимое аккаунта до/после.
+ *
  * Транзакции здесь — ТОЛЬКО localnet (R2: одноразовые ключи на
  * solana-test-validator). Скрипт отказывается работать с не-local RPC.
  * Комиссии измеряются отдельно и входят в бюджет как оценка сверху: модель
@@ -26,11 +33,13 @@
  * Коды выхода: 0 — совпало; 2 — расхождение/ошибка измерения.
  */
 import { execFileSync } from 'node:child_process';
+import { createPrivateKey, createPublicKey, sign as ed25519Sign } from 'node:crypto';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
   CONSTANTS,
+  base58,
   computeFees,
   fetchBalance,
   fetchProgramState,
@@ -39,6 +48,20 @@ import {
 } from './deploy-budget.mjs';
 
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
+// Раннер обрезает одно сообщение аннотации (~4 КБ), а измерений много (R10):
+// печатаем их несколькими ::notice/::error, каждый со своей нумерацией.
+const ANNOTATION_CHUNK = 1800;
+
+function annotate(level, title, text) {
+  const chunks = [];
+  for (let index = 0; index < text.length; index += ANNOTATION_CHUNK) {
+    chunks.push(text.slice(index, index + ANNOTATION_CHUNK));
+  }
+  chunks.forEach((chunk, index) => {
+    const label = index === 0 ? title : `${title} ${index + 1}/${chunks.length}`;
+    console.log(`::${level} title=${label}::${index === 0 ? '' : '…'}${chunk}`);
+  });
+}
 // Ход калибровки и заметки: их читает и `main()`, и верхнеуровневый `catch`
 // (аннотация — единственный канал наружу из CI, R10).
 const notes = [];
@@ -65,6 +88,131 @@ export function checkExtend({ spaceBefore, additional, spaceAfter, lamportsAfter
 export function verdict(checks) {
   const failed = checks.filter((check) => check.delta !== 0n);
   return { ok: failed.length === 0, failed };
+}
+
+// ── Сырой ExtendProgram: страховка от «успеха без эффекта» у CLI ──────────────
+// loader-v3 (agave v4.2.2, svm/loader-v3-interface): UpgradeableLoaderInstruction
+// с `#[repr(u8)]` сериализуется bincode как тег-байт + fixed-int поля, поэтому
+// ExtendProgram = [6, additional: u32 LE], аккаунты [ProgramData, Program,
+// SystemProgram, payer]; пейер обязан подписать (check_authority = false — по
+// SIMD-0431 authority не требуется, но плательщик нужен для доплаты за rent).
+const LOADER_V3 = 'BPFLoaderUpgradeab1e11111111111111111111111';
+const SYSTEM_PROGRAM = '11111111111111111111111111111111';
+const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const PKCS8_ED25519 = Buffer.from('302e020100300506032b657004220420', 'hex');
+
+/** base58 → байты (нужен для blockhash и адресов внутри сырой транзакции). */
+export function base58Decode(text) {
+  let value = 0n;
+  for (const char of text) {
+    const digit = BASE58_ALPHABET.indexOf(char);
+    if (digit < 0) throw new Error(`base58: недопустимый символ «${char}»`);
+    value = value * 58n + BigInt(digit);
+  }
+  const leading = text.length - text.replace(/^1+/, '').length;
+  const hex = value.toString(16);
+  const body = value === 0n ? Buffer.alloc(0) : Buffer.from(hex.padStart(hex.length + (hex.length % 2), '0'), 'hex');
+  return Buffer.concat([Buffer.alloc(leading), body]);
+}
+
+/** u32 LE — формат fixed-int полей bincode. */
+function u32le(value) {
+  const buffer = Buffer.alloc(4);
+  buffer.writeUInt32LE(Number(value));
+  return buffer;
+}
+
+/** shortvec (compact-u16) — длина массивов в сообщении транзакции. */
+function shortvec(value) {
+  const out = [];
+  let rest = value;
+  do {
+    let byte = rest & 0x7f;
+    rest >>= 7;
+    if (rest > 0) byte |= 0x80;
+    out.push(byte);
+  } while (rest > 0);
+  return Buffer.from(out);
+}
+
+/**
+ * Ключ Ed25519 из файла solana-keygen (64 Б: seed || pubkey). Публичный ключ,
+ * выведенный из seed, обязан совпасть с записанным — иначе подпись была бы
+ * сделана «не тем» ключом, и это лучше поймать до отправки транзакции.
+ */
+export function ed25519Signer(keypairPath) {
+  const bytes = Buffer.from(JSON.parse(readFileSync(keypairPath, 'utf8')));
+  if (bytes.length !== 64) {
+    throw new Error(`ключ ${path.basename(keypairPath)}: ожидалось 64 байта (seed||pubkey), получено ${bytes.length}`);
+  }
+  const seed = bytes.subarray(0, 32);
+  const publicKey = bytes.subarray(32, 64);
+  const key = createPrivateKey({ key: Buffer.concat([PKCS8_ED25519, seed]), format: 'der', type: 'pkcs8' });
+  const derived = createPublicKey(key).export({ format: 'der', type: 'spki' }).subarray(-32);
+  if (!derived.equals(publicKey)) {
+    throw new Error(`ключ ${path.basename(keypairPath)}: публичный ключ не выводится из seed`);
+  }
+  return { publicKey, sign: (message) => ed25519Sign(null, message, key) };
+}
+
+/** Сырая legacy-транзакция с одной инструкцией ExtendProgram (без compute budget). */
+export function buildExtendTransaction({ signer, programId, programData, additional, blockhash }) {
+  const keys = [
+    signer.publicKey,                 // 0: плательщик (signer, writable, fee payer)
+    base58Decode(programData),        // 1: ProgramData (writable)
+    base58Decode(programId),          // 2: Program (writable)
+    base58Decode(SYSTEM_PROGRAM),     // 3: SystemProgram (readonly)
+    base58Decode(LOADER_V3),          // 4: loader-v3 (readonly, program id инструкции)
+  ];
+  for (const [index, key] of keys.entries()) {
+    if (key.length !== 32) throw new Error(`ключ #${index} в транзакции: ${key.length} байт вместо 32`);
+  }
+  const data = Buffer.concat([Buffer.from([6]), u32le(additional)]);
+  const message = Buffer.concat([
+    Buffer.from([1, 0, 2]),           // подписей 1, readonly-подписантов 0, readonly без подписи 2
+    shortvec(keys.length),
+    ...keys,
+    base58Decode(blockhash),
+    shortvec(1),
+    Buffer.from([4]),                 // programIdIndex: loader-v3
+    shortvec(4),
+    Buffer.from([1, 2, 3, 0]),        // ProgramData, Program, SystemProgram, payer
+    shortvec(data.length),
+    data,
+  ]);
+  const signature = signer.sign(message);
+  return { signature, transaction: Buffer.concat([shortvec(1), signature, message]) };
+}
+
+/**
+ * Отправка ExtendProgram и подтверждение. Логи симуляции возвращаются всегда:
+ * при отказе они объясняют причину (единственный публичный след в CI, R10).
+ */
+export async function sendRawExtend({ rpc, signer, programId, programData, additional }) {
+  const latest = await rpcCall(rpc, 'getLatestBlockhash', [{ commitment: 'confirmed' }]);
+  const blockhash = latest?.value?.blockhash;
+  if (!blockhash) throw new Error('getLatestBlockhash не вернул blockhash');
+  const { signature: expected, transaction } = buildExtendTransaction({ signer, programId, programData, additional, blockhash });
+  const base64 = transaction.toString('base64');
+  const simulation = await rpcCall(rpc, 'simulateTransaction', [base64, { encoding: 'base64', sigVerify: false, commitment: 'confirmed' }]);
+  const logs = (simulation?.value?.logs ?? []).map((line) => safeDiagnostic(String(line), 200));
+  if (simulation?.value?.err) {
+    return { ok: false, signature: null, logs, error: safeDiagnostic(JSON.stringify(simulation.value.err), 300) };
+  }
+  const signature = await rpcCall(rpc, 'sendTransaction', [base64, { encoding: 'base64', skipPreflight: false }]);
+  if (signature !== base58(expected)) {
+    // Возвращённая подпись обязана совпадать с посчитанной: иначе это не наша транзакция.
+    return { ok: false, signature, logs, error: `RPC вернул другую подпись: ${signature}` };
+  }
+  let status = null;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const result = await rpcCall(rpc, 'getSignatureStatuses', [[signature], { searchTransactionHistory: true }]);
+    status = result?.value?.[0] ?? null;
+    if (status && (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized')) break;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  if (!status) return { ok: false, signature, logs, error: 'транзакция не подтвердилась за 20 с' };
+  return { ok: !status.err, signature, logs, error: status.err ? safeDiagnostic(JSON.stringify(status.err), 300) : null };
 }
 
 function sh(command, args, { allowFailure = false, input } = {}) {
@@ -142,7 +290,7 @@ async function readProgram(rpc, programId) {
       fetchProgramState(rpc, programId),
     ]);
     if (program?.value) {
-      return { programLamports: BigInt(program.value.lamports), pd, space: pd.dataLen + CONSTANTS.PROGRAMDATA_META };
+      return { programLamports: BigInt(program.value.lamports), pd, space: pd.dataLen + CONSTANTS.PROGRAMDATA_META, slot: pd.slot };
     }
     if (attempt < 10) await new Promise((resolve) => setTimeout(resolve, 1500));
   }
@@ -259,27 +407,60 @@ async function main() {
   }
 
   // ── Шаг 3: явный extend ровно на недостающее (модель §5.3) ─────────────────
+  // Сначала штатная команда (её же выполнит человек по runbook), затем проверка
+  // ФАКТА: вырос ли аккаунт. Отчёт CLI «успех» без роста — не измерение, а
+  // повод отправить ExtendProgram самим и посмотреть логи/ошибку RPC.
   const needed = CONSTANTS.PROGRAMDATA_META + soLen2 - state2.space; // сколько не хватает до 45 + soLen2
   let extend = null;
   if (needed > 0n) {
     const before3 = await readProgram(rpc, programId);
-    const extendRun = sh('solana', ['program', 'extend', programId, needed.toString(), '--url', rpc, '--keypair', payerKeypair], { allowFailure: true });
-    const after3 = await readProgram(rpc, programId);
+    const cli = sh('solana', ['program', 'extend', programId, needed.toString(), '--url', rpc, '--keypair', payerKeypair], { allowFailure: true });
+    const afterCli = await readProgram(rpc, programId);
+    const cliGrew = afterCli.space - before3.space;
     extend = {
       additional: needed,
-      ok: extendRun.ok,
       spaceBefore: before3.space,
-      spaceAfter: after3.space,
-      error: extendRun.ok ? null : safeDiagnostic(`${extendRun.stderr}\n${extendRun.stdout}`, 2000),
+      spaceAfter: afterCli.space,
+      slotBefore: before3.slot,
+      slotAfter: afterCli.slot,
+      cli: {
+        ok: cli.ok,
+        exitCode: cli.code ?? 0,
+        grew: cliGrew,
+        stdout: safeDiagnostic(cli.stdout ?? '', 300),
+        error: cli.ok ? null : safeDiagnostic(`${cli.stderr}\n${cli.stdout}`, 1500),
+      },
+      raw: null,
     };
-    if (extendRun.ok) {
-      for (const check of checkExtend({ spaceBefore: before3.space, additional: needed, spaceAfter: after3.space, lamportsAfter: after3.pd.lamports, rent })) {
-        checks.push(row(check.name, check.measured, check.expected));
-      }
-    } else {
-      checks.push(row('extend_command_failed', 1n, 0n));
+    let final = afterCli;
+    if (cliGrew !== needed) {
+      notes.push(`extend: CLI ${cli.ok ? 'отчитался об успехе' : 'завершился ошибкой'}, но space ${before3.space}→${afterCli.space} (слот ${before3.slot}→${afterCli.slot}) — отправляем ExtendProgram сами`);
+      const raw = await sendRawExtend({
+        rpc,
+        signer: ed25519Signer(payerKeypair),
+        programId,
+        programData: before3.pd.programDataAddress,
+        additional: needed,
+      });
+      final = await readProgram(rpc, programId);
+      extend.raw = {
+        ok: raw.ok,
+        signature: raw.signature,
+        error: raw.error,
+        logs: raw.logs,
+        grew: final.space - afterCli.space,
+      };
+      notes.push(`extend: raw-транзакция ${raw.ok ? 'прошла' : 'не прошла'}: space ${afterCli.space}→${final.space}${raw.error ? ` (${raw.error})` : ''}`);
     }
-    steps.push({ step: 'extend', additional: needed, ok: extend.ok, spaceAfter: extend.spaceAfter });
+    extend.spaceAfter = final.space;
+    extend.slotAfter = final.slot;
+    extend.via = cliGrew === needed ? 'cli' : 'raw';
+    extend.ok = final.space - before3.space === needed;
+    const expectedSpace = before3.space + needed;
+    checks.push(row('extend_space', final.space, expectedSpace));
+    checks.push(row('extend_lamports', final.pd.lamports, rent(expectedSpace)));
+    if (!extend.ok) checks.push(row('extend_failed', 1n, 0n));
+    steps.push({ step: 'extend', additional: needed, ok: extend.ok, via: extend.via, spaceAfter: final.space, slotAfter: final.slot });
   } else {
     notes.push('extend не нужен: ProgramData уже вмещает новый размер (модель §5.3)');
   }
@@ -340,7 +521,7 @@ async function main() {
     notes,
     steps,
   };
-  console.log(`::notice title=ares-calibrate::${JSON.stringify(payload, jsonReplacer)}`);
+  annotate('notice', 'ares-calibrate', JSON.stringify(payload, jsonReplacer));
   console.log(JSON.stringify(payload, jsonReplacer, 2));
   if (args.out) writeFileSync(args.out, JSON.stringify(payload, jsonReplacer, 2));
   if (!pass) {
@@ -352,7 +533,7 @@ async function main() {
       `steps: ${steps.map((step) => `${step.step}${step.ok === undefined ? '' : `=${step.ok}`}${step.attempt ? `#${step.attempt}` : ''}${step.error ? ` (${step.error})` : ''}`).join('; ')}`,
       `notes: ${notes.join(' | ')}`,
     ].join(' | ');
-    console.log(`::error title=ares-calibrate-error::${safeDiagnostic(detail, 900).replace(/[\r\n]+/g, ' ')}`);
+    annotate('error', 'ares-calibrate-error', safeDiagnostic(detail, 6000).replace(/[\r\n]+/g, ' '));
     console.error(`calibrate-localnet: РАСХОЖДЕНИЕ: ${problems.join(', ')}`);
     process.exit(2);
   }
@@ -367,7 +548,7 @@ if (isMain) {
       // Аннотация — единственный канал наружу из CI: логи джоб недоступны.
       const context = notes.length > 0 ? ` | ход: ${notes.join(' | ')}` : '';
       const message = `${String(error.message)}${context}`;
-      console.log(`::error title=ares-calibrate-error::${safeDiagnostic(message, 3000).replace(/[\r\n]+/g, ' ')}`);
+      annotate('error', 'ares-calibrate-error', safeDiagnostic(message, 6000).replace(/[\r\n]+/g, ' '));
       console.error(`calibrate-localnet: ошибка: ${error.message}`);
       process.exit(2);
     });
