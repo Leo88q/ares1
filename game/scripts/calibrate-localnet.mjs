@@ -230,6 +230,8 @@ if (isMain) {
   main()
     .then((code) => process.exit(code))
     .catch((error) => {
+      // Аннотация — единственный канал наружу из CI: логи джоб недоступны.
+      console.log(`::error title=ares-calibrate-error::${String(error.message).replace(/[\r\n]+/g, ' ').slice(0, 800)}`);
       console.error(`calibrate-localnet: ошибка: ${error.message}`);
       process.exit(2);
     });
