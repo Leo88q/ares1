@@ -57,15 +57,37 @@ export function verdict(checks) {
   return { ok: failed.length === 0, failed };
 }
 
-function sh(command, args, { allowFailure = false } = {}) {
+function sh(command, args, { allowFailure = false, input } = {}) {
   try {
-    const stdout = execFileSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    const stdout = execFileSync(command, args, { encoding: 'utf8', stdio: [input ? 'pipe' : 'ignore', 'pipe', 'pipe'], input });
     return { ok: true, stdout, stderr: '' };
   } catch (error) {
-    const stderr = `${error.stderr ?? ''}${error.stdout ?? ''}`.trim();
-    if (!allowFailure) throw new Error(`${command} ${args.join(' ')}: ${stderr || error.message}`);
-    return { ok: false, stdout: error.stdout ?? '', stderr, code: error.status };
+    if (!allowFailure) throw new Error(`${command} ${args.join(' ')}: ${safeDiagnostic(`${error.stderr ?? ''}\n${error.stdout ?? ''}`)}`);
+    return { ok: false, stdout: error.stdout ?? '', stderr: error.stderr ?? '', code: error.status };
   }
+}
+
+/**
+ * Диагностика CLI без секретов: блок восстановления буфера (`Recover the
+ * intermediate account…`, 12 слов seed-фразы) в аннотации не попадает (R11) —
+ * берём только первые безопасные строки ошибки.
+ */
+export function safeDiagnostic(text, limit = 400) {
+  const lines = String(text)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const kept = [];
+  for (const line of lines) {
+    if (/^=+$/.test(line) || /recover the intermediate|seed phrase|buffer_signer/i.test(line)) break;
+    if (/^[a-z]{3,8}( [a-z]{3,8}){11}$/.test(line)) continue;
+    kept.push(line);
+    if (kept.length === 3) break;
+  }
+  const joined = kept.join(' | ') || 'диагностика пуста';
+  // Страховка: любая последовательность из 12+ слов подряд — потенциальная
+  // seed-фраза буфера, в аннотацию она не попадает.
+  return joined.replace(/\b[a-z]{3,8}(?: [a-z]{3,8}){11,}\b/g, '[seed-фраза скрыта]').slice(0, limit);
 }
 
 function parseArgs(argv) {
@@ -84,7 +106,6 @@ function parseArgs(argv) {
 /** BigInt → строка только при печати: сравнения и вердикт остаются целыми. */
 const jsonReplacer = (key, value) => (typeof value === 'bigint' ? value.toString() : value);
 const row = (name, measured, expected) => ({ name, measured, expected, delta: measured - expected });
-const firstLine = (text) => (text.split('\n').find((line) => line.trim().length > 0) ?? '').trim().slice(0, 200);
 
 async function readProgram(rpc, programId) {
   const [program, pd] = await Promise.all([
@@ -119,9 +140,35 @@ async function main() {
   sh('solana-keygen', ['new', '--no-bip39-passphrase', '--silent', '-o', programKeypair]);
   const payer = sh('solana-keygen', ['pubkey', payerKeypair]).stdout.trim();
   const programId = sh('solana-keygen', ['pubkey', programKeypair]).stdout.trim();
-  sh('solana', ['airdrop', '50', payer, '--url', rpc]);
-  const deploy = (maxLen, options = {}) =>
-    sh('solana', ['program', 'deploy', '--url', rpc, '--keypair', payerKeypair, '--program-id', programKeypair, '--max-len', maxLen.toString(), soPath], options);
+  sh('solana', ['airdrop', '100', payer, '--url', rpc], { allowFailure: true });
+  const startBalance = await fetchBalance(rpc, payer);
+  const deployArgs = (maxLen, extra = []) => [
+    'program', 'deploy', '--url', rpc, '--keypair', payerKeypair, '--program-id', programKeypair,
+    '--max-len', maxLen.toString(), '--max-sign-attempts', '60', '--use-rpc', ...extra, soPath,
+  ];
+  // Деплой ~1 МБ — это ~1200 транзакций записи: на свежем валидаторе дефолтных
+  // 5 попыток не хватает, CLI падает и печатает 12 слов промежуточного буфера.
+  // Продолжаем на восстановленном буфере, как это делает warm-start-devnet.sh.
+  const deploy = (maxLen, { attempts = 3 } = {}) => {
+    let extra = [];
+    let last = { ok: false, stdout: '', stderr: 'попыток не было', code: null };
+    let attempt = 0;
+    for (attempt = 1; attempt <= attempts; attempt++) {
+      last = sh('solana', deployArgs(maxLen, extra), { allowFailure: true });
+      if (last.ok) return { ...last, attempt };
+      if (attempt === attempts) break;
+      const words = `${last.stderr}\n${last.stdout}`
+        .split('\n')
+        .map((line) => line.trim())
+        .find((line) => /^[a-z]{3,8}( [a-z]{3,8}){11}$/.test(line));
+      const bufferFile = path.join(workdir, `buffer-${attempt}.json`);
+      const recovered = words && sh('solana-keygen', ['recover', '--stdin', '-o', bufferFile], { input: `${words}\n`, allowFailure: true }).ok;
+      notes.push(recovered ? `деплой: попытка ${attempt} не прошла, продолжаем на буфере` : `деплой: попытка ${attempt} не прошла — ${safeDiagnostic(last.stderr)}`);
+      if (!recovered) break;
+      extra = ['--buffer', bufferFile];
+    }
+    return { ...last, attempt };
+  };
 
   // ── Шаг 1: первый деплой, max_len = размер .so ─────────────────────────────
   const before1 = await fetchBalance(rpc, payer);
@@ -137,20 +184,20 @@ async function main() {
     programLamports: state1.programLamports,
     rent,
   })) checks.push(row(check.name, check.measured, check.expected));
-  steps.push({ step: 'new', maxLen: soLen, programData: state1.pd.programDataAddress, spent: spent1, output: deploy1.stdout.trim().slice(-300) });
+  steps.push({ step: 'new', attempt: deploy1.attempt, maxLen: soLen, programData: state1.pd.programDataAddress, spent: spent1 });
 
   // ── Шаг 2: попытка роста без extend (активна ли SIMD-0433 на кластере) ────
   const maxLen2 = soLen + growth;
-  const growAttempt = deploy(maxLen2, { allowFailure: true });
+  const growAttempt = deploy(maxLen2, { attempts: 1 });
   let autoExtended = false;
   if (growAttempt.ok) {
     const state2 = await readProgram(rpc, programId);
     autoExtended = state2.space >= CONSTANTS.PROGRAMDATA_META + maxLen2;
     notes.push(`рост без extend: команда прошла, space=${state2.space.toString()}${autoExtended ? ' (SIMD-0433 расширил сам)' : ''}`);
   } else {
-    notes.push(`рост без extend: команда отклонена — ${firstLine(growAttempt.stderr)}`);
+    notes.push(`рост без extend: команда отклонена — ${safeDiagnostic(`${growAttempt.stderr}\n${growAttempt.stdout}`)}`);
   }
-  steps.push({ step: 'grow-attempt', maxLen: maxLen2, ok: growAttempt.ok, autoExtended, error: growAttempt.stderr.slice(-300) });
+  steps.push({ step: 'grow-attempt', maxLen: maxLen2, ok: growAttempt.ok, autoExtended, error: safeDiagnostic(`${growAttempt.stderr}\n${growAttempt.stdout}`) });
 
   // ── Шаг 3: явный extend и финальный деплой с новым max_len ────────────────
   let extend = null;
@@ -160,7 +207,7 @@ async function main() {
     const extendRun = sh('solana', ['program', 'extend', programId, growth.toString(), '--url', rpc, '--keypair', payerKeypair], { allowFailure: true });
     const after = await readProgram(rpc, programId);
     if (!extendRun.ok && after.space === before.space) {
-      extend = { ok: false, error: extendRun.stderr.slice(-300) };
+      extend = { ok: false, error: safeDiagnostic(`${extendRun.stderr}\n${extendRun.stdout}`) };
       notes.push('extend не выполнился — продолжать апгрейд нельзя');
     } else {
       extend = { ok: true, spaceBefore: before.space, spaceAfter: after.space };
@@ -168,14 +215,14 @@ async function main() {
         checks.push(row(check.name, check.measured, check.expected));
       }
     }
-    steps.push({ step: 'extend', additional: growth, ...extend, output: extendRun.stdout.trim().slice(-200) });
+    steps.push({ step: 'extend', additional: growth, ...extend });
   } else {
     notes.push('extend пропущен: кластер сам расширил ProgramData (SIMD-0433)');
   }
 
   if (autoExtended || extend?.ok) {
     const before4 = await fetchBalance(rpc, payer);
-    const deploy4 = deploy(maxLen2, { allowFailure: true });
+    const deploy4 = deploy(maxLen2);
     const state4 = await readProgram(rpc, programId);
     const spent4 = before4 - (await fetchBalance(rpc, payer));
     final = { ok: deploy4.ok, spent: spent4 };
@@ -186,7 +233,7 @@ async function main() {
       programLamports: state4.programLamports,
       rent,
     })) checks.push(row(`final_${check.name}`, check.measured, check.expected));
-    steps.push({ step: 'final-deploy', maxLen: maxLen2, ...final, output: deploy4.stdout.trim().slice(-200), error: deploy4.stderr.slice(-300) });
+    steps.push({ step: 'final-deploy', maxLen: maxLen2, ...final, error: safeDiagnostic(`${deploy4.stderr}\n${deploy4.stdout}`) });
   }
 
   // ── Комиссии: модель обязана их не занижать ───────────────────────────────
@@ -205,6 +252,7 @@ async function main() {
     rent0,
     soLen,
     growth,
+    payerBalanceBeforeDeploy: startBalance,
     programId,
     programData: state1.pd.programDataAddress,
     authority: state1.pd.authority,
@@ -232,7 +280,7 @@ if (isMain) {
     .then((code) => process.exit(code))
     .catch((error) => {
       // Аннотация — единственный канал наружу из CI: логи джоб недоступны.
-      console.log(`::error title=ares-calibrate-error::${String(error.message).replace(/[\r\n]+/g, ' ').slice(0, 800)}`);
+      console.log(`::error title=ares-calibrate-error::${safeDiagnostic(String(error.message), 700).replace(/[\r\n]+/g, ' ')}`);
       console.error(`calibrate-localnet: ошибка: ${error.message}`);
       process.exit(2);
     });
