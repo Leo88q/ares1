@@ -1079,16 +1079,26 @@ button.morph-button--header:hover {
 .feature-grid {
   display: grid;
   gap: 18px;
+  grid-auto-rows: 1fr;
+  align-items: stretch;
 }
 
-.feature-grid > div {
+.feature-grid > div,
+.feature-reveal {
   min-width: 0;
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .feature-card {
+  width: 100%;
   height: 100%;
-  padding: 30px 26px 24px 26px;
+  min-height: 100%;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 24px 22px 24px;
   box-sizing: border-box;
   transform-style: preserve-3d;
 }
@@ -1097,17 +1107,29 @@ button.morph-button--header:hover {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  width: 100%;
 }
 
 .feature-icon {
-  display: grid;
-  width: 76px;
-  height: 76px;
-  place-items: center;
-  border: 1px solid #d8558f30;
-  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  border: none !important;
+  border-radius: 0 !important;
   color: #e0a183;
-  background: radial-gradient(circle, #d8558f1c, #d8558f03);
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.feature-icon::before,
+.feature-icon::after {
+  display: none !important;
+  content: none !important;
 }
 
 .feature-number {
@@ -1116,7 +1138,7 @@ button.morph-button--header:hover {
 }
 
 .feature-label {
-  margin-top: 24px;
+  margin-top: 18px;
   margin-bottom: 8px;
   color: #bbaaC2;
   font-size: 8px;
@@ -1124,16 +1146,17 @@ button.morph-button--header:hover {
 
 .feature-card h3 {
   max-width: 100%;
-  font-size: 20px;
+  font-size: 19px;
   line-height: 1.25;
 }
 
 .feature-description {
-  margin-top: 12px;
+  margin-top: 10px;
   padding-bottom: 16px;
   color: var(--ares-muted);
   font-size: 12px;
-  line-height: 1.65;
+  line-height: 1.6;
+  flex: 1 1 auto;
 }
 
 .card-corner {
@@ -2546,11 +2569,12 @@ button.morph-button--header:hover {
 
   .feature-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
     gap: 17px;
   }
 
   .feature-card {
-    padding: 28px 24px;
+    padding: 28px 24px 22px 24px;
     box-sizing: border-box;
   }
 
