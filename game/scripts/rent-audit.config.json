@@ -3,7 +3,7 @@
   "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
   "deployer": "HW4ekULcWHiVhDMfWpg8MwJwLqZHYskGMrue44WZ3vJ9",
   "rpc": "https://api.devnet.solana.com",
-  "legacyProgramId": "",
-  "legacyProgramIdNote": "Старая devnet-программа 48D2… (game/README.md) — полного адреса в репозитории нет (вопрос Q1). Пустая строка = проба ares-legacy печатает НЕ ИЗМЕРЕНО.",
+  "legacyProgramId": "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha",
+  "legacyProgramIdNote": "Получен read-only из declare_id! в истории Git (6799485); commit 864bdbb прямо помечает его устаревшим, а Anchor.toml указывает DUUBi. Старый ID остаётся проверяемым, не считать deployed без RPC-факта.",
   "growthHeadroomBytes": 0
 }

@@ -170,51 +170,38 @@ else
   unmeasured ares-deployer "solana balance: $(printf '%s' "$BAL_OUT" | head -c 300)"
 fi
 
-# ── ares-buffers: застрявшие буферы деплоера ────────────────────────────────
-SHOW_HELP=$(solana program show --help 2>&1 || true)
-if grep -q -- '--buffer-authority' <<<"$SHOW_HELP"; then
-  BUF_OUT=$(solana program show --buffers --buffer-authority "$DEPLOYER" --lamports --url "$RPC" --output json 2>&1) || true
-  if jq -e '.' >/dev/null 2>&1 <<<"$BUF_OUT"; then
-    note ares-buffers "$(jq -cn --argjson raw "$(jq -c . <<<"$BUF_OUT")" '
-      (if ($raw|type)=="array" then $raw else ($raw.buffers // $raw.accounts // []) end) as $list |
-      {measured:true,count:($list|length),
-       lamports:([$list[]? | (.lamports // 0)] | add // 0),
-       buffers:[$list[]? | {address:(.address // .pubkey // .buffer),lamports:(.lamports // null)}]}')"
-  else
-    unmeasured ares-buffers "solana program show --buffers: $(printf '%s' "$BUF_OUT" | head -c 300)"
-  fi
+# ── ares-legacy / ares-buffers / ares-operator-wallet: read-only inventory ──
+# The helper uses only confirmed JSON-RPC reads; no keypair or transaction API.
+# Preserve the complete response as a CI artifact so annotations can stay <4 KiB.
+AUDIT_FILE="${RUNNER_TEMP:-/tmp}/legacy-recovery-audit.json"
+AUDIT_ERR="${RUNNER_TEMP:-/tmp}/legacy-recovery-audit.stderr"
+if RPC_URL="$RPC" PROGRAM_ID="$PROGRAM_ID" DEPLOYER="$DEPLOYER" LEGACY_PROGRAM_ID="$LEGACY" \
+    node scripts/legacy-recovery-audit.mjs >"$AUDIT_FILE" 2>"$AUDIT_ERR" \
+    && jq -e '.schemaVersion == 1 and .readOnly == true and .ids != null' >/dev/null 2>&1 <"$AUDIT_FILE"; then
+  LEGACY_SUMMARY=$(jq -c '{readOnly,rpc,cluster,ids,legacyProgram,legacyProgramData,
+    legacyHistory:{measured:.legacyHistory.measured,countReturned:.legacyHistory.countReturned,
+      latest:.legacyHistory.latest,oldestInPage:.legacyHistory.oldestInPage},
+    legacyLatestTransaction,
+    currentProgram:{exists:.currentProgram.exists,valid:.currentProgram.valid,
+      programId:.currentProgram.programId,programDataAddress:.currentProgram.programDataAddress,
+      lamports:.currentProgram.lamports,sol:.currentProgram.sol},
+    currentProgramAuthorityMatchesOperator,
+    currentProgramHistory:{measured:.currentProgramHistory.measured,
+      countReturned:.currentProgramHistory.countReturned,latest:.currentProgramHistory.latest},
+    recovery,provenance}' "$AUDIT_FILE")
+  BUFFER_SUMMARY=$(jq -c '.buffers | {measured,authority,count,lamports,sol,contextSlot,
+    buffers,unexpectedMatches,relationNote}' "$AUDIT_FILE")
+  WALLET_SUMMARY=$(jq -c '.operatorWallet | {address,balance,
+    history:{measured:.history.measured,countReturned:.history.countReturned,
+      latest:.history.latest,oldestInPage:.history.oldestInPage,recent:(.history.recent[:10])},
+    knownCurrentDeployment}' "$AUDIT_FILE")
+  note ares-legacy "$LEGACY_SUMMARY"
+  note ares-buffers "$BUFFER_SUMMARY"
+  note ares-operator-wallet "$WALLET_SUMMARY"
 else
-  # Фолбэк: getProgramAccounts к loader-v3 по memcmp authority (offset 5) с
-  # dataSlice 5 байт — это теги Buffer(Enum=1) + Some(authority).
-  LOADER=BPFLoaderUpgradeab1e11111111111111111111111
-  BUF_RESP=$(rpc getProgramAccounts "[\"$LOADER\",{\"filters\":[{\"memcmp\":{\"offset\":5,\"bytes\":\"$DEPLOYER\"}}],\"dataSlice\":{\"offset\":0,\"length\":5},\"encoding\":\"base64\"}]" || true)
-  if jq -e '.result | type=="array"' >/dev/null 2>&1 <<<"$BUF_RESP"; then
-    note ares-buffers "$(jq -cn --argjson raw "$(jq -c '.result' <<<"$BUF_RESP")" '
-      {measured:true,count:($raw|length),
-       lamports:([$raw[]?.account.lamports] | add // 0),
-       buffers:[$raw[]? | {address:.pubkey,lamports:.account.lamports,
-                           tag:(.account.data[0])}],
-       tagNote:"data[0] обязан быть [1,0,0,0,1]: Enum=Buffer, authority=Some"}')"
-  else
-    unmeasured ares-buffers "getProgramAccounts(loader-v3, memcmp offset 5): $(printf '%s' "$BUF_RESP" | head -c 300)"
-  fi
-fi
-
-# ── ares-legacy: старая программа 48D2… (адрес — вопрос Q1) ─────────────────
-if [ -z "$LEGACY" ]; then
-  unmeasured ares-legacy "legacyProgramId не задан в scripts/rent-audit.config.json (вопрос Q1: полного адреса 48D2… в репозитории нет)"
-else
-  LEGACY_OUT=$(solana program show "$LEGACY" --url "$RPC" --output json 2>&1) || true
-  if jq -e '.programId' >/dev/null 2>&1 <<<"$LEGACY_OUT"; then
-    note ares-legacy "$(jq -cn --argjson raw "$(jq -c . <<<"$LEGACY_OUT")" '
-      {measured:true, programId:($raw.programId // $raw.program_id),
-       programDataAddress:($raw.programDataAddress // $raw.program_data_address),
-       authority:($raw.authority // $raw.upgradeAuthority),
-       lastDeploySlot:($raw.lastDeployedInSlot // $raw.lastDeploySlot),
-       dataLen:($raw.dataLen // $raw.data_len), lamports:$raw.lamports}')"
-  else
-    unmeasured ares-legacy "solana program show $LEGACY: $(printf '%s' "$LEGACY_OUT" | head -c 300)"
-  fi
+  unmeasured ares-legacy "read-only recovery audit produced no valid JSON: $(head -c 300 "$AUDIT_ERR" 2>/dev/null || true)"
+  unmeasured ares-buffers "see ares-legacy; full JSON: $AUDIT_FILE"
+  unmeasured ares-operator-wallet "see ares-legacy; full JSON: $AUDIT_FILE"
 fi
 
 # ── ares-accounts: аккаунты игры по размерам (текущие / легаси) ─────────────
