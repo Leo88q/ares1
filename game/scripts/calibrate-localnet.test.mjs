@@ -64,7 +64,7 @@ test('калибровка: дельты залога считаются на Bi
   assert.equal(verdict(ext).ok, true);
 });
 
-test('калибровка: сквозной прогон (new → рост без extend → extend → deploy)', async () => {
+test('калибровка: сквозной прогон (new → upgrade без extend → extend → upgrade)', async () => {
   const workdir = mkdtempSync(path.join(os.tmpdir(), 'calib-test-'));
   const bindir = path.join(workdir, 'bin');
   mkdirSync(bindir);
@@ -120,6 +120,8 @@ if (args[0] === 'program' && args[1] === 'deploy') {
   if (maxLen < soLen) { console.error('Error: Max length specified not large enough to accommodate desired program'); process.exit(1); }
   const target = 45n + maxLen;
   if (state.program) {
+    // Апгрейд: loader-v3 (4.2.2) НЕ расширяет ProgramData сам — если новый
+    // размер не влезает, ошибка; auto-extend выключен флагом --no-auto-extend.
     if (BigInt(state.program.pdSpace) < target) { console.error('Error: ProgramData account is too small to hold the program'); process.exit(1); }
     state.payerBalance -= ${FAKE_FEES}; save(); console.log('Program Id: ' + state.program.id); process.exit(0);
   }
@@ -150,7 +152,9 @@ process.exit(0);
   chmodSync(path.join(bindir, 'solana'), 0o755);
   chmodSync(path.join(bindir, 'solana-keygen'), 0o755);
   const soPath = path.join(workdir, 'program.so');
-  writeFileSync(soPath, Buffer.alloc(1000));
+  writeFileSync(soPath, Buffer.alloc(1000));           // маленький: первый деплой
+  const so2Path = path.join(workdir, 'program-lg.so');
+  writeFileSync(so2Path, Buffer.alloc(1000 + 10240));  // большой: апгрейд требует extend
 
   const pdBytes = Buffer.alloc(32, 0x33);
   const programDataBytes = Buffer.concat([Buffer.from([3, 0, 0, 0]), Buffer.alloc(8), Buffer.from([1]), Buffer.alloc(32, 0x44)]);
@@ -201,22 +205,27 @@ process.exit(0);
   const run = await promisify(execFile)(process.execPath, [
     path.join(here, 'calibrate-localnet.mjs'),
     '--so', soPath,
+    '--so2', so2Path,
     '--rpc', `http://127.0.0.1:${server.address().port}`,
   ], { env, maxBuffer: 8 * 1024 * 1024 }).catch((error) => ({ failed: error }));
   server.close();
   if (run.failed) throw new Error(`скрипт упал: ${run.failed.stdout ?? ''} ${run.failed.stderr ?? run.failed.message}`);
   const payload = JSON.parse(run.stdout.slice(run.stdout.indexOf('\n{') + 1)); // пропускаем ::notice
   assert.equal(payload.pass, true, JSON.stringify(payload.checks));
-  assert.equal(payload.autoExtended, false); // без extend рост отклоняется (SIMD-0433 выключена)
   assert.equal(payload.checks.every((check) => check.delta === '0'), true, JSON.stringify(payload.checks));
+  // Апгрейд без extend обязан упасть (модель §5.3), затем extend и апгрейд — ок.
+  assert.equal(payload.steps.find((step) => step.step === 'upgrade-no-extend').ok, false);
+  assert.equal(payload.steps.find((step) => step.step === 'upgrade-no-extend').fitsInCurrent, false);
   assert.equal(payload.steps.some((step) => step.step === 'extend' && step.ok === true), true);
+  assert.equal(payload.steps.find((step) => step.step === 'upgrade').ok, true);
   // Первая попытка деплоя упала (заглушка), скрипт продолжил на буфере.
   assert.equal(payload.steps.find((step) => step.step === 'new').attempt, 2, JSON.stringify(payload.notes));
   assert.equal(payload.notes.some((note) => note.includes('попытка 1 не прошла')), true);
   assert.equal(payload.notes.some((note) => note.includes('CLI напечатал seed-фразу')), true);
   assert.equal(payload.notes.some((note) => /[a-z]{3,8}( [a-z]{3,8}){11}/.test(note)), false, 'seed-фраза не должна попадать в заметки');
-  // Заглушка печатает ~2 МиБ прогресса: деплой обязан пройти (maxBuffer хватает).
-  assert.equal(payload.steps.find((step) => step.step === 'new').spent !== undefined, true);
+  // Комиссии: модель обязана не занижать измеренный расход (залог вычтен).
+  assert.equal(typeof payload.fees.measured, 'string');
+  assert.equal(payload.fees.modelCovers, true, JSON.stringify(payload.fees));
 
   // Провал airdrop обязан дать аннотацию ares-calibrate-error и код 2, а не
   // молчаливый ReferenceError в catch (аннотации — единственный канал из CI).
@@ -228,6 +237,7 @@ process.exit(0);
   const noFunds = await promisify(execFile)(process.execPath, [
     path.join(here, 'calibrate-localnet.mjs'),
     '--so', soPath,
+    '--so2', so2Path,
     '--rpc', `http://127.0.0.1:${server3.address().port}`,
   ], { env: { ...env, FAKE_STATE: stateEmpty, FAKE_AIRDROP_FAIL: '1' }, maxBuffer: 8 * 1024 * 1024 }).catch((error) => ({ failed: error }));
   server3.close();
@@ -244,6 +254,7 @@ process.exit(0);
   const negative = await promisify(execFile)(process.execPath, [
     path.join(here, 'calibrate-localnet.mjs'),
     '--so', soPath,
+    '--so2', so2Path,
     '--rpc', `http://127.0.0.1:${server2.address().port}`,
   ], { env: { ...env, FAKE_EXTRA_LAMPORTS: '1' }, maxBuffer: 8 * 1024 * 1024 }).catch((error) => ({ failed: error }));
   server2.close();

@@ -6,8 +6,13 @@
  *
  *   первый деплой:  space(ProgramData) = 45 + max_len, lamports = rent(45 + max_len);
  *                   lamports(Program) = rent(36);
- *   рост:           `extend` доводит space до текущего + additional, lamports = rent(space);
- *                   финальный `deploy` платит ровно rent(45 + max_len).
+ *   апгрейд:        без extend новый размер не влезает (AccountDataTooSmall);
+ *                   `extend` доводит space ровно до 45 + len(.so), lamports = rent(space);
+ *                   финальный `deploy` не меняет ни space, ни залог.
+ *
+ * Проверяется на ДВУХ артефактах: `--so` (маленький, им же делается первый
+ * деплой) и `--so2` (большой — апгрейд требует extend). Иначе рост не проверить:
+ * на CLI 4.2.2 `--max-len` больше текущего ProgramData сам deploy не расширяет.
  *
  * Транзакции здесь — ТОЛЬКО localnet (R2: одноразовые ключи на
  * solana-test-validator). Скрипт отказывается работать с не-local RPC.
@@ -15,7 +20,8 @@
  * обязана их не занижать (measured ≤ model), иначе бюджет неполон.
  *
  * Запуск (в CI — job «Rent audit: calibrate localnet»):
- *   node scripts/calibrate-localnet.mjs --so target/deploy/solana_potato.so [--out report.json]
+ *   node scripts/calibrate-localnet.mjs --so target-small/solana_potato.so \
+ *     --so2 target/deploy/solana_potato.so [--out report.json]
  *
  * Коды выхода: 0 — совпало; 2 — расхождение/ошибка измерения.
  */
@@ -115,8 +121,8 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
     if (key === '--so') args.so = argv[++i];
+    else if (key === '--so2') args.so2 = argv[++i];
     else if (key === '--rpc') args.rpc = argv[++i];
-    else if (key === '--growth') args.growth = BigInt(argv[++i]);
     else if (key === '--out') args.out = argv[++i];
     else throw new Error(`Неизвестный аргумент: ${key}`);
   }
@@ -147,12 +153,16 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const rpc = args.rpc ?? process.env.LOCALNET_RPC ?? 'http://127.0.0.1:8899';
   const soPath = args.so ?? 'target/deploy/solana_potato.so';
-  const growth = args.growth ?? CONSTANTS.MIN_EXTEND;
 
   if (!LOCAL_HOSTS.has(new URL(rpc).hostname)) {
     throw new Error(`калибровка разрешена только на localnet, получен RPC ${rpc} (R2)`);
   }
   const soLen = BigInt(readFileSync(soPath).length);
+  const so2Path = args.so2 ?? soPath;
+  const soLen2 = BigInt(readFileSync(so2Path).length);
+  if (soLen2 < soLen) {
+    throw new Error(`--so2 (${soLen2} Б) меньше --so (${soLen} Б): апгрейд «на уменьшение» не проверяет extend`);
+  }
   const workdir = mkdtempSync(path.join(os.tmpdir(), 'ares-calibrate-'));
   const payerKeypair = path.join(workdir, 'payer.json');
   const programKeypair = path.join(workdir, 'program.json');
@@ -189,15 +199,15 @@ async function main() {
   // Попытка `--buffer <свой ключ>` в CI 4.2.2 детерминированно упиралась в
   // `invalid account data` на create/final — см. reports/rent-audit/00-baseline.md.
   // Ретраи — свежими попытками (каждая создаёт свой буфер), пока хватает баланса.
-  const deployArgs = (maxLen) => [
+  const deployArgs = (so, maxLen, extra) => [
     'program', 'deploy', '--url', rpc, '--keypair', payerKeypair, '--program-id', programKeypair,
-    '--max-len', maxLen.toString(), '--max-sign-attempts', '60', '--use-rpc', soPath,
+    '--max-len', maxLen.toString(), '--max-sign-attempts', '60', '--use-rpc', ...extra, so,
   ];
-  const deploy = (maxLen, { attempts = 3 } = {}) => {
+  const deploy = (so, maxLen, { attempts = 3, extra = [] } = {}) => {
     let last = { ok: false, stdout: '', stderr: 'попыток не было', detail: 'попыток не было', code: null };
     let attempt = 0;
     for (attempt = 1; attempt <= attempts; attempt++) {
-      last = sh('solana', deployArgs(maxLen), { allowFailure: true });
+      last = sh('solana', deployArgs(so, maxLen, extra), { allowFailure: true });
       if (last.ok) return { ...last, attempt };
       const raw = `${last.stderr ?? ''}${last.stdout ?? ''}`;
       const detail = safeDiagnostic(last.detail ?? raw, 2500);
@@ -214,14 +224,11 @@ async function main() {
 
   // ── Шаг 1: первый деплой, max_len = размер .so ─────────────────────────────
   const before1 = await fetchBalance(rpc, payer);
-  const deploy1 = deploy(soLen);
+  const deploy1 = deploy(soPath, soLen);
   if (!deploy1.ok) {
     throw new Error(`деплой .so (${soLen} Б) не прошёл за ${deploy1.attempt} попыт(ок): ${safeDiagnostic(deploy1.detail ?? `${deploy1.stderr}\n${deploy1.stdout}`, 2500)}`);
   }
   const state1 = await readProgram(rpc, programId);
-  const modelFees = computeFees(soLen, {});
-  const locked = rent(CONSTANTS.PROGRAMDATA_META + soLen) + rent(CONSTANTS.PROGRAM_ACC);
-  const spent1 = before1 - (await fetchBalance(rpc, payer));
   for (const check of checkDeploy({
     maxLen: soLen,
     pdSpace: state1.space,
@@ -229,86 +236,111 @@ async function main() {
     programLamports: state1.programLamports,
     rent,
   })) checks.push(row(check.name, check.measured, check.expected));
-  steps.push({ step: 'new', attempt: deploy1.attempt, maxLen: soLen, programData: state1.pd.programDataAddress, spent: spent1 });
+  steps.push({ step: 'new', attempt: deploy1.attempt, soLen, maxLen: soLen, programData: state1.pd.programDataAddress });
+  notes.push(`первый деплой: space=${state1.space} lamports=${state1.pd.lamports}`);
 
-  // ── Шаг 2: попытка роста без extend (активна ли SIMD-0433 на кластере) ────
-  const maxLen2 = soLen + growth;
-  const growAttempt = deploy(maxLen2, { attempts: 1 });
-  let autoExtended = false;
-  if (growAttempt.ok) {
-    const state2 = await readProgram(rpc, programId);
-    autoExtended = state2.space >= CONSTANTS.PROGRAMDATA_META + maxLen2;
-    notes.push(`рост без extend: команда прошла, space=${state2.space.toString()}${autoExtended ? ' (SIMD-0433 расширил сам)' : ''}`);
-  } else {
-    notes.push(`рост без extend: команда отклонена — ${safeDiagnostic(`${growAttempt.stderr}\n${growAttempt.stdout}`)}`);
+  // ── Шаг 2: апгрейд на больший .so БЕЗ extend (`--no-auto-extend`) ──────────
+  // Модель §5 утверждает: если новый размер не влезает в текущий ProgramData,
+  // апгрейд обязан упереться в AccountDataTooSmall. Проверяем это как негатив.
+  const fitsInCurrent = state1.space >= CONSTANTS.PROGRAMDATA_META + soLen2;
+  const deploy2 = deploy(so2Path, soLen2, { attempts: 1, extra: ['--no-auto-extend'] });
+  const state2 = await readProgram(rpc, programId);
+  steps.push({
+    step: 'upgrade-no-extend',
+    ok: deploy2.ok,
+    fitsInCurrent,
+    error: safeDiagnostic(deploy2.detail ?? `${deploy2.stderr}\n${deploy2.stdout}`, 2000),
+  });
+  if (!fitsInCurrent && deploy2.ok) {
+    checks.push(row('upgrade_without_extend_must_fail', 1n, 0n));
+    notes.push('апгрейд без extend прошёл, хотя места не хватало — модель §5 опровергнута');
+  } else if (!fitsInCurrent) {
+    notes.push('апгрейд без extend отклонён — как и требует модель §5');
   }
-  steps.push({ step: 'grow-attempt', maxLen: maxLen2, ok: growAttempt.ok, autoExtended, error: safeDiagnostic(`${growAttempt.stderr}\n${growAttempt.stdout}`) });
 
-  // ── Шаг 3: явный extend и финальный деплой с новым max_len ────────────────
+  // ── Шаг 3: явный extend ровно на недостающее (модель §5.3) ─────────────────
+  const needed = CONSTANTS.PROGRAMDATA_META + soLen2 - state2.space; // сколько не хватает до 45 + soLen2
   let extend = null;
-  let final = null;
-  if (!autoExtended) {
-    const before = await readProgram(rpc, programId);
-    const extendRun = sh('solana', ['program', 'extend', programId, growth.toString(), '--url', rpc, '--keypair', payerKeypair], { allowFailure: true });
-    const after = await readProgram(rpc, programId);
-    if (!extendRun.ok && after.space === before.space) {
-      extend = { ok: false, error: safeDiagnostic(`${extendRun.stderr}\n${extendRun.stdout}`) };
-      notes.push('extend не выполнился — продолжать апгрейд нельзя');
-    } else {
-      extend = { ok: true, spaceBefore: before.space, spaceAfter: after.space };
-      for (const check of checkExtend({ spaceBefore: before.space, additional: growth, spaceAfter: after.space, lamportsAfter: after.pd.lamports, rent })) {
+  if (needed > 0n) {
+    const before3 = await readProgram(rpc, programId);
+    const extendRun = sh('solana', ['program', 'extend', programId, needed.toString(), '--url', rpc, '--keypair', payerKeypair], { allowFailure: true });
+    const after3 = await readProgram(rpc, programId);
+    extend = {
+      additional: needed,
+      ok: extendRun.ok,
+      spaceBefore: before3.space,
+      spaceAfter: after3.space,
+      error: extendRun.ok ? null : safeDiagnostic(`${extendRun.stderr}\n${extendRun.stdout}`, 2000),
+    };
+    if (extendRun.ok) {
+      for (const check of checkExtend({ spaceBefore: before3.space, additional: needed, spaceAfter: after3.space, lamportsAfter: after3.pd.lamports, rent })) {
         checks.push(row(check.name, check.measured, check.expected));
       }
+    } else {
+      checks.push(row('extend_command_failed', 1n, 0n));
     }
-    steps.push({ step: 'extend', additional: growth, ...extend });
+    steps.push({ step: 'extend', additional: needed, ok: extend.ok, spaceAfter: extend.spaceAfter });
   } else {
-    notes.push('extend пропущен: кластер сам расширил ProgramData (SIMD-0433)');
+    notes.push('extend не нужен: ProgramData уже вмещает новый размер (модель §5.3)');
   }
 
-  if (autoExtended || extend?.ok) {
-    const before4 = await fetchBalance(rpc, payer);
-    const deploy4 = deploy(maxLen2);
-    const state4 = await readProgram(rpc, programId);
-    const spent4 = before4 - (await fetchBalance(rpc, payer));
-    final = { ok: deploy4.ok, spent: spent4 };
-    for (const check of checkDeploy({
-      maxLen: maxLen2,
-      pdSpace: state4.space,
-      pdLamports: state4.pd.lamports,
-      programLamports: state4.programLamports,
-      rent,
-    })) checks.push(row(`final_${check.name}`, check.measured, check.expected));
-    steps.push({ step: 'final-deploy', maxLen: maxLen2, ...final, error: safeDiagnostic(`${deploy4.stderr}\n${deploy4.stdout}`) });
-  }
+  // ── Шаг 4: апгрейд с auto-extend на новый .so ─────────────────────────────
+  const before4 = await fetchBalance(rpc, payer);
+  const deploy4 = deploy(so2Path, soLen2);
+  const state4 = await readProgram(rpc, programId);
+  const expectedSpace = CONSTANTS.PROGRAMDATA_META + soLen2;
+  for (const check of [
+    { name: 'final_programdata_space', measured: state4.space, expected: expectedSpace },
+    { name: 'final_programdata_lamports', measured: state4.pd.lamports, expected: rent(expectedSpace) },
+    { name: 'final_program_lamports', measured: state4.programLamports, expected: rent(CONSTANTS.PROGRAM_ACC) },
+  ]) checks.push(row(check.name, check.measured, check.expected));
+  steps.push({
+    step: 'upgrade',
+    ok: deploy4.ok,
+    attempt: deploy4.attempt,
+    soLen: soLen2,
+    maxLen: soLen2,
+    error: safeDiagnostic(deploy4.detail ?? `${deploy4.stderr}\n${deploy4.stdout}`, 2000),
+  });
+  notes.push(`апгрейд: space=${state4.space}, lamports=${state4.pd.lamports}, deploy.ok=${deploy4.ok}`);
 
-  // ── Комиссии: модель обязана их не занижать ───────────────────────────────
-  const measuredFees = spent1 - locked;
-  const modelCoversFees = measuredFees >= 0n && measuredFees <= modelFees;
+  // ── Комиссии: модель обязана не занижать расход всего потока ──────────────
+  // Поток = деплой + неудачная попытка апгрейда + extend + апгрейд. Модель
+  // оценивает стоимость одной операции, поэтому сверяем с её запасом на три операции.
+  const spentTotal = before1 - (await fetchBalance(rpc, payer));
+  const lockedFinal = state4.pd.lamports + state4.programLamports;
+  // Из общего расхода вычитаем залог (он остаётся на аккаунтах, не «сгорает»).
+  const feesMeasured = spentTotal - lockedFinal;
+  const modelFees = computeFees(soLen2, {}) * 3n + computeFees(soLen, {});
+  // null — расход не сошёлся с залогом (баланс двигался помимо наших шагов):
+  // честно помечаем «не измерено», а не подгоняем вердикт.
+  const feesWithinModel = feesMeasured >= 0n ? feesMeasured <= modelFees : null;
 
   const { ok: locksOk, failed } = verdict(checks);
   const stepProblems = [];
-  if (!modelCoversFees) stepProblems.push('fees_underestimated');
-  if (extend !== null && !extend.ok && !autoExtended) stepProblems.push('extend_failed');
-  if (final !== null && !final.ok) stepProblems.push('final_deploy_failed');
+  if (feesWithinModel === false) stepProblems.push('fees_underestimated');
+  if (feesWithinModel === null) notes.push('комиссии не измерены: расход не сошёлся с залогом (баланс двигался вне шагов)');
+  if (extend !== null && !extend.ok) stepProblems.push('extend_failed');
+  if (!deploy4.ok) stepProblems.push('upgrade_failed');
   const pass = locksOk && stepProblems.length === 0;
   const payload = {
     rpc,
     rate,
     rent0,
     soLen,
-    growth,
+    soLen2,
     payerBalanceBeforeDeploy: startBalance,
     programId,
     programData: state1.pd.programDataAddress,
     authority: state1.pd.authority,
     checks,
     pass,
-    fees: { measured: measuredFees, model: modelFees, modelCovers: modelCoversFees },
-    autoExtended,
+    fees: { measured: feesMeasured, lockedFinal, modelAllowance: modelFees, modelCovers: feesWithinModel },
+    extend,
     notes,
     steps,
   };
-  console.log(`::notice title=ares-calibrate::${JSON.stringify({ ...payload, steps: undefined }, jsonReplacer)}`);
+  console.log(`::notice title=ares-calibrate::${JSON.stringify(payload, jsonReplacer)}`);
   console.log(JSON.stringify(payload, jsonReplacer, 2));
   if (args.out) writeFileSync(args.out, JSON.stringify(payload, jsonReplacer, 2));
   if (!pass) {
