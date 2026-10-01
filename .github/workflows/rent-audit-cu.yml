@@ -114,7 +114,13 @@ jobs:
           exit 0
       - name: CU-профиль (аннотация ares-cu)
         if: ${{ !cancelled() }}
-        run: python3 scripts/cu-profile.py --log /tmp/anchor-test.log --program-id "$PROGRAM_ID" --annotate
+        run: |
+          # `anchor test` пишет логи программы через `solana logs` в
+          # .anchor/program-logs/*.log (cli/src/lib.rs, stream_logs) — в
+          # собственный stdout теста они не попадают. Собираем всё, что есть.
+          ls -la .anchor/program-logs/ 2>/dev/null || echo "нет .anchor/program-logs"
+          cat .anchor/program-logs/*.log /tmp/anchor-test.log > /tmp/cu-input.log 2>/dev/null || cp /tmp/anchor-test.log /tmp/cu-input.log
+          python3 scripts/cu-profile.py --log /tmp/cu-input.log --program-id "$PROGRAM_ID" --annotate
       - name: Итог localnet-тестов
         if: ${{ !cancelled() }}
         run: exit ${{ steps.tests.outputs.status }}

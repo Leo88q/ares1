@@ -11,9 +11,13 @@
 Классификация CU-строк: считаются только строки НАШЕЙ программы
 (`--program-id`), потому что CPI в SPL Token тоже печатает `consumed`.
 
+Источник в CI: `anchor test` стримит логи программы через `solana logs` в
+`.anchor/program-logs/<program-id>.<lib>.log` (см. `stream_logs` в
+`cli/src/lib.rs` Anchor 0.31.2), а не в свой stdout — эти файлы и читаются.
+
 Запуск (в CI, после `anchor test`):
-    python3 scripts/cu-profile.py --log /tmp/anchor-test.log --annotate
-    python3 scripts/cu-profile.py --log /tmp/anchor-test.log --json
+    python3 scripts/cu-profile.py --log .anchor/program-logs/*.log --annotate
+    python3 scripts/cu-profile.py --log <лог> --log <ещё лог> --json
 
 Если в логе нет CU-строк (например, Anchor их не стримит), аннотация выходит
 с `measured: false` и диагностикой — молчаливого «нуля» не бывает.
@@ -40,8 +44,10 @@ def note(title: str, payload: dict) -> None:
     print(f"::notice title={title}::{escape(json.dumps(payload, ensure_ascii=False, separators=(',', ':')))}")
 
 
-def parse(log_path: Path, program_id: str | None) -> dict:
-    text = ANSI.sub("", log_path.read_text(encoding="utf-8", errors="replace"))
+def parse(log_paths: list[Path], program_id: str | None) -> dict:
+    text = "\n".join(
+        ANSI.sub("", path.read_text(encoding="utf-8", errors="replace")) for path in log_paths
+    )
     per_instruction: dict[str, list[int]] = defaultdict(list)
     budgets: dict[str, list[int]] = defaultdict(list)
     last_instruction = None
@@ -80,7 +86,7 @@ def parse(log_path: Path, program_id: str | None) -> dict:
     measured = bool(rows)
     payload = {
         "measured": measured,
-        "log": str(log_path),
+        "logs": [str(p) for p in log_paths],
         "programId": program_id,
         "instructionsSeen": len({INSTRUCTION.search(l).group(1) for l in text.splitlines() if INSTRUCTION.search(l)}),
         "instructionLogLines": instruction_lines,
@@ -100,19 +106,20 @@ def parse(log_path: Path, program_id: str | None) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--log", required=True)
+    parser.add_argument("--log", required=True, action="append", help="путь к логу (можно несколько раз)")
     parser.add_argument("--program-id", default=None, help="считать CU только этой программы (CPI отсекаются)")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--annotate", action="store_true")
     args = parser.parse_args()
 
-    log_path = Path(args.log)
-    if not log_path.exists():
-        note("ares-cu", {"measured": False, "reason": f"лог {log_path} не найден"})
-        print(f"лог {log_path} не найден", file=sys.stderr)
+    log_paths = [Path(p) for p in args.log]
+    missing = [str(p) for p in log_paths if not p.exists()]
+    if missing:
+        note("ares-cu", {"measured": False, "reason": f"логи не найдены: {', '.join(missing)}"})
+        print(f"логи не найдены: {', '.join(missing)}", file=sys.stderr)
         return 1
 
-    payload = parse(log_path, args.program_id)
+    payload = parse(log_paths, args.program_id)
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=1))
     elif args.annotate:
