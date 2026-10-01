@@ -240,9 +240,9 @@ const id: Record<string, string> = {
   'Отныне картошка, собранная под красным солнцем Марса, может быть отправлена через квантовый мост в нейро-лаборатории NeuroForge. Там она сжигается ради ускорения обучения моделей, квантового синтеза 27 ресурсов и крафта редких кибер-инструментов. А ончейн-достижения NeuroForge открывают уникальные модули в ARES-1. Экономика стала межпланетной.': 'Mulai sekarang, kentang yang dipanen di bawah matahari merah Mars dapat dikirim melalui jembatan kuantum ke laboratorium saraf NeuroForge. Di sana kentang dibakar untuk mempercepat pelatihan model, sintesis kuantum dari 27 sumber daya, dan pembuatan alat siber langka. Sebaliknya, pencapaian on-chain di NeuroForge membuka modul unik di ARES-1. Ekonomi telah menjadi antarplanet.',
   'МАРС': 'MARS',
   'Гидропоника под стеклом. Жизнь под красным небом.': 'Hidroponik di balik kaca. Kehidupan di bawah langit merah.',
-  'Урожай $POTATO под марсианским куполом': 'Panen $POTATO di bawah kubah Mars',
-  'Эксклюзивные модули за достижения в NeuroForge': 'Modul eksklusif untuk pencapaian di NeuroForge',
-  'Один игровой токен для двух миров': 'Satu token game untuk dua dunia',
+  'Урожай $POTATO каждую секунду под марсианским куполом': 'Panen $POTATO setiap detik di bawah kubah Mars',
+  '3 тира модулей: Common, Rare и Epic с шансом мутаций': '3 tingkat modul: Common, Rare, dan Epic dengan peluang mutasi',
+  '60% комиссии рынка сжигается навсегда для дефляции': '60% biaya pasar dibakar secara permanen untuk deflasi',
   'КИБЕРПРОСТРАНСТВО · SOLANA': 'RUANG SIBER · SOLANA',
   'Нейро-лаборатории на Solana. Обучение моделей. Квантовый синтез.': 'Laboratorium saraf di Solana. Pelatihan model. Sintesis kuantum.',
   '27 ресурсов и 8 цепочек крафта для квантового синтеза': '27 sumber daya dan 8 rantai kerajinan untuk sintesis kuantum',
@@ -422,6 +422,9 @@ const id: Record<string, string> = {
   'Игра упала': 'Game mengalami crash',
   'Транзакция не пройдёт на сети:': 'Transaksi akan gagal di jaringan:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'Transaksi terkirim, tetapi konfirmasi belum diterima. Periksa dompet sebelum mencoba lagi — tindakan mungkin sudah berhasil.',
+  '28 лунных эпох Фобоса с множителями урожайности': '28 zaman bulan Phobos dengan pengganda hasil panen',
+  'Эксклюзивные модули за ончейн-достижения в NeuroForge': 'Modul eksklusif untuk pencapaian on-chain di NeuroForge',
+  'Играть в ARES-1 ↗': 'Mainkan ARES-1 ↗',
 };
 
 export default id;

@@ -240,9 +240,9 @@ const tl: Record<string, string> = {
   'Отныне картошка, собранная под красным солнцем Марса, может быть отправлена через квантовый мост в нейро-лаборатории NeuroForge. Там она сжигается ради ускорения обучения моделей, квантового синтеза 27 ресурсов и крафта редких кибер-инструментов. А ончейн-достижения NeuroForge открывают уникальные модули в ARES-1. Экономика стала межпланетной.': 'Mula ngayon, ang mga patatas na naani sa ilalim ng pulang araw ng Mars ay maaaring ipadala sa pamamagitan ng quantum bridge sa mga neural laboratory ng NeuroForge. Doon ito sinusunog upang mapabilis ang pagsasanay ng modelo, paganahin ang quantum synthesis sa 27 resources, at gumawa ng mga bihirang cyber-tool. Bilang kapalit, ang mga on-chain na tagumpay sa NeuroForge ay nagbubukas ng mga natatanging module sa ARES-1. Ang ekonomiya ay naging interplanetary.',
   'МАРС': 'MARS',
   'Гидропоника под стеклом. Жизнь под красным небом.': 'Hidroponics sa ilalim ng salamin. Buhay sa ilalim ng pulang kalangitan.',
-  'Урожай $POTATO под марсианским куполом': 'Ani ng $POTATO sa ilalim ng Martian dome',
-  'Эксклюзивные модули за достижения в NeuroForge': 'Eksklusibong mga module para sa mga tagumpay sa NeuroForge',
-  'Один игровой токен для двух миров': 'Isang laro-token para sa dalawang mundo',
+  'Урожай $POTATO каждую секунду под марсианским куполом': 'Mag-ani ng $POTATO bawat segundo sa ilalim ng Martian dome',
+  '3 тира модулей: Common, Rare и Epic с шансом мутаций': '3 antas ng module: Common, Rare, at Epic na may pagkakataon ng mutasyon',
+  '60% комиссии рынка сжигается навсегда для дефляции': '60% ng bayad sa merkado ay permanenteng sinusunog para sa deplasyon',
   'КИБЕРПРОСТРАНСТВО · SOLANA': 'CYBERSPACE · SOLANA',
   'Нейро-лаборатории на Solana. Обучение моделей. Квантовый синтез.': 'Mga neural laboratory sa Solana. Pagsasanay ng modelo. Quantum synthesis.',
   '27 ресурсов и 8 цепочек крафта для квантового синтеза': '27 resources at 8 craft chains para sa quantum synthesis',
@@ -422,6 +422,9 @@ const tl: Record<string, string> = {
   'Игра упала': 'Nag-crash ang laro',
   'Транзакция не пройдёт на сети:': 'Mabibigo ang transaksyon sa network:',
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'Naipadala ang transaksyon pero walang kumpirmasyon. Tingnan ang iyong wallet bago subukan ulit — maaaring natuloy na ang aksyon.',
+  '28 лунных эпох Фобоса с множителями урожайности': '28 Phobos lunar epochs na may mga multiplier ng ani',
+  'Эксклюзивные модули за ончейн-достижения в NeuroForge': 'Eksklusibong mga module para sa mga on-chain na tagumpay sa NeuroForge',
+  'Играть в ARES-1 ↗': 'Laruin ang ARES-1 ↗',
 };
 
 export default tl;

@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { Emblem } from "./Glyph";
 import type { RefObject } from "react";
 import {
   AnimatePresence,
@@ -460,12 +459,24 @@ function PlanetCard({
         >
           {copy.benefits.map((benefit) => (
             <li key={benefit}>
-              <span aria-hidden="true" style={{ display: "inline-flex" }}><Emblem name="flame" size={12} /></span>
               {benefit}
             </li>
           ))}
         </motion.ul>
       </div>
+
+      {planet === "mars" && (
+        <div className="interstellar-world-action">
+          <a
+            href="https://arena-01a0f067-ares1.ares1-play.pages.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ares-action-link"
+          >
+            {t("Играть в ARES-1 ↗")}
+          </a>
+        </div>
+      )}
 
       {planet === "earth" && interstellarConfig.ageOfFarmingUrl && (
         <div className="interstellar-world-action">

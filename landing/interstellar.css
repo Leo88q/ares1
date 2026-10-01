@@ -147,19 +147,24 @@
 }
 
 .interstellar-benefits li {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
+  position: relative;
+  display: block;
+  padding-left: 14px;
   color: #d3becf;
-  font: 10px/1.8 "Inter", system-ui, sans-serif;
+  font: 10.5px/1.8 "Inter", system-ui, sans-serif;
+  text-align: left;
 }
 
-.interstellar-benefits li > span {
-  flex-shrink: 0;
-  color: #ffb347;
+.interstellar-benefits li::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: #FFB347;
+  font-weight: 600;
 }
 
-.interstellar-world--earth .interstellar-benefits li > span {
+.interstellar-world--earth .interstellar-benefits li::before {
   color: #00E5FF;
 }
 
@@ -167,6 +172,35 @@
   display: flex;
   justify-content: center;
   margin-top: 14px;
+}
+
+.ares-action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 8px;
+  background: var(--ares-btn-gold-bg);
+  background-color: #c1440e;
+  border: 1px solid var(--ares-btn-gold-border);
+  color: #FFFFFF;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  box-shadow: var(--ares-btn-gold-shadow);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.ares-action-link:hover {
+  filter: brightness(1.08);
+  box-shadow: var(--ares-btn-gold-shadow-hover);
+  transform: translateY(-2px);
+  color: #FFFFFF;
 }
 
 .neuroforge-action-link {
