@@ -20,7 +20,6 @@ import {
 import { LiquidPanel } from "./LiquidPanel";
 import { MorphButton } from "./MorphButton";
 import { useSounds } from "./useSounds";
-import { AxialPlanet } from "./AxialPlanet";
 import { usePrefersReducedMotion } from "./hooks";
 import "./interstellar.css";
 
@@ -125,48 +124,26 @@ function PlanetArt({
   planet,
   className = "",
 }: PlanetArtProps): JSX.Element {
-  if (planet === "earth") {
+  if (planet === "mars") {
     return (
-      <div className={`axial-planet axial-planet--neuroforge ${className}`} aria-hidden="true">
+      <div className={`axial-planet axial-planet--mars ${className}`} aria-hidden="true">
         <img
-          src="/ares/planet-neuroforge.webp"
+          src="/ares/planet-interstellar.webp"
           alt=""
           draggable={false}
-          className="neuroforge-planet-img"
+          className="mars-planet-img"
         />
       </div>
     );
   }
 
   return (
-    <AxialPlanet planet={planet}>
-      <StaticPlanetArt planet={planet} className={className} />
-    </AxialPlanet>
-  );
-}
-
-function StaticPlanetArt({
-  planet,
-  className = "",
-}: PlanetArtProps): JSX.Element {
-  const mars = planet === "mars";
-
-  return (
-    <div className={`interstellar-planet-art ${className}`} aria-hidden="true">
-      {/* MK-art: сгенерированная планета вместо SVG-градиентов.
-          Не-марсианские миры тонируются в холодный стальной оттенок. */}
+    <div className={`axial-planet axial-planet--neuroforge ${className}`} aria-hidden="true">
       <img
-        src="/ares/planet-interstellar.webp"
+        src="/ares/planet-neuroforge.webp"
         alt=""
         draggable={false}
-        style={{
-          width: 300,
-          height: 300,
-          objectFit: "contain",
-          display: "block",
-          userSelect: "none",
-          filter: mars ? undefined : "hue-rotate(160deg) saturate(0.7) brightness(0.9)",
-        }}
+        className="neuroforge-planet-img"
       />
     </div>
   );
