@@ -2,8 +2,10 @@
 # ═══════════════════════════════════════════════════════════════════
 #  ARES-1 «тёплый старт» on devnet — одна команда
 #
+#   CONFIRM_RECLAIM=1 — отдельный inventory/reclaim-only режим ДО Step 1;
+#      он не запускает Anchor/build/IDL и не меняет рабочее дерево.
 #   1. anchor keys sync + anchor build (+ синхронизация IDL) — SOL не тратит,
-#      но размер `.so` нужен расчёту, поэтому сборка идёт ПЕРВОЙ;
+#      но размер `.so` нужен расчёту, поэтому сборка идёт ПЕРВОЙ в обычном режиме;
 #   2. показывает confirmed-инвентарь authority-owned буферов и ПЕРВЫМ делом
 #      предлагает reclaim до airdrop (это отдельная ликвидность, не экономия NEED);
 #      закрытие — только по точным сумме/адресам, повторной сверке и TTY-подтверждению;
@@ -28,7 +30,7 @@
 #    RPC_URL           RPC для ВСЕХ вызовов             (по умолчанию публичный devnet)
 #    DRY_RUN=1         ничего не отправлять: считать, печатать и остановиться
 #    PRINT_NEED=1      синоним DRY_RUN (явно напечатать NEED и выйти)
-#    CONFIRM_RECLAIM=1 закрыть только показанные буферы после отдельной ручной проверки
+#    CONFIRM_RECLAIM=1 отдельный reclaim-only запуск до сборки; закрывает только показанные буферы после проверки
 #    CONFIRM_RECLAIM_GENESIS=<hash> cluster genesis из свежего read-only снимка
 #    CONFIRM_RECLAIM_SUM=<lamports> точная сумма из confirmed-инвентаря
 #    CONFIRM_RECLAIM_ADDRESSES=<addr1,addr2,...> точный отсортированный список из инвентаря
@@ -62,18 +64,7 @@ BUFFER_GENESIS_HASH=""
 KEYPAIR_FILE=target/deploy/solana_potato-keypair.json
 if [ "$PRINT_NEED" = "1" ]; then DRY_RUN=1; fi
 
-# Anchor — версия из Anchor.toml (истина о тулчейне; в README бывает устаревшая).
-ANCHOR_VERSION="$(sed -n 's/^anchor_version *= *"\([^"]*\)".*/\1/p' Anchor.toml | head -1)"
-[ -n "$ANCHOR_VERSION" ] || { echo "✖ Не нашёл anchor_version в Anchor.toml"; exit 1; }
-command -v anchor >/dev/null 2>&1 || { echo "✖ anchor не найден. Установка: cargo install --git https://github.com/coral-xyz/anchor avm && avm install $ANCHOR_VERSION && avm use $ANCHOR_VERSION"; exit 1; }
-INSTALLED_ANCHOR="$(anchor --version 2>/dev/null | awk '{print $2}')"
-if [ "$INSTALLED_ANCHOR" != "$ANCHOR_VERSION" ]; then
-  echo "✖ Anchor $INSTALLED_ANCHOR ≠ $ANCHOR_VERSION из Anchor.toml — сборка даст другой IDL."
-  echo "  Исправь: avm install $ANCHOR_VERSION && avm use $ANCHOR_VERSION"
-  exit 1
-fi
 command -v solana >/dev/null 2>&1 || { echo "✖ solana CLI не найден. Установка: sh -c \"\$(curl -sSfL https://release.anza.xyz/stable/install)\""; exit 1; }
-command -v cargo  >/dev/null 2>&1 || { echo "✖ Rust (cargo) не найден — нужен для anchor build. Установка: https://rustup.rs"; echo "    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"; exit 1; }
 command -v node   >/dev/null 2>&1 || { echo "✖ node не найден — нужен для расчёта scripts/deploy-budget.mjs"; exit 1; }
 command -v jq     >/dev/null 2>&1 || { echo "✖ jq не найден — нужен для разбора JSON расчёта (brew install jq / apt install jq)"; exit 1; }
 [ -f "$ADMIN_KEYPAIR" ] || { echo "✖ Ключ деплоера не найден: $ADMIN_KEYPAIR (создай: solana-keygen new)"; exit 1; }
@@ -138,6 +129,108 @@ print_buffer_inventory() {
   echo "    отсортированный список для подтверждения: $BUFFERS_ADDRESSES"
 }
 
+# `solana program show` currently labels this field exactly `ProgramData Address`.
+# Capture first so grep cannot close the CLI's stdout early under `pipefail`.
+is_program_deployed() {
+  local program_id="${1:-}"
+  local output
+
+  [ -n "$program_id" ] || return 1
+  output="$(solana program show "$program_id" --keypair "$ADMIN_KEYPAIR" --url "$RPC_URL" 2>&1)" || return 1
+  grep -q "ProgramData Address" <<<"$output"
+}
+
+# CONFIRM_RECLAIM is a reclaim-only mode. Keep it before every Anchor/build/IDL
+# operation: the mode must not create a program keypair or rewrite the worktree.
+reclaim_buffers_only() {
+  echo "==> reclaim-only (confirmed inventory; before build)..."
+  if ! fetch_buffer_inventory; then return 1; fi
+  print_buffer_inventory
+
+  if [ "$DRY_RUN" = "1" ]; then
+    echo "    DRY_RUN: close не выполняется. После ручной сверки отдельный повтор требует:"
+    echo "      CONFIRM_RECLAIM=1 CONFIRM_RECLAIM_GENESIS=$BUFFER_GENESIS_HASH CONFIRM_RECLAIM_SUM=$BUFFERS_SUM CONFIRM_RECLAIM_ADDRESSES='$BUFFERS_ADDRESSES' $0"
+    echo "    и интерактивную точную фразу: CLOSE-BUFFERS $BUFFER_GENESIS_HASH $ADMIN $BUFFERS_SUM $BUFFERS_ADDRESSES"
+    echo "    build/funding/deploy не входят в reclaim-only запуск."
+    return 0
+  fi
+
+  if [ "$BUFFERS_COUNT" = "0" ]; then
+    echo "    Буферов для close нет; транзакция не отправлялась."
+    echo "    Этот reclaim-only запуск завершён до build/funding/deploy."
+    return 0
+  fi
+  if [ "$CONFIRM_RECLAIM_GENESIS" != "$BUFFER_GENESIS_HASH" ] || [ "$CONFIRM_RECLAIM_SUM" != "$BUFFERS_SUM" ] || [ "$CONFIRM_RECLAIM_ADDRESSES" != "$BUFFERS_ADDRESSES" ]; then
+    echo "✖ Подтверждение не совпало со свежим confirmed-инвентарём; close не выполнялся."
+    echo "  После ручной проверки повторите с:"
+    echo "    CONFIRM_RECLAIM=1 CONFIRM_RECLAIM_GENESIS=$BUFFER_GENESIS_HASH CONFIRM_RECLAIM_SUM=$BUFFERS_SUM CONFIRM_RECLAIM_ADDRESSES='$BUFFERS_ADDRESSES' $0"
+    return 1
+  fi
+  if [ ! -t 0 ]; then
+    echo "✖ Для отдельного финального подтверждения нужен интерактивный TTY; close не выполнялся." >&2
+    return 1
+  fi
+
+  EXPECTED_RECLAIM_CONFIRMATION="CLOSE-BUFFERS $BUFFER_GENESIS_HASH $ADMIN $BUFFERS_SUM $BUFFERS_ADDRESSES"
+  echo "    Сверьте confirmed-инвентарь выше. Будут закрыты только эти адреса:"
+  echo "      authority: $ADMIN"
+  echo "      lamports:  $BUFFERS_SUM"
+  echo "      addresses: $BUFFERS_ADDRESSES"
+  printf 'Для продолжения введите точно: %s\n' "$EXPECTED_RECLAIM_CONFIRMATION"
+  if ! read -r -p ' > ' RECLAIM_CONFIRMATION; then
+    echo "✖ Не получено интерактивное подтверждение; close не выполнялся." >&2
+    return 1
+  fi
+  if [ "$RECLAIM_CONFIRMATION" != "$EXPECTED_RECLAIM_CONFIRMATION" ]; then
+    echo "✖ Точная фраза не совпала; close не выполнялся." >&2
+    return 1
+  fi
+
+  INVENTORY_BEFORE_CLOSE="$BUFFER_INVENTORY_JSON"
+  GENESIS_BEFORE_CLOSE="$BUFFER_GENESIS_HASH"
+  if ! fetch_buffer_inventory; then return 1; fi
+  if [ "$BUFFER_GENESIS_HASH" != "$GENESIS_BEFORE_CLOSE" ] || [ "$BUFFER_INVENTORY_JSON" != "$INVENTORY_BEFORE_CLOSE" ]; then
+    echo "✖ Инвентарь изменился после подтверждения; close остановлен. Новый снимок:" >&2
+    print_buffer_inventory
+    return 1
+  fi
+
+  while IFS= read -r BUFFER_ADDRESS; do
+    [ -n "$BUFFER_ADDRESS" ] || continue
+    echo "    закрываю подтверждённый buffer: $BUFFER_ADDRESS"
+    if ! solana program close "$BUFFER_ADDRESS" --keypair "$ADMIN_KEYPAIR" --url "$RPC_URL" --commitment confirmed; then
+      echo "✖ Не удалось закрыть подтверждённый buffer $BUFFER_ADDRESS; дальнейший reclaim остановлен." >&2
+      return 1
+    fi
+  done < <(jq -r '.buffers[].address' <<<"$BUFFER_INVENTORY_JSON")
+
+  if ! fetch_buffer_inventory; then return 1; fi
+  print_buffer_inventory
+  if [ "$BUFFERS_COUNT" != "0" ]; then
+    echo "✖ После close остались authority-owned buffers; проверьте новый inventory вручную." >&2
+    return 1
+  fi
+  echo "    все адреса из подтверждённого списка закрыты; остаточный инвентарь пуст."
+  echo "    Этот запуск завершён после reclaim; build/funding/airdrop/deploy требуют отдельного запуска."
+}
+
+if [ "$CONFIRM_RECLAIM" = "1" ]; then
+  reclaim_buffers_only
+  exit 0
+fi
+
+# Anchor/cargo checks are deliberately deferred until after reclaim-only exits.
+ANCHOR_VERSION="$(sed -n 's/^anchor_version *= *"\([^"]*\)".*/\1/p' Anchor.toml | head -1)"
+[ -n "$ANCHOR_VERSION" ] || { echo "✖ Не нашёл anchor_version в Anchor.toml"; exit 1; }
+command -v anchor >/dev/null 2>&1 || { echo "✖ anchor не найден. Установка: cargo install --git https://github.com/coral-xyz/anchor avm && avm install $ANCHOR_VERSION && avm use $ANCHOR_VERSION"; exit 1; }
+INSTALLED_ANCHOR="$(anchor --version 2>/dev/null | awk '{print $2}')"
+if [ "$INSTALLED_ANCHOR" != "$ANCHOR_VERSION" ]; then
+  echo "✖ Anchor $INSTALLED_ANCHOR ≠ $ANCHOR_VERSION из Anchor.toml — сборка даст другой IDL."
+  echo "  Исправь: avm install $ANCHOR_VERSION && avm use $ANCHOR_VERSION"
+  exit 1
+fi
+command -v cargo  >/dev/null 2>&1 || { echo "✖ Rust (cargo) не найден — нужен для anchor build. Установка: https://rustup.rs"; echo "    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"; exit 1; }
+
 # ── 1) Build: keypair программы → keys sync → anchor build → IDL ─────────────
 # Сборка SOL не тратит, но расчёт обязан идти по РЕАЛЬНОМУ .so, а не по догадке.
 echo "==> 1/7 build (anchor $ANCHOR_VERSION)..."
@@ -161,7 +254,7 @@ echo "    idl synced → apps/web/src/idl.json"
 
 # ── 1.1) Уже задеплоена? (решает режим расчёта и «апгрейд или чистый деплой») ─
 ALREADY_DEPLOYED=0
-if [ -n "$PROGRAM_ID" ] && solana program show "$PROGRAM_ID" --keypair "$ADMIN_KEYPAIR" --url "$RPC_URL" 2>&1 | grep -q "Program Data Address"; then
+if [ -n "$PROGRAM_ID" ] && is_program_deployed "$PROGRAM_ID"; then
   ALREADY_DEPLOYED=1
 fi
 SKIP_DEPLOY=0
@@ -187,62 +280,7 @@ if [ "$BUFFERS_COUNT" != "0" ]; then
   echo "    Это отдельная ликвидность, а не экономия NEED_TOTAL."
 fi
 
-if [ "$CONFIRM_RECLAIM" = "1" ]; then
-  if [ "$DRY_RUN" = "1" ]; then
-    echo "    DRY_RUN: close не выполняется. После ручной сверки отдельный повтор требует:"
-    echo "      CONFIRM_RECLAIM=1 CONFIRM_RECLAIM_GENESIS=$BUFFER_GENESIS_HASH CONFIRM_RECLAIM_SUM=$BUFFERS_SUM CONFIRM_RECLAIM_ADDRESSES='$BUFFERS_ADDRESSES' $0"
-    echo "    и интерактивную точную фразу: CLOSE-BUFFERS $BUFFER_GENESIS_HASH $ADMIN $BUFFERS_SUM $BUFFERS_ADDRESSES"
-  elif [ "$BUFFERS_COUNT" = "0" ]; then
-    echo "    Буферов для close нет; транзакция не отправлялась."
-    echo "    Funding/deploy не входят в этот inventory-only запуск; при необходимости запустите их отдельно."
-    exit 0
-  elif [ "$CONFIRM_RECLAIM_GENESIS" != "$BUFFER_GENESIS_HASH" ] || [ "$CONFIRM_RECLAIM_SUM" != "$BUFFERS_SUM" ] || [ "$CONFIRM_RECLAIM_ADDRESSES" != "$BUFFERS_ADDRESSES" ]; then
-    echo "✖ Подтверждение не совпало со свежим confirmed-инвентарём; close не выполнялся."
-    echo "  После ручной проверки повторите с:"
-    echo "    CONFIRM_RECLAIM=1 CONFIRM_RECLAIM_GENESIS=$BUFFER_GENESIS_HASH CONFIRM_RECLAIM_SUM=$BUFFERS_SUM CONFIRM_RECLAIM_ADDRESSES='$BUFFERS_ADDRESSES' $0"
-    exit 1
-  elif [ ! -t 0 ]; then
-    echo "✖ Для отдельного финального подтверждения нужен интерактивный TTY; close не выполнялся." >&2
-    exit 1
-  else
-    EXPECTED_RECLAIM_CONFIRMATION="CLOSE-BUFFERS $BUFFER_GENESIS_HASH $ADMIN $BUFFERS_SUM $BUFFERS_ADDRESSES"
-    echo "    Сверьте confirmed-инвентарь выше. Будут закрыты только эти адреса:"
-    echo "      authority: $ADMIN"
-    echo "      lamports:  $BUFFERS_SUM"
-    echo "      addresses: $BUFFERS_ADDRESSES"
-    printf 'Для продолжения введите точно: %s\n' "$EXPECTED_RECLAIM_CONFIRMATION"
-    read -r -p ' > ' RECLAIM_CONFIRMATION
-    if [ "$RECLAIM_CONFIRMATION" != "$EXPECTED_RECLAIM_CONFIRMATION" ]; then
-      echo "✖ Точная фраза не совпала; close не выполнялся." >&2
-      exit 1
-    fi
-
-    INVENTORY_BEFORE_CLOSE="$BUFFER_INVENTORY_JSON"
-    GENESIS_BEFORE_CLOSE="$BUFFER_GENESIS_HASH"
-    if ! fetch_buffer_inventory; then exit 1; fi
-    if [ "$BUFFER_GENESIS_HASH" != "$GENESIS_BEFORE_CLOSE" ] || [ "$BUFFER_INVENTORY_JSON" != "$INVENTORY_BEFORE_CLOSE" ]; then
-      echo "✖ Инвентарь изменился после подтверждения; close остановлен. Новый снимок:" >&2
-      print_buffer_inventory
-      exit 1
-    fi
-
-    while IFS= read -r BUFFER_ADDRESS; do
-      [ -n "$BUFFER_ADDRESS" ] || continue
-      echo "    закрываю подтверждённый buffer: $BUFFER_ADDRESS"
-      solana program close "$BUFFER_ADDRESS" --keypair "$ADMIN_KEYPAIR" --url "$RPC_URL" --commitment confirmed
-    done < <(jq -r '.buffers[].address' <<<"$BUFFER_INVENTORY_JSON")
-
-    if ! fetch_buffer_inventory; then exit 1; fi
-    print_buffer_inventory
-    if [ "$BUFFERS_COUNT" != "0" ]; then
-      echo "✖ После close остались authority-owned buffers; проверьте новый inventory вручную." >&2
-      exit 1
-    fi
-    echo "    все адреса из подтверждённого списка закрыты; остаточный инвентарь пуст."
-    echo "    Этот запуск завершён после reclaim; funding/airdrop/deploy требуют отдельного запуска."
-    exit 0
-  fi
-elif [ "$BUFFERS_COUNT" != "0" ]; then
+if [ "$BUFFERS_COUNT" != "0" ]; then
   echo "    После ручной проверки и отдельного подтверждения можно выполнить reclaim так:"
   echo "      CONFIRM_RECLAIM=1 CONFIRM_RECLAIM_GENESIS=$BUFFER_GENESIS_HASH CONFIRM_RECLAIM_SUM=$BUFFERS_SUM CONFIRM_RECLAIM_ADDRESSES='$BUFFERS_ADDRESSES' $0"
 fi
