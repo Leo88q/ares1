@@ -47,8 +47,12 @@ const BUCKETS = {
   scripts: ['scripts'],
 };
 const IGNORED = [/^apps\/web\/src\/idl\.json$/, /^apps\/web\/src\/types\//, /node_modules\//];
-// anchorClient.ts считается отдельным слоем (web-builder) и не дублируется.
-const SKIP_IN = { 'web-utils': new Set(['apps/web/src/utils/anchorClient.ts']) };
+// anchorClient.ts считается отдельным слоем (web-builder) и не дублируется;
+// самотест анализатора — инструмент, а не потребитель инструкций.
+const SKIP_IN = {
+  'web-utils': new Set(['apps/web/src/utils/anchorClient.ts']),
+  scripts: new Set(['scripts/instruction-coverage.test.mjs']),
+};
 
 function walk(entry) {
   const full = path.join(ROOT, entry);
