@@ -38,6 +38,14 @@ export const FEATURES = Object.freeze([
     id: 'B8JJXCy5amZyWG9r7EnUYLwzXSXTxG7GZ1qZ1qggo83g',
     source: 'feature-set v4.2.2:1235',
   },
+  {
+    // Нужна для решения по варианту arch-v3 (SBPF v3): пока фича не активна,
+    // такой `.so` на кластер не встанет.
+    simd: 'SBPF-v3',
+    name: 'enable_sbpf_v3_deployment_and_execution',
+    id: '5cC3foj77CWun58pC51ebHFUWavHWKarWyR5UUik7dnC',
+    source: 'feature-set v4.2.2:1231',
+  },
 ]);
 
 /**
