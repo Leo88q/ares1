@@ -1,10 +1,13 @@
 .axial-planet {
   position: relative;
-  display: block;
-  width: min(100%, 300px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 280px);
   aspect-ratio: 1;
   flex-shrink: 0;
   pointer-events: none;
+  margin: 0 auto;
 }
 
 .axial-planet > .interstellar-planet-art {
@@ -29,23 +32,54 @@
   justify-self: center;
 }
 
+/* ── Марс: вращение и янтарное гало ── */
+.axial-planet--mars {
+  position: relative;
+}
+
+.axial-planet--mars::before {
+  content: "";
+  position: absolute;
+  top: 8%;
+  left: 8%;
+  width: 84%;
+  height: 84%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(230, 117, 28, 0.35) 0%, rgba(193, 68, 14, 0.18) 50%, transparent 74%);
+  filter: blur(26px);
+  pointer-events: none;
+  z-index: 0;
+  animation: mars-halo 4.5s ease-in-out infinite;
+}
+
+.mars-planet-img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  border-radius: 50%;
+  animation: ares-planet-spin-slow 60s linear infinite;
+  will-change: transform;
+}
+
+/* ── NeuroForge: вращение и неоновое цианово-фиолетовое гало ── */
 .axial-planet--neuroforge {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .axial-planet--neuroforge::before {
   content: "";
   position: absolute;
-  top: 10%;
-  left: 10%;
-  width: 80%;
-  height: 80%;
+  top: 8%;
+  left: 8%;
+  width: 84%;
+  height: 84%;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(0, 229, 255, 0.35) 0%, rgba(168, 85, 247, 0.22) 50%, transparent 74%);
-  filter: blur(28px);
+  filter: blur(26px);
   pointer-events: none;
   z-index: 0;
   animation: neuroforge-halo 4.5s ease-in-out infinite;
@@ -59,32 +93,55 @@
   object-fit: contain;
   display: block;
   user-select: none;
-  mix-blend-mode: screen;
-  animation: neuroforge-pulse 4.5s ease-in-out infinite;
+  border-radius: 50%;
+  animation: ares-planet-spin-reverse 50s linear infinite;
+  will-change: transform;
+}
+
+@keyframes mars-halo {
+  0%, 100% {
+    opacity: 0.65;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
 }
 
 @keyframes neuroforge-halo {
   0%, 100% {
     opacity: 0.7;
-    transform: scale(0.95);
+    transform: scale(0.96);
   }
   50% {
     opacity: 1;
-    transform: scale(1.05);
+    transform: scale(1.04);
   }
 }
 
-@keyframes neuroforge-pulse {
-  0%, 100% {
-    transform: scale(1);
+@keyframes ares-planet-spin-slow {
+  from {
+    transform: rotate(0deg);
   }
-  50% {
-    transform: scale(1.02);
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ares-planet-spin-reverse {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .axial-planet--mars::before,
   .axial-planet--neuroforge::before,
+  .mars-planet-img,
   .neuroforge-planet-img {
     animation: none;
   }
