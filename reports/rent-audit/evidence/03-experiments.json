@@ -1,0 +1,913 @@
+{
+  "schema": "ares-rent-audit-stage3/1",
+  "stage": 3,
+  "sourceCommit": "716d1914f284a41ddc56bae60e72691588e694d8",
+  "experimentRun": {
+    "runId": "36920831012",
+    "workflow": "Rent audit experiments",
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/Leo88q/ares1/actions/runs/36920831012",
+    "variants": {
+      "arch-v3": {
+        "jobId": "110566155909",
+        "jobName": "Эксперимент arch-v3",
+        "jobConclusion": "success",
+        "apply": {
+          "variant": "arch-v3",
+          "removed": [],
+          "dryRun": false,
+          "note": "cargo build-sbf --arch v3 (гипотеза: минус .rel.dyn)"
+        },
+        "build": {
+          "variant": "arch-v3",
+          "cmd": "cargo build-sbf --arch v3",
+          "optLevel": "z",
+          "lockUnchanged": true
+        },
+        "size": {
+          "bytes": 696408,
+          "sha256": "586f41bed5292107c135aefeb34a4635d97dddbcff6191c8684d00127e554a3b",
+          "gzipBytes": 159161,
+          "sections": {
+            ".text": 656736,
+            ".rodata": 39152,
+            ".shstrtab": 25,
+            "NULL": 0
+          }
+        },
+        "symbols": {
+          "variant": "arch-v3",
+          "elf": "target/sbpfv3-solana-solana/release/solana_potato.so",
+          "elfBytes": 957616,
+          "symbols": 2496,
+          "totalBytes": 740445,
+          "top": [
+            {
+              "bytes": 13040,
+              "symbol": "t _$LT$solana_potato..BuyFieldSkr$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSkrBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 10552,
+              "symbol": "t _$LT$solana_potato..FillOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..FillOrderBumps$GT$$GT$::try_accounts:"
+            },
+            {
+              "bytes": 9504,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 8896,
+              "symbol": "t solana_potato::solana_potato::fill_order::h9bbd355aeaa5c2f1"
+            },
+            {
+              "bytes": 8528,
+              "symbol": "t solana_potato::solana_potato::batch_harvest::hc07838aa146a82bf"
+            },
+            {
+              "bytes": 7912,
+              "symbol": "t _$LT$solana_potato..BuyExportLicense$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyExportLicenseBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7840,
+              "symbol": "t _$LT$solana_potato..WithdrawSkrTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawSkrTreasuryBumps$GT"
+            },
+            {
+              "bytes": 7816,
+              "symbol": "t _$LT$solana_potato..ClaimAchievement$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..ClaimAchievementBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7808,
+              "symbol": "t _$LT$solana_potato..BuyFieldSol$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSolBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 7544,
+              "symbol": "t solana_potato::entry::h5f65b1a2c46a9d2c"
+            },
+            {
+              "bytes": 7384,
+              "symbol": "t _$LT$solana_potato..WithdrawTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawTreasuryBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7280,
+              "symbol": "t _$LT$solana_potato..Harvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..HarvestBumps$GT$$GT$::try_accounts::h13"
+            },
+            {
+              "bytes": 6832,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6752,
+              "symbol": "t _$LT$solana_potato..GrantRewardOnce$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..GrantRewardOnceBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6608,
+              "symbol": "t _$LT$solana_potato..BatchHarvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BatchHarvestBumps$GT$$GT$::try_acc"
+            }
+          ]
+        }
+      },
+      "no-buy-field-sol": {
+        "jobId": "110566156029",
+        "jobName": "Эксперимент no-buy-field-sol",
+        "jobConclusion": "success",
+        "apply": {
+          "variant": "no-buy-field-sol",
+          "removed": [
+            "buy_field_sol"
+          ],
+          "dryRun": false,
+          "note": "без buy_field_sol (ABI не сохраняется — только измерение Q4)"
+        },
+        "build": {
+          "variant": "no-buy-field-sol",
+          "cmd": "anchor build",
+          "optLevel": "z",
+          "lockUnchanged": true
+        },
+        "size": {
+          "bytes": 736912,
+          "sha256": "0918f0ce8f36e4e1588f1c51965f6ae9664bb757529eb4b199bb5ea7755ecb5d",
+          "gzipBytes": 166413,
+          "sections": {
+            ".text": 640888,
+            ".rel.dyn": 57776,
+            ".rodata": 21904,
+            ".data.rel.ro": 14528,
+            ".dynsym": 432,
+            ".dynstr": 270,
+            ".dynamic": 176,
+            ".shstrtab": 72,
+            "NULL": 0
+          }
+        },
+        "symbols": {
+          "variant": "no-buy-field-sol",
+          "elf": "target/sbpf-solana-solana/release/solana_potato.so",
+          "elfBytes": 996872,
+          "symbols": 2481,
+          "totalBytes": 724757,
+          "top": [
+            {
+              "bytes": 13128,
+              "symbol": "t _$LT$solana_potato..BuyFieldSkr$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSkrBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 10648,
+              "symbol": "t _$LT$solana_potato..FillOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..FillOrderBumps$GT$$GT$::try_accounts:"
+            },
+            {
+              "bytes": 9552,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 8896,
+              "symbol": "t solana_potato::solana_potato::fill_order::h9b9e09f1b7027c38"
+            },
+            {
+              "bytes": 8544,
+              "symbol": "t solana_potato::solana_potato::batch_harvest::hc5d856fcde392785"
+            },
+            {
+              "bytes": 7968,
+              "symbol": "t _$LT$solana_potato..BuyExportLicense$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyExportLicenseBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7904,
+              "symbol": "t _$LT$solana_potato..WithdrawSkrTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawSkrTreasuryBumps$GT"
+            },
+            {
+              "bytes": 7888,
+              "symbol": "t _$LT$solana_potato..ClaimAchievement$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..ClaimAchievementBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7440,
+              "symbol": "t _$LT$solana_potato..WithdrawTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawTreasuryBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7392,
+              "symbol": "t solana_potato::entry::hd75d339556c108fb"
+            },
+            {
+              "bytes": 7336,
+              "symbol": "t _$LT$solana_potato..Harvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..HarvestBumps$GT$$GT$::try_accounts::h2b"
+            },
+            {
+              "bytes": 6832,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6816,
+              "symbol": "t _$LT$solana_potato..GrantRewardOnce$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..GrantRewardOnceBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6536,
+              "symbol": "t _$LT$solana_potato..BatchHarvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BatchHarvestBumps$GT$$GT$::try_acc"
+            },
+            {
+              "bytes": 6360,
+              "symbol": "t _$LT$solana_potato..CancelOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CancelOrderBumps$GT$$GT$::try_accou"
+            }
+          ]
+        }
+      },
+      "no-grant": {
+        "jobId": "110566155628",
+        "jobName": "Эксперимент no-grant",
+        "jobConclusion": "success",
+        "apply": {
+          "variant": "no-grant",
+          "removed": [
+            "grant_reward",
+            "grant_reward_once"
+          ],
+          "dryRun": false,
+          "note": "без grant_reward/grant_reward_once (ABI не сохраняется — только измерение)"
+        },
+        "build": {
+          "variant": "no-grant",
+          "cmd": "anchor build",
+          "optLevel": "z",
+          "lockUnchanged": true
+        },
+        "size": {
+          "bytes": 729600,
+          "sha256": "79e9d79eec3da70a4331ad1ef7b07f013aee5bf97b3e8a781b1f3b347f3850e8",
+          "gzipBytes": 164067,
+          "sections": {
+            ".text": 634384,
+            ".rel.dyn": 57136,
+            ".rodata": 21808,
+            ".data.rel.ro": 14456,
+            ".dynsym": 432,
+            ".dynstr": 270,
+            ".dynamic": 176,
+            ".shstrtab": 72,
+            "NULL": 0
+          }
+        },
+        "symbols": {
+          "variant": "no-grant",
+          "elf": "target/sbpf-solana-solana/release/solana_potato.so",
+          "elfBytes": 987384,
+          "symbols": 2461,
+          "totalBytes": 717879,
+          "top": [
+            {
+              "bytes": 13128,
+              "symbol": "t _$LT$solana_potato..BuyFieldSkr$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSkrBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 10648,
+              "symbol": "t _$LT$solana_potato..FillOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..FillOrderBumps$GT$$GT$::try_accounts:"
+            },
+            {
+              "bytes": 9552,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 8896,
+              "symbol": "t solana_potato::solana_potato::fill_order::h9b9e09f1b7027c38"
+            },
+            {
+              "bytes": 8544,
+              "symbol": "t solana_potato::solana_potato::batch_harvest::hc5d856fcde392785"
+            },
+            {
+              "bytes": 7968,
+              "symbol": "t _$LT$solana_potato..BuyExportLicense$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyExportLicenseBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7904,
+              "symbol": "t _$LT$solana_potato..WithdrawSkrTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawSkrTreasuryBumps$GT"
+            },
+            {
+              "bytes": 7888,
+              "symbol": "t _$LT$solana_potato..ClaimAchievement$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..ClaimAchievementBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7848,
+              "symbol": "t _$LT$solana_potato..BuyFieldSol$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSolBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 7440,
+              "symbol": "t _$LT$solana_potato..WithdrawTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawTreasuryBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7336,
+              "symbol": "t _$LT$solana_potato..Harvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..HarvestBumps$GT$$GT$::try_accounts::h2b"
+            },
+            {
+              "bytes": 7232,
+              "symbol": "t solana_potato::entry::hd75d339556c108fb"
+            },
+            {
+              "bytes": 6832,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6536,
+              "symbol": "t _$LT$solana_potato..BatchHarvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BatchHarvestBumps$GT$$GT$::try_acc"
+            },
+            {
+              "bytes": 6360,
+              "symbol": "t _$LT$solana_potato..CancelOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CancelOrderBumps$GT$$GT$::try_accou"
+            }
+          ]
+        }
+      },
+      "no-grant-legacy": {
+        "jobId": "110566155966",
+        "jobName": "Эксперимент no-grant-legacy",
+        "jobConclusion": "success",
+        "apply": {
+          "variant": "no-grant-legacy",
+          "removed": [
+            "grant_reward"
+          ],
+          "dryRun": false,
+          "note": "без grant_reward; grant_reward_once оставлена (ABI не сохраняется — только измерение Q3)"
+        },
+        "build": {
+          "variant": "no-grant-legacy",
+          "cmd": "anchor build",
+          "optLevel": "z",
+          "lockUnchanged": true
+        },
+        "size": {
+          "bytes": 748032,
+          "sha256": "2c104060d2cc0d9b9acdb4b37c429e6430c50cbd824a967e12166b627af65136",
+          "gzipBytes": 168031,
+          "sections": {
+            ".text": 651536,
+            ".rel.dyn": 58256,
+            ".rodata": 21896,
+            ".data.rel.ro": 14528,
+            ".dynsym": 432,
+            ".dynstr": 270,
+            ".dynamic": 176,
+            ".shstrtab": 72,
+            "NULL": 0
+          }
+        },
+        "symbols": {
+          "variant": "no-grant-legacy",
+          "elf": "target/sbpf-solana-solana/release/solana_potato.so",
+          "elfBytes": 1008496,
+          "symbols": 2483,
+          "totalBytes": 735381,
+          "top": [
+            {
+              "bytes": 13128,
+              "symbol": "t _$LT$solana_potato..BuyFieldSkr$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSkrBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 10648,
+              "symbol": "t _$LT$solana_potato..FillOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..FillOrderBumps$GT$$GT$::try_accounts:"
+            },
+            {
+              "bytes": 9552,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 8896,
+              "symbol": "t solana_potato::solana_potato::fill_order::h9b9e09f1b7027c38"
+            },
+            {
+              "bytes": 8544,
+              "symbol": "t solana_potato::solana_potato::batch_harvest::hc5d856fcde392785"
+            },
+            {
+              "bytes": 7968,
+              "symbol": "t _$LT$solana_potato..BuyExportLicense$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyExportLicenseBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7904,
+              "symbol": "t _$LT$solana_potato..WithdrawSkrTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawSkrTreasuryBumps$GT"
+            },
+            {
+              "bytes": 7888,
+              "symbol": "t _$LT$solana_potato..ClaimAchievement$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..ClaimAchievementBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7848,
+              "symbol": "t _$LT$solana_potato..BuyFieldSol$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSolBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 7440,
+              "symbol": "t _$LT$solana_potato..WithdrawTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawTreasuryBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7392,
+              "symbol": "t solana_potato::entry::hd75d339556c108fb"
+            },
+            {
+              "bytes": 7336,
+              "symbol": "t _$LT$solana_potato..Harvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..HarvestBumps$GT$$GT$::try_accounts::h2b"
+            },
+            {
+              "bytes": 6832,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6816,
+              "symbol": "t _$LT$solana_potato..GrantRewardOnce$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..GrantRewardOnceBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6536,
+              "symbol": "t _$LT$solana_potato..BatchHarvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BatchHarvestBumps$GT$$GT$::try_acc"
+            }
+          ]
+        }
+      },
+      "no-idl": {
+        "jobId": "110566155803",
+        "jobName": "Эксперимент no-idl",
+        "jobConclusion": "success",
+        "apply": {
+          "variant": "no-idl",
+          "removed": [],
+          "dryRun": false,
+          "note": "без генерации IDL"
+        },
+        "build": {
+          "variant": "no-idl",
+          "cmd": "anchor build --no-idl",
+          "optLevel": "z",
+          "lockUnchanged": true
+        },
+        "size": {
+          "bytes": 756424,
+          "sha256": "25ba34d7102764ebfccb3ce4229923865a2d974436ccdf0bbf7d761e9d151890",
+          "gzipBytes": 169799,
+          "sections": {
+            ".text": 659240,
+            ".rel.dyn": 58880,
+            ".rodata": 21936,
+            ".data.rel.ro": 14552,
+            ".dynsym": 432,
+            ".dynstr": 270,
+            ".dynamic": 176,
+            ".shstrtab": 72,
+            "NULL": 0
+          }
+        },
+        "symbols": {
+          "variant": "no-idl",
+          "elf": "target/sbpf-solana-solana/release/solana_potato.so",
+          "elfBytes": 1017784,
+          "symbols": 2491,
+          "totalBytes": 743157,
+          "top": [
+            {
+              "bytes": 13128,
+              "symbol": "t _$LT$solana_potato..BuyFieldSkr$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSkrBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 10648,
+              "symbol": "t _$LT$solana_potato..FillOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..FillOrderBumps$GT$$GT$::try_accounts:"
+            },
+            {
+              "bytes": 9552,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 8896,
+              "symbol": "t solana_potato::solana_potato::fill_order::h9b9e09f1b7027c38"
+            },
+            {
+              "bytes": 8544,
+              "symbol": "t solana_potato::solana_potato::batch_harvest::hc5d856fcde392785"
+            },
+            {
+              "bytes": 7968,
+              "symbol": "t _$LT$solana_potato..BuyExportLicense$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyExportLicenseBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7904,
+              "symbol": "t _$LT$solana_potato..WithdrawSkrTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawSkrTreasuryBumps$GT"
+            },
+            {
+              "bytes": 7888,
+              "symbol": "t _$LT$solana_potato..ClaimAchievement$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..ClaimAchievementBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7848,
+              "symbol": "t _$LT$solana_potato..BuyFieldSol$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSolBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 7552,
+              "symbol": "t solana_potato::entry::hd75d339556c108fb"
+            },
+            {
+              "bytes": 7440,
+              "symbol": "t _$LT$solana_potato..WithdrawTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawTreasuryBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7336,
+              "symbol": "t _$LT$solana_potato..Harvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..HarvestBumps$GT$$GT$::try_accounts::h2b"
+            },
+            {
+              "bytes": 6832,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6816,
+              "symbol": "t _$LT$solana_potato..GrantRewardOnce$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..GrantRewardOnceBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6536,
+              "symbol": "t _$LT$solana_potato..BatchHarvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BatchHarvestBumps$GT$$GT$::try_acc"
+            }
+          ]
+        }
+      },
+      "no-m": {
+        "jobId": "110566155768",
+        "jobName": "Эксперимент no-m",
+        "jobConclusion": "success",
+        "apply": {
+          "variant": "no-m",
+          "removed": [
+            "migrate_presale_authority",
+            "migrate_config",
+            "migrate_field",
+            "migrate_epoch",
+            "migrate_admin_state",
+            "mod migrations;"
+          ],
+          "dryRun": false,
+          "note": "без группы M (ABI не сохраняется — только измерение)"
+        },
+        "build": {
+          "variant": "no-m",
+          "cmd": "anchor build",
+          "optLevel": "z",
+          "lockUnchanged": true
+        },
+        "size": {
+          "bytes": 729272,
+          "sha256": "f56f3e9a5172300ec68bda2368de88281283163d93c6b08003f31c7a3fe9d960",
+          "gzipBytes": 164160,
+          "sections": {
+            ".text": 635376,
+            ".rel.dyn": 56544,
+            ".rodata": 21560,
+            ".data.rel.ro": 13976,
+            ".dynsym": 432,
+            ".dynstr": 270,
+            ".dynamic": 176,
+            ".shstrtab": 72,
+            "NULL": 0
+          }
+        },
+        "symbols": {
+          "variant": "no-m",
+          "elf": "target/sbpf-solana-solana/release/solana_potato.so",
+          "elfBytes": 985376,
+          "symbols": 2435,
+          "totalBytes": 718535,
+          "top": [
+            {
+              "bytes": 13128,
+              "symbol": "t _$LT$solana_potato..BuyFieldSkr$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSkrBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 10648,
+              "symbol": "t _$LT$solana_potato..FillOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..FillOrderBumps$GT$$GT$::try_accounts:"
+            },
+            {
+              "bytes": 9552,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 8896,
+              "symbol": "t solana_potato::solana_potato::fill_order::h9b9e09f1b7027c38"
+            },
+            {
+              "bytes": 8544,
+              "symbol": "t solana_potato::solana_potato::batch_harvest::hc5d856fcde392785"
+            },
+            {
+              "bytes": 7968,
+              "symbol": "t _$LT$solana_potato..BuyExportLicense$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyExportLicenseBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7904,
+              "symbol": "t _$LT$solana_potato..WithdrawSkrTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawSkrTreasuryBumps$GT"
+            },
+            {
+              "bytes": 7888,
+              "symbol": "t _$LT$solana_potato..ClaimAchievement$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..ClaimAchievementBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7848,
+              "symbol": "t _$LT$solana_potato..BuyFieldSol$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSolBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 7440,
+              "symbol": "t _$LT$solana_potato..WithdrawTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawTreasuryBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7336,
+              "symbol": "t _$LT$solana_potato..Harvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..HarvestBumps$GT$$GT$::try_accounts::h2b"
+            },
+            {
+              "bytes": 6832,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6816,
+              "symbol": "t _$LT$solana_potato..GrantRewardOnce$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..GrantRewardOnceBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6752,
+              "symbol": "t solana_potato::entry::hd75d339556c108fb"
+            },
+            {
+              "bytes": 6536,
+              "symbol": "t _$LT$solana_potato..BatchHarvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BatchHarvestBumps$GT$$GT$::try_acc"
+            }
+          ]
+        }
+      },
+      "sbf": {
+        "jobId": "110566155341",
+        "jobName": "Эксперимент sbf",
+        "jobConclusion": "success",
+        "apply": {
+          "variant": "sbf",
+          "removed": [],
+          "dryRun": false,
+          "note": "контроль прямой сборки (cargo build-sbf, без IDL)"
+        },
+        "build": {
+          "variant": "sbf",
+          "cmd": "cargo build-sbf",
+          "optLevel": "z",
+          "lockUnchanged": true
+        },
+        "size": {
+          "bytes": 756424,
+          "sha256": "25ba34d7102764ebfccb3ce4229923865a2d974436ccdf0bbf7d761e9d151890",
+          "gzipBytes": 169799,
+          "sections": {
+            ".text": 659240,
+            ".rel.dyn": 58880,
+            ".rodata": 21936,
+            ".data.rel.ro": 14552,
+            ".dynsym": 432,
+            ".dynstr": 270,
+            ".dynamic": 176,
+            ".shstrtab": 72,
+            "NULL": 0
+          }
+        },
+        "symbols": {
+          "variant": "sbf",
+          "elf": "target/sbpf-solana-solana/release/solana_potato.so",
+          "elfBytes": 1017784,
+          "symbols": 2491,
+          "totalBytes": 743157,
+          "top": [
+            {
+              "bytes": 13128,
+              "symbol": "t _$LT$solana_potato..BuyFieldSkr$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSkrBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 10648,
+              "symbol": "t _$LT$solana_potato..FillOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..FillOrderBumps$GT$$GT$::try_accounts:"
+            },
+            {
+              "bytes": 9552,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 8896,
+              "symbol": "t solana_potato::solana_potato::fill_order::h9b9e09f1b7027c38"
+            },
+            {
+              "bytes": 8544,
+              "symbol": "t solana_potato::solana_potato::batch_harvest::hc5d856fcde392785"
+            },
+            {
+              "bytes": 7968,
+              "symbol": "t _$LT$solana_potato..BuyExportLicense$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyExportLicenseBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7904,
+              "symbol": "t _$LT$solana_potato..WithdrawSkrTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawSkrTreasuryBumps$GT"
+            },
+            {
+              "bytes": 7888,
+              "symbol": "t _$LT$solana_potato..ClaimAchievement$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..ClaimAchievementBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7848,
+              "symbol": "t _$LT$solana_potato..BuyFieldSol$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSolBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 7552,
+              "symbol": "t solana_potato::entry::hd75d339556c108fb"
+            },
+            {
+              "bytes": 7440,
+              "symbol": "t _$LT$solana_potato..WithdrawTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawTreasuryBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7336,
+              "symbol": "t _$LT$solana_potato..Harvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..HarvestBumps$GT$$GT$::try_accounts::h2b"
+            },
+            {
+              "bytes": 6832,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6816,
+              "symbol": "t _$LT$solana_potato..GrantRewardOnce$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..GrantRewardOnceBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6536,
+              "symbol": "t _$LT$solana_potato..BatchHarvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BatchHarvestBumps$GT$$GT$::try_acc"
+            }
+          ]
+        }
+      },
+      "z": {
+        "jobId": "110566155917",
+        "jobName": "Эксперимент z",
+        "jobConclusion": "success",
+        "apply": {
+          "variant": "z",
+          "removed": [],
+          "dryRun": false,
+          "note": "контроль (anchor build, opt-level z)"
+        },
+        "build": {
+          "variant": "z",
+          "cmd": "anchor build",
+          "optLevel": "z",
+          "lockUnchanged": true
+        },
+        "size": {
+          "bytes": 756424,
+          "sha256": "25ba34d7102764ebfccb3ce4229923865a2d974436ccdf0bbf7d761e9d151890",
+          "gzipBytes": 169799,
+          "sections": {
+            ".text": 659240,
+            ".rel.dyn": 58880,
+            ".rodata": 21936,
+            ".data.rel.ro": 14552,
+            ".dynsym": 432,
+            ".dynstr": 270,
+            ".dynamic": 176,
+            ".shstrtab": 72,
+            "NULL": 0
+          }
+        },
+        "symbols": {
+          "variant": "z",
+          "elf": "target/sbpf-solana-solana/release/solana_potato.so",
+          "elfBytes": 1017784,
+          "symbols": 2491,
+          "totalBytes": 743157,
+          "top": [
+            {
+              "bytes": 13128,
+              "symbol": "t _$LT$solana_potato..BuyFieldSkr$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSkrBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 10648,
+              "symbol": "t _$LT$solana_potato..FillOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..FillOrderBumps$GT$$GT$::try_accounts:"
+            },
+            {
+              "bytes": 9552,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 8896,
+              "symbol": "t solana_potato::solana_potato::fill_order::h9b9e09f1b7027c38"
+            },
+            {
+              "bytes": 8544,
+              "symbol": "t solana_potato::solana_potato::batch_harvest::hc5d856fcde392785"
+            },
+            {
+              "bytes": 7968,
+              "symbol": "t _$LT$solana_potato..BuyExportLicense$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyExportLicenseBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7904,
+              "symbol": "t _$LT$solana_potato..WithdrawSkrTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawSkrTreasuryBumps$GT"
+            },
+            {
+              "bytes": 7888,
+              "symbol": "t _$LT$solana_potato..ClaimAchievement$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..ClaimAchievementBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7848,
+              "symbol": "t _$LT$solana_potato..BuyFieldSol$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BuyFieldSolBumps$GT$$GT$::try_accou"
+            },
+            {
+              "bytes": 7552,
+              "symbol": "t solana_potato::entry::hd75d339556c108fb"
+            },
+            {
+              "bytes": 7440,
+              "symbol": "t _$LT$solana_potato..WithdrawTreasury$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..WithdrawTreasuryBumps$GT$$GT$:"
+            },
+            {
+              "bytes": 7336,
+              "symbol": "t _$LT$solana_potato..Harvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..HarvestBumps$GT$$GT$::try_accounts::h2b"
+            },
+            {
+              "bytes": 6832,
+              "symbol": "t _$LT$solana_potato..CreateSellOrder$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..CreateSellOrderBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6816,
+              "symbol": "t _$LT$solana_potato..GrantRewardOnce$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..GrantRewardOnceBumps$GT$$GT$::t"
+            },
+            {
+              "bytes": 6536,
+              "symbol": "t _$LT$solana_potato..BatchHarvest$u20$as$u20$anchor_lang..Accounts$LT$solana_potato..BatchHarvestBumps$GT$$GT$::try_acc"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "rateSnapshot": {
+    "runId": "36907441458",
+    "checkRunId": "110521403982",
+    "workflow": "Rent audit",
+    "rpc": "https://api.devnet.solana.com",
+    "rate": {
+      "rent0": 650240,
+      "rate": 5080,
+      "rent1": 655320,
+      "rateMatchesDelta": true,
+      "epoch": {
+        "epoch": 1172,
+        "slotIndex": 61403,
+        "slotsInEpoch": 432000,
+        "absoluteSlot": 506365403,
+        "blockHeight": 493613019
+      },
+      "version": "4.3.0",
+      "genesisHash": "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG"
+    },
+    "setup": {
+      "setupOnchain": "3855720",
+      "setupParts": [
+        "potato_mint=1066800",
+        "game_config=1971040",
+        "epoch0=899160",
+        "presale=939800",
+        "treasury_sol=650240",
+        "quest_treasury=650240",
+        "quest_ata=1488440",
+        "existing=-3810000"
+      ],
+      "needTotalInitOnly": "304530160",
+      "rate": "5080",
+      "rpc": "https://api.devnet.solana.com",
+      "deployerBalance": "24266468",
+      "cliExit": 3
+    },
+    "url": "https://github.com/Leo88q/ares1/actions/runs/36907441458"
+  },
+  "validationRuns": [
+    {
+      "workflow": "Rent audit experiments",
+      "runId": "36920831012",
+      "headSha": "716d1914f284a41ddc56bae60e72691588e694d8",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Leo88q/ares1/actions/runs/36920831012"
+    },
+    {
+      "workflow": "Rent audit CU",
+      "runId": "36920830995",
+      "headSha": "716d1914f284a41ddc56bae60e72691588e694d8",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Leo88q/ares1/actions/runs/36920830995"
+    },
+    {
+      "workflow": "CI",
+      "runId": "36920830980",
+      "headSha": "716d1914f284a41ddc56bae60e72691588e694d8",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Leo88q/ares1/actions/runs/36920830980"
+    },
+    {
+      "workflow": "Secret scanning",
+      "runId": "36920831087",
+      "headSha": "716d1914f284a41ddc56bae60e72691588e694d8",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Leo88q/ares1/actions/runs/36920831087"
+    }
+  ]
+}
