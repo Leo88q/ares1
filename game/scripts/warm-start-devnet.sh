@@ -4,11 +4,14 @@
 #
 #   1. anchor keys sync + anchor build (+ синхронизация IDL) — SOL не тратит,
 #      но размер `.so` нужен расчёту, поэтому сборка идёт ПЕРВОЙ;
-#   2. показывает застрявшие буферы деплоера (возврат — только CONFIRM_RECLAIM=1);
+#   2. показывает застрявшие буферы деплоера и ПЕРВЫМ делом предлагает их вернуть
+#      (reclaim: замороженный залог — ликвидность; возврат только CONFIRM_RECLAIM=1);
 #   3. считает NEED_TOTAL калькулятором scripts/deploy-budget.mjs: ставка rent
 #      читается из RPC, размер — из собранного `.so`, залог = ставка × (45 + max_len)
 #      + ставка × 36 (loader-v3), плюс комиссии, SETUP_ONCHAIN и резерв;
-#   4. доливает SOL деплоеру (airdrop с ретраями), пока баланс < NEED_TOTAL;
+#   4. доливает SOL деплоеру (airdrop с ретраями), пока баланс < NEED_TOTAL,
+#      и только ПОСЛЕ предложения вернуть буферы: faucet имеет суточный лимит,
+#      а reclaim возвращает уже потраченный залог;
 #   5. деплой с ЯВНЫМ --max-len: первый деплой (нет программы) или апгрейд
 #      (FORCE_DEPLOY=1 при существующей программе); при обрыве продолжает на
 #      том же буфере, не тратя залог заново;
@@ -130,8 +133,10 @@ BUFFERS_RAW="$(solana program show --buffers --keypair "$ADMIN_KEYPAIR" --lampor
 printf '%s\n' "$BUFFERS_RAW"
 BUFFERS_JSON="$(solana program show --buffers --keypair "$ADMIN_KEYPAIR" --lamports --url "$RPC_URL" --output json 2>/dev/null || true)"
 BUFFERS_SUM="$(jq -r 'if type=="array" then ([.[].lamports] | add // 0) else ((.buffers // .accounts // []) | [.[].lamports] | add // 0) end' <<<"${BUFFERS_JSON:-[]}" 2>/dev/null || echo '')"
-if [ -n "$BUFFERS_SUM" ]; then
-  echo "    можно вернуть: $BUFFERS_SUM лампортов ($(lamports_to_sol "$BUFFERS_SUM") SOL) — это ЛИКВИДНОСТЬ, а не экономия NEED"
+if [ -n "$BUFFERS_SUM" ] && [ "$BUFFERS_SUM" != "0" ]; then
+  echo "    СНАЧАЛА reclaim: можно вернуть $BUFFERS_SUM лампортов ($(lamports_to_sol "$BUFFERS_SUM") SOL) —"
+  echo "    это ЛИКВИДНОСТЬ (деньги уже потрачены и лежат в буферах), а не экономия NEED_TOTAL."
+  echo "    Возврат — до airdrop: у faucet суточный лимит, а reclaim возвращает своё."
 fi
 if [ "$CONFIRM_RECLAIM" = "1" ]; then
   if [ "$DRY_RUN" = "1" ]; then
@@ -185,11 +190,19 @@ if [ "$DRY_RUN" = "1" ]; then
   if [ "$BALANCE" -lt "$NEED_TOTAL" ]; then
     MISSING=$((NEED_TOTAL - BALANCE))
     echo "    DRY_RUN: airdrop не выполняется; не хватает $MISSING лампортов ($(lamports_to_sol "$MISSING") SOL)."
-    echo "    Боевая команда: solana airdrop 2 \"$ADMIN\" --url \"$RPC_URL\""
+    if [ -n "$BUFFERS_SUM" ] && [ "$BUFFERS_SUM" != "0" ]; then
+      echo "    1) сначала вернуть буферы (reclaim, шаг 2): CONFIRM_RECLAIM=1 $0"
+      echo "       на кошелёк вернётся до $(lamports_to_sol "$BUFFERS_SUM") SOL — это уже потраченный залог;"
+    fi
+    echo "    2) затем airdrop: solana airdrop 2 \"$ADMIN\" --url \"$RPC_URL\""
   else
     echo "    баланса достаточно."
   fi
 else
+  if [ "$BALANCE" -lt "$NEED_TOTAL" ] && [ -n "$BUFFERS_SUM" ] && [ "$BUFFERS_SUM" != "0" ]; then
+    echo "    сначала стоит вернуть буферы (reclaim, шаг 2): CONFIRM_RECLAIM=1 $0 — до $(lamports_to_sol "$BUFFERS_SUM") SOL;"
+    echo "    только потом airdrop (faucet имеет суточный лимит)."
+  fi
   TRIES=0
   while [ "$BALANCE" -lt "$NEED_TOTAL" ] && [ "$TRIES" -lt 4 ]; do
     TRIES=$((TRIES + 1))
@@ -204,9 +217,9 @@ else
   if [ "$BALANCE" -lt "$NEED_TOTAL" ]; then
     MISSING=$((NEED_TOTAL - BALANCE))
     echo "✖ Не хватает $MISSING лампортов ($(lamports_to_sol "$MISSING") SOL) до NEED_TOTAL."
-    echo "  Транзакции деплоя НЕ отправлялись. Варианты:"
-    echo "    (a) докинуть SOL на $ADMIN (devnet-faucet имеет суточный лимит);"
-    echo "    (b) вернуть залог застрявших буферов: CONFIRM_RECLAIM=1 $0;"
+    echo "  Транзакции деплоя НЕ отправлялись. Варианты (в порядке предпочтения):"
+    echo "    (a) вернуть залог застрявших буферов — это ликвидность: CONFIRM_RECLAIM=1 $0;"
+    echo "    (b) докинуть SOL на $ADMIN (devnet-faucet имеет суточный лимит);"
     echo "    (c) уменьшить программу (opt-level, удаление мёртвого кода) — NEED_ пересчитается сам."
     exit 1
   fi
