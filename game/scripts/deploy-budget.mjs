@@ -176,7 +176,7 @@ function loadConfig() {
   }
 }
 
-async function rpcCall(url, method, params, { retries = 2 } = {}) {
+export async function rpcCall(url, method, params, { retries = 4 } = {}) {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -185,16 +185,25 @@ async function rpcCall(url, method, params, { retries = 2 } = {}) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        // Публичный devnet-RPC отвечает 429 при всплесках: пауза по Retry-After.
+        const retryAfter = Number(response.headers.get('retry-after'));
+        const wait = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, 10) : 0;
+        throw new Error(`HTTP ${response.status}${wait ? ` (retry-after ${wait}s)` : ''}`, { cause: { wait } });
+      }
       const body = await response.json();
       if (body.error) throw new Error(`${method}: ${JSON.stringify(body.error)}`);
       return body.result;
     } catch (error) {
       lastError = error;
-      if (attempt < retries) await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+      if (attempt < retries) {
+        const hinted = Number(error?.cause?.wait) * 1000;
+        const backoff = hinted > 0 ? hinted : 500 * 2 ** attempt;
+        await new Promise((resolve) => setTimeout(resolve, backoff));
+      }
     }
   }
-  throw new Error(`RPC ${method} недоступен: ${lastError?.message ?? lastError}`);
+  throw new Error(`RPC ${method} недоступен после ${retries + 1} попыток: ${lastError?.message ?? lastError}`);
 }
 
 /**
