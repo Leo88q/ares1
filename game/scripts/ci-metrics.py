@@ -12,6 +12,7 @@
     python3 scripts/ci-metrics.py --variant base [--so target/deploy/solana_potato.so]
 """
 import argparse
+import gzip
 import hashlib
 import json
 import re
@@ -71,7 +72,12 @@ def main() -> int:
     sections = read_sections(so_path)
     # Крупнейшие секции первыми: важно видеть, что именно растёт/сжимается.
     ordered = dict(sorted(sections.items(), key=lambda kv: -kv[1]))
-    payload = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(), "sections": ordered}
+    # gzipBytes — независимая перекрёстная проверка: размер артефакта CI
+    # (zip = gzip .so + gzip IDL) можно сверить с этой цифрой по API, не
+    # скачивая артефакт (скачивание из песочницы недоступно, B.4).
+    gzip_bytes = len(gzip.compress(data, compresslevel=9, mtime=0))
+    payload = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(),
+               "gzipBytes": gzip_bytes, "sections": ordered}
     message = json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
     if len(message) > MAX_ANNOTATION:
         trimmed = dict(list(ordered.items())[:MAX_SECTIONS])
