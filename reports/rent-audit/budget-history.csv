@@ -19,3 +19,4 @@ stage,commit,so_len,rate,need_before_reserve,need_total,note
 3,716d191,756424,5080,3855119640,4155119640,"контроль z, Stage 3; CI run 36920831012/job 110566155917; rate 5080 RPC run 36907441458/job 110521403982; sha 25ba34d7…"
 3,716d191,748032,5080,3812422280,4112422280,"no-grant-legacy: только grant_reward удалена, grant_reward_once оставлена; run 36920831012/job 110566155966; −8392 Б; ΔNEED_TOTAL −42697360 lamports (−0.042697360 SOL); CI-only, ABI не сохраняется"
 3,716d191,736912,5080,3755840280,4055840280,"no-buy-field-sol: только buy_field_sol удалена; run 36920831012/job 110566156029; −19512 Б; ΔNEED_TOTAL −99279360 lamports (−0.099279360 SOL); CI-only, ABI не сохраняется"
+4,d71ad54,756424,5080,3855119640,4155119640,"Q1 read-only recovery run 36928825557; carry-forward z, no product/NEED change; 36.808925372 SOL gross potential is separate liquidity, not deployment budget; no transactions"
