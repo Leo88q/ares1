@@ -219,12 +219,18 @@ process.exit(0);
         writeFileSync(statePath, JSON.stringify(state));
       }
       if (method === 'getProgramAccounts') {
-        const buffers = (state.buffers ?? []).map((buffer) => ({
+        // Заглушка честно применяет memcmp-фильтр RPC: подходящими считаются
+        // только буферы с authority по смещению 5 (tag u32 + Option-признак).
+        // Так тест ловит ошибку в смещении (offset 4 → пустой список).
+        const filter = params[1]?.filters?.[0]?.memcmp;
+        const matches = filter && filter.offset === 5 && filter.bytes === activeEnv?.FAKE_PAYER_PUB;
+        const buffers = (matches ? (state.buffers ?? []) : []).map((buffer) => ({
           pubkey: buffer.address,
           account: {
             lamports: buffer.lamports,
-            // Тег Buffer(1) + authority-заглушка: скрипт обязан отфильтровать буферы по тегу.
-            data: [Buffer.concat([Buffer.from([1, 0, 0, 0]), Buffer.alloc(32, 0x21)]).toString('base64'), 'base64'],
+            // Layout Buffer: тег 1 (u32) + Option<Pubkey> (1 байт признака + 32)
+            // = 37 Б; скрипт фильтрует по тегу и ищет authority по смещению 5.
+            data: [Buffer.concat([Buffer.from([1, 0, 0, 0]), Buffer.from([1]), Buffer.alloc(32, 0x21)]).toString('base64'), 'base64'],
             owner: LOADER_V3,
             executable: false,
             space: 37 + 11240,
