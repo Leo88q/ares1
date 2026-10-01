@@ -27,6 +27,8 @@ yarn test:offchain
 yarn test:guards
 # Калькулятор стоимости деплоя: векторы V1–V5 и инварианты модели (reports/rent-audit/).
 yarn test:deploy-budget
+# CU-профиль (Этап 2): парсер лога localnet — фикстуры, без сети.
+yarn test:rent-tools
 # Item 76: скрытые инструкции для ИИ-аудитора невидимы в диффе — невидимый
 # юникод в коде/доках запрещён; сканер имеет собственные фикстуры.
 yarn test:unicode
