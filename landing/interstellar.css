@@ -104,7 +104,14 @@
 }
 
 .interstellar-world--earth .interstellar-world-planet {
-  color: #a4d8e5;
+  color: #00E5FF;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.45);
+}
+
+.interstellar-world--earth strong {
+  background: linear-gradient(135deg, #FFFFFF 20%, #A5F3FC 60%, #C084FC 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .interstellar-planet-button > strong {
@@ -153,7 +160,41 @@
 }
 
 .interstellar-world--earth .interstellar-benefits li > span {
-  color: #9fbe7a;
+  color: #00E5FF;
+}
+
+.interstellar-world-action {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.neuroforge-action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border: 1px solid rgba(0, 229, 255, 0.45);
+  border-radius: 8px;
+  background: rgba(0, 229, 255, 0.1);
+  color: #38BDF8;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.2);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.neuroforge-action-link:hover {
+  border-color: #00E5FF;
+  background: rgba(0, 229, 255, 0.22);
+  color: #FFFFFF;
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.5);
+  transform: translateY(-2px);
 }
 
 .interstellar-wide-route {
@@ -569,9 +610,9 @@
   }
 }
 
-/* ── Квантовый маршрут: SVG заменён CSS-дугами и пакетами ── */
-.quantum-route-arc{position:absolute;left:-50%;width:200%;height:200%;border-radius:50%;pointer-events:none;background:linear-gradient(90deg,#C1440E,#FF2E93,#12E7C4);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));opacity:.2}
+/* ── Квантовый маршрут: неоновый мост между Марсом и NeuroForge ── */
+.quantum-route-arc{position:absolute;left:-50%;width:200%;height:200%;border-radius:50%;pointer-events:none;background:linear-gradient(90deg,#E6751C 15%,#A855F7 50%,#00E5FF 85%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));opacity:.35}
 .quantum-route-arc--top{bottom:50%}
 .quantum-route-arc--bottom{top:50%}
-.quantum-route-line{position:absolute;top:50%;left:2.5%;right:2.5%;height:1px;background:repeating-linear-gradient(90deg,rgba(255,179,71,.55) 0 3px,transparent 3px 12px);opacity:.5;pointer-events:none}
+.quantum-route-line{position:absolute;top:50%;left:2.5%;right:2.5%;height:1px;background:repeating-linear-gradient(90deg,rgba(255,179,71,.55) 0 3px,transparent 3px 12px,rgba(0,229,255,.55) 12px 15px,transparent 15px 24px);opacity:.55;pointer-events:none}
 .quantum-route-packet{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;pointer-events:none}
