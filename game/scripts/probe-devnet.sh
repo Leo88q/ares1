@@ -68,7 +68,8 @@ else
   # rent(1)-rent(0) обязан равняться ставке; если RPC не ответил на второй вызов,
   # подставляем rent(0) — тогда rateMatchesDelta=false, то есть «не подтверждено».
   RENT1="${RENT1:-$RENT0}"
-  EPOCH=$(rpc getEpochInfo '[]' | jq -c '.result | {epoch,slot,absoluteSlot,blockHeight}' 2>/dev/null)
+  # Agave 4.3 отдаёт slotIndex/slotsInEpoch (поля `slot` в ответе больше нет).
+  EPOCH=$(rpc getEpochInfo '[]' | jq -c '.result | {epoch,slotIndex,slotsInEpoch,absoluteSlot,blockHeight}' 2>/dev/null)
   VERSION=$(rpc getVersion '[]' | jq -r '.result["solana-core"] // "unknown"')
   GENESIS=$(rpc getGenesisHash '[]' | jq -r '.result // "unknown"')
   note ares-rate "$(jq -cn \
@@ -79,21 +80,84 @@ else
 fi
 
 # ── ares-program: состояние ProgramData текущей программы ────────────────────
-PROGRAM_OUT=$(solana program show "$PROGRAM_ID" --url "$RPC" --output json 2>&1) || true
-if ! jq -e '.programId' >/dev/null 2>&1 <<<"$PROGRAM_OUT"; then
-  unmeasured ares-program "solana program show: $(printf '%s' "$PROGRAM_OUT" | head -c 300)"
+# Читаем чисто через RPC: `solana program show` требует настроенного signer'а
+# («No default signer found») даже для чтения, а ключей в этом контуре нет (R2).
+# Раскладка UpgradeableLoaderState (loader-v3):
+#   Program:     [u32 tag=2][32B programdata address]
+#   ProgramData: [u32 tag=3][u64 slot][u8 opt][32B authority] — 45 байт заголовка.
+PROG_RESP=$(rpc getAccountInfo "[\"$PROGRAM_ID\",{\"encoding\":\"base64\",\"dataSlice\":{\"offset\":0,\"length\":36}}]" || true)
+if ! jq -e '.result.value.data[0]' >/dev/null 2>&1 <<<"$PROG_RESP"; then
+  unmeasured ares-program "getAccountInfo(program): $(printf '%s' "$PROG_RESP" | head -c 300)"
 else
-  note ares-program "$(jq -cn --argjson raw "$(jq -c . <<<"$PROGRAM_OUT")" --argjson rate "${RATE:-null}" '
-    {programId: ($raw.programId // $raw.program_id),
-     programDataAddress: ($raw.programDataAddress // $raw.program_data_address),
-     authority: ($raw.authority // $raw.upgradeAuthority),
-     lastDeploySlot: ($raw.lastDeployedInSlot // $raw.lastDeploySlot // $raw.lastDeployedAt),
-     dataLen: ($raw.dataLen // $raw.data_len),
-     lamports: ($raw.lamports),
-     requiredLamports: (if ($raw.dataLen // $raw.data_len) != null and $rate != null
-                        then (128 + 45 + ($raw.dataLen // $raw.data_len)) * $rate else null end),
-     excessLamports: (if ($raw.dataLen // $raw.data_len) != null and $rate != null
-                        then $raw.lamports - (128 + 45 + ($raw.dataLen // $raw.data_len)) * $rate else null end)}')"
+  PROG_DATA=$(jq -r '.result.value.data[0]' <<<"$PROG_RESP")
+  PROG_OWNER=$(jq -r '.result.value.owner' <<<"$PROG_RESP")
+  PDA_B58=$(python3 -c '
+import base64, sys
+A = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+raw = base64.b64decode(sys.argv[1])
+if len(raw) != 36 or raw[:4] != b"\x02\x00\x00\x00":
+    raise SystemExit(1)
+b = raw[4:]
+n = int.from_bytes(b, "big"); s = ""
+while n:
+    n, r = divmod(n, 58); s = A[r] + s
+print("1" * (len(b) - len(b.lstrip(b"\x00"))) + s or "1")
+' "$PROG_DATA" 2>/dev/null) || PDA_B58=""
+  if [ -z "$PDA_B58" ]; then
+    unmeasured ares-program "Program-аккаунт не декодирован (owner=$PROG_OWNER)"
+  else
+    PD_RESP=$(rpc getAccountInfo "[\"$PDA_B58\",{\"encoding\":\"base64\",\"dataSlice\":{\"offset\":0,\"length\":45}}]" || true)
+    PD_JSON=$(python3 - "$PROG_DATA" "$PDA_B58" "$PROG_OWNER" \
+      "$(jq -r '.result.value.data[0] // empty' <<<"$PD_RESP")" \
+      "$(jq -r '.result.value.space // empty' <<<"$PD_RESP")" \
+      "$(jq -r '.result.value.lamports // empty' <<<"$PD_RESP")" \
+      "${RATE:-0}" <<'PY' 2>/dev/null
+import base64, json, sys
+
+A = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def b58(b: bytes) -> str:
+    n = int.from_bytes(b, "big")
+    s = ""
+    while n:
+        n, r = divmod(n, 58)
+        s = A[r] + s
+    return "1" * (len(b) - len(b.lstrip(b"\x00"))) + s or "1"
+
+
+_, prog_b64, pda, owner, pd_b64, pd_space, pd_lamports, rate = sys.argv
+prog_raw = base64.b64decode(prog_b64)
+out = {"programDataAddress": pda, "programOwner": owner}
+if not pd_b64:
+    out["measured"] = False
+    out["reason"] = "getAccountInfo(programData) не вернул data"
+    print(json.dumps(out, separators=(",", ":")))
+    raise SystemExit(0)
+pd_raw = base64.b64decode(pd_b64)
+if pd_raw[:4] != b"\x03\x00\x00\x00":
+    out["measured"] = False
+    out["reason"] = "ProgramData tag != 3"
+    print(json.dumps(out, separators=(",", ":")))
+    raise SystemExit(0)
+has_authority = len(pd_raw) > 12 and pd_raw[12] == 1
+header = 45 if has_authority else 13
+out["measured"] = True
+out["slot"] = int.from_bytes(pd_raw[4:12], "little")
+out["authority"] = b58(pd_raw[13:45]) if has_authority else None
+out["space"] = int(pd_space) if pd_space else None
+out["dataLen"] = int(pd_space) - header if pd_space else None
+out["lamports"] = int(pd_lamports) if pd_lamports else None
+rate = int(rate)
+if out["dataLen"] is not None and rate:
+    out["rate"] = rate
+    out["requiredLamports"] = (128 + 45 + out["dataLen"]) * rate
+    out["excessLamports"] = out["lamports"] - out["requiredLamports"]
+print(json.dumps(out, separators=(",", ":")))
+PY
+) || PD_JSON=""
+    note ares-program "$PD_JSON"
+  fi
 fi
 
 # ── ares-deployer: баланс деплоера ───────────────────────────────────────────
@@ -158,13 +222,16 @@ fi
 # game/docs/MIGRATIONS.md. Размер 49 делят Epoch, ExportLicense, MarketStats,
 # SellerProfile — печатаем счётчик без разбивки по типам.
 count_size() {
-  local size="$1" resp
-  resp=$(rpc getProgramAccounts "[\"$PROGRAM_ID\",{\"filters\":[{\"dataSize\":$size}],\"dataSlice\":{\"offset\":0,\"length\":0},\"encoding\":\"base64\"}]" || true)
-  if jq -e '.result | type=="array"' >/dev/null 2>&1 <<<"$resp"; then
-    jq -r '.result | length' <<<"$resp"
-  else
-    printf 'null'
-  fi
+  local size="$1" resp attempt
+  for attempt in 1 2 3; do
+    resp=$(rpc getProgramAccounts "[\"$PROGRAM_ID\",{\"filters\":[{\"dataSize\":$size}],\"dataSlice\":{\"offset\":0,\"length\":0},\"encoding\":\"base64\"}]" || true)
+    if jq -e '.result | type=="array"' >/dev/null 2>&1 <<<"$resp"; then
+      jq -r '.result | length' <<<"$resp"
+      return 0
+    fi
+    sleep 3
+  done
+  printf 'null'
 }
 CURRENT=$(jq -cn --argjson a "$(count_size 260)" --argjson b "$(count_size 145)" \
                    --argjson c "$(count_size 70)"  --argjson d "$(count_size 49)" \
