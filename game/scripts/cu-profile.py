@@ -40,8 +40,44 @@ def escape(value: str) -> str:
     return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 
 
-def note(title: str, payload: dict) -> None:
+# Аннотация GitHub обрезается на ~4 КБ: списки уходят несколькими частями
+# (`ares-cu`, `ares-cu-2`, ...) с полями itemsFrom/itemsTotal, чтобы читатель
+# мог склеить их без потерь.
+ANNOTATION_LIMIT = 3800
+
+
+def emit(title: str, payload: dict) -> None:
     print(f"::notice title={title}::{escape(json.dumps(payload, ensure_ascii=False, separators=(',', ':')))}")
+
+
+def note(title: str, payload: dict, split_key: str | None = None) -> None:
+    text = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+    if len(text) <= ANNOTATION_LIMIT or not split_key:
+        emit(title, payload)
+        return
+    items = payload[split_key]
+    base = {k: v for k, v in payload.items() if k != split_key}
+    start = 0
+    part = 1
+    while start < len(items):
+        take = len(items) - start
+        while take > 1:
+            candidate = dict(base)
+            candidate[split_key] = items[start:start + take]
+            candidate["itemsFrom"] = start
+            candidate["itemsTotal"] = len(items)
+            candidate["part"] = part
+            if len(json.dumps(candidate, ensure_ascii=False, separators=(",", ":"))) <= ANNOTATION_LIMIT:
+                break
+            take -= 1
+        chunk = dict(base)
+        chunk[split_key] = items[start:start + take]
+        chunk["itemsFrom"] = start
+        chunk["itemsTotal"] = len(items)
+        chunk["part"] = part
+        emit(title if part == 1 else f"{title}-{part}", chunk)
+        start += take
+        part += 1
 
 
 def parse(log_paths: list[Path], program_id: str | None) -> dict:
@@ -75,14 +111,14 @@ def parse(log_paths: list[Path], program_id: str | None) -> dict:
     rows = []
     for name, values in per_instruction.items():
         rows.append({
-            "instruction": name,
-            "calls": len(values),
-            "cuMin": min(values),
-            "cuMedian": int(statistics.median(values)),
-            "cuMax": max(values),
-            "budgetMin": min(budgets[name]),
+            "i": name,
+            "n": len(values),
+            "min": min(values),
+            "med": int(statistics.median(values)),
+            "max": max(values),
+            "bud": min(budgets[name]),
         })
-    rows.sort(key=lambda r: r["cuMedian"], reverse=True)
+    rows.sort(key=lambda r: r["med"], reverse=True)
     measured = bool(rows)
     payload = {
         "measured": measured,
@@ -123,10 +159,10 @@ def main() -> int:
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=1))
     elif args.annotate:
-        note("ares-cu", payload)
+        note("ares-cu", payload, split_key="instructions")
         if payload["measured"]:
             for row in payload["top"]:
-                print(f"{row['instruction']:<28} median {row['cuMedian']:>7} CU (max {row['cuMax']})")
+                print(f"{row['i']:<28} median {row['med']:>7} CU (max {row['max']})")
     else:
         print(json.dumps(payload, ensure_ascii=False, indent=1))
     return 0
