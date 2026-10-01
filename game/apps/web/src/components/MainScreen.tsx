@@ -20,7 +20,7 @@ export default function MainScreen() {
 
  return (
   <AgroBay>
-   <div style={{ padding: 20, paddingBottom: 140, position: 'relative' }}>
+   <div className="main-screen-container">
     <div style={{ position: 'relative' }}>
      <Header stats={stats} />
     </div>

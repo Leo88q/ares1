@@ -203,6 +203,12 @@ input:focus-visible {
   margin-inline: auto;
 }
 
+@media (max-width: 400px) {
+  .container {
+    width: min(1280px, calc(100% - 24px));
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -387,6 +393,12 @@ input:focus-visible {
   gap: 12px;
 }
 
+@media (max-width: 539px) {
+  .header-actions {
+    gap: 6px;
+  }
+}
+
 .network-label {
   display: none;
   align-items: center;
@@ -442,6 +454,10 @@ button.morph-button--header:hover {
   display: inline;
 }
 
+.wallet-short {
+  display: inline;
+}
+
 .icon-button {
   display: inline-flex;
   flex-shrink: 0;
@@ -478,6 +494,17 @@ button.morph-button--header:hover {
   min-height: 1000px;
   overflow: hidden;
   background: #100b15;
+}
+
+@media (max-width: 639px) {
+  .hero {
+    min-height: auto;
+  }
+  .hero-inner {
+    min-height: auto;
+    padding-top: 108px;
+    padding-bottom: 50px;
+  }
 }
 
 .hero-inner {

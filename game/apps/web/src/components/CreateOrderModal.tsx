@@ -133,7 +133,14 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
       transition={{ type: 'spring', stiffness: 320, damping: 26 }}
       onClick={(e) => e.stopPropagation()}
       className="pf-card hull-skin"
-      style={{ width: '100%', maxWidth: 400, padding: 0, overflow: 'hidden' }}
+      style={{
+       width: '100%',
+       maxWidth: 400,
+       maxHeight: 'min(90vh, 620px)',
+       overflowY: 'auto',
+       WebkitOverflowScrolling: 'touch',
+       padding: 0,
+      }}
      >
       {/* Заголовок */}
       <div style={{

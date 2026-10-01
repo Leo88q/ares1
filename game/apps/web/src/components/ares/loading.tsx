@@ -233,7 +233,7 @@ export const LandingSequence = memo(function LandingSequence({
      zIndex: 2,
      width: '100%',
      maxWidth: 480,
-     padding: '0 20px 32px',
+     padding: '0 20px max(32px, env(safe-area-inset-bottom, 32px))',
     }}
    >
     <div

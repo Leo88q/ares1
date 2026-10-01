@@ -91,6 +91,11 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   color: #B9A48C;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
 }
 .hull-nav-key__code {
   font-family: var(--ares-font-mono, "JetBrains Mono", monospace);
@@ -99,6 +104,25 @@
   color: rgba(185, 164, 140, 0.5);
 }
 .hull-nav-key.mk-key--engaged .hull-nav-key__label { color: #E6B589; text-shadow: 0 1px 0 rgba(0,0,0,0.7); }
+
+@media (max-width: 380px) {
+  .hull-nav-wrap {
+    width: calc(100% - 16px);
+  }
+  .hull-nav-key {
+    min-height: 48px;
+    padding: 5px 2px 4px;
+    gap: 2px;
+  }
+  .hull-nav-key__label {
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+  }
+  .hull-nav-key__code {
+    font-size: 6px;
+    letter-spacing: 0.2em;
+  }
+}
 
 .hull-nav-key:focus-visible {
   outline: 2px solid var(--mk-lamp-green, #9FBE7A);

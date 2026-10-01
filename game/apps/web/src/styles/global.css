@@ -182,6 +182,43 @@ button:disabled {
   }
 }
 
+.header-stats-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 420px) {
+  .header-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+.main-screen-container {
+  padding: 20px;
+  padding-bottom: 140px;
+  position: relative;
+}
+
+@media (max-width: 380px) {
+  .main-screen-container {
+    padding: 14px 10px;
+    padding-bottom: 130px;
+  }
+}
+
+.dome-window-band {
+  height: 190px;
+}
+
+@media (max-height: 720px), (max-width: 400px) {
+  .dome-window-band {
+    height: 145px;
+  }
+}
+
 /* --pf-glow-green / --pf-grad-border-green — в theme/tokens.css */
 /* Зелёное неоновое кольцо как у пресейла — для всех обычных карточек */
 .pf-card:not(.pf-card--rare)::before,

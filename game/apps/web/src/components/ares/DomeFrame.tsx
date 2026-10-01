@@ -28,8 +28,6 @@ const PHASE_VISUALS: Record<SolPhase, PhaseVisuals> = {
  night:   { skyTop: '#050308', skyBottom: '#130A1E', domeTint: 'rgba(232,106,60,0.18)', lampGlow: 0.85, imgFilter: 'none' },
 };
 
-const BAND_HEIGHT = 190;
-
 interface ParallaxLayerProps {
  src: string;
  fallback: ReactNode;
@@ -169,7 +167,8 @@ export const DomeFrame = memo(function DomeFrame({ children, phase, dustStormAct
   <div className={className} style={{ position: 'relative', minHeight: '100%', display: 'flex', flexDirection: 'column', background: 'transparent' }}>
    {/* ОКНО-ИЛЛЮМИНАТОР: живая видео-плантация на всех экранах */}
    <div ref={bandRef} onPointerMove={handlePointerMove}
-    style={{ position: 'relative', height: BAND_HEIGHT, flexShrink: 0, overflow: 'hidden', background: `linear-gradient(180deg, ${visuals.skyTop}, ${visuals.skyBottom})` }}>
+    className="dome-window-band"
+    style={{ position: 'relative', flexShrink: 0, overflow: 'hidden', background: `linear-gradient(180deg, ${visuals.skyTop}, ${visuals.skyBottom})` }}>
     <motion.div style={{ x: farX, position: 'absolute', inset: 0 }}>
      <BandMedia filter={visuals.imgFilter} />
     </motion.div>

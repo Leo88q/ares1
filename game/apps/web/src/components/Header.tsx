@@ -44,13 +44,13 @@ export default function Header({ stats }: Props) {
   <header>
    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
     <div style={{ minWidth: 0 }}>
-     <h1 className="pf-h1 po-spray" style={{ fontSize: 27, letterSpacing: '0.2em', color: '#EFD9AC' }}>{t("АГРО-ОТСЕК")}</h1>
+     <h1 className="pf-h1 po-spray" style={{ fontSize: 'clamp(20px, 5.5vw, 27px)', letterSpacing: 'clamp(0.08em, 2vw, 0.2em)', color: '#EFD9AC' }}>{t("АГРО-ОТСЕК")}</h1>
      <p className="pf-subtitle" style={{ marginTop: 4 }}>{t("Теплица на Марсе под фитолампами")}</p>
     </div>
     <LangSwitcher compact />
    </div>
 
-   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: 12, marginBottom: 12 }}>
+   <div className="header-stats-grid">
     {/* ── ГЕРОЙ ЭКРАНА: паёк на балансе (клёпаная обшивка) ── */}
     <div
      className="po-plate"
