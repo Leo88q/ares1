@@ -99,9 +99,42 @@ button:disabled {
 .pf-h2 { font-family: var(--pf-font-display); font-size: 20px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--pf-text-primary); margin: 0; }
 .pf-subtitle { font-family: var(--pf-font-ui); font-weight: 500; font-size: 14px; color: var(--pf-text-secondary); margin: 0; }
 .pf-mono { font-family: var(--pf-font-mono); font-weight: 700; font-variant-numeric: tabular-nums; }
-.pf-card { position: relative; background-color: var(--mk-face, #2C221A); background-image: var(--mk-grain), var(--mk-scratches), var(--ares-rust-panel); background-repeat: repeat, repeat, no-repeat; background-size: 120px 120px, 260px 260px, 100% 100%; border-radius: var(--pf-radius-card); padding: 20px; border: 1px solid var(--mk-seam, #120C07); box-shadow: inset 0 1px 0 var(--mk-edge-hi), inset 0 -1px 0 var(--mk-edge-lo), inset 0 0 24px rgba(0,0,0,0.45), 0 12px 26px rgba(0,0,0,0.45); }
-.pf-card--rare { border-color: var(--mk-bevel); box-shadow: inset 0 1px 0 var(--mk-edge-hi), inset 0 -1px 0 var(--mk-edge-lo), inset 0 0 0 1px rgba(255,201,74,0.22), inset 0 0 0 4px rgba(0,0,0,0.28), 0 12px 26px rgba(0,0,0,0.5); }
-.pf-card--rare::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; background: var(--pf-grad-border); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; opacity: 0.8; }
+.pf-card {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  box-sizing: border-box;
+  background-color: #20150E;
+  background-image:
+    var(--mk-grain),
+    repeating-linear-gradient(135deg, rgba(255, 214, 170, 0.015) 0, rgba(255, 214, 170, 0.015) 1px, transparent 1px, transparent 4px),
+    linear-gradient(180deg, #2A1C12 0%, #1E140C 50%, #140D07 100%);
+  background-size: 120px 120px, auto, 100% 100%;
+  border-radius: 10px;
+  padding: 18px 20px;
+  border: 1px solid #6E4522;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 224, 178, 0.25),
+    inset 0 0 0 1px rgba(18, 12, 7, 0.85),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.75),
+    inset 0 0 24px rgba(0, 0, 0, 0.35),
+    0 10px 28px -6px rgba(0, 0, 0, 0.75);
+}
+.pf-card::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 0 0 / 8px 8px,
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 100% 0 / 8px 8px,
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 0 100% / 8px 8px,
+    radial-gradient(circle at 35% 35%, #FFE0B2 0%, #D08A54 28%, #8A4A22 60%, #1E0F07 72%, transparent 74%) no-repeat 100% 100% / 8px 8px;
+  z-index: 1;
+}
+.pf-card > * { position: relative; z-index: 2; min-width: 0; }
+.pf-card--rare { border-color: #8A5C30; box-shadow: inset 0 1px 0 rgba(255,214,170,0.3), inset 0 0 0 1px rgba(255,201,74,0.3), 0 14px 30px rgba(0,0,0,0.65); }
 .pf-caps { text-transform: uppercase; letter-spacing: 0.08em; }
 .pf-flex-center { display: flex; align-items: center; justify-content: center; }
 /* FIX: в оригинальном гайде были лишние скобки — здесь исправлено */
@@ -116,8 +149,74 @@ button:disabled {
 .pf-app-bg {
   position: relative;
   min-height: 100vh;
+  background: radial-gradient(ellipse at 50% 15%, #180F0A 0%, #0D0807 50%, #060405 100%);
   color: var(--pf-text-primary);
   font-family: var(--pf-font-ui);
+  display: flex;
+  justify-content: center;
+  overflow-x: hidden;
+}
+
+/* Телефонная раскладка: ограниченная подножка-шасси вместо растянутого экрана */
+.pf-phone-chassis {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  margin: 0 auto;
+  background: linear-gradient(180deg, #1C120B 0%, #130C07 50%, #0A0604 100%);
+  border-left: 1px solid rgba(255, 214, 170, 0.12);
+  border-right: 1px solid rgba(255, 214, 170, 0.12);
+  box-shadow:
+    0 0 50px rgba(0, 0, 0, 0.9),
+    0 0 100px -20px rgba(193, 68, 14, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 480px) {
+  .pf-phone-chassis {
+    border-left: none;
+    border-right: none;
+    box-shadow: none;
+  }
+}
+
+.header-stats-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 420px) {
+  .header-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+.main-screen-container {
+  padding: 20px;
+  padding-bottom: 140px;
+  position: relative;
+}
+
+@media (max-width: 380px) {
+  .main-screen-container {
+    padding: 14px 10px;
+    padding-bottom: 130px;
+  }
+}
+
+.dome-window-band {
+  height: 190px;
+}
+
+@media (max-height: 720px), (max-width: 400px) {
+  .dome-window-band {
+    height: 145px;
+  }
 }
 
 /* --pf-glow-green / --pf-grad-border-green — в theme/tokens.css */
@@ -148,10 +247,10 @@ button:disabled {
   --ares-sky: #D9A06B;
   --ares-blueset: #6B93D6;
   --ares-space: #050308;
-  --ares-grow-pink: #FF2E93;
-  --ares-grow-violet: #B85CFF;
-  --ares-bio-green: #7CFF6B;
-  --ares-bio-cyan: #12E7C4;
+  --ares-grow-pink: #E86A3C;
+  --ares-grow-violet: #C97A42;
+  --ares-bio-green: #9FBE7A;
+  --ares-bio-cyan: #D4A576;
   --ares-hud-amber: #FFB347;
   --ares-hud-orange: #FF7A1A;
   --ares-metal-dark: #2A2D34;
@@ -275,21 +374,9 @@ button:disabled {
     inset 0 -1px 0 rgba(0,0,0,0.4);
 }
 
-/* HABITAT BACKDROP: вертикальный интерьер купола за всеми панелями */
+/* HABITAT BACKDROP: убрана растровая фотография, заменена чистым градиентом атмосферы купола */
 .ares-habitat-bg {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: url('/ares/habitat-bg.png') center top / 100% 100% no-repeat;
-  opacity: 1;
-  filter: saturate(1) brightness(0.95);
-  pointer-events: none;
-}
-.ares-habitat-bg::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(5,3,8,0) 0%, rgba(5,3,8,0.15) 45%, rgba(5,3,8,0.45) 100%);
+  display: none;
 }
 
 /* COLONY TEXT PASS: white/Inter retired - parchment body, dust secondary, stencil headings */
@@ -329,7 +416,6 @@ body { color: var(--pf-text-primary); }
 .ares-liquid-bar {
   position: relative;
   height: 14px;
-  borderRadius: 7px;
   border-radius: 7px;
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(160, 82, 40, 0.5);
@@ -557,11 +643,11 @@ body { color: var(--pf-text-primary); }
   box-shadow: 0 0 0 1px #1E150B, 0 0 7px rgba(255, 170, 60, 0.35);
 }
 
-/* — Штамп статуса (наклон 1–2°, оттиск краской) — */
+/* — Штамп статуса — ровный, чёткий оттиск — */
 .mk-stamp {
   display: inline-block;
   padding: 3px 10px 2px;
-  transform: rotate(-1.6deg);
+  transform: none;
   border: 2px solid currentColor;
   border-radius: 2px;
   font-family: var(--ares-font-stencil);
@@ -571,29 +657,27 @@ body { color: var(--pf-text-primary); }
   text-transform: uppercase;
   line-height: 1.4;
   mix-blend-mode: screen;
-  opacity: 0.92;
-  filter: url(#mk-rough);
+  opacity: 0.95;
 }
 .mk-stamp--ok { color: var(--mk-lamp-green); }
 .mk-stamp--warn { color: var(--mk-lamp-amber); }
 .mk-stamp--danger { color: #E06C5A; }
 
-/* — Бирка-стикер с реальными данными (1–2° наклона) — */
+/* — Бирка-стикер с реальными данными — */
 .mk-sticker {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
   padding: 3px 9px 2px;
-  transform: rotate(1.4deg);
+  transform: none;
   background: linear-gradient(180deg, #F2E3C8, #E4CFA8);
   color: #3A2A14;
-  border-radius: 1px;
+  border-radius: 2px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), inset 0 0 6px rgba(120, 90, 40, 0.25);
   font-family: var(--ares-font-mono);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  clip-path: polygon(0 0, 100% 0, 97% 42%, 100% 62%, 94% 100%, 3% 100%);
 }
 .mk-sticker .mk-sticker__label { opacity: 0.62; letter-spacing: 0.14em; font-size: 9px; }
 
@@ -624,43 +708,59 @@ body { color: var(--pf-text-primary); }
 }
 .mk-lamp--blink { animation: mk-lamp-blink 2.2s steps(1) infinite; }
 
-/* — Клавиша (общая база для тумблеров и пульта) — */
+/* ═══════════════════════════════════════════════════════════════════
+   ТАКТИЛЬНЫЕ АППАРАТНЫЕ КЛАВИШИ И ПУЛЬТЫ ARES-1 (СИСТЕМА C «ПОХОД»)
+   Физические механические кнопки со скосом, фаской, 3D-ступенью
+   и чётким тактильным ходом при нажатии.
+   ═══════════════════════════════════════════════════════════════════ */
+
 .mk-key {
   position: relative;
-  border-radius: var(--pf-radius-btn);
-  border: 1px solid rgba(0, 0, 0, 0.5);
+  box-sizing: border-box;
+  border-radius: 4px;
+  border: 1px solid #5C3A1F;
   background-color: #33271D;
-  background-image: var(--mk-grain), linear-gradient(180deg, #3E3024 0%, #33271D 45%, #241B14 100%);
+  background-image: var(--mk-grain), linear-gradient(180deg, #463321 0%, #342516 48%, #22170D 100%);
   background-size: 120px 120px, 100% 100%;
-  color: var(--pf-text-primary);
+  color: #F5BE72;
+  font-family: var(--ares-font-stencil, "Oswald", sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   box-shadow:
-    inset 0 1px 0 rgba(255, 214, 170, 0.16),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.5),
-    0 3px 0 var(--mk-seam),
-    0 6px 12px -4px rgba(0, 0, 0, 0.6);
-  transition: transform 90ms var(--mk-press), box-shadow 90ms var(--mk-press), filter 120ms ease;
+    inset 0 1px 0 rgba(255, 224, 178, 0.28),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.65),
+    0 3px 0 #140A05,
+    0 6px 14px -3px rgba(0, 0, 0, 0.8);
+  transition: transform 80ms cubic-bezier(0.2, 0.8, 0.4, 1), box-shadow 80ms cubic-bezier(0.2, 0.8, 0.4, 1), filter 100ms ease;
 }
-.mk-key:hover { filter: brightness(1.08); }
-.mk-key:focus-visible { outline: 2px solid var(--mk-lamp-green); outline-offset: 2px; }
+.mk-key:hover { filter: brightness(1.1); }
+.mk-key:focus-visible { outline: 2px solid #FFB347; outline-offset: 2px; }
 .mk-key:active,
 .mk-key--engaged {
   transform: translateY(3px);
   box-shadow:
-    inset 0 2px 4px rgba(0, 0, 0, 0.6),
-    inset 0 -1px 0 rgba(255, 214, 170, 0.06),
-    0 0 0 var(--mk-seam),
-    0 2px 6px -2px rgba(0, 0, 0, 0.6);
-  filter: brightness(0.94);
+    inset 0 2px 5px rgba(0, 0, 0, 0.7),
+    inset 0 0 0 1px rgba(255, 179, 71, 0.3),
+    0 0 0 #140A05;
+  filter: brightness(0.95);
 }
-.mk-key:disabled { opacity: 0.45; transform: none; }
+.mk-key:disabled {
+  opacity: 0.42;
+  transform: none !important;
+  cursor: not-allowed;
+  filter: grayscale(0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 0 #140A05;
+}
 
 /* Нажатая (защёлкнутая) клавиша с подсветкой грани */
 .mk-key--engaged {
   background-image: var(--mk-grain), linear-gradient(180deg, #4A3826 0%, #3E3024 60%, #2C221A 100%);
   box-shadow:
     inset 0 2px 4px rgba(0, 0, 0, 0.55),
-    inset 0 0 0 1px rgba(255, 179, 71, 0.28),
-    0 0 0 var(--mk-seam);
+    inset 0 0 0 1px rgba(255, 179, 71, 0.35),
+    0 0 0 #140A05;
 }
 
 /* — Скелетон загрузки: заглушка плиты, не стекло — */
@@ -704,34 +804,148 @@ body { color: var(--pf-text-primary); }
   .mk-key, .mk-key:active, .mk-key--engaged { transition: none; }
 }
 
-/* Краска на клавише: крашеный янтарь с гравировкой по дереву трафарета */
+/* ── Главная CTA-клавиша действия (СОБРАТЬ / ПОДКЛЮЧИТЬ / КУПИТЬ / ОТГРУЗИТЬ) ── */
 .mk-key--paint {
-  border-radius: 3px;
-  background-color: #C97A2B;
-  background-image: var(--mk-grain), linear-gradient(180deg, #D08A3E 0%, #B06A22 58%, #96551A 100%);
+  border-radius: 4px;
+  background-color: #D47926;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(180deg, #F5A642 0%, #D47926 50%, #A85412 100%) !important;
   background-size: 120px 120px, 100% 100%;
-  color: var(--mk-paint-amber-ink);
-  border-color: rgba(0, 0, 0, 0.45);
+  color: #241104 !important;
+  font-family: var(--ares-font-stencil, "Oswald", sans-serif);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid #5A2A08 !important;
+  text-shadow: 0 1px 0 rgba(255, 235, 195, 0.65) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 232, 185, 0.6),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.25),
-    0 4px 0 #5F3410,
-    0 9px 14px -7px rgba(0, 0, 0, 0.8);
+    inset 0 1px 0 rgba(255, 245, 220, 0.85),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35),
+    0 4px 0 #5E2F09,
+    0 8px 16px -4px rgba(0, 0, 0, 0.85);
+}
+.mk-key--paint:hover {
+  filter: brightness(1.12);
 }
 .mk-key--paint:active,
 .mk-key--paint.mk-key--engaged {
   transform: translateY(4px);
   box-shadow:
-    inset 0 2px 6px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 232, 185, 0.25),
-    0 0 0 #5F3410;
+    inset 0 2px 6px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 235, 195, 0.3),
+    0 0 0 #5E2F09 !important;
 }
+
+/* ── Клавиша опасного/отменяющего действия ── */
+.mk-key--danger {
+  border-radius: 4px;
+  background: linear-gradient(180deg, #5C221B 0%, #441611 50%, #2E0B08 100%) !important;
+  border: 1px solid #78281E !important;
+  color: #FFC0B8 !important;
+  font-family: var(--ares-font-stencil, "Oswald", sans-serif);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 180, 170, 0.28),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.5),
+    0 3px 0 #180605,
+    0 6px 12px rgba(0, 0, 0, 0.7);
+}
+.mk-key--danger:active {
+  transform: translateY(3px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 0 #180605;
+}
+
 .mk-key--ghost {
   background-color: transparent;
   background-image: none;
   border-color: rgba(255, 214, 170, 0.22);
   box-shadow: none;
   color: var(--ares-dust, #E0A183);
+}
+
+/* ── Кнопки управления делянкой (Field Action Buttons) ── */
+.field-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 10px 7px;
+  border-radius: 4px;
+  border: 1px solid #57391F;
+  background-color: #33271D;
+  background-image: var(--mk-grain), linear-gradient(180deg, #443222 0%, #302214 50%, #20150A 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 224, 178, 0.25),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.6),
+    0 3px 0 #140A05,
+    0 6px 12px -3px rgba(0, 0, 0, 0.7);
+  cursor: pointer;
+  position: relative;
+  transition: transform 70ms ease, box-shadow 70ms ease, filter 100ms ease;
+  user-select: none;
+}
+.field-action-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.field-action-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.6),
+    0 0 0 #140A05;
+}
+.field-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 0 #140A05;
+}
+.field-action-btn__title {
+  font-family: var(--ares-font-stencil, "Oswald", sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #F5BE72;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.field-action-btn__badge {
+  font-family: var(--ares-font-mono, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  color: #E6C59A;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 214, 160, 0.12);
+  border-radius: 3px;
+  padding: 2px 6px;
+  letter-spacing: 0.05em;
+}
+
+/* Готовая к жатве кнопка сбора */
+.field-action-btn--harvest-ready {
+  background-color: #D47926;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(180deg, #FFAE42 0%, #E68529 50%, #BA5D13 100%) !important;
+  border: 1px solid #5A2A08 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 225, 0.9),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+    0 4px 0 #68340A,
+    0 0 16px rgba(255, 179, 71, 0.5) !important;
+}
+.field-action-btn--harvest-ready .field-action-btn__title {
+  color: #200E03 !important;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(255, 235, 195, 0.7);
+}
+.field-action-btn--harvest-ready .field-action-btn__badge {
+  background: rgba(40, 18, 5, 0.35);
+  border-color: rgba(60, 25, 8, 0.4);
+  color: #200E03;
+  font-weight: 800;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -788,25 +1002,26 @@ body { color: var(--pf-text-primary); }
 }
 .po-rim > * { position: relative; z-index: 1; }
 
-/* Тихая C-плита (без рамы): обшивка попроще */
+/* Тихая C-плита с тактильным металлическим каркасом */
 .po-card {
   position: relative;
   isolation: isolate;
   min-width: 0;
-  border: 1px solid #170E05;
-  border-radius: 2px;
-  background-color: #362716;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 179, 71, 0.22);
+  border-radius: 8px;
+  background-color: #150F0A;
   background-image:
-    var(--mk-grain),
-    linear-gradient(160deg, #44321D 0%, #382817 55%, #2C1F11 100%);
-  background-size: 120px 120px, 100% 100%;
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 160, 50, 0.06) 0%, transparent 60%),
+    linear-gradient(180deg, #1A120C 0%, #120D08 50%, #0C0805 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 210, 160, 0.1),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.45),
-    inset 0 0 30px rgba(0, 0, 0, 0.35),
-    0 10px 18px -12px #000;
+    inset 0 1px 0 rgba(255, 214, 160, 0.14),
+    0 8px 24px -4px rgba(0, 0, 0, 0.7);
 }
-.po-card > * { position: relative; z-index: 1; }
+.po-card::before {
+  display: none !important;
+}
+.po-card > * { position: relative; z-index: 2; min-width: 0; }
 
 /* Пояс hazard-ленты — только верх героя */
 .po-hazard {
@@ -850,13 +1065,13 @@ body { color: var(--pf-text-primary); }
   border: 1px dashed rgba(255, 214, 160, 0.22);
 }
 
-/* Трафарет-спрей: рваный край */
-.po-spray { filter: url(#po-spray); }
+/* Трафарет-спрей: ровный, чёткий текст без искажений */
+.po-spray { filter: none !important; }
 
-/* Грузовая лента-стикер */
+/* Грузовая лента-стикер: ровное горизонтальное выравнивание */
 .po-tape {
   display: inline-block;
-  transform: rotate(1.8deg);
+  transform: none;
   background: linear-gradient(180deg, #DDC48E, #C9AC70);
   color: #2E1F0C;
   font-family: var(--ares-font-mono);
@@ -865,16 +1080,17 @@ body { color: var(--pf-text-primary); }
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 4px 12px;
-  clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%);
+  border-radius: 2px;
+  clip-path: none;
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
   opacity: 0.94;
 }
 
-/* Штамп-спрей (светлее и грубее А-штампа) */
+/* Штамп-спрей: ровный, чёткий шрифт без наклона и без искажений */
 .po-stamp {
   display: inline-block;
   padding: 3px 12px;
-  transform: rotate(3deg);
+  transform: none;
   border: 2px solid rgba(217, 143, 92, 0.8);
   color: #D98F5C;
   font-family: var(--ares-font-stencil);
@@ -882,31 +1098,27 @@ body { color: var(--pf-text-primary); }
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  filter: url(#po-spray);
-  mix-blend-mode: screen;
-  opacity: 0.92;
+  filter: none !important;
+  mix-blend-mode: normal;
+  opacity: 0.96;
 }
 .po-stamp--ok { color: #C4B075; border-color: rgba(196, 176, 117, 0.75); }
 
-/* Лампа в защитной клетке */
+/* Лампа индикатора: чистый круглый светодиод без решётки-креста */
 .po-lamp {
   position: relative;
   display: inline-block;
-  width: 12px;
-  height: 12px;
-  background: radial-gradient(circle at 36% 30%, #E9C58B, #7E4E14 78%);
-  box-shadow: 0 0 8px rgba(255, 180, 80, 0.3);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9FBE7A;
+  box-shadow: 0 0 8px rgba(159, 190, 122, 0.6);
 }
 .po-lamp::after {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  background:
-    linear-gradient(45deg, transparent 46%, rgba(20, 12, 4, 0.9) 46% 54%, transparent 54%),
-    linear-gradient(-45deg, transparent 46%, rgba(20, 12, 4, 0.9) 46% 54%, transparent 54%);
+  display: none !important;
 }
-.po-lamp--green { background: radial-gradient(circle at 36% 30%, #CBD9A2, #5F7434 78%); box-shadow: 0 0 8px rgba(170, 200, 110, 0.25); }
-.po-lamp--off { background: radial-gradient(circle at 36% 30%, #4A443A, #221E17 78%); box-shadow: none; }
+.po-lamp--green { background: #9FBE7A; box-shadow: 0 0 8px rgba(159, 190, 122, 0.7); }
+.po-lamp--off { background: #3A3228; box-shadow: none; }
 
 /* LCD на походной плите */
 .po-lcd {
@@ -925,3 +1137,242 @@ body { color: var(--pf-text-primary); }
   border-radius: 0;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 9px) 100%, 0 100%);
 }
+
+/* ── Тактильные заклёпки и винты обшивки (система C «Поход») ── */
+.po-screw {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #F5BE72 0%, #B37A3C 45%, #4A2B12 85%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  z-index: 3;
+}
+.po-screw::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 1px;
+  right: 1px;
+  height: 1px;
+  background: #170E05;
+}
+.po-screw--tl { top: 7px; left: 7px; }
+.po-screw--tr { top: 7px; right: 7px; }
+.po-screw--bl { bottom: 7px; left: 7px; }
+.po-screw--br { bottom: 7px; right: 7px; }
+
+/* Угловой hazard-треугольник */
+.po-hazard-corner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  background: repeating-linear-gradient(-45deg, #C99232 0 5px, #1F1309 5px 10px);
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Тиснёная латунная плашка-бейдж */
+.po-badge-brass {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid #7E5728;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #D4A968 0%, #A6783A 60%, #7E5728 100%);
+  color: #1E1005;
+  font-family: var(--ares-font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 235, 195, 0.6);
+}
+
+/* Вентиляционные жалюзи */
+.po-louvers {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px 0;
+}
+.po-louvers span {
+  display: block;
+  height: 2px;
+  background: #170E05;
+  box-shadow: 0 1px 0 rgba(255, 214, 160, 0.12);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ВАРИАЦИИ КАСТОМИЗИРОВАННЫХ ПЛИТ: миксованные, не одинаковые
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* 1. Плита канала связи (COMM CHANNEL) */
+.po-plate--comm {
+  background-color: #382717;
+  background-image:
+    var(--po-blotch),
+    var(--mk-grain),
+    linear-gradient(160deg, #44301D 0%, #352414 55%, #24170B 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 160, 0.14),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.55),
+    inset 0 0 24px rgba(0, 0, 0, 0.45),
+    0 10px 20px -8px #000;
+}
+
+/* 2. Плита РАНГА: бронзовая патина, акцентные винты */
+.po-plate--stat-rank {
+  background-color: #3B2B18;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(155deg, #4A351E 0%, #3B2B18 60%, #261A0E 100%);
+  border: 1px solid #2B1D0E;
+}
+
+/* 3. Плита РАСТЕНИЙ: литой металл, верхняя микро-hazard полоска */
+.po-plate--stat-plants {
+  background-color: #342616;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(155deg, #402E1B 0%, #322313 60%, #22160C 100%);
+  border: 1px solid #24170C;
+}
+
+/* 4. Плита СТАЖА: чернёный сплав, отпечаток времени */
+.po-plate--stat-tenure {
+  background-color: #322314;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(155deg, #3D2B19 0%, #2F2012 60%, #1F140A 100%);
+  border: 1px solid #20140A;
+}
+
+/* 5. Плита ПРЕСЕЙЛА (PRESALE ORDNANCE VAULT) */
+.po-plate--presale {
+  border: 1px solid #140C04;
+  background-color: #382717;
+  background-image:
+    var(--po-blotch),
+    var(--mk-grain),
+    linear-gradient(165deg, #46321D 0%, #362515 50%, #26190D 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 160, 0.16),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.65),
+    inset 0 0 50px rgba(0, 0, 0, 0.5),
+    0 18px 30px -12px #000;
+}
+
+/* 6. Плита ИНКУБАТОРА (AGRO INCUBATOR BAY) */
+.po-plate--incubator {
+  border: 1px solid #1F140A;
+  background-color: #342516;
+  background-image:
+    var(--po-blotch),
+    var(--mk-grain),
+    linear-gradient(160deg, #402E1C 0%, #322314 55%, #22160C 100%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ПАНЕЛЬ ДЕЛЯНКИ РАСТЕНИЯ (PLANT MODULE PANEL)
+   Кастомизированный корпус делянки: глубокий графитово-обсидиановый
+   фон с высокотехнологичными кромками, чистой геометрией без винтов
+   и без мутно-коричневых плит.
+   ═══════════════════════════════════════════════════════════════════ */
+.plant-module-panel {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 179, 71, 0.24);
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 160, 50, 0.07) 0%, transparent 60%),
+    linear-gradient(180deg, #1A130E 0%, #120E0A 50%, #0B0806 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 160, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.8),
+    0 10px 24px -6px rgba(0, 0, 0, 0.75);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.plant-module-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 179, 71, 0.5) 50%, transparent 100%);
+  pointer-events: none;
+}
+.plant-module-panel--rare {
+  border-color: rgba(237, 138, 69, 0.38);
+}
+.plant-module-panel--gold {
+  border-color: rgba(255, 201, 74, 0.48);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 235, 160, 0.25),
+    0 10px 24px -6px rgba(0, 0, 0, 0.75);
+}
+.plant-module-panel--ready {
+  border-color: rgba(255, 179, 71, 0.75);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 235, 180, 0.35),
+    inset 0 0 24px rgba(255, 150, 30, 0.12),
+    0 0 22px -2px rgba(255, 179, 71, 0.35),
+    0 10px 24px -6px rgba(0, 0, 0, 0.8);
+}
+.plant-module-panel--ready::before {
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 190, 80, 0.95) 50%, transparent 100%);
+  box-shadow: 0 0 8px rgba(255, 179, 71, 0.8);
+}
+
+/* 7. Плита ДЕЛЯНКИ (FIELD TRAY) — тёмный чистый фон */
+.po-plate--field {
+  border: 1px solid rgba(255, 179, 71, 0.22);
+  background-color: #150F0B;
+  background-image:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 160, 50, 0.06) 0%, transparent 60%),
+    linear-gradient(180deg, #1C1510 0%, #120D09 50%, #0B0806 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 160, 0.14),
+    inset 0 0 30px rgba(0, 0, 0, 0.6),
+    0 10px 24px -6px rgba(0, 0, 0, 0.75);
+}
+
+/* 8. Плита СНАБЖЕНИЯ / РЫНКА (MARKET CARGO TERMINAL) */
+.po-plate--market {
+  border: 1px solid #1C1208;
+  background-color: #352516;
+  background-image:
+    var(--po-blotch),
+    var(--mk-grain),
+    linear-gradient(160deg, #422F1D 0%, #332313 55%, #21150A 100%);
+}
+
+/* 9. Плита ЖУРНАЛА МИССИИ (TACTICAL MISSION LOG) */
+.po-plate--journal {
+  border: 1px solid #1E1309;
+  background-color: #362617;
+  background-image:
+    var(--mk-grain),
+    linear-gradient(160deg, #43301D 0%, #342414 55%, #22160C 100%);
+}
+
+/* 10. Плита КАЮТЫ / ДОСЬЕ (CREW CABIN & DOSSIER) */
+.po-plate--cabin {
+  border: 1px solid #20140A;
+  background-color: #382717;
+  background-image:
+    var(--po-blotch),
+    var(--mk-grain),
+    linear-gradient(160deg, #45311E 0%, #362515 55%, #23170D 100%);
+}
+

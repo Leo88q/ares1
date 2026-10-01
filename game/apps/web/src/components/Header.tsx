@@ -44,13 +44,13 @@ export default function Header({ stats }: Props) {
   <header>
    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
     <div style={{ minWidth: 0 }}>
-     <h1 className="pf-h1 po-spray" style={{ fontSize: 27, letterSpacing: '0.2em', color: '#EFD9AC' }}>{t("АГРО-ОТСЕК")}</h1>
+     <h1 className="pf-h1 po-spray" style={{ fontSize: 'clamp(20px, 5.5vw, 27px)', letterSpacing: 'clamp(0.08em, 2vw, 0.2em)', color: '#EFD9AC' }}>{t("АГРО-ОТСЕК")}</h1>
      <p className="pf-subtitle" style={{ marginTop: 4 }}>{t("Теплица на Марсе под фитолампами")}</p>
     </div>
     <LangSwitcher compact />
    </div>
 
-   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: 12, marginBottom: 12 }}>
+   <div className="header-stats-grid">
     {/* ── ГЕРОЙ ЭКРАНА: паёк на балансе (клёпаная обшивка) ── */}
     <div
      className="po-plate"
@@ -75,14 +75,27 @@ export default function Header({ stats }: Props) {
        <RankGauge level={stats.playerLevel} progress={(stats.totalFields % 3) / 3} />
       </div>
      </div>
-     <span className="po-patch" style={{ right: 10, bottom: 10, width: 66, height: 24, transform: 'rotate(1.4deg)' }} aria-hidden="true" />
+     <span className="po-patch" style={{ right: 10, bottom: 10, width: 66, height: 24 }} aria-hidden="true" />
      <span className="po-chip po-chip--br" aria-hidden="true" />
     </div>
 
-    {/* Служебная обшивка: связь с блокчейном */}
-    <div className="po-card" style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
-     <span className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 10, fontWeight: 600, letterSpacing: '0.2em', color: '#A8895C', textTransform: 'uppercase' }}>{t('КАНАЛ СВЯЗИ')}</span>
-     <span className="po-stamp">{connected ? t('НА СВЯЗИ') : t('НЕТ КОШЕЛЬКА')}</span>
+    {/* Служебная обшивка: связь с блокчейном (кастомизированная плита связи) */}
+    <div
+     className="po-plate po-plate--comm"
+     style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 9, overflow: 'hidden' }}
+    >
+     <span className="po-hazard-corner" aria-hidden="true" />
+     <span className="po-screw po-screw--tl" aria-hidden="true" />
+     <span className="po-screw po-screw--bl" aria-hidden="true" />
+     <span className="po-screw po-screw--br" aria-hidden="true" />
+     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <span className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 10, fontWeight: 600, letterSpacing: '0.2em', color: '#B3946A', textTransform: 'uppercase' }}>{t('КАНАЛ СВЯЗИ')}</span>
+      <span className={`po-lamp${connected ? ' po-lamp--green' : ' po-lamp--off'}`} aria-hidden="true" />
+     </div>
+     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' }}>
+      <span className={`po-stamp${connected ? ' po-stamp--ok' : ''}`}>{connected ? t('НА СВЯЗИ') : t('НЕТ КОШЕЛЬКА')}</span>
+      <span className="ares-mono" style={{ fontSize: 9, color: 'rgba(255,214,170,0.4)', letterSpacing: '0.12em' }}>433MHz</span>
+     </div>
      <WalletLineButton
       connected={connected}
       connecting={connecting}
@@ -94,10 +107,10 @@ export default function Header({ stats }: Props) {
     </div>
    </div>
 
-   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-    <StatPlate label={t("РАНГ")} value={stats.playerLevel} />
-    <StatPlate label={t("РАСТЕНИЙ")} value={stats.totalFields} />
-    <StatPlate label={t("СТАЖ")} value={Math.floor(stats.experience)} />
+   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+    <StatPlate label={t("РАНГ")} value={stats.playerLevel} variant="rank" />
+    <StatPlate label={t("РАСТЕНИЙ")} value={stats.totalFields} variant="plants" />
+    <StatPlate label={t("СТАЖ")} value={Math.floor(stats.experience)} variant="tenure" />
    </div>
   </header>
  )
@@ -169,12 +182,41 @@ function WalletLineButton({
  )
 }
 
-/** Приборная плитка АГРО: обшивка попроще, спрей-метка. Одна из трёх в ряду — тише героя. */
-function StatPlate({ label, value }: { label: string; value: number }) {
+/** Приборная плитка АГРО: кастомизированная походная обшивка с уникальными деталями */
+function StatPlate({ label, value, variant }: { label: string; value: number; variant: 'rank' | 'plants' | 'tenure' }) {
+ if (variant === 'rank') {
+  return (
+   <div className="po-plate po-plate--stat-rank" style={{ padding: '12px 6px 10px', textAlign: 'center', overflow: 'hidden' }}>
+    <span className="po-screw po-screw--tl" aria-hidden="true" />
+    <span className="po-screw po-screw--tr" aria-hidden="true" />
+    <div className="po-lcd" style={{ padding: '3px 8px', fontSize: 18, fontWeight: 700, marginBottom: 5, display: 'inline-block' }}>
+     {value}
+    </div>
+    <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 9, fontWeight: 600, letterSpacing: '0.2em', color: '#B3946A', textTransform: 'uppercase' }}>{label}</div>
+   </div>
+  )
+ }
+ if (variant === 'plants') {
+  return (
+   <div className="po-plate po-plate--stat-plants" style={{ padding: '12px 6px 10px', textAlign: 'center', overflow: 'hidden' }}>
+    <div className="po-hazard" style={{ height: 4 }} aria-hidden="true" />
+    <span className="po-screw po-screw--bl" aria-hidden="true" />
+    <span className="po-screw po-screw--br" aria-hidden="true" />
+    <div className="po-lcd" style={{ padding: '3px 8px', fontSize: 18, fontWeight: 700, marginBottom: 5, display: 'inline-block', color: '#CBD9A2' }}>
+     {value}
+    </div>
+    <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 9, fontWeight: 600, letterSpacing: '0.2em', color: '#9FBE7A', textTransform: 'uppercase' }}>{label}</div>
+   </div>
+  )
+ }
  return (
-  <div className="po-card" style={{ padding: '10px 8px', textAlign: 'center' }}>
-   <div className="ares-mono" style={{ fontSize: String(value).length > 6 ? 13 : String(value).length > 4 ? 16 : 20, fontWeight: 700, marginBottom: 4, color: '#F5BE72', overflowWrap: 'anywhere', lineHeight: 1.2 }}>{value}</div>
-   <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 9, fontWeight: 600, letterSpacing: '0.2em', color: '#B3946A', textTransform: 'uppercase' }}>{label}</div>
+  <div className="po-plate po-plate--stat-tenure" style={{ padding: '12px 6px 10px', textAlign: 'center', overflow: 'hidden' }}>
+   <span className="po-chip po-chip--tl" style={{ left: 8, width: 14, height: 6 }} aria-hidden="true" />
+   <span className="po-screw po-screw--tr" aria-hidden="true" />
+   <div className="po-lcd" style={{ padding: '3px 8px', fontSize: 18, fontWeight: 700, marginBottom: 5, display: 'inline-block', color: '#F5BE72' }}>
+    {value}
+   </div>
+   <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 9, fontWeight: 600, letterSpacing: '0.2em', color: '#D98F5C', textTransform: 'uppercase' }}>{label}</div>
   </div>
  )
 }

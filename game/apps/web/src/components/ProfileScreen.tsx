@@ -1,5 +1,5 @@
 import { CheckCircle, XCircle, Trophy } from 'lucide-react'
-import { t, plural } from '../i18n'
+import { useI18n, plural } from '../i18n'
 
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -15,7 +15,6 @@ import { pdas, decodeExportLicense, ixBuyExportLicense, treasurySolPda, treasury
 import { getAssociatedTokenAddress } from '@solana/spl-token'
 import { CabinBay } from './ares/CabinBay'
 import AudioSettings from './AudioSettings'
-import { HullPanel } from '../ui/HullPanel'
 import { RollingNumber } from '../ui/RollingNumber'
 import { SparkProgress } from '../ui/SparkProgress'
 import { PatchWall } from './ares/PatchWall'
@@ -23,6 +22,7 @@ import { useToast } from './Toast'
 import { describeError } from '../utils/errors'
 
 function ProfileScreenInner() {
+ const { t } = useI18n()
  const { connected, publicKey, ready, programId, connection, sendIx } = useSolana()
  const { stats, claimed, fields } = useGame()
  const navigate = useNavigate()
@@ -72,6 +72,18 @@ function ProfileScreenInner() {
 
  const fieldsToNext = 3 - (stats.totalFields % 3)
 
+ const rankTitle = useMemo(() => {
+  const titles = [
+   t('Кадет-Агроном'),
+   t('Младший Колонист'),
+   t('Старший Оператор'),
+   t('Мастер Купола'),
+   t('Командир Сектора'),
+   t('Марсианская Легенда'),
+  ]
+  return titles[Math.min(Math.max(0, stats.playerLevel - 1), titles.length - 1)]
+ }, [stats.playerLevel, t])
+
  const patches = [
   { id: 'a1', label: t('Первый росток'), imageSrc: '/ares/patch-sprout.webp', earned: Boolean(claimed.a1) },
   { id: 'a2', label: t('Первый урожай'), imageSrc: '/ares/patch-harvest.webp', earned: Boolean(claimed.a2) },
@@ -108,16 +120,19 @@ function ProfileScreenInner() {
    list.push({ id: 'all-clear', title: t('Все системы в норме'), done: true })
   }
   return list
- }, [stats, claimed, fields])
+ }, [stats, claimed, fields, t])
 
  const handleTaskComplete = (id: string) => {
   navigate(id === 'claim-patch' ? '/stats' : '/')
  }
 
  return (
-  <div style={{ padding: 20, paddingBottom: 140 }}>
+  <div className="main-screen-container">
    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-    <h1 className="pf-h1" style={{ fontSize: 26 }}>{t("КАЮТА")}</h1>
+    <div>
+     <h1 className="pf-h1 po-spray" style={{ fontSize: 26, letterSpacing: '0.18em', color: '#EFD9AC' }}>{t("КАЮТА")}</h1>
+     <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginTop: 2 }}>{t("Персональный отсек колониста и статус экспедиции")}</p>
+    </div>
     <AudioSettings />
    </div>
 
@@ -125,25 +140,47 @@ function ProfileScreenInner() {
 
    <ReferralSection />
 
-   <HullPanel style={{ marginBottom: 16, padding: '14px 16px' }}>
-    <div style={{ fontFamily: 'ui-monospace, "JetBrains Mono", monospace', fontSize: 10, letterSpacing: 1.5, opacity: 0.65, marginBottom: 8 }}>
-     EXPORT LICENSE
+   {/* Лицензия экспортёра */}
+   <div
+    className="po-plate po-plate--cabin"
+    style={{
+     marginBottom: 16,
+     padding: '18px 20px',
+     position: 'relative',
+     overflow: 'hidden',
+    }}
+   >
+    <span className="po-screw po-screw--tl" aria-hidden="true" />
+    <span className="po-screw po-screw--tr" aria-hidden="true" />
+    <span className="po-screw po-screw--bl" aria-hidden="true" />
+    <span className="po-screw po-screw--br" aria-hidden="true" />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+     <div style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.18em', color: '#D4A576', textTransform: 'uppercase' }}>
+      {t("ЛИЦЕНЗИЯ ЭКСПОРТЁРА // ТОРГОВЫЙ ДОПУСК")}
+     </div>
+     <span className={`po-lamp ${license?.active ? 'po-lamp--green' : 'po-lamp--off'}`} aria-hidden="true" />
     </div>
+
     {license?.active ? (
      <div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--pf-gold)', marginBottom: 4, fontFamily: 'ui-monospace, monospace' }}>
-       {t('АКТИВНА · {d} ДН.', { d: licenseDays })}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+       <span style={{ fontSize: 15, fontWeight: 700, color: '#FFC94A', fontFamily: 'var(--ares-font-mono)' }}>
+        {t('СТАТУС: АКТИВНА · ОСТАЛОСЬ {d} ДН.', { d: licenseDays })}
+       </span>
+       <span className="ares-mono" style={{ fontSize: 11, color: '#9FBE7A', background: 'rgba(159,190,122,0.15)', padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(159,190,122,0.3)' }}>
+        {t('КОМИССИЯ −3%')}
+       </span>
       </div>
-      <div style={{ fontSize: 12, opacity: 0.75, fontFamily: 'ui-monospace, monospace', marginBottom: 8 }}>
-       {t('КОМИССИЯ РЫНКА −3%')}
-      </div>
+      <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 14, lineHeight: 1.4 }}>
+       {t('Торговый сертификат снижает комиссию на P2P бирже Снабжения и даёт приоритет в стакане.')}
+      </p>
       <button
        onClick={buyLicense}
        disabled={buyingLicense || !publicKey}
        className="mk-key mk-key--paint"
        style={{
         cursor: 'pointer',
-        padding: '9px 14px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
+        padding: '11px 16px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
         opacity: buyingLicense || !publicKey ? 0.6 : 1, width: '100%',
        }}
       >
@@ -152,8 +189,16 @@ function ProfileScreenInner() {
      </div>
     ) : (
      <div>
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, opacity: 0.9, fontFamily: 'ui-monospace, monospace' }}>
-       {fmtSkr(EXPORT_LICENSE_PRICE_SKR_ATOMS, 0)} SKR · {t('30 ДН.')}
+      <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 12, lineHeight: 1.4 }}>
+       {t('Лицензия даёт скидку −3% на торговые сборы P2P биржи и статус верифицированного экспортёра колонии.')}
+      </p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: '#120B07', border: '1px solid #3E2413' }}>
+       <span className="ares-mono" style={{ fontSize: 14, fontWeight: 700, color: '#F6F1ED' }}>
+        {fmtSkr(EXPORT_LICENSE_PRICE_SKR_ATOMS, 0)} SKR
+       </span>
+       <span className="ares-mono" style={{ fontSize: 11, color: '#C9A176' }}>
+        {t('СРОК ДЕЙСТВИЯ: 30 ДНЕЙ')}
+       </span>
       </div>
       <button
        onClick={buyLicense}
@@ -161,7 +206,7 @@ function ProfileScreenInner() {
        className="mk-key mk-key--paint"
        style={{
         cursor: 'pointer',
-        padding: '9px 14px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
+        padding: '11px 16px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
         opacity: buyingLicense || !publicKey ? 0.6 : 1, width: '100%',
        }}
       >
@@ -169,76 +214,162 @@ function ProfileScreenInner() {
       </button>
      </div>
     )}
-   </HullPanel>
+   </div>
 
-   <HullPanel variant="primary" style={{ marginBottom: 16 }}>
-    <div style={{ padding: 20, textAlign: 'center' }}>
-     <div className="mk-tag" style={{ marginBottom: 10 }}>{t('ПАЁК НА СКЛАДЕ')}</div>
-     <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--pf-gold)' }}>
-      <RollingNumber value={stats.potatoBalance / 1000000} decimals={2} /> POTATO
-     </div>
-     {stats.pendingHarvest > 0 && (
-      <div style={{ fontSize: 12, color: 'var(--pf-teal)', marginTop: 4 }}>+{fmtPotato(stats.pendingHarvest, 3)} {t('POTATO ждёт жатвы на делянках')}</div>
-     )}
+   {/* Паёк на складе */}
+   <div
+    className="po-plate po-plate--stat-tenure"
+    style={{
+     marginBottom: 16,
+     padding: '22px 18px',
+     textAlign: 'center',
+     position: 'relative',
+     overflow: 'hidden',
+    }}
+   >
+    <div className="po-hazard" style={{ height: 4 }} aria-hidden="true" />
+    <span className="po-screw po-screw--tl" aria-hidden="true" />
+    <span className="po-screw po-screw--tr" aria-hidden="true" />
+    <span className="po-screw po-screw--bl" aria-hidden="true" />
+    <span className="po-screw po-screw--br" aria-hidden="true" />
+    <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.2em', color: '#D4A576', marginBottom: 10, textTransform: 'uppercase' }}>
+     {t('ПАЁК НА СКЛАДЕ')}
     </div>
-   </HullPanel>
+    <div className="po-lcd lcd-readout" style={{ display: 'inline-block', padding: '10px 24px', fontSize: 32, marginBottom: 8 }}>
+     <RollingNumber value={stats.potatoBalance / 1000000} decimals={2} /> POTATO
+    </div>
+    {stats.pendingHarvest > 0 && (
+     <div style={{ fontSize: 12, color: '#9FBE7A', marginTop: 6 }} className="ares-mono">
+      +{fmtPotato(stats.pendingHarvest, 3)} {t('POTATO ждёт жатвы на делянках')}
+     </div>
+    )}
+   </div>
 
    <div style={{ marginBottom: 16 }}>
     <ShiftTasksList tasks={tasks} onComplete={handleTaskComplete} />
    </div>
 
-   <HullPanel style={{ marginBottom: 16 }}>
-    <div style={{ padding: 20 }}>
-     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+   {/* Ранг колониста */}
+   <div
+    className="po-plate po-plate--cabin"
+    style={{
+     marginBottom: 16,
+     padding: 20,
+     position: 'relative',
+     overflow: 'hidden',
+    }}
+   >
+    <span className="po-screw po-screw--tl" aria-hidden="true" />
+    <span className="po-screw po-screw--tr" aria-hidden="true" />
+    <span className="po-screw po-screw--bl" aria-hidden="true" />
+    <span className="po-screw po-screw--br" aria-hidden="true" />
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-       <Trophy size={18} color="var(--pf-gold)" aria-hidden="true" />
-       <span style={{ fontSize: 16, fontWeight: 700 }}>{t('Ранг')} {stats.playerLevel}</span>
+       <Trophy size={18} color="#FFC94A" aria-hidden="true" />
+       <span style={{ fontSize: 16, fontWeight: 700, color: '#F6F1ED' }}>{rankTitle}</span>
       </div>
-      <span className="ares-mono" style={{ fontSize: 11, color: 'var(--pf-text-secondary)' }}>
-       <RollingNumber value={Math.floor(stats.experience)} /> {t('стажа')}
-      </span>
+      <div className="ares-mono" style={{ fontSize: 11, color: '#C9A176', marginTop: 3 }}>
+       {t('РАНГ')} {stats.playerLevel} · {stats.totalFields} {plural(stats.totalFields, { one: t('делянка'), few: t('делянки'), many: t('делянок') })}
+      </div>
      </div>
-     <div style={{ marginBottom: 8 }}>
-      <SparkProgress value={(stats.totalFields % 3) / 3 * 100} label={t("Прогресс до следующего ранга")} color="#FFC94A" />
-     </div>
-     <p style={{ fontSize: 12, color: 'var(--pf-text-secondary)' }}>
- {t('До ранга {next}: ещё {plots}. Ранг игрока растёт с каждыми 3 полями.', { next: stats.playerLevel + 1, plots: plural(fieldsToNext, { one: t('поле'), few: t('поля'), many: t('полей') }) })}
-     </p>
+     <span className="ares-mono" style={{ fontSize: 12, color: '#FFC94A', background: 'rgba(255,201,74,0.12)', padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(255,201,74,0.3)' }}>
+      <RollingNumber value={Math.floor(stats.experience)} /> {t('XP')}
+     </span>
     </div>
-   </HullPanel>
 
-   <HullPanel style={{ marginBottom: 16 }}>
-    <div style={{ padding: 20 }}>
-     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-      <Trophy size={18} color="var(--pf-gold)" aria-hidden="true" />
-      <span style={{ fontSize: 16, fontWeight: 700 }}>{t('Стена нашивок')}</span>
-     </div>
-     <p style={{ fontSize: 12, color: 'var(--pf-text-secondary)', marginBottom: 8 }}>
-      {t('Награды экипажа из журнала. Серые — ещё не получены.')}
-     </p>
-     <PatchWall patches={patches} />
+    <div style={{ marginBottom: 10 }}>
+     <SparkProgress value={(stats.totalFields % 3) / 3 * 100} label={t("Прогресс до следующего ранга")} color="#FFC94A" />
     </div>
-   </HullPanel>
 
-   <HullPanel variant="danger" style={{ marginBottom: 16 }}>
-    <div style={{ padding: 20 }}>
-    <h3 className="ares-mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'rgba(255,179,71,0.85)', marginBottom: 12 }}>{t('ДИАГНОСТИКА СКАФАНДРА')}</h3>
-    <StatusRow label={t("Кошелёк")} ok={connected} value={publicKey ? `${publicKey.toString().slice(0, 4)}…${publicKey.toString().slice(-4)}` : t('Не подключён')} />
-    <StatusRow label={t("Блокчейн")} ok={ready} value={ready ? t('Подключён ({cluster})', { cluster: CLUSTER }) : t('Загрузка…')} />
+    <div style={{ fontSize: 11, color: 'var(--ares-dust, #E0A183)', marginBottom: 14, lineHeight: 1.4 }}>
+     {t('До ранга {next}: ещё {plots}. Каждые 3 действующие делянки повышают ранг колониста.', {
+      next: stats.playerLevel + 1,
+      plots: plural(fieldsToNext, { one: t('поле'), few: t('поля'), many: t('полей') }),
+     })}
     </div>
-   </HullPanel>
+
+    <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+     <div style={{ fontSize: 11, color: '#9FBE7A', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+      <span>{t('Биосинтез и культивация делянок разблокированы')}</span>
+     </div>
+     <div style={{ fontSize: 11, color: '#9FBE7A', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+      <span>{t('Доступ к открытой P2P бирже Снабжения')}</span>
+     </div>
+     <div style={{ fontSize: 11, color: 'rgba(255,179,71,0.5)', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+      <span>{t('Ранг {n}: улучшенная сопротивляемость износу кассет', { n: stats.playerLevel + 1 })}</span>
+     </div>
+    </div>
+   </div>
+
+   {/* Стена нашивок */}
+   <div
+    className="po-plate po-plate--journal"
+    style={{
+     marginBottom: 16,
+     padding: 20,
+     position: 'relative',
+     overflow: 'hidden',
+    }}
+   >
+    <span className="po-screw po-screw--tl" aria-hidden="true" />
+    <span className="po-screw po-screw--tr" aria-hidden="true" />
+    <span className="po-screw po-screw--bl" aria-hidden="true" />
+    <span className="po-screw po-screw--br" aria-hidden="true" />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <Trophy size={18} color="#FFC94A" aria-hidden="true" />
+      <span style={{ fontSize: 16, fontWeight: 700, color: '#F6F1ED' }}>{t('Стена нашивок')}</span>
+     </div>
+     <span className="po-lamp po-lamp--green" aria-hidden="true" />
+    </div>
+    <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 14, lineHeight: 1.4 }}>
+     {t('Официальные знаки отличия марсианской миссии. Выполняй цели в Журнале экспедиции.')}
+    </p>
+    <PatchWall patches={patches} />
+   </div>
+
+   {/* Диагностика скафандра */}
+   <div
+    className="po-plate po-plate--cabin"
+    style={{
+     marginBottom: 16,
+     padding: 20,
+     position: 'relative',
+     overflow: 'hidden',
+    }}
+   >
+    <span className="po-screw po-screw--tl" aria-hidden="true" />
+    <span className="po-screw po-screw--tr" aria-hidden="true" />
+    <span className="po-screw po-screw--bl" aria-hidden="true" />
+    <span className="po-screw po-screw--br" aria-hidden="true" />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+     <h3 className="ares-mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: '#ED8A45', margin: 0, textTransform: 'uppercase' }}>
+      {t('ДИАГНОСТИКА СКАФАНДРА // СИСТЕМЫ ЖИЗНЕОБЕСПЕЧЕНИЯ')}
+     </h3>
+     <span className="po-lamp po-lamp--green" aria-hidden="true" />
+    </div>
+    <StatusRow label={t("Бортовой кошелёк")} ok={connected} value={publicKey ? `${publicKey.toString().slice(0, 4)}…${publicKey.toString().slice(-4)}` : t('Не авторизован')} />
+    <StatusRow label={t("Связь с Solana")} ok={ready} value={ready ? t('В норме ({cluster})', { cluster: CLUSTER }) : t('Синхронизация…')} />
+    <StatusRow label={t("Кислород O₂")} ok={true} value={t("98.4% (НОРМА)")} />
+    <StatusRow label={t("Водный контур H₂O")} ok={true} value={t("76.2% (РЕЦИРКУЛЯЦИЯ)")} />
+    <StatusRow label={t("Радиационный фон")} ok={true} value={t("0.12 mSv/h (ФОНОВЫЙ)")} />
+   </div>
   </div>
  )
 }
 
 function StatusRow({ label, ok, value }: { label: string; ok: boolean; value: string }) {
  return (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,214,170,0.08)' }}>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid rgba(255,214,170,0.08)' }}>
    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
     {ok ? <CheckCircle size={16} color="var(--pf-teal)" aria-hidden="true" /> : <XCircle size={16} color="var(--pf-red)" aria-hidden="true" />}
-    <span style={{ fontSize: 14 }}>{label}</span>
+    <span style={{ fontSize: 13, color: '#F6F1ED' }}>{label}</span>
    </div>
-   <span style={{ fontSize: 13, color: ok ? 'var(--pf-teal)' : 'var(--pf-red)' }}>{value}</span>
+   <span style={{ fontSize: 12, color: ok ? 'var(--pf-teal)' : 'var(--pf-red)' }} className="ares-mono">{value}</span>
   </div>
  )
 }

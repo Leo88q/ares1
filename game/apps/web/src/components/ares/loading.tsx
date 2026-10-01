@@ -1,9 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { useI18n } from '../../i18n'
-
-import { AnimatePresence, motion } from 'framer-motion';
-import { StarField, usePrefersReducedMotion } from './effects';
-import { AstronautLoader } from '../../ui/TuberAstronaut';
+import { useI18n } from '../../i18n';
+import { motion } from 'framer-motion';
+import { usePrefersReducedMotion } from './effects';
 
 export type LandingStage =
  | 'space'
@@ -20,20 +18,23 @@ export interface LandingSequenceProps {
 const STAGE_ORDER: LandingStage[] = ['space', 'descent', 'dome', 'wipe', 'telemetry', 'ready'];
 
 const STAGE_DURATIONS_MS: Record<Exclude<LandingStage, 'ready'>, number> = {
- space: 1100,
- descent: 1600,
+ space: 1000,
+ descent: 1200,
  dome: 900,
  wipe: 700,
- telemetry: 1800,
+ telemetry: 1400,
 };
 
-const TELEMETRY_LINES_STATIC = [
- 'O2 ................ 98.4%',
- 'H2O ............... 76.2%',
- 'Seeker .......... 0417',
-];
+const STAGE_TITLES: Record<LandingStage, string> = {
+ space: 'СИНХРОНИЗАЦИЯ ОРБИТАЛЬНОГО МОДУЛЯ...',
+ descent: 'ВХОД В АТМОСФЕРУ МАРСА...',
+ dome: 'РАСПАКОВКА ГИДРОПОНИКИ...',
+ wipe: 'ТЕСТИРОВАНИЕ ДАВЛЕНИЯ КУПОЛА...',
+ telemetry: 'КАЛИБРОВКА БИО-РЕАКТОРА...',
+ ready: 'СИСТЕМЫ В НОРМЕ · ДОБРО ПОЖАЛОВАТЬ',
+};
 
-function useTypedLines(lines: string[], active: boolean, charIntervalMs = 14): string[] {
+function useTypedLines(lines: string[], active: boolean, charIntervalMs = 12): string[] {
  const [revealed, setRevealed] = useState<string[]>(() => lines.map(() => ''));
  const timerRef = useRef<number | null>(null);
 
@@ -72,8 +73,6 @@ function useTypedLines(lines: string[], active: boolean, charIntervalMs = 14): s
  return revealed;
 }
 
-const SPACE_STARS_COUNT = 22;
-
 export const LandingSequence = memo(function LandingSequence({
  onLanded,
 }: LandingSequenceProps): JSX.Element {
@@ -81,149 +80,241 @@ export const LandingSequence = memo(function LandingSequence({
  const { t, lang } = useI18n();
  const [stageIndex, setStageIndex] = useState(0);
  const stage = STAGE_ORDER[stageIndex] ?? 'ready';
+
  const telemetryLines = useMemo(
-  () => [...TELEMETRY_LINES_STATIC, `RATION ............ ${t('ГОТОВ')}`],
+  () => [
+   `O2 .................. 98.4% (${t('НОРМА')})`,
+   `H2O ................. 76.2% (${t('РЕЦИРКУЛЯЦИЯ')})`,
+   `${t('ДАВЛЕНИЕ')} ............ 0.6 ${t('кПа (МАРС)')}`,
+   `${t('ТЕМПЕРАТУРА')} ......... -62°C`,
+   `${t('БИО-ПАЁК')} ............ ${t('ГОТОВ К КУЛЬТИВАЦИИ')}`,
+   'SOLANA .............. DEVNET SYNCED',
+  ],
   [t, lang],
  );
 
  useEffect(() => {
   if (stage === 'ready') {
-   const landId = window.setTimeout(onLanded, reducedMotion ? 150 : 700);
+   const landId = window.setTimeout(onLanded, reducedMotion ? 100 : 600);
    return () => window.clearTimeout(landId);
   }
-  const duration = reducedMotion ? 250 : STAGE_DURATIONS_MS[stage];
+  const duration = reducedMotion ? 200 : STAGE_DURATIONS_MS[stage];
   const timeoutId = window.setTimeout(() => {
    setStageIndex((prev) => Math.min(prev + 1, STAGE_ORDER.length - 1));
   }, duration);
   return () => window.clearTimeout(timeoutId);
  }, [stage, reducedMotion, onLanded]);
 
- const loadPct = [8, 30, 52, 68, 88, 100][stageIndex] ?? 100;
+ const loadPct = [12, 35, 58, 76, 92, 100][stageIndex] ?? 100;
  const telemetryActive = stage === 'telemetry' || stage === 'ready';
- const typedLines = useTypedLines(telemetryLines, telemetryActive, reducedMotion ? 2 : 14);
-
- const stageProgress = useMemo(() => {
-  return {
-   showStars: stage !== 'space',
-   showPlanet: stage === 'descent' || stage === 'dome' || stage === 'wipe' || stage === 'telemetry' || stage === 'ready',
-   showDome: stage === 'dome' || stage === 'wipe' || stage === 'telemetry' || stage === 'ready',
-   showWipe: stage === 'wipe',
-   showTelemetry: stage === 'telemetry' || stage === 'ready',
-  };
- }, [stage]);
+ const typedLines = useTypedLines(telemetryLines, telemetryActive, reducedMotion ? 2 : 12);
 
  return (
   <div
    style={{
-    position: 'relative',
-    width: '100%',
-    height: '100%',
-    minHeight: 480,
+    position: 'fixed',
+    inset: 0,
+    zIndex: 9999,
+    width: '100vw',
+    height: '100vh',
     overflow: 'hidden',
-    background: 'radial-gradient(ellipse at 50% 30%, #130A1E, #050308 70%)',
+    backgroundColor: '#070406',
     display: 'flex',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    alignItems: 'center',
    }}
   >
-   {stageProgress.showStars ? <StarField count={SPACE_STARS_COUNT} /> : null}
+   {/* Главная художественная сцена с марсианским пейзажем и Тюбером-9 */}
+   <div
+    style={{
+     position: 'absolute',
+     inset: 0,
+     display: 'flex',
+     alignItems: 'center',
+     justifyContent: 'center',
+     overflow: 'hidden',
+     pointerEvents: 'none',
+    }}
+   >
+    <img
+     src="/ares/loading-martian-hero.webp"
+     alt="Ares-1 Martian Expedition"
+     style={{
+      width: '100%',
+      height: '100%',
+      maxWidth: 680,
+      objectFit: 'cover',
+      objectPosition: 'center 42%',
+      filter: 'brightness(0.95) contrast(1.05)',
+     }}
+    />
 
-   <AnimatePresence>
-    {stageProgress.showPlanet ? (
-     <motion.div
-      key="planet"
-      initial={{ scale: 0.2, y: 60, opacity: 0 }}
-      animate={{ scale: 1, y: 0, opacity: 1 }}
-      transition={{ duration: reducedMotion ? 0.2 : 1.4, ease: 'easeOut' }}
-      style={{
-       position: 'absolute',
-       bottom: '-30%',
-       width: '160%',
-       height: '70%',
-       borderRadius: '50%',
-       background: 'radial-gradient(circle at 40% 35%, #C1440E, #6E2408 70%)',
-       boxShadow: '0 0 60px 10px rgba(193,68,14,0.35)',
-      }}
-     />
-    ) : null}
-   </AnimatePresence>
-
-   <AnimatePresence>
-    {stageProgress.showDome ? (
-     <motion.div
-      key="dome"
-      initial={{ scale: 0.5, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: reducedMotion ? 0.2 : 0.7, ease: 'easeOut' }}
-      style={{
-       position: 'absolute',
-       bottom: '18%',
-       width: 120,
-       height: 70,
-       borderTopLeftRadius: '50%',
-       borderTopRightRadius: '50%',
-       background:
-        'linear-gradient(180deg, rgba(232,106,60,0.5), rgba(232,106,60,0.15))',
-       boxShadow: '0 0 24px 4px rgba(232,106,60,0.5)',
-      }}
-     />
-    ) : null}
-   </AnimatePresence>
-
-   <AnimatePresence>
-    {stageProgress.showWipe ? (
-     <motion.div
-      key="wipe"
-      initial={{ x: '-100%', opacity: 0.9 }}
-      animate={{ x: '100%', opacity: 0 }}
-      transition={{ duration: reducedMotion ? 0.2 : 0.7, ease: 'easeInOut' }}
-      style={{
-       position: 'absolute',
-       inset: 0,
-       background:
-        'linear-gradient(100deg, transparent, rgba(180,220,255,0.4), transparent)',
-       pointerEvents: 'none',
-      }}
-     />
-    ) : null}
-   </AnimatePresence>
-
-   {stage ? (
+    {/* Мягкие градиентные виньетки для бесшовного слияния с тёмным космосом */}
     <div
      style={{
       position: 'absolute',
       inset: 0,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1,
-      pointerEvents: 'none',
+      background: `
+        linear-gradient(180deg, #070406 0%, rgba(7,4,6,0.3) 15%, transparent 40%, rgba(7,4,6,0.5) 75%, #070406 100%),
+        radial-gradient(ellipse at 50% 50%, transparent 40%, #070406 95%)
+      `,
      }}
-    >
-     <AstronautLoader progress={loadPct} label={t("РАСПАКОВКА ГИДРОПОНИКИ")} />
-    </div>
-   ) : null}
+    />
+   </div>
 
-   {stageProgress.showTelemetry ? (
-    <div
-     className="ares-mono"
-     style={{
-      position: 'absolute',
-      top: 24,
-      left: 24,
-      right: 24,
-      color: 'var(--ares-bio-cyan, #12E7C4)',
-      fontSize: 12,
-      lineHeight: '18px',
-      textShadow: '0 0 4px rgba(18,231,196,0.6)',
-     }}
-    >
-     {typedLines.map((line, index) => (
-<div key={telemetryLines[index]}>{line || ' '}</div>
+   {/* Верхняя панель HUD телеметрии */}
+   <div
+    style={{
+     position: 'relative',
+     zIndex: 2,
+     width: '100%',
+     maxWidth: 520,
+     padding: '24px 20px 12px',
+     display: 'flex',
+     justifyContent: 'space-between',
+     alignItems: 'center',
+    }}
+   >
+    <div>
+     <div
+      style={{
+       fontFamily: 'var(--ares-font-stencil)',
+       fontSize: 13,
+       letterSpacing: '0.22em',
+       color: '#E5A86E',
+       textTransform: 'uppercase',
+       textShadow: '0 0 10px rgba(229,168,110,0.5)',
+      }}
+     >
+      ARES-1 // {t('ЭКСПЕДИЦИЯ МАРС')}
+     </div>
+     <div
+      className="ares-mono"
+      style={{ fontSize: 10, color: 'rgba(255,179,71,0.65)', letterSpacing: '0.1em', marginTop: 2 }}
+     >
+      {t('КУПОЛ-01')} · {t('СОЛ')} 0272 · {t('ТЕМПЕРАТУРА')}: -62°C
+     </div>
+    </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+     <span className="mk-lamp" style={{ width: 8, height: 8 }} />
+     <span className="ares-mono" style={{ fontSize: 9, color: '#9FBE7A', letterSpacing: '0.12em' }}>
+      ONLINE
+     </span>
+    </div>
+   </div>
+
+   {/* Промежуточная телеметрия (появляется на этапе финализации) */}
+   <div
+    className="ares-mono"
+    style={{
+     position: 'relative',
+     zIndex: 2,
+     width: '100%',
+     maxWidth: 480,
+     padding: '0 24px',
+     color: '#E0A183',
+     fontSize: 11,
+     lineHeight: '18px',
+     textShadow: '0 0 6px rgba(224,161,131,0.4)',
+     minHeight: 90,
+    }}
+   >
+    {telemetryActive &&
+     typedLines.map((line, idx) => (
+      <div key={idx}>{line || ' '}</div>
      ))}
-    </div>
-   ) : null}
+   </div>
 
+   {/* Нижняя консоль загрузки с индикатором прогресса */}
+   <div
+    style={{
+     position: 'relative',
+     zIndex: 2,
+     width: '100%',
+     maxWidth: 480,
+     padding: '0 20px max(32px, env(safe-area-inset-bottom, 32px))',
+    }}
+   >
+    <div
+     className="po-card"
+     style={{
+      padding: '18px 22px',
+      boxShadow: '0 16px 40px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,224,178,0.25)',
+      backdropFilter: 'blur(8px)',
+     }}
+    >
+     <div
+      style={{
+       display: 'flex',
+       justifyContent: 'space-between',
+       alignItems: 'baseline',
+       marginBottom: 10,
+      }}
+     >
+      <span
+       style={{
+        fontFamily: 'var(--ares-font-stencil)',
+        fontSize: 12,
+        letterSpacing: '0.16em',
+        color: '#FFB347',
+        textTransform: 'uppercase',
+       }}
+      >
+       {t(STAGE_TITLES[stage] ?? STAGE_TITLES.space)}
+      </span>
+      <span
+       className="ares-mono"
+       style={{
+        fontSize: 16,
+        fontWeight: 700,
+        color: '#FFD166',
+        textShadow: '0 0 10px rgba(255,209,102,0.4)',
+       }}
+      >
+       {loadPct}%
+      </span>
+     </div>
+
+     <div
+      style={{
+       height: 10,
+       borderRadius: 5,
+       background: 'rgba(0,0,0,0.7)',
+       border: '1px solid #3E2413',
+       overflow: 'hidden',
+       boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.8)',
+      }}
+     >
+      <motion.div
+       style={{
+        height: '100%',
+        borderRadius: 'inherit',
+        background: 'linear-gradient(90deg, #C1440E 0%, #E8A03C 50%, #FFD166 100%)',
+        boxShadow: '0 0 12px rgba(232,160,60,0.7)',
+       }}
+       initial={{ width: '12%' }}
+       animate={{ width: `${loadPct}%` }}
+       transition={{ duration: 0.35, ease: 'easeOut' }}
+      />
+     </div>
+
+     <div
+      style={{
+       display: 'flex',
+       justifyContent: 'space-between',
+       marginTop: 10,
+       fontSize: 9,
+       color: 'rgba(255,179,71,0.5)',
+       letterSpacing: '0.1em',
+      }}
+      className="ares-mono"
+     >
+      <span>ПРОТОКОЛ: SOLANA ON-CHAIN</span>
+      <span>ARES OS v3.2</span>
+     </div>
+    </div>
+   </div>
   </div>
  );
 });

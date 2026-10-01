@@ -93,19 +93,23 @@ button.pf-card {
 
 /* ── 6. Нижняя навигация: 4–5 вкладок с длинными словами ─────────── */
 .ares-bottom-nav,
+.hull-nav,
 [class*="bottom-nav"] {
   gap: 2px;
 }
 
 .ares-bottom-nav button,
+.hull-nav button,
 [class*="bottom-nav"] button {
   min-width: 0;
   padding-inline: 2px;
 }
 
 .ares-bottom-nav button span,
+.hull-nav button span,
+.hull-nav-key__label,
 [class*="bottom-nav"] button span {
-  font-size: clamp(8px, 2.6vw, 11px);
+  font-size: clamp(8.5px, 2.6vw, 11px);
   line-height: 1.1;
   overflow: hidden;
   text-overflow: ellipsis;

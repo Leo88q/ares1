@@ -217,15 +217,11 @@ export default function InteractiveTutorial({ onComplete }: Props) {
        {!isLast && (
         <button
          onClick={handleSkip}
+         className="mk-key"
          style={{
           flex: 1,
           padding: '12px 16px',
-          borderRadius: 8,
-          border: '1px solid rgba(255,255,255,0.15)',
-          background: 'rgba(0,0,0,0.25)',
-          color: 'var(--pf-text-secondary)',
           fontSize: 13,
-          fontWeight: 600,
           cursor: 'pointer',
          }}
         >
@@ -234,14 +230,11 @@ export default function InteractiveTutorial({ onComplete }: Props) {
        )}
        <button
         onClick={handleNext}
-        className="gradient-gold"
+        className="mk-key mk-key--paint"
         style={{
          flex: isLast ? 1 : 2,
          padding: '12px 20px',
-         borderRadius: 8,
-         border: 'none',
          fontSize: 14,
-         fontWeight: 700,
          cursor: 'pointer',
          display: 'flex',
          alignItems: 'center',

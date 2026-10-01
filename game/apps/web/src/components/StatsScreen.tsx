@@ -1,10 +1,8 @@
 import { useCallback, useState } from 'react'
-import { t, plural } from '../i18n'
+import { useI18n, plural } from '../i18n'
 
-import type { ReactNode } from 'react'
 import { motion } from 'framer-motion'
 import { PublicKey } from '@solana/web3.js'
-import { Flame, Coins, TrendingUp, Gauge, Trophy, Landmark, Moon, Percent, Shield } from 'lucide-react'
 import { getMint } from '@solana/spl-token'
 import { useSolana } from '../contexts/SolanaContext'
 import { usePolling } from '../hooks/usePolling'
@@ -48,21 +46,25 @@ interface EconomyData {
  taxBps: number
 }
 
-// 8 (disc) + 32 (owner) + 1 (level) + 1 (durability) + 8 (last_harvest)
-// + 8 (tax_paid_until) + 8 (fertilizer_until) + 1 (is_active) + 1 (field_type)
-// + 1 (bump) + 1 (reserved) = 70 — после migrate_field realloc
 const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1
 const STATS_POLL_MS = 30_000
 
-/** Консольная строка-прибор: моно-лейбл, янтарное значение, светящийся бар */
-function ConsoleStatRow({ icon, label, value, pct, color }: { icon: ReactNode; label: string; value: string; pct?: number; color: string }) {
+/** Консольная строка-прибор: моно-лейбл, янтарное значение, светящийся бар (без смайлов и иконок) */
+function ConsoleStatRow({ label, value, pct, color }: { label: string; value: string; pct?: number; color: string }) {
  const p = pct === undefined ? undefined : Math.min(100, Math.max(0, pct))
  return (
-  <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(0,0,0,0.32)', border: '1px solid rgba(160,82,40,0.35)', boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.05)' }}>
-   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: p !== undefined ? 8 : 0 }}>
-    <span aria-hidden="true" style={{ color, display: 'flex' }}>{icon}</span>
-    <span className="ares-mono" style={{ flex: 1, fontSize: 11, color: 'rgba(255,179,71,0.85)', letterSpacing: '0.06em' }}>{label}</span>
-    <span className="ares-mono" style={{ fontSize: 13, fontWeight: 700, color, textShadow: `0 0 8px ${color}55` }}>{value}</span>
+  <div
+   style={{
+    padding: '11px 14px',
+    borderRadius: 8,
+    background: 'linear-gradient(180deg, #18110B 0%, #100B07 100%)',
+    border: '1px solid rgba(255, 179, 71, 0.2)',
+    boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.08), 0 2px 6px rgba(0,0,0,0.4)',
+   }}
+  >
+   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: p !== undefined ? 8 : 0 }}>
+    <span className="ares-mono" style={{ flex: 1, fontSize: 11, color: 'rgba(255,179,71,0.85)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</span>
+    <span className="ares-mono" style={{ fontSize: 13, fontWeight: 700, color, textShadow: `0 0 8px ${color}55`, textAlign: 'right' }}>{value}</span>
    </div>
    {p !== undefined && (
     <LiquidBar value={p} height={10} label={label} />
@@ -72,9 +74,9 @@ function ConsoleStatRow({ icon, label, value, pct, color }: { icon: ReactNode; l
 }
 
 function EconomySection({ data }: { data: EconomyData }) {
+ const { t } = useI18n()
  const pct = (a: number, b: number) => (b > 0 ? (a / b) * 100 : 0)
  const fmt = (v: number) => v.toLocaleString('ru-RU', { maximumFractionDigits: 0 })
- // Крупные числа без «250000000K»: 250_000 -> 250K, 750_000 -> 750K, 1e9 -> 1000M
  const fmtBig = (v: number) =>
    v >= 1e6 ? `${(v / 1e6).toFixed(v >= 1e7 ? 0 : 1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K` : v.toFixed(0)
  return (
@@ -92,18 +94,29 @@ function EconomySection({ data }: { data: EconomyData }) {
       { label: 'CAP', value: fmtBig(data.elasticCap) },
      ]}
     />
-    <ConsoleStatRow icon={<Gauge size={16} />} label={t("ТЕКУЩИЙ SUPPLY")} value={`${fmt(data.currentSupply)} POTATO`} pct={pct(data.currentSupply, data.maxSupply)} color="var(--ares-hud-amber, #FFB347)" />
-    <ConsoleStatRow icon={<Flame size={16} />} label={t("ВСЕГО СОЖЖЕНО")} value={`${fmt(data.burned)} POTATO`} pct={pct(data.burned, data.currentSupply + data.burned)} color="var(--ares-rust, #C1440E)" />
-    <ConsoleStatRow icon={<TrendingUp size={16} />} label={t("СМАЙНЕНО ЗА ЭПОХУ")} value={`${data.mintedToday.toFixed(0)} / ${fmtBig(data.dailyCap)} POTATO`} pct={pct(data.mintedToday, data.dailyCap)} color="var(--ares-blueset, #6B93D6)" />
-    <ConsoleStatRow icon={<Moon size={16} />} label={t("ЛУННЫЙ ЦИКЛ: {phase}", { phase: data.lunarPhase })} value={`x${data.lunarMultiplier.toFixed(2)}`} pct={data.lunarMultiplier * 100 - 85} color="#E0D8C0" />
-    <ConsoleStatRow icon={<Percent size={16} />} label={t("НАЛОГ НА ХАРВЕСТ")} value={`${(data.taxBps / 100).toFixed(2)}%`} pct={(data.taxBps - 200) / 8} color="var(--ares-rust, #C1440E)" />
-    <ConsoleStatRow icon={<Shield size={16} />} label={t("ЭЛАСТИЧНЫЙ КАП")} value={`${fmtBig(data.elasticCap)} POTATO`} pct={pct(data.elasticCap - 250_000, 750_000 - 250_000)} color="var(--ares-blueset, #6B93D6)" />
-    <ConsoleStatRow icon={<Landmark size={16} />} label={t("ВСЕГО ДЕЛЯНОК")} value={data.fieldCount.toString()} color="var(--ares-grow-violet, #B85CFF)" />
-    <ConsoleStatRow icon={<Trophy size={16} />} label={t("ЭКИПАЖ С ДЕЛЯНКАМИ")} value={data.players.toString()} color="#FFC94A" />
-    <ConsoleStatRow icon={<Coins size={16} />} label={t("МАКС. SUPPLY")} value={`${(data.maxSupply / 1e6).toFixed(0)}M POTATO`} color="var(--ares-hud-amber, #FFB347)" />
+    <ConsoleStatRow label={t("ТЕКУЩИЙ SUPPLY")} value={`${fmt(data.currentSupply)} POTATO`} pct={pct(data.currentSupply, data.maxSupply)} color="var(--ares-hud-amber, #FFB347)" />
+    <ConsoleStatRow label={t("ВСЕГО СОЖЖЕНО")} value={`${fmt(data.burned)} POTATO`} pct={pct(data.burned, data.currentSupply + data.burned)} color="var(--ares-rust, #C1440E)" />
+    <ConsoleStatRow label={t("СМАЙНЕНО ЗА ЭПОХУ")} value={`${data.mintedToday.toFixed(0)} / ${fmtBig(data.dailyCap)} POTATO`} pct={pct(data.mintedToday, data.dailyCap)} color="var(--ares-blueset, #6B93D6)" />
+    <ConsoleStatRow label={t("ЛУННЫЙ ЦИКЛ: {phase}", { phase: data.lunarPhase })} value={`x${data.lunarMultiplier.toFixed(2)}`} pct={data.lunarMultiplier * 100 - 85} color="#E0D8C0" />
+    <ConsoleStatRow label={t("НАЛОГ НА ХАРВЕСТ")} value={`${(data.taxBps / 100).toFixed(2)}%`} pct={(data.taxBps - 200) / 8} color="var(--ares-rust, #C1440E)" />
+    <ConsoleStatRow label={t("ЭЛАСТИЧНЫЙ КАП")} value={`${fmtBig(data.elasticCap)} POTATO`} pct={pct(data.elasticCap - 250_000, 750_000 - 250_000)} color="var(--ares-blueset, #6B93D6)" />
+    <ConsoleStatRow label={t("ВСЕГО ДЕЛЯНОК")} value={data.fieldCount.toString()} color="#ED8A45" />
+    <ConsoleStatRow label={t("ЭКИПАЖ С ДЕЛЯНКАМИ")} value={data.players.toString()} color="#FFC94A" />
+    <ConsoleStatRow label={t("МАКС. SUPPLY")} value={`${(data.maxSupply / 1e6).toFixed(0)}M POTATO`} color="var(--ares-hud-amber, #FFB347)" />
 
-    <div style={{ marginTop: 4, padding: '10px 12px', borderRadius: 8, background: 'rgba(193,68,14,0.08)', border: '1px solid rgba(193,68,14,0.35)' }}>
-     <div className="ares-stencil" style={{ fontSize: 11, color: 'var(--ares-rust, #C1440E)', marginBottom: 8 }}>{t("ЗАЩИТА ЭКОНОМИКИ")}</div>
+    <div
+     style={{
+      marginTop: 6,
+      padding: '12px 14px',
+      borderRadius: 8,
+      background: 'linear-gradient(180deg, rgba(38,20,12,0.85) 0%, rgba(20,10,6,0.95) 100%)',
+      border: '1px solid #5A2E16',
+      boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.08)',
+     }}
+    >
+     <div className="ares-stencil" style={{ fontSize: 11, color: '#FFB347', letterSpacing: '0.14em', marginBottom: 8, textTransform: 'uppercase' }}>
+      {t("ЗАЩИТА ЭКОНОМИКИ")}
+     </div>
      {[
       t('Эмиссия только через harvest и награды: лимит эпохи + максимальный supply'),
       t('Эпоха ротируется раз в 24 ч кем угодно (roll_epoch) — лимит не «замерзает»'),
@@ -111,9 +124,9 @@ function EconomySection({ data }: { data: EconomyData }) {
       t('Комиссия рынка: 60% сжигается, 40% — в казну на PDA программы'),
       t('Escrow-ордера, запрет self-trade, кулдаун 3 ч после отмены'),
       t('Награды выдаёт только сервер от имени authority, не из клиента'),
-     ].map((t, i) => (
+     ].map((rule, i) => (
       <div key={i} className="ares-mono" style={{ fontSize: 10, color: 'rgba(255,179,71,0.8)', padding: '3px 0', display: 'flex', gap: 6, lineHeight: 1.5 }}>
-       <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span> {t}
+       <span style={{ color: 'var(--ares-hud-amber, #FFB347)' }} aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span> {rule}
       </div>
      ))}
     </div>
@@ -122,9 +135,8 @@ function EconomySection({ data }: { data: EconomyData }) {
  )
 }
 
-// Реферальная программа — весь UI теперь в Каюте (components/ReferralSection.tsx).
-
 function StatsScreenInner() {
+ const { t } = useI18n()
  const { connection, programId, publicKey, config, epoch, ready } = useSolana()
  const [data, setData] = useState<EconomyData | null>(null)
  const [leaders, setLeaders] = useState<LeaderRow[]>([])
@@ -133,7 +145,6 @@ function StatsScreenInner() {
  const load = useCallback(async () => {
   if (!config) return
   try {
-  // dataSlice keeps the leaderboard query cheap: only owner (32) + level (1) per field.
   const [mintInfo, fieldAccounts] = await Promise.all([
    withRetry(() => getMint(connection, config.potatoMint)),
    withRetry(() =>
@@ -159,7 +170,6 @@ function StatsScreenInner() {
     .sort((a, b) => b.score - a.score)
     .slice(0, 10),
   )
-  // ФАЗА 1: вычисляемые параметры
   const prevBurned = Number(config.totalBurnedMicro) / MICRO
   const lastCap = epoch ? Number(epoch.mintCapMicro) / MICRO : 250_000
   const lastMinted = epoch ? Number(epoch.mintedMicro) / MICRO : 0
@@ -199,14 +209,14 @@ function StatsScreenInner() {
    return <ErrorState message={loadError} onRetry={() => void load()} />
   }
   return (
-   <div style={{ padding: 20, paddingBottom: 140 }}>
+   <div className="main-screen-container">
     <LoadingState label={ready ? t('Загрузка журнала…') : t('Ждём подключения к блокчейну…')} />
    </div>
   )
  }
 
  return (
-  <div style={{ padding: 20, paddingBottom: 140 }}>
+  <div className="main-screen-container">
    <h1 className="pf-h1" style={{ fontSize: 26, marginBottom: 8 }}>{t("ЖУРНАЛ МИССИИ")}</h1>
    <p className="pf-subtitle" style={{ marginBottom: 20 }}>{t("Задачи смены, нашивки и показатели экипажа")}</p>
    {loadError && <ErrorState inline message={loadError} onRetry={() => void load()} />}
@@ -224,10 +234,28 @@ function StatsScreenInner() {
      hint={t('Ни одно поле ещё не заложено. Стань первым — журнал запишет твоё имя первым.')}
     />
    ) : (
-    <ol style={{ display: 'flex', flexDirection: 'column', gap: 10, listStyle: 'none' }}>
+    <ol style={{ display: 'flex', flexDirection: 'column', gap: 10, listStyle: 'none', padding: 0, margin: 0 }}>
      {leaders.map((row, i) => (
-      <motion.li key={row.address} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-       className="pf-card hull-skin" style={{ padding: '14px 16px', borderRadius: 14, display: 'flex', alignItems: 'center', gap: 12, border: row.isMe ? '1px solid var(--pf-teal)' : undefined }}>
+      <motion.li
+       key={row.address}
+       initial={{ opacity: 0, x: -20 }}
+       animate={{ opacity: 1, x: 0 }}
+       transition={{ delay: i * 0.05 }}
+       style={{
+        padding: '14px 16px',
+        borderRadius: 8,
+        background: row.isMe
+         ? 'radial-gradient(120% 80% at 50% 0%, rgba(255, 160, 50, 0.08) 0%, transparent 60%), linear-gradient(180deg, #24170E 0%, #150D08 100%)'
+         : 'linear-gradient(180deg, #18110B 0%, #100B07 100%)',
+        border: row.isMe ? '1px solid rgba(255, 179, 71, 0.55)' : '1px solid rgba(255, 179, 71, 0.16)',
+        boxShadow: row.isMe ? '0 0 14px -2px rgba(255, 179, 71, 0.25), inset 0 1px 0 rgba(255, 224, 170, 0.16)' : 'inset 0 1px 0 rgba(255, 214, 170, 0.06)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        position: 'relative',
+        overflow: 'hidden',
+       }}
+      >
        <div style={{ width: 28, fontSize: 16, fontWeight: 800, color: i === 0 ? 'var(--pf-gold)' : i === 1 ? 'var(--pf-text-secondary)' : i === 2 ? '#b45309' : 'var(--pf-text-muted)' }}>{i + 1}</div>
        <div style={{ flex: 1 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: row.isMe ? 'var(--ares-hud-amber, #FFB347)' : 'var(--ares-parchment, #F2E8DA)' }}>

@@ -11,7 +11,7 @@ import { useGame } from '../contexts/GameContext'
 import { fmtPotato, fmtSol, MICRO, CANCEL_COOLDOWN_HOURS } from '../utils/constants'
 import { SupplyBay } from './ares/SupplyBay';
 import { HullPanel } from '../ui/HullPanel';
-import { ErrorState, EmptyState as SharedEmptyState, LoadingState } from '../ui/states'
+import { ErrorState, LoadingState } from '../ui/states'
 function MarketScreenInner() {
  const { orders, myOrders, stats, loading, actionLoading, error, createOrder, fillOrder, cancelOrder, reload } = useMarketplace()
  const { stats: gameStats } = useGame()
@@ -54,7 +54,7 @@ function MarketScreenInner() {
  }), [baseOrders, fPriceMin, fPriceMax, fAmtMin, fAmtMax])
 
  return (
-  <div style={{ padding: 20, paddingBottom: 140 }}>
+  <div className="main-screen-container">
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
      <div>
@@ -63,12 +63,13 @@ function MarketScreenInner() {
      </div>
     </div>
     <motion.button
-     whileTap={{ scale: 0.95 }}
+     whileTap={{ y: 2 }}
+     transition={{ type: 'spring', stiffness: 520, damping: 26 }}
      onClick={() => { haptics.tap(); setShowCreate(true) }}
-     className="gradient-gold"
-     style={{ padding: '10px 16px', borderRadius: 12, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
+     className="mk-key mk-key--paint"
+     style={{ padding: '9px 16px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
     >
-     <Plus size={18} aria-hidden="true" /> {t('Отгрузить')}
+     <Plus size={16} aria-hidden="true" /> {t('Отгрузить')}
     </motion.button>
    </div>
 
@@ -163,10 +164,32 @@ function MarketScreenInner() {
     <>
      {error && <ErrorState inline message={error} onRetry={reload} />}
      {filteredOrders.length === 0 ? (
-      <SharedEmptyState
-       title={filter === 'mine' ? t('У тебя нет активных ордеров') : t('Пока нет предложений')}
-       hint={filter === 'mine' ? t('Создай свой первый ордер на продажу') : t('Будь первым, кто выставит картофель на продажу!')}
-      />
+      <div className="po-plate po-plate--market" style={{ padding: '36px 20px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+       <div className="po-hazard" aria-hidden="true" />
+       <span className="po-screw po-screw--tl" aria-hidden="true" />
+       <span className="po-screw po-screw--tr" aria-hidden="true" />
+       <span className="po-screw po-screw--bl" aria-hidden="true" />
+       <span className="po-screw po-screw--br" aria-hidden="true" />
+       <div className="po-spray" style={{ fontFamily: 'var(--ares-font-stencil)', fontSize: 11, letterSpacing: '0.2em', color: '#D4A576', marginBottom: 10, textTransform: 'uppercase' }}>
+        {t("ТЕРМИНАЛ СНАБЖЕНИЯ // СТАТУС: СВОБОДЕН")}
+       </div>
+       <div style={{ fontSize: 18, fontWeight: 700, color: '#F6F1ED', marginBottom: 8, fontFamily: 'var(--ares-font-stencil)' }}>
+        {filter === 'mine' ? t('У тебя нет активных ордеров') : t('В грузовом стакане нет заявок')}
+       </div>
+       <p style={{ fontSize: 13, color: 'var(--ares-dust, #E0A183)', maxWidth: 360, margin: '0 auto 20px', lineHeight: 1.5 }}>
+        {filter === 'mine'
+         ? t('Отгрузи собранный марсианский картофель со склада, чтобы получить SOL.')
+         : t('Стань первым поставщиком пайка в колонии и отгрузи партию на P2P биржу!')}
+       </p>
+       <motion.button
+        whileTap={{ scale: 0.96 }}
+        onClick={() => { haptics.tap(); setShowCreate(true) }}
+        className="mk-key mk-key--paint"
+        style={{ padding: '12px 24px', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+       >
+        <Plus size={16} aria-hidden="true" /> {t('Отгрузить на биржу')}
+       </motion.button>
+      </div>
      ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
        {filteredOrders.map((order, i) => (
@@ -202,17 +225,18 @@ function MarketScreenInner() {
        </p>
       </div>
       <div style={{ display: 'flex', gap: 10 }}>
-       <button onClick={() => setCancelTarget(null)} style={{ flex: 1, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
+       <button onClick={() => setCancelTarget(null)} className="mk-key" style={{ flex: 1, padding: 12, fontSize: 13, cursor: 'pointer' }}>
         {t('Оставить')}
        </button>
        <motion.button
-        whileTap={{ scale: 0.95 }}
+        whileTap={{ y: 2 }}
         onClick={async () => {
          const ok = await cancelOrder(cancelTarget.publicKey)
          setCancelTarget(null)
          if (ok) setCancelInfo(true)
         }}
-        style={{ flex: 1, padding: 12, borderRadius: 12, background: 'var(--pf-red)', color: 'white', fontSize: 14, fontWeight: 700 }}
+        className="mk-key mk-key--danger"
+        style={{ flex: 1, padding: 12, fontSize: 13, cursor: 'pointer' }}
        >
         {t('Отменить')}
        </motion.button>
@@ -229,7 +253,7 @@ function MarketScreenInner() {
         {t('Токены возвращены на баланс. Новый ордер можно выставить через')} <b>{t('{hours} часа', { hours: CANCEL_COOLDOWN_HOURS })}</b>{t(' — так мы защищаем рынок от спама.')}
        </p>
       </div>
-      <button onClick={() => setCancelInfo(false)} style={{ marginTop: 20, width: '100%', padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 14, fontWeight: 600 }}>
+      <button onClick={() => setCancelInfo(false)} className="mk-key mk-key--paint" style={{ marginTop: 20, width: '100%', padding: 12, fontSize: 13, cursor: 'pointer' }}>
        {t('Понятно')}
       </button>
      </Modal>
@@ -272,17 +296,49 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
 
 const instrument = (v: string) => v.replace(/^(\d+)/, (_m, d: string) => d.padStart(4, '0'))
 
-function StatCard({ icon, label, value, primary = false }: { icon?: ReactNode; label: string; value: string; primary?: boolean }) {
+function StatCard({ label, value, primary = false }: { icon?: ReactNode; label: string; value: string; primary?: boolean }) {
  return (
-  <div className={primary ? 'mk-plate mk-plate--primary' : 'mk-plate mk-plate--quiet'} style={{ padding: primary ? 16 : 12 }}>
-   <div className="mk-tag" style={{ fontSize: 10, marginBottom: 8, display: primary ? undefined : 'none' }}>{label}</div>
-   <div style={{ display: primary ? 'none' : 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', marginBottom: 6 }}>
-    <span aria-hidden="true">{icon}</span>
-    <span style={{ fontSize: 11, color: 'var(--pf-text-secondary)', textAlign: 'center' }}>{label}</span>
+  <div
+   style={{
+    padding: primary ? '14px 12px' : '12px 10px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 8,
+    background: primary
+     ? 'linear-gradient(180deg, #2D1E13 0%, #1D130B 100%)'
+     : 'linear-gradient(180deg, #22170F 0%, #160E08 100%)',
+    border: `1px solid ${primary ? '#8A5222' : '#4A301C'}`,
+    boxShadow: 'inset 0 1px 0 rgba(255,214,170,0.1), 0 4px 12px rgba(0,0,0,0.45)',
+   }}
+  >
+   <div
+    style={{
+     fontFamily: 'var(--ares-font-stencil)',
+     fontSize: 10,
+     letterSpacing: '0.14em',
+     color: primary ? '#FFC94A' : '#C9A176',
+     textTransform: 'uppercase',
+     textAlign: 'center',
+    }}
+   >
+    {label}
    </div>
-   <div style={{ textAlign: 'center' }}>
-     <span className="ares-mono lcd-readout" style={{ display: 'block', fontSize: primary ? 22 : 16, fontWeight: 700 }}>{instrument(value)}</span>
-    </div>
+   <div style={{ textAlign: 'center', width: '100%' }}>
+    <span
+     className="ares-mono lcd-readout"
+     style={{
+      display: 'inline-block',
+      fontSize: primary ? 17 : 14,
+      fontWeight: 700,
+      padding: '4px 10px',
+     }}
+    >
+     {instrument(value)}
+    </span>
+   </div>
   </div>
  )
 }
@@ -301,8 +357,12 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
  return (
   <motion.div
    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 8) * 0.05 }}
-   className="pf-card hull-skin" style={{ padding: 16, borderRadius: 16 }}
+   className="po-plate po-plate--market" style={{ padding: '16px 18px', position: 'relative', overflow: 'hidden' }}
   >
+   <span className="po-screw po-screw--tl" aria-hidden="true" />
+   <span className="po-screw po-screw--tr" aria-hidden="true" />
+   <span className="po-screw po-screw--bl" aria-hidden="true" />
+   <span className="po-screw po-screw--br" aria-hidden="true" />
    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
      <div style={{ width: 36, height: 36, borderRadius: 10, background: order.isOwn ? 'rgba(201, 161, 118, 0.16)' : 'rgba(0, 0, 0, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden="true">
@@ -329,13 +389,13 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
     <div style={{ color: 'var(--pf-gold)' }}>{t('Комиссия продавца')}: {((order.feeMicro / order.amountMicro) * 100).toFixed(1)}%</div>
    </div>
    {order.isOwn ? (
-    <motion.button whileTap={{ scale: 0.95 }} onClick={onCancel} disabled={busy}
-     style={{ width: '100%', padding: 12, borderRadius: 10, background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--pf-red)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+    <motion.button whileTap={{ y: 2 }} onClick={onCancel} disabled={busy} className="mk-key mk-key--danger"
+     style={{ width: '100%', padding: '11px 16px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: busy ? 'not-allowed' : 'pointer' }}>
      {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <X size={16} />} {t('Отменить ордер')}
     </motion.button>
    ) : (
-    <motion.button whileTap={{ scale: 0.95 }} onClick={onBuy} disabled={busy} className="gradient-primary"
-     style={{ width: '100%', padding: 12, borderRadius: 10, color: 'white', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+    <motion.button whileTap={{ y: 2 }} onClick={onBuy} disabled={busy} className="mk-key mk-key--paint"
+     style={{ width: '100%', padding: '11px 16px', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: busy ? 'not-allowed' : 'pointer' }}>
      {busy ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : null  } {t('Купить за {price} SOL', { price: fmtSol(order.totalLamports, 4) })}
     </motion.button>
    )}

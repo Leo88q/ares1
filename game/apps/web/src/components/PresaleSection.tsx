@@ -78,73 +78,79 @@ export default function PresaleSection() {
    initial={{ opacity: 0, y: 20 }}
    animate={{ opacity: 1, y: 0 }}
    transition={{ duration: 0.5 }}
-   className="pf-card hull-skin ares-presale"
+   className="po-plate po-plate--presale ares-presale"
    style={{
     gridColumn: '1 / -1',
-    padding: 24,
-    marginBottom: 8,
+    padding: '24px 20px 20px',
+    marginBottom: 12,
+    position: 'relative',
+    overflow: 'hidden',
    }}
   >
+   {/* Hazard-лента по верхнему срезу плиты пресейла */}
+   <div className="po-hazard" aria-hidden="true" />
+   <span className="po-screw po-screw--tl" aria-hidden="true" />
+   <span className="po-screw po-screw--tr" aria-hidden="true" />
+   <span className="po-screw po-screw--bl" aria-hidden="true" />
+   <span className="po-screw po-screw--br" aria-hidden="true" />
+   <span className="po-chip po-chip--tl" aria-hidden="true" />
 
-   {/* Бейдж "LIMITED" */}
-   <div className="gradient-gold" style={{
+   {/* Тиснёный латунный бейдж "LIMITED" */}
+   <div className="po-badge-brass" style={{
     position: 'absolute',
     top: 16,
     right: 16,
-    fontSize: 10,
-    fontWeight: 800,
-    padding: '4px 10px',
-    borderRadius: 999,
-    letterSpacing: '0.1em',
-    textTransform: 'uppercase',
+    zIndex: 3,
    }}>
-     LIMITED
+     LIMITED · 5 MAX
    </div>
 
-   {/* Иконка + заголовок */}
+   {/* Иконка + заголовок в стиле трафарета */}
    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
     <div>
-     <h2 className="pf-h2" style={{ fontSize: 22, margin: 0 }}>
+     <h2 className="pf-h2 po-spray" style={{ fontSize: 24, margin: 0, letterSpacing: '0.15em', color: '#EFD9AC' }}>
       PRESALE
      </h2>
-     <div className="pf-subtitle" style={{ fontSize: 12, margin: 0 }}>
+     <div className="pf-subtitle" style={{ fontSize: 11, margin: 0, color: '#B3946A' }}>
       {t('Растение за SKR · Лимит 5 на кошелёк')}
      </div>
     </div>
    </div>
 
-   {/* Кассеты трёх тиров */}
-   <div style={{ display: 'flex', justifyContent: 'center', gap: 6, margin: '2px 0 14px' }} aria-hidden="true">
-    {FIELD_TYPES.map((ft) => (
-     <img key={ft.id} src={ft.image} alt="" loading="lazy" style={{ width: 76, height: 88, objectFit: 'contain', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,0.5))' }} />
-    ))}
+   {/* Внутренняя клёпаная рама с кассетами трёх тиров */}
+   <div className="po-rim" style={{ padding: '8px 12px 12px', margin: '6px 0 14px', borderRadius: 2 }} aria-hidden="true">
+    <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+     {FIELD_TYPES.map((ft) => (
+      <img key={ft.id} src={ft.image} alt="" loading="lazy" style={{ width: 72, height: 84, objectFit: 'contain', filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.6))' }} />
+     ))}
+    </div>
    </div>
 
-   {/* Счётчик оставшихся */}
+   {/* Счётчики в тактильных LCD-окошках */}
    <div style={{
     display: 'flex',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 10,
+    gap: 10,
+    marginBottom: 12,
    }}>
-    <div>
-     <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+    <div style={{ flex: 1, minWidth: 140 }}>
+     <div className="po-spray" style={{ fontSize: 9, fontFamily: 'var(--ares-font-stencil)', color: '#A8895C', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 4 }}>
       {t('Осталось')}
      </div>
-     <div className="pf-mono lcd-readout" style={{ fontSize: 32, fontWeight: 700, color: soldOut ? 'var(--pf-red)' : 'var(--ares-hud-amber, #FFB347)', fontVariantNumeric: 'tabular-nums' }}>
+     <div className="po-lcd" style={{ display: 'block', padding: '6px 12px', fontSize: 24, fontWeight: 700, color: soldOut ? 'var(--pf-red)' : '#F5BE72', fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}>
       {loading ? '—' : String(remaining).padStart(4, '0')}
-      <span style={{ fontSize: 14, color: 'var(--pf-text-muted)', marginLeft: 6 }}>
+      <span style={{ fontSize: 12, color: 'rgba(255,214,170,0.5)', marginLeft: 6 }}>
        / {String(PRESALE_CAP).padStart(4, '0')}
       </span>
      </div>
     </div>
-    <div style={{ textAlign: 'right' }}>
-     <div style={{ fontSize: 11, color: 'var(--pf-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+    <div style={{ flex: 1, minWidth: 140 }}>
+     <div className="po-spray" style={{ fontSize: 9, fontFamily: 'var(--ares-font-stencil)', color: '#A8895C', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 4, textAlign: 'right' }}>
       {t('Цена')}
      </div>
-     <div className="pf-mono lcd-readout" style={{ fontSize: 22, fontWeight: 700, color: 'var(--ares-hud-amber, #FFB347)' }}>
+     <div className="po-lcd" style={{ display: 'block', padding: '6px 12px', fontSize: 22, fontWeight: 700, color: '#F5BE72', textAlign: 'center' }}>
       {String(PRESALE_PRICE_SKR).padStart(4, '0')} SKR
      </div>
     </div>
@@ -153,10 +159,11 @@ export default function PresaleSection() {
    {/* Прогресс-бар */}
    <div style={{
     height: 6,
-    background: 'rgba(0,0,0,0.3)',
-    borderRadius: 999,
+    background: '#170E05',
+    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.8), 0 1px 0 rgba(255,214,160,0.1)',
+    borderRadius: 2,
     overflow: 'hidden',
-    marginBottom: 18,
+    marginBottom: 16,
    }}>
     <motion.div
      initial={{ width: 0 }}
@@ -164,40 +171,30 @@ export default function PresaleSection() {
      transition={{ duration: 0.8, ease: 'easeOut' }}
      style={{
       height: '100%',
-      background: progressPct > 80 ? 'var(--pf-red)' : 'var(--ares-action)',
-      boxShadow: progressPct > 80 ? '0 0 12px var(--pf-red)' : '0 0 12px var(--pf-orange)',
+      background: progressPct > 80 ? 'linear-gradient(90deg, #D9441E, #F25D3B)' : 'linear-gradient(90deg, #D4893B, #F5BE72)',
+      boxShadow: progressPct > 80 ? '0 0 10px #D9441E' : '0 0 10px #D4893B',
      }}
     />
    </div>
 
-   {/* Кнопка покупки */}
+   {/* Сварная заплатка в правом углу */}
+   <span className="po-patch" style={{ right: 8, bottom: 8, width: 50, height: 20 }} aria-hidden="true" />
+
+   {/* Кнопка покупки: тактильная клавиша пульта */}
    <motion.button
-    whileTap={disabled ? {} : { scale: 0.96 }}
-    whileHover={disabled ? {} : { scale: 1.02 }}
-    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+    whileTap={disabled ? undefined : { y: 3 }}
+    transition={{ type: 'spring', stiffness: 520, damping: 26 }}
     disabled={disabled}
     onClick={() => handleBuy()}
+    className={soldOut || disabled ? 'mk-key' : 'mk-key mk-key--paint'}
     style={{
      width: '100%',
      padding: '14px 22px',
-     borderRadius: 3,
-     border: '1px solid rgba(0,0,0,0.45)',
-     background: soldOut
-      ? 'rgba(0,0,0,0.28)'
-      : 'linear-gradient(180deg, #E89A4B 0%, #C97A2B 55%, #A85F1E 100%)',
-     color: soldOut ? 'var(--pf-text-muted)' : '#2A1206',
-     fontSize: 15,
-     fontWeight: 800,
-     textTransform: 'uppercase',
-     letterSpacing: '0.05em',
-     cursor: disabled ? 'not-allowed' : 'pointer',
-     opacity: disabled && !soldOut ? 0.6 : 1,
-     boxShadow: soldOut ? 'inset 0 1px 0 rgba(255,214,170,0.08)' : 'inset 0 1px 0 rgba(255,232,185,0.55), 0 4px 0 #5F3410, 0 9px 14px -7px rgba(0,0,0,0.8)',
+     fontSize: 14,
      display: 'flex',
      alignItems: 'center',
      justifyContent: 'center',
-     gap: 8,
-     fontFamily: 'var(--pf-font-ui)',
+     gap: 10,
     }}
    >
     {soldOut ? (

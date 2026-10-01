@@ -7,7 +7,7 @@ export type PanelTone = 'neutral' | 'amber' | 'magenta' | 'danger';
 const TONE_GLOW: Record<PanelTone, string> = {
  neutral: '#C9A176',
  amber: 'var(--ares-hud-amber, #FFB347)',
- magenta: 'var(--mk-lamp-magenta, #E06CA4)',
+ magenta: 'var(--ares-dust, #E0A183)',
  danger: '#E8823F',
 };
 
@@ -114,28 +114,22 @@ export const ConsolePanel = memo(function ConsolePanel({
  title,
  children,
  tone = 'neutral',
- className,
+ className = '',
 }: ConsolePanelProps): JSX.Element {
- void tone;
  return (
   <section
-   className={`hull-skin${className ? ` ${className}` : ''}`}
+   className={`po-card${className ? ` ${className}` : ''}`}
    style={{
-    position: 'relative',
-    borderRadius: 10,
-    padding: '14px 16px',
-    boxShadow: `inset 0 1px 0 var(--mk-edge-hi, rgba(255,214,170,0.16)), inset 0 -1px 0 var(--mk-edge-lo, rgba(0,0,0,0.72)), inset 0 0 20px rgba(0,0,0,0.4), 0 10px 22px rgba(0,0,0,0.4)`,
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: 'var(--mk-bevel, #8A4A22) var(--mk-bevel-lo, #2A1508) var(--mk-bevel-lo, #2A1508) var(--mk-bevel-lo, #2A1508)',
+    padding: '18px 18px',
    }}
   >
    {title ? (
-    <header style={{ marginBottom: 8 }}>
+    <header style={{ marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
      <StencilPlate tone={tone}>{title}</StencilPlate>
+     <span className="po-lamp po-lamp--green" aria-hidden="true" />
     </header>
    ) : null}
-   <div>{children}</div>
+   <div style={{ minWidth: 0 }}>{children}</div>
   </section>
  );
 });
@@ -215,7 +209,7 @@ export const DockKey = memo(function DockKey({
   setPressed(false);
  };
 
- const glow = active ? 'var(--ares-grow-pink, #FF2E93)' : 'rgba(180,220,255,0.25)';
+ const glow = active ? 'var(--ares-hud-amber, #FFB347)' : 'rgba(217,160,107,0.3)';
 
  return (
   <motion.button

@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, useState } from 'react';
+import { memo, useMemo, useRef, useState, useEffect } from 'react';
 import type { PointerEvent, ReactNode } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import type { SolPhase } from '../../theme/ares';
@@ -22,13 +22,11 @@ interface PhaseVisuals {
 }
 
 const PHASE_VISUALS: Record<SolPhase, PhaseVisuals> = {
- dawn:  { skyTop: '#3A2A4A', skyBottom: '#FFB347', domeTint: 'rgba(232,106,60,0.10)', lampGlow: 0.55, imgFilter: 'none' },
- day:   { skyTop: '#D9A06B', skyBottom: '#E8C39A', domeTint: 'rgba(217,160,107,0.08)', lampGlow: 0.35, imgFilter: 'none' },
- blueset: { skyTop: '#2B3B63', skyBottom: '#6B93D6', domeTint: 'rgba(107,147,214,0.14)', lampGlow: 0.5, imgFilter: 'none' },
- night:  { skyTop: '#050308', skyBottom: '#130A1E', domeTint: 'rgba(232,106,60,0.18)', lampGlow: 0.85, imgFilter: 'none' },
+ dawn:    { skyTop: '#3A2A4A', skyBottom: '#FFB347', domeTint: 'rgba(232,106,60,0.10)', lampGlow: 0.55, imgFilter: 'none' },
+ day:     { skyTop: '#D9A06B', skyBottom: '#E8C39A', domeTint: 'rgba(217,160,107,0.08)', lampGlow: 0.35, imgFilter: 'none' },
+ blueset: { skyTop: '#2B3B63', skyBottom: '#6B93D6', domeTint: 'rgba(107,147,214,0.14)', lampGlow: 0.50, imgFilter: 'none' },
+ night:   { skyTop: '#050308', skyBottom: '#130A1E', domeTint: 'rgba(232,106,60,0.18)', lampGlow: 0.85, imgFilter: 'none' },
 };
-
-const BAND_HEIGHT = 190;
 
 interface ParallaxLayerProps {
  src: string;
@@ -41,30 +39,74 @@ const ParallaxLayer = memo(function ParallaxLayer({ src, fallback, filter }: Par
  return (
   <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', willChange: 'transform' }}>
    {failed ? fallback : (
-    <img src={src} alt="" onError={() => setFailed(true)}
-     style={{ position: 'absolute', left: '-10%', width: '120%', height: '100%', objectFit: 'cover', objectPosition: 'center 62%', filter, transition: 'filter 0.8s ease' }} />
+    <img
+     src={src}
+     alt=""
+     onError={() => setFailed(true)}
+     style={{
+      position: 'absolute',
+      left: '-10%',
+      width: '120%',
+      height: '100%',
+      objectFit: 'cover',
+      objectPosition: 'center 62%',
+      filter,
+      transition: 'filter 0.8s ease',
+     }}
+    />
    )}
   </div>
  );
 });
 
+/**
+ * Верхний иллюминатор купола: живое видео плантации марсианской колонии.
+ * Воспроизводится на всех экранах (Агро, Снабжение, Журнал, Каюта).
+ */
 function BandMedia({ filter }: { filter: string }): JSX.Element {
  const reducedMotion = usePrefersReducedMotion();
+ const videoRef = useRef<HTMLVideoElement | null>(null);
  const [videoFailed, setVideoFailed] = useState(false);
+
+ useEffect(() => {
+  const v = videoRef.current;
+  if (!v) return;
+  v.defaultMuted = true;
+  v.muted = true;
+  const playPromise = v.play();
+  if (playPromise !== undefined) {
+   playPromise.catch(() => {
+    // Тихо игнорируем ошибку политик автоплея браузера
+   });
+  }
+ }, []);
+
  const showVideo = !reducedMotion && !videoFailed;
+
  return (
   <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
    {showVideo ? (
     <video
+     ref={videoRef}
      src="/ares/plantation.mp4"
      poster="/ares/plantation.webp"
      autoPlay
      muted
      loop
      playsInline
-     preload="metadata"
+     disablePictureInPicture
+     preload="auto"
      onError={() => setVideoFailed(true)}
-     style={{ position: 'absolute', left: '-10%', width: '120%', height: '100%', objectFit: 'cover', objectPosition: 'center 62%', filter, transition: 'filter 0.8s ease' }}
+     style={{
+      position: 'absolute',
+      left: '-10%',
+      width: '120%',
+      height: '100%',
+      objectFit: 'cover',
+      objectPosition: 'center 62%',
+      filter,
+      transition: 'filter 0.8s ease',
+     }}
     />
    ) : (
     <ParallaxLayer src="/ares/plantation.webp" fallback={<BandFallback />} filter={filter} />
@@ -123,9 +165,10 @@ export const DomeFrame = memo(function DomeFrame({ children, phase, dustStormAct
 
  return (
   <div className={className} style={{ position: 'relative', minHeight: '100%', display: 'flex', flexDirection: 'column', background: 'transparent' }}>
-   {/* ОКНО-ИЛЛЮМИНАТОР: живая плантация */}
+   {/* ОКНО-ИЛЛЮМИНАТОР: живая видео-плантация на всех экранах */}
    <div ref={bandRef} onPointerMove={handlePointerMove}
-    style={{ position: 'relative', height: BAND_HEIGHT, flexShrink: 0, overflow: 'hidden', background: `linear-gradient(180deg, ${visuals.skyTop}, ${visuals.skyBottom})` }}>
+    className="dome-window-band"
+    style={{ position: 'relative', flexShrink: 0, overflow: 'hidden', background: `linear-gradient(180deg, ${visuals.skyTop}, ${visuals.skyBottom})` }}>
     <motion.div style={{ x: farX, position: 'absolute', inset: 0 }}>
      <BandMedia filter={visuals.imgFilter} />
     </motion.div>
@@ -142,8 +185,17 @@ export const DomeFrame = memo(function DomeFrame({ children, phase, dustStormAct
     <div aria-hidden="true" style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 -22px 30px -20px rgba(5,3,8,0.95)', pointerEvents: 'none' }} />
    </div>
 
-   {/* ПАНЕЛЬ ОБИТАНИЯ: полупрозрачное стекло поверх интерьера */}
-   <div style={{ position: 'relative', flex: 1, zIndex: 1, marginTop: -16, borderRadius: '20px 20px 0 0', background: 'linear-gradient(180deg, rgba(12,7,16,0.32) 0%, rgba(5,3,8,0.42) 40%, rgba(5,3,8,0.58) 100%)', borderTop: '1px solid rgba(180,220,255,0.14)', boxShadow: '0 -8px 30px rgba(0,0,0,0.5)' }}>
+   {/* ПАНЕЛЬ ОБИТАНИЯ: полупрозрачное затемнение поверх подножки */}
+   <div style={{
+    position: 'relative',
+    flex: 1,
+    zIndex: 1,
+    marginTop: -16,
+    borderRadius: '20px 20px 0 0',
+    background: 'linear-gradient(180deg, rgba(20,13,8,0.38) 0%, rgba(14,9,6,0.50) 40%, rgba(8,5,3,0.68) 100%)',
+    borderTop: '1px solid rgba(255,214,170,0.22)',
+    boxShadow: '0 -8px 32px rgba(0,0,0,0.6)',
+   }}>
     {children}
    </div>
   </div>

@@ -48,11 +48,11 @@ interface SparkParticle {
 
 const palette = [
   "#C1440E",
-  "#FF2E93",
-  "#6B93D6",
+  "#E5A86E",
+  "#D48742",
   "#FFB347",
-  "#7CFF6B",
-  "#B85CFF",
+  "#9FBE7A",
+  "#FFD166",
 ] as const;
 
 const tokenCount = 48;
