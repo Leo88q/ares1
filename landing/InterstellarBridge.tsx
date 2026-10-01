@@ -126,6 +126,19 @@ function PlanetArt({
   planet,
   className = "",
 }: PlanetArtProps): JSX.Element {
+  if (planet === "earth") {
+    return (
+      <div className={`axial-planet axial-planet--neuroforge ${className}`} aria-hidden="true">
+        <img
+          src="/ares/planet-neuroforge.webp"
+          alt=""
+          draggable={false}
+          className="neuroforge-planet-img"
+        />
+      </div>
+    );
+  }
+
   return (
     <AxialPlanet planet={planet}>
       <StaticPlanetArt planet={planet} className={className} />
@@ -181,12 +194,16 @@ function QuantumRoute({
       {Array.from({ length: 12 }, (_, index) => {
         const reverse = index % 2 === 1;
         const restingLeft = `${8 + index * 7.5}%`;
+        const packetColor = reverse ? (index % 4 === 1 ? "#00E5FF" : "#C084FC") : "#FFB347";
 
         return (
           <motion.span
             key={index}
             className="quantum-route-packet"
-            style={{ background: reverse ? "#7CFF6B" : "#FFB347" }}
+            style={{
+              background: packetColor,
+              boxShadow: `0 0 10px ${packetColor}`,
+            }}
             initial={false}
             animate={
               animated
@@ -449,6 +466,19 @@ function PlanetCard({
           ))}
         </motion.ul>
       </div>
+
+      {planet === "earth" && interstellarConfig.ageOfFarmingUrl && (
+        <div className="interstellar-world-action">
+          <a
+            href={interstellarConfig.ageOfFarmingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="neuroforge-action-link"
+          >
+            {SC.gameCta}
+          </a>
+        </div>
+      )}
     </div>
   );
 }
