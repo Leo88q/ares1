@@ -37,6 +37,7 @@ const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 // (аннотация — единственный канал наружу из CI, R10).
 const notes = [];
 const steps = [];
+let bufferPubkey = null; // публичный адрес буфера: попадает в отчёт
 
 /** Проверки залога деплоя: замер против модели (детерминированно, §5.1/§5.2). */
 export function checkDeploy({ maxLen, pdSpace, pdLamports, programLamports, rent }) {
@@ -179,30 +180,26 @@ async function main() {
     throw new Error(`airdrop не пополнил плательщика: баланс ${startBalance} < требуемого ${required} лампортов${airdropError ? `, ошибка: ${airdropError}` : ''}`);
   }
   notes.push(`плательщик: стартовый баланс ${startBalance} лампортов (залог деплоя ${required})`);
-  const deployArgs = (maxLen, extra = []) => [
+  // Ключ буфера свой и постоянный: CLI создаёт буфер им же (create_buffer под
+  // payer'а) и при обрыве продолжает на нём — без seed-фразы. Фразу CLI печатает
+  // только когда буфер не передан, а `solana-keygen recover` в 4.2.2 не имеет
+  // `--stdin` (фраза читается лишь с TTY), восстанавливать её нечем.
+  const bufferKeypair = path.join(workdir, 'buffer.json');
+  sh('solana-keygen', ['new', '--no-bip39-passphrase', '--silent', '-o', bufferKeypair]);
+  bufferPubkey = sh('solana-keygen', ['pubkey', bufferKeypair]).stdout.trim();
+  const deployArgs = (maxLen) => [
     'program', 'deploy', '--url', rpc, '--keypair', payerKeypair, '--program-id', programKeypair,
-    '--max-len', maxLen.toString(), '--max-sign-attempts', '60', '--use-rpc', ...extra, soPath,
+    '--buffer', bufferKeypair, '--max-len', maxLen.toString(), '--max-sign-attempts', '60',
+    '--use-rpc', soPath,
   ];
-  // Деплой ~1 МБ — это ~1200 транзакций записи: на свежем валидаторе дефолтных
-  // 5 попыток не хватает, CLI падает и печатает 12 слов промежуточного буфера.
-  // Продолжаем на восстановленном буфере, как это делает warm-start-devnet.sh.
   const deploy = (maxLen, { attempts = 3 } = {}) => {
-    let extra = [];
     let last = { ok: false, stdout: '', stderr: 'попыток не было', detail: 'попыток не было', code: null };
     let attempt = 0;
     for (attempt = 1; attempt <= attempts; attempt++) {
-      last = sh('solana', deployArgs(maxLen, extra), { allowFailure: true });
+      last = sh('solana', deployArgs(maxLen), { allowFailure: true });
       if (last.ok) return { ...last, attempt };
       if (attempt === attempts) break;
-      const words = `${last.stderr}\n${last.stdout}`
-        .split('\n')
-        .map((line) => line.trim())
-        .find((line) => /^[a-z]{3,8}( [a-z]{3,8}){11}$/.test(line));
-      const bufferFile = path.join(workdir, `buffer-${attempt}.json`);
-      const recovered = words && sh('solana-keygen', ['recover', '--stdin', '-o', bufferFile], { input: `${words}\n`, allowFailure: true }).ok;
-      notes.push(recovered ? `деплой: попытка ${attempt} не прошла, продолжаем на буфере` : `деплой: попытка ${attempt} не прошла — ${safeDiagnostic(last.detail ?? `${last.stderr}\n${last.stdout}`)}`);
-      if (!recovered) break;
-      extra = ['--buffer', bufferFile];
+      notes.push(`деплой: попытка ${attempt} не прошла, продолжаем на том же буфере — ${safeDiagnostic(last.detail ?? `${last.stderr}\n${last.stdout}`)}`);
     }
     return { ...last, attempt };
   };
@@ -294,6 +291,7 @@ async function main() {
     growth,
     payerBalanceBeforeDeploy: startBalance,
     programId,
+    bufferPubkey,
     programData: state1.pd.programDataAddress,
     authority: state1.pd.authority,
     checks,

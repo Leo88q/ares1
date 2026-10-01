@@ -212,7 +212,8 @@ process.exit(0);
   assert.equal(payload.steps.some((step) => step.step === 'extend' && step.ok === true), true);
   // Первая попытка деплоя упала (заглушка), скрипт продолжил на буфере.
   assert.equal(payload.steps.find((step) => step.step === 'new').attempt, 2, JSON.stringify(payload.notes));
-  assert.equal(payload.notes.some((note) => note.includes('продолжаем на буфере')), true);
+  assert.equal(typeof payload.bufferPubkey, 'string');
+  assert.equal(payload.notes.some((note) => note.includes('продолжаем на том же буфере')), true);
   // Заглушка печатает ~2 МиБ прогресса: деплой обязан пройти (maxBuffer хватает).
   assert.equal(payload.steps.find((step) => step.step === 'new').spent !== undefined, true);
 
