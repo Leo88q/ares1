@@ -15,7 +15,7 @@ test('coverage ignores comments and counts builder-only mentions before calling 
   const result = report();
   const row = (name) => result.rows.find((item) => item.name === name);
   const migration = ['migrate', 'admin', 'state'].join('_');
-  const buyFieldSol = ['buy', 'field', 'sol'].join('_');
+  const solFieldIx = ['buy', 'field', 'sol'].join('_');
   const legacyGrant = ['grant', 'reward'].join('_');
   const skrWithdraw = ['withdraw', 'skr', 'treasury'].join('_');
 
@@ -26,9 +26,9 @@ test('coverage ignores comments and counts builder-only mentions before calling 
   assert.ok(!result.unreferenced.includes(migration));
 
   // The SOL-field builder is referenced from tests, but not the UI layer.
-  assert.equal(row(buyFieldSol).hits['web-ui'], 0);
-  assert.ok(row(buyFieldSol).hits['web-builder'] > 0);
-  assert.ok(row(buyFieldSol).hits.tests > 0);
+  assert.equal(row(solFieldIx).hits['web-ui'], 0);
+  assert.ok(row(solFieldIx).hits['web-builder'] > 0);
+  assert.ok(row(solFieldIx).hits.tests > 0);
 
   // grant_reward occurs only in a comment in anchorClient.ts; backend/tests are
   // real references, but the comment must not create a web-builder reference.
