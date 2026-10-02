@@ -903,6 +903,7 @@ const THIRD_PARTY_RU = `
               <tr><td>framer-motion</td><td>MIT</td><td>Анимации</td></tr>
               <tr><td>lucide-react</td><td>ISC</td><td>Иконки</td></tr>
               <tr><td>@solana/web3.js, @solana/spl-token, @solana/wallet-adapter-*</td><td>Apache-2.0 / MIT</td><td>Работа с Solana и кошельками</td></tr>
+              <tr><td>@solana/buffer-layout-utils (локальный backport)</td><td>Apache-2.0</td><td>BigInt-разметки</td></tr>
               <tr><td>@coral-xyz/anchor</td><td>Apache-2.0</td><td>Клиент программы</td></tr>
               <tr><td>canvas-confetti</td><td>MIT</td><td>Эффекты</td></tr>
               <tr><td>lenis</td><td>MIT</td><td>Плавный скролл</td></tr>
@@ -958,6 +959,7 @@ const THIRD_PARTY_EN = `
               <tr><td>framer-motion</td><td>MIT</td><td>Animation</td></tr>
               <tr><td>lucide-react</td><td>ISC</td><td>Icons</td></tr>
               <tr><td>@solana/web3.js, @solana/spl-token, @solana/wallet-adapter-*</td><td>Apache-2.0 / MIT</td><td>Solana and wallet access</td></tr>
+              <tr><td>@solana/buffer-layout-utils (local backport)</td><td>Apache-2.0</td><td>BigInt layouts</td></tr>
               <tr><td>@coral-xyz/anchor</td><td>Apache-2.0</td><td>Program client</td></tr>
               <tr><td>canvas-confetti</td><td>MIT</td><td>Effects</td></tr>
               <tr><td>lenis</td><td>MIT</td><td>Smooth scrolling</td></tr>

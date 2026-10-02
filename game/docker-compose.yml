@@ -31,8 +31,8 @@ services:
   # неприменённой схеме» невозможно.
   migrate:
     build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
+      context: ..
+      dockerfile: game/apps/backend/Dockerfile
     command: ["node", "apps/backend/dist/db-migrate.js"]
     environment:
       GAME_OPS_MIGRATIONS_DIR: /app/migrations/game_ops
@@ -49,8 +49,8 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
+      context: ..
+      dockerfile: game/apps/backend/Dockerfile
     restart: unless-stopped
     init: true
     # 2026-10-02 (audit): the API runs a signing bot and the admin game_ops

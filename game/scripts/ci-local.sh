@@ -25,12 +25,17 @@ fi
 # layoutParity.test.ts imports landing sources — landing deps must exist
 # BEFORE yarn typecheck/tools run (this was the CI-only failure: TS2307
 # @solana/web3.js / @solana/spl-token with no landing/node_modules).
-(cd ../landing && npm ci --no-audit --no-fund)
+(cd ../landing && npm ci --no-audit --no-fund --registry=https://registry.npmjs.org)
 yarn typecheck
 yarn typecheck:tools
 yarn test:offchain
 # Security-guard tripwire (checklist 2026-09-25), zero-dep.
 yarn test:guards
+# Mainnet deploy simulations use fake CLIs only: no keys or network writes.
+yarn test:deploy-mainnet
+# Local backport for GHSA-3gc7-fjrx-p6mg: integer conversion vectors, endianness,
+# width boundaries and malformed/negative input (47 tests, no addon).
+yarn test:vendor-layout
 # Калькулятор стоимости деплоя: векторы V1–V5 и инварианты модели (reports/rent-audit/).
 yarn test:deploy-budget
 # Инструменты Этапа 2: CU-профиль логов localnet и слоистое покрытие инструкций.

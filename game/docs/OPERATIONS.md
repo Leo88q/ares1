@@ -161,6 +161,13 @@ docker compose build backend
 docker compose up -d backend
 ```
 
+The Compose build context is the repository root so Docker can include the
+locally vendored `@solana/buffer-layout-utils` backport without reaching outside
+the context. For a direct build from the repository root, use
+`docker build -f game/apps/backend/Dockerfile .`; the root `.dockerignore`
+allowlists only the package manifests, backend source, migrations, and vendored
+package needed by the image.
+
 Container builds use the shared Yarn lockfile and Node 22.22.3, run as non-root,
 mount keys read-only, and do not copy env/key files into the image. Runtime currently
 installs the full production workspace graph (including web dependencies); reducing

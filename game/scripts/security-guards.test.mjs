@@ -254,12 +254,16 @@ test('Пп. 50/51: клиент подписывает только разреш
   const ctx = read('../apps/web/src/contexts/SolanaContext.tsx');
   assert.ok(ctx.includes("from '../utils/txSafety'"));
   assert.ok(ctx.includes('assertInstructionsAllowed(priorityIxs, PROGRAM_ID)'), 'нет pre-sign allowlist');
-  assert.ok(ctx.includes('assertSignedInstructionsMatch(signed, priorityIxs, PROGRAM_ID)'), 'нет post-sign сверки V0');
+  assert.ok(ctx.includes('const expectedMessageV0 = snapshotVersionedMessage(vtx)'), 'V0 message must be snapshotted before wallet signing');
+  assert.ok(ctx.includes('assertSignedInstructionsMatch(signed, expectedMessageV0)'), 'нет post-sign сверки полного V0 message');
+  assert.ok(ctx.includes('const expectedLegacyMessage = snapshotLegacyMessage(tx)'), 'legacy message must be snapshotted before wallet signing');
   assert.ok(
-    ctx.includes('assertSignedLegacyInstructionsMatch(signed, priorityIxs, PROGRAM_ID)'),
-    'нет post-sign сверки legacy-пути',
+    ctx.includes('assertSignedLegacyInstructionsMatch(signed, expectedLegacyMessage)'),
+    'нет post-sign сверки полного legacy message',
   );
   const safety = read('../apps/web/src/utils/txSafety.ts');
+  assert.ok(safety.includes('signed.message.serialize()'), 'V0 проверка должна сравнивать полное сериализованное message');
+  assert.ok(safety.includes('signed.serializeMessage()'), 'legacy проверка должна сравнивать полное serialized message');
   assert.ok(safety.includes('TOKEN_PROGRAM_ID'), 'SPL Token должен быть в allowlist');
   assert.ok(!/TOKEN_2022_PROGRAM_ID,\s*$/m.test(safety.split('export const ALLOWED_PROGRAMS')[1].split(']')[0]), 'Token-2022 не должен быть в allowlist (transfer hook/permanent delegate)');
 });
@@ -302,13 +306,82 @@ test('П.66: solana-зависимости запинены точно, lockfile
   }
 });
 
+test('2026-10-02: GHSA-3gc7-fjrx-p6mg removed from both runtime dependency trees', () => {
+  const vendorPackage = JSON.parse(read('../../vendor/solana-buffer-layout-utils/package.json'));
+  assert.equal(vendorPackage.name, '@solana/buffer-layout-utils');
+  assert.equal(vendorPackage.version, '0.3.1+ares1');
+  const localSpec = 'file:../vendor/solana-buffer-layout-utils';
+  assert.equal(rootPkg.resolutions?.['@solana/buffer-layout-utils'], localSpec, 'Yarn must force the vendored package for transitive consumers');
+  assert.equal(rootPkg.devDependencies?.['@solana/buffer-layout-utils'], localSpec, 'Yarn must link the local package from the root');
+  assert.equal(landingPkg.dependencies?.['@solana/buffer-layout-utils'], localSpec, 'npm must use the same local package');
+  assert.equal(read('../../landing/.npmrc').trim(), 'install-links=true', 'npm must copy the file dependency under node_modules so Vite resolves its runtime deps');
+
+  const yarnLock = read('../yarn.lock');
+  assert.doesNotMatch(yarnLock, /bigint-buffer/, 'vulnerable native package must not be in Yarn lockfile');
+  assert.doesNotMatch(yarnLock, /bigint-buffer@/);
+  assert.ok(yarnLock.includes('@solana/buffer-layout-utils@^0.3.0'), 'transitive SPL Token request must resolve through the local Yarn resolution');
+  assert.equal(landingLock.packages['node_modules/bigint-buffer'], undefined, 'vulnerable native package must not be in npm lockfile');
+  const npmVendor = landingLock.packages['node_modules/@solana/buffer-layout-utils'];
+  assert.equal(npmVendor?.resolved, localSpec, 'npm lock must install the local package copy, not an upstream release');
+  assert.equal(npmVendor?.version, vendorPackage.version);
+
+  const source = read('../../vendor/solana-buffer-layout-utils/src/bigint.ts');
+  assert.doesNotMatch(source, /from ['"]bigint-buffer['"]|require\(['"]bigint-buffer['"]\)/, 'integer conversion must remain pure JavaScript');
+  assert.doesNotMatch(read('../../vendor/solana-buffer-layout-utils/lib/cjs/bigint.js'), /require\(['"]bigint-buffer['"]\)/);
+  assert.doesNotMatch(read('../../vendor/solana-buffer-layout-utils/lib/esm/bigint.mjs'), /from ['"]bigint-buffer['"]/);
+  assert.match(read('../../scripts/check-release-artifacts.mjs'), /artifact-vulnerable-bigint-buffer/, 'release artifact gate must reject the vulnerable package marker');
+});
+
+test('2026-10-02: Jayson 5 removes the vulnerable stream-json/uuid RPC parser tree', () => {
+  assert.equal(rootPkg.resolutions?.jayson, '5.0.0', 'web3.js RPC client must resolve to the patched Jayson release');
+  assert.equal(landingPkg.overrides?.jayson, '5.0.0', 'npm must apply the same Jayson compatibility override');
+
+  const yarnLock = read('../yarn.lock');
+  const jayson = parseYarnEntry(yarnLock, 'jayson@^4.1.1');
+  assert.equal(jayson?.version, '5.0.0');
+  assert.match(jayson?.resolved ?? '', /jayson-5\.0\.0\.tgz/);
+  assert.doesNotMatch(yarnLock, /stream-json@|stream-chain@|eyes@/);
+
+  const npmJayson = landingLock.packages['node_modules/jayson'];
+  assert.equal(npmJayson?.version, '5.0.0');
+  assert.equal(npmJayson?.dependencies?.['stream-json'], undefined);
+  assert.equal(npmJayson?.dependencies?.uuid, undefined);
+  assert.equal(landingLock.packages['node_modules/stream-json'], undefined);
+
+  for (const pattern of [
+    '**/node-cron/uuid',
+    '**/uuidv4/uuid',
+    '**/@keystonehq/bc-ur-registry-sol/uuid',
+    '**/@keystonehq/sol-keyring/uuid',
+    '**/@solflare-wallet/sdk/uuid',
+  ]) {
+    assert.equal(rootPkg.resolutions?.[pattern], '11.1.1', `vulnerable uuid consumer must be patched: ${pattern}`);
+  }
+  assert.equal(parseYarnEntry(yarnLock, 'uuid@^8.3.2')?.version, '11.1.1');
+  assert.equal(parseYarnEntry(yarnLock, 'uuid@^9.0.0')?.version, '11.1.1');
+  assert.doesNotMatch(yarnLock, /^uuid@\^9\.0\.0:/m, 'do not keep an unused, vulnerable uuid 9 lock entry');
+  assert.equal(parseYarnEntry(yarnLock, 'uuid@^14.0.0')?.version, '14.0.2', 'rpc-websockets keeps its supported uuid major');
+
+  const npmUuidNodes = Object.entries(landingLock.packages).filter(([path]) => /(^|\/)node_modules\/uuid$/.test(path));
+  assert.ok(npmUuidNodes.length > 0, 'landing lock must include the Solana RPC uuid package');
+  assert.ok(npmUuidNodes.every(([, pkg]) => Number(pkg.version.split('.')[0]) >= 11), 'landing must not lock an advisory-affected uuid version');
+  assert.equal(landingLock.packages['node_modules/stream-json'], undefined);
+});
+
+test('2026-10-02: landing keeps vendors/locales split under Vite default chunk limit', () => {
+  const vite = read('../../landing/vite.config.ts');
+  assert.ok(vite.includes('manualChunks'), 'landing must split the large vendor modules');
+  assert.ok(vite.includes('locales:'), 'locale dictionaries must not inflate the application entry chunk');
+  assert.doesNotMatch(vite, /chunkSizeWarningLimit\s*:/, 'do not suppress the warning by raising its threshold');
+});
+
 test('П.66: CI ставит зависимости только из lockfile (--frozen-lockfile / npm ci)', () => {
   const ciLocal = read('./ci-local.sh');
   assert.ok(ciLocal.includes('yarn install --frozen-lockfile'), 'CI должен падать на рассинхроне lockfile');
   assert.ok(ciLocal.includes('npm ci'), 'landing должен ставиться через npm ci');
   const audit = read('../../.github/workflows/ci.yml');
   assert.ok(audit.includes('yarn install --frozen-lockfile'));
-  assert.ok(audit.includes('yarn audit'), ' advisory-аудит зависимостей должен оставаться в CI');
+  assert.ok(audit.includes('audit-blocking.sh') && audit.includes('npm audit'), 'blocking Yarn and npm dependency audits must remain in CI');
 });
 
 test('F-18: advisory-гейты fmt/clippy не могут «проходить» без установленных компонентов', () => {
@@ -511,13 +584,11 @@ test('2026-10-02: devnet genesis hash полный и совпадает в дв
   assert.equal(m[1], legacy[1], 'источники devnet genesis расходятся — один из них неверен');
 });
 
-test('2026-10-02: критичные уязвимости зависимостей блокируют CI', () => {
+test('2026-10-02: high/critical dependency findings block both CI audits', () => {
   const ci = read('../../.github/workflows/ci.yml');
-  // Для game-воркспейса блокирующий шаг — scripts/audit-critical.sh: yarn 1 не
-  // умеет фильтровать exit-код по --level, поэтому «критический» гейт обязан
-  // разбирать битмаску сам (детали и функциональный тест — ниже).
-  assert.match(ci, /run: \.\/scripts\/audit-critical\.sh/, 'yarn audit critical должен быть блокирующим (через скрипт)');
-  assert.match(ci, /npm audit --omit=dev --audit-level=critical/, 'npm audit critical должен быть блокирующим');
+  assert.match(ci, /name: Dependency audit — high\/critical \(blocking\)/);
+  assert.match(ci, /run: \.\/scripts\/audit-blocking\.sh/, 'Yarn audit must use a bitmask-aware blocking gate');
+  assert.match(ci, /npm audit --omit=dev --audit-level=high/, 'landing production high/critical audit must block');
 });
 
 test('2026-10-02: backend-контейнер по умолчанию не публикуется в интернет', () => {
@@ -605,40 +676,51 @@ test('2026-10-02: shellcheck-гейт существует и покрывает
   assert.ok(scripts.length >= 16, `ожидалось ≥16 скриптов, найдено ${scripts.length}`);
 });
 
-test('2026-10-02: критический аудит понимает битмаску yarn, а не только --level (F-09)', () => {
+test('2026-10-02: high/critical audit parses Yarn severity bitmask and fails closed', () => {
   const ci = read('../../.github/workflows/ci.yml');
-  assert.match(ci, /audit-critical\.sh/, 'критический аудит обязан идти через разбор битмаски, а не `yarn audit --level critical`');
-  const gate = read('./audit-critical.sh');
-  assert.match(gate, /&\)?\s*16/, 'критический бит (16) должен проверяться явно');
-  assert.match(gate, /auditSummary/, 'отсутствие ответа реестра (exit 2) должно отличаться от находок (exit 1)');
+  assert.match(ci, /audit-blocking\.sh/, 'Yarn audit must use a bitmask-aware blocking gate');
+  const gate = read('./audit-blocking.sh');
+  assert.match(gate, /&\s*24/, 'high/critical bits (8|16) must be checked explicitly');
+  assert.match(gate, /auditSummary/, 'no registry response (exit 2) must differ from findings (exit 1)');
 
-  // Функциональная проверка на фейковом yarn: exit-код yarn 1 — битмаска всех
-  // severity, поэтому «moderate без critical» обязан быть зелёным, а «critical»
-  // — красным. Именно на этом сломался первоначальный вариант гейта (CI-прогон
-  // 37019422258: exit 30 при политике «блокирует только critical»).
   const dir = mkdtempSync(path.join(os.tmpdir(), 'audit-gate-'));
   const fake = path.join(dir, 'yarn');
   writeFileSync(fake, `#!/usr/bin/env bash
 case "$FAKE_CASE" in
-  clean) printf '{"type":"auditSummary","data":{"vulnerabilities":{"critical":0,"total":0}}}\n'; exit 0 ;;
-  moderate) printf '{"type":"auditSummary","data":{"vulnerabilities":{"critical":0,"total":3}}}\n'; exit 4 ;;
-  critical) printf '{"type":"auditSummary","data":{"vulnerabilities":{"critical":1,"total":7}}}\n{"type":"auditAdvisory","data":{"advisory":{"module_name":"protobufjs","severity":"critical","title":"RCE","url":"https://example.invalid/GHSA"},"findings":[{"version":"7.4.0","paths":["a>b"]}]}}\n'; exit 30 ;;
+  clean) printf '{"type":"auditSummary","data":{"vulnerabilities":{"high":0,"critical":0,"total":0}}}\\n'; exit 0 ;;
+  moderate) printf '{"type":"auditSummary","data":{"vulnerabilities":{"moderate":3,"high":0,"critical":0,"total":3}}}\\n'; exit 4 ;;
+  high)
+    cat <<'JSON'
+{"type":"auditSummary","data":{"vulnerabilities":{"high":1,"critical":0,"total":1}}}
+{"type":"auditAdvisory","data":{"resolution":{"id":1,"path":"a>b>node-fetch@3.3.0","dev":false,"optional":false,"bundled":false},"advisory":{"module_name":"node-fetch","severity":"high","title":"Header injection","url":"https://example.invalid/GHSA","findings":[{"version":"3.3.0","paths":["a>b>node-fetch@3.3.0"],"dev":false,"optional":false,"bundled":false}]}}}
+JSON
+    exit 8 ;;
+  critical)
+    cat <<'JSON'
+{"type":"auditSummary","data":{"vulnerabilities":{"high":1,"critical":1,"total":7}}}
+{"type":"auditAdvisory","data":{"resolution":{"id":2,"path":"a>b>protobufjs@7.4.0","dev":false,"optional":false,"bundled":false},"advisory":{"module_name":"protobufjs","severity":"critical","title":"RCE","url":"https://example.invalid/GHSA","findings":[{"version":"7.4.0","paths":["a>b>protobufjs@7.4.0"],"dev":false,"optional":false,"bundled":false}]}}}
+JSON
+    exit 30 ;;
   broken) echo 'error: registry unreachable'; exit 1 ;;
 esac
 `);
   chmodSync(fake, 0o755);
   const run = (fakeCase) =>
-    spawnSync('bash', [path.join(here, 'audit-critical.sh')], {
+    spawnSync('bash', [path.join(here, 'audit-blocking.sh')], {
       encoding: 'utf8',
-      env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, FAKE_CASE: fakeCase, AUDIT_CRITICAL_RETRY_SLEEP: '0' },
+      env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, FAKE_CASE: fakeCase, AUDIT_BLOCKING_RETRY_SLEEP: '0' },
     });
   try {
-    assert.equal(run('clean').status, 0, 'чистое дерево не должно блокировать');
-    assert.equal(run('moderate').status, 0, 'moderate/high без critical — advisory, не блокируют');
-    const crit = run('critical');
-    assert.equal(crit.status, 1, 'critical обязан блокировать');
-    assert.match(crit.stdout, /CRITICAL: protobufjs@7\.4\.0/, 'в аннотации должен быть конкретный пакет и версия');
-    assert.equal(run('broken').status, 2, 'недоступный реестр — fail closed (exit 2), а не «зелёно»');
+    assert.equal(run('clean').status, 0, 'clean tree must pass');
+    assert.equal(run('moderate').status, 0, 'moderate findings remain advisory');
+    const high = run('high');
+    assert.equal(high.status, 1, 'high finding must block');
+    assert.match(high.stdout, /HIGH: node-fetch@3\.3\.0/, 'report must identify the high package and version');
+    assert.match(high.stdout, /::error title=High or critical dependency advisory::HIGH:/, 'GitHub check annotation must carry the precise advisory');
+    const critical = run('critical');
+    assert.equal(critical.status, 1, 'critical finding must block');
+    assert.match(critical.stdout, /CRITICAL: protobufjs@7\.4\.0/, 'report must identify the critical package and version');
+    assert.equal(run('broken').status, 2, 'unavailable audit registry must fail closed');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -657,6 +739,21 @@ test('2026-10-02: protobufjs не возвращается в уязвимый �
   const entry = /^protobufjs@[^:]*:\n\s+version "([^"]+)"/m.exec(lock);
   assert.ok(entry, 'protobufjs не найден в yarn.lock');
   assert.equal(entry[1], enforced, 'lock и resolutions разошлись: критический advisory вернётся по lockfile');
+});
+
+test('2026-10-02: фиксирует production advisories в lodash, viem/ws и toml', () => {
+  const pkg = JSON.parse(read('../package.json'));
+  const lock = read('../yarn.lock');
+  assert.equal(pkg.resolutions?.lodash, '4.18.1', 'GHSA-r5fr-rjxr-66jc требует lodash >=4.18.0; 4.18.0 отозван');
+  assert.equal(pkg.resolutions?.['**/viem/ws'], '8.21.3', 'GHSA-96hv-2xvq-fx4p требует ws >=8.21.0');
+  assert.equal(pkg.resolutions?.toml, '4.2.0', 'GHSA-82x6-q7mm-w9cf требует toml >=4.2.0');
+  assert.equal(parseYarnEntry(lock, 'lodash@4.18.1')?.version, '4.18.1');
+  assert.equal(parseYarnEntry(lock, 'ws@8.21.3')?.version, '8.21.3');
+  assert.equal(parseYarnEntry(lock, 'toml@^3.0.0')?.version, '4.2.0');
+  assert.doesNotMatch(lock, /^lodash@4\.17\.21:/m, 'уязвимый lodash lock-entry вернулся');
+  assert.doesNotMatch(lock, /^lodash@4\.18\.0:/m, 'отозванный lodash 4.18.0 lock-entry вернулся');
+  assert.doesNotMatch(lock, /^ws@8\.18\.0:/m, 'уязвимый ws lock-entry вернулся');
+  assert.doesNotMatch(lock, /^toml@\^3\.0\.0:\n\s+version "3\.0\.0"/m, 'уязвимый toml lock-entry вернулся');
 });
 
 test('2026-10-02: рабочее дерево проходит secret-scan (гейт §1.1 не красный)', () => {
