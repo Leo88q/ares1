@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install pinned Solana CLI
         run: |
           curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
@@ -75,7 +75,7 @@ jobs:
         run: ./scripts/probe-devnet.sh
       - name: Archive complete read-only recovery snapshot
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: legacy-recovery-audit-${{ github.run_id }}
           path: ${{ runner.temp }}/legacy-recovery-audit.json
@@ -129,8 +129,8 @@ jobs:
       matrix:
         opt: [base, '3', s, z]
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, pinned (was @master)
         with:
           toolchain: '1.97.1'
       - name: Install pinned Solana CLI
@@ -138,7 +138,7 @@ jobs:
           curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
           sh /tmp/solana-install.sh
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: anchor-cache
         with:
           path: ~/.cargo/bin/anchor
@@ -148,7 +148,7 @@ jobs:
           if ! command -v anchor >/dev/null || [[ "$(anchor --version | awk '{print $2}')" != "$ANCHOR_VERSION" ]]; then
             cargo install anchor-cli --version "=$ANCHOR_VERSION" --locked
           fi
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         if: steps.anchor-cache.outputs.cache-hit != 'true'
         with:
           path: ~/.cargo/bin/anchor
@@ -158,7 +158,7 @@ jobs:
           test "$(rustc --version | awk '{print $2}')" = '1.97.1'
           test "$(solana --version | awk '{print $2}')" = "$SOLANA_VERSION"
           test "$(anchor --version | awk '{print $2}')" = "$ANCHOR_VERSION"
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: game
           cache-on-failure: true
@@ -184,7 +184,7 @@ jobs:
             echo '::error title=ares-lockfile::Cargo.lock изменился при сборке — измерение недействительно'
             exit 1
           }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: ${{ !cancelled() }}
         with:
           name: so-${{ matrix.opt }}
@@ -203,21 +203,21 @@ jobs:
     timeout-minutes: 30
     needs: [size-matrix]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install pinned Solana CLI
         run: |
           curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
           sh /tmp/solana-install.sh
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
       - name: Download the reference build (so-base) — цель апгрейда
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: so-base
           path: game/target
       - name: Download the small build (so-z) — стартовый .so
         # Первый деплой делается маленьким .so, апгрейд — базовым: только так
         # проверяется extend (на CLI 4.2.2 сам deploy ProgramData не расширяет).
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: so-z
           path: game/target-small
@@ -259,7 +259,7 @@ jobs:
         run: node scripts/calibrate-localnet.mjs --so target-small/solana_potato.so --so2 target/deploy/solana_potato.so --out /tmp/calibrate-report.json
       - name: Upload calibration report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: calibrate-report
           retention-days: 7

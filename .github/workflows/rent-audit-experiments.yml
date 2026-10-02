@@ -44,8 +44,8 @@ jobs:
       matrix:
         exp: [z, sbf, no-idl, no-m, no-grant, no-grant-legacy, no-buy-field-sol, arch-v3]
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, pinned (was @master)
         with:
           toolchain: '1.97.1'
       - name: Install pinned Solana CLI
@@ -53,7 +53,7 @@ jobs:
           curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
           sh /tmp/solana-install.sh
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: anchor-cache
         with:
           path: ~/.cargo/bin/anchor
@@ -63,12 +63,12 @@ jobs:
           if ! command -v anchor >/dev/null || [[ "$(anchor --version | awk '{print $2}')" != "$ANCHOR_VERSION" ]]; then
             cargo install anchor-cli --version "=$ANCHOR_VERSION" --locked
           fi
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         if: steps.anchor-cache.outputs.cache-hit != 'true'
         with:
           path: ~/.cargo/bin/anchor
           key: ${{ steps.anchor-cache.outputs.cache-primary-key }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: game
           cache-on-failure: true

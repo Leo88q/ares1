@@ -15,6 +15,12 @@ NODE_VERSION=$(cat ../.node-version)
 [[ "$(node --version)" == "v$NODE_VERSION" ]] || { echo "Use Node $NODE_VERSION" >&2; exit 1; }
 [[ "$(yarn --version)" == "1.22.22" ]] || { echo 'Use Yarn 1.22.22' >&2; exit 1; }
 yarn install --frozen-lockfile --non-interactive
+# 2026-10-02 (audit): the pre-commit secret gate only exists if the hooks were
+# installed in this clone (core.hooksPath). CI does not install them for you, and
+# a missing hook is invisible — say it out loud instead of assuming coverage.
+if [[ "$(git config --get core.hooksPath || true)" != ".githooks" ]]; then
+  echo "ci-local: WARNING: git hooks are not installed in this clone — run ./scripts/install-git-hooks.sh (pre-commit secret scan)." >&2
+fi
 # F-16: tsconfig.tools.json typechecks tests/offchain/*.test.ts, and
 # layoutParity.test.ts imports landing sources — landing deps must exist
 # BEFORE yarn typecheck/tools run (this was the CI-only failure: TS2307

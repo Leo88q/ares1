@@ -12,23 +12,30 @@
 #   MAINNET_TREASURY=<treasury-owner-address> \
 #   MAINNET_PAYER=<backend-hot-wallet-address> \
 #   POTATO_MINT=<mint> \
-#   ./scripts/preflight-mainnet.sh [--so target/deploy/solana_potato.so] [--expected-so-sha256 <hash>]
+#   ./scripts/preflight-mainnet.sh [--so target/deploy/solana_potato.so] [--expected-so-sha256 <hash>] [--allow-first-deploy]
+#
+# --allow-first-deploy: skip the on-chain authority checks when the program does
+# not exist on the cluster yet (the very first deploy). The post-deploy pass MUST
+# be run without it, so the Squads authority is still verified before the game
+# opens. Used by game/scripts/deploy-mainnet.sh.
 #
 # Required env: RPC_URL (mainnet endpoint), solana CLI on PATH.
 # Exit codes: 0 = gate passed, 1 = gate FAILED (do not deploy), 2 = cannot check.
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 2 # 2 = cannot check (документированный exit-код скрипта)
 
 FAILED=0
 WARN=0
 SO_PATH="target/deploy/solana_potato.so"
 EXPECTED_SO_SHA=""
+ALLOW_FIRST_DEPLOY=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --so) SO_PATH="$2"; shift 2 ;;
     --expected-so-sha256) EXPECTED_SO_SHA="$2"; shift 2 ;;
+    --allow-first-deploy) ALLOW_FIRST_DEPLOY=1; shift ;;
     *) echo "unknown flag: $1" >&2; exit 2 ;;
   esac
 done
@@ -51,7 +58,11 @@ echo "── preflight: program $PROGRAM_ID"
 # ── 1. Program exists and is owned by the BPF loader (i.e. really deployed) ──
 SHOW=$(solana program show "$PROGRAM_ID" --url "$RPC_URL" --output json 2>/dev/null)
 if [[ -z "$SHOW" ]]; then
-  fail "program $PROGRAM_ID not found on this cluster (deploy it first, then re-run the gate)"
+  if [[ "$ALLOW_FIRST_DEPLOY" == "1" ]]; then
+    warn "program $PROGRAM_ID not found: first-deploy mode (--allow-first-deploy). Authority checks run again on the mandatory post-deploy pass."
+  else
+    fail "program $PROGRAM_ID not found on this cluster (deploy it first, then re-run the gate; first deploy of a new program: --allow-first-deploy)"
+  fi
 else
   AUTHORITY=$(python3 -c "import json,sys;print(json.load(sys.stdin).get('authority',''))" <<<"$SHOW")
   ok "program found; upgrade authority = ${AUTHORITY:-<none>}"

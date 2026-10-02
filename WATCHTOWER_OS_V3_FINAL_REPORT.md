@@ -1,5 +1,15 @@
 # ARES-1 — Watchtower OS v3 Final report (20 пунктов)
 
+> **Статус на 2026-10-02: это план, а не отчёт о внедрении.**
+> v3-сплит программ (`CgInv…`, `SessKeys…`, `STrEaSuRy…`, `ARES1_CORE_PROGRAM_ID`),
+> session keys и описанные ниже интеграции **не существуют в этом репозитории**: адреса
+> не скоммичены, каждая запись помечена `verified: false`, а экспортёр `watchtower/` —
+> read-only и **не подключён к Games Watchtower** (`deploymentVerified: false`,
+> `lastVerifiedAt: null`). Ничто ниже не является работающим мониторингом, кастодией
+> или доступом к казне; до реализации действуют гейты §4 в
+> `game/docs/THIRD_PARTY_DEPENDENCIES.md`. Живая программа — только
+> `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf` (devnet).
+
 Сгенерировано `watchtower/src/os/handoff-v3.js`. game_id=ares1, network=devnet, stage=prototype, data_quality=partial, blockchain_writes_enabled=false, last_verified_at=null.
 
 ## v1 — 7 layers

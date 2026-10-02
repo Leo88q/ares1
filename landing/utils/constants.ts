@@ -192,16 +192,8 @@ export const fmtSol = (lamports: number | bigint, decimals = 3) => (Number(lampo
 
 export const fmtSkr = (atoms: number | bigint, decimals = 2) => (Number(atoms) / 1e6).toFixed(decimals)
 
-export interface PresaleDropInfo { type: number; label: string; chance: number; color: string }
-/** Шансы дропа модуля в пресейле: цена одна — тир случайный */
-export const PRESALE_DROP: PresaleDropInfo[] = [
- { type: 0, label: 'COMMON', chance: 70, color: '#9AA0AC' },
- { type: 1, label: 'RARE', chance: 25, color: '#B85CFF' },
- { type: 2, label: 'EPIC', chance: 5, color: '#FFC94A' },
-]
-export function rollPresaleDrop(): number {
- const r = Math.random() * 100
- let acc = 0
- for (const d of PRESALE_DROP) { acc += d.chance; if (r < acc) return d.type }
- return 0
-}
+// 2026-10-02 (audit): the client-side presale drop table and rollPresaleDrop()
+// were removed. The tier of a presale module is decided by the on-chain program
+// (buy_field_skr) — a second, client-side RNG next to it is dead code that reads
+// like a fairness surface and can only mislead. The game client still DISPLAYS
+// the odds (game/apps/web/src/utils/constants.ts PRESALE_DROP) without rolling.

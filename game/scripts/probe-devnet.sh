@@ -14,7 +14,7 @@
 #    RPC_URL=<url> ./scripts/probe-devnet.sh
 # ═══════════════════════════════════════════════════════════════════
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 2 # 2 = cannot check (как в preflight-mainnet.sh)
 
 CONFIG=scripts/rent-audit.config.json
 RPC="${RPC_URL:-$(jq -r '.rpc' "$CONFIG")}"
@@ -225,8 +225,8 @@ fi
 # game/docs/MIGRATIONS.md. Размер 49 делят Epoch, ExportLicense, MarketStats,
 # SellerProfile — печатаем счётчик без разбивки по типам.
 count_size() {
-  local size="$1" resp attempt
-  for attempt in 1 2 3; do
+  local size="$1" resp _attempt # _-префикс: счётчик попыток не читается, SC2034
+  for _attempt in 1 2 3; do
     resp=$(rpc getProgramAccounts "[\"$PROGRAM_ID\",{\"filters\":[{\"dataSize\":$size}],\"dataSlice\":{\"offset\":0,\"length\":0},\"encoding\":\"base64\"}]" || true)
     if jq -e '.result | type=="array"' >/dev/null 2>&1 <<<"$resp"; then
       jq -r '.result | length' <<<"$resp"

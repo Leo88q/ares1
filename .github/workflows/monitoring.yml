@@ -1,0 +1,120 @@
+name: Monitoring
+# 2026-10-02 (audit): docs promised these checks on a cron (OPERATIONS: DNS every
+# 15 minutes, program inventory daily, invariant monitor "cron/monitoring"), but
+# nothing scheduled them — the scripts only ran when a human remembered. This
+# workflow is that missing cron. Failures open (or reuse) a tracking issue with
+# the `monitoring-alert` label instead of failing silently in the Actions tab.
+on:
+  schedule:
+    - cron: '*/15 * * * *' # DNS drift (check-dns.mjs)
+    - cron: '17 3 * * *' # daily: on-chain program inventory
+    - cron: '47 3 * * *' # daily: economy invariants
+  workflow_dispatch:
+    inputs:
+      site_url:
+        description: 'Base URL for the manual header/exposure check'
+        type: string
+        default: 'https://play.ares1.is-a.dev'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: monitoring-${{ github.event.schedule || 'manual' }}
+  cancel-in-progress: false
+
+jobs:
+  dns:
+    name: DNS baseline drift
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/15 * * * *'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Compare live DNS records with the committed baseline
+        run: node scripts/check-dns.mjs --verbose
+      - name: Open or reuse a tracking issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALERT_TITLE: "Monitoring: DNS baseline drift (possible hijack)"
+        run: ./scripts/monitoring-alert.sh
+
+  inventory:
+    name: On-chain program inventory
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '17 3 * * *'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # Public devnet endpoint: this is a read-only registry check. If the
+      # address of the expected multisig is known but not committed (pre-mainnet
+      # gate G-2), pass it here via a repository variable and remove the
+      # `expectedUpgradeAuthority: null` warning from the run.
+      - name: Check every registered program (sleeping programs, mutable deprecated, drained)
+        env:
+          RPC_URL: https://api.devnet.solana.com
+          EXPECT_AUTHORITY: ${{ vars.MAINNET_AUTHORITY || '' }}
+        run: |
+          if [[ -n "$EXPECT_AUTHORITY" ]]; then
+            node game/scripts/inventory-programs.mjs --json --expect-authority "$EXPECT_AUTHORITY"
+          else
+            node game/scripts/inventory-programs.mjs --json
+          fi
+      - name: Open or reuse a tracking issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALERT_TITLE: "Monitoring: program inventory violation"
+        run: ./scripts/monitoring-alert.sh
+
+  invariants:
+    name: Economy invariants
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '47 3 * * *'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: game
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+          cache: yarn
+          cache-dependency-path: game/yarn.lock
+      - run: npm install --global yarn@1.22.22
+      - run: yarn install --frozen-lockfile --non-interactive
+      # Exit 2 = the monitor could not read the chain; that is also an alert
+      # (a monitor that cannot see is not a monitor).
+      - name: Mint authority / freeze / decimals / supply <= max_supply
+        env:
+          RPC_URL: https://api.devnet.solana.com
+          PROGRAM_ID: DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf
+        run: yarn check:invariants
+      - name: Open or reuse a tracking issue
+        if: failure()
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALERT_TITLE: "Monitoring: economy invariant violation"
+        run: ./scripts/monitoring-alert.sh
+
+  site:
+    name: Live headers and public exposure (manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Headers, TLS and HTTP->HTTPS
+        run: ./scripts/check-headers.sh "${{ inputs.site_url }}"
+      - name: Public exposure (no .env, .git, dumps, source maps)
+        run: ./scripts/check-public-exposure.sh "${{ inputs.site_url }}"
+      - name: Open or reuse a tracking issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALERT_TITLE: "Monitoring: live deployment check failed"
+        run: ./scripts/monitoring-alert.sh
