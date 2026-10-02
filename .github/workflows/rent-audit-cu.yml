@@ -1,0 +1,126 @@
+name: Rent audit CU
+
+# Этап 2: доказательная база «доказанно лишнего кода» и цена кода в CU.
+#
+#   - `ares-elf-audit`   — из чего состоит задеплоенный `.so`: сходимость
+#                          размера с суммой секций/заголовков, энтропия и
+#                          gzip-сжатие секций, отсутствие `.symtab`/`.debug*`,
+#                          строки `.rodata` (маркеры panic/путей);
+#   - `ares-usage`       — какие из 44 инструкций вообще упоминаются слоями
+#                          клиента (UI / утилиты web / backend / тесты / скрипты);
+#   - `ares-cu`          — compute units каждой инструкции по логу `anchor test`
+#                          на localnet (только строки нашей программы).
+#
+# Триггер: workflow_dispatch и push при правках самих измерителей. Обычный CI
+# (offchain-джоб) эти шаги не гоняет: здесь нужен полный местный валидатор.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'arena/**']
+    paths:
+      - 'game/scripts/cu-profile.py'
+      - 'game/scripts/cu-profile.test.mjs'
+      - 'game/scripts/instruction-coverage.mjs'
+      - 'game/scripts/size-experiments.py'
+      - '.github/workflows/rent-audit-cu.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rent-audit-cu-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOLANA_VERSION: '4.2.2'
+  ANCHOR_VERSION: '0.31.2'
+  PROGRAM_ID: DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf
+
+defaults:
+  run:
+    working-directory: game
+    shell: bash
+
+jobs:
+  profile:
+    name: CU-профиль, ELF-аудит и покрытие инструкций
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.97.1'
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: yarn
+          cache-dependency-path: game/yarn.lock
+      - run: npm install --global yarn@1.22.22
+      - run: yarn install --frozen-lockfile --non-interactive
+      - name: Install pinned Solana CLI
+        run: |
+          curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
+          sh /tmp/solana-install.sh
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache/restore@v4
+        id: anchor-cache
+        with:
+          path: ~/.cargo/bin/anchor
+          key: anchor-cli-${{ runner.os }}-${{ runner.arch }}-rust-1.97.1-${{ env.ANCHOR_VERSION }}
+      - name: Install pinned Anchor CLI
+        run: |
+          if ! command -v anchor >/dev/null || [[ "$(anchor --version | awk '{print $2}')" != "$ANCHOR_VERSION" ]]; then
+            cargo install anchor-cli --version "=$ANCHOR_VERSION" --locked
+          fi
+      - uses: actions/cache/save@v4
+        if: steps.anchor-cache.outputs.cache-hit != 'true'
+        with:
+          path: ~/.cargo/bin/anchor
+          key: ${{ steps.anchor-cache.outputs.cache-primary-key }}
+      - name: Verify toolchain
+        run: |
+          test "$(rustc --version | awk '{print $2}')" = '1.97.1'
+          test "$(solana --version | awk '{print $2}')" = "$SOLANA_VERSION"
+          test "$(anchor --version | awk '{print $2}')" = "$ANCHOR_VERSION"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: game
+          cache-on-failure: true
+          key: solana-${{ env.SOLANA_VERSION }}-anchor-${{ env.ANCHOR_VERSION }}-cu
+      - name: Парсер CU на фикстуре (быстрый гейт)
+        run: yarn test:rent-tools
+      - name: Build (opt-level z, lock-gate) — тот же профиль, что в матрице размеров
+        env:
+          CARGO_PROFILE_RELEASE_OPT_LEVEL: z
+        run: ./scripts/build-program.sh
+      - name: Аудит ELF и покрытие инструкций (аннотации ares-elf-audit, ares-usage)
+        if: ${{ !cancelled() }}
+        run: |
+          python3 scripts/size-experiments.py --audit
+          node scripts/instruction-coverage.mjs --annotate
+      - name: Localnet tests с логом (CU)
+        id: tests
+        run: |
+          mkdir -p ~/.config/solana
+          solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
+          set +e
+          python3 scripts/run-anchor-test.py > /tmp/anchor-test.log 2>&1
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "--- хвост лога ---"
+          tail -c 3000 /tmp/anchor-test.log
+          exit 0
+      - name: CU-профиль (аннотация ares-cu)
+        if: ${{ !cancelled() }}
+        run: |
+          # `anchor test` пишет логи программы через `solana logs` в
+          # .anchor/program-logs/*.log (cli/src/lib.rs, stream_logs) — в
+          # собственный stdout теста они не попадают. Собираем всё, что есть.
+          ls -la .anchor/program-logs/ 2>/dev/null || echo "нет .anchor/program-logs"
+          cat .anchor/program-logs/*.log /tmp/anchor-test.log > /tmp/cu-input.log 2>/dev/null || cp /tmp/anchor-test.log /tmp/cu-input.log
+          python3 scripts/cu-profile.py --log /tmp/cu-input.log --program-id "$PROGRAM_ID" --annotate
+      - name: Итог localnet-тестов
+        if: ${{ !cancelled() }}
+        run: exit ${{ steps.tests.outputs.status }}

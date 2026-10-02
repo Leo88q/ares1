@@ -1,0 +1,94 @@
+name: Rent audit experiments
+
+# Измерительные варианты размера `.so` — цифры к вопросам человеку Q2/Q3/Q4:
+# группа M, отдельный grant_reward, buy_field_sol, IDL и SBPF v3.
+#
+# НЕ ДЛЯ МЕРЖА: no-m/no-grant/no-grant-legacy/no-buy-field-sol меняют ABI
+# измерительной сборки; arch-v3 меняет целевую платформу. Только замер размера;
+# продуктовый код и Cargo.toml не меняются.
+#
+# Триггер — workflow_dispatch и push при правках самого измерителя: обычный CI
+# (R20) не должен тратить 8 минут сборки на каждый коммит программы.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'arena/**']
+    paths:
+      - 'game/scripts/size-experiments.py'
+      - '.github/workflows/rent-audit-experiments.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rent-audit-experiments-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOLANA_VERSION: '4.2.2'
+  ANCHOR_VERSION: '0.31.2'
+
+defaults:
+  run:
+    working-directory: game
+    shell: bash
+
+jobs:
+  size-experiments:
+    name: "Эксперимент ${{ matrix.exp }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        exp: [z, sbf, no-idl, no-m, no-grant, no-grant-legacy, no-buy-field-sol, arch-v3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.97.1'
+      - name: Install pinned Solana CLI
+        run: |
+          curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
+          sh /tmp/solana-install.sh
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache/restore@v4
+        id: anchor-cache
+        with:
+          path: ~/.cargo/bin/anchor
+          key: anchor-cli-${{ runner.os }}-${{ runner.arch }}-rust-1.97.1-${{ env.ANCHOR_VERSION }}
+      - name: Install pinned Anchor CLI
+        run: |
+          if ! command -v anchor >/dev/null || [[ "$(anchor --version | awk '{print $2}')" != "$ANCHOR_VERSION" ]]; then
+            cargo install anchor-cli --version "=$ANCHOR_VERSION" --locked
+          fi
+      - uses: actions/cache/save@v4
+        if: steps.anchor-cache.outputs.cache-hit != 'true'
+        with:
+          path: ~/.cargo/bin/anchor
+          key: ${{ steps.anchor-cache.outputs.cache-primary-key }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: game
+          cache-on-failure: true
+          key: solana-${{ env.SOLANA_VERSION }}-anchor-${{ env.ANCHOR_VERSION }}-exp-${{ matrix.exp }}
+      - name: Verify toolchain
+        run: |
+          test "$(rustc --version | awk '{print $2}')" = '1.97.1'
+          test "$(solana --version | awk '{print $2}')" = "$SOLANA_VERSION"
+          test "$(anchor --version | awk '{print $2}')" = "$ANCHOR_VERSION"
+      - name: Apply variant (правки измерительной сборки)
+        run: python3 scripts/size-experiments.py --apply '${{ matrix.exp }}'
+      - name: Build (opt-level z)
+        run: python3 scripts/size-experiments.py --build '${{ matrix.exp }}'
+      - name: Metrics + symbols (annotations ares-so-exp-*, ares-symbols)
+        if: ${{ !cancelled() }}
+        run: python3 scripts/size-experiments.py --metrics '${{ matrix.exp }}'
+      - name: Record lockfile unchanged
+        if: ${{ !cancelled() }}
+        run: |
+          git diff --exit-code -- Cargo.lock || {
+            echo '::error title=ares-lockfile::Cargo.lock изменился при сборке — измерение недействительно'
+            exit 1
+          }

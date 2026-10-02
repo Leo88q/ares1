@@ -1,0 +1,270 @@
+name: Rent audit
+
+# Измерительный контур стоимости деплоя (reports/rent-audit/). Отдельный файл:
+# существующие workflow не правим (R13). Только чтение devnet; ключей, секретов
+# и транзакций здесь нет (R2). Наружу уходят только публичные данные (R11).
+#
+# workflow_dispatch срабатывает лишь для файлов в default-ветке, поэтому
+# основной путь — push в main/arena/** и pull_request по списку paths.
+
+on:
+  push:
+    branches: [main, 'arena/**']
+    paths:
+      - 'game/programs/**'
+      - 'game/Cargo.toml'
+      - 'game/Anchor.toml'
+      - 'game/scripts/build-program.sh'
+      - 'game/scripts/ci-metrics.py'
+      - 'game/scripts/probe-devnet.sh'
+      - 'game/scripts/legacy-recovery-audit.mjs'
+      - 'game/scripts/legacy-recovery-audit.test.mjs'
+      - 'game/scripts/probe-features.mjs'
+      - 'game/scripts/deploy-budget.mjs'
+      - 'game/scripts/calibrate-localnet.mjs'
+      - 'game/scripts/rent-audit.config.json'
+      - '.github/workflows/rent-audit.yml'
+  pull_request:
+    paths:
+      - 'game/programs/**'
+      - 'game/Cargo.toml'
+      - 'game/Anchor.toml'
+      - 'game/scripts/build-program.sh'
+      - 'game/scripts/ci-metrics.py'
+      - 'game/scripts/probe-devnet.sh'
+      - 'game/scripts/legacy-recovery-audit.mjs'
+      - 'game/scripts/legacy-recovery-audit.test.mjs'
+      - 'game/scripts/probe-features.mjs'
+      - 'game/scripts/deploy-budget.mjs'
+      - 'game/scripts/calibrate-localnet.mjs'
+      - 'game/scripts/rent-audit.config.json'
+      - '.github/workflows/rent-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rent-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOLANA_VERSION: '4.2.2'
+  ANCHOR_VERSION: '0.31.2'
+
+defaults:
+  run:
+    working-directory: game
+    shell: bash
+
+jobs:
+  # Чтение состояния кластера: ставка rent, ProgramData, баланс деплоера,
+  # буферы, легаси-программа, счётчики аккаунтов игры. Без ключей.
+  probe-devnet:
+    name: "Rent audit: probe devnet"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Solana CLI
+        run: |
+          curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
+          sh /tmp/solana-install.sh
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Probe devnet (read-only)
+        run: ./scripts/probe-devnet.sh
+      - name: Archive complete read-only recovery snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-recovery-audit-${{ github.run_id }}
+          path: ${{ runner.temp }}/legacy-recovery-audit.json
+          retention-days: 14
+          if-no-files-found: warn
+      # Состояние SIMD-фич, от которых зависит вердикт модели §5: SIMD-0431
+      # (минимальный extend), SIMD-0433 (ProgramData = длина ELF), SIMD-0500
+      # (запрет SBPF v0-v2 при деплое). Одна аннотация ares-features.
+      - name: SIMD features (read-only, annotation ares-features)
+        run: node scripts/probe-features.mjs
+      # SETUP_ONCHAIN: разовые расходы init-onchain по факту кластера (какие
+      # аккаунты уже существуют). Заодно — smoke-тест RPC-пути калькулятора.
+      - name: SETUP_ONCHAIN (init-onchain accounts, measured)
+        # Код 3 (деплоеру не хватает SOL) — нормальный результат измерения, не сбой.
+        # Сбой = нет JSON: тогда печатаем текст ошибки аннотацией (логи CI недоступны).
+        run: |
+          set +e
+          node scripts/deploy-budget.mjs --so-len 0 --mode init-only --json > /tmp/init-only.json 2> /tmp/init-only.err
+          code=$?
+          set -e
+          if [ ! -s /tmp/init-only.json ]; then
+            echo "::error title=ares-setup-error::exit=$code $(tail -c 500 /tmp/init-only.err | tr '\n' ' ')"
+            exit 1
+          fi
+          echo "$code" > /tmp/init-only.code
+          python3 - <<'PY'
+          import json
+          data = json.load(open('/tmp/init-only.json'))
+          payload = {
+              'setupOnchain': data['setupOnchain'],
+              'setupParts': data['setupParts'],
+              'needTotalInitOnly': data['needTotal'],
+              'rate': data['rate'],
+              'rpc': data['rpc'],
+              'deployerBalance': data['balance'],
+              'cliExit': int(open('/tmp/init-only.code').read().strip()),
+          }
+          print('::notice title=ares-setup::' + json.dumps(payload, separators=(',', ':'), ensure_ascii=True))
+          PY
+
+  # Матрица размеров `.so` по opt-level. Сборка тем же скриптом, что в ci.yml
+  # (build-program.sh запрещает любое изменение Cargo.lock). Переменная профиля
+  # Cargo.lock не меняет: CARGO_PROFILE_RELEASE_OPT_LEVEL переопределяет
+  # [profile.release] из Cargo.toml только на время сборки.
+  size-matrix:
+    name: "Rent audit: size ${{ matrix.opt }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        opt: [base, '3', s, z]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.97.1'
+      - name: Install pinned Solana CLI
+        run: |
+          curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
+          sh /tmp/solana-install.sh
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache/restore@v4
+        id: anchor-cache
+        with:
+          path: ~/.cargo/bin/anchor
+          key: anchor-cli-${{ runner.os }}-${{ runner.arch }}-rust-1.97.1-${{ env.ANCHOR_VERSION }}
+      - name: Install pinned Anchor CLI
+        run: |
+          if ! command -v anchor >/dev/null || [[ "$(anchor --version | awk '{print $2}')" != "$ANCHOR_VERSION" ]]; then
+            cargo install anchor-cli --version "=$ANCHOR_VERSION" --locked
+          fi
+      - uses: actions/cache/save@v4
+        if: steps.anchor-cache.outputs.cache-hit != 'true'
+        with:
+          path: ~/.cargo/bin/anchor
+          key: ${{ steps.anchor-cache.outputs.cache-primary-key }}
+      - name: Verify toolchain
+        run: |
+          test "$(rustc --version | awk '{print $2}')" = '1.97.1'
+          test "$(solana --version | awk '{print $2}')" = "$SOLANA_VERSION"
+          test "$(anchor --version | awk '{print $2}')" = "$ANCHOR_VERSION"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: game
+          cache-on-failure: true
+          key: solana-${{ env.SOLANA_VERSION }}-anchor-${{ env.ANCHOR_VERSION }}-opt-${{ matrix.opt }}
+      - name: Build program (opt-level ${{ matrix.opt }})
+        env:
+          OPT: ${{ matrix.opt }}
+        run: |
+          # `base` — как в Cargo.toml (неявный opt-level=3): контроль, что env-var
+          # действительно управляет профилем, — совпадение sha256 с вариантом `3`.
+          if [ "$OPT" = "base" ]; then
+            ./scripts/build-program.sh
+          else
+            CARGO_PROFILE_RELEASE_OPT_LEVEL="$OPT" ./scripts/build-program.sh
+          fi
+      - name: Program size metrics (annotation ares-so-${{ matrix.opt }})
+        if: ${{ !cancelled() }}
+        run: python3 scripts/ci-metrics.py --variant '${{ matrix.opt }}'
+      - name: Record lockfile unchanged
+        if: ${{ !cancelled() }}
+        run: |
+          git diff --exit-code -- Cargo.lock || {
+            echo '::error title=ares-lockfile::Cargo.lock изменился при сборке — измерение недействительно'
+            exit 1
+          }
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: so-${{ matrix.opt }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            game/target/deploy/solana_potato.so
+            game/target/idl/solana_potato.json
+
+  # Калибровка §5.7: модель залога проверяется на живом solana-test-validator
+  # (одноразовые ключи, localnet — исключение из R2). Расхождение хотя бы на
+  # 1 лампорт валит job: по брифу это СТОП-условие, а не «шум».
+  calibrate-localnet:
+    name: "Rent audit: calibrate localnet"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [size-matrix]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned Solana CLI
+        run: |
+          curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
+          sh /tmp/solana-install.sh
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Download the reference build (so-base) — цель апгрейда
+        uses: actions/download-artifact@v4
+        with:
+          name: so-base
+          path: game/target
+      - name: Download the small build (so-z) — стартовый .so
+        # Первый деплой делается маленьким .so, апгрейд — базовым: только так
+        # проверяется extend (на CLI 4.2.2 сам deploy ProgramData не расширяет).
+        uses: actions/download-artifact@v4
+        with:
+          name: so-z
+          path: game/target-small
+      - name: Verify toolchain and artifacts
+        run: |
+          test "$(solana --version | awk '{print $2}')" = "$SOLANA_VERSION"
+          # download-artifact кладёт файлы от общего предка — нормализуем пути.
+          if [ ! -s target/deploy/solana_potato.so ]; then
+            found="$(find target -name 'solana_potato.so' -print -quit)"
+            [ -n "$found" ] && mkdir -p target/deploy && cp "$found" target/deploy/solana_potato.so
+          fi
+          test -s target/deploy/solana_potato.so
+          mkdir -p target-small
+          small="$(find target-small -name 'solana_potato.so' -print -quit)"
+          if [ -n "$small" ] && [ "$small" != "target-small/solana_potato.so" ]; then
+            cp "$small" target-small/solana_potato.so
+          fi
+          test -s target-small/solana_potato.so
+          stat -c '%s bytes %n' target/deploy/solana_potato.so target-small/solana_potato.so
+      - name: Start solana-test-validator (localnet only)
+        # Тестовый валидатор включает ВСЕ фичи по умолчанию (включая
+        # disable_sbpf_v0_v1_v2_deployment), и тогда .so, собранный пиннутым
+        # тулчейном (SBPF v0-v2), не ставится: loader отвечает «Detected
+        # sbpf_version required by the executable which are not enabled».
+        # `anchor test` в ci.yml этого не ловит: он встраивает программу в
+        # genesis (`--bpf-program`), а не деплоит её через loader-v3.
+        # Снимаем ровно эту фичу — конфигурация валидатора приводится к
+        # состоянию devnet, где v0-v2 ещё разрешены (SIMD-0161 не активирован).
+        run: |
+          solana-test-validator --reset --quiet --ledger /tmp/calib-ledger \
+            --deactivate-feature B8JJXCy5amZyWG9r7EnUYLwzXSXTxG7GZ1qZ1qggo83g \
+            > /tmp/validator.log 2>&1 &
+          for i in $(seq 1 60); do
+            solana cluster-version --url http://127.0.0.1:8899 >/dev/null 2>&1 && break
+            sleep 1
+          done
+          solana cluster-version --url http://127.0.0.1:8899
+      - name: Calibrate (annotation ares-calibrate)
+        run: node scripts/calibrate-localnet.mjs --so target-small/solana_potato.so --so2 target/deploy/solana_potato.so --out /tmp/calibrate-report.json
+      - name: Upload calibration report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: calibrate-report
+          retention-days: 7
+          if-no-files-found: warn
+          path: /tmp/calibrate-report.json
+      - name: Validator log on failure
+        if: ${{ failure() }}
+        run: tail -50 /tmp/validator.log || true

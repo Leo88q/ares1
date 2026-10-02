@@ -1,0 +1,9 @@
+{
+  "comment": "Публичный конфиг измерительного контура rent-audit (reports/rent-audit/). Секретов нет: только публичные адреса и URL. Обновляется вручную при смене программы.",
+  "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+  "deployer": "HW4ekULcWHiVhDMfWpg8MwJwLqZHYskGMrue44WZ3vJ9",
+  "rpc": "https://api.devnet.solana.com",
+  "legacyProgramId": "48D2uN5dwrpQuCJcb8Bge1hRkJVCRcS4J1JicAoAvMha",
+  "legacyProgramIdNote": "Получен read-only из declare_id! в истории Git (6799485); commit 864bdbb прямо помечает его устаревшим, а Anchor.toml указывает DUUBi. Старый ID остаётся проверяемым, не считать deployed без RPC-факта.",
+  "growthHeadroomBytes": 0
+}
