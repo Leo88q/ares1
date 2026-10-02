@@ -27,19 +27,21 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
           cache: yarn
           cache-dependency-path: game/yarn.lock
       - run: npm install --global yarn@1.22.22
       - run: ./scripts/ci-local.sh --skip-chain
-      # F-11: advisory dependency audit (sandbox cannot reach the yarn audit
-      # endpoint; CI runners can). continue-on-error: advisories are a signal,
-      # not a merge gate — transitive @solana stack findings have no non-
-      # breaking fix yet (see docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md).
-      - name: Dependency audit (advisory)
+      # F-11/2026-10-02: two audits. A CRITICAL advisory blocks the merge: that
+      # is the only level where "no non-breaking fix exists" is not an argument.
+      # HIGH stays advisory — transitive @solana-stack findings have no
+      # non-breaking fix yet and the signal is still visible in the log.
+      - name: Dependency audit — critical (blocking)
+        run: yarn audit --groups dependencies --level critical
+      - name: Dependency audit — high (advisory)
         continue-on-error: true
         run: yarn audit --groups dependencies --level high
 
@@ -70,8 +72,8 @@ jobs:
       GAME_OPS_TEST_ROLE: game_ops_writer
       GAME_OPS_RUN_ID: ${{ github.run_id }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
           cache: yarn
@@ -114,7 +116,7 @@ jobs:
           yarn db:mutate --url="$GAME_OPS_TEST_URL" --anchor=/tmp/audit-anchor.json
       - name: Финальная приёмка после нагрузок
         run: yarn db:verify --url="$GAME_OPS_TEST_URL"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: ${{ !cancelled() }}
         with:
           name: gameops-db-bench
@@ -127,15 +129,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, pinned (was @master)
         with:
           toolchain: '1.97.1'
           # F-18: без этих компонентов шаги fmt/clippy завершаются «успехом»
           # (continue-on-error) с `error: 'cargo-clippy' is not installed`,
           # создавая иллюзию работающего гейта. Компоненты обязательны.
           components: clippy, rustfmt
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
           cache: yarn
@@ -147,7 +149,7 @@ jobs:
           curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
           sh /tmp/solana-install.sh
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: anchor-cache
         with:
           path: ~/.cargo/bin/anchor
@@ -157,7 +159,7 @@ jobs:
           if ! command -v anchor >/dev/null || [[ "$(anchor --version | awk '{print $2}')" != "$ANCHOR_VERSION" ]]; then
             cargo install anchor-cli --version "=$ANCHOR_VERSION" --locked
           fi
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         if: steps.anchor-cache.outputs.cache-hit != 'true'
         with:
           path: ~/.cargo/bin/anchor
@@ -170,41 +172,44 @@ jobs:
           # Жёсткая проверка: advisory-шаги ниже не должны silently no-op'ить.
           cargo fmt --version
           cargo clippy --version
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: game
           cache-on-failure: true
           key: solana-${{ env.SOLANA_VERSION }}-anchor-${{ env.ANCHOR_VERSION }}
       - name: Unit tests (host)
         run: ./scripts/ci-run.sh cargo test --locked -p solana_potato --lib
-      # F-18: lint gates were missing from CI. Sandbox has no Rust toolchain,
-      # so fmt/clippy start as advisory (continue-on-error): flip to hard
-      # gates after the first successful strict run on runners.
-      - name: cargo fmt check (advisory, F-18)
-        continue-on-error: true
-        run: ./scripts/ci-run.sh cargo fmt --all -- --check
-      # Тот же диагностический канал, что и для clippy: excerpt от ci-run.sh
-      # показывает только хвост diff'а, поэтому долг из нескольких ханков
-      # выглядит как одна обрезанная строка. Шаг всегда зелёный.
-      - name: fmt diff (bounded annotation, F-18)
+      # F-22: fmt-долг заблокирован на текущем уровне и не может расти.
+      # 127 ханков — состояние программы на 20e0c9d при rustfmt из
+      # rust-toolchain.toml (1.97.1, пин → счёт детерминирован). Не «advisory»:
+      # любой новый неотформатированный код увеличивает счёт и валит шаг.
+      # Устранить долг целиком: `cargo fmt --all`, затем снять baseline.
+      - name: cargo fmt check (debt must not grow, F-22)
         if: ${{ !cancelled() }}
         run: |
           set +e
-          cargo fmt --all -- --check > /tmp/fmt-diff.txt 2>&1
-          python3 scripts/fmt-inventory.py < /tmp/fmt-diff.txt
-          exit 0
-      - name: cargo clippy strict (advisory, F-18)
-        continue-on-error: true
-        run: ./scripts/ci-run.sh cargo clippy --locked -p solana_potato --all-targets -- -D warnings
+          cargo fmt --all -- --check > /tmp/fmt-check.txt 2>&1
+          python3 scripts/fmt-inventory.py --max-hunks=127 < /tmp/fmt-check.txt
+      # F-22: clippy — блокирующий гейт. Единственное исключение — lint
+      # `deprecated`, и оно точечное: предупреждение приходит не из нашего кода,
+      # а из кодогена Anchor 0.31.2 (`#[program]` генерирует IDL-хендлеры,
+      # которые зовут `AccountInfo::realloc(..)` — метод deprecated в
+      # solana-program 2.x, см. lang/syn/src/codegen/program/idl.rs:239 в
+      # v0.31.2). Наш собственный код запрещено проверять этим флагом: вызовы
+      # `AccountInfo::realloc` в программе ловит tripwire-тест
+      # security-guards.test.mjs. Убрать `-A deprecated` можно после апгрейда
+      # Anchor, в котором кодоген перейдёт на `resize()`.
+      - name: cargo clippy strict (blocking, F-22)
+        run: ./scripts/ci-run.sh cargo clippy --locked -p solana_potato --all-targets -- -D warnings -A deprecated
       # Диагностический шаг: лог-архив джобы недоступен из API-only окружений,
-      # а excerpt от ci-run.sh обрезан — без этой инвентаризации pre-existing
-      # lint-долг невозможно разобрать. Шаг всегда зелёный, данные идут в
-      # аннотации (пути и имена линтов, без исходников).
+      # а excerpt от ci-run.sh обрезан — без этой инвентаризации lint-долг
+      # невозможно разобрать. Шаг всегда зелёный, данные идут в аннотации
+      # (пути и имена линтов, без исходников). Здесь `-D warnings` без
+      # `-A deprecated` намеренно: если deprecated-вызов появится в нашем коде,
+      # он будет виден в инвентаре, хотя гейт выше его и пропускает.
       - name: Clippy inventory (bounded annotation, F-18)
         if: ${{ !cancelled() }}
         run: |
-          # Шаг диагностический: clippy с -D warnings всегда выходит 101 на
-          # текущем долге, поэтому errexit снимаем, а exit-код фиксируем сами.
           set +e -o pipefail
           cargo clippy --locked -p solana_potato --all-targets --message-format=json -- -D warnings | python3 scripts/clippy-inventory.py
           exit 0
@@ -229,7 +234,7 @@ jobs:
       # the diagnostic channel; never pass production keys to this workflow.
       - name: Build artifacts (no deploy keypair)
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: program-build
           retention-days: 7
@@ -249,8 +254,8 @@ jobs:
       run:
         working-directory: landing
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
           cache: npm
@@ -259,7 +264,10 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - name: Dependency audit (advisory)
+      # Same split as the off-chain job: critical blocks, high is advisory.
+      - name: Dependency audit — critical (blocking)
+        run: npm audit --omit=dev --audit-level=critical
+      - name: Dependency audit — high (advisory)
         continue-on-error: true
         run: npm audit --omit=dev --audit-level=high
 
@@ -280,8 +288,8 @@ jobs:
       run:
         working-directory: .
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
           cache: npm
@@ -311,5 +319,28 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - run: docker build -f apps/backend/Dockerfile .
+
+  shell-scripts:
+    name: Shell scripts (shellcheck, errors and warnings)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    # Workflow-level default is `game`; this gate must also see root-level
+    # scripts/ (monitoring-alert.sh, check-headers.sh, deploy helpers).
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # shellcheck 0.9.0 is preinstalled on the ubuntu-24.04 runner image
+      # (actions/runner-images Ubuntu2404-Readme.md) — no download step, so the
+      # gate cannot silently skip when a CDN is unreachable.
+      #
+      # Why this gate exists: ops scripts (mainnet deploy, preflight, probes,
+      # monitoring alerts) were checked only by `bash -n`, which misses
+      # unquoted expansions, unreachable `cd` failures and unused variables —
+      # exactly the class of bug that turns a deploy guard into decoration.
+      # `-S warning` = real defects; info/note findings are style and stay out.
+      - name: ShellCheck (tracked *.sh)
+        run: shellcheck -S warning $(git ls-files '*.sh')

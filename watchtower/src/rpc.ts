@@ -2,7 +2,17 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import { SafeError } from './config.js';
 import type { Metrics } from './metrics.js';
-export const DEVNET_GENESIS = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1';
+/**
+ * Full devnet genesis hash (44 base58 chars / 32 bytes).
+ *
+ * 2026-10-02: this constant used to be truncated to `…U2xqa1` (37 chars), so
+ * `getGenesisHash` never matched and every RPC call failed with
+ * RPC_CLUSTER_MISMATCH before doing any work. The tests could not catch it
+ * because they mocked the response with the same wrong constant — the value is
+ * now cross-checked against `game/scripts/legacy-recovery-audit.mjs` by the
+ * security-guard tripwire.
+ */
+export const DEVNET_GENESIS = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
 export const READ_METHODS = ['getGenesisHash', 'getAccountInfo', 'getSlot', 'getSignaturesForAddress', 'getTransaction', 'getFirstAvailableBlock'] as const;
 export type ReadMethod = typeof READ_METHODS[number];
 export interface ReadRpc { call<T>(method: ReadMethod, params?: unknown[]): Promise<T> }

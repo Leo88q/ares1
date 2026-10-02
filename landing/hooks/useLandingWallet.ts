@@ -1,5 +1,5 @@
 import { getItem, setItem, removeItem } from '../utils/consent';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { chainConfig } from '../content';
@@ -34,7 +34,8 @@ export function useLandingWallet() {
     error: null,
   });
 
-  const connection = new Connection(chainConfig.rpcUrl, 'confirmed');
+  // 2026-10-02 (audit): one Connection per hook instance, not one per render.
+  const connection = useMemo(() => new Connection(chainConfig.rpcUrl, 'confirmed'), []);
 
   const connect = useCallback(async () => {
     if (!window.solana?.isPhantom) {
@@ -74,8 +75,11 @@ export function useLandingWallet() {
   }, [state.publicKey, connection]);
 
   useEffect(() => {
-    if (getItem("functional", "wallet_connected") === "true" && window.solana?.publicKey) {
-      setState(s => ({ ...s, connected: true, publicKey: window.solana!.publicKey! }));
+    // Phantom injects `solana.publicKey` asynchronously after a refresh: never
+    // assert non-null here, read it once into a local.
+    const injected = window.solana?.publicKey;
+    if (getItem("functional", "wallet_connected") === "true" && injected) {
+      setState(s => ({ ...s, connected: true, publicKey: injected }));
     }
   }, []);
 
