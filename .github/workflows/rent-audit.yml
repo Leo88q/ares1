@@ -65,7 +65,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install pinned Solana CLI
         run: |
           curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
@@ -129,7 +129,7 @@ jobs:
       matrix:
         opt: [base, '3', s, z]
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, pinned (was @master)
         with:
           toolchain: '1.97.1'
@@ -203,7 +203,7 @@ jobs:
     timeout-minutes: 30
     needs: [size-matrix]
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install pinned Solana CLI
         run: |
           curl -fsSL "https://release.anza.xyz/v${SOLANA_VERSION}/install" -o /tmp/solana-install.sh
