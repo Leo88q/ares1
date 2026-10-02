@@ -689,8 +689,18 @@ test('2026-10-02: high/critical audit parses Yarn severity bitmask and fails clo
 case "$FAKE_CASE" in
   clean) printf '{"type":"auditSummary","data":{"vulnerabilities":{"high":0,"critical":0,"total":0}}}\\n'; exit 0 ;;
   moderate) printf '{"type":"auditSummary","data":{"vulnerabilities":{"moderate":3,"high":0,"critical":0,"total":3}}}\\n'; exit 4 ;;
-  high) printf '{"type":"auditSummary","data":{"vulnerabilities":{"high":1,"critical":0,"total":1}}}\\n{"type":"auditAdvisory","data":{"advisory":{"module_name":"node-fetch","severity":"high","title":"Header injection","url":"https://example.invalid/GHSA"},"findings":[{"version":"3.3.0","paths":["a>b"]}]}}\\n'; exit 8 ;;
-  critical) printf '{"type":"auditSummary","data":{"vulnerabilities":{"high":1,"critical":1,"total":7}}}\\n{"type":"auditAdvisory","data":{"advisory":{"module_name":"protobufjs","severity":"critical","title":"RCE","url":"https://example.invalid/GHSA"},"findings":[{"version":"7.4.0","paths":["a>b"]}]}}\\n'; exit 30 ;;
+  high)
+    cat <<'JSON'
+{"type":"auditSummary","data":{"vulnerabilities":{"high":1,"critical":0,"total":1}}}
+{"type":"auditAdvisory","data":{"resolution":{"id":1,"path":"a>b>node-fetch@3.3.0","dev":false,"optional":false,"bundled":false},"advisory":{"module_name":"node-fetch","severity":"high","title":"Header injection","url":"https://example.invalid/GHSA","findings":[{"version":"3.3.0","paths":["a>b>node-fetch@3.3.0"],"dev":false,"optional":false,"bundled":false}]}}}
+JSON
+    exit 8 ;;
+  critical)
+    cat <<'JSON'
+{"type":"auditSummary","data":{"vulnerabilities":{"high":1,"critical":1,"total":7}}}
+{"type":"auditAdvisory","data":{"resolution":{"id":2,"path":"a>b>protobufjs@7.4.0","dev":false,"optional":false,"bundled":false},"advisory":{"module_name":"protobufjs","severity":"critical","title":"RCE","url":"https://example.invalid/GHSA","findings":[{"version":"7.4.0","paths":["a>b>protobufjs@7.4.0"],"dev":false,"optional":false,"bundled":false}]}}}
+JSON
+    exit 30 ;;
   broken) echo 'error: registry unreachable'; exit 1 ;;
 esac
 `);
@@ -706,6 +716,7 @@ esac
     const high = run('high');
     assert.equal(high.status, 1, 'high finding must block');
     assert.match(high.stdout, /HIGH: node-fetch@3\.3\.0/, 'report must identify the high package and version');
+    assert.match(high.stdout, /::error title=High or critical dependency advisory::HIGH:/, 'GitHub check annotation must carry the precise advisory');
     const critical = run('critical');
     assert.equal(critical.status, 1, 'critical finding must block');
     assert.match(critical.stdout, /CRITICAL: protobufjs@7\.4\.0/, 'report must identify the critical package and version');
@@ -728,6 +739,18 @@ test('2026-10-02: protobufjs не возвращается в уязвимый �
   const entry = /^protobufjs@[^:]*:\n\s+version "([^"]+)"/m.exec(lock);
   assert.ok(entry, 'protobufjs не найден в yarn.lock');
   assert.equal(entry[1], enforced, 'lock и resolutions разошлись: критический advisory вернётся по lockfile');
+});
+
+test('2026-10-02: фиксирует production advisories в lodash и вложенном viem/ws', () => {
+  const pkg = JSON.parse(read('../package.json'));
+  const lock = read('../yarn.lock');
+  assert.equal(pkg.resolutions?.lodash, '4.18.1', 'GHSA-r5fr-rjxr-66jc требует lodash >=4.18.0; 4.18.0 отозван');
+  assert.equal(pkg.resolutions?.['**/viem/ws'], '8.21.3', 'GHSA-96hv-2xvq-fx4p требует ws >=8.21.0');
+  assert.equal(parseYarnEntry(lock, 'lodash@4.18.1')?.version, '4.18.1');
+  assert.equal(parseYarnEntry(lock, 'ws@8.21.3')?.version, '8.21.3');
+  assert.doesNotMatch(lock, /^lodash@4\.17\.21:/m, 'уязвимый lodash lock-entry вернулся');
+  assert.doesNotMatch(lock, /^lodash@4\.18\.0:/m, 'отозванный lodash 4.18.0 lock-entry вернулся');
+  assert.doesNotMatch(lock, /^ws@8\.18\.0:/m, 'уязвимый ws lock-entry вернулся');
 });
 
 test('2026-10-02: рабочее дерево проходит secret-scan (гейт §1.1 не красный)', () => {
