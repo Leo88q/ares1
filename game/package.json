@@ -17,6 +17,8 @@
     "test": "anchor test",
     "test:unit": "cargo test -p solana_potato --lib",
     "test:guards": "node --test scripts/security-guards.test.mjs",
+    "test:deploy-mainnet": "node --test scripts/deploy-mainnet.test.mjs",
+    "test:vendor-layout": "node --test ../vendor/solana-buffer-layout-utils/test/*.test.mjs",
     "test:deploy-budget": "node --test scripts/deploy-budget.test.mjs scripts/calibrate-localnet.test.mjs",
     "test:rent-tools": "node --test scripts/buffer-inventory.test.mjs scripts/warm-start-reclaim.test.mjs scripts/cu-profile.test.mjs scripts/instruction-coverage.test.mjs scripts/legacy-recovery-audit.test.mjs",
     "test:mutation": "node scripts/mutation-probe.mjs",
@@ -47,6 +49,7 @@
   "devDependencies": {
     "@coral-xyz/anchor": "0.30.1",
     "@solana/spl-token": "0.4.15",
+    "@solana/buffer-layout-utils": "file:../vendor/solana-buffer-layout-utils",
     "@solana/web3.js": "1.98.4",
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.10",
@@ -65,7 +68,17 @@
     "@solana-mobile/wallet-adapter-mobile": "2.1.5",
     "@solana-mobile/mobile-wallet-adapter-protocol-web3js": "2.1.5",
     "@solana-mobile/mobile-wallet-adapter-protocol": "2.1.5",
-    "protobufjs": "7.6.6"
+    "protobufjs": "7.6.6",
+    "@solana/buffer-layout-utils": "file:../vendor/solana-buffer-layout-utils",
+    "jayson": "5.0.0",
+    "lodash": "4.18.1",
+    "toml": "4.2.0",
+    "**/viem/ws": "8.21.3",
+    "**/node-cron/uuid": "11.1.1",
+    "**/uuidv4/uuid": "11.1.1",
+    "**/@keystonehq/bc-ur-registry-sol/uuid": "11.1.1",
+    "**/@keystonehq/sol-keyring/uuid": "11.1.1",
+    "**/@solflare-wallet/sdk/uuid": "11.1.1"
   },
   "packageManager": "yarn@1.22.22",
   "engines": {

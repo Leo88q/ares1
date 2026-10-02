@@ -22,6 +22,7 @@
 | anchor-lang / anchor-spl | `=0.31.2` (точный пин, machine-гейт `test:guards` «П.116») | GitHub coral-xyz/anchor releases + security advisories | владелец репо | перед каждым bump: чтение release notes целиком |
 | @solana/web3.js | `1.98.4` точный пин + трипваер запрещённых версий (1.95.6/1.95.7 — supply-chain инцидент) в `security-guards.test.mjs` | GitHub solana-labs/solana-web3.js security advisories | владелец репо | перед bump |
 | @solana/spl-token (JS) | `0.4.15` | GitHub solana-program/token | владелец репо | перед bump |
+| @solana/buffer-layout-utils | local `0.3.1+ares1` backport, API-compatible with `0.3.0`; lock-pinned through `file:` | upstream PR #2 + local `vendor/solana-buffer-layout-utils/README.vendor.md` | владелец репо | until upstream fixed release |
 | Rust toolchain | `rust-toolchain.toml` (1.97.1) | Rust security advisories | владелец репо | раз в квартал |
 | protobufjs (транзитивно, через `@trezor/*` в wallet-adapter) | `7.6.6` через `resolutions` в `game/package.json` + трипваер в `security-guards.test.mjs` | GitHub Advisory DB (GHSA-xq3m-2v4x-88gg — RCE, исправлен в 7.5.5; GHSA-wcpc-wj8m-hjx6 ≤7.6.0) | владелец репо | перед bump @trezor/wallet-adapter |
 
@@ -29,11 +30,37 @@
 `protobufjs` ровно `7.4.0`, а `@trezor/connect`/`@trezor/transport` уже приносили
 7.5.5 — в дереве жили две версии, и в prod-графе висел **critical** advisory
 (arbitrary code execution). `resolutions.protobufjs=7.6.6` схлопывает всё в одну
-версию, которая закрывает и critical, и прочие protobufjs-advistory (≤7.6.0).
+версию, которая закрывает и critical, и прочие protobufjs-advisory (≤7.6.0).
 Проверено: `yarn workspace web build`, тесты web, `backend typecheck`,
-`yarn install --frozen-lockfile`. Гейт `game/scripts/audit-critical.sh` валит
-job только на critical (yarn 1 отдаёт битмаску severity, `--level` её не
-фильтрует).
+`yarn install --frozen-lockfile`. Гейт `game/scripts/audit-blocking.sh` блокирует
+high/critical (yarn 1 отдаёт битмаску severity, `--level` её не фильтрует), а
+landing использует `npm audit --omit=dev --audit-level=high`.
+
+**GHSA-w5hq-g745-h8pq / Solana RPC transitive dependencies (2026-10-02).**
+`@solana/web3.js@1.98.4` просит `jayson@^4.1.1`; Jayson 4 подтягивал старые
+`stream-json` и `uuid` ветки. Оба менеджера теперь фиксируют `jayson@5.0.0`;
+landing закрепляет browser-client вызов тестом `landing/tests/jayson-compat.test.mjs`.
+Для прочих потребителей `uuid@8/9` в Yarn-дереве заданы узкие path resolutions на
+`uuid@11.1.1`; `uuid@14.0.2` у `rpc-websockets` остаётся без понижения major.
+Проверено: `yarn install --frozen-lockfile`, `yarn why uuid`, game/landing
+production builds и `npm audit --omit=dev --audit-level=moderate` (landing —
+0 findings). Полный Yarn advisory feed в этой среде недоступен из-за TLS-сброса;
+release CI всё равно обязан пройти `audit-blocking.sh`. Перед staging/mainnet
+нужен RPC smoke test на целевом кластере — unit-test проверяет browser-client
+request/response API, но не заменяет живой Solana RPC.
+
+**CVE-2025-3194 / GHSA-3gc7-fjrx-p6mg (2026-10-02).** `bigint-buffer@1.1.5`
+в native `toBigIntLE()` содержит buffer overflow; upstream не выпустил patched
+version. Вместо маскировки advisory мы backport'нули pure-JS реализацию из
+`solana-foundation/buffer-layout-utils` PR #2 в
+`vendor/solana-buffer-layout-utils`, сохранив все остальные исходники API
+`@solana/buffer-layout-utils@0.3.0`. Вендор-пакет получает фиксированную версию
+`0.3.1+ares1`, сохраняет upstream Apache-2.0 license и 47 upstream-тестов;
+оба package manager lockfile разрешают транзитивный запрос через эту локальную
+копию. Проверки блокируют возврат `bigint-buffer` в Yarn/npm lockfiles, а CI
+запускает 47 тестов и блокирует high/critical advisories. После появления
+официального upstream release нужно сравнить API, удалить local path pin и
+обновить оба lockfile только после прохождения тех же проверок.
 
 Правила:
 1. **Никаких диапазонов версий** в критичных зависимостях; всё через lockfile

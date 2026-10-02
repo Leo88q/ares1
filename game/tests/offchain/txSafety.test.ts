@@ -19,6 +19,8 @@ import {
   assertSignedLegacyInstructionsMatch,
   describeInstructions,
   isAllowedProgram,
+  snapshotLegacyMessage,
+  snapshotVersionedMessage,
 } from '../../apps/web/src/utils/txSafety'
 import idl from '../../apps/web/src/idl.json'
 
@@ -69,7 +71,7 @@ test('drainer payload is refused before it reaches the wallet', () => {
   }
 })
 
-test('signed transaction is compared byte-for-byte with what was requested', () => {
+test('signed v0 message must exactly match the immutable pre-sign snapshot', () => {
   const payer = Keypair.generate().publicKey
   const expected = [computeIx(), harvestIx()]
   const build = (ixs: TransactionInstruction[]) =>
@@ -77,37 +79,57 @@ test('signed transaction is compared byte-for-byte with what was requested', () 
       new TransactionMessage({ payerKey: payer, recentBlockhash: PublicKey.default.toBase58(), instructions: ixs }).compileToV0Message(),
     )
 
-  const signed = build(expected)
-  assert.doesNotThrow(() => assertSignedInstructionsMatch(signed, expected, game))
+  const unsigned = build(expected)
+  const expectedMessage = snapshotVersionedMessage(unsigned)
+  assert.doesNotThrow(() => assertSignedInstructionsMatch(unsigned, expectedMessage))
 
-  // 1) wallet drops an instruction
+  // Dropping/appending or changing a program/payload changes the serialized message.
+  assert.throws(() => assertSignedInstructionsMatch(build([expected[0]]), expectedMessage), UnsafeTransactionError)
   assert.throws(
-    () => assertSignedInstructionsMatch(build([expected[0]]), expected, game),
-    /expected 2 instruction\(s\), got 1/,
-  )
-  // 2) wallet appends a transfer to an attacker
-  assert.throws(
-    () =>
-      assertSignedInstructionsMatch(
-        build([
-          ...expected,
-          SystemProgram.transfer({ fromPubkey: payer, toPubkey: Keypair.generate().publicKey, lamports: 1_000_000 }),
-        ]),
-        expected,
-        game,
-      ),
+    () => assertSignedInstructionsMatch(build([...expected, SystemProgram.transfer({
+      fromPubkey: payer, toPubkey: Keypair.generate().publicKey, lamports: 1_000_000,
+    })]), expectedMessage),
     UnsafeTransactionError,
   )
-  // 3) wallet mutates the payload of a game instruction (same program, other data)
   const tampered = harvestIx()
   tampered.data = Buffer.from(idl.instructions.find(ix => ix.name === 'close_field')!.discriminator)
-  assert.throws(
-    () => assertSignedInstructionsMatch(build([computeIx(), tampered]), expected, game),
-    /modified the payload/,
-  )
-  // 4) wallet swaps the program of an instruction
+  assert.throws(() => assertSignedInstructionsMatch(build([computeIx(), tampered]), expectedMessage), UnsafeTransactionError)
   const swapped = new TransactionInstruction({ programId: TOKEN_2022_PROGRAM_ID, keys: [], data: expected[1].data })
-  assert.throws(() => assertSignedInstructionsMatch(build([computeIx(), swapped]), expected, game), UnsafeTransactionError)
+  assert.throws(() => assertSignedInstructionsMatch(build([computeIx(), swapped]), expectedMessage), UnsafeTransactionError)
+})
+
+test('v0 post-sign guard rejects a substituted System transfer recipient', () => {
+  const payer = Keypair.generate().publicKey
+  const intendedRecipient = Keypair.generate().publicKey
+  const attacker = Keypair.generate().publicKey
+  const transfer = SystemProgram.transfer({ fromPubkey: payer, toPubkey: intendedRecipient, lamports: 1_000_000 })
+  const unsigned = new VersionedTransaction(
+    new TransactionMessage({ payerKey: payer, recentBlockhash: PublicKey.default.toBase58(), instructions: [transfer] }).compileToV0Message(),
+  )
+  const expectedMessage = snapshotVersionedMessage(unsigned)
+  const compiled = unsigned.message.compiledInstructions[0]
+  const recipientIndex = compiled.accountKeyIndexes[1]
+  unsigned.message.staticAccountKeys[recipientIndex] = attacker
+  assert.notEqual(unsigned.message.staticAccountKeys[recipientIndex].toBase58(), intendedRecipient.toBase58())
+  assert.throws(() => assertSignedInstructionsMatch(unsigned, expectedMessage), UnsafeTransactionError)
+})
+
+test('v0 post-sign guard rejects fee-payer and signer/writable privilege changes', () => {
+  const payer = Keypair.generate().publicKey
+  const otherPayer = Keypair.generate().publicKey
+  const expected = [harvestIx()]
+  const unsigned = new VersionedTransaction(
+    new TransactionMessage({ payerKey: payer, recentBlockhash: PublicKey.default.toBase58(), instructions: expected }).compileToV0Message(),
+  )
+  const expectedMessage = snapshotVersionedMessage(unsigned)
+
+  const changedPayer = new VersionedTransaction(unsigned.message)
+  changedPayer.message.staticAccountKeys[0] = otherPayer
+  assert.throws(() => assertSignedInstructionsMatch(changedPayer, expectedMessage), UnsafeTransactionError)
+
+  const changedPrivilege = new VersionedTransaction(unsigned.message)
+  changedPrivilege.message.header.numRequiredSignatures = 0
+  assert.throws(() => assertSignedInstructionsMatch(changedPrivilege, expectedMessage), UnsafeTransactionError)
 })
 
 test('human-readable preview names every instruction we sign', () => {
@@ -120,40 +142,38 @@ test('human-readable preview names every instruction we sign', () => {
   assert.deepEqual(names, ['compute_budget', 'harvest', 'system_program', 'unknown(' + game.toBase58().slice(0, 8) + ')'])
 })
 
-test('legacy (non-versioned) transactions get the same post-sign verification', () => {
+test('legacy post-sign guard compares complete message including recipient and fee payer', () => {
   const payer = Keypair.generate().publicKey
-  const expected = [computeIx(), harvestIx()]
-  const build = (ixs: TransactionInstruction[]) => {
-    const tx = new Transaction().add(...ixs)
+  const recipient = Keypair.generate().publicKey
+  const expected = [SystemProgram.transfer({ fromPubkey: payer, toPubkey: recipient, lamports: 123 })]
+  const build = () => {
+    const tx = new Transaction().add(...expected)
     tx.feePayer = payer
     tx.recentBlockhash = PublicKey.default.toBase58()
     return tx
   }
-  assert.doesNotThrow(() => assertSignedLegacyInstructionsMatch(build(expected), expected, game))
-  assert.throws(
-    () => assertSignedLegacyInstructionsMatch(build([expected[0]]), expected, game),
-    /expected 2 instruction\(s\), got 1/,
-  )
-  const tampered = harvestIx()
-  tampered.data = Buffer.from(idl.instructions.find(ix => ix.name === 'close_field')!.discriminator)
-  assert.throws(
-    () => assertSignedLegacyInstructionsMatch(build([computeIx(), tampered]), expected, game),
-    /modified the payload/,
-  )
+  const unsigned = build()
+  const expectedMessage = snapshotLegacyMessage(unsigned)
+  assert.doesNotThrow(() => assertSignedLegacyInstructionsMatch(unsigned, expectedMessage))
+
+  const changedRecipient = build()
+  changedRecipient.instructions[0].keys[1].pubkey = Keypair.generate().publicKey
+  assert.throws(() => assertSignedLegacyInstructionsMatch(changedRecipient, expectedMessage), UnsafeTransactionError)
+
+  const changedPayer = build()
+  changedPayer.feePayer = Keypair.generate().publicKey
+  assert.throws(() => assertSignedLegacyInstructionsMatch(changedPayer, expectedMessage), UnsafeTransactionError)
 })
 
-test('инструкция, чья программа пришла из lookup table, не подписывается', () => {
-  // Item 50: если кошелёк/подмена решили программу инструкции через address
-  // lookup table, статические ключи её не содержат — такие транзакции
-  // отказаны до отправки (иначе allowlist проверять нечего).
+test('v0 lookup-table references are included in the immutable message snapshot', () => {
   const payer = Keypair.generate().publicKey
-  const expected = [computeIx(), harvestIx()]
-  const signed = new VersionedTransaction(
-    new TransactionMessage({ payerKey: payer, recentBlockhash: PublicKey.default.toBase58(), instructions: expected }).compileToV0Message(),
+  const unsigned = new VersionedTransaction(
+    new TransactionMessage({ payerKey: payer, recentBlockhash: PublicKey.default.toBase58(), instructions: [computeIx(), harvestIx()] }).compileToV0Message(),
   )
-  assert.doesNotThrow(() => assertSignedInstructionsMatch(signed, expected, game))
-  signed.message.compiledInstructions[0].programIdIndex = signed.message.staticAccountKeys.length
-  assert.throws(() => assertSignedInstructionsMatch(signed, expected, game), /lookup table/)
+  const expectedMessage = snapshotVersionedMessage(unsigned)
+  assert.doesNotThrow(() => assertSignedInstructionsMatch(unsigned, expectedMessage))
+  unsigned.message.compiledInstructions[0].programIdIndex = unsigned.message.staticAccountKeys.length
+  assert.throws(() => assertSignedInstructionsMatch(unsigned, expectedMessage), UnsafeTransactionError)
 })
 
 // --- Audit 2026-09-28: items 82/104/114 — durable nonce / allocate / assign ---
@@ -219,15 +239,21 @@ test('signed transaction with a smuggled nonce instruction is refused after sign
     noncePubkey: a.nonceAccount,
     authorizedPubkey: payer,
   })
-  // Wallet (or an injected signer shim) appends a durable-nonce instruction.
+  // Snapshot the transaction before signing, then model a wallet (or injected
+  // signer shim) appending a durable-nonce instruction after it was built.
+  const recentBlockhash = PublicKey.default.toBase58()
+  const original = new VersionedTransaction(
+    new TransactionMessage({ payerKey: payer, recentBlockhash, instructions: expected }).compileToV0Message(),
+  )
+  const expectedMessage = snapshotVersionedMessage(original)
   const signed = new VersionedTransaction(
     new TransactionMessage({
       payerKey: payer,
-      recentBlockhash: PublicKey.default.toBase58(),
+      recentBlockhash,
       instructions: [...expected, nonceIx],
     }).compileToV0Message(),
   )
-  assert.throws(() => assertSignedInstructionsMatch(signed, expected, game), UnsafeTransactionError)
+  assert.throws(() => assertSignedInstructionsMatch(signed, expectedMessage), UnsafeTransactionError)
   // And the preview names the family instead of a generic system_program.
   assert.equal(describeInstructions([nonceIx])[0], 'system_nonce_op(type=4)')
 })

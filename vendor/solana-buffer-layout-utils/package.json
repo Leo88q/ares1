@@ -1,0 +1,32 @@
+{
+  "name": "@solana/buffer-layout-utils",
+  "version": "0.3.1+ares1",
+  "author": "Solana Maintainers <maintainers@solana.foundation>",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=10"
+  },
+  "files": [
+    "lib",
+    "src",
+    "test",
+    "LICENSE",
+    "README.md",
+    "README.vendor.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "lib/cjs/index.js",
+  "module": "lib/esm/index.mjs",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    "import": "./lib/esm/index.mjs",
+    "require": "./lib/cjs/index.js",
+    "types": "./lib/types/index.d.ts"
+  },
+  "dependencies": {
+    "@solana/buffer-layout": "^4.0.0",
+    "@solana/web3.js": "^1.32.0",
+    "bignumber.js": "^9.0.1"
+  }
+}

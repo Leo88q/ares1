@@ -35,23 +35,13 @@ jobs:
           cache-dependency-path: game/yarn.lock
       - run: npm install --global yarn@1.22.22
       - run: ./scripts/ci-local.sh --skip-chain
-      # F-09/2026-10-02: two audits. A CRITICAL advisory blocks the merge: that
-      # is the only level where "no non-breaking fix exists" is not an argument.
-      # HIGH stays advisory — transitive @solana-stack findings have no
-      # non-breaking fix yet and the signal is still visible in the log.
-      #
-      # The blocking step goes through scripts/audit-critical.sh on purpose:
-      # yarn 1's exit code is a severity BITMASK (1=info … 16=critical) and
-      # `--level` does not change it, so `yarn audit --level critical` fails on
-      # moderates/lows and cannot tell a critical from noise (verified: the
-      # first version of this gate went red with exit 30 while the policy allows
-      # high/moderate). The script checks bit 16 explicitly and fails closed
-      # (exit 2) when the registry audit endpoint does not answer.
-      - name: Dependency audit — critical (blocking)
-        run: ./scripts/audit-critical.sh
-      - name: Dependency audit — high (advisory)
-        continue-on-error: true
-        run: yarn audit --groups dependencies --level high
+      # F-09/2026-10-02: HIGH and CRITICAL findings block. The previously
+      # unresolved bigint-buffer native-addon issue is removed by the tested
+      # local @solana/buffer-layout-utils backport (see vendor/solana-buffer-layout-utils/README.vendor.md).
+      # Yarn Classic returns a severity bitmask and --level only filters output,
+      # so audit-blocking.sh checks bits 8/16 and fails closed on no audit summary.
+      - name: Dependency audit — high/critical (blocking)
+        run: ./scripts/audit-blocking.sh
 
   # Слой данных game_ops. Без этого джоба «append-only», «аудит» и «сверка»
   # остаются словами: здесь схема применяется на настоящем PostgreSQL, права
@@ -272,11 +262,9 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      # Same split as the off-chain job: critical blocks, high is advisory.
-      - name: Dependency audit — critical (blocking)
-        run: npm audit --omit=dev --audit-level=critical
-      - name: Dependency audit — high (advisory)
-        continue-on-error: true
+      # Production dependencies are audited; high/critical advisories block.
+      # Any moderate findings stay visible in the output for review.
+      - name: Dependency audit — high/critical (blocking)
         run: npm audit --omit=dev --audit-level=high
 
   # The thing you deploy is not the repository. A .env can be absent from Git
@@ -328,7 +316,24 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - run: docker build -f apps/backend/Dockerfile .
+      - name: Build from the repository root (includes the local Solana backport)
+        working-directory: .
+        shell: bash
+        run: |
+          set -uo pipefail
+          build_log="$RUNNER_TEMP/backend-container-build.log"
+          if docker build --progress=plain -f game/apps/backend/Dockerfile . >"$build_log" 2>&1; then
+            cat "$build_log"
+          else
+            status=$?
+            while IFS= read -r line; do
+              line=${line//'%'/'%25'}
+              line=${line//$'\r'/'%0D'}
+              line=${line//$'\n'/'%0A'}
+              printf '::error title=Backend container build detail::%s\n' "$line"
+            done < <(tail -n 30 "$build_log")
+            exit "$status"
+          fi
 
   shell-scripts:
     name: Shell scripts (shellcheck, errors and warnings)
