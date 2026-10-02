@@ -23,6 +23,17 @@
 | @solana/web3.js | `1.98.4` точный пин + трипваер запрещённых версий (1.95.6/1.95.7 — supply-chain инцидент) в `security-guards.test.mjs` | GitHub solana-labs/solana-web3.js security advisories | владелец репо | перед bump |
 | @solana/spl-token (JS) | `0.4.15` | GitHub solana-program/token | владелец репо | перед bump |
 | Rust toolchain | `rust-toolchain.toml` (1.97.1) | Rust security advisories | владелец репо | раз в квартал |
+| protobufjs (транзитивно, через `@trezor/*` в wallet-adapter) | `7.6.6` через `resolutions` в `game/package.json` + трипваер в `security-guards.test.mjs` | GitHub Advisory DB (GHSA-xq3m-2v4x-88gg — RCE, исправлен в 7.5.5; GHSA-wcpc-wj8m-hjx6 ≤7.6.0) | владелец репо | перед bump @trezor/wallet-adapter |
+
+**Почему protobufjs пришлось пинить (2026-10-02).** `@trezor/protobuf` требовал
+`protobufjs` ровно `7.4.0`, а `@trezor/connect`/`@trezor/transport` уже приносили
+7.5.5 — в дереве жили две версии, и в prod-графе висел **critical** advisory
+(arbitrary code execution). `resolutions.protobufjs=7.6.6` схлопывает всё в одну
+версию, которая закрывает и critical, и прочие protobufjs-advistory (≤7.6.0).
+Проверено: `yarn workspace web build`, тесты web, `backend typecheck`,
+`yarn install --frozen-lockfile`. Гейт `game/scripts/audit-critical.sh` валит
+job только на critical (yarn 1 отдаёт битмаску severity, `--level` её не
+фильтрует).
 
 Правила:
 1. **Никаких диапазонов версий** в критичных зависимостях; всё через lockfile

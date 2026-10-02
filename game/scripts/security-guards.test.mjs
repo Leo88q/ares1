@@ -13,9 +13,10 @@
 // (CI watchtower) и `yarn test:guards`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdtempSync, writeFileSync, chmodSync, rmSync } from 'node:fs';
 import { execSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -512,7 +513,10 @@ test('2026-10-02: devnet genesis hash полный и совпадает в дв
 
 test('2026-10-02: критичные уязвимости зависимостей блокируют CI', () => {
   const ci = read('../../.github/workflows/ci.yml');
-  assert.match(ci, /yarn audit --groups dependencies --level critical/, 'yarn audit critical должен быть блокирующим');
+  // Для game-воркспейса блокирующий шаг — scripts/audit-critical.sh: yarn 1 не
+  // умеет фильтровать exit-код по --level, поэтому «критический» гейт обязан
+  // разбирать битмаску сам (детали и функциональный тест — ниже).
+  assert.match(ci, /run: \.\/scripts\/audit-critical\.sh/, 'yarn audit critical должен быть блокирующим (через скрипт)');
   assert.match(ci, /npm audit --omit=dev --audit-level=critical/, 'npm audit critical должен быть блокирующим');
 });
 
@@ -599,6 +603,60 @@ test('2026-10-02: shellcheck-гейт существует и покрывает
   const scripts = execSync("git ls-files '*.sh'", { cwd: path.join(here, '..', '..'), encoding: 'utf8' })
     .trim().split('\n');
   assert.ok(scripts.length >= 16, `ожидалось ≥16 скриптов, найдено ${scripts.length}`);
+});
+
+test('2026-10-02: критический аудит понимает битмаску yarn, а не только --level (F-09)', () => {
+  const ci = read('../../.github/workflows/ci.yml');
+  assert.match(ci, /audit-critical\.sh/, 'критический аудит обязан идти через разбор битмаски, а не `yarn audit --level critical`');
+  const gate = read('./audit-critical.sh');
+  assert.match(gate, /&\)?\s*16/, 'критический бит (16) должен проверяться явно');
+  assert.match(gate, /auditSummary/, 'отсутствие ответа реестра (exit 2) должно отличаться от находок (exit 1)');
+
+  // Функциональная проверка на фейковом yarn: exit-код yarn 1 — битмаска всех
+  // severity, поэтому «moderate без critical» обязан быть зелёным, а «critical»
+  // — красным. Именно на этом сломался первоначальный вариант гейта (CI-прогон
+  // 37019422258: exit 30 при политике «блокирует только critical»).
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'audit-gate-'));
+  const fake = path.join(dir, 'yarn');
+  writeFileSync(fake, `#!/usr/bin/env bash
+case "$FAKE_CASE" in
+  clean) printf '{"type":"auditSummary","data":{"vulnerabilities":{"critical":0,"total":0}}}\n'; exit 0 ;;
+  moderate) printf '{"type":"auditSummary","data":{"vulnerabilities":{"critical":0,"total":3}}}\n'; exit 4 ;;
+  critical) printf '{"type":"auditSummary","data":{"vulnerabilities":{"critical":1,"total":7}}}\n{"type":"auditAdvisory","data":{"advisory":{"module_name":"protobufjs","severity":"critical","title":"RCE","url":"https://example.invalid/GHSA"},"findings":[{"version":"7.4.0","paths":["a>b"]}]}}\n'; exit 30 ;;
+  broken) echo 'error: registry unreachable'; exit 1 ;;
+esac
+`);
+  chmodSync(fake, 0o755);
+  const run = (fakeCase) =>
+    spawnSync('bash', [path.join(here, 'audit-critical.sh')], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, FAKE_CASE: fakeCase, AUDIT_CRITICAL_RETRY_SLEEP: '0' },
+    });
+  try {
+    assert.equal(run('clean').status, 0, 'чистое дерево не должно блокировать');
+    assert.equal(run('moderate').status, 0, 'moderate/high без critical — advisory, не блокируют');
+    const crit = run('critical');
+    assert.equal(crit.status, 1, 'critical обязан блокировать');
+    assert.match(crit.stdout, /CRITICAL: protobufjs@7\.4\.0/, 'в аннотации должен быть конкретный пакет и версия');
+    assert.equal(run('broken').status, 2, 'недоступный реестр — fail closed (exit 2), а не «зелёно»');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('2026-10-02: protobufjs не возвращается в уязвимый диапазон (F-09)', () => {
+  const pkg = JSON.parse(read('../package.json'));
+  const enforced = pkg.resolutions?.protobufjs;
+  assert.ok(enforced, 'resolutions.protobufjs должен фиксировать безопасную версию');
+  const [maj, min, patch] = enforced.split('.').map(Number);
+  assert.ok(
+    maj > 7 || (maj === 7 && (min > 6 || (min === 6 && patch >= 1))),
+    `protobufjs ${enforced} всё ещё попадает в GHSA-wcpc-wj8m-hjx6 (<=7.6.0); нужен >=7.6.1`,
+  );
+  const lock = read('../yarn.lock');
+  const entry = /^protobufjs@[^:]*:\n\s+version "([^"]+)"/m.exec(lock);
+  assert.ok(entry, 'protobufjs не найден в yarn.lock');
+  assert.equal(entry[1], enforced, 'lock и resolutions разошлись: критический advisory вернётся по lockfile');
 });
 
 test('2026-10-02: рабочее дерево проходит secret-scan (гейт §1.1 не красный)', () => {

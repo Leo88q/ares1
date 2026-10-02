@@ -35,12 +35,20 @@ jobs:
           cache-dependency-path: game/yarn.lock
       - run: npm install --global yarn@1.22.22
       - run: ./scripts/ci-local.sh --skip-chain
-      # F-11/2026-10-02: two audits. A CRITICAL advisory blocks the merge: that
+      # F-09/2026-10-02: two audits. A CRITICAL advisory blocks the merge: that
       # is the only level where "no non-breaking fix exists" is not an argument.
       # HIGH stays advisory — transitive @solana-stack findings have no
       # non-breaking fix yet and the signal is still visible in the log.
+      #
+      # The blocking step goes through scripts/audit-critical.sh on purpose:
+      # yarn 1's exit code is a severity BITMASK (1=info … 16=critical) and
+      # `--level` does not change it, so `yarn audit --level critical` fails on
+      # moderates/lows and cannot tell a critical from noise (verified: the
+      # first version of this gate went red with exit 30 while the policy allows
+      # high/moderate). The script checks bit 16 explicitly and fails closed
+      # (exit 2) when the registry audit endpoint does not answer.
       - name: Dependency audit — critical (blocking)
-        run: yarn audit --groups dependencies --level critical
+        run: ./scripts/audit-critical.sh
       - name: Dependency audit — high (advisory)
         continue-on-error: true
         run: yarn audit --groups dependencies --level high
