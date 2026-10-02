@@ -68,7 +68,7 @@ builders in web/backend must match the generated IDL, not just its address.
 | `init_epoch` | Authority; bootstrap cap from `config.daily_mint_cap_micro` |
 | `roll_epoch` | Any funded payer after 24h; dynamic cap = mean(burn axis, utilization axis) clamped to `[daily_mint_cap_micro, 3×daily_mint_cap_micro]` |
 | `close_old_epoch` | Permissionless rent-reclaim crank; closes epoch PDAs older than `current − KEEP_EPOCHS` (2). Historical emission stats remain in events and config counters |
-| `grant_reward` | Authority OR reward signer; >0 and ≤1000 POTATO/call, within current epoch cap and max supply, and within the **manual grant quota** (`GRANT_QUOTA_SHARE_BPS` = 10 % of the epoch cap, tracked in `Epoch.granted_micro`); blocked while paused |
+| `grant_reward_once` | Authority OR reward signer; >0 and ≤1000 POTATO/call, within current epoch cap/max supply and the 10 % grant quota (`Epoch.granted_micro`); requires a nonce-bound permanent `reward_claim` PDA and expiry ≤900 s; blocked while paused. Use only for deliberate low-frequency payouts—not routine settlement |
 | `update_reward_signer` | Authority; replace delegated reward signer (authority retains reward permission) |
 | `update_skr_mint` | Authority; **proposal only** — stores pending mint in `AdminState` |
 | `apply_pending_skr_mint` | Authority; applies the proposal after the 24 h timelock (`TimelockNotExpired` otherwise) |
@@ -150,11 +150,13 @@ limit, `buy_field_sol` checks `PresaleNotActive` before the cap.
 
 Use events from the **generated, verified** IDL. At minimum, monitoring/indexing
 should cover `FieldCreated`, `Harvested`, `BatchHarvested`, `FieldClosed`,
-`OrderCreated`, `OrderFilled`, `PresalePurchase`, `AchievementClaimed`, `RewardGranted`,
+`OrderCreated`, `OrderFilled`, `PresalePurchase`, `AchievementClaimed`, `RewardGrantedOnce`,
 `TreasuryWithdrawn`, `TreasurySolWithdrawn`, `TreasurySkrWithdrawn`, `EpochRolled`,
 `PausedToggled`, `ConfigUpdated`, `AuthorityProposed`, `AuthorityAccepted`,
-`SkrMintUpdated`, `RewardSignerUpdated`. (`close_old_epoch` emits no event, only
-a program log; watch the transaction log if you need crank activity.)
+`SkrMintUpdated`, `RewardSignerUpdated`. `RewardGranted` remains in the decoder
+schema only for historical pre-upgrade logs; the current source has no instruction
+that emits it. (`close_old_epoch` emits no event, only a program log; watch the
+transaction log if you need crank activity.)
 
 Error codes start with `AlreadyClaimed=6000`, `BadProof=6001`, `Paused=6002`.
 New codes from the 2026-09-21 remediation: `GrantQuotaExceeded=6035`,

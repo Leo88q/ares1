@@ -66,6 +66,22 @@ describe("solana_potato", () => {
     assert.fail(`expected failure${errorName ? ` (${errorName})` : ""}`);
   }
 
+  let nextRewardNonce = 10_000n;
+  const rewardClaimPda = (userPotato: PublicKey, nonce: bigint) =>
+    pda(Buffer.from("reward"), userPotato.toBuffer(), u64(nonce));
+  const rewardExpirySoon = () => new BN(Math.floor(Date.now() / 1000) + 300);
+  const grantRewardOnce = (amountMicro: bigint | number, userPotato: PublicKey, authority = admin) => {
+    const nonce = nextRewardNonce++;
+    const method = program.methods
+      .grantRewardOnce(new BN(nonce.toString()), new BN(amountMicro.toString()), rewardExpirySoon())
+      .accountsPartial({
+        config: configPda, epoch: epochPda(0), authority: authority.publicKey, potatoMint: mint,
+        userPotato, rewardClaim: rewardClaimPda(userPotato, nonce),
+        systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID,
+      });
+    return authority.publicKey.equals(admin.publicKey) ? method.rpc() : method.signers([authority]).rpc();
+  };
+
   const fieldSpendAccounts = (field: PublicKey, owner: PublicKey, userPotato: PublicKey) => ({
     field, potatoMint: mint, userPotato, config: configPda, owner, tokenProgram: TOKEN_PROGRAM_ID,
   });
@@ -143,40 +159,25 @@ describe("solana_potato", () => {
     });
   });
 
-  describe("grant_reward", () => {
-    it("authority can mint a bounded reward", async () => {
-      await program.methods.grantReward(new BN(1_000_000_000)).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: adminAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
-      await program.methods.grantReward(new BN(1_000_000_000)).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: playerAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
+  describe("reward mint policy (replay-proof rail, gate G-1)", () => {
+    it("authority can mint bounded rewards to distinct recipient ATAs", async () => {
+      await grantRewardOnce(1_000_000_000n, adminAta);
+      await grantRewardOnce(1_000_000_000n, playerAta);
       expect(await ataBalance(adminAta)).to.eq(1000n * MICRO);
       const epoch = await program.account.epoch.fetch(epochPda(0));
       expect(epoch.mintedMicro.toString()).to.eq("2000000000");
     });
 
     it("rejects rewards above 1000 POTATO", async () => {
-      await expectFail(
-        program.methods.grantReward(new BN(1_000_000_001)).accountsPartial({
-          config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: adminAta, tokenProgram: TOKEN_PROGRAM_ID,
-        }).rpc(),
-        "RewardTooLarge",
-      );
+      await expectFail(grantRewardOnce(1_000_000_001n, adminAta), "RewardTooLarge");
     });
 
     it("rejects a non-authority signer", async () => {
-      await expectFail(
-        program.methods.grantReward(new BN(1_000_000)).accountsPartial({
-          config: configPda, epoch: epochPda(0), authority: player.publicKey, potatoMint: mint, userPotato: playerAta, tokenProgram: TOKEN_PROGRAM_ID,
-        }).signers([player]).rpc(),
-      );
+      await expectFail(grantRewardOnce(1_000_000n, playerAta, player), "Unauthorized");
     });
   });
 
   describe("grant_reward_once (replay-proof rail, gate G-1)", () => {
-    const rewardClaimPda = (userPotato: PublicKey, nonce: bigint) =>
-      pda(Buffer.from("reward"), userPotato.toBuffer(), u64(nonce));
     const soon = () => new BN(Math.floor(Date.now() / 1000) + 300);
     const once = (nonce: bigint, amount: number, expiresAt = soon(), userPotato = playerAta) =>
       program.methods.grantRewardOnce(new BN(nonce.toString()), new BN(amount), expiresAt).accountsPartial({
@@ -209,11 +210,14 @@ describe("solana_potato", () => {
       expect(await ataBalance(playerAta)).to.eq(before + 1_000_000n);
     });
 
-    it("rejects an expired claim", async () => {
+    it("rejects an expired claim atomically without leaving a receipt or mint", async () => {
+      const before = await ataBalance(playerAta);
       await expectFail(
         once(9n, 1_000_000, new BN(Math.floor(Date.now() / 1000) - 60)).rpc(),
         "RewardClaimExpired",
       );
+      expect(await ataBalance(playerAta)).to.eq(before);
+      expect(await connection.getAccountInfo(rewardClaimPda(playerAta, 9n))).to.be.null;
     });
 
     it("rejects an expiry beyond the 15-minute window", async () => {
@@ -227,7 +231,8 @@ describe("solana_potato", () => {
       await expectFail(once(11n, 1_000_000_001).rpc(), "RewardTooLarge");
     });
 
-    it("rejects a non-authority signer", async () => {
+    it("rejects a non-authority signer atomically", async () => {
+      const before = await ataBalance(playerAta);
       await expectFail(
         program.methods.grantRewardOnce(new BN(12), new BN(1_000_000), soon()).accountsPartial({
           config: configPda, epoch: epochPda(0), authority: player.publicKey, potatoMint: mint,
@@ -236,6 +241,8 @@ describe("solana_potato", () => {
         }).signers([player]).rpc(),
         "Unauthorized",
       );
+      expect(await ataBalance(playerAta)).to.eq(before);
+      expect(await connection.getAccountInfo(rewardClaimPda(playerAta, 12n))).to.be.null;
     });
 
     it("rejects a claim PDA derived from a different nonce", async () => {
@@ -248,7 +255,19 @@ describe("solana_potato", () => {
       );
     });
 
-    it("counts toward the same epoch grant quota as grant_reward", async () => {
+    it("honors the pause gate and atomically rolls back receipt creation", async () => {
+      const before = await ataBalance(playerAta);
+      await program.methods.setPaused(true).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      try {
+        await expectFail(once(16n, 1_000_000).rpc(), "Paused");
+        expect(await ataBalance(playerAta)).to.eq(before);
+        expect(await connection.getAccountInfo(rewardClaimPda(playerAta, 16n))).to.be.null;
+      } finally {
+        await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      }
+    });
+
+    it("counts toward the shared epoch grant quota", async () => {
       const before = await program.account.epoch.fetch(epochPda(0));
       await once(15n, 2_000_000).rpc();
       const after = await program.account.epoch.fetch(epochPda(0));
@@ -260,11 +279,17 @@ describe("solana_potato", () => {
   describe("reward signer separation", () => {
     it("delegates mint only, rejects admin actions, and revokes the old signer", async () => {
       const rewardSigner = Keypair.generate();
+      await connection.confirmTransaction(await connection.requestAirdrop(rewardSigner.publicKey, LAMPORTS_PER_SOL));
       const rewardAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, rewardSigner.publicKey)).address;
-      const reward = (amount: number) => program.methods.grantReward(new BN(amount)).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: rewardSigner.publicKey,
-        potatoMint: mint, userPotato: rewardAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).signers([rewardSigner]).rpc();
+      let rewardNonce = 20_000n;
+      const reward = (amount: number) => {
+        const nonce = rewardNonce++;
+        return program.methods.grantRewardOnce(new BN(nonce.toString()), new BN(amount), rewardExpirySoon()).accountsPartial({
+          config: configPda, epoch: epochPda(0), authority: rewardSigner.publicKey,
+          potatoMint: mint, userPotato: rewardAta, rewardClaim: rewardClaimPda(rewardAta, nonce),
+          systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID,
+        }).signers([rewardSigner]).rpc();
+      };
       await program.methods.updateRewardSigner(rewardSigner.publicKey).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
       try {
         const before = (await program.account.epoch.fetch(epochPda(0))).mintedMicro;
@@ -434,10 +459,7 @@ describe("solana_potato", () => {
     before(async () => {
       await connection.confirmTransaction(await connection.requestAirdrop(owner.publicKey, LAMPORTS_PER_SOL));
       ownerAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, owner.publicKey)).address;
-      await program.methods.grantReward(new BN(300_000_000)).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint,
-        userPotato: ownerAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
+      await grantRewardOnce(300_000_000n, ownerAta);
       for (const id of ids) {
         await program.methods.createField(new BN(id.toString()), 0).accountsPartial({
           config: configPda, field: fieldPda(id), owner: owner.publicKey, potatoMint: mint,
@@ -1047,9 +1069,7 @@ describe("solana_potato", () => {
         [admin],
       ));
       await getOrCreateAssociatedTokenAccount(connection, admin, mint, questTreasuryPda, true);
-      await program.methods.grantReward(new BN(POOL.toString())).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: questAta(), tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
+      await grantRewardOnce(POOL, questAta());
       expect(await ataBalance(questAta())).to.eq(POOL);
     });
 
@@ -1079,18 +1099,14 @@ describe("solana_potato", () => {
       await connection.confirmTransaction(await connection.requestAirdrop(saver.publicKey, 1 * LAMPORTS_PER_SOL));
       const saverAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, saver.publicKey)).address;
 
-      await program.methods.grantReward(new BN("150000000")).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: saverAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
+      await grantRewardOnce(150_000_000n, saverAta);
       // 150 🥔: quest 2 (нужно 1000) невалиден, quest 1 (нужно 100) валиден
       await expectFail(claim(saver, 2, [], saverAta), "BadProof");
       await claim(saver, 1, [], saverAta);
       expect(await ataBalance(saverAta)).to.eq(200_000_000n); // 150 + 50 (награда)
       expect(await ataBalance(questAta())).to.eq(POOL - 50_000_000n - 50_000_000n);
 
-      await program.methods.grantReward(new BN("900000000")).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: saverAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
+      await grantRewardOnce(900_000_000n, saverAta);
       await claim(saver, 2, [], saverAta); // 1100 🥔 ≥ 1000
       expect(await ataBalance(saverAta)).to.eq(1200_000_000n);
       expect(await ataBalance(questAta())).to.eq(POOL - 50_000_000n - 50_000_000n - 100_000_000n);
@@ -1260,10 +1276,8 @@ describe("solana_potato", () => {
 
     it("withdraw_treasury is two-step, authority-only and window-capped", async function () {
       this.timeout(90_000);
-      // Финансируем казну: grant_reward минтит в treasury ATA (владелец митта — config PDA)
-      await program.methods.grantReward(new BN(500_000)).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: treasuryAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
+      // Финансируем казну через replay-proof one-time reward rail.
+      await grantRewardOnce(500_000n, treasuryAta);
       const proposePotato = (micro: string) => program.methods.proposeWithdrawal(0, new BN(micro)).accountsPartial({
         config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
       }).rpc();
@@ -1396,15 +1410,12 @@ describe("solana_potato", () => {
       expect((await program.account.epoch.fetch(epochPda(0))).id.toNumber()).to.eq(0);
     });
 
-    // ПОСЛЕДНИЙ тест прогона: исчерпывает квоту грантов (10% капа эпохи),
-    // поэтому все остальные grant_reward-сценарии идут выше по файлу.
-    it("grant_reward is capped at 10% of the epoch cap", async function () {
+    // ПОСЛЕДНИЙ тест прогона: исчерпывает квоту grant_reward_once (10% капа эпохи),
+    // поэтому другие сценарии выдачи наград расположены выше по файлу.
+    it("grant_reward_once is capped at 10% of the epoch cap", async function () {
       this.timeout(240_000);
       const quota = (await program.account.epoch.fetch(epochPda(0))).mintCapMicro.divn(10);
-      const grant = () =>
-        program.methods.grantReward(new BN(1_000_000_000)).accountsPartial({
-          config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: adminAta, tokenProgram: TOKEN_PROGRAM_ID,
-        }).rpc();
+      const grant = () => grantRewardOnce(1_000_000_000n, adminAta);
       for (let i = 0; i < 30; i++) {
         const ep = await program.account.epoch.fetch(epochPda(0));
         if (ep.grantedMicro.add(new BN(1_000_000_000)).gt(quota)) break;
@@ -1419,7 +1430,7 @@ describe("solana_potato", () => {
   // ══════════════════════════════════════════════════════════════════
   // security checklist (аудит 2026-09-25): docs/SECURITY_CHECKLIST_AUDIT_2026-09-25.md
   // Негативные проверки по пунктам чек-листа, не покрытые ранними сьютами.
-  // Запускаются последними: не используют grant_reward (квота исчерпана выше).
+  // Запускаются последними: не используют reward minting (квота исчерпана выше).
   // ══════════════════════════════════════════════════════════════════
   describe("security checklist (2026-09-25 audit)", () => {
     it("A1/D24: PDA-подмена отклонена — чужой программный аккаунт не проходит как Field", async () => {

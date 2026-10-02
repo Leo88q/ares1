@@ -284,7 +284,7 @@ export interface DecodedConfig {
 export interface DecodedEpoch {
  id: bigint; mintCapMicro: bigint; mintedMicro: bigint; startTime: bigint
  bump: number
- /** micro-POTATO выданные grant_reward в эту эпоху (квота 10% капа). НЕ burn. */
+ /** micro-POTATO выданные grant_reward_once в эту эпоху (квота 10% капа). НЕ burn. */
  grantedMicro: bigint
 }
 

@@ -16,9 +16,9 @@
 | Стандарт | SPL Token, 6 decimals | 1 🥔 = 1 000 000 micro |
 | Mint authority | PDA `["config"]` программы | Ни один человек не может минтить напрямую; `initialize` проверяет это на входе |
 | Freeze authority | отсутствует (проверяется в `initialize`) | Никто не может заморозить токены игроков |
-| `max_supply_micro` | 1 000 000 000 🥔 | Жёсткий потолок в `harvest` и `grant_reward` |
+| `max_supply_micro` | 1 000 000 000 🥔 | Жёсткий потолок в `harvest` и `grant_reward_once` |
 | `daily_mint_cap_micro` | 250 000 🥔/эпоху (24 ч) | Константа-потолок `MAX_DAILY_CAP_MICRO`; authority может только понижать |
-| Premine / team allocation | **нет** | Fair launch: 100 % supply появляется через `harvest` и `grant_reward` (≤ 1 000 🥔/tx, только backend; суммарно ручные гранты ≤ 10 % капа эпохи — `Epoch.granted_micro`) |
+| Premine / team allocation | **нет** | Fair launch: supply появляется через `harvest` и `grant_reward_once` (≤ 1 000 🥔/tx; прямые гранты ≤ 10 % капа эпохи — `Epoch.granted_micro`) |
 | Vesting | не применимо | Команда монетизируется через SOL-пресейл полей, рекламу и 40 % комиссии рынка |
 
 **Оценка потолка.** При постоянном упоре в дневной кап 250 k 🥔 максимальный supply достигается за ~4 000 дней (11 лет). Реально кап не достигается на горизонте года при 1 000 игроков (см. симуляцию), поэтому реальным регулятором эмиссии является `base_yield_micro_per_day` (регулируется `update_config`).
@@ -28,7 +28,7 @@
 | Источники (mint) | Стоки (burn) |
 |---|---|
 | `harvest` — урожай полей | Покупка поля (100 / 250 / 500 🥔) |
-| `grant_reward` — квесты через backend | Налог 2.4 / 6 / 12 🥔 в неделю за поле |
+| `grant_reward_once` — прямые одноразовые гранты | Налог 2.4 / 6 / 12 🥔 в неделю за поле |
 | | Ремонт 6 / 15 / 30 🥔 |
 | | Удобрение 4 / 10 / 20 🥔 за 24 ч |
 | | Апгрейд 40·L / 100·L / 200·L 🥔 |
@@ -188,7 +188,7 @@ accrued = daily_yield × min(elapsed, 7 суток) / 86 400
 |---|---|---|---|
 | Урожай игрока (`harvest`, после налога) | ATA игрока | `token::mint_to` в `harvest` | **~95–98 %** — `simulate(1 000)` за год: доля treasury-минта 2.0 % от всего mint; `simulate(100 000)` — 4.6 % |
 | Налог с урожая, доля казны (½ прогрессивного налога) | ATA казны | `token::mint_to` в `harvest` (`treasury_share`) | 2–5 % (растёт вместе с supply — см. ниже) |
-| Ручные гранты (`grant_reward`) | ATA получателя | `token::mint_to` в `grant_reward` | ≤ **10 %** дневного капа эпохи (`GRANT_QUOTA_SHARE_BPS`, счётчик `Epoch.granted_micro`) |
+| Прямые одноразовые гранты (`grant_reward_once`) | ATA получателя | `token::mint_to` в `grant_reward_once`; постоянный receipt по nonce | ≤ **10 %** дневного капа эпохи (`GRANT_QUOTA_SHARE_BPS`, счётчик `Epoch.granted_micro`); не для высокочастотных выплат |
 | Квесты (`claim_achievement`) | ATA игрока | **не минт**: `token::transfer` из предфинансированного `quest_ata` (пул 550 🥔, `QUEST_REWARD_MICRO`) | 0 % эмиссии |
 
 Источник доли > 40 % (урожай) — вынесен отдельно, как требует паттерн §3.4-1.

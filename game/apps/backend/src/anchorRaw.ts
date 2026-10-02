@@ -119,7 +119,7 @@ export interface EpochAccount {
   mintedMicro: bigint;
   startTime: bigint;
   bump: number;
-  /** v2 (renamed): micro-POTATO minted via grant_reward this epoch (10% quota). Not a burn. */
+  /** v2 (renamed): micro-POTATO minted via grant_reward_once this epoch (10% quota). Not a burn. */
   grantedMicro: bigint;
 }
 

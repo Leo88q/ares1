@@ -33,7 +33,18 @@ RPC_URL=<mainnet-rpc> \
 
 ## G-1. Рельс выплат — только `grant_reward_once`
 
-**Статус: пункты 1 и 2 реализованы в коде (2026-09-29).**
+**Статус:** replay/expiry реализованы; legacy-инструкция удаляется из исходника и IDL этой версии.
+Gate остаётся **NO-GO** до Devnet rehearsal и подтверждённого in-place upgrade.
+
+Удаление из исходника не меняет уже загруженную программу: до успешного upgrade deployed
+binary всё ещё принимает старый discriminator. Никаких выплатных endpoint'ов не включать до
+подтверждения версии программы.
+
+Последний изолированный CI-замер legacy handler: **−8 392 B**; при 5 080 lamports/B это
+**−42 631 360 lamports (0,042631360 SOL)** rent-lock. Отчёт Stage 3 показывает **−42 697 360
+lamports** по `NEED_TOTAL`, включая 66 000 lamports расчётной write-fee разницы. Это прежний
+CI-замер, не новый build и не возврат средств в кошелёк; детали —
+`../../reports/rent-audit/03-stage3.md`.
 
 Ончейн:
 
@@ -46,17 +57,20 @@ RPC_URL=<mainnet-rpc> \
 * `expires_at` обязателен: `now <= expires_at <= now + MAX_REWARD_EXPIRY_SECONDS`
   (900 с). Это закрывает G-1b — заранее подписанная durable-nonce транзакция,
   пролежавшая у атакующего дольше 15 минут, не минтит ничего.
-* Квота и кап эпохи считаются общей функцией `charge_epoch_grant`, одной и той
-  же для обоих рельсов: иначе более слабое правило стало бы обходом строгого.
+* Квота и кап эпохи считаются общей функцией `charge_epoch_grant`; она
+  ограничивает `grant_reward_once` теми же 10 % epoch cap и общим mint cap.
 * Новые коды ошибок дописаны **в конец** `GameError`: `RewardClaimExpired`
   (6049), `RewardExpiryTooFar` (6050). Существующие коды не сдвинуты.
 
 Оффчейн:
 
 * `buildGrantRewardOnceIx` + `rewardClaimPda` в `apps/backend/src/solana.ts`.
-* Старый `buildGrantRewardIx` помечен `@deprecated` и оставлен только ради
-  тестов; тест `apps/backend/tests/reward-rail.test.ts` падает, если его
-  вызовет любой production-модуль.
+* `buildGrantRewardIx` и инструкция `grant_reward` удалены из текущих исходников,
+  клиентского IDL и backend SDK; тесты запрещают возвращать replayable builder.
+* `scripts/init-onchain.ts` использует отдельный зарезервированный nonce для
+  однократной загрузки quest pool. Постоянный rent-bearing receipt запрещено
+  использовать для routine/high-frequency settlement; игровые achievement
+  claims переводят токены из пула и защищены собственным PDA.
 
 **Остаётся до включения эндпоинта наград:**
 
@@ -65,10 +79,11 @@ RPC_URL=<mainnet-rpc> \
    цепь), а чтобы после падения процесса знать, ушла ли транзакция.
 2. Суточный лимит на `reward_signer` ниже квоты 10 % капа эпохи.
 3. Алерт на превышение планового числа грантов за час.
-4. Инструкция `grant_reward` (старый рельс) остаётся в программе ради
-   совместимости и тестов. Она **replay-уязвима by design** и не должна быть
-   подключена ни к одному эндпоинту; при следующем апгрейде программы её стоит
-   удалить — это видимый аудитору пункт.
+4. До upgrade старый deployed binary всё ещё содержит replayable discriminator;
+   source/IDL removal само по себе его не отключает. Провести read-only инвентарь,
+   backup и rehearsed in-place upgrade на Devnet-state clone. После отдельного
+   подтверждения upgrade проверить program-data/version, отрицательный вызов
+   старого discriminator и успешную работу replacement rail; до этого G-1 остаётся NO-GO.
 
 Класс бага, ради которого всё это: Aurory, ~600k токенов (гонка/повтор
 оффчейн-запросов на выплату).
