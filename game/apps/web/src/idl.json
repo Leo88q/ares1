@@ -2498,107 +2498,16 @@
       "args": []
     },
     {
-      "name": "grant_reward",
-      "docs": [
-        "Authority-only (backend) reward mint, counted against the epoch cap."
-      ],
-      "discriminator": [
-        202,
-        133,
-        123,
-        208,
-        124,
-        131,
-        147,
-        235
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "epoch",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  101,
-                  112,
-                  111,
-                  99,
-                  104
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "config.epoch_id",
-                "account": "GameConfig"
-              }
-            ]
-          }
-        },
-        {
-          "name": "authority",
-          "docs": [
-            "S-03: может подписать как authority, так и reward_signer (low-priv backend)"
-          ],
-          "signer": true
-        },
-        {
-          "name": "potato_mint",
-          "writable": true,
-          "relations": [
-            "config"
-          ]
-        },
-        {
-          "name": "user_potato",
-          "writable": true
-        },
-        {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        }
-      ],
-      "args": [
-        {
-          "name": "amount_micro",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "grant_reward_once",
       "docs": [
-        "Replay-proof reward rail (gate G-1, checklist item 41).",
-        "",
-        "`grant_reward` above authorises by signature alone: the same signed",
-        "transaction can be submitted twice, and an off-chain \"already paid\"",
-        "check loses every race. That is the exact class of bug that cost Aurory",
-        "~600k tokens. Here the payout is bound to a `reward_claim` PDA created",
-        "with `init`, so the second attempt with the same (recipient, nonce)",
-        "fails inside the runtime — no off-chain bookkeeping is trusted.",
+        "Replay-proof, nonce-scoped reward mint (gate G-1, checklist item 41).",
+        "The payout is bound to a `reward_claim` PDA created with `init`, so a",
+        "repeated (recipient ATA, nonce) fails in the runtime before any mint.",
         "",
         "`expires_at` closes the durable-nonce window (G-1b): a signature that",
-        "sat in an attacker's pocket past its deadline mints nothing."
+        "sat in an attacker's pocket past its deadline mints nothing. Because the",
+        "marker is permanent and rent-bearing, this rail is for deliberate,",
+        "low-frequency payouts—not routine per-action reward settlement."
       ],
       "discriminator": [
         90,
@@ -4097,7 +4006,7 @@
     {
       "name": "update_reward_signer",
       "docs": [
-        "S-03: обновляет reward_signer — только authority. Backend будет подписывать grant_reward этим ключом."
+        "S-03: обновляет reward_signer — только authority. Backend подписывает grant_reward_once этим ключом."
       ],
       "discriminator": [
         102,
@@ -6045,8 +5954,8 @@
           {
             "name": "granted_micro",
             "docs": [
-              "micro-POTATO minted through `grant_reward` during this epoch.",
-              "Counts toward the manual-grant quota (GRANT_QUOTA_SHARE_BPS of the cap).",
+              "micro-POTATO minted through `grant_reward_once` during this epoch.",
+              "Counts toward the direct-reward quota (GRANT_QUOTA_SHARE_BPS of the cap).",
               "NOT a burn — the historical name was misleading; layout is unchanged."
             ],
             "type": "u64"

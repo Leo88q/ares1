@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { test } from 'node:test';
 import path from 'node:path';
@@ -11,13 +12,18 @@ function report() {
   return JSON.parse(execFileSync(process.execPath, [script, '--json'], { cwd: gameRoot, encoding: 'utf8' }));
 }
 
-test('coverage ignores comments and counts builder-only mentions before calling an instruction unreferenced', () => {
+test('coverage ignores comments and reflects the 43-instruction ABI after legacy reward removal', () => {
   const result = report();
   const row = (name) => result.rows.find((item) => item.name === name);
   const migration = ['migrate', 'admin', 'state'].join('_');
   const solFieldIx = ['buy', 'field', 'sol'].join('_');
   const legacyGrant = ['grant', 'reward'].join('_');
   const skrWithdraw = ['withdraw', 'skr', 'treasury'].join('_');
+
+  assert.equal(result.rows.length, 43);
+  // The replayable instruction is absent from the committed ABI. Its old
+  // discriminator is still covered by the backend payer-allowlist rejection test.
+  assert.equal(row(legacyGrant), undefined);
 
   // migrate_admin_state has a real discriminator in anchorClient.ts and its
   // ix-prefixed wrapper is imported/called from a test; both must be detected.
@@ -30,12 +36,18 @@ test('coverage ignores comments and counts builder-only mentions before calling 
   assert.ok(row(solFieldIx).hits['web-builder'] > 0);
   assert.ok(row(solFieldIx).hits.tests > 0);
 
-  // grant_reward occurs only in a comment in anchorClient.ts; backend/tests are
-  // real references, but the comment must not create a web-builder reference.
-  assert.equal(row(legacyGrant).hits['web-builder'], 0);
-  assert.ok(row(legacyGrant).hits.backend > 0);
-
   // This instruction has no in-scope code reference (the test mentions it only
   // in a comment); keep it visible as a review candidate, not an auto-removal.
   assert.deepEqual(result.unreferenced, [skrWithdraw]);
+});
+
+test('init-onchain funds the quest pool once with the receipt PDA and expiry args', () => {
+  const source = readFileSync(path.join(gameRoot, 'scripts/init-onchain.ts'), 'utf8');
+  assert.match(source, /disc\("grant_reward_once"\)/);
+  assert.doesNotMatch(source, /disc\("grant_reward"\)/);
+  assert.match(source, /Buffer\.from\("reward"\), questAta\.toBuffer\(\), u64LE\(QUEST_POOL_NONCE\)/);
+  assert.match(source, /\{ pubkey: questPoolClaim, isSigner: false, isWritable: true \}/);
+  assert.match(source, /\{ pubkey: admin\.publicKey, isSigner: true, isWritable: true \}/);
+  assert.match(source, /u64LE\(QUEST_POOL_NONCE\),\s*u64LE\(grant\),\s*i64LE\(expiresAt\)/);
+  assert.match(source, /if \(existingQuestClaim\) \{[\s\S]*?one-time marker prevents refilling/);
 });

@@ -6,7 +6,7 @@
     "spec": "0.1.0",
     "description": "Solana Potato game program"
   },
-  "sourceIdlSha256": "7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694",
+  "sourceIdlSha256": "abac132ae74662a5f9b15a0e08327fb8624b241e4cdcbd396f7470d7d14cf4d2",
   "events": [
     {
       "name": "AchievementClaimed",
@@ -1150,16 +1150,6 @@
       143,
       136,
       162
-    ],
-    "grant_reward": [
-      202,
-      133,
-      123,
-      208,
-      124,
-      131,
-      147,
-      235
     ],
     "grant_reward_once": [
       90,

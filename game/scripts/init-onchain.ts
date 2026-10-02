@@ -41,6 +41,8 @@ const ADMIN_KEYPAIR_PATH = (process.env.ADMIN_KEYPAIR_PATH || `${process.env.HOM
 
 // Mirror of QUEST_REWARD_MICRO in lib.rs (50+50+100+100+200+50 = 550 🥔, one-time pool).
 const QUEST_POOL_MICRO = 550_000_000n;
+// Reserved idempotency marker for this one-time seed; the ATA+nonce pair must never be reused.
+const QUEST_POOL_NONCE = 0x5155_4553_5450_4f4fn; // ASCII "QUESTPOO"
 const MICRO = 1_000_000n;
 
 const connection = new Connection(RPC_URL, "confirmed");
@@ -55,6 +57,7 @@ const questTreasuryPda = pda(Buffer.from("quest_treasury"));
 
 const disc = (name: string) => crypto.createHash("sha256").update(`global:${name}`).digest().subarray(0, 8);
 const u64LE = (v: bigint) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(v); return b; };
+const i64LE = (v: bigint) => { const b = Buffer.alloc(8); b.writeBigInt64LE(v); return b; };
 const u32LE = (v: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(v >>> 0); return b; };
 
 async function send(...ixs: TransactionInstruction[]): Promise<string> {
@@ -222,28 +225,43 @@ async function main() {
   await ensurePdaVault(treasurySolPda, "treasury_sol");
   await ensurePdaVault(questTreasuryPda, "quest_treasury");
 
-  // ── Quest pool: ATA (owner = quest_treasury PDA) + grant_reward up to 550 🥔 ──
+  // ── Quest pool: ATA (owner = quest_treasury PDA), one-time seed via grant_reward_once ──
   const questAta = await ensureAta(mint, questTreasuryPda);
   const questBal = (await getAccount(connection, questAta, "confirmed")).amount;
-  if (questBal < QUEST_POOL_MICRO) {
+  const questPoolClaim = pda(Buffer.from("reward"), questAta.toBuffer(), u64LE(QUEST_POOL_NONCE));
+  const existingQuestClaim = await connection.getAccountInfo(questPoolClaim, "confirmed");
+  if (existingQuestClaim && !existingQuestClaim.owner.equals(PROGRAM_ID)) {
+    throw new Error(`Quest-pool reward marker is occupied by an unexpected owner: ${questPoolClaim.toBase58()}`);
+  }
+  if (existingQuestClaim) {
+    console.log(`\nQuest pool seed already claimed (${questBal / MICRO} 🥔); one-time marker prevents refilling.`);
+  } else if (questBal < QUEST_POOL_MICRO) {
     const grant = QUEST_POOL_MICRO - questBal;
-    console.log(`\nFunding quest treasury: granting ${grant / MICRO} 🥔 (one-time achievement pool)...`);
+    const expiresAt = BigInt(Math.floor(Date.now() / 1000) + 300);
+    console.log(`\nFunding quest treasury once: granting ${grant / MICRO} 🥔 (one-time achievement pool)...`);
     const ix = new TransactionInstruction({
       programId: PROGRAM_ID,
       keys: [
         { pubkey: configPda, isSigner: false, isWritable: true },
         { pubkey: epochPdaOf(epochId), isSigner: false, isWritable: true },
-        { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+        { pubkey: admin.publicKey, isSigner: true, isWritable: true },
         { pubkey: mint, isSigner: false, isWritable: true },
         { pubkey: questAta, isSigner: false, isWritable: true },
+        { pubkey: questPoolClaim, isSigner: false, isWritable: true },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
-      data: Buffer.concat([disc("grant_reward"), u64LE(grant)]),
+      data: Buffer.concat([
+        disc("grant_reward_once"),
+        u64LE(QUEST_POOL_NONCE),
+        u64LE(grant),
+        i64LE(expiresAt),
+      ]),
     });
     const sig = await send(ix);
     console.log("Quest pool funded, tx:", sig);
   } else {
-    console.log(`\nQuest treasury already funded (${questBal / MICRO} 🥔).`);
+    console.log(`\nQuest treasury already funded (${questBal / MICRO} 🥔); no seed needed.`);
   }
 
   // ── SKR ATAs for the presale split (80 % treasury / 20 % buyback) ──

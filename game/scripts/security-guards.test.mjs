@@ -70,16 +70,16 @@ test('A1/A5/A6/D21-D22: каждый init платит ренту; data-акка
 
 test('A1: каждый seeds-констрейнт спарен с bump', () => {
   const seeded = blocks.filter((b) => /seeds\s*=/.test(b));
-  // 82 + 3: config / epoch / reward_claim в GrantRewardOnce.
-  assert.equal(seeded.length, 85, `seeds-блоков: ${seeded.length}, ожидалось 85`);
+  // 80 + 3: config / epoch / reward_claim в GrantRewardOnce; legacy GrantReward removed.
+  assert.equal(seeded.length, 83, `seeds-блоков: ${seeded.length}, ожидалось 83`);
   for (const b of seeded) {
     assert.ok(/\bbump\b/.test(b), `seeds без bump: ${b.slice(0, 120)}`);
   }
 });
 
-test('A2: пины has_one (11×potato_mint, 18×authority, 4×owner, 3×seller)', () => {
+test('A2: пины has_one (10×potato_mint, 18×authority, 4×owner, 3×seller)', () => {
   // Нарочно зафиксированные счётчики: новый контекст = осознанный diff пина.
-  assert.equal(count(libRs, 'has_one = potato_mint'), 11); // +1: GrantRewardOnce
+  assert.equal(count(libRs, 'has_one = potato_mint'), 10); // +1: GrantRewardOnce; GrantReward removed
   assert.equal(count(libRs, 'has_one = authority'), 17); // 18-й — в doc-комментарии, срезан
   assert.equal(count(libRs, 'has_one = owner'), 4);
   assert.equal(count(libRs, 'has_one = seller'), 3);
@@ -110,8 +110,8 @@ test('B7/B8/F-01: платный RNG только на верхнем уровн
   }
 });
 
-test('C: пауза-гейт на всех расходных инструкциях (16 пинов)', () => {
-  assert.equal(count(libRs, 'require!(!ctx.accounts.config.paused, GameError::Paused)'), 15); // +1: grant_reward_once
+test('C: пауза-гейт на всех расходных инструкциях (15 пинов)', () => {
+  assert.equal(count(libRs, 'require!(!ctx.accounts.config.paused, GameError::Paused)'), 14); // +1: grant_reward_once; legacy rail removed
   assert.equal(count(libRs, 'require!(!config.paused, GameError::Paused)'), 1);
   assert.ok(libRs.includes('pub fn set_paused'));
   // guardian может только ставить паузу, не снимать.

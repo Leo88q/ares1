@@ -78,4 +78,9 @@ must match. This is not a substitute for governance/multisig signing before main
 The old web `migrate-devnet.mjs` (now in `scripts/devnet-legacy/`, F-21) now refuses to execute because it targeted an
 obsolete program and duplicated unsafe migration code. Bootstrap (`init-onchain`)
 reads the supported current layout and **refuses legacy state** instead of silently
-performing migrations. Plan/review/migrate first, then rerun bootstrap as needed.
+performing migrations. It is a fresh-deployment helper, not an in-place upgrade
+procedure. Its quest-pool seed now uses one reserved `grant_reward_once` nonce;
+a recorded marker prevents refilling after the first successful seed. For an
+existing Devnet state, inventory the pool and marker read-only first and do not
+run bootstrap as part of the upgrade rehearsal. Plan/review/migrate first, then
+rerun bootstrap only where its remaining steps are explicitly needed.

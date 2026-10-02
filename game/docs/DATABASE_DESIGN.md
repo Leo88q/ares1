@@ -12,10 +12,10 @@
 ## 1. Главный принцип: книга учёта уже есть — это цепь
 
 Программа эмитит события на **все** денежные и властные действия: `Harvested`, `BatchHarvested`,
-`RewardGranted`, `ReferralRewardPaid`, `TreasuryTaxed`, `TreasuryWithdrawn`, `TreasurySolWithdrawn`,
+`RewardGrantedOnce`, `ReferralRewardPaid`, `TreasuryTaxed`, `TreasuryWithdrawn`, `TreasurySolWithdrawn`,
 `TreasurySkrWithdrawn`, `AuthorityProposed`/`AuthorityAccepted`, `PausedToggled`, `SkrMintUpdated`,
 `OrderCreated`/`OrderFilled`/`OrderCancelled`/`OrderExpiredEvent`, `ExportLicensePurchased`,
-`AchievementClaimed`, `PresalePurchase` и т. д. — 30 событий по IDL. Watchtower сохраняет их
+`AchievementClaimed`, `PresalePurchase` и т. д. — 31 схема события по IDL, включая историческую. `RewardGranted` сохранён только для декодирования логов до upgrade; текущий исходник его не эмитит. Watchtower сохраняет их
 **только финализированными**, с проверкой слота, дедупликацией и fingerprint-сверкой; откатившиеся
 транзакции помечаются `applied=false` и в проекции не попадают.
 
@@ -202,8 +202,8 @@ CREATE TABLE game_ops.chain_reconciliation (
 `game_ops.reward_intents` + `admin_audit` + роли/`REVOKE`. Никакого балансового учёта. Сервис-владелец —
 **отдельный процесс без ключа** (паттерн изоляции Watchtower). Выдача — `grant_reward_once` с nonce-PDA.
 
-**Фаза 2 — сверка и якорь.** `reward_ledger` как зеркало `RewardGranted` из финализированных событий,
-`chain_reconciliation` (сравнение с `Epoch.granted_micro`), суточный Merkle-корень → ончейн-аккаунт.
+**Фаза 2 — сверка и якорь.** `reward_ledger` как зеркало `RewardGrantedOnce` и исторических
+`RewardGranted` из финализированных событий, `chain_reconciliation` (сравнение с `Epoch.granted_micro`), суточный Merkle-корень → ончейн-аккаунт.
 Readiness fail-closed на дрейф.
 
 **Фаза 3 — аналитика.** Лидерборды/воронки/ретеншн — запросами к схеме `watchtower` (или materialized

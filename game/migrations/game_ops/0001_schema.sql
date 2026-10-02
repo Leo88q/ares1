@@ -57,7 +57,7 @@ CREATE INDEX IF NOT EXISTS reward_intents_signature_state_idx
   ON game_ops.reward_intents (state) WHERE state IN ('submitted','confirmed');
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 2. Зеркало ончейн-факта: только финализированные события RewardGranted.
+-- 2. Зеркало ончейн-факта: только финализированные RewardGrantedOnce и исторические RewardGranted.
 --    Append-only: hash-chain (prev_hash → row_hash) + запрет UPDATE/DELETE
 --    правами (0003) и триггером (0002).
 -- ─────────────────────────────────────────────────────────────────────────────

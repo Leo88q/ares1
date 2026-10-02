@@ -11,9 +11,8 @@
     no-idl            то же + `anchor build --no-idl` (проверка влияния idl-build);
     no-m              вырезаны инструкции группы M (migrate_*) и migrations;
                       верхняя оценка, ABI не сохраняется;
-    no-grant          вырезаны `grant_reward` и `grant_reward_once` (оценка пары);
-    no-grant-legacy   вырезан только `grant_reward`, `grant_reward_once` оставлен
-                      (изолированная цена legacy rail для Q3);
+    no-grant          вырезан оставшийся `grant_reward_once` (legacy `grant_reward`
+                      уже удалена в исходнике; ABI не сохраняется);
     no-buy-field-sol  вырезан только `buy_field_sol` (кандидат Q4);
     arch-v3           `cargo build-sbf --arch v3`, смена платформы на SBPF v3.
 
@@ -72,18 +71,11 @@ VARIANTS = {
         "note": "без группы M (ABI не сохраняется — только измерение)",
     },
     "no-grant": {
-        "drop_fns": ["grant_reward", "grant_reward_once"],
+        "drop_fns": ["grant_reward_once"],
         "drop_mod": None,
         "build": "anchor",
         "anchor_args": [],
-        "note": "без grant_reward/grant_reward_once (ABI не сохраняется — только измерение)",
-    },
-    "no-grant-legacy": {
-        "drop_fns": ["grant_reward"],
-        "drop_mod": None,
-        "build": "anchor",
-        "anchor_args": [],
-        "note": "без grant_reward; grant_reward_once оставлена (ABI не сохраняется — только измерение Q3)",
+        "note": "без grant_reward_once (legacy grant_reward уже удалена; ABI не сохраняется — только измерение)",
     },
     "no-buy-field-sol": {
         "drop_fns": ["buy_field_sol"],

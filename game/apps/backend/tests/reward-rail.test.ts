@@ -1,11 +1,9 @@
 // Gate G-1: the reward payout rail must be replay-proof.
 //
-// Two things are pinned here:
-//   1. No production source file may call the legacy `buildGrantRewardIx`,
-//      which authorises by signature alone and can therefore be landed twice.
-//   2. `buildGrantRewardOnceIx` must derive the `reward_claim` marker PDA from
-//      (recipient ATA, nonce) and encode the args in the on-chain order, so a
-//      duplicate payout is rejected by the runtime rather than by bookkeeping.
+// The replayable builder and legacy discriminator must be absent from the
+// production SDK. `buildGrantRewardOnceIx` must derive the `reward_claim`
+// marker PDA from (recipient ATA, nonce) and encode the args in on-chain order,
+// so a duplicate payout is rejected by the runtime rather than bookkeeping.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -21,17 +19,15 @@ const walk = (dir: string): string[] =>
     return e.isDirectory() ? walk(full) : full.endsWith('.ts') ? [full] : [];
   });
 
-test('no production module calls the replayable grant_reward builder', () => {
-  const offenders = walk(srcDir).filter(file => {
-    if (file.endsWith(path.join('src', 'solana.ts'))) return false; // the declaration itself
-    return /\bbuildGrantRewardIx\b/.test(fs.readFileSync(file, 'utf8'));
-  });
-  assert.deepEqual(offenders, [], 'use buildGrantRewardOnceIx: grant_reward can be replayed');
+test('the replayable reward builder is absent from production sources', () => {
+  const offenders = walk(srcDir).filter(file => /\bbuildGrantRewardIx\b/.test(fs.readFileSync(file, 'utf8')));
+  assert.deepEqual(offenders, [], 'the legacy builder must be removed, not merely unused');
 });
 
-test('solana.ts declares grant_reward as deprecated and offers the once-rail', () => {
+test('solana.ts exposes only the once-rail discriminator and builder', () => {
   const source = fs.readFileSync(path.join(srcDir, 'solana.ts'), 'utf8');
-  assert.match(source, /@deprecated Use buildGrantRewardOnceIx/);
+  assert.doesNotMatch(source, /anchorDiscriminator\("global",\s*"grant_reward"\)/);
+  assert.match(source, /anchorDiscriminator\("global",\s*"grant_reward_once"\)/);
   assert.match(source, /export function buildGrantRewardOnceIx/);
 });
 
