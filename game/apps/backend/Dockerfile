@@ -1,28 +1,32 @@
-# Build from game/: docker build -f apps/backend/Dockerfile .
+# Build from the repository root: docker build -f game/apps/backend/Dockerfile .
 FROM node:22.22.3-bookworm-slim AS build
-WORKDIR /app
-COPY package.json yarn.lock ./
-COPY apps/web/package.json apps/web/package.json
-COPY apps/backend/package.json apps/backend/package.json
+WORKDIR /app/game
+COPY game/package.json game/yarn.lock ./
+COPY game/apps/web/package.json apps/web/package.json
+COPY game/apps/backend/package.json apps/backend/package.json
+# The workspace resolution is file:../vendor/solana-buffer-layout-utils.
+# Keep the vendored backport outside /app/game so that path resolves exactly.
+COPY vendor/solana-buffer-layout-utils /app/vendor/solana-buffer-layout-utils
 RUN yarn install --frozen-lockfile --non-interactive
-COPY apps/backend/tsconfig.json apps/backend/tsconfig.json
-COPY apps/backend/src apps/backend/src
+COPY game/apps/backend/tsconfig.json apps/backend/tsconfig.json
+COPY game/apps/backend/src apps/backend/src
 # Миграции копируются в образ: их применяет точка входа dist/db-migrate.js
 # (docker-compose: сервис migrate до старта backend), чтобы деплой не зависел от
 # tsx/dev-зависимостей на хосте.
-COPY migrations migrations
+COPY game/migrations /app/migrations
 RUN yarn workspace backend build
 
 FROM node:22.22.3-bookworm-slim AS runtime
-WORKDIR /app
+WORKDIR /app/game
 ENV NODE_ENV=production
 # Keep the same workspace graph/lockfile for runtime dependency resolution.
-COPY package.json yarn.lock ./
-COPY apps/web/package.json apps/web/package.json
-COPY apps/backend/package.json apps/backend/package.json
+COPY game/package.json game/yarn.lock ./
+COPY game/apps/web/package.json apps/web/package.json
+COPY game/apps/backend/package.json apps/backend/package.json
+COPY vendor/solana-buffer-layout-utils /app/vendor/solana-buffer-layout-utils
 RUN yarn install --frozen-lockfile --non-interactive --production=true && yarn cache clean
-COPY --from=build /app/apps/backend/dist apps/backend/dist
-COPY --from=build /app/migrations migrations
+COPY --from=build /app/game/apps/backend/dist apps/backend/dist
+COPY --from=build /app/migrations /app/migrations
 USER node
 EXPOSE 8080
 # F-20: liveness probe on the documented /live endpoint (OPERATIONS.md health

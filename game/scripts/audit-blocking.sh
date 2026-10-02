@@ -64,8 +64,15 @@ for raw in open(sys.argv[1], encoding='utf8', errors='replace'):
         f"{advisory.get('title')} ({advisory.get('url')})"
     )
 
+def workflow_escape(value):
+    return value.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+
 for line in blocking:
     print(f'  {line}')
+    # Make the precise package, advisory title, and dependency path visible as
+    # check annotations; workflow logs may be unavailable to operators behind
+    # restricted artifact-storage egress.
+    print(f'::error title=High or critical dependency advisory::{workflow_escape(line)}')
 print('Fix, pin or explicitly review every high/critical transitive dependency before merging.')
 PY
   exit 1

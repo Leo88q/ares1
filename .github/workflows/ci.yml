@@ -316,7 +316,24 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - run: docker build -f apps/backend/Dockerfile .
+      - name: Build from the repository root (includes the local Solana backport)
+        working-directory: .
+        shell: bash
+        run: |
+          set -uo pipefail
+          build_log="$RUNNER_TEMP/backend-container-build.log"
+          if docker build --progress=plain -f game/apps/backend/Dockerfile . >"$build_log" 2>&1; then
+            cat "$build_log"
+          else
+            status=$?
+            while IFS= read -r line; do
+              line=${line//'%'/'%25'}
+              line=${line//$'\r'/'%0D'}
+              line=${line//$'\n'/'%0A'}
+              printf '::error title=Backend container build detail::%s\n' "$line"
+            done < <(tail -n 30 "$build_log")
+            exit "$status"
+          fi
 
   shell-scripts:
     name: Shell scripts (shellcheck, errors and warnings)
