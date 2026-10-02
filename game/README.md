@@ -46,6 +46,7 @@ libs/                       sentinel, solana-tx-guard — отдельные р�
 
 ```bash
 yarn install                       # все workspaces
+../scripts/install-git-hooks.sh    # pre-commit гейт секретов (один раз на клон)
 cargo test -p solana_potato --lib  # 13 юниттестов чистых функций
 anchor build                       # target/deploy/solana_potato.so + target/idl/solana_potato.json
 anchor test                        # локальный валидатор + tests/solana_potato.ts (~2 мин, есть ожидание 61 с)

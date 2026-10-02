@@ -58,7 +58,6 @@ async function main() {
   app.use(express.json({ limit: "16kb" }));
 
   app.get("/live", (_req, res) => res.json({ live: true }));
-  app.use(rateLimit(env.rateLimitPerMinute));
 
   // Health with detailed checks
   app.get("/health", async (_req, res) => {
@@ -86,11 +85,10 @@ async function main() {
   // Слой game_ops подключается ТОЛЬКО если задан GAME_OPS_DATABASE_URL. Без него
   // бэкенд работает как раньше (read-only API + крон эпохи), а платёжные
   // эндпоинты отвечают 503 NOT_CONFIGURED — fail-closed, а не «работает
-  // наполовину».
+  // наполовину». Монтируется НИЖЕ, после лимитера (см. комментарий у /ready).
   const gameOpsConfig = loadGameOpsConfig();
   const gameOpsPool = gameOpsConfig ? createPool(gameOpsConfig) : null;
   if (gameOpsConfig && gameOpsPool) {
-    app.use("/api/gameops", gameOpsRouter(gameOpsPool, gameOpsConfig));
     console.log(
       `[startup] game_ops on: chain=${gameOpsConfig.chainId} pool=${gameOpsConfig.poolMax} role=${gameOpsConfig.role ?? "connection-default"}`,
     );
@@ -114,6 +112,17 @@ async function main() {
     res.status(httpStatusFor(report)).json({ ready: report.ready, gameOps: "on", checks: report.checks });
   });
 
+  // 2026-10-02 (audit): the per-IP rate limit applies to the DATA surface only.
+  // /live, /health and /ready are exempt on purpose: a 429 on a k8s probe makes
+  // an orchestrator think the process is dead and restart it. The three probes
+  // are read-only, cheap and bounded (one config read / one readiness report).
+  // Note the limiter is per-process memory; with more than one replica the
+  // effective limit is N× — use a shared store when you scale horizontally.
+  app.use(rateLimit(env.rateLimitPerMinute));
+
+  if (gameOpsConfig && gameOpsPool) {
+    app.use("/api/gameops", gameOpsRouter(gameOpsPool, gameOpsConfig));
+  }
   app.use("/api/config", configRouter);
 
   // 404

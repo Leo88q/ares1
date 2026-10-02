@@ -1,5 +1,15 @@
 # ARES-1 — WATCHTOWER INTEGRATION (Watchtower OS v3)
 
+> **Статус на 2026-10-02: это план (design handoff), а не работающая архитектура.**
+> v3-сплит программ (`CgInv…`, `SessKeys…`, `STrEaSuRy…`, `ARES1_CORE_PROGRAM_ID`),
+> session keys и описанные ниже интеграции **не существуют в этом репозитории**: адреса
+> не скоммичены, каждая запись помечена `verified: false`, а экспортёр `watchtower/` —
+> read-only и **не подключён к Games Watchtower** (`deploymentVerified: false`,
+> `lastVerifiedAt: null`). Ничто ниже не является работающим мониторингом, кастодией
+> или доступом к казне; до реализации действуют гейты §4 в
+> `game/docs/THIRD_PARTY_DEPENDENCIES.md`. Живая программа — только
+> `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf` (devnet).
+
 Сгенерировано `watchtower/src/os/handoff-v3.js` (детерминированно; обновление: `npm run os:handoff`, проверка: `npm run os:handoff:check`). Не редактировать вручную.
 
 ## Игровая идентичность

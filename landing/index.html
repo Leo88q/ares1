@@ -49,7 +49,8 @@
       were pulled from a third-party font CDN, which disclosed every visitor's
       IP address to that provider before any consent existed (checklist §4.6)
       and forced an extra origin into the CSP. Do not re-add a CDN font link
-      here — it would also have to be re-allowed in netlify.toml.
+      here — it would also have to be re-allowlisted in landing/public/_headers (the
+      file Cloudflare Pages actually serves).
     -->
   </head>
   <body>

@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - run: ./game/scripts/install-gitleaks.sh "$RUNNER_TEMP/gitleaks-bin"
@@ -57,8 +57,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # fetch-depth: 0 — the history scan below is a real gate, and
+      # scripts/secret-scan-history.mjs exits 2 (not 0) on a shallow clone, so a
+      # shallow checkout would fail for the wrong reason.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
       - name: Working tree
@@ -69,26 +74,33 @@ jobs:
           # code path rots, every clone silently loses its local gate.
           git ls-files -z | head -c 4000 | node scripts/secret-scan.mjs --stdin
       # Known finding S-01 (a Helius devnet key committed in 55ba9d9..87eb954
-      # and deleted later) is NOT allowlisted on purpose. This job is expected
-      # to stay red until the key is rotated and history is rewritten — that is
-      # the point: a gate that is green while a secret sits in history is
-      # reporting nothing useful.
-      - name: Full history (advisory until S-01 is remediated)
+      # and deleted later) is NOT allowlisted on purpose, and this step is a
+      # REAL gate: the scan is run with continue-on-error only so that the
+      # annotation step below still executes, and the step after that turns a
+      # red history scan into a red job. Until the key is rotated and history is
+      # rewritten, this job must fail — a green job while a credential sits in
+      # history reports nothing useful.
+      - name: Full history scan
         continue-on-error: true
         id: history
         run: node scripts/secret-scan-history.mjs
       - name: Annotate historical findings
         if: steps.history.outcome == 'failure'
         run: |
-          echo "::warning::Historical secret scan reported findings. See docs/PRODUCTION_DEPLOY_CHECKLIST.md (finding S-01). Rotate the credential BEFORE rewriting history."
+          echo "::error title=Historical secret scan is RED::A committed credential is reachable in git history. Rotate the credential first, then rewrite history (docs/PRODUCTION_DEPLOY_CHECKLIST.md, finding S-01). Do not add it to .secret-scan-allowlist.json."
+      - name: Enforce the history gate
+        if: steps.history.outcome == 'failure'
+        run: |
+          echo "secret-scan-history reported findings; the history gate is intentionally red until S-01 is remediated." >&2
+          exit 1
 
   deploy-readiness:
     name: Deploy readiness (checklist §2, §7)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
       # §7.1/§7.2: the legal pages and security.txt are generated artifacts;

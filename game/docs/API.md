@@ -2,7 +2,9 @@
 
 **Not a statement about the deployed binary.** Anchor CLI/crates 0.31.2; source:
 `programs/solana_potato/src/lib.rs`. Committed `apps/web/src/idl.json` describes
-the remediated source (**43 instructions, 12 accounts, 30 events, 47 errors**);
+the remediated source (**44 instructions, 13 accounts, 31 events, 51 errors** —
+counts re-checked against the committed IDL on 2026-10-02; `yarn check:contract`
+fails if this file is regenerated without updating the client ABI);
 it was rebuilt together with the 2026-09-21 security fixes and must be
 re-verified against a real pinned-Anchor build before deploy: run `anchor build`,
 then `yarn check:contract target/idl/solana_potato.json` and copy the built IDL

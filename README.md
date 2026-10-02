@@ -40,8 +40,9 @@ Landing:
     npm install
     npm run dev   # http://localhost:5173
 
-Game:
+Game (install the pre-commit secret gate once per clone):
 
+    ./scripts/install-git-hooks.sh
     cd game
     npm install
     cd apps/web && npm run dev   # http://localhost:5175

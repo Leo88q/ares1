@@ -150,7 +150,7 @@ RPC_URL=<mainnet-rpc> \
 ## G-4. Фронтенд и DNS (пп. 50, 67)
 
 Для игрового хоста (`play.ares1.is-a.dev`) выставить те же заголовки, что на
-лендинге (`landing/netlify.toml`):
+лендинге (`landing/public/_headers` — файл, который читает Cloudflare Pages; `netlify.toml` платформа игнорирует):
 
 ```
 Content-Security-Policy: default-src 'self'; script-src 'self';
@@ -259,9 +259,9 @@ wrench-атаки за H1 2026.
    `DeactivateStake` с казначейских аккаунтов как ранний сигнал вывода (стейк
    деактивируется не мгновенно — это окно для реакции). Сегодня стейкинг не
    используется; пункт активируется вместе с ним.
-5. Duress-протокол и правила неразглашения персональных данных —
-   [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) и OPERATIONS «Люди, устройства
-   и доступ».
+5. Duress-протокол (§9 в [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md): тревожная
+   фраза, резервный канал, «дежурный» кошелёк, порог 3-of-N) и правила
+   неразглашения персональных данных — OPERATIONS «Люди, устройства и доступ».
 6. Происхождение каждого ключа — [KEY_PROVENANCE.md](KEY_PROVENANCE.md);
    ключи из затронутых версий прошивок = скомпрометированы.
 

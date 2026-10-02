@@ -53,8 +53,15 @@ services:
       dockerfile: apps/backend/Dockerfile
     restart: unless-stopped
     init: true
+    # 2026-10-02 (audit): the API runs a signing bot and the admin game_ops
+    # surface, so it must not appear on every interface by accident. The default
+    # bind is loopback: terminate TLS and check the origin in a reverse proxy /
+    # platform ingress in front of it. Set GAME_OPS_BACKEND_BIND=0.0.0.0
+    # deliberately (and TRUST_PROXY=false or the right hop count) if the API is
+    # exposed directly — otherwise X-Forwarded-For is spoofable and the rate
+    # limiter plus the `ip:` actor in the game_ops audit log can be forged.
     ports:
-      - "8080:8080"
+      - "${GAME_OPS_BACKEND_BIND:-127.0.0.1}:8080:8080"
     env_file:
       - ./apps/backend/.env
     environment:
