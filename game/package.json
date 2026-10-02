@@ -47,7 +47,7 @@
     "inventory:programs:schema": "node scripts/inventory-programs.mjs --schema-only"
   },
   "devDependencies": {
-    "@coral-xyz/anchor": "0.30.1",
+    "@coral-xyz/anchor": "0.32.1",
     "@solana/spl-token": "0.4.15",
     "@solana/buffer-layout-utils": "file:../vendor/solana-buffer-layout-utils",
     "@solana/web3.js": "1.98.4",
