@@ -1,0 +1,912 @@
+{
+ "provenance": {
+  "source": "GitHub REST check-run annotations",
+  "workflowRun": 36919450348,
+  "workflowRunUrl": "https://github.com/Leo88q/ares1/actions/runs/36919450348",
+  "jobCheckRun": 110561535903,
+  "checkName": "CU-профиль, ELF-аудит и покрытие инструкций",
+  "commit": "a17b038d8524346b6166d06c8b70e7c9d3da1081",
+  "annotationsUrl": "https://api.github.com/repos/Leo88q/ares1/check-runs/110561535903/annotations",
+  "note": "Две аннотации ares-cu и ares-cu-2 объединены по itemsFrom: [0,34), [34,37). 37 уникальных названий; пропусков и дублей нет. Это последняя полная выборка этапа 2. В повторных прогонах менялись число вызовов/инструкций и CU-статистики; таблица фиксирует этот конкретный localnet sample, а не детерминированную константу программы."
+ },
+ "measurement": {
+  "measured": true,
+  "logs": [
+   "/tmp/cu-input.log"
+  ],
+  "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+  "instructionsSeen": 37,
+  "instructionLogLines": 266,
+  "consumedLines": 398,
+  "foreignConsumedLines": 132,
+  "top": [
+   {
+    "i": "BuyFieldSkr",
+    "n": 1,
+    "min": 54280,
+    "med": 54280,
+    "max": 54280,
+    "bud": 200000
+   },
+   {
+    "i": "CreateSellOrder",
+    "n": 8,
+    "min": 45688,
+    "med": 51776,
+    "max": 65520,
+    "bud": 200000
+   },
+   {
+    "i": "FillOrder",
+    "n": 5,
+    "min": 26525,
+    "med": 44030,
+    "max": 57978,
+    "bud": 200000
+   },
+   {
+    "i": "BuyFieldSol",
+    "n": 27,
+    "min": 26963,
+    "med": 33704,
+    "max": 40751,
+    "bud": 200000
+   },
+   {
+    "i": "ClaimAchievement",
+    "n": 11,
+    "min": 25340,
+    "med": 31888,
+    "max": 37421,
+    "bud": 200000
+   },
+   {
+    "i": "Harvest",
+    "n": 2,
+    "min": 22443,
+    "med": 28451,
+    "max": 34459,
+    "bud": 200000
+   },
+   {
+    "i": "GrantRewardOnce",
+    "n": 5,
+    "min": 11917,
+    "med": 26369,
+    "max": 27869,
+    "bud": 200000
+   },
+   {
+    "i": "WithdrawTreasury",
+    "n": 7,
+    "min": 23824,
+    "med": 25372,
+    "max": 28374,
+    "bud": 200000
+   },
+   {
+    "i": "CancelOrder",
+    "n": 1,
+    "min": 25305,
+    "med": 25305,
+    "max": 25305,
+    "bud": 200000
+   },
+   {
+    "i": "RegisterReferrer",
+    "n": 6,
+    "min": 21468,
+    "med": 25094,
+    "max": 29594,
+    "bud": 200000
+   }
+  ],
+  "note": "CU из лога localnet (anchor test); для каждой инструкции — min/median/max по вызовам"
+ },
+ "annotationParts": [
+  {
+   "title": "ares-cu",
+   "path": ".github",
+   "line": 22,
+   "level": "notice",
+   "payload": {
+    "measured": true,
+    "logs": [
+     "/tmp/cu-input.log"
+    ],
+    "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+    "instructionsSeen": 37,
+    "instructionLogLines": 266,
+    "consumedLines": 398,
+    "foreignConsumedLines": 132,
+    "top": [
+     {
+      "i": "BuyFieldSkr",
+      "n": 1,
+      "min": 54280,
+      "med": 54280,
+      "max": 54280,
+      "bud": 200000
+     },
+     {
+      "i": "CreateSellOrder",
+      "n": 8,
+      "min": 45688,
+      "med": 51776,
+      "max": 65520,
+      "bud": 200000
+     },
+     {
+      "i": "FillOrder",
+      "n": 5,
+      "min": 26525,
+      "med": 44030,
+      "max": 57978,
+      "bud": 200000
+     },
+     {
+      "i": "BuyFieldSol",
+      "n": 27,
+      "min": 26963,
+      "med": 33704,
+      "max": 40751,
+      "bud": 200000
+     },
+     {
+      "i": "ClaimAchievement",
+      "n": 11,
+      "min": 25340,
+      "med": 31888,
+      "max": 37421,
+      "bud": 200000
+     },
+     {
+      "i": "Harvest",
+      "n": 2,
+      "min": 22443,
+      "med": 28451,
+      "max": 34459,
+      "bud": 200000
+     },
+     {
+      "i": "GrantRewardOnce",
+      "n": 5,
+      "min": 11917,
+      "med": 26369,
+      "max": 27869,
+      "bud": 200000
+     },
+     {
+      "i": "WithdrawTreasury",
+      "n": 7,
+      "min": 23824,
+      "med": 25372,
+      "max": 28374,
+      "bud": 200000
+     },
+     {
+      "i": "CancelOrder",
+      "n": 1,
+      "min": 25305,
+      "med": 25305,
+      "max": 25305,
+      "bud": 200000
+     },
+     {
+      "i": "RegisterReferrer",
+      "n": 6,
+      "min": 21468,
+      "med": 25094,
+      "max": 29594,
+      "bud": 200000
+     }
+    ],
+    "note": "CU из лога localnet (anchor test); для каждой инструкции — min/median/max по вызовам",
+    "instructions": [
+     {
+      "i": "BuyFieldSkr",
+      "n": 1,
+      "min": 54280,
+      "med": 54280,
+      "max": 54280,
+      "bud": 200000
+     },
+     {
+      "i": "CreateSellOrder",
+      "n": 8,
+      "min": 45688,
+      "med": 51776,
+      "max": 65520,
+      "bud": 200000
+     },
+     {
+      "i": "FillOrder",
+      "n": 5,
+      "min": 26525,
+      "med": 44030,
+      "max": 57978,
+      "bud": 200000
+     },
+     {
+      "i": "BuyFieldSol",
+      "n": 27,
+      "min": 26963,
+      "med": 33704,
+      "max": 40751,
+      "bud": 200000
+     },
+     {
+      "i": "ClaimAchievement",
+      "n": 11,
+      "min": 25340,
+      "med": 31888,
+      "max": 37421,
+      "bud": 200000
+     },
+     {
+      "i": "Harvest",
+      "n": 2,
+      "min": 22443,
+      "med": 28451,
+      "max": 34459,
+      "bud": 200000
+     },
+     {
+      "i": "GrantRewardOnce",
+      "n": 5,
+      "min": 11917,
+      "med": 26369,
+      "max": 27869,
+      "bud": 200000
+     },
+     {
+      "i": "WithdrawTreasury",
+      "n": 7,
+      "min": 23824,
+      "med": 25372,
+      "max": 28374,
+      "bud": 200000
+     },
+     {
+      "i": "CancelOrder",
+      "n": 1,
+      "min": 25305,
+      "med": 25305,
+      "max": 25305,
+      "bud": 200000
+     },
+     {
+      "i": "RegisterReferrer",
+      "n": 6,
+      "min": 21468,
+      "med": 25094,
+      "max": 29594,
+      "bud": 200000
+     },
+     {
+      "i": "CreateField",
+      "n": 9,
+      "min": 18772,
+      "med": 24261,
+      "max": 25761,
+      "bud": 200000
+     },
+     {
+      "i": "BatchHarvest",
+      "n": 3,
+      "min": 22342,
+      "med": 22895,
+      "max": 42225,
+      "bud": 200000
+     },
+     {
+      "i": "UpdatePresalePrice",
+      "n": 3,
+      "min": 15468,
+      "med": 20005,
+      "max": 21803,
+      "bud": 200000
+     },
+     {
+      "i": "RollEpoch",
+      "n": 1,
+      "min": 18707,
+      "med": 18707,
+      "max": 18707,
+      "bud": 200000
+     },
+     {
+      "i": "WithdrawTreasurySol",
+      "n": 5,
+      "min": 17551,
+      "med": 17763,
+      "max": 20294,
+      "bud": 200000
+     },
+     {
+      "i": "GrantReward",
+      "n": 57,
+      "min": 12438,
+      "med": 16087,
+      "max": 16088,
+      "bud": 200000
+     },
+     {
+      "i": "InitEpoch",
+      "n": 2,
+      "min": 16078,
+      "med": 16078,
+      "max": 16078,
+      "bud": 200000
+     },
+     {
+      "i": "InitPresale",
+      "n": 2,
+      "min": 12510,
+      "med": 15809,
+      "max": 19109,
+      "bud": 200000
+     },
+     {
+      "i": "UpgradeField",
+      "n": 1,
+      "min": 15688,
+      "med": 15688,
+      "max": 15688,
+      "bud": 200000
+     },
+     {
+      "i": "UpdateSkrMint",
+      "n": 5,
+      "min": 15453,
+      "med": 15624,
+      "max": 17574,
+      "bud": 200000
+     },
+     {
+      "i": "ApplyFertilizer",
+      "n": 13,
+      "min": 11872,
+      "med": 15567,
+      "max": 15567,
+      "bud": 200000
+     },
+     {
+      "i": "PayTax",
+      "n": 8,
+      "min": 5850,
+      "med": 15525,
+      "max": 15525,
+      "bud": 200000
+     },
+     {
+      "i": "RepairField",
+      "n": 1,
+      "min": 14442,
+      "med": 14442,
+      "max": 14442,
+      "bud": 200000
+     },
+     {
+      "i": "ApplyPendingPresalePrice",
+      "n": 2,
+      "min": 14331,
+      "med": 14422,
+      "max": 14514,
+      "bud": 200000
+     },
+     {
+      "i": "ProposeWithdrawal",
+      "n": 14,
+      "min": 14152,
+      "med": 14206,
+      "max": 14344,
+      "bud": 200000
+     },
+     {
+      "i": "ApplyPendingSkrMint",
+      "n": 2,
+      "min": 13968,
+      "med": 13968,
+      "max": 13968,
+      "bud": 200000
+     },
+     {
+      "i": "Initialize",
+      "n": 5,
+      "min": 6617,
+      "med": 13094,
+      "max": 14114,
+      "bud": 200000
+     },
+     {
+      "i": "CancelWithdrawal",
+      "n": 7,
+      "min": 13086,
+      "med": 13086,
+      "max": 13086,
+      "bud": 200000
+     },
+     {
+      "i": "MigrateConfig",
+      "n": 1,
+      "min": 10456,
+      "med": 10456,
+      "max": 10456,
+      "bud": 200000
+     },
+     {
+      "i": "UpdateGuardian",
+      "n": 4,
+      "min": 9838,
+      "med": 10011,
+      "max": 10185,
+      "bud": 200000
+     },
+     {
+      "i": "CloseField",
+      "n": 1,
+      "min": 9760,
+      "med": 9760,
+      "max": 9760,
+      "bud": 200000
+     },
+     {
+      "i": "MigratePresaleAuthority",
+      "n": 4,
+      "min": 9091,
+      "med": 9472,
+      "max": 9472,
+      "bud": 200000
+     },
+     {
+      "i": "UpdateConfig",
+      "n": 1,
+      "min": 8122,
+      "med": 8122,
+      "max": 8122,
+      "bud": 200000
+     },
+     {
+      "i": "UpdateRewardSigner",
+      "n": 3,
+      "min": 7937,
+      "med": 7937,
+      "max": 7937,
+      "bud": 200000
+     }
+    ],
+    "itemsFrom": 0,
+    "itemsTotal": 37,
+    "part": 1
+   }
+  },
+  {
+   "title": "ares-cu-2",
+   "path": ".github",
+   "line": 23,
+   "level": "notice",
+   "payload": {
+    "measured": true,
+    "logs": [
+     "/tmp/cu-input.log"
+    ],
+    "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+    "instructionsSeen": 37,
+    "instructionLogLines": 266,
+    "consumedLines": 398,
+    "foreignConsumedLines": 132,
+    "top": [
+     {
+      "i": "BuyFieldSkr",
+      "n": 1,
+      "min": 54280,
+      "med": 54280,
+      "max": 54280,
+      "bud": 200000
+     },
+     {
+      "i": "CreateSellOrder",
+      "n": 8,
+      "min": 45688,
+      "med": 51776,
+      "max": 65520,
+      "bud": 200000
+     },
+     {
+      "i": "FillOrder",
+      "n": 5,
+      "min": 26525,
+      "med": 44030,
+      "max": 57978,
+      "bud": 200000
+     },
+     {
+      "i": "BuyFieldSol",
+      "n": 27,
+      "min": 26963,
+      "med": 33704,
+      "max": 40751,
+      "bud": 200000
+     },
+     {
+      "i": "ClaimAchievement",
+      "n": 11,
+      "min": 25340,
+      "med": 31888,
+      "max": 37421,
+      "bud": 200000
+     },
+     {
+      "i": "Harvest",
+      "n": 2,
+      "min": 22443,
+      "med": 28451,
+      "max": 34459,
+      "bud": 200000
+     },
+     {
+      "i": "GrantRewardOnce",
+      "n": 5,
+      "min": 11917,
+      "med": 26369,
+      "max": 27869,
+      "bud": 200000
+     },
+     {
+      "i": "WithdrawTreasury",
+      "n": 7,
+      "min": 23824,
+      "med": 25372,
+      "max": 28374,
+      "bud": 200000
+     },
+     {
+      "i": "CancelOrder",
+      "n": 1,
+      "min": 25305,
+      "med": 25305,
+      "max": 25305,
+      "bud": 200000
+     },
+     {
+      "i": "RegisterReferrer",
+      "n": 6,
+      "min": 21468,
+      "med": 25094,
+      "max": 29594,
+      "bud": 200000
+     }
+    ],
+    "note": "CU из лога localnet (anchor test); для каждой инструкции — min/median/max по вызовам",
+    "instructions": [
+     {
+      "i": "AcceptAuthority",
+      "n": 8,
+      "min": 7730,
+      "med": 7731,
+      "max": 7804,
+      "bud": 200000
+     },
+     {
+      "i": "ProposeAuthority",
+      "n": 8,
+      "min": 7707,
+      "med": 7707,
+      "max": 7708,
+      "bud": 200000
+     },
+     {
+      "i": "SetPaused",
+      "n": 23,
+      "min": 7471,
+      "med": 7472,
+      "max": 7823,
+      "bud": 200000
+     }
+    ],
+    "itemsFrom": 34,
+    "itemsTotal": 37,
+    "part": 2
+   }
+  }
+ ],
+ "instructions": [
+  {
+   "i": "BuyFieldSkr",
+   "n": 1,
+   "min": 54280,
+   "med": 54280,
+   "max": 54280,
+   "bud": 200000
+  },
+  {
+   "i": "CreateSellOrder",
+   "n": 8,
+   "min": 45688,
+   "med": 51776,
+   "max": 65520,
+   "bud": 200000
+  },
+  {
+   "i": "FillOrder",
+   "n": 5,
+   "min": 26525,
+   "med": 44030,
+   "max": 57978,
+   "bud": 200000
+  },
+  {
+   "i": "BuyFieldSol",
+   "n": 27,
+   "min": 26963,
+   "med": 33704,
+   "max": 40751,
+   "bud": 200000
+  },
+  {
+   "i": "ClaimAchievement",
+   "n": 11,
+   "min": 25340,
+   "med": 31888,
+   "max": 37421,
+   "bud": 200000
+  },
+  {
+   "i": "Harvest",
+   "n": 2,
+   "min": 22443,
+   "med": 28451,
+   "max": 34459,
+   "bud": 200000
+  },
+  {
+   "i": "GrantRewardOnce",
+   "n": 5,
+   "min": 11917,
+   "med": 26369,
+   "max": 27869,
+   "bud": 200000
+  },
+  {
+   "i": "WithdrawTreasury",
+   "n": 7,
+   "min": 23824,
+   "med": 25372,
+   "max": 28374,
+   "bud": 200000
+  },
+  {
+   "i": "CancelOrder",
+   "n": 1,
+   "min": 25305,
+   "med": 25305,
+   "max": 25305,
+   "bud": 200000
+  },
+  {
+   "i": "RegisterReferrer",
+   "n": 6,
+   "min": 21468,
+   "med": 25094,
+   "max": 29594,
+   "bud": 200000
+  },
+  {
+   "i": "CreateField",
+   "n": 9,
+   "min": 18772,
+   "med": 24261,
+   "max": 25761,
+   "bud": 200000
+  },
+  {
+   "i": "BatchHarvest",
+   "n": 3,
+   "min": 22342,
+   "med": 22895,
+   "max": 42225,
+   "bud": 200000
+  },
+  {
+   "i": "UpdatePresalePrice",
+   "n": 3,
+   "min": 15468,
+   "med": 20005,
+   "max": 21803,
+   "bud": 200000
+  },
+  {
+   "i": "RollEpoch",
+   "n": 1,
+   "min": 18707,
+   "med": 18707,
+   "max": 18707,
+   "bud": 200000
+  },
+  {
+   "i": "WithdrawTreasurySol",
+   "n": 5,
+   "min": 17551,
+   "med": 17763,
+   "max": 20294,
+   "bud": 200000
+  },
+  {
+   "i": "GrantReward",
+   "n": 57,
+   "min": 12438,
+   "med": 16087,
+   "max": 16088,
+   "bud": 200000
+  },
+  {
+   "i": "InitEpoch",
+   "n": 2,
+   "min": 16078,
+   "med": 16078,
+   "max": 16078,
+   "bud": 200000
+  },
+  {
+   "i": "InitPresale",
+   "n": 2,
+   "min": 12510,
+   "med": 15809,
+   "max": 19109,
+   "bud": 200000
+  },
+  {
+   "i": "UpgradeField",
+   "n": 1,
+   "min": 15688,
+   "med": 15688,
+   "max": 15688,
+   "bud": 200000
+  },
+  {
+   "i": "UpdateSkrMint",
+   "n": 5,
+   "min": 15453,
+   "med": 15624,
+   "max": 17574,
+   "bud": 200000
+  },
+  {
+   "i": "ApplyFertilizer",
+   "n": 13,
+   "min": 11872,
+   "med": 15567,
+   "max": 15567,
+   "bud": 200000
+  },
+  {
+   "i": "PayTax",
+   "n": 8,
+   "min": 5850,
+   "med": 15525,
+   "max": 15525,
+   "bud": 200000
+  },
+  {
+   "i": "RepairField",
+   "n": 1,
+   "min": 14442,
+   "med": 14442,
+   "max": 14442,
+   "bud": 200000
+  },
+  {
+   "i": "ApplyPendingPresalePrice",
+   "n": 2,
+   "min": 14331,
+   "med": 14422,
+   "max": 14514,
+   "bud": 200000
+  },
+  {
+   "i": "ProposeWithdrawal",
+   "n": 14,
+   "min": 14152,
+   "med": 14206,
+   "max": 14344,
+   "bud": 200000
+  },
+  {
+   "i": "ApplyPendingSkrMint",
+   "n": 2,
+   "min": 13968,
+   "med": 13968,
+   "max": 13968,
+   "bud": 200000
+  },
+  {
+   "i": "Initialize",
+   "n": 5,
+   "min": 6617,
+   "med": 13094,
+   "max": 14114,
+   "bud": 200000
+  },
+  {
+   "i": "CancelWithdrawal",
+   "n": 7,
+   "min": 13086,
+   "med": 13086,
+   "max": 13086,
+   "bud": 200000
+  },
+  {
+   "i": "MigrateConfig",
+   "n": 1,
+   "min": 10456,
+   "med": 10456,
+   "max": 10456,
+   "bud": 200000
+  },
+  {
+   "i": "UpdateGuardian",
+   "n": 4,
+   "min": 9838,
+   "med": 10011,
+   "max": 10185,
+   "bud": 200000
+  },
+  {
+   "i": "CloseField",
+   "n": 1,
+   "min": 9760,
+   "med": 9760,
+   "max": 9760,
+   "bud": 200000
+  },
+  {
+   "i": "MigratePresaleAuthority",
+   "n": 4,
+   "min": 9091,
+   "med": 9472,
+   "max": 9472,
+   "bud": 200000
+  },
+  {
+   "i": "UpdateConfig",
+   "n": 1,
+   "min": 8122,
+   "med": 8122,
+   "max": 8122,
+   "bud": 200000
+  },
+  {
+   "i": "UpdateRewardSigner",
+   "n": 3,
+   "min": 7937,
+   "med": 7937,
+   "max": 7937,
+   "bud": 200000
+  },
+  {
+   "i": "AcceptAuthority",
+   "n": 8,
+   "min": 7730,
+   "med": 7731,
+   "max": 7804,
+   "bud": 200000
+  },
+  {
+   "i": "ProposeAuthority",
+   "n": 8,
+   "min": 7707,
+   "med": 7707,
+   "max": 7708,
+   "bud": 200000
+  },
+  {
+   "i": "SetPaused",
+   "n": 23,
+   "min": 7471,
+   "med": 7472,
+   "max": 7823,
+   "bud": 200000
+  }
+ ]
+}

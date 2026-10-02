@@ -25,6 +25,10 @@ yarn typecheck:tools
 yarn test:offchain
 # Security-guard tripwire (checklist 2026-09-25), zero-dep.
 yarn test:guards
+# Калькулятор стоимости деплоя: векторы V1–V5 и инварианты модели (reports/rent-audit/).
+yarn test:deploy-budget
+# Инструменты Этапа 2: CU-профиль логов localnet и слоистое покрытие инструкций.
+yarn test:rent-tools
 # Item 76: скрытые инструкции для ИИ-аудитора невидимы в диффе — невидимый
 # юникод в коде/доках запрещён; сканер имеет собственные фикстуры.
 yarn test:unicode
