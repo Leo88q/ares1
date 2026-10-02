@@ -741,16 +741,19 @@ test('2026-10-02: protobufjs не возвращается в уязвимый �
   assert.equal(entry[1], enforced, 'lock и resolutions разошлись: критический advisory вернётся по lockfile');
 });
 
-test('2026-10-02: фиксирует production advisories в lodash и вложенном viem/ws', () => {
+test('2026-10-02: фиксирует production advisories в lodash, viem/ws и toml', () => {
   const pkg = JSON.parse(read('../package.json'));
   const lock = read('../yarn.lock');
   assert.equal(pkg.resolutions?.lodash, '4.18.1', 'GHSA-r5fr-rjxr-66jc требует lodash >=4.18.0; 4.18.0 отозван');
   assert.equal(pkg.resolutions?.['**/viem/ws'], '8.21.3', 'GHSA-96hv-2xvq-fx4p требует ws >=8.21.0');
+  assert.equal(pkg.resolutions?.toml, '4.2.0', 'GHSA-82x6-q7mm-w9cf требует toml >=4.2.0');
   assert.equal(parseYarnEntry(lock, 'lodash@4.18.1')?.version, '4.18.1');
   assert.equal(parseYarnEntry(lock, 'ws@8.21.3')?.version, '8.21.3');
+  assert.equal(parseYarnEntry(lock, 'toml@^3.0.0')?.version, '4.2.0');
   assert.doesNotMatch(lock, /^lodash@4\.17\.21:/m, 'уязвимый lodash lock-entry вернулся');
   assert.doesNotMatch(lock, /^lodash@4\.18\.0:/m, 'отозванный lodash 4.18.0 lock-entry вернулся');
   assert.doesNotMatch(lock, /^ws@8\.18\.0:/m, 'уязвимый ws lock-entry вернулся');
+  assert.doesNotMatch(lock, /^toml@\^3\.0\.0:\n\s+version "3\.0\.0"/m, 'уязвимый toml lock-entry вернулся');
 });
 
 test('2026-10-02: рабочее дерево проходит secret-scan (гейт §1.1 не красный)', () => {
