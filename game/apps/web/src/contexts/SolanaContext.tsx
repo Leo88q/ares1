@@ -19,10 +19,13 @@ import { withRetry } from '../utils/rpc'
 import { usePolling } from '../hooks/usePolling'
 import { getLookupTable } from '../utils/lut'
 import {
+  UnsafeTransactionError,
   assertInstructionsAllowed,
   assertSignedInstructionsMatch,
   assertSignedLegacyInstructionsMatch,
   describeInstructions,
+  snapshotLegacyMessage,
+  snapshotVersionedMessage,
 } from '../utils/txSafety'
 
 // Fail-fast: без VITE_PROGRAM_ID сборка не должна молча указывать на старый адрес.
@@ -102,7 +105,8 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
 
   const sendIx = useCallback(
     async (ixs: TransactionInstruction[], opts?: { lookupTables?: AddressLookupTableAccount[] }): Promise<string> => {
-      if (!wallet.publicKey || !wallet.signTransaction || !wallet.sendTransaction) throw new Error(t('Кошелёк не подключён.'))
+      const feePayer = wallet.publicKey
+      if (!feePayer || !wallet.signTransaction || !wallet.sendTransaction) throw new Error(t('Кошелёк не подключён.'))
       const MISSING_SIG = t('Кошелёк не вернул подпись транзакции. Отключите кошелёк в настройках игры и подключите заново.')
       const activeAdapter =
         (wallet as { wallet?: { adapter?: { name?: string; connect: () => Promise<void>; disconnect: () => Promise<void> } } | null })
@@ -143,11 +147,14 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
       try {
         const { blockhash, lastValidBlockHeight } = await withRetry(() => connection.getLatestBlockhash('confirmed'))
         const messageV0 = new TransactionMessage({
-          payerKey: wallet.publicKey,
+          payerKey: feePayer,
           recentBlockhash: blockhash,
           instructions: priorityIxs,
         }).compileToV0Message(luts)
         const vtx = new VersionedTransaction(messageV0)
+        // Snapshot before simulate/sign: wallet adapters may mutate and return
+        // the same VersionedTransaction instance they were given.
+        const expectedMessageV0 = snapshotVersionedMessage(vtx)
         // Preflight simulate — FAIL CLOSED (чек-лист п. 51): если симуляция
         // упала, транзакция на сети тоже упадёт. Раньше отправлялись только
         // «узнаваемые» ошибки, остальные доходили до кошелька и сжигали комиссию.
@@ -165,7 +172,12 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
         if (missingV > 0 && activeAdapter) {
           await activeAdapter.disconnect()
           await activeAdapter.connect()
-          const retryVtx = new VersionedTransaction(messageV0)
+          const retryMessageV0 = new TransactionMessage({
+            payerKey: feePayer,
+            recentBlockhash: blockhash,
+            instructions: priorityIxs,
+          }).compileToV0Message(luts)
+          const retryVtx = new VersionedTransaction(retryMessageV0)
           signed = await (wallet.signTransaction as (tx: VersionedTransaction) => Promise<VersionedTransaction>)(retryVtx)
         }
         // Если после ретрая всё ещё нет подписи — считаем zombie и кидаем понятную ошибку
@@ -179,7 +191,7 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
         }
         // Чек-лист пп. 50/51: сверяем подписанное с тем, что просили подписать.
         // Кошелёк, подменяющий инструкции (drainer), не дождётся отправки.
-        assertSignedInstructionsMatch(signed, priorityIxs, PROGRAM_ID)
+        assertSignedInstructionsMatch(signed, expectedMessageV0)
         v0Sent = true
         const sig = await connection.sendTransaction(signed, { skipPreflight: false, maxRetries: 3 })
         const res = await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed')
@@ -193,6 +205,7 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
             t('Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.'),
           )
         }
+        if (e instanceof UnsafeTransactionError) throw e
         const msg = describeError(e)
         // Кастомные ошибки программы и любая упавшая симуляция — пробрасываем
         // без фолбэка: состояние игры не изменится от смены формата транзакции,
@@ -225,24 +238,30 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
         return missing
       }
       try {
-        const tx = new Transaction().add(...priorityIxs)
         const { blockhash, lastValidBlockHeight } = await withRetry(() => connection.getLatestBlockhash('confirmed'))
-        tx.recentBlockhash = blockhash
-        tx.feePayer = wallet.publicKey
+        const makeLegacyTx = () => {
+          const tx = new Transaction().add(...priorityIxs)
+          tx.recentBlockhash = blockhash
+          tx.feePayer = feePayer
+          return tx
+        }
+        const tx = makeLegacyTx()
+        // Capture before signTransaction: some adapters mutate the input in place.
+        const expectedLegacyMessage = snapshotLegacyMessage(tx)
         let signed = (await wallet.signTransaction(tx as unknown as VersionedTransaction)) as unknown as Transaction
         let missing = missingSignersLegacy(signed)
         if (missing.length > 0 && activeAdapter) {
           await activeAdapter.disconnect()
           await activeAdapter.connect()
-          signed = (await wallet.signTransaction(tx as unknown as VersionedTransaction)) as unknown as Transaction
+          signed = (await wallet.signTransaction(makeLegacyTx() as unknown as VersionedTransaction)) as unknown as Transaction
           missing = missingSignersLegacy(signed)
         }
         if (missing.length > 0) {
           dumpDiag(missing)
           throw new Error(`${MISSING_SIG} (${walletName})`)
         }
-        // Чек-лист пп. 50/51: та же сверка подписанного, что и в V0-пути.
-        assertSignedLegacyInstructionsMatch(signed, priorityIxs, PROGRAM_ID)
+        // Compare the full message snapshot, including every account meta and fee payer.
+        assertSignedLegacyInstructionsMatch(signed, expectedLegacyMessage)
         let raw: Buffer
         try {
           raw = signed.serialize()

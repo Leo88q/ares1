@@ -6,7 +6,10 @@
 проход перед тем, как программа получит реальные средства.
 
 Машино-проверяемая часть автоматизирована: `scripts/preflight-mainnet.sh`
-(падает с exit 1 при нарушении) и `scripts/check-invariants.ts` (крон/мониторинг).
+(в `--strict` режиме падает с exit 1 на нарушении или предупреждении),
+`deploy-mainnet.sh` (разные безопасные режимы first-deploy / Squads buffer) и
+`scripts/check-invariants.ts` (крон/мониторинг). Mainnet-запуск по-прежнему
+**не разрешён**, пока не выполнены внешние gates ниже.
 
 ---
 
@@ -14,20 +17,42 @@
 
 ```sh
 cd game
-anchor build                       # reproducible: сравнить sha256 двух сборок
-PROGRAM_ID=<id> \
-MAINNET_AUTHORITY=<squads-vault> \
-MAINNET_TREASURY=<treasury-owner> \
-MAINNET_PAYER=<backend-hot-wallet> \
-POTATO_MINT=<mint> \
-RPC_URL=<mainnet-rpc> \
-  ./scripts/preflight-mainnet.sh --expected-so-sha256 <hash-reviewed-build>
+# Release owner sets YES only after signing off external gates in this document.
+export MAINNET_RELEASE_APPROVED=YES
+export DEPLOY_KEYPAIR="/secure/path/to/controlled-deploy-signer.json"
+export EXPECTED_SO_SHA256="<reviewed-64-hex-build-hash>"
+export MAINNET_AUTHORITY="<Squads-vault-address>"
+export MAINNET_TREASURY="<treasury-owner-address>"
+export MAINNET_PAYER="<backend-hot-wallet-address>"
+export POTATO_MINT="<mainnet-mint-address>"
+export RPC_URL="<mainnet-rpc-url>"
+
+# Choose exactly one mode. First deploy is only for a confirmed absent program:
+# ./scripts/deploy-mainnet.sh --allow-first-deploy
+
+# Existing Squads-owned program: uploads/verifies a buffer, then stops.
+# Create/approve/execute the upgrade proposal in Squads; never anchor-deploy directly:
+# ./scripts/deploy-mainnet.sh --prepare-squads-upgrade
+
+# Read-only machine gate; strict means even an unexpected warning fails.
+./scripts/preflight-mainnet.sh --expected-so-sha256 "$EXPECTED_SO_SHA256" --strict
 ```
 
-Скрипт проверяет: программа существует; upgrade authority — ожидаемый мультисиг
-и не совпадает с hot-wallet/владельцем казны; артефакт сборки совпадает с
-рассмотренным хешем; трипваер защит зелёный. Всё остальное — в этом файле,
-под подпись ответственного.
+`deploy-mainnet.sh` rejects toolchains other than Node 22.22.3, Yarn 1.22.22,
+Anchor 0.31.2 and Solana CLI 4.2.2 (the versions pinned in CI), distinguishes an
+actual `AccountNotFound` from RPC failure, builds with the explicitly selected
+`ANCHOR_WALLET`/`ANCHOR_PROVIDER_URL`, checks the configured program id and
+reviewed artifact hash, and requires an explicit interactive confirmation.
+First deploy uses `anchor deploy` only when the program is confirmed absent,
+verifies that the selected signer became authority,
+then transfers and verifies the upgrade authority as the configured Squads PDA.
+For an existing program it **never** runs `anchor deploy`: it uploads a buffer,
+reads it back and checks the hash, transfers buffer authority to Squads, and
+stops for an operator-created Squads proposal. `preflight-mainnet.sh --strict`
+checks on-chain program authority, treasury/payer separation, mint presence,
+artifact hash and static security tripwires. External approvals and on-chain
+invariants are still operator responsibilities; setting the acknowledgement is
+not a substitute for evidence.
 
 ---
 
@@ -140,8 +165,12 @@ RPC_URL=<mainnet-rpc> \
    `migrate_admin_state`, затем чтение каждого аккаунта и сверка полей.
    Версия раскладки == размер аккаунта (белый список в `migrations.rs`,
    host-тест `current_layouts_are_the_terminal_entry_of_every_migration_whitelist`).
-3. Апгрейд — через Squads (buffer → proposal → подписи → deploy), окно между
-   созданием буфера и применением минимально.
+3. Апгрейд — через Squads (buffer → proposal → подписи → deploy):
+   `deploy-mainnet.sh --prepare-squads-upgrade` записывает буфер, сравнивает
+   hash загруженных байтов с ревьюемым `.so`, передаёт buffer authority в Squads
+   и останавливается. Оператор отдельно создаёт/проверяет proposal в Squads;
+   окно между созданием буфера и применением минимально. Эта автоматизация не
+   проверяет состав/threshold мультисига и не подписывает proposal.
 4. После апгрейда: `scripts/check-invariants.ts` + интеграционный smoke
    (harvest на тестовом поле, ордер на маркете) + `watchtower` на события.
 

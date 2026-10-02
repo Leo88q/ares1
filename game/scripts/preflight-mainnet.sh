@@ -12,7 +12,7 @@
 #   MAINNET_TREASURY=<treasury-owner-address> \
 #   MAINNET_PAYER=<backend-hot-wallet-address> \
 #   POTATO_MINT=<mint> \
-#   ./scripts/preflight-mainnet.sh [--so target/deploy/solana_potato.so] [--expected-so-sha256 <hash>] [--allow-first-deploy]
+#   ./scripts/preflight-mainnet.sh [--so target/deploy/solana_potato.so] [--expected-so-sha256 <hash>] [--allow-first-deploy] [--strict]
 #
 # --allow-first-deploy: skip the on-chain authority checks when the program does
 # not exist on the cluster yet (the very first deploy). The post-deploy pass MUST
@@ -31,17 +31,23 @@ WARN=0
 SO_PATH="target/deploy/solana_potato.so"
 EXPECTED_SO_SHA=""
 ALLOW_FIRST_DEPLOY=0
+STRICT=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --so) SO_PATH="$2"; shift 2 ;;
     --expected-so-sha256) EXPECTED_SO_SHA="$2"; shift 2 ;;
     --allow-first-deploy) ALLOW_FIRST_DEPLOY=1; shift ;;
+    --strict) STRICT=1; shift ;;
     *) echo "unknown flag: $1" >&2; exit 2 ;;
   esac
 done
 
 fail() { echo "FAIL: $*" >&2; FAILED=1; }
-warn() { echo "WARN: $*" >&2; WARN=1; }
+warn() {
+  echo "WARN: $*" >&2
+  WARN=1
+  if [[ "$STRICT" == "1" ]]; then FAILED=1; fi
+}
 ok()   { echo "ok:   $*"; }
 
 need() {
@@ -55,16 +61,16 @@ command -v solana >/dev/null || { echo "FATAL: solana CLI not found" >&2; exit 2
 
 echo "── preflight: program $PROGRAM_ID"
 
-# ── 1. Program exists and is owned by the BPF loader (i.e. really deployed) ──
-SHOW=$(solana program show "$PROGRAM_ID" --url "$RPC_URL" --output json 2>/dev/null)
-if [[ -z "$SHOW" ]]; then
-  if [[ "$ALLOW_FIRST_DEPLOY" == "1" ]]; then
-    warn "program $PROGRAM_ID not found: first-deploy mode (--allow-first-deploy). Authority checks run again on the mandatory post-deploy pass."
-  else
-    fail "program $PROGRAM_ID not found on this cluster (deploy it first, then re-run the gate; first deploy of a new program: --allow-first-deploy)"
+# ── 1. Program existence must be distinguished from RPC/CLI failure ──────────
+if SHOW=$(solana program show "$PROGRAM_ID" --url "$RPC_URL" --output json 2>&1); then
+  if [[ -z "$SHOW" ]]; then
+    echo "FATAL: solana program show returned no data for $PROGRAM_ID" >&2
+    exit 2
   fi
-else
-  AUTHORITY=$(python3 -c "import json,sys;print(json.load(sys.stdin).get('authority',''))" <<<"$SHOW")
+  if ! AUTHORITY=$(python3 -c "import json,sys; print(json.load(sys.stdin).get('authority',''))" <<<"$SHOW"); then
+    echo "FATAL: could not parse program state for $PROGRAM_ID" >&2
+    exit 2
+  fi
   ok "program found; upgrade authority = ${AUTHORITY:-<none>}"
 
   # ── 2. Item 44/63: upgrade authority must be a multisig, not a deployer key ──
@@ -86,6 +92,18 @@ else
   fi
   if [[ -n "${MAINNET_TREASURY:-}" && "$AUTHORITY" == "$MAINNET_TREASURY" ]]; then
     fail "upgrade authority == treasury owner (item 64: separation of duties)"
+  fi
+else
+  SHOW_ERROR="$SHOW"
+  if [[ "$SHOW_ERROR" =~ [Aa]ccount[Nn]ot[Ff]ound|[Aa]ccount[[:space:]]+[Nn]ot[[:space:]]+[Ff]ound ]]; then
+    if [[ "$ALLOW_FIRST_DEPLOY" == "1" ]]; then
+      ok "program is absent and first-deploy mode was explicitly requested"
+    else
+      fail "program $PROGRAM_ID is absent on this cluster (first deployment requires --allow-first-deploy)"
+    fi
+  else
+    echo "FATAL: cannot determine whether program $PROGRAM_ID exists; refusing to treat an RPC/CLI failure as a first deploy. Raw RPC/CLI output is suppressed because it may contain credentials." >&2
+    exit 2
   fi
 fi
 
