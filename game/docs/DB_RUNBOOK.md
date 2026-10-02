@@ -59,6 +59,8 @@ yarn workspace backend start
 ### Выкатка в контейнерах (docker-compose.yml)
 
 ```bash
+# Run from game/. The Compose build context is the repository root so the local
+# ../vendor/solana-buffer-layout-utils dependency is included safely.
 # .env рядом с docker-compose.yml:
 #   GAME_OPS_POSTGRES_PASSWORD=<сильный пароль>
 #   MIGRATION_DATABASE_URL=postgres://postgres:<пароль>@postgres:5432/ares1

@@ -94,7 +94,8 @@ yarn build                              # dist/ → любой статичес�
 ```bash
 cd apps/backend && cp .env.example .env   # RPC_URL, PROGRAM_ID, PAYER_KEYPAIR_JSON (не authority!), CORS_ORIGIN
 mkdir -p keys && cp <admin-keypair.json> keys/
-yarn build && yarn start                  # или docker compose up -d backend
+yarn build && yarn start
+# Alternative: from game/ (not apps/backend/), run `docker compose up -d backend`.
 curl localhost:8080/health
 ```
 
