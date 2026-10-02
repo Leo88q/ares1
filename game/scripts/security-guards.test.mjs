@@ -13,8 +13,10 @@
 // (CI watchtower) и `yarn test:guards`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdtempSync, writeFileSync, chmodSync, rmSync } from 'node:fs';
+import { execSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -450,4 +452,222 @@ test('П.98 (Raydium legacy): реестр ончейн-программ сущ�
       'программа solana_potato из address-registry отсутствует в program-inventory.json',
     );
   }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2026-10-02 audit hardening. Every test below locks in a fix that until now
+// existed only as a document promise; weakening any of them requires an
+// explicit, reviewed change to this file.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('2026-10-02: все GitHub Actions запинены по commit SHA', () => {
+  const dir = path.join(here, '../../.github/workflows');
+  const files = readdirSync(dir).filter((f) => f.endsWith('.yml'));
+  assert.ok(files.length >= 6, 'workflow-файлы не найдены');
+  for (const f of files) {
+    const text = readFileSync(path.join(dir, f), 'utf8');
+    for (const line of text.split('\n')) {
+      const m = /^\s*-?\s*uses:\s*(\S+)/.exec(line);
+      if (!m) continue;
+      if (m[1].startsWith('./')) continue;
+      assert.match(m[1], /@[0-9a-f]{40}$/, `${f}: "${m[1]}" не запинен по commit SHA (плавающий тег = supply-chain риск)`);
+    }
+  }
+});
+
+test('2026-10-02: скан истории секретов — настоящий гейт, а не advisory', () => {
+  const sec = read('../../.github/workflows/security.yml');
+  assert.ok(sec.includes('fetch-depth: 0'), 'скан истории требует полной истории (иначе он честно падает с exit 2)');
+  assert.ok(sec.includes('Enforce the history gate'), 'нужен шаг, который валит job при находке в истории');
+  const enforcer = sec.split('Enforce the history gate')[1]?.split('- name:')[0] ?? '';
+  assert.ok(/\bexit 1\b/.test(enforcer), 'шаг-энфорсер обязан завершаться exit 1 (иначе гейт снова станет advisory)');
+});
+
+test('2026-10-02: mainnet-деплой не обходит preflight', () => {
+  const deploy = read('./deploy-mainnet.sh');
+  assert.match(deploy, /preflight-mainnet\.sh/, 'deploy-mainnet.sh обязан вызывать preflight');
+  assert.match(deploy, /EXPECTED_SO_SHA256/, 'хеш артефакта обязателен (воспроизводимая сборка)');
+  assert.match(deploy, /MAINNET_AUTHORITY/, 'ожидаемый Squads-адрес обязателен');
+  assert.match(deploy, /DEPLOY_KEYPAIR/, 'кошелёк деплоя задаётся явно, без дефолта');
+  assert.match(deploy, /ALLOW_DEFAULT_KEYPAIR/, 'дефолтный CLI-кошелёк требует осознанного обхода');
+  assert.match(read('./preflight-mainnet.sh'), /--allow-first-deploy/);
+});
+
+test('2026-10-02: у мониторинга есть расписание, а не только обещание', () => {
+  const mon = read('../../.github/workflows/monitoring.yml');
+  assert.match(mon, /cron: '\*\/15 \* \* \* \*'/, 'DNS-проверка должна идти по расписанию');
+  assert.match(mon, /check-dns\.mjs/);
+  assert.match(mon, /inventory-programs\.mjs/);
+  assert.match(mon, /check:invariants/);
+  assert.match(mon, /issues: write/, 'алерт должен уметь открыть issue');
+});
+
+test('2026-10-02: devnet genesis hash полный и совпадает в двух независимых файлах', () => {
+  const m = /DEVNET_GENESIS = '([^']+)'/.exec(read('../../watchtower/src/rpc.ts'));
+  assert.ok(m, 'константа DEVNET_GENESIS не найдена');
+  assert.equal(m[1].length, 44, `devnet genesis должен быть 44 символа, получено ${m[1].length} (обрезанный хеш = RPC_CLUSTER_MISMATCH на каждом вызове)`);
+  const legacy = /EXPECTED_DEVNET_GENESIS = '([^']+)'/.exec(read('./legacy-recovery-audit.mjs'));
+  assert.ok(legacy, 'EXPECTED_DEVNET_GENESIS не найдена в legacy-recovery-audit.mjs');
+  assert.equal(m[1], legacy[1], 'источники devnet genesis расходятся — один из них неверен');
+});
+
+test('2026-10-02: критичные уязвимости зависимостей блокируют CI', () => {
+  const ci = read('../../.github/workflows/ci.yml');
+  // Для game-воркспейса блокирующий шаг — scripts/audit-critical.sh: yarn 1 не
+  // умеет фильтровать exit-код по --level, поэтому «критический» гейт обязан
+  // разбирать битмаску сам (детали и функциональный тест — ниже).
+  assert.match(ci, /run: \.\/scripts\/audit-critical\.sh/, 'yarn audit critical должен быть блокирующим (через скрипт)');
+  assert.match(ci, /npm audit --omit=dev --audit-level=critical/, 'npm audit critical должен быть блокирующим');
+});
+
+test('2026-10-02: backend-контейнер по умолчанию не публикуется в интернет', () => {
+  const compose = read('../docker-compose.yml');
+  assert.match(compose, /GAME_OPS_BACKEND_BIND:-127\.0\.0\.1/, 'bind по умолчанию — loopback');
+  assert.match(read('../apps/backend/.env.example'), /TRUST_PROXY=1/, 'TRUST_PROXY должен быть описан в .env.example');
+});
+
+test('2026-10-02: мёртвый Token-2022 и клиентский RNG пресейла не вернулись', () => {
+  assert.throws(() => read('../apps/web/src/utils/token2022.ts'), /ENOENT/, 'utils/token2022.ts должен быть удалён: он противоречит SPL-only дизайну');
+  const client = read('../apps/web/src/utils/anchorClient.ts').replace(/^\s*\/\/.*$/gm, '');
+  assert.ok(!/token2022Ata/.test(client), 'token2022Ata — мёртвый код (программа пинует классический SPL Token)');
+  // Урок собственной ошибки: re-export TOKEN_2022_PROGRAM_ID удалять нельзя —
+  // его паритет с SDK пинует tests/offchain/decoders.test.ts, и «чистка мёртвого
+  // кода» ломала offchain-набор (поймано прогоном 2026-10-02).
+  assert.match(client, /export \{ TOKEN_2022_PROGRAM_ID \}/, 're-export SDK-константы нужен raw-client тесту, это не мёртвый код');
+  const landing = read('../../landing/utils/constants.ts').replace(/^\s*\/\/.*$/gm, '');
+  assert.ok(!/rollPresaleDrop/.test(landing), 'клиентский RNG тира пресейла не должен вернуться: тир решает программа');
+});
+
+test('2026-10-02: duress-протокол существует (п.125 wrench-атаки)', () => {
+  const ir = read('../docs/INCIDENT_RESPONSE.md');
+  assert.match(ir, /## 9\. Duress-протокол/, 'документы ссылались на duress-протокол, которого не было');
+  assert.match(ir, /3-of-N|3 из N/, 'порог мультисига — ключевая часть протокола');
+});
+
+test('2026-10-02: одна версия @solana/web3.js на весь репозиторий (F-29)', () => {
+  const manifests = [
+    '../package.json',
+    '../apps/web/package.json',
+    '../apps/backend/package.json',
+    '../../landing/package.json',
+  ];
+  const versions = manifests.map((rel) => {
+    const pkg = JSON.parse(read(rel));
+    const v = pkg.dependencies?.['@solana/web3.js'] ?? pkg.devDependencies?.['@solana/web3.js'];
+    assert.ok(v, `${rel}: нет @solana/web3.js`);
+    assert.match(v, /^\d+\.\d+\.\d+$/, `${rel}: нужен точный пин без диапазона, получено «${v}»`);
+    return v;
+  });
+  assert.equal(new Set(versions).size, 1, `версии разъехались: ${manifests.map((m, i) => `${m}=${versions[i]}`).join(', ')}`);
+});
+
+test('2026-10-02: lint-гейты блокируют, а исключение для deprecated узкое (F-22)', () => {
+  const ci = read('../../.github/workflows/ci.yml');
+  const clippy = ci.split('name: cargo clippy strict')[1]?.split('\n      - name:')[0] ?? '';
+  assert.ok(clippy, 'шаг cargo clippy strict не найден');
+  assert.ok(clippy.includes('-D warnings'), 'clippy должен идти со strict-флагами');
+  assert.ok(clippy.includes('-A deprecated'), 'шум кодогена Anchor снимается явным -A deprecated');
+  assert.ok(!clippy.includes('continue-on-error'), 'clippy-гейт обязан быть блокирующим');
+  // Источник исключения должен быть назван прямо над шагом: без этого `-A
+  // deprecated` через полгода выглядит как «кто-то отключил lint непонятно почему».
+  assert.match(
+    ci,
+    /Anchor 0\.31\.2[\s\S]{0,1500}?name: cargo clippy strict/,
+    'исключение должно ссылаться на источник шума (кодоген Anchor)',
+  );
+  const fmt = ci.split('name: cargo fmt check')[1]?.split('\n      - name:')[0] ?? '';
+  assert.ok(fmt, 'шаг cargo fmt check не найден');
+  assert.match(fmt, /--max-hunks=\d+/, 'fmt-долг должен быть запинен baseline-числом');
+  assert.ok(!fmt.includes('continue-on-error'), 'рост fmt-долга обязан валить шаг');
+  // Компенсация за -A deprecated: сам вызов, который lint скрыл бы, запрещён
+  // tripwire'ом — иначе исключение превратилось бы в дыру.
+  for (const rel of ['../programs/solana_potato/src/lib.rs', '../programs/solana_potato/src/migrations.rs']) {
+    assert.ok(
+      !/\.realloc\(/.test(read(rel)),
+      `${rel}: AccountInfo::realloc deprecated в solana-program 2.x — используйте resize()`,
+    );
+  }
+});
+
+test('2026-10-02: shellcheck-гейт существует и покрывает все отслеживаемые .sh', () => {
+  const ci = read('../../.github/workflows/ci.yml');
+  // Job добавлен в конец ci.yml (2026-10-02); если его перенесут, срез до
+  // следующего ключа на двух пробелах сохранит проверку осмысленной.
+  const tail = ci.split('  shell-scripts:')[1];
+  assert.ok(tail, 'job shell-scripts не найден в ci.yml');
+  const job = tail.split(/\n  [a-z][\w-]*:/)[0];
+  assert.match(job, /shellcheck -S warning \S*git ls-files/, 'должны проверяться все отслеживаемые .sh');
+  assert.match(job, /working-directory: \./, 'workflow-дефолт game/ — нужен корень репозитория, иначе scripts/ не виден');
+  // Linux-раннеры ubuntu-24.04 несут shellcheck 0.9.0; в этом файле нет
+  // собственных disable-директив, которые могли бы спрятать предупреждение.
+  const scripts = execSync("git ls-files '*.sh'", { cwd: path.join(here, '..', '..'), encoding: 'utf8' })
+    .trim().split('\n');
+  assert.ok(scripts.length >= 16, `ожидалось ≥16 скриптов, найдено ${scripts.length}`);
+});
+
+test('2026-10-02: критический аудит понимает битмаску yarn, а не только --level (F-09)', () => {
+  const ci = read('../../.github/workflows/ci.yml');
+  assert.match(ci, /audit-critical\.sh/, 'критический аудит обязан идти через разбор битмаски, а не `yarn audit --level critical`');
+  const gate = read('./audit-critical.sh');
+  assert.match(gate, /&\)?\s*16/, 'критический бит (16) должен проверяться явно');
+  assert.match(gate, /auditSummary/, 'отсутствие ответа реестра (exit 2) должно отличаться от находок (exit 1)');
+
+  // Функциональная проверка на фейковом yarn: exit-код yarn 1 — битмаска всех
+  // severity, поэтому «moderate без critical» обязан быть зелёным, а «critical»
+  // — красным. Именно на этом сломался первоначальный вариант гейта (CI-прогон
+  // 37019422258: exit 30 при политике «блокирует только critical»).
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'audit-gate-'));
+  const fake = path.join(dir, 'yarn');
+  writeFileSync(fake, `#!/usr/bin/env bash
+case "$FAKE_CASE" in
+  clean) printf '{"type":"auditSummary","data":{"vulnerabilities":{"critical":0,"total":0}}}\n'; exit 0 ;;
+  moderate) printf '{"type":"auditSummary","data":{"vulnerabilities":{"critical":0,"total":3}}}\n'; exit 4 ;;
+  critical) printf '{"type":"auditSummary","data":{"vulnerabilities":{"critical":1,"total":7}}}\n{"type":"auditAdvisory","data":{"advisory":{"module_name":"protobufjs","severity":"critical","title":"RCE","url":"https://example.invalid/GHSA"},"findings":[{"version":"7.4.0","paths":["a>b"]}]}}\n'; exit 30 ;;
+  broken) echo 'error: registry unreachable'; exit 1 ;;
+esac
+`);
+  chmodSync(fake, 0o755);
+  const run = (fakeCase) =>
+    spawnSync('bash', [path.join(here, 'audit-critical.sh')], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, FAKE_CASE: fakeCase, AUDIT_CRITICAL_RETRY_SLEEP: '0' },
+    });
+  try {
+    assert.equal(run('clean').status, 0, 'чистое дерево не должно блокировать');
+    assert.equal(run('moderate').status, 0, 'moderate/high без critical — advisory, не блокируют');
+    const crit = run('critical');
+    assert.equal(crit.status, 1, 'critical обязан блокировать');
+    assert.match(crit.stdout, /CRITICAL: protobufjs@7\.4\.0/, 'в аннотации должен быть конкретный пакет и версия');
+    assert.equal(run('broken').status, 2, 'недоступный реестр — fail closed (exit 2), а не «зелёно»');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('2026-10-02: protobufjs не возвращается в уязвимый диапазон (F-09)', () => {
+  const pkg = JSON.parse(read('../package.json'));
+  const enforced = pkg.resolutions?.protobufjs;
+  assert.ok(enforced, 'resolutions.protobufjs должен фиксировать безопасную версию');
+  const [maj, min, patch] = enforced.split('.').map(Number);
+  assert.ok(
+    maj > 7 || (maj === 7 && (min > 6 || (min === 6 && patch >= 1))),
+    `protobufjs ${enforced} всё ещё попадает в GHSA-wcpc-wj8m-hjx6 (<=7.6.0); нужен >=7.6.1`,
+  );
+  const lock = read('../yarn.lock');
+  const entry = /^protobufjs@[^:]*:\n\s+version "([^"]+)"/m.exec(lock);
+  assert.ok(entry, 'protobufjs не найден в yarn.lock');
+  assert.equal(entry[1], enforced, 'lock и resolutions разошлись: критический advisory вернётся по lockfile');
+});
+
+test('2026-10-02: рабочее дерево проходит secret-scan (гейт §1.1 не красный)', () => {
+  // Поймано на себе: пример DSN с паролем в .env.example выглядит для сканера
+  // ровно как утечка. Тот же сканер, что и в CI, запускается здесь как
+  // подпроцесс — регрессия «документация положила credential-shaped строку»
+  // ломает тест локально, а не только job в Actions.
+  const repoRoot = path.join(here, '..', '..');
+  const res = spawnSync(process.execPath, [path.join(repoRoot, 'scripts', 'secret-scan.mjs')], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  assert.equal(res.status, 0, `secret-scan.mjs вышел с кодом ${res.status}:\n${res.stdout}\n${res.stderr}`);
 });

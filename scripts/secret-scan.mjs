@@ -27,7 +27,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, statSync, existsSync, readdirSync } from 'node:fs';
-import { join, relative, extname, basename } from 'node:path';
+import { join, relative, extname, basename, isAbsolute } from 'node:path';
 
 const ROOT = process.cwd();
 
@@ -343,7 +343,10 @@ function resolveFiles() {
   });
   if (positional.length > 0) return positional.map((f) => join(ROOT, f));
 
-  const rootAbs = join(ROOT, SCAN_ROOT);
+  // --root accepts an absolute path too: `--root /path/to/dist` is the natural
+  // way to scan a build output outside the repository (/tmp/...) and
+  // `join(ROOT, absolutePath)` used to fail with "no such directory".
+  const rootAbs = isAbsolute(SCAN_ROOT) ? SCAN_ROOT : join(ROOT, SCAN_ROOT);
   if (!existsSync(rootAbs)) {
     console.error(`secret-scan: no such directory: ${SCAN_ROOT}`);
     process.exit(2);

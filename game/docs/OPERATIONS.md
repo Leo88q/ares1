@@ -167,11 +167,20 @@ installs the full production workspace graph (including web dependencies); reduc
 image size is deferred. Compose restart handles process exits, not all outages;
 Docker does not automatically restart merely unhealthy containers.
 
+The compose service binds the API to **127.0.0.1** by default
+(`GAME_OPS_BACKEND_BIND`), because the process holds a signing key and the admin
+`game_ops` surface: terminate TLS and check the origin in a reverse proxy or platform
+ingress in front of it. If the API really is exposed directly, set
+`GAME_OPS_BACKEND_BIND=0.0.0.0` deliberately **and** `TRUST_PROXY=false` — otherwise a
+client can spoof `X-Forwarded-For`, bypass the per-IP rate limit and forge the `ip:`
+actor recorded in the `game_ops` audit log.
+
 Probes:
 - `/live`: process HTTP liveness, no RPC calls. Suitable for container healthcheck.
 - `/ready`: on-chain config is readable/decodable; 503 otherwise.
 - `/health`: RPC slot/config/payer balance; 503 on dependency failure. Not a complete
-  epoch-worker health guarantee. Health/readiness/API calls share a per-IP rate limit.
+  epoch-worker health guarantee. Probes are **exempt** from the per-IP rate limit (a
+  429 on a k8s probe is read as a dead process); the limit covers `/api/*` only.
 
 Use external alerts for unavailable readiness, stale epochs, low payer SOL and
 repeated roll failures. Current worker logs alone are **not delivered alerts**.
@@ -274,7 +283,7 @@ Drift — месяцы выстраивания отношений перед а
    домашние адреса, графики (реестры компаний, WHOIS, соцсети). Физическая
    защита (wrench-атаки): крупные суммы — только multisig с подписантами в
    разных местах (один принуждённый человек не даёт порог); duress-протокол —
-   см. [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) §3/§5; личные и проектные
+   см. [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) §9; личные и проектные
    активы разделять.
 
 ## Домены и DNS (п. 119 — урок BONKfun)
@@ -286,14 +295,34 @@ is-a.dev — субдоменная программа на GitHub: «регис
 1. **Аккаунт GitHub (владелец заявки)**: аппаратный 2FA, отдельная парольная
    фраза для поддержки, минимум людей с доступом, включённый transfer-lock-
    эквивалент: подписанная CLI-сессия без сохранённых токенов с широкими правами.
-2. **Мониторинг**: `node scripts/check-dns.mjs` по крону (каждые 15 мин);
-   baseline `scripts/dns-baseline.json` коммитится в репозиторий; любой не-нулевой
-   exit — алерт. Подробности — в шапке скрипта.
+2. **Мониторинг**: `node scripts/check-dns.mjs` — с 2026-10-02 запускается по
+   расписанию workflow `Monitoring` (`.github/workflows/monitoring.yml`, каждые
+   15 минут; падение открывает issue с меткой `monitoring-alert`). Baseline
+   `scripts/dns-baseline.json` коммитится в репозиторий; любой не-нулевой exit —
+   алерт. Подробности — в шапке скрипта.
 3. **Резервный канал коммуникации** заранее: второй домен вне is-a.dev (TBD),
    статус-страница вне общего DNS; шаблон сообщения при угоне —
    [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) §6.
 4. Контакты команд кошельков и блок-листов для пометки фишингового домена —
    в INCIDENT_RESPONSE.md §1.
+
+## Периметр GitHub (аудит 2026-10-02)
+
+Репозиторий публичный — это осознанное решение, но настройки доступа обязаны ему
+соответствовать: без branch protection один скомпрометированный аккаунт может
+подменить код или скрипты деплоя без ревью, а с выключенными алертами уязвимые
+зависимости не видны. Проверка и включение — одной идемпотентной командой (нужны
+права admin; из песочницы/CI API отвечает 403):
+
+```sh
+./scripts/apply-github-hardening.sh              # REPO=owner/name для форка
+```
+
+Что включает: Secret scanning + push protection + Dependabot alerts; branch
+protection на `main` (PR + 1 review + CODEOWNERS, обязательные checks, запрет
+force-push и удаления ветки, включая администраторов). Если API отказывает — это
+**human-гейт**: те же переключатели в Settings → Code security / Branches, с
+записью даты и исполнителя.
 
 ## Инвентарь ончейн-программ (п. 98, 129 — уроки Raydium Legacy / Aztec / Thetanuts)
 
@@ -303,7 +332,13 @@ is-a.dev — субдоменная программа на GitHub: «регис
 RPC_URL=https://api.devnet.solana.com node scripts/inventory-programs.mjs
 node scripts/inventory-programs.mjs --schema-only   # без сети (CI/агенты)
 node scripts/inventory-programs.mjs --json          # машинный вывод для алертов
+# Адрес ожидаемого мультисига можно не коммитить (до mainnet), а передать снаружи:
+node scripts/inventory-programs.mjs --expect-authority <squads-address>
 ```
+
+Полный прогон по расписанию выполняет workflow `Monitoring`
+(`.github/workflows/monitoring.yml`, ежедневно; адрес из repo variable
+`MAINNET_AUTHORITY`, если задан).
 
 Правила:
 - Новая программа (включая beta/тестовые деплои) — запись в реестре в день

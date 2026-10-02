@@ -22,6 +22,8 @@
  *   RPC_URL=https://api.devnet.solana.com node scripts/inventory-programs.mjs
  *   node scripts/inventory-programs.mjs --json        # машинный вывод
  *   node scripts/inventory-programs.mjs --schema-only # без сети (для CI/агентов)
+ *   node scripts/inventory-programs.mjs --expect-authority <base58>  # адрес из
+ *     приватного runbook вместо закоммиченного expectedUpgradeAuthority
  *
  * Крон для прод-окружения (см. docs/OPERATIONS.md, раздел «Инвентарь программ»):
  * раз в сутки, любой не-нулевой exit — алерт.
@@ -35,6 +37,14 @@ const INVENTORY_PATH = path.join(here, "..", "program-inventory.json");
 const args = process.argv.slice(2);
 const JSON_OUT = args.includes("--json");
 const SCHEMA_ONLY = args.includes("--schema-only");
+// --expect-authority <base58>: verify the on-chain upgrade authority against an
+// address supplied OUTSIDE the repository (CI variable / runbook), instead of
+// committing it to program-inventory.json. This is the flag the registry note
+// promised; it lets the check run before the Squads address is public.
+const EXPECT_AUTHORITY = (() => {
+  const i = args.indexOf("--expect-authority");
+  return i === -1 ? null : args[i + 1] ?? "";
+})();
 
 function fail(msg) {
   if (JSON_OUT) console.log(JSON.stringify({ ok: false, violations: [msg] }, null, 2));
@@ -52,11 +62,22 @@ for (const p of inventory.programs ?? []) {
   if (p.status === "deprecated" && p.expectedUpgradeAuthority !== null) {
     fail(`deprecated-программа ${p.id} обязана быть immutable (expectedUpgradeAuthority = null)`);
   }
+  if (EXPECT_AUTHORITY !== null && !B58.test(EXPECT_AUTHORITY)) {
+    fail(`--expect-authority: не base58-адрес: ${EXPECT_AUTHORITY}`);
+  }
+  // Не нарушение, но громкое напоминание: активная программа без зафиксированного
+  // ожидания authority — незакрытый пункт реестра (гейт G-2). Молчаливого
+  // «schema: OK» по этому полю быть не должно.
+  if (p.status === "active" && p.expectedUpgradeAuthority === null && EXPECT_AUTHORITY === null) {
+    console.error(
+      `! активная программа ${p.id}: expectedUpgradeAuthority не задан — до mainnet заполни Squads-мультисиг (G-2) или передай --expect-authority <addr>`,
+    );
+  }
 }
 
 if (SCHEMA_ONLY) {
-  if (JSON_OUT) console.log(JSON.stringify({ ok: process.exitCode !== 1, schemaOnly: true }, null, 2));
-  else console.log(process.exitCode === 1 ? "schema: FAIL" : "schema: OK");
+  if (JSON_OUT) console.log(JSON.stringify({ ok: process.exitCode !== 1, schemaOnly: true, expectAuthorityOverride: EXPECT_AUTHORITY ?? null }, null, 2));
+  else console.log(process.exitCode === 1 ? "schema: FAIL" : "schema: OK (see warnings above, if any)");
   process.exit(process.exitCode ?? 0);
 }
 
@@ -134,9 +155,12 @@ async function checkProgram(entry) {
       `DEPRECATED программа ${entry.id} всё ещё mutable (authority ${authority}) — финализируй: solana program set-upgrade-authority <id> --final`,
     );
   }
-  if (entry.status === "active" && entry.expectedUpgradeAuthority && authority !== entry.expectedUpgradeAuthority) {
+  // Приоритет у значения из CLI: оно позволяет сверять authority с адресом из
+  // приватного runbook, не коммитя его в публичный реестр.
+  const expectedAuthority = EXPECT_AUTHORITY ?? entry.expectedUpgradeAuthority;
+  if (entry.status === "active" && expectedAuthority && authority !== expectedAuthority) {
     violations.push(
-      `ACTIVE программа ${entry.id}: authority ${authority ?? "None"} ≠ ожидаемой ${entry.expectedUpgradeAuthority} — возможен захват апгрейда (п. 102)`,
+      `ACTIVE программа ${entry.id}: authority ${authority ?? "None"} ≠ ожидаемой ${expectedAuthority} — возможен захват апгрейда (п. 102)`,
     );
   }
   if ((entry.status === "deprecated" || entry.status === "retired") && lamports > 0 && entry.drainRequired !== false) {
@@ -144,10 +168,10 @@ async function checkProgram(entry) {
       `${entry.status} программа ${entry.id} держит ${(lamports / 1e9).toFixed(4)} SOL — осушить и close (п. 98: спящие пулы Raydium)`,
     );
   }
-  if (entry.expectedUpgradeAuthority === null && entry.status === "active" && !isImmutable) {
+  if (!expectedAuthority && entry.status === "active" && !isImmutable) {
     // Не нарушение, но помечаем: активная программа без зафиксированного ожидания
     // authority — незакрытый пункт реестра (до mainnet — гейт G-2).
-    violations.push(`ACTIVE программа ${entry.id}: expectedUpgradeAuthority не задан — заполни Squads-мультисиг до mainnet (гейт G-2)`);
+    violations.push(`ACTIVE программа ${entry.id}: expectedUpgradeAuthority не задан — заполни Squads-мультисиг до mainnet (гейт G-2) или передай --expect-authority <addr>`);
   }
   return { entry, violations, state: "ok", authority, isImmutable, lamports, programData };
 }

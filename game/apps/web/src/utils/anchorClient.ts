@@ -755,15 +755,21 @@ export async function ixCloseOldEpoch(programId: PublicKey, params: {
 }
 
 // ───────────────────────────────────────────────────────────────
-// Token-2022 helper + timelocked admin migrations
+// Timelocked admin migrations
 // ───────────────────────────────────────────────────────────────
 
-/** Token-2022 ATA helper — для будущего mainnet-mint POTATO. */
+// 2026-10-02 (audit): the Token-2022 ATA helper plus utils/token2022.ts were dead
+// code that contradicted the shipped design: the on-chain program pins classic SPL
+// Token and the client refuses TOKEN_2022 in txSafety. Removed so a future reader
+// cannot wire them by accident.
+//
+// The constant re-export below is NOT dead code: the raw-client tests pin that
+// token-program ids come from the SDK rather than being hardcoded in a second
+// place (tests/offchain/decoders.test.ts asserts this export equals the SDK
+// constant), and the backend re-exports SDK constants the same way
+// (apps/backend/src/solana.ts). Removing it breaks the offchain suite —
+// verified 2026-10-02.
 export { TOKEN_2022_PROGRAM_ID }
-
-export function token2022Ata(owner: PublicKey, mint: PublicKey): PublicKey {
-  return getAssociatedTokenAddressSync(mint, owner, true, TOKEN_2022_PROGRAM_ID)
-}
 
 /**
  * Двухшаговая миграция SKR mint: предложение (proposal) сохраняется в

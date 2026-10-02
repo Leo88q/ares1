@@ -7,12 +7,28 @@ as one truncated tail. This publishes the whole diff, split into chunks that
 fit GitHub's per-step annotation limit (ten notices, 4096 characters each).
 
 Public build metadata only: file paths and source lines, nothing else.
+
+Acceptance gate (F-22): `--max-hunks=N` turns this from a report into an
+enforcement step. The rustfmt version is pinned by rust-toolchain.toml, so the
+hunk count is deterministic for a given tree; a count above the recorded debt
+means new unformatted code landed and the step fails. A count below N is good
+(the debt shrank). Omit the flag to keep the old always-green report mode.
 """
 import re
 import sys
 
 MAX_NOTICES = 9
 MAX_CHARS = 3800
+
+
+def max_hunks_from_argv():
+    for arg in sys.argv[1:]:
+        if arg.startswith('--max-hunks='):
+            return int(arg.split('=', 1)[1])
+        if arg == '--max-hunks':
+            sys.stderr.write('usage: fmt-inventory.py --max-hunks=N < fmt-diff\n')
+            raise SystemExit(2)
+    return None
 
 
 def escape(text):
@@ -43,9 +59,15 @@ def chunk(hunks):
 
 
 def main():
+    max_hunks = max_hunks_from_argv()
     text = sys.stdin.read()
     if not text.strip():
         print('::notice title=fmt inventory::clean: cargo fmt reports no diff')
+        if max_hunks:
+            print(
+                f'::notice title=fmt debt::cargo fmt is clean, but the baseline in ci.yml '
+                f'is still {max_hunks}. Lower it to 0 so the debt cannot come back unnoticed.'
+            )
         return
     hunks = split_hunks(text)
     counts = {}
@@ -60,6 +82,13 @@ def main():
     print('::notice title=fmt inventory::' + escape(summary))
     for index, page in enumerate(chunk(hunks), start=1):
         print(f'::notice title=fmt diff {index}::' + escape(page))
+    if max_hunks is not None and len(hunks) > max_hunks:
+        print(
+            f'::error title=fmt debt grew::cargo fmt reports {len(hunks)} hunks, '
+            f'baseline is {max_hunks}. New unformatted code landed: run '
+            '`cargo fmt --all` on the touched files (or lower the debt on purpose).'
+        )
+        sys.exit(1)
 
 
 if __name__ == '__main__':
