@@ -40,7 +40,7 @@ if (( code & 24 )); then
 import json
 import sys
 
-blocking = []
+blocking = {}
 for raw in open(sys.argv[1], encoding='utf8', errors='replace'):
     raw = raw.strip()
     if not raw.startswith('{'):
@@ -51,23 +51,44 @@ for raw in open(sys.argv[1], encoding='utf8', errors='replace'):
         continue
     if row.get('type') != 'auditAdvisory':
         continue
-    advisory = row.get('data', {}).get('advisory', {})
+    data = row.get('data', {})
+    advisory = data.get('advisory', {})
     severity = advisory.get('severity', '').lower()
     if severity not in ('high', 'critical'):
         continue
-    findings = row.get('data', {}).get('findings') or [{}]
-    version = findings[0].get('version', '?')
-    paths = findings[0].get('paths') or []
-    where = f' via {" <- ".join(paths[:3])}' if paths else ''
-    blocking.append(
-        f"{severity.upper()}: {advisory.get('module_name')}@{version}{where} — "
-        f"{advisory.get('title')} ({advisory.get('url')})"
-    )
+    # Yarn Classic nests affected versions/paths inside advisory.findings and
+    # reports one auditAdvisory event per resolution. Accept the old top-level
+    # shape too, so the gate remains robust across registry response variants.
+    findings = advisory.get('findings') or data.get('findings') or []
+    resolution_path = (data.get('resolution') or {}).get('path')
+    if not findings:
+        findings = [{"version": "?", "paths": [resolution_path] if resolution_path else []}]
+    for finding in findings:
+        version = finding.get('version', '?')
+        paths = finding.get('paths') or []
+        if resolution_path and resolution_path not in paths:
+            paths = [resolution_path, *paths]
+        key = (
+            severity.upper(),
+            advisory.get('module_name') or '?',
+            version,
+            advisory.get('title') or '?',
+            advisory.get('url') or '?',
+        )
+        affected_paths = blocking.setdefault(key, [])
+        for path in paths:
+            if path not in affected_paths and len(affected_paths) < 10:
+                affected_paths.append(path)
+
+# Yarn emits one row per vulnerable resolution. Group the shared advisory by
+# module/version and keep a bounded set of representative dependency paths.
 
 def workflow_escape(value):
     return value.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
 
-for line in blocking:
+for (severity, module, version, title, url), paths in sorted(blocking.items()):
+    where = f' via {" ; ".join(paths[:3])}' if paths else ''
+    line = f'{severity}: {module}@{version}{where} — {title} ({url})'
     print(f'  {line}')
     # Make the precise package, advisory title, and dependency path visible as
     # check annotations; workflow logs may be unavailable to operators behind

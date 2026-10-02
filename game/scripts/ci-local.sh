@@ -25,7 +25,7 @@ fi
 # layoutParity.test.ts imports landing sources — landing deps must exist
 # BEFORE yarn typecheck/tools run (this was the CI-only failure: TS2307
 # @solana/web3.js / @solana/spl-token with no landing/node_modules).
-(cd ../landing && npm ci --no-audit --no-fund)
+(cd ../landing && npm ci --no-audit --no-fund --registry=https://registry.npmjs.org)
 yarn typecheck
 yarn typecheck:tools
 yarn test:offchain
