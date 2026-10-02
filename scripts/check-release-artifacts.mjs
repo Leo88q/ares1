@@ -150,6 +150,9 @@ for (const dir of dirs) {
     if (content.includes('sourceMappingURL')) {
       add('FAIL', 'artifact-sourcemappingurl', rel, 'sourceMappingURL comment present (§2.3)');
     }
+    if (/bigint[-_]buffer/i.test(content)) {
+      add('FAIL', 'artifact-vulnerable-bigint-buffer', rel, 'vulnerable bigint-buffer package marker shipped in a release bundle');
+    }
 
     for (const host of BANNED_THIRD_PARTY) {
       if (content.includes(host)) {

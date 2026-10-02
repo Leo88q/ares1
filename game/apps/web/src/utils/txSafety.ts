@@ -21,10 +21,12 @@ import idl from '../idl.json'
  *     (ComputeBudget / System / SPL Token / Associated Token). A wallet-drainer
  *     payload (`transfer` to an attacker, `setAuthority`, Token-2022 with a
  *     transfer hook, …) is rejected before the wallet ever sees it.
- *  2. `assertSignedInstructionsMatch` — after signing, the compiled message is
- *     compared byte-for-byte with what we asked to sign: same program, same
- *     instruction data, same order. A wallet (or an injected signer shim) that
- *     swaps, appends or drops an instruction cannot get the transaction sent.
+ *  2. `assertSignedInstructionsMatch` — after signing, the entire serialized
+ *     message is compared byte-for-byte with a snapshot taken BEFORE calling
+ *     the wallet. This includes fee payer, blockhash, every account key and its
+ *     signer/writable privileges, program IDs, instruction data/order and lookup
+ *     table references. A wallet (or injected signer shim) cannot redirect an
+ *     instruction while preserving its program and payload.
  *  3. `describeInstructions` — human-readable preview for logs and prompts, so
  *     a player-facing confirmation can name what is being signed.
  *
@@ -140,81 +142,53 @@ export function assertInstructionsAllowed(
 }
 
 /**
- * Layer 2 (legacy path): the same verification for a `Transaction` returned by
- * wallets that do not support VersionedTransaction. Legacy messages keep the
- * decoded instructions, so the check is a direct comparison.
+ * Snapshot the exact legacy message before handing the transaction to a wallet.
+ * Do not keep the Transaction object as the expected value: wallet adapters may
+ * mutate and return that same object.
  */
-export function assertSignedLegacyInstructionsMatch(
-  signed: Transaction,
-  expected: readonly TransactionInstruction[],
-  gameProgram: PublicKey,
-): void {
-  const actual = signed.instructions;
-  if (actual.length !== expected.length) {
-    throw new UnsafeTransactionError(
-      `Wallet changed the transaction: expected ${expected.length} instruction(s), got ${actual.length}`,
-    )
-  }
-  for (const [i, ix] of actual.entries()) {
-    if (!isAllowedProgram(ix.programId, gameProgram)) {
-      throw new UnsafeTransactionError(`Blocked instruction to a non-allowlisted program ${ix.programId.toBase58()}`)
-    }
-    if (ix.programId.equals(SystemProgram.programId)) {
-      assertSystemInstructionAllowed(ix.data)
-    }
-    if (!ix.programId.equals(expected[i].programId)) {
-      throw new UnsafeTransactionError(
-        `Wallet replaced instruction #${i + 1}: expected ${expected[i].programId.toBase58()}, got ${ix.programId.toBase58()}`,
-      )
-    }
-    if (!Buffer.from(ix.data).equals(Buffer.from(expected[i].data))) {
-      throw new UnsafeTransactionError(`Wallet modified the payload of instruction #${i + 1}`)
-    }
-  }
-}
-
-type CompiledIx = { programIdIndex: number; data: Uint8Array }
-
-function compiledInstructions(message: VersionedTransaction['message']): CompiledIx[] {
-  if ('compiledInstructions' in message) return message.compiledInstructions as CompiledIx[]
-  // Legacy message: `instructions` is the same shape for our purposes.
-  return (message as unknown as { instructions: CompiledIx[] }).instructions ?? []
+export function snapshotLegacyMessage(tx: Transaction): Buffer {
+  return Buffer.from(tx.serializeMessage())
 }
 
 /**
- * Layer 2: verify that the signed transaction still contains exactly the
- * instructions we asked for — same programs, same payload, same order.
+ * Layer 2 (legacy path): compare the complete signed message with the
+ * pre-signing snapshot. This covers account keys/order/privileges, fee payer,
+ * blockhash, program IDs and instruction data, not just instruction payloads.
+ */
+export function assertSignedLegacyInstructionsMatch(
+  signed: Transaction,
+  expectedMessage: Uint8Array,
+): void {
+  let actual: Uint8Array
+  try {
+    actual = signed.serializeMessage()
+  } catch {
+    throw new UnsafeTransactionError('Wallet returned an invalid legacy transaction message')
+  }
+  if (!Buffer.from(actual).equals(Buffer.from(expectedMessage))) {
+    throw new UnsafeTransactionError('Wallet changed the transaction message after it was built')
+  }
+}
+
+/**
+ * Snapshot the exact v0 message before handing the transaction to a wallet.
+ * The serialized form includes the header, payer, blockhash, account-key order,
+ * all compiled instruction indexes/data, and address lookup table references.
+ */
+export function snapshotVersionedMessage(tx: VersionedTransaction): Buffer {
+  return Buffer.from(tx.message.serialize())
+}
+
+/**
+ * Layer 2: compare the complete signed v0 message with the immutable snapshot
+ * captured before the wallet call. This also rejects account-meta, fee-payer,
+ * blockhash and lookup-table substitutions.
  */
 export function assertSignedInstructionsMatch(
   signed: VersionedTransaction,
-  expected: readonly TransactionInstruction[],
-  gameProgram: PublicKey,
+  expectedMessage: Uint8Array,
 ): void {
-  const compiled = compiledInstructions(signed.message)
-  if (compiled.length !== expected.length) {
-    throw new UnsafeTransactionError(
-      `Wallet changed the transaction: expected ${expected.length} instruction(s), got ${compiled.length}`,
-    )
-  }
-  const statics = signed.message.staticAccountKeys
-  for (const [i, ci] of compiled.entries()) {
-    if (ci.programIdIndex >= statics.length) {
-      throw new UnsafeTransactionError('Wallet resolved an instruction program through a lookup table')
-    }
-    const program = statics[ci.programIdIndex]
-    if (!isAllowedProgram(program, gameProgram)) {
-      throw new UnsafeTransactionError(`Blocked instruction to a non-allowlisted program ${program.toBase58()}`)
-    }
-    if (program.equals(SystemProgram.programId)) {
-      assertSystemInstructionAllowed(ci.data)
-    }
-    if (!program.equals(expected[i].programId)) {
-      throw new UnsafeTransactionError(
-        `Wallet replaced instruction #${i + 1}: expected ${expected[i].programId.toBase58()}, got ${program.toBase58()}`,
-      )
-    }
-    if (!Buffer.from(ci.data).equals(Buffer.from(expected[i].data))) {
-      throw new UnsafeTransactionError(`Wallet modified the payload of instruction #${i + 1}`)
-    }
+  if (!Buffer.from(signed.message.serialize()).equals(Buffer.from(expectedMessage))) {
+    throw new UnsafeTransactionError('Wallet changed the transaction message after it was built')
   }
 }
