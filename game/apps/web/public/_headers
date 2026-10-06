@@ -11,6 +11,8 @@
 # * connect-src must list EVERY host the browser talks to. If you point
 #   VITE_RPC_URL at a paid RPC provider, add its origin here or the app will
 #   fail with a CSP error in the console and nothing else.
+# * Same for VITE_BACKEND_URL: the gameops calls and the Phase 1 counter in
+#   PresaleSection go to that origin, so it must be in connect-src too.
 # * frame-ancestors 'none' is deliberate: the transaction confirmation screens
 #   must never be embeddable (clickjacking on a wallet signature).
 # * The only 'unsafe-inline' is on style-src (runtime CSS injection by

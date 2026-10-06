@@ -390,7 +390,7 @@ const en: Record<string, string> = {
   'Разделы колонии': 'Colony sections',
   'Ранг': 'Rank',
   'Рассвет': 'Dawn',
-  'Растение за SKR · Лимит 5 на кошелёк': 'Plants for SKR · Limit 5 per wallet',
+  'Фаза 2 · Растение за SKR · Лимит 5 на кошелёк': 'Phase 2 · Plants for SKR · Limit 5 per wallet',
   'Ремонт, апгрейд, 5% шанс мутации': 'Repair, upgrade, 5% mutation chance',
   'Реферер зарегистрирован!': 'Referrer registered!',
   'Рынок': 'Market',
@@ -607,6 +607,12 @@ const en: Record<string, string> = {
   'Гидропонный модуль раскрыт': 'Hydroponic module revealed',
   'Предоплата зачислена': 'Prepayment credited',
   'Шанс дропа: {c}%': 'Drop chance: {c}%',
+  'ФАЗА 1 · ПРЕДОПЛАТА (ОФФЧЕЙН)': 'PHASE 1 · PREPAYMENT (OFF-CHAIN)',
+  'Пак Фазы 1 — {price} SKR за 1 000 POTATO.': 'Phase 1 pack — {price} SKR for 1,000 POTATO.',
+  'POTATO выдаётся в день листинга на mainnet.': 'POTATO is delivered on the mainnet listing day.',
+  'Покупка не влияет на devnet-прогресс: пак не действует в текущей бете.': 'This purchase does not affect devnet progress: the pack does not apply to the current beta.',
+  'Осталось: {n} из {cap}': 'Remaining: {n} of {cap}',
+  'Оформить на лендинге →': 'Arrange on the landing page →',
 };
 
 export default en;

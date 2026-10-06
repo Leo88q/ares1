@@ -13,7 +13,9 @@ import { t } from './i18n';
 import './presale-banner.css';
 
 const API = (import.meta.env.VITE_PRESALE_API as string | undefined) ?? '/api/presale';
-const RUN_ID = (import.meta.env.VITE_PRESALE_RUN as string | undefined) ?? 'phase1';
+// id тиража должен совпадать с PRESALE_RUN_ID при открытии (по умолчанию wave1,
+// см. docs/PRESALE_DELIVERY_RUNBOOK.md §1.1). Оверрайд — VITE_PRESALE_RUN.
+const RUN_ID = (import.meta.env.VITE_PRESALE_RUN as string | undefined) ?? 'wave1';
 
 interface Pack { id: string; titleRu: string; titleEn: string; fields: number; potatoMicro: string }
 /**
