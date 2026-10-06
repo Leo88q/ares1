@@ -11,7 +11,7 @@ import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
  *  1. Панель — <Panel>, никаких div-ов с inline background/border/shadow.
  *  2. Кнопка — <Key> или общий <Button>, никаких новых кнопочных стилей.
  *  3. Цвета/радиусы/тени/z-index — только var(--s-*) / var(--pf-*) / var(--ares-*).
- *  4. Сырой hex в компонентах — баг (см. docs/FRONTEND_AUDIT_2026-09-28.md).
+ *  4. Сырой hex в компонентах — баг.
  */
 
 export type PanelVariant = 'default' | 'quiet' | 'pop' | 'rare' | 'chip'

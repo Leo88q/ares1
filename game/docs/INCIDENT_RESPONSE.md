@@ -132,7 +132,7 @@ Reward/bounty contact: security@ares1.is-a.dev (см. security.txt)
 2026 года):
 
 - [ ] Тот же класс бага ищется во ВСЕХ программах проекта (сейчас одна —
-  `solana_potato`; проверить миграции и `scripts/devnet-legacy/`);
+  `solana_potato`; проверить миграции);
 - [ ] Прогон `node scripts/inventory-programs.mjs` — нет ли забытых/спящих
   программ с балансами (п. 98: Raydium Legacy, Aztec Connect, Thetanuts);
 - [ ] Прогон `node scripts/check-invariants.ts` — инварианты экономики;
@@ -140,7 +140,7 @@ Reward/bounty contact: security@ares1.is-a.dev (см. security.txt)
 - [ ] Если инцидент чужой: сопоставить наш код с вектором атакующего
   (например, чей-то «обход проверки подписи» → пересмотреть наши проверки
   подписей в delay/guard-модулях);
-- [ ] Обновить этот документ и `docs/SECURITY_CHECKLIST_AUDIT_*.md`.
+- [ ] Обновить этот документ и `game/SECURITY.md`.
 
 ## 8. Safe harbor / bug bounty
 

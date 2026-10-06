@@ -15,7 +15,8 @@ the pre-deploy runbook, and
 ## Extended checklist audit — 26 September 2026
 
 A second pass covered checklist items **31–70** (Anchor/Solana specifics, tokenomics,
-infrastructure, supply chain): [docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md](../docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md).
+infrastructure, supply chain). Аудит-отчёт в репозитории не хранится; что именно
+закрыто — видно по коду и по машинному трипваеру `game/scripts/security-guards.test.mjs`.
 
 Four real defects were found and fixed in source — client-side double execution
 (same instructions re-sent after a V0 send), missing SKR `decimals` validation on
@@ -77,8 +78,8 @@ scanner run; old transitive-CVE notes are not a current dependency audit.
 ## Incident-catalog audit — 28 September 2026 (items 94–130)
 
 A third pass mapped the June–September 2026 incident catalog (items 94–113) and
-the full-year addendum (114–130) onto this codebase:
-[docs/SECURITY_CHECKLIST_AUDIT_2026-09-28.md](../docs/SECURITY_CHECKLIST_AUDIT_2026-09-28.md).
+the full-year addendum (114–130) onto this codebase; закрытые пункты закреплены
+в коде и в `game/scripts/security-guards.test.mjs`.
 
 No new program defects. Gaps closed in infrastructure and process:
 
