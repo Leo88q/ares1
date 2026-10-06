@@ -1,9 +1,8 @@
 # Как правильно работать с данными в ARES-1 (рекомендация)
 
 **Дата:** 2026-09-27 · **Ветка:** `arena/01a0e4f2-ares1`
-**Основание:** замеры и инвентарь из [DATA_TESTS_AND_CAPACITY_2026-09-27.md](../../docs/DATA_TESTS_AND_CAPACITY_2026-09-27.md),
-разбор референса в [STORAGE_REFERENCE_EXAMPLE_2026-09-27.md](../../docs/STORAGE_REFERENCE_EXAMPLE_2026-09-27.md),
-гейты [MAINNET_LAUNCH_GATE.md](MAINNET_LAUNCH_GATE.md).
+**Основание:** гейты [MAINNET_LAUNCH_GATE.md](MAINNET_LAUNCH_GATE.md) и замеры на локальном
+стенде (отчёты измерений в репозитории не хранятся).
 
 Документ отвечает на один вопрос: **как сделать слой данных игры качественным**, а не «какую БД выбрать».
 

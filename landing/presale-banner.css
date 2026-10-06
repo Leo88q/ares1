@@ -26,6 +26,7 @@
 .ps-title { font-size: clamp(24px, 4vw, 38px); margin: 8px 0 12px; color: #f4e8d0; }
 .ps-sub { color: rgba(244, 232, 208, 0.72); line-height: 1.5; max-width: 56ch; }
 .ps-counter { color: #ffc94a; font-weight: 700; margin-top: 10px; }
+.ps-price { color: #f4e8d0; font-weight: 700; margin-top: 6px; }
 
 .ps-packs { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; }
 .ps-pack {

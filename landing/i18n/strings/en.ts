@@ -378,7 +378,6 @@ const en: Record<string, string> = {
   'Продукт': 'Product',
 
   // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
-  'Правовые документы': 'Legal documents',
   'Настройки cookies': 'Cookie settings',
   'Связь с командой': 'Contact the team',
   'Cookies и локальное хранилище': 'Cookies and local storage',
@@ -394,15 +393,10 @@ const en: Record<string, string> = {
   'Отклонить все': 'Reject all',
   'Сохранить выбор': 'Save choice',
   'Настроить': 'Manage',
-  'Политика cookie': 'Cookie Policy',
+  'Cookie не ставятся: выбор хранится только в вашем браузере.': 'No cookies are set: your choice is stored in your browser only.',
   'Браузер передаёт сигнал Global Privacy Control — необязательные категории отключены.': 'Your browser sends Global Privacy Control — optional categories are off.',
   'всегда': 'always on',
   'Запись решения': 'Your decision record',
-  'Политика конфиденциальности': 'Privacy Policy',
-  'Условия использования': 'Terms of Use',
-  'Раскрытие рисков': 'Risk Disclosure',
-  'Лицензии третьих лиц': 'Third-Party Licenses',
-  'Жалобы (DMCA)': 'Complaints (DMCA)',
   'Растущая луна': 'Waxing moon',
   'Первая четверть': 'First quarter',
   'Прибывающая луна': 'Waxing gibbous',
@@ -428,7 +422,8 @@ const en: Record<string, string> = {
   'Каталог паков недоступен — попробуйте позже': 'Pack catalog unavailable — try again later',
   'PHASE 1 · ПРЕДОПЛАТА': 'PHASE 1 · PREPAYMENT',
   'Ограниченные паки ARES-1': 'Limited ARES-1 packs',
-  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — при запуске основной сети. Без возвратов.': '500 packs by prepayment now + 500 at mainnet launch. POTATO is credited when the mainnet launches. No refunds.',
+  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — в день листинга на mainnet. Без возвратов.': '500 packs by prepayment now + 500 at mainnet launch. POTATO is credited on the mainnet listing day. No refunds.',
+  'Цена пака: {price}': 'Pack price: {price}',
   'Осталось: {n} из {cap}': 'Remaining: {n} of {cap}',
   'полей': 'fields',
   'Адрес кошелька (SOL)': 'Wallet address (SOL)',
@@ -440,7 +435,7 @@ const en: Record<string, string> = {
   'Подпись транзакции': 'Transaction signature',
   'Я оплатил — проверить': 'I paid — verify',
   'Подпись получена — проверяем перевод. Статус заказа: №{n}': 'Signature received — verifying the transfer. Order status: №{n}',
-  'Предоплата не является инвестицией и не гарантирует доход. Условия — Terms §7.': 'Prepayment is not an investment and guarantees no return. See Terms §7.',
+  'Предоплата не является инвестицией и не гарантирует доход.': 'Prepayment is not an investment and guarantees no return.',
 };
 
 export default en;

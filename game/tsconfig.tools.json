@@ -22,6 +22,7 @@
     "scripts/db-bench.ts",
     "scripts/db-mutate.ts",
     "scripts/presale-reconcile.ts",
+    "scripts/presale-open-run.ts",
     "tests/db/**/*.ts"
   ]
 }

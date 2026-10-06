@@ -1,5 +1,6 @@
 # Backend image build context is the repository root because the game workspace
-# resolves its audited @solana/buffer-layout-utils backport from ../vendor.
+# resolves its audited @solana/buffer-layout-utils backport from
+# game/apps/web/vendor (inside the web project tree, not above game/).
 # Start by excluding everything, then allow back in only the files the Dockerfile
 # copies. This keeps local state, secrets, git history, apps, reports, and unrelated
 # source out of the daemon context.
@@ -19,6 +20,6 @@
 !game/migrations/
 !game/migrations/**
 
-!vendor/
-!vendor/solana-buffer-layout-utils/
-!vendor/solana-buffer-layout-utils/**
+!game/apps/web/vendor/
+!game/apps/web/vendor/solana-buffer-layout-utils/
+!game/apps/web/vendor/solana-buffer-layout-utils/**

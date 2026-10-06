@@ -96,7 +96,7 @@ async function ensureAta(mintPk: PublicKey, owner: PublicKey): Promise<PublicKey
   const ata = ataOf(mintPk, owner);
   if (await accountExists(ata)) return ata;
   // CreateIdempotent (idx 1): payer(w,s) | ata(w) | OWNER | MINT | system | token
-  // (порядок owner/mint подтверждён живой симуляцией, scripts/ata-diag.ts)
+  // (порядок owner/mint подтверждён живой симуляцией на devnet)
   const ix = new TransactionInstruction({
     programId: ASSOCIATED_TOKEN_PROGRAM_ID,
     keys: [

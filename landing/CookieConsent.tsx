@@ -237,9 +237,7 @@ export function CookieConsent(): JSX.Element | null {
         </div>
 
         <p className="consent__footnote">
-          <a href="/legal/cookies.html" target="_blank" rel="noreferrer noopener">
-            {t.policy}
-          </a>
+          <span>{t.policy}</span>
           {record ? (
             <span className="consent__record">
               {' '}

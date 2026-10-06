@@ -4,6 +4,11 @@
 Watchtower. Devnet runtime verification и deployment manifest ещё не подтверждены.**
 Контракт, экономика, игровые цены, backend и UI не изменяются этим компонентом.
 
+Handoff для команды Watchtower: `../WATCHTOWER_HANDOFF.md` (разделы A–G);
+machine-readable: `events/event-catalog.json` (31 реальное событие + mapping и
+статусы), `events/runtime-evidence.json` (read-only devnet-факты от 2026-10-06),
+`events/fixtures/real-devnet/` (4 реальные финализированные транзакции).
+
 ## Границы безопасности
 
 - Отдельный Node **22.22.3** / TypeScript проект, процесс, `package-lock.json` и БД.
@@ -236,6 +241,15 @@ npm test                  # PG suite skipped, если test DB не настро
 WATCHTOWER_TEST_DATABASE_URL='<локальная тестовая БД>' npm run test:integration
 ```
 
+Повтор в песочнице 2026-10-06 (Node 22.22.3): `npm ci --ignore-scripts` — 35 пакетов,
+0 уязвимостей; `npm run typecheck` — 0; `npm run build` — 0; `npm test` — 101 тест,
+100 pass / 0 fail / 1 skipped (PG-интеграция без тестовой БД). Дополнительно без
+зависимостей: `node --test tests/os/watchtower-os-v3.test.mjs` — 15/15,
+`node --test tests/address-registry.test.mjs` — 1/1,
+`node --test ../game/scripts/security-guards.test.mjs` — 52/52,
+`node ../game/scripts/check-contract.mjs` — вывод «Contract checks passed
+(44 instructions)», `node src/os/handoff-v3.js --check` — «handoff artifacts up to date».
+
 CI `.github/workflows/watchtower.yml` использует disposable PostgreSQL 17; отсутствие
 БД — ошибка, не skip. Покрыты все decoder fixtures, Unknown, CPI/rollback attribution,
 дубли/replay/resume, инъекция SQL fault, **завершение PG backend во время записи**,
@@ -302,16 +316,24 @@ CLI; общий CI подтвердил прежние web/backend/Docker/Anchor
    Exporter должен уже завершить backfill и быть ready. Для удалённого exporter
    используйте `WATCHTOWER_VERIFY_EXPORTER_URL` (server-side URL, не browser localhost).
 2. Сверить deployed binary/IDL provenance, Config/mints/treasury/PDA и authority
-   inventory. В manifest сейчас source-derived program ID, пустые непроверенные
-   списки адресов, `deploymentVerified=false`, `lastVerifiedAt=null`.
+   inventory. С 2026-10-06 manifest и registry несут read-only факты публичного
+   devnet explorer: POTATO mint `HFEL9r…`, config PDA `9FDhkB…` (он же mint
+   authority) и quest-treasury PDA `9bGsUX…`; подробности и ссылки —
+   `events/runtime-evidence.json`. При этом `deploymentVerified=false`,
+   `lastVerifiedAt=null`: exporter smoke, provenance собранного бинаря и
+   центральный handshake не выполнены, поэтому флаги верификации не подняты.
 3. Согласовать конкретную версию API/schema/cursor с Games Watchtower, выдать
    отдельный exporter credential вне Git/чата, провести центральный runtime smoke.
 4. Только после этих проверок отмечать интеграцию подключённой и manifest verified.
    Скрипт smoke **не** меняет manifest и **не** отмечает центральное подключение.
 
-Попытка публичного devnet RPC probe в sandbox завершилась transport error. Реальных
-fixtures здесь пока нет. Исторический RPC credential игры всё ещё требует отдельного
-отзыва; новый exporter не использует этот credential и не устраняет ту утечку.
+Прямой devnet RPC из sandbox по-прежнему недоступен (transport error), поэтому
+сертифицированный `verify-devnet --capture-fixture` не запускался. Вместо него
+2026-10-06 read-only через публичный explorer сняты и декодированы против IDL
+4 финализированные devnet-транзакции (3 типа событий) — они лежат в
+`events/fixtures/real-devnet/` с явной пометкой provenance и не заменяют smoke.
+Исторический RPC credential игры всё ещё требует отдельного отзыва; новый exporter
+не использует этот credential и не устраняет ту утечку.
 
 Не входят: on-chain изменения/deployment, новые цены/валюты/правила, dashboard,
 автоматические rewards/bans/campaigns, Redis, Sentry, client telemetry collector.

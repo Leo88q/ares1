@@ -52,12 +52,6 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
-# Legal documents must always be current, but may be cached briefly.
-/legal/*
-  Cache-Control: public, max-age=3600
-  X-Content-Type-Options: nosniff
-  Referrer-Policy: strict-origin-when-cross-origin
-
 /.well-known/security.txt
   Content-Type: text/plain; charset=utf-8
   Cache-Control: public, max-age=604800

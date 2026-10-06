@@ -9,9 +9,13 @@ import { useSolana, PROGRAM_ID } from '../contexts/SolanaContext'
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 import { presaleStatePda } from '../utils/anchorClient'
+import { decodePresaleState } from '../utils/presaleState'
 import CaseReveal from './CaseReveal'
+import Phase1Notice from './Phase1Notice'
 
-const PRESALE_CAP = 500
+// Фолбэк только на время загрузки: истинный cap читается из on-chain
+// PresaleState (его задаёт оператор при init_presale, а не эта константа).
+const PRESALE_CAP_FALLBACK = 500
 const PRESALE_PRICE_SKR = 1053
 
 /**
@@ -22,6 +26,7 @@ export default function PresaleSection() {
  const { buyFieldPresale, purchasing } = useGame()
  const { connected, connection } = useSolana()
  const [sold, setSold] = useState(0)
+ const [cap, setCap] = useState(PRESALE_CAP_FALLBACK)
  const [loading, setLoading] = useState(true)
 
  // Читаем PresaleState с on-chain
@@ -38,9 +43,12 @@ export default function PresaleSection() {
      setLoading(false)
      return
     }
-    // Layout: 8 (disc) + 32 (authority) + 4 (sold) + ...
-    const soldU32 = info.data.readUInt32LE(8 + 32)
-    setSold(soldU32)
+    // Layout: 8 (disc) + 32 (authority) + 4 (sold) + 4 (cap) + 8 (price) + 1 (bump)
+    const state = decodePresaleState(info.data)
+    if (state) {
+     setSold(state.sold)
+     if (state.cap > 0) setCap(state.cap)
+    }
     setLoading(false)
    } catch (err) {
     if (!cancelled) setLoading(false)
@@ -49,8 +57,10 @@ export default function PresaleSection() {
 
   load()
   const sub = connection.onAccountChange(pda, (info) => {
-   const soldU32 = info.data.readUInt32LE(8 + 32)
-   setSold(soldU32)
+   const state = decodePresaleState(info.data)
+   if (!state) return
+   setSold(state.sold)
+   if (state.cap > 0) setCap(state.cap)
   })
   return () => {
    cancelled = true
@@ -58,8 +68,8 @@ export default function PresaleSection() {
   }
  }, [connection])
 
- const remaining = PRESALE_CAP - sold
- const progressPct = Math.min(100, (sold / PRESALE_CAP) * 100)
+ const remaining = Math.max(0, cap - sold)
+ const progressPct = cap > 0 ? Math.min(100, (sold / cap) * 100) : 0
  const soldOut = remaining <= 0
  const disabled = !connected || purchasing || soldOut || loading
 
@@ -113,10 +123,13 @@ export default function PresaleSection() {
       PRESALE
      </h2>
      <div className="pf-subtitle" style={{ fontSize: 11, margin: 0, color: '#B3946A' }}>
-      {t('Растение за SKR · Лимит 5 на кошелёк')}
+      {t('Фаза 2 · Растение за SKR · Лимит 5 на кошелёк')}
      </div>
     </div>
    </div>
+
+   {/* Фаза 1 — оффчейн-предоплата: условия + явная пометка RFC §4.4. */}
+   <Phase1Notice />
 
    {/* Внутренняя клёпаная рама с кассетами трёх тиров */}
    <div className="po-rim" style={{ padding: '8px 12px 12px', margin: '6px 0 14px', borderRadius: 2 }} aria-hidden="true">
@@ -143,7 +156,7 @@ export default function PresaleSection() {
      <div className="po-lcd" style={{ display: 'block', padding: '6px 12px', fontSize: 24, fontWeight: 700, color: soldOut ? 'var(--pf-red)' : '#F5BE72', fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}>
       {loading ? '—' : String(remaining).padStart(4, '0')}
       <span style={{ fontSize: 12, color: 'rgba(255,214,170,0.5)', marginLeft: 6 }}>
-       / {String(PRESALE_CAP).padStart(4, '0')}
+       / {String(cap).padStart(4, '0')}
       </span>
      </div>
     </div>

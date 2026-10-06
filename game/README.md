@@ -59,6 +59,16 @@ python3 economy/simulate.py        # отчёт по экономике в markd
 ### Сборка web-клиента на Cloudflare Pages
 
 Проект `ares1-play` (play.ares1.is-a.dev) собирается командой `yarn build:web`.
+
+**Важно (2026-10-06).** Cloudflare Pages не отдаёт сборке файлы за пределами
+заданного Root directory, поэтому в `game/` не должно быть `file:`-зависимостей,
+ведущих выше его директории. Аудит'нутый вендор-пакет
+`@solana/buffer-layout-utils` лежит в `apps/web/vendor/solana-buffer-layout-utils`
+(внутри дерева web-приложения), а `apps/web/package.json` дублирует `resolutions`
+и `overrides`, чтобы установка в один проход из `apps/web` тоже брала локальную
+копию. Проверено локальными симуляциями для трёх возможных Root: репо-корень,
+`game/` и `game/apps/web` — `install` + `build` зелёные во всех. Стражи
+(`yarn test:guards`) следят, что ни один манифест не ссылается вверх через `file:../`.
 Задавать `VITE_*` в окружении сборки не обязательно: если их нет, `vite.config.ts`
 берёт публичные devnet-значения из `apps/web/.env.example` и громко печатает
 об этом в лог сборки. Для продакшена задай `VITE_PROGRAM_ID`, `VITE_RPC_URL` и
@@ -77,7 +87,7 @@ PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf yarn init-onchain
 
 `init-onchain` создаёт mint (6 decimals, без freeze authority), передаёт mint authority PDA `config`, вызывает `initialize` + `init_epoch`. Скрипт идемпотентен. `initialize` отклонит mint с чужим authority, другим числом decimals или freeze authority.
 
-Текущий devnet: программа `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf` (развёрнута 14.09.2026 через `scripts/warm-start-devnet.sh`), upgrade authority `HW4ekULcWHiVhDMfWpg8MwJwLqZHYskGMrue44WZ3vJ9` (ключ вне git). Инициализация: GameConfig PDA `9FDhkBwmcNx3gh8hSgShpiAVXHW9cZBnv4t1xyHGU39q`, $POTATO mint `HFEL9rBqmYwYDsZNxuV2ZonfS7adbjENUc3CdgbaiYxv` (6 decimals, без freeze authority, authority = config PDA), пресейл cap 500 / 0.25 SOL / 1053 SKR. Старый devnet-стейт программы `48D2…` (GameConfig `2W5Lxv…`) не мигрирован и abandoned — инструмент `scripts/devnet-legacy/migrate-devnet.mjs` относится только к нему.
+Текущий devnet: программа `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf` (развёрнута 14.09.2026 через `scripts/warm-start-devnet.sh`), upgrade authority `HW4ekULcWHiVhDMfWpg8MwJwLqZHYskGMrue44WZ3vJ9` (ключ вне git). Инициализация: GameConfig PDA `9FDhkBwmcNx3gh8hSgShpiAVXHW9cZBnv4t1xyHGU39q`, $POTATO mint `HFEL9rBqmYwYDsZNxuV2ZonfS7adbjENUc3CdgbaiYxv` (6 decimals, без freeze authority, authority = config PDA), пресейл cap 500 / 0.25 SOL / 1053 SKR. Старый devnet-стейт программы `48D2…` (GameConfig `2W5Lxv…`) не мигрирован и abandoned; миграция к нему не поддерживается.
 
 ### Фронтенд
 

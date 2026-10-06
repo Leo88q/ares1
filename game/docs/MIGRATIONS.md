@@ -75,7 +75,7 @@ There is no implicit cluster or deploy wallet. `--execute` is an explicit opt-in
 all required values are validated before network work, and the observed genesis
 must match. This is not a substitute for governance/multisig signing before mainnet.
 
-The old web `migrate-devnet.mjs` (now in `scripts/devnet-legacy/`, F-21) now refuses to execute because it targeted an
-obsolete program and duplicated unsafe migration code. Bootstrap (`init-onchain`)
+The old web `migrate-devnet.mjs` (F-21) was removed: it targeted an obsolete program
+and duplicated unsafe migration code. Bootstrap (`init-onchain`)
 reads the supported current layout and **refuses legacy state** instead of silently
 performing migrations. Plan/review/migrate first, then rerun bootstrap as needed.

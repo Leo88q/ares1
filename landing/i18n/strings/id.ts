@@ -378,7 +378,6 @@ const id: Record<string, string> = {
   'Продукт': 'Produk',
 
   // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
-  'Правовые документы': 'Dokumen hukum',
   'Настройки cookies': 'Pengaturan cookie',
   'Связь с командой': 'Hubungi tim',
   'Cookies и локальное хранилище': 'Cookie dan penyimpanan lokal',
@@ -394,15 +393,10 @@ const id: Record<string, string> = {
   'Отклонить все': 'Tolak semua',
   'Сохранить выбор': 'Simpan pilihan',
   'Настроить': 'Atur',
-  'Политика cookie': 'Kebijakan Cookie',
+  'Cookie не ставятся: выбор хранится только в вашем браузере.': 'Tidak ada cookie: pilihanmu hanya disimpan di browser kamu.',
   'Браузер передаёт сигнал Global Privacy Control — необязательные категории отключены.': 'Peramban Anda mengirim sinyal Global Privacy Control — kategori opsional dimatikan.',
   'всегда': 'selalu aktif',
   'Запись решения': 'Catatan keputusan',
-  'Политика конфиденциальности': 'Kebijakan Privasi',
-  'Условия использования': 'Ketentuan Penggunaan',
-  'Раскрытие рисков': 'Pengungkapan Risiko',
-  'Лицензии третьих лиц': 'Lisensi Pihak Ketiga',
-  'Жалобы (DMCA)': 'Pengaduan (DMCA)',
   'Растущая луна': 'Bulan naik',
   'Первая четверть': 'Kuartal pertama',
   'Прибывающая луна': 'Bulan cembung naik',
@@ -428,7 +422,8 @@ const id: Record<string, string> = {
   'Каталог паков недоступен — попробуйте позже': 'Katalog pak tidak tersedia — coba lagi nanti',
   'PHASE 1 · ПРЕДОПЛАТА': 'FASE 1 · PRABAYAR',
   'Ограниченные паки ARES-1': 'Pak ARES-1 terbatas',
-  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — при запуске основной сети. Без возвратов.': '500 pak lewat prabayar sekarang + 500 saat mainnet meluncur. POTATO dikreditkan saat mainnet meluncur. Tanpa pengembalian.',
+  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — в день листинга на mainnet. Без возвратов.': '500 pak lewat prabayar sekarang + 500 saat mainnet meluncur. POTATO dikreditkan pada hari pencatatan di mainnet. Tanpa pengembalian.',
+  'Цена пака: {price}': 'Harga pak: {price}',
   'Осталось: {n} из {cap}': 'Sisa: {n} dari {cap}',
   'полей': 'ladang',
   'Адрес кошелька (SOL)': 'Alamat dompet (SOL)',
@@ -440,7 +435,7 @@ const id: Record<string, string> = {
   'Подпись транзакции': 'Tanda tangan transaksi',
   'Я оплатил — проверить': 'Saya sudah bayar — verifikasi',
   'Подпись получена — проверяем перевод. Статус заказа: №{n}': 'Tanda tangan diterima — memverifikasi transfer. Status pesanan: №{n}',
-  'Предоплата не является инвестицией и не гарантирует доход. Условия — Terms §7.': 'Prabayar bukan investasi dan tidak menjamin imbal hasil. Lihat Ketentuan §7.',
+  'Предоплата не является инвестицией и не гарантирует доход.': 'Prabayar bukan investasi dan tidak menjamin imbal hasil.',
 };
 
 export default id;

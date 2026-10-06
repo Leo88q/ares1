@@ -21,7 +21,7 @@ import { jsonSafe, send } from './shared.js';
 import { PACKS, packPotatoMicro } from '../presale/catalog.js';
 import {
   openRun, reserveOrder, attachPayment, confirmPayment, markDelivered,
-  refundOrder, expireStaleReservations, getRunStatus, getOrderPublic,
+  refundOrder, expireStaleReservations, getRunStatus, getOrderPublic, publicRunStatus,
   listPendingDelivery, listNeedsAttention,
 } from '../presale/orders.js';
 import { verifyPayment, verifyTokenPayment } from '../presale/verify.js';
@@ -85,7 +85,8 @@ export function presaleRouter(pool: Pool, config: GameOpsConfig, deps: PresaleDe
     handleAsync(res, 200, async () => {
       const status = await getRunStatus(pool, runIdParam(req));
       if (!status) throw new GameOpsError('RUN_NOT_FOUND', `Тираж ${runIdParam(req)} не найден`, undefined, 404);
-      return { run: status };
+      // Публичная форма — camelCase (см. RunStatus в баннере лендинга), а не домен.
+      return { run: publicRunStatus(status) };
     });
   });
 

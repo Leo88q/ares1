@@ -17,7 +17,7 @@
  * translated into (en, es-419, id, pt-BR, tl, vi) plus Russian. Adding a
  * language in another script means adding its subset here.
  *
- * Licence: SIL Open Font License 1.1. See /legal/third-party.html.
+ * Licence: SIL Open Font License 1.1. See THIRD_PARTY_LICENSES.md.
  */
 
 // Inter — UI text

@@ -4,9 +4,11 @@ WORKDIR /app/game
 COPY game/package.json game/yarn.lock ./
 COPY game/apps/web/package.json apps/web/package.json
 COPY game/apps/backend/package.json apps/backend/package.json
-# The workspace resolution is file:../vendor/solana-buffer-layout-utils.
-# Keep the vendored backport outside /app/game so that path resolves exactly.
-COPY vendor/solana-buffer-layout-utils /app/vendor/solana-buffer-layout-utils
+# The workspace resolution is file:apps/web/vendor/solana-buffer-layout-utils,
+# i.e. the vendored backport lives INSIDE the game/apps/web project tree. That
+# keeps the file: dependency above no project root, so the same tree installs
+# wherever only one directory is visible (Cloudflare Pages Root directory).
+COPY game/apps/web/vendor/solana-buffer-layout-utils apps/web/vendor/solana-buffer-layout-utils
 RUN yarn install --frozen-lockfile --non-interactive
 COPY game/apps/backend/tsconfig.json apps/backend/tsconfig.json
 COPY game/apps/backend/src apps/backend/src
@@ -23,7 +25,7 @@ ENV NODE_ENV=production
 COPY game/package.json game/yarn.lock ./
 COPY game/apps/web/package.json apps/web/package.json
 COPY game/apps/backend/package.json apps/backend/package.json
-COPY vendor/solana-buffer-layout-utils /app/vendor/solana-buffer-layout-utils
+COPY game/apps/web/vendor/solana-buffer-layout-utils apps/web/vendor/solana-buffer-layout-utils
 RUN yarn install --frozen-lockfile --non-interactive --production=true && yarn cache clean
 COPY --from=build /app/game/apps/backend/dist apps/backend/dist
 COPY --from=build /app/migrations /app/migrations
