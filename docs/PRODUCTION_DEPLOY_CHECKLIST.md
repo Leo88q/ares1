@@ -39,7 +39,9 @@ patterns with zero dependencies).
    (`gh api repos/Leo88q/ares1/dependabot/alerts` → "Dependabot alerts are disabled").
 4. **Turn on branch protection for `main` ([S-04]).** `protected: false` today: anyone with write
    access can push straight to `main`, force-push, or delete history.
-5. **Fill in the operator's legal identity ([L-01]).** The new legal pages ship with 36 visible
+5. ~~**Fill in the operator's legal identity ([L-01]).**~~ **Снято решением владельца
+   (2026-10-06):** юридический блок выведен из скоупа, юридические документы удалены
+   из репозитория (RFC §6). Ниже сохранена фактическая история находки. The new legal pages shipped with 36 visible
    placeholders (`[OPERATOR LEGAL NAME]`, `[REGISTERED ADDRESS]`, governing law, target
    countries). Publishing them unfilled is worse than not publishing them.
 
@@ -63,7 +65,7 @@ patterns with zero dependencies).
 | **S-10** | 🟡 | `landing/public/_redirects` (was `netlify.toml`) | SPA catch-all returned `200 + index.html` for *any* path, so `/ .git/HEAD` "looked alive" to a scanner (§2.2). The 404 rules also lived in netlify.toml, which Cloudflare Pages ignores. | Moved to `public/_redirects` (portable across both platforms) and added a real `404.html`. Hard 404s for `.git/*`, `.env*`, `*.map`, lockfiles, `docs/`, `scripts/`, `game/`, `watchtower/` run **before** the catch-all. | ✅ Fixed |
 | **S-11** | 🔵 | `landing/vite.config.ts` | `sourcemap` was unset (default `false`, but implicit — an upgrade or a new plugin could flip it). | Explicit `sourcemap: false` in both bundlers + a CI assertion that the setting is present. | ✅ Fixed |
 | **S-12** | 🔵 | `game/apps/web/src/main.tsx` | `clusterApiUrl(network)` returns **http://** by default → a production build without `VITE_RPC_URL` sent RPC traffic in plaintext. A `http://127.0.0.1:8899` localnet fallback also shipped in every production bundle. | Forced `https`, moved the fallback behind `import.meta.env.DEV`, and made `VITE_RPC_URL` mandatory in production (fail-fast, matching the existing `VITE_PROGRAM_ID` behaviour). | ✅ Fixed (found by `check-release-artifacts.mjs`) |
-| **S-13** | 🟡 | `game/apps/web/src/utils/constants.ts`, `landing/utils/constants.ts` | Client mirrors of the economy (yields, fees, lunar table, presale odds). Not a vulnerability — the program is authoritative — but it **is** published game logic (§2.4). | Accepted. Documented; `landing/utils/constants.ts:rollPresaleDrop()` is dead client-side RNG and should be deleted. | PARTIAL — **HUMAN** (delete dead code / confirm no client-side roll is reachable) |
+| **S-13** | 🟡 | `game/apps/web/src/utils/constants.ts`, `landing/utils/constants.ts` | Client mirrors of the economy (yields, fees, lunar table, presale odds). Not a vulnerability — the program is authoritative — but it **is** published game logic (§2.4). | Accepted. Documented. Мёртвое зеркало `landing/utils/constants.ts` (ни одного импортёра — проверено резолвером 2026-10-06) удалено; `rollPresaleDrop` вместе с ним; guard закрепляет отсутствие файла. | ✅ Fixed (2026-10-06) — остаётся только подтвердить на живом хосте, что клиентского ролла нет |
 | **S-14** | 🔵 | `landing/index.html`, `game/apps/web/src/styles/global.css`, `@solana/wallet-adapter-react-ui/styles.css` | Google Fonts loaded from a third-party CDN → visitor IP disclosed before consent (§4.6). The wallet-adapter stylesheet's remote `@import` was the non-obvious one. | All fonts self-hosted from `@fontsource/*`; the upstream wallet-adapter stylesheet is vendored as `src/styles/wallet-adapter.css` with the remote `@import` removed and a sync-on-upgrade procedure in its header. Verified: `grep -r fonts.googleapis dist/` → 0 hits in both builds. | ✅ Fixed |
 | **S-15** | 🔵 | README | Declares MIT while `gh repo view` reports no detected licence. MIT permits third parties to reuse and resell the code (§2.11). | Choose deliberately. If the code is closed: replace with "All rights reserved". | **HUMAN** / **LAWYER** |
 
@@ -73,7 +75,7 @@ patterns with zero dependencies).
 |---|---|---|---|---|---|
 | **W-01** | 🟠 | `game/apps/web` (play.ares1.is-a.dev) | No security headers at all: no CSP, no HSTS, no `X-Frame-Options`, no `Referrer-Policy`, none of the clickjacking protection that matters on transaction-signing screens. | Added `game/apps/web/public/_headers` (Netlify / Cloudflare Pages format) with a strict CSP, HSTS, nosniff, referrer policy, `Permissions-Policy`, COOP/CORP, immutable caching for `/assets/*`. | ✅ Fixed (deploy pending) |
 | **W-02** | 🟠 | `landing/netlify.toml` → `landing/public/_headers` | Existing CSP allowed `fonts.googleapis.com` / `fonts.gstatic.com`, HSTS was missing — **and the rules were in netlify.toml while the site is deployed by Cloudflare Pages, which ignores netlify.toml entirely**. The live landing had no security headers at all. | Moved to `public/_headers` (understood by Cloudflare Pages *and* Netlify): font origins removed (self-hosted), HSTS `max-age=31536000; includeSubDomains`, `frame-src 'none'`, `worker-src`, `manifest-src`, `upgrade-insecure-requests`, per-path cache rules. `netlify.toml` now holds build config only. | ✅ Fixed (deploy pending) |
-| **W-12** | 🟠 | Deployment platform | Hosting was assumed to be Netlify. The PR checks show **Cloudflare Pages** (`Cloudflare Pages: ares1`, `Cloudflare Pages: ares1-play`). Every platform-specific assumption in the repo (netlify.toml headers and redirects) was therefore dead configuration. | All headers/redirects moved to the portable `_headers` / `_redirects` form. Confirm the Cloudflare Pages project settings (root directory, build command, output directory) really point at `landing` / `npm run build` / `dist` — that was inferred from the netlify.toml, not observed. | **HUMAN** (confirm CF settings) |
+| **W-12** | 🟢 | Deployment platform | Hosting was assumed to be Netlify. The PR checks show **Cloudflare Pages** (`Cloudflare Pages: ares1`, `Cloudflare Pages: ares1-play`). Every platform-specific assumption in the repo (netlify.toml headers and redirects) was therefore dead configuration. | All headers/redirects moved to the portable `_headers` / `_redirects` form. Confirm the Cloudflare Pages project settings (root directory, build command, output directory) really point at `landing` / `npm run build` / `dist` — that was inferred from the netlify.toml, not observed. | ✅ Fixed (code), CF settings остаются к подтверждению | **2026-10-06:** красная сборка `ares1-play` разобрана до причины — Cloudflare Pages не видит файлы выше Root directory, а `aa3351fc` завёл `@solana/buffer-layout-utils` как `file:../vendor/…` (выше `game/`); репро в изоляции дал `Package "" refers to a non-existing file`. Исправлено: вендор-пакет переехал в `game/apps/web/vendor/solana-buffer-layout-utils`, манифест web дублирует `resolutions`/`overrides`, страж запрещает `file:../` выше корня. Сборка `ares1` (landing) всё время была зелёной, потому что её Корень в Пейджес выше `landing/`. Осталось человеку: сверить в дашборде Root/Build/Output для `ares1-play` (ожидаемо `game` / `yarn build:web` / `apps/web/dist`) и для `ares1` (`landing` / `npm run build` / `dist`) — при любом из допустимых Roots код теперь ставится и собирается |
 | **W-03** | 🟡 | Both CSPs | `style-src 'unsafe-inline'` remains: framer-motion and the wallet-adapter modal inject styles at runtime. Scripts are `'self'` only, so injected markup still cannot execute. | Accepted and documented in-file. Nonce/hash-based styles are tracked as an improvement, not a blocker. | PARTIAL |
 | **W-04** | 🟡 | `scripts/check-headers.sh` run against the live host | The audit environment has no egress to `ares1.is-a.dev` (TLS connect fails), so **no header has been verified against production**. | Run `./scripts/check-headers.sh https://ares1.is-a.dev` and `./scripts/check-public-exposure.sh https://ares1.is-a.dev` from a machine that can reach the host, after deploy. Expect grade A on securityheaders.com. | **HUMAN** |
 | **W-05** | 🟡 | `game/apps/web/src/ui/HullSkinMounter.tsx:131` | One `innerHTML` use. Reviewed: the argument is `buildSvg(geo(w,h))` — every interpolated value derives from measured element dimensions, with no user-controlled string. | Accepted, documented. No `dangerouslySetInnerHTML`, `eval`, `new Function`, `document.write` or string-`setTimeout` anywhere in either app. | ✅ Reviewed |
@@ -98,12 +100,12 @@ patterns with zero dependencies).
 | ID | Pri | Where | Finding | Fix | Status |
 |---|---|---|---|---|---|
 | **L-01** | 🔴 | `landing/public/legal/*.html` | Six documents created (privacy, terms, cookies, risk, licences, takedown) in RU + EN, but the operator's identity, address, governing law, supervisory authority, DPO/EU representative and target-country list are **placeholders** (36 markers; `legal.js` renders a "draft — not cleared for launch" banner while any remain). | Fill in every `span.todo` field, or generate them from a single source (`scripts/build-legal-pages.mjs`). | **HUMAN** + **LAWYER** |
-| **L-02** | 🟠 | `landing` | No legal documents were reachable from the site at all. | Footer now links all six documents plus a "Cookie settings" button and the operator contact. `robots.txt`, `sitemap.xml`, `/.well-known/security.txt`, `/legal/*` all 200 on the built output. | ✅ Fixed |
+| **L-02** | 🟠 | `landing` | No legal documents were reachable from the site at all. | Footer linked all six documents plus a "Cookie settings" button and the operator contact. | ⚪ N/A — документы удалены из репозитория решением владельца (RFC §6); «Cookie settings» в футере остались |
 | **L-03** | 🟡 | `game/apps/web` | No `robots.txt`, no `security.txt`, no legal links in the client (a dApp that asks for a signature must link its terms). | `robots.txt` + `/.well-known/security.txt` added to the client. Legal links inside the client are **not** added — pending a decision on where the dApp's footer lives. | PARTIAL — **HUMAN** |
-| **L-04** | 🟡 | Data map | No documented inventory of processors, retention or transfer mechanism. | A first data map, retention column and processor table are in `/legal/privacy.html`, derived by reading the code. It must be checked against what actually runs in production. | **LAWYER** |
+| **L-04** | 🟡 | Data map | No documented inventory of processors, retention or transfer mechanism. | The first data map lived in `/legal/privacy.html`. | ⚪ N/A — страница удалена (RFC §6); карта данных не публикуется |
 | **L-05** | 🟡 | DSAR | No channel or procedure for access/erasure requests, and no verified-export tooling. | Policy declares email + wallet-signature verification and a one-month SLA. The **technical** export/delete path does not exist yet. | **HUMAN** (engineering) + **LAWYER** |
 | **L-06** | 🟡 | §6 (crypto-specific legal risk) | Tokens with market value, a paid presale with a **randomly rolled tier**, and referral bonuses exist. Whether that is a security, e-money, MiCA-regulated asset or gambling depends on jurisdiction. | Facts recorded here; assessment is not ours to make. | **LAWYER** |
-| **L-07** | 🟢 | Third-party attribution | No licence/ attribution page. | `/legal/third-party.html` lists fonts (SIL OFL 1.1) and the main bundled packages, and points at `/music/CREDITS.txt`. Music rights are flagged as unverified. | ✅ Fixed (music rights: **HUMAN**) |
+| **L-07** | 🟢 | Third-party attribution | No licence/ attribution page. | `THIRD_PARTY_LICENSES.md` in the repository lists fonts (SIL OFL 1.1) and the main bundled packages; the generated site page was removed with the rest of the legal documents (RFC §6). Music rights are flagged as unverified. | ✅ Fixed in-repo (music rights: **HUMAN**) |
 
 ### Q — quality and operability (§8)
 
@@ -113,7 +115,7 @@ patterns with zero dependencies).
 | **Q-02** | 🟢 | Builds | `landing`: typecheck ✅, 2/2 tests ✅, build ✅. `game`: typecheck ✅, 89/89 offchain tests ✅, web build ✅. | — | PASS |
 | **Q-03** | 🟡 | Bundle size | Landing JS is 1.13 MB raw / 364 kB gzip in a single chunk — over Vite's 500 kB warning. | Flagged by `check-release-artifacts.mjs`. Code-splitting is not in scope for this pass. | **HUMAN** (performance) |
 | **Q-04** | 🟡 | Lighthouse / CWV, uptime, 404/500 pages, cross-browser wallet checks | Not measurable from this environment (no browser, no egress to the live host). | Run Lighthouse and a real device pass after deploy. | **HUMAN** |
-| **Q-05** | 🟢 | `landing/public/legal/*` | Generated output could silently drift from its source. | `scripts/build-legal-pages.mjs --check` in CI fails if a page is stale. | ✅ Fixed |
+| **Q-05** | 🟢 | `landing/public/legal/*` | Generated output could silently drift from its source. | `scripts/build-legal-pages.mjs --check` in CI failed if a page was stale. | ⚪ N/A — генератор и страницы удалены (RFC §6), дрейфовать нечему |
 
 ---
 
@@ -125,6 +127,8 @@ patterns with zero dependencies).
 | GitHub → Branches | `main` protected: PR required, ≥1 review, CODEOWNERS review, force-push and deletion blocked, `CI` + `Secret scanning` required, enforced for admins | `gh api -X PUT repos/Leo88q/ares1/branches/main/protection -f required_status_checks[strict]=true …` |
 | GitHub → Collaborators | Minimum necessary permissions; 2FA enforced for the org/owner | Settings → Collaborators / org security |
 | Deploy platform | The site is built by **Cloudflare Pages** (projects `ares1` and `ares1-play`), not Netlify. Confirm root directory `landing`, build `npm run build`, output `dist` — **not** the repository root | Cloudflare → Workers & Pages → `<project>` → Settings → Builds & deployments |
+| Deploy platform | Builds survive whatever Root directory is set: no `file:` dependency above the project root (2026-10-06 — именно это валило `ares1-play`), verified by isolation for Root = repo root / `game` / `game/apps/web` | `yarn test:guards` (в репо) |
+| Deploy platform | Landing proxy is really deployed (Pages Functions живут только в `<Root>/functions/`): `curl -s https://ares1.is-a.dev/api/presale/runs/wave1` must **not** return the app's HTML 404 — ожидаемо `503 presale_api_not_configured` (без `PRESALE_API_ORIGIN`), `502` при недоступном бэкенде или JSON тиража. HTML-404 = функция не задеплоена (Root не `landing/` или нет деплоя) | `curl -s -D- https://ares1.is-a.dev/api/presale/runs/wave1` |
 | Deploy platform | Header rules actually applied after deploy | `./scripts/check-headers.sh https://ares1.is-a.dev` |
 | Deploy platform | Nothing sensitive is served (compare content, not status) | `./scripts/check-public-exposure.sh https://ares1.is-a.dev` |
 | DNS / registrar | Registrar lock, DNSSEC, CAA records, 2FA on DNS and CDN accounts, no dangling CNAMEs (subdomain takeover) | Registrar + DNS console; `dig +dnssec ares1.is-a.dev` |
@@ -132,7 +136,7 @@ patterns with zero dependencies).
 | Wallets / custody | Program upgrade authority and `GameConfig.authority` under multisig (Squads ≥ 3-of-N); hot wallet capped; no admin key on the web server | `solana program show <PROGRAM_ID> --url mainnet-beta`; see `game/docs/MAINNET_LAUNCH_GATE.md` |
 | Backups | Encrypted, off-host, restoration actually rehearsed | `game/docs/DB_RUNBOOK.md` |
 | Monitoring / alerting | Uptime check, error tracking, payer-balance and epoch-staleness alerts | `game/docs/OPERATIONS.md` |
-| Legal | Operator identity filled in on every legal page; documents reviewed in all shipped languages | `landing/public/legal/*.html` — every `span.todo` must be gone |
+| ~~Legal~~ | ~~Operator identity filled in on every legal page~~ — юридический блок снят с скоупа решением владельца (RFC §6) | — |
 | Music / art rights | Every track and image in `/music`, `/sfx`, `/ares` is licensed for commercial use | `landing/public/music/CREDITS.txt` |
 | Accessibility | WCAG 2.1 AA pass; confirm whether the European Accessibility Act applies | Manual + Lighthouse |
 
@@ -143,9 +147,9 @@ patterns with zero dependencies).
 Brought forward from §5–§7 with the current state of the site:
 
 1. **Jurisdictions.** Not decided. The site ships RU/EN plus es-419, pt-BR, id, tl and vi, so
-   GDPR/UK GDPR, CCPA/CPRA and 152-ФЗ are all plausibly in scope. Record the real audience list
-   (placeholder `COUNTRIES` on `/legal/privacy.html`) — every other obligation follows from it.
-2. **Operator identity.** Legal name, registered address, contact, governing law, supervisory
+   GDPR/UK GDPR, CCPA/CPRA and 152-ФЗ are all plausibly in scope. Record the real audience list —
+   every other obligation follows from it. (Юрдокументы удалены решением владельца, RFC §6.)
+2. ~~**Operator identity.**~~ Снято решением владельца (RFC §6). Legal name, registered address, contact, governing law, supervisory
    authority, DPO or EU representative: all placeholders.
 3. **Wallet address = personal data.** The code treats the Solana address as an identifier tied to
    gameplay, IP and referral data. The policy says so. Confirm that the "pseudonymous on-chain
@@ -177,7 +181,7 @@ Brought forward from §5–§7 with the current state of the site:
 | Deploy/API keys stored on the current host | Public repository implies infrastructure details are known | operator | ☐ |
 | Domain registrar, DNS, CDN, hosting account passwords | Assume disclosed if they were ever pasted into a chat or issue | operator | ☐ |
 | `GameConfig.authority` and program upgrade authority | Single key today; move to Squads ≥ 3-of-N before real funds | operator | ☐ |
-| `security@ares1.is-a.dev` mailbox | Must exist before `/legal/*` and `security.txt` are published | operator | ☐ |
+| `security@ares1.is-a.dev` mailbox | Must exist before `security.txt` is published (`/legal/*` больше нет — RFC §6) | operator | ☐ |
 
 **Order of operations for S-01:** revoke → issue a restricted replacement → redeploy → confirm the
 old key is rejected → *then* consider history rewriting, and only as a coordinated operation
@@ -196,7 +200,6 @@ old key is rejected → *then* consider history rewriting, and only as a coordin
 - `scripts/check-release-artifacts.mjs` — build-output gate (§1.3.5, §2.2, §2.3, §2.5, §4.6).
 - `scripts/check-public-exposure.sh`, `scripts/check-headers.sh` — passive checks against a live
   deployment (§2.2, §9).
-- `scripts/build-legal-pages.mjs` — generates `landing/public/legal/*.html` (RU/EN) with `--check`.
 - `.githooks/pre-commit` + `scripts/install-git-hooks.sh` — local gate (§1.3.6).
 
 **Configuration**
@@ -216,11 +219,11 @@ old key is rejected → *then* consider history rewriting, and only as a coordin
 - Consent module and UI in both apps; every storage call site routed through it (§4.3).
 - `VITE_RPC_URL` now mandatory in production; RPC forced to HTTPS; localnet fallback dev-only
   (§3.1.1).
-- Landing footer: legal documents, cookie settings, operator contact (§7.1).
+- Landing footer: cookie settings and operator contact (legal documents removed, RFC §6).
 - i18n: three new strings added to all six landing locales so the parity test stays green.
 
 **Documents**
-- This report. `landing/public/legal/` — privacy, terms, cookies, risk, third-party, takedown
+- This report. Юрдокументы (`landing/public/legal/`) — удалены из репозитория (RFC §6), восстанавлимы из истории
   (RU + EN, versioned, with visible placeholders).
 
 ---
@@ -232,7 +235,7 @@ old key is rejected → *then* consider history rewriting, and only as a coordin
 | Every commit / PR | `Secret scanning` workflow (gitleaks + `secret-scan.mjs`), pre-commit hook, CI (typecheck, tests, builds, artifact gate, dependency audit advisory) |
 | Every release | `./scripts/check-release-artifacts.mjs` on the exact build; `./scripts/check-headers.sh` and `./scripts/check-public-exposure.sh` against the deployed URL; `node scripts/secret-scan.mjs --root <dist>` |
 | Monthly | Dependabot PRs reviewed and merged; `npm audit` / `yarn audit --level high` triaged; Dependabot alerts cleared |
-| Quarterly | Full audit against this checklist: `node scripts/secret-scan-history.mjs` (requires `git fetch --unshallow`), legal-page review, key rotation review, restore rehearsal, Lighthouse |
+| Quarterly | Full audit against this checklist: `node scripts/secret-scan-history.mjs` (requires `git fetch --unshallow`), key rotation review, restore rehearsal, Lighthouse |
 | Before real funds | Independent smart-contract audit, penetration test of the site, legal opinion per jurisdiction, multisig custody in place (`game/docs/MAINNET_LAUNCH_GATE.md`) |
 
 ---
@@ -248,4 +251,4 @@ old key is rejected → *then* consider history rewriting, and only as a coordin
 - No egress to `ares1.is-a.dev` from this environment: **nothing about the live deployment has been
   verified**, including whether the new headers are live.
 - No Rust toolchain: the on-chain program was not audited. See `reports/ares1-audit.md`.
-- Legal documents are drafted, not reviewed. They are not legal advice.
+- Юридические документы удалены из репозитория решением владельца (RFC §6).

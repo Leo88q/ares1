@@ -22,7 +22,8 @@
 | anchor-lang / anchor-spl | `=0.31.2` (точный пин, machine-гейт `test:guards` «П.116») | GitHub coral-xyz/anchor releases + security advisories | владелец репо | перед каждым bump: чтение release notes целиком |
 | @solana/web3.js | `1.98.4` точный пин + трипваер запрещённых версий (1.95.6/1.95.7 — supply-chain инцидент) в `security-guards.test.mjs` | GitHub solana-labs/solana-web3.js security advisories | владелец репо | перед bump |
 | @solana/spl-token (JS) | `0.4.15` | GitHub solana-program/token | владелец репо | перед bump |
-| @solana/buffer-layout-utils | local `0.3.1+ares1` backport, API-compatible with `0.3.0`; lock-pinned through `file:` | upstream PR #2 + local `vendor/solana-buffer-layout-utils/README.vendor.md` | владелец репо | until upstream fixed release |
+| @solana/buffer-layout-utils | local `0.3.1+ares1` backport, API-compatible with `0.3.0`; lock-pinned through `file:` | upstream PR #2 + local `apps/web/vendor/solana-buffer-layout-utils/README.vendor.md` | владелец репо | until upstream fixed release |
+| proxy-addr (транзитивно, через `express` в backend) | `2.0.8` через `resolutions` в `game/package.json` (express просит `~2.0.7`, patch-релиз 2.0.8 совместим) | GitHub Advisory DB (GHSA-jqcg-44mw-7w3h — спуфинг IP через IPv4-mapped IPv6; исправлен в 2.0.8) | владелец репо | перед bump express |
 | Rust toolchain | `rust-toolchain.toml` (1.97.1) | Rust security advisories | владелец репо | раз в квартал |
 | protobufjs (транзитивно, через `@trezor/*` в wallet-adapter) | `7.6.6` через `resolutions` в `game/package.json` + трипваер в `security-guards.test.mjs` | GitHub Advisory DB (GHSA-xq3m-2v4x-88gg — RCE, исправлен в 7.5.5; GHSA-wcpc-wj8m-hjx6 ≤7.6.0) | владелец репо | перед bump @trezor/wallet-adapter |
 
@@ -53,7 +54,10 @@ request/response API, но не заменяет живой Solana RPC.
 в native `toBigIntLE()` содержит buffer overflow; upstream не выпустил patched
 version. Вместо маскировки advisory мы backport'нули pure-JS реализацию из
 `solana-foundation/buffer-layout-utils` PR #2 в
-`vendor/solana-buffer-layout-utils`, сохранив все остальные исходники API
+`game/apps/web/vendor/solana-buffer-layout-utils` (2026-10-06 пакет перенесён из
+repo-root `vendor/` внутрь дерева web-приложения: Cloudflare Pages не отдаёт
+сборке файлы выше Root directory, из-за чего `file:../vendor/…` валил install в
+проекте `ares1-play`), сохранив все остальные исходники API
 `@solana/buffer-layout-utils@0.3.0`. Вендор-пакет получает фиксированную версию
 `0.3.1+ares1`, сохраняет upstream Apache-2.0 license и 47 upstream-тестов;
 оба package manager lockfile разрешают транзитивный запрос через эту локальную
@@ -104,8 +108,7 @@ version. Вместо маскировки advisory мы backport'нули pure-
 
 ## 4. ИИ-навыки, плагины, MCP (п. 130, расширение гейтов 71–82)
 
-Состояние проекта: ИИ-агентов с доступом к кошелькам/секретам нет (см.
-[аудит 71–82](../docs/SECURITY_CHECKLIST_AUDIT_2026-09-27.md)). Гейт при
+Состояние проекта: ИИ-агентов с доступом к кошелькам/секретам нет. Гейт при
 появлении любых агентских расширений (skill-реестры, плагины, MCP-серверы):
 
 - «навык» может быть просто набором инструкций без кода — рассматривать как

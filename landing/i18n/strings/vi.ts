@@ -378,7 +378,6 @@ const vi: Record<string, string> = {
   'Продукт': 'Sản phẩm',
 
   // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
-  'Правовые документы': 'Tài liệu pháp lý',
   'Настройки cookies': 'Cài đặt cookie',
   'Связь с командой': 'Liên hệ với nhóm',
   'Cookies и локальное хранилище': 'Cookie và bộ nhớ cục bộ',
@@ -394,15 +393,10 @@ const vi: Record<string, string> = {
   'Отклонить все': 'Từ chối tất cả',
   'Сохранить выбор': 'Lưu lựa chọn',
   'Настроить': 'Tùy chỉnh',
-  'Политика cookie': 'Chính sách cookie',
+  'Cookie не ставятся: выбор хранится только в вашем браузере.': 'Không dùng cookie: lựa chọn của bạn chỉ lưu trong trình duyệt của bạn.',
   'Браузер передаёт сигнал Global Privacy Control — необязательные категории отключены.': 'Trình duyệt của bạn gửi tín hiệu Global Privacy Control — các hạng mục tùy chọn đã tắt.',
   'всегда': 'luôn bật',
   'Запись решения': 'Bản ghi quyết định',
-  'Политика конфиденциальности': 'Chính sách bảo mật',
-  'Условия использования': 'Điều khoản sử dụng',
-  'Раскрытие рисков': 'Công bố rủi ro',
-  'Лицензии третьих лиц': 'Giấy phép bên thứ ba',
-  'Жалобы (DMCA)': 'Khiếu nại (DMCA)',
   'Растущая луна': 'Trăng non',
   'Первая четверть': 'Trăng thượng huyền',
   'Прибывающая луна': 'Trăng khuyết đầu tháng',
@@ -428,7 +422,8 @@ const vi: Record<string, string> = {
   'Каталог паков недоступен — попробуйте позже': 'Danh mục gói không khả dụng — hãy thử lại sau',
   'PHASE 1 · ПРЕДОПЛАТА': 'GIAI ĐOẠN 1 · TRẢ TRƯỚC',
   'Ограниченные паки ARES-1': 'Các gói ARES-1 giới hạn',
-  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — при запуске основной сети. Без возвратов.': '500 gói trả trước ngay + 500 khi mainnet ra mắt. POTATO được ghi có khi mainnet ra mắt. Không hoàn tiền.',
+  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — в день листинга на mainnet. Без возвратов.': '500 gói trả trước ngay + 500 khi mainnet ra mắt. POTATO được ghi có vào ngày niêm yết trên mainnet. Không hoàn tiền.',
+  'Цена пака: {price}': 'Giá gói: {price}',
   'Осталось: {n} из {cap}': 'Còn lại: {n} / {cap}',
   'полей': 'ô ruộng',
   'Адрес кошелька (SOL)': 'Địa chỉ ví (SOL)',
@@ -440,7 +435,7 @@ const vi: Record<string, string> = {
   'Подпись транзакции': 'Chữ ký giao dịch',
   'Я оплатил — проверить': 'Tôi đã thanh toán — kiểm tra',
   'Подпись получена — проверяем перевод. Статус заказа: №{n}': 'Đã nhận chữ ký — đang xác minh giao dịch. Trạng thái đơn: №{n}',
-  'Предоплата не является инвестицией и не гарантирует доход. Условия — Terms §7.': 'Trả trước không phải khoản đầu tư và không bảo đảm lợi nhuận. Xem Điều khoản §7.',
+  'Предоплата не является инвестицией и не гарантирует доход.': 'Trả trước không phải khoản đầu tư và không bảo đảm lợi nhuận.',
 };
 
 export default vi;

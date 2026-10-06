@@ -1,0 +1,123 @@
+{
+  "provenance": "synthetic",
+  "warning": "Hand-written examples, NOT captures. They exist to fix the shape of the hub contract (POST /api/ingest/solana) and to document name mismatches. Nothing here has been posted to the hub.",
+  "generatedAt": "2026-10-06",
+  "gameId": "ares1",
+  "cluster": "devnet",
+  "endpointForOnchainFacts": "POST /api/ingest/solana",
+  "onchainSamples": [
+    {
+      "provenance": "synthetic",
+      "comment": "Shape of a real ARES-1 on-chain event as the exporter normalizes it. Coordinates are the exporter/DB identity; they are NOT private data.",
+      "gameId": "ares1",
+      "cluster": "devnet",
+      "slot": 505995704,
+      "signature": "3rNqeHwzSyntheticSignatureForShapeOnly1111111111111111111111111111111111111",
+      "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+      "instructionIndex": 2,
+      "innerIndex": -1,
+      "logIndex": 14,
+      "commitment": "finalized",
+      "blockTime": 1790792879,
+      "eventType": "FieldUpgraded",
+      "onChainEvent": "FieldUpgraded",
+      "sourceEventName": "FieldUpgraded",
+      "payload": {
+        "field": "SyntheticFieldPDA1111111111111111111111111",
+        "new_level": 2,
+        "cost_micro": "40000000"
+      },
+      "parserVersion": "ares1-v1",
+      "note": "u64 fields are decimal strings by design; the hub must read them as strings or BigInt, never as JS floats."
+    },
+    {
+      "provenance": "synthetic",
+      "comment": "First-gameplay-action candidate for the hub funnel, if the hub accepts a game-specific event: create_field emits FieldCreated and burns 100/250/500 POTATO.",
+      "gameId": "ares1",
+      "cluster": "devnet",
+      "slot": 505985253,
+      "signature": "5PVnUNjsSyntheticSignatureForShapeOnly111111111111111111111111111111111111",
+      "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+      "instructionIndex": 3,
+      "innerIndex": -1,
+      "commitment": "finalized",
+      "blockTime": 1790790427,
+      "eventType": "AssetCreated",
+      "onChainEvent": "FieldCreated",
+      "sourceEventName": "FieldCreated",
+      "payload": {
+        "owner": "SyntheticPlayerWallet111111111111111111111111",
+        "field": "SyntheticFieldPDA1111111111111111111111111",
+        "field_type": 1
+      },
+      "parserVersion": "ares1-v1",
+      "note": "The hub funnel today recognizes MatchStarted/RaceStarted/PlotCreated/PotatoPlanted/PackOpened, not AssetCreated/FieldCreated. Mapping must be agreed before this can drive a funnel."
+    },
+    {
+      "provenance": "synthetic",
+      "comment": "Purchase rail where the currency is only knowable from the emitting instruction. Without instruction context the resource stays null - never guess SKR vs SOL.",
+      "gameId": "ares1",
+      "cluster": "devnet",
+      "slot": 505983829,
+      "signature": "4RjYypnSyntheticSignatureForShapeOnly1111111111111111111111111111111111111",
+      "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+      "instructionIndex": 2,
+      "innerIndex": -1,
+      "commitment": "finalized",
+      "blockTime": 1790790093,
+      "eventType": "PurchaseCompleted",
+      "onChainEvent": "PresalePurchase",
+      "sourceEventName": "PresalePurchase",
+      "payload": {
+        "buyer": "SyntheticPlayerWallet111111111111111111111111",
+        "field": "SyntheticFieldPDA1111111111111111111111111",
+        "field_type": 1,
+        "amount": "1053000000",
+        "roll": 42
+      },
+      "resource": "SKR",
+      "resourceResolution": "instructionName == buy_field_skr -> SKR atoms; buy_field_sol -> lamports; anything else -> null",
+      "parserVersion": "ares1-v1",
+      "note": "amount is a raw integer in the currency of the emitting instruction (here 1053.000000 SKR). It is not USD and must not be converted by the hub."
+    }
+  ],
+  "adapterNameMismatchSamples": {
+    "provenance": "synthetic",
+    "comment": "These are the names the current hub adapter expects for ares1. They are NOT emitted by the deployed program. They are listed only so the mapping gap is unambiguous.",
+    "hubExpectedButNotEmitted": [
+      { "hubName": "PlayerJoined", "realAlternative": null, "status": "unavailable" },
+      { "hubName": "PotatoPlanted", "realAlternative": "FieldCreated (creation/purchase), no planting event", "status": "unavailable" },
+      { "hubName": "PotatoHarvested", "realAlternative": "Harvested / BatchHarvested", "status": "unavailable" },
+      { "hubName": "TokenMinted", "realAlternative": "Harvested / BatchHarvested / RewardGranted / RewardGrantedOnce", "status": "unavailable" },
+      { "hubName": "TokenBurned", "realAlternative": "TreasuryTaxed (treasury share only)", "status": "unavailable" },
+      { "hubName": "TreasuryChanged", "realAlternative": "TreasuryTaxed / TreasuryWithdrawn / TreasurySolWithdrawn / TreasurySkrWithdrawn / ConfigUpdated", "status": "unavailable" },
+      { "hubName": "RewardGranted", "realAlternative": "RewardGranted (exists), plus RewardGrantedOnce", "status": "verified_runtime_ready" }
+    ]
+  },
+  "offchainSample": {
+    "provenance": "synthetic",
+    "comment": "Illustrates why the hub's offchainIdentity() cannot be satisfied by ARES-1 today. The real backend has these facts in PostgreSQL but emits nothing.",
+    "endpoint": "POST /api/ingest/solana (chain=\"offchain\")",
+    "gameId": "ares1",
+    "provider": "ares1-backend",
+    "chain": "offchain",
+    "eventType": "PurchaseCompleted",
+    "eventId": null,
+    "sessionId": null,
+    "seq": null,
+    "campaignId": null,
+    "pageId": null,
+    "payload": {
+      "orderKey": "presale_run_id + order_no",
+      "payerWallet": "SyntheticPlayerWallet111111111111111111111111",
+      "state": "paid",
+      "txSignature": "SyntheticPaymentSignature111111111111111111111111111111111111111",
+      "paidAt": "2026-10-06T00:00:00Z",
+      "currency": "sol|skr",
+      "priceUnits": "0"
+    },
+    "status": "unavailable",
+    "reason": "No emitter exists, no eventId/sessionId/seq exist, and the hub's offchain identity contract requires provider + campaignId/pageId/sessionId/seq. Do not send until the contract and privacy basis are agreed.",
+    "privateFieldsNeverToExport": ["payer_email (PII)", "admin audit actors/IPs", "any token, HMAC secret or credential"]
+  }
+}

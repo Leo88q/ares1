@@ -378,7 +378,6 @@ const tl: Record<string, string> = {
   'Продукт': 'Produkto',
 
   // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
-  'Правовые документы': 'Mga legal na dokumento',
   'Настройки cookies': 'Mga setting ng cookie',
   'Связь с командой': 'Makipag-ugnayan sa team',
   'Cookies и локальное хранилище': 'Cookies at lokal na imbakan',
@@ -394,15 +393,10 @@ const tl: Record<string, string> = {
   'Отклонить все': 'Tanggihan lahat',
   'Сохранить выбор': 'I-save ang pinili',
   'Настроить': 'I-customize',
-  'Политика cookie': 'Patakaran sa Cookie',
+  'Cookie не ставятся: выбор хранится только в вашем браузере.': 'Walang cookie: ang pinili mo ay nakaimbak lamang sa iyong browser.',
   'Браузер передаёт сигнал Global Privacy Control — необязательные категории отключены.': 'Nagpapadala ang iyong browser ng Global Privacy Control — naka-off ang mga opsyonal na kategorya.',
   'всегда': 'laging naka-on',
   'Запись решения': 'Tala ng desisyon',
-  'Политика конфиденциальности': 'Patakaran sa Privacy',
-  'Условия использования': 'Mga Tuntunin ng Paggamit',
-  'Раскрытие рисков': 'Pagsisiwalat ng Panganib',
-  'Лицензии третьих лиц': 'Mga Lisensya ng Third Party',
-  'Жалобы (DMCA)': 'Mga Reklamo (DMCA)',
   'Растущая луна': 'Lumalaking buwan',
   'Первая четверть': 'Unang kuwarto',
   'Прибывающая луна': 'Lumalaking gibbous',
@@ -428,7 +422,8 @@ const tl: Record<string, string> = {
   'Каталог паков недоступен — попробуйте позже': 'Hindi available ang katalogo ng pack — subukan muli mamaya',
   'PHASE 1 · ПРЕДОПЛАТА': 'PHASE 1 · PAUNANG BAYAD',
   'Ограниченные паки ARES-1': 'Limitadong ARES-1 pack',
-  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — при запуске основной сети. Без возвратов.': '500 pack sa paunang bayad ngayon + 500 sa paglulunsad ng mainnet. Ang POTATO ay maikokredito kapag nailunsad ang mainnet. Walang refund.',
+  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — в день листинга на mainnet. Без возвратов.': '500 pack sa paunang bayad ngayon + 500 sa paglulunsad ng mainnet. Ang POTATO ay maikokredito sa araw ng listing sa mainnet. Walang refund.',
+  'Цена пака: {price}': 'Presyo ng pack: {price}',
   'Осталось: {n} из {cap}': 'Natitira: {n} sa {cap}',
   'полей': 'fields',
   'Адрес кошелька (SOL)': 'Wallet address (SOL)',
@@ -440,7 +435,7 @@ const tl: Record<string, string> = {
   'Подпись транзакции': 'Lagda ng transaksyon',
   'Я оплатил — проверить': 'Bayad na ako — i-verify',
   'Подпись получена — проверяем перевод. Статус заказа: №{n}': 'Natanggap ang lagda — bineberipika ang paglipat. Status ng order: №{n}',
-  'Предоплата не является инвестицией и не гарантирует доход. Условия — Terms §7.': 'Ang paunang bayad ay hindi investment at walang garantisadong kita. Tingnan ang Terms §7.',
+  'Предоплата не является инвестицией и не гарантирует доход.': 'Ang paunang bayad ay hindi investment at walang garantisadong kita.',
 };
 
 export default tl;

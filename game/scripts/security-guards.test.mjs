@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// Security-guard tripwire по чек-листу аудита 2026-09-25
-// (docs/SECURITY_CHECKLIST_AUDIT_2026-09-25.md).
+// Security-guard tripwire по чек-листу аудита 2026-09-25.
 //
 // Это НЕ заменa AST-аудиту: тест парсит исходники программы (lib.rs,
 // migrations.rs) и конфиги, и валидирует ИНВАРИАНТЫ ЗАЩИТ — каждый `init`
@@ -224,7 +223,7 @@ test('SW016-инвентарь: init_if_needed по-прежнему 21 и со�
 });
 
 // ══════════════════════════════════════════════════════════════════════════
-// Часть 1 / 2 чек-листа (аудит 2026-09-26): docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md
+// Часть 1 / 2 чек-листа (аудит 2026-09-26)
 // Трипваер закрепляет защиты, добавленные этой проверкой. Удаление любой из
 // них ломает CI — сдвигать пин можно только осознанным diff с описанием why.
 // ══════════════════════════════════════════════════════════════════════════
@@ -335,14 +334,41 @@ test('П.66: solana-зависимости запинены точно, lockfile
 });
 
 test('2026-10-02: GHSA-3gc7-fjrx-p6mg removed from both runtime dependency trees', () => {
-  const vendorPackage = JSON.parse(read('../../vendor/solana-buffer-layout-utils/package.json'));
+  const vendorPackage = JSON.parse(read('../apps/web/vendor/solana-buffer-layout-utils/package.json'));
   assert.equal(vendorPackage.name, '@solana/buffer-layout-utils');
   assert.equal(vendorPackage.version, '0.3.1+ares1');
-  const localSpec = 'file:../vendor/solana-buffer-layout-utils';
+  // 2026-10-06: вендор-пакет обязан лежать ВНУТРИ game/apps/web. Cloudflare Pages
+  // не отдаёт сборке файлы из-за пределов Root directory, поэтому любой file: на
+  // путь выше корня приложения валит yarn install на Пейджес (красная сборка ares1-play);
+  // относительный путь для npm-потребителя (landing) считается от его собственного
+  // корня landing/, поэтому и там подъём вверх допустим, но сам пакет живёт здесь.
+  const localSpec = 'file:apps/web/vendor/solana-buffer-layout-utils';
+  const webLocalSpec = 'file:vendor/solana-buffer-layout-utils';
   assert.equal(rootPkg.resolutions?.['@solana/buffer-layout-utils'], localSpec, 'Yarn must force the vendored package for transitive consumers');
   assert.equal(rootPkg.devDependencies?.['@solana/buffer-layout-utils'], localSpec, 'Yarn must link the local package from the root');
-  assert.equal(landingPkg.dependencies?.['@solana/buffer-layout-utils'], localSpec, 'npm must use the same local package');
+  // Root = game/apps/web обязан быть самодостаточен: resolutions корня game/ не видны,
+  // если Cloudflare собирает приложение как самостоятельный проект.
+  assert.equal(webPkg.dependencies?.['@solana/buffer-layout-utils'], webLocalSpec, 'web must link the vendored package from its own tree');
+  assert.equal(webPkg.resolutions?.['@solana/buffer-layout-utils'], webLocalSpec, 'web resolutions must survive an install rooted at game/apps/web');
+  assert.equal(webPkg.overrides?.['@solana/buffer-layout-utils'], webLocalSpec, 'web overrides must survive an install rooted at game/apps/web');
+  assert.equal(landingPkg.dependencies?.['@solana/buffer-layout-utils'], 'file:../game/apps/web/vendor/solana-buffer-layout-utils', 'npm must use the same local package (path is relative to landing/)');
   assert.equal(read('../../landing/.npmrc').trim(), 'install-links=true', 'npm must copy the file dependency under node_modules so Vite resolves its runtime deps');
+  // Манифесты игрового проекта не должны ссылаться на пакет выше своей директории:
+  // Cloudflare Pages с заданным Root directory не отдаёт сборке файлы за его
+  // пределами, и именно так ares1-play стал красным 2026-10-02 (AA33: vendor
+  // жил в repo-root/vendor, а Корень проекта — game/ или game/apps/web).
+  // landing/ — отдельный npm-проект: его Корень в Пейджес выше landing/
+  // (проект ares1 зелёный с путём ../vendor со времён aa3351fc), поэтому
+  // подъём на уровень вверх там допускается; но и он не должен уходить выше
+  // репозитория (см. проверку существования пути ниже в npm-локе).
+  for (const [label, pkg] of [['game', rootPkg], ['web', webPkg]]) {
+    for (const field of ['dependencies', 'devDependencies', 'resolutions', 'overrides']) {
+      const value = pkg[field]?.['@solana/buffer-layout-utils'];
+      if (value !== undefined) {
+        assert.ok(!value.startsWith('file:../'), `${label}.${field}: file: выше директории манифеста (${value}) — Cloudflare Root directory не увидит этот путь`);
+      }
+    }
+  }
 
   const yarnLock = read('../yarn.lock');
   assert.doesNotMatch(yarnLock, /bigint-buffer/, 'vulnerable native package must not be in Yarn lockfile');
@@ -350,13 +376,13 @@ test('2026-10-02: GHSA-3gc7-fjrx-p6mg removed from both runtime dependency trees
   assert.ok(yarnLock.includes('@solana/buffer-layout-utils@^0.3.0'), 'transitive SPL Token request must resolve through the local Yarn resolution');
   assert.equal(landingLock.packages['node_modules/bigint-buffer'], undefined, 'vulnerable native package must not be in npm lockfile');
   const npmVendor = landingLock.packages['node_modules/@solana/buffer-layout-utils'];
-  assert.equal(npmVendor?.resolved, localSpec, 'npm lock must install the local package copy, not an upstream release');
+  assert.equal(npmVendor?.resolved, landingPkg.dependencies['@solana/buffer-layout-utils'], 'npm lock must install the local package copy, not an upstream release');
   assert.equal(npmVendor?.version, vendorPackage.version);
 
-  const source = read('../../vendor/solana-buffer-layout-utils/src/bigint.ts');
+  const source = read('../apps/web/vendor/solana-buffer-layout-utils/src/bigint.ts');
   assert.doesNotMatch(source, /from ['"]bigint-buffer['"]|require\(['"]bigint-buffer['"]\)/, 'integer conversion must remain pure JavaScript');
-  assert.doesNotMatch(read('../../vendor/solana-buffer-layout-utils/lib/cjs/bigint.js'), /require\(['"]bigint-buffer['"]\)/);
-  assert.doesNotMatch(read('../../vendor/solana-buffer-layout-utils/lib/esm/bigint.mjs'), /from ['"]bigint-buffer['"]/);
+  assert.doesNotMatch(read('../apps/web/vendor/solana-buffer-layout-utils/lib/cjs/bigint.js'), /require\(['"]bigint-buffer['"]\)/);
+  assert.doesNotMatch(read('../apps/web/vendor/solana-buffer-layout-utils/lib/esm/bigint.mjs'), /from ['"]bigint-buffer['"]/);
   assert.match(read('../../scripts/check-release-artifacts.mjs'), /artifact-vulnerable-bigint-buffer/, 'release artifact gate must reject the vulnerable package marker');
 });
 
@@ -633,8 +659,12 @@ test('2026-10-02: мёртвый Token-2022 и клиентский RNG прес
   // его паритет с SDK пинует tests/offchain/decoders.test.ts, и «чистка мёртвого
   // кода» ломала offchain-набор (поймано прогоном 2026-10-02).
   assert.match(client, /export \{ TOKEN_2022_PROGRAM_ID \}/, 're-export SDK-константы нужен raw-client тесту, это не мёртвый код');
-  const landing = read('../../landing/utils/constants.ts').replace(/^\s*\/\/.*$/gm, '');
-  assert.ok(!/rollPresaleDrop/.test(landing), 'клиентский RNG тира пресейла не должен вернуться: тир решает программа');
+  // S-13: мёртвое зеркало landing/utils/constants.ts удалено 2026-10-06 —
+  // у него не было ни одного импортёра (проверено резолвером импортов), а
+  // вместе с ним ушёл и клиентский RNG пресейла. Отрицание сильнее проверки
+  // текста: вернуть RNG в удалённый файл нельзя, а файл-дубль поймает assert.
+  assert.throws(() => read('../../landing/utils/constants.ts'), /ENOENT/,
+    'мёртвое зеркало landing/utils/constants.ts не должно вернуться: тир решает программа');
 });
 
 test('2026-10-02: duress-протокол существует (п.125 wrench-атаки)', () => {

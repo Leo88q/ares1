@@ -378,7 +378,6 @@ const es419: Record<string, string> = {
   'Продукт': 'Producto',
 
   // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
-  'Правовые документы': 'Documentos legales',
   'Настройки cookies': 'Configuración de cookies',
   'Связь с командой': 'Contacto con el equipo',
   'Cookies и локальное хранилище': 'Cookies y almacenamiento local',
@@ -394,15 +393,10 @@ const es419: Record<string, string> = {
   'Отклонить все': 'Rechazar todo',
   'Сохранить выбор': 'Guardar elección',
   'Настроить': 'Configurar',
-  'Политика cookie': 'Política de Cookies',
+  'Cookie не ставятся: выбор хранится только в вашем браузере.': 'No se usan cookies: tu elección se guarda solo en tu navegador.',
   'Браузер передаёт сигнал Global Privacy Control — необязательные категории отключены.': 'Tu navegador envía la señal Global Privacy Control: las categorías opcionales están desactivadas.',
   'всегда': 'siempre activo',
   'Запись решения': 'Registro de la decisión',
-  'Политика конфиденциальности': 'Política de Privacidad',
-  'Условия использования': 'Términos de Uso',
-  'Раскрытие рисков': 'Divulgación de Riesgos',
-  'Лицензии третьих лиц': 'Licencias de Terceros',
-  'Жалобы (DMCA)': 'Reclamos (DMCA)',
   'Растущая луна': 'Luna creciente',
   'Первая четверть': 'Cuarto creciente',
   'Прибывающая луна': 'Gibosa creciente',
@@ -428,7 +422,8 @@ const es419: Record<string, string> = {
   'Каталог паков недоступен — попробуйте позже': 'Catálogo de packs no disponible — inténtalo más tarde',
   'PHASE 1 · ПРЕДОПЛАТА': 'FASE 1 · PAGO ANTICIPADO',
   'Ограниченные паки ARES-1': 'Packs limitados de ARES-1',
-  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — при запуске основной сети. Без возвратов.': '500 packs por pago anticipado ahora + 500 en el lanzamiento de mainnet. El POTATO se acredita al lanzar la mainnet. Sin reembolsos.',
+  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — в день листинга на mainnet. Без возвратов.': '500 packs por pago anticipado ahora + 500 en el lanzamiento de mainnet. El POTATO se acredita el día del listado en la mainnet. Sin reembolsos.',
+  'Цена пака: {price}': 'Precio del paquete: {price}',
   'Осталось: {n} из {cap}': 'Quedan: {n} de {cap}',
   'полей': 'campos',
   'Адрес кошелька (SOL)': 'Dirección de billetera (SOL)',
@@ -440,7 +435,7 @@ const es419: Record<string, string> = {
   'Подпись транзакции': 'Firma de la transacción',
   'Я оплатил — проверить': 'Ya pagué — verificar',
   'Подпись получена — проверяем перевод. Статус заказа: №{n}': 'Firma recibida — verificando la transferencia. Estado del pedido: №{n}',
-  'Предоплата не является инвестицией и не гарантирует доход. Условия — Terms §7.': 'El pago anticipado no es una inversión y no garantiza rendimiento. Ver Términos §7.',
+  'Предоплата не является инвестицией и не гарантирует доход.': 'El pago anticipado no es una inversión y no garantiza rendimiento.',
 };
 
 export default es419;

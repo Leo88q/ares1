@@ -1,0 +1,47 @@
+{
+  "provenance": "real_devnet_public_explorer_capture",
+  "capturedAt": "2026-10-06",
+  "capturedBy": "ARES-1 handoff (read-only public explorer; NOT the exporter --capture-fixture smoke)",
+  "method": "Human-readable public explorer (explorer.solana.com) read of a finalized devnet transaction; payload base64 decoded offline with the committed IDL event-only snapshot.",
+  "cluster": "devnet",
+  "commitment": "finalized",
+  "gameId": "ares1",
+  "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+  "idlSha256": "7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694",
+  "signature": "5PVnUNjsPPiJh3h9WGrc9WBai9yH8SeQJMDNBbc1zVskz9zzBQodj8M4LoPkeV76B2meHNisxfkZutTd11qCJtaA",
+  "slot": 505985253,
+  "blockTime": 1790790427,
+  "blockTimeIso": "2026-09-30T17:47:07Z",
+  "instructionName": "claim_achievement",
+  "instructionIndex": 3,
+  "innerIndex": -1,
+  "applied": true,
+  "status": "Success",
+  "logLine": "Program data: DjFHx9b4dOjzdVbuNechkGeIQJq5dFj/+Pd0s/U7T8ysCVXFpkkTugGA8PoCAAAAAA==",
+  "decodedEvent": {
+    "onChainEvent": "AchievementClaimed",
+    "watchtowerEventType": null,
+    "payload": {
+      "user": "HPMr5r9sS5ApWsPNJytZRLbm2jz1veFxTn1wepjAhtho",
+      "quest_id": 1,
+      "reward": "50000000"
+    }
+  },
+  "instructionDataHex": "6bb566f7cfd4fb1801",
+  "evidenceUrl": "https://explorer.solana.com/tx/5PVnUNjsPPiJh3h9WGrc9WBai9yH8SeQJMDNBbc1zVskz9zzBQodj8M4LoPkeV76B2meHNisxfkZutTd11qCJtaA?cluster=devnet",
+  "sideFacts": {
+    "tokenTransfer": {
+      "mint": "HFEL9rBqmYwYDsZNxuV2ZonfS7adbjENUc3CdgbaiYxv",
+      "rawAmount": "50000000",
+      "decimals": 6,
+      "displayAmount": "50.000000",
+      "sourceOwnerPda": "9bGsUX3u2imMyLgu7ottPSxzXs1rSUGJfX9J9r3WJ5s2",
+      "note": "quest_treasury PDA, derived offline as [b\"quest_treasury\"] of the program; transfer is a CPI, the event is emitted in the outer frame."
+    }
+  },
+  "notes": [
+    "Real devnet beta transaction; public chain data. Devnet test wallets only, no mainnet players, no PII, no credentials.",
+    "claim_achievement pays existing tokens from the quest treasury (no mint). reward 50000000 raw = 50.000000 POTATO (6 decimals).",
+    "The hub currently has no mapping for AchievementClaimed; the exporter maps it to RewardClaimed."
+  ]
+}

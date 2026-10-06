@@ -1,0 +1,2795 @@
+{
+  "schemaVersion": 1,
+  "gameId": "ares1",
+  "generatedAt": "2026-10-06",
+  "purpose": "Handoff catalog: real ARES-1 events, proposed Watchtower mapping and honest statuses. Source of truth is the committed IDL and the emit! sites in the game program.",
+  "sourceOfTruth": {
+    "idl": "game/apps/web/src/idl.json",
+    "idlSha256": "7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694",
+    "programSource": "game/programs/solana_potato/src/lib.rs (4429 lines; event structs at ~3462-3665 and 4422)",
+    "eventCount": 31,
+    "instructionCount": 44,
+    "accountCount": 13,
+    "errorCount": 51,
+    "note": "game/apps/web/src/idl.json is the compiled Anchor IDL snapshot; watchtower/scripts/sync-idl.mjs fails if events/ares1-event-map.json drifts from it."
+  },
+  "watchtowerContractObserved": {
+    "ingestEndpoint": "POST /api/ingest/solana (on-chain facts; the hub also accepts chain:\"offchain\" here)",
+    "trafficgenEndpoint": "POST /api/ingest/trafficgen is TalkChart only and MUST NOT receive ARES-1 game telemetry",
+    "adapterExpectedEventNamesForAres1": [
+      "PlayerJoined",
+      "PotatoPlanted",
+      "PotatoHarvested",
+      "RewardGranted",
+      "TokenMinted",
+      "TokenBurned",
+      "TreasuryChanged"
+    ],
+    "reality": "Only RewardGranted exists on chain. The hub adapter list is a name allowlist, so real events (Harvested, FieldCreated, AchievementClaimed, ...) will not be recognized until the hub's list/mapping is updated or ARES-1 agrees to different event names. ARES-1 will not rename on-chain events without a coordinated program upgrade.",
+    "identityNote": "Hub projections prefer payload.playerKey; ARES-1 events carry real source field names (owner/recipient/buyer/user/seller/destination/referrer). Mapping must be agreed explicitly.",
+    "offchainIdentityNote": "Hub offchainIdentity() uses provider + campaignId/pageId/sessionId/seq; ARES-1 has none of those identifiers today (no campaigns, pages, client sessions). Do not invent them."
+  },
+  "events": [
+    {
+      "sourceEventName": "AchievementClaimed",
+      "watchtowerEventType": null,
+      "sourceKind": "onchain",
+      "category": "gameplay",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "claim_achievement@lib.rs:407"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "An achievement (quest 0-5) was claimed and the fixed reward was transferred from the quest treasury (existing tokens, no mint).",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "user",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "quest_id",
+          "type": "u8",
+          "unit": "0-5",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "reward",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "user",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "verified_runtime",
+      "coverageLimitations": "One real finalized devnet transaction decoded end-to-end against the committed IDL (see runtimeFixture). Not a coverage claim for the whole event type or for production.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "claim_achievement@lib.rs:407"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": "watchtower/events/fixtures/real-devnet/devnet-505985253-achievement-claimed-quest1.json",
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)",
+        "runtimeEvidence": "watchtower/events/runtime-evidence.json"
+      }
+    },
+    {
+      "sourceEventName": "AuthorityAccepted",
+      "watchtowerEventType": "AuthorityChanged",
+      "sourceKind": "onchain",
+      "category": "security",
+      "resource": null,
+      "emitter": {
+        "onchain": [
+          "accept_authority@lib.rs:1694"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Pending authority accepted; transfer effective.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "previous",
+          "type": "pubkey",
+          "unit": "old authority",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "current",
+          "type": "pubkey",
+          "unit": "new authority",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": null,
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "accept_authority@lib.rs:1694"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "AuthorityProposed",
+      "watchtowerEventType": "AuthorityProposed",
+      "sourceKind": "onchain",
+      "category": "security",
+      "resource": null,
+      "emitter": {
+        "onchain": [
+          "propose_authority@lib.rs:1686"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Two-step authority transfer proposed; not yet effective.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "pending_authority",
+          "type": "pubkey",
+          "unit": "proposed authority",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": null,
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "propose_authority@lib.rs:1686"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "BatchHarvested",
+      "watchtowerEventType": "BatchCropHarvested",
+      "sourceKind": "onchain",
+      "category": "gameplay",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "batch_harvest@lib.rs:1883"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "1-30 fields harvested in one call; aggregate mint total and the treasury share.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "owner",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "field_count",
+          "type": "u8",
+          "unit": "count",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "total_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "treasury_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "owner",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "batch_harvest@lib.rs:1883"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "ConfigUpdated",
+      "watchtowerEventType": "ConfigUpdated",
+      "sourceKind": "onchain",
+      "category": "security",
+      "resource": null,
+      "emitter": {
+        "onchain": [
+          "update_config@lib.rs:1710"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Game config parameters changed within hard ceilings (epoch cap, base yield, global multiplier).",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "daily_mint_cap_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "base_yield_micro_per_day",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "global_multiplier_bps",
+          "type": "u16",
+          "unit": "basis points",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": null,
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "update_config@lib.rs:1710"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "EpochRolled",
+      "watchtowerEventType": "EpochRolled",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": null,
+      "emitter": {
+        "onchain": [
+          "roll_epoch@lib.rs:283"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "A 24h emission epoch was rolled; sets start_time for the new epoch (cap/burn accounting epoch boundary).",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "epoch_id",
+          "type": "u64",
+          "unit": "epoch number",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "start_time",
+          "type": "i64",
+          "unit": "unix seconds (i64); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none (no player field)",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": null,
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": [
+          "start_time"
+        ]
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "roll_epoch@lib.rs:283"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "ExportLicensePurchased",
+      "watchtowerEventType": "PurchaseCompleted",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": "SKR",
+      "emitter": {
+        "onchain": [
+          "buy_export_license@lib.rs:955"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Export license bought for SKR (500 SKR per owner-confirmed price); expires_at is the licence end. Settled purchase, not a click.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "owner",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "expires_at",
+          "type": "i64",
+          "unit": "unix seconds (i64); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "cost_skr_atoms",
+          "type": "u64",
+          "unit": "SKR atoms (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "owner",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "SKR",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": [
+          "expires_at"
+        ]
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "verified_runtime",
+      "coverageLimitations": "One real finalized devnet transaction decoded end-to-end against the committed IDL (see runtimeFixture). Not a coverage claim for the whole event type or for production.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "buy_export_license@lib.rs:955"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": "watchtower/events/fixtures/real-devnet/devnet-505983829-export-license-purchased.json",
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)",
+        "runtimeEvidence": "watchtower/events/runtime-evidence.json"
+      }
+    },
+    {
+      "sourceEventName": "FertilizerApplied",
+      "watchtowerEventType": "FertilizerApplied",
+      "sourceKind": "onchain",
+      "category": "gameplay",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "apply_fertilizer@lib.rs:926"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Yield fertilizer activated until active_until (x1.5); cost burned.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "field",
+          "type": "pubkey",
+          "unit": "field PDA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "active_until",
+          "type": "i64",
+          "unit": "unix seconds (i64); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "cost_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none (field PDA; owner not in payload)",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": [
+          "active_until"
+        ]
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "apply_fertilizer@lib.rs:926"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "FieldClosed",
+      "watchtowerEventType": "FieldClosed",
+      "sourceKind": "onchain",
+      "category": "gameplay",
+      "resource": null,
+      "emitter": {
+        "onchain": [
+          "close_field@lib.rs:2043"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Owner closed a field account and reclaimed rent.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "owner",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "field",
+          "type": "pubkey",
+          "unit": "field PDA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "owner",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": null,
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "close_field@lib.rs:2043"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "FieldCreated",
+      "watchtowerEventType": "AssetCreated",
+      "sourceKind": "onchain",
+      "category": "gameplay",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "create_field@lib.rs:357",
+          "buy_field_skr@lib.rs:500",
+          "buy_field_sol@lib.rs:622"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "A field (in-game asset) was created for an owner; emitted by create_field (burn) and by both presale purchase rails (buy_field_sol / buy_field_skr).",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "owner",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "field",
+          "type": "pubkey",
+          "unit": "field PDA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "field_type",
+          "type": "u8",
+          "unit": "0=bed 1=meadow 2=field",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "owner",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "create_field@lib.rs:357",
+          "buy_field_skr@lib.rs:500",
+          "buy_field_sol@lib.rs:622"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "FieldRepaired",
+      "watchtowerEventType": "FieldRepaired",
+      "sourceKind": "onchain",
+      "category": "gameplay",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "repair_field@lib.rs:820"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Durability repair paid in POTATO (burn); cost is the burned amount.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "field",
+          "type": "pubkey",
+          "unit": "field PDA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "cost_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none (field PDA; owner not in payload)",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "repair_field@lib.rs:820"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "FieldUpgraded",
+      "watchtowerEventType": "FieldUpgraded",
+      "sourceKind": "onchain",
+      "category": "gameplay",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "upgrade_field@lib.rs:845"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Field level upgraded (POTATO burned); new_level is the resulting level. Rarity mutation roll is applied inside but is not a separate emitted event.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "field",
+          "type": "pubkey",
+          "unit": "field PDA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "new_level",
+          "type": "u8",
+          "unit": "level",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "cost_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none (field PDA; owner not in payload)",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "verified_runtime",
+      "coverageLimitations": "One real finalized devnet transaction decoded end-to-end against the committed IDL (see runtimeFixture). Not a coverage claim for the whole event type or for production.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "upgrade_field@lib.rs:845"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": "watchtower/events/fixtures/real-devnet/devnet-505995704-field-upgraded.json",
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)",
+        "runtimeEvidence": "watchtower/events/runtime-evidence.json"
+      }
+    },
+    {
+      "sourceEventName": "Harvested",
+      "watchtowerEventType": "CropHarvested",
+      "sourceKind": "onchain",
+      "category": "gameplay",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "harvest@lib.rs:698"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "A single field was harvested; POTATO minted to the owner minus the progressive tax (success, not an attempt).",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "owner",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "field",
+          "type": "pubkey",
+          "unit": "field PDA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "amount_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "owner",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "harvest@lib.rs:698"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "OrderCancelled",
+      "watchtowerEventType": "OrderCancelled",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": null,
+      "emitter": {
+        "onchain": [
+          "cancel_order@lib.rs:1311"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Seller cancelled an open order; escrow returned.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "order",
+          "type": "pubkey",
+          "unit": "order PDA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "seller",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "seller",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": null,
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "cancel_order@lib.rs:1311"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "OrderCreated",
+      "watchtowerEventType": "OrderCreated",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "create_sell_order@lib.rs:997"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "A sell order for POTATO was listed (escrowed). Not a trade yet.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "order",
+          "type": "pubkey",
+          "unit": "order PDA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "seller",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "amount_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "price_lamports_per_potato",
+          "type": "u64",
+          "unit": "lamports (1 SOL = 1e9); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "seller",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "create_sell_order@lib.rs:997"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "OrderExpiredEvent",
+      "watchtowerEventType": "OrderExpired",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": null,
+      "emitter": {
+        "onchain": [
+          "close_expired_order@lib.rs:1339"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "An expired order account was closed by the permissionless crank (name ends with Event because the enum type was taken).",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "order",
+          "type": "pubkey",
+          "unit": "order PDA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none (order PDA only)",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": null,
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "close_expired_order@lib.rs:1339"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "OrderFilled",
+      "watchtowerEventType": "OrderFilled",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": "SOL",
+      "emitter": {
+        "onchain": [
+          "fill_order@lib.rs:1075"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "A sell order was filled: SOL paid by the buyer, POTATO delivered by escrow; market fee is deducted inside but not itemised in the payload.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "order",
+          "type": "pubkey",
+          "unit": "order PDA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "buyer",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "amount_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "total_lamports",
+          "type": "u64",
+          "unit": "lamports (1 SOL = 1e9); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "buyer (seller is not in this payload; known from OrderCreated/order account)",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "SOL",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "fill_order@lib.rs:1075"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "PausedToggled",
+      "watchtowerEventType": "PausedToggled",
+      "sourceKind": "onchain",
+      "category": "security",
+      "resource": null,
+      "emitter": {
+        "onchain": [
+          "set_paused@lib.rs:1662"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Program pause flag set (guardian can pause only; unpause is authority-only).",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "paused",
+          "type": "bool",
+          "unit": "flag",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": null,
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "set_paused@lib.rs:1662"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "PresaleAuthorityMigrated",
+      "watchtowerEventType": "AuthorityChanged",
+      "sourceKind": "onchain",
+      "category": "security",
+      "resource": null,
+      "emitter": {
+        "onchain": [
+          "migrate_presale_authority@lib.rs:1651"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Presale authority migrated to a new authority (custody change).",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "authority",
+          "type": "pubkey",
+          "unit": "new authority",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none (authority address)",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": null,
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "migrate_presale_authority@lib.rs:1651"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "PresalePurchase",
+      "watchtowerEventType": "PurchaseCompleted",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": null,
+      "emitter": {
+        "onchain": [
+          "buy_field_skr@lib.rs:500",
+          "buy_field_sol@lib.rs:622"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "A presale field purchase settled on chain. Currency is NOT in the payload: resolved from the emitting instruction (buy_field_skr -> SKR atoms, buy_field_sol -> lamports). roll is the on-chain rarity roll.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "buyer",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "field",
+          "type": "pubkey",
+          "unit": "field PDA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "field_type",
+          "type": "u8",
+          "unit": "0/1/2",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "unit": "currency of the emitting instruction: SKR atoms or lamports",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "roll",
+          "type": "u8",
+          "unit": "0-99 rarity roll",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "buyer",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": null,
+        "notes": [
+          "resource resolved by emitting instruction; unknown instruction -> null, never guessed"
+        ],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "buy_field_skr@lib.rs:500",
+          "buy_field_sol@lib.rs:622"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "ReferralRewardPaid",
+      "watchtowerEventType": "ReferralRewardPaid",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "fill_order@lib.rs:1075"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Referral share of a market fill credited to the referrer.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "buyer",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "referrer",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "reward_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "buyer + referrer",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "fill_order@lib.rs:1075"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "ReferrerRegistered",
+      "watchtowerEventType": "ReferrerRegistered",
+      "sourceKind": "onchain",
+      "category": "gameplay",
+      "resource": null,
+      "emitter": {
+        "onchain": [
+          "register_referrer@lib.rs:1839"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "One-time referral link registered; costs 5 POTATO (burn happens inside the instruction, not in this payload).",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "owner",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "referrer",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "owner + referrer",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": null,
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "register_referrer@lib.rs:1839"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "RewardGranted",
+      "watchtowerEventType": "RewardGranted",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "grant_reward@lib.rs:1365"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Legacy manual reward minted to a wallet (authority/reward-signer rail, capped, <=1000 POTATO per call). Signature-only rail, no on-chain nonce.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "recipient",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "amount_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "recipient",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "grant_reward@lib.rs:1365"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "RewardGrantedOnce",
+      "watchtowerEventType": "RewardGrantedOnce",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "grant_reward_once@lib.rs:1415"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Replay-safe manual reward minted to a wallet; bound to a nonce and a [b\"reward\", recipient_ata, nonce] PDA, so the same nonce cannot pay twice.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "recipient",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "nonce",
+          "type": "u64",
+          "unit": "client nonce",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "amount_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "recipient",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "grant_reward_once@lib.rs:1415"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "RewardSignerUpdated",
+      "watchtowerEventType": "AuthorityChanged",
+      "sourceKind": "onchain",
+      "category": "security",
+      "resource": null,
+      "emitter": {
+        "onchain": [
+          "update_reward_signer@lib.rs:1793"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Delegated reward signer replaced.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "new_signer",
+          "type": "pubkey",
+          "unit": "signer address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": null,
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "update_reward_signer@lib.rs:1793"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "SkrMintUpdated",
+      "watchtowerEventType": "ConfigUpdated",
+      "sourceKind": "onchain",
+      "category": "security",
+      "resource": "SKR",
+      "emitter": {
+        "onchain": [
+          "apply_pending_skr_mint@lib.rs:1767"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Pending SKR mint change applied after the 24h timelock.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "new_skr_mint",
+          "type": "pubkey",
+          "unit": "mint address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "SKR",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "apply_pending_skr_mint@lib.rs:1767"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "TaxPaid",
+      "watchtowerEventType": "TaxPaid",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "pay_tax@lib.rs:895"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Field upkeep tax prepaid up to paid_until; cost burned from the owner.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "field",
+          "type": "pubkey",
+          "unit": "field PDA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "paid_until",
+          "type": "i64",
+          "unit": "unix seconds (i64); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "cost_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none (field PDA; owner not in payload)",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": [
+          "paid_until"
+        ]
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "pay_tax@lib.rs:895"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "TreasurySkrWithdrawn",
+      "watchtowerEventType": "TreasuryWithdrawn",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": "SKR",
+      "emitter": {
+        "onchain": [
+          "withdraw_skr_treasury@lib.rs:1612"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "SKR withdrawn from the treasury SKR ATA to the authority wallet.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "destination",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "amount_skr_atoms",
+          "type": "u64",
+          "unit": "SKR atoms (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "destination",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "SKR",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "withdraw_skr_treasury@lib.rs:1612"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "TreasurySolWithdrawn",
+      "watchtowerEventType": "TreasuryWithdrawn",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": "SOL",
+      "emitter": {
+        "onchain": [
+          "withdraw_treasury_sol@lib.rs:1572"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "SOL withdrawn from the treasury_sol PDA to the authority wallet (daily cap in lamports).",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "destination",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "amount_lamports",
+          "type": "u64",
+          "unit": "lamports (1 SOL = 1e9); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "destination",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "SOL",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "withdraw_treasury_sol@lib.rs:1572"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "TreasuryTaxed",
+      "watchtowerEventType": "TreasuryDeposited",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "harvest@lib.rs:698"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "Harvest tax split: the treasury share of a harvest was credited (the burn share of the tax is not itemised in a separate event).",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "field",
+          "type": "pubkey",
+          "unit": "field PDA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "treasury",
+          "type": "pubkey",
+          "unit": "treasury PDA/ATA",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "amount_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "tax_bps",
+          "type": "u16",
+          "unit": "basis points",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "none (field + treasury)",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "harvest@lib.rs:698"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    },
+    {
+      "sourceEventName": "TreasuryWithdrawn",
+      "watchtowerEventType": "TreasuryWithdrawn",
+      "sourceKind": "onchain",
+      "category": "economy",
+      "resource": "POTATO",
+      "emitter": {
+        "onchain": [
+          "withdraw_treasury@lib.rs:1536"
+        ],
+        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+      },
+      "meaning": "POTATO withdrawn from the treasury to a destination, after the 24h propose/withdraw timelock and daily window limits.",
+      "successVsAttempt": "success only (the instruction did not revert)",
+      "payloadFields": [
+        {
+          "name": "destination",
+          "type": "pubkey",
+          "unit": "wallet address",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        },
+        {
+          "name": "amount_micro",
+          "type": "u64",
+          "unit": "POTATO micro units (6 decimals); exported as decimal string",
+          "nullable": false,
+          "sensitivity": "public_chain"
+        }
+      ],
+      "playerIdentity": {
+        "field": "destination",
+        "kind": "public on-chain wallet/PDA",
+        "coverage": "every successfully applied on-chain event carries its identity pubkey(s); no pseudonymous playerKey is produced by the game"
+      },
+      "sessionId": {
+        "value": null,
+        "source": "none",
+        "lifetime": "not applicable",
+        "note": "the program, backend and client have no session identifier (verified by grep); the hub cannot build sessions from ARES-1 today"
+      },
+      "assetAmount": {
+        "resource": "POTATO",
+        "notes": [],
+        "safeIntegerWarning": "u64/i64 values can exceed Number.MAX_SAFE_INTEGER; the exporter exports them as decimal strings and they must stay strings until the hub's parser is contract-extended"
+      },
+      "location": {
+        "regionId": null,
+        "locationId": null,
+        "status": "not_applicable",
+        "reason": "no map/region state or region tags exist anywhere in the program, backend or client (verified by grep)"
+      },
+      "finalityTime": {
+        "commitment": "finalized",
+        "blockTimeSource": "RPC blockTime of the finalized transaction; separate in-game timestamps exist only where listed in payloadFields",
+        "eventTimestampsInPayload": []
+      },
+      "idempotency": {
+        "onchainCoordinates": [
+          "cluster",
+          "slot",
+          "signature",
+          "instructionIndex",
+          "innerIndex"
+        ],
+        "extra": "normalized child events additionally use log_index (raw record = one instruction invocation, not one emit!)"
+      },
+      "verificationStatus": "code_only",
+      "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
+      "proof": {
+        "idl": "game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694)",
+        "artifact": "watchtower/events/ares1-idl.json",
+        "emitSite": [
+          "withdraw_treasury@lib.rs:1536"
+        ],
+        "syntheticFixture": "watchtower/events/fixtures/synthetic/idl-events.json",
+        "runtimeFixture": null,
+        "localTest": "watchtower/tests/watchtower-decoder.test.ts + watchtower/tests/watchtower-events.test.ts (synthetic payload decode)"
+      }
+    }
+  ],
+  "notEmittedByAres1": [
+    {
+      "name": "PlayerJoined",
+      "status": "unavailable",
+      "reason": "No on-chain or off-chain join event exists; the game has no player profile/registration write on chain.",
+      "nextStep": "requires a real join event on the game side or explicit approval to treat wallet-connect telemetry as join"
+    },
+    {
+      "name": "PotatoPlanted",
+      "status": "unavailable",
+      "reason": "There is no planting instruction/event; yield accrues over time from a created field (create_field / presale purchase).",
+      "closestRealEvent": "FieldCreated"
+    },
+    {
+      "name": "PotatoHarvested",
+      "status": "unavailable",
+      "reason": "The on-chain event name is Harvested (single) and BatchHarvested (batch); the adapter name does not exist.",
+      "closestRealEvent": "Harvested, BatchHarvested"
+    },
+    {
+      "name": "TokenMinted",
+      "status": "unavailable",
+      "reason": "No TokenMinted event is emitted; minting happens inside harvest/batch_harvest/grant_reward and is only observable through Harvested / BatchHarvested / RewardGranted / RewardGrantedOnce.",
+      "closestRealEvent": "Harvested"
+    },
+    {
+      "name": "TokenBurned",
+      "status": "unavailable",
+      "reason": "No TokenBurned event is emitted; burns are internal CPIs (field purchase, repair, upgrade, tax, fertilizer, market fee share) without a dedicated event.",
+      "closestRealEvent": "TreasuryTaxed (treasury share only)"
+    },
+    {
+      "name": "TreasuryChanged",
+      "status": "unavailable",
+      "reason": "Treasury movements are itemised per verb, not by a generic TreasuryChanged event.",
+      "closestRealEvent": "TreasuryTaxed, TreasuryWithdrawn, TreasurySolWithdrawn, TreasurySkrWithdrawn, ConfigUpdated"
+    },
+    {
+      "name": "WalletConnected",
+      "status": "unavailable",
+      "reason": "Client-side wallet adapters connect locally; no telemetry is sent anywhere (no analytics endpoint in web or backend).",
+      "nextStep": "requires a client telemetry collector, privacy basis and contract - not in scope for this handoff"
+    },
+    {
+      "name": "SessionStarted / SessionEnded",
+      "status": "unavailable",
+      "reason": "No sessionId exists in the program, backend or client."
+    },
+    {
+      "name": "PackPurchased",
+      "status": "unavailable",
+      "reason": "Off-chain Phase-1 packs exist only as backend presale orders; there is no emitter to the hub and no session/campaign ids for the hub's offchainIdentity contract.",
+      "closestRealEvent": "backend presale order state machine (DB only)"
+    },
+    {
+      "name": "PaymentSettled",
+      "status": "unavailable",
+      "reason": "Off-chain presale payments are matched to orders in the backend DB (tx_signature), but nothing is emitted to the hub.",
+      "closestRealEvent": "ExportLicensePurchased (on-chain SKR purchase)"
+    },
+    {
+      "name": "RetentionDay1 / RetentionDay7",
+      "status": "unavailable",
+      "reason": "Retention is not computed anywhere; no raw entry/session events exist to derive it. The hub must design the calculation from whatever real events it gets, or wait for client telemetry."
+    },
+    {
+      "name": "CrossGameEntry",
+      "status": "unavailable",
+      "reason": "No cross-game program, bridge instruction, bridge event or shared identity service exists in ARES-1; only an in-game lore string mentions a future burn-based bridge to Age of Farming.",
+      "closestRealEvent": null
+    },
+    {
+      "name": "PurchaseCompleted (generic)",
+      "status": "partial",
+      "reason": "Only two real on-chain purchase rails map here today: PresalePurchase (field presale, resource from the emitting instruction) and ExportLicensePurchased (SKR). Off-chain pack purchases are not emitted."
+    }
+  ],
+  "offchainSources": [
+    {
+      "source": "game/apps/backend presale API + game_ops.presale_runs/presale_orders (PostgreSQL)",
+      "realFacts": [
+        "order reserved",
+        "payment seen",
+        "paid",
+        "delivered / refunded / expired / cancelled with timestamps and tx_signature"
+      ],
+      "identifiersAvailable": {
+        "wallet": "payer_wallet (public address)",
+        "order": "run_id + order_no",
+        "onchainLink": "tx_signature, paid_slot",
+        "timestamps": "created_at, updated_at, reserved_until, paid_at, delivered_at (timestamptz)"
+      },
+      "identifiersMissing": [
+        "eventId",
+        "sessionId",
+        "seq/cursor",
+        "campaignId/pageId"
+      ],
+      "status": "unavailable",
+      "reason": "No push/export path to the hub exists; the hub's offchainIdentity() cannot be satisfied by these fields as-is.",
+      "owner": "ARES-1 backend + Watchtower contract owner"
+    },
+    {
+      "source": "game_ops.reward_intents / reward_ledger / admin_audit / chain_reconciliation (PostgreSQL)",
+      "realFacts": [
+        "reward intents with nonce and status",
+        "append-only ledger mirror of finalized reward events with signature/slot/block_time",
+        "admin audit trail"
+      ],
+      "status": "unavailable",
+      "reason": "Internal admin/ops data; no emitter. Must not be shipped without an agreed privacy basis and dedup contract."
+    },
+    {
+      "source": "Client (React app)",
+      "realFacts": [
+        "wallet connect/disconnect happens locally; no analytics or telemetry calls are made (only static asset fetches)"
+      ],
+      "status": "not_applicable",
+      "reason": "There is no client telemetry collector to hand over."
+    }
+  ],
+  "location": {
+    "status": "not_applicable",
+    "reason": "No region/location state, tag or map exists in the game; the hub must not derive geography for ARES-1."
+  },
+  "crossGame": {
+    "status": "unavailable",
+    "reason": "No bridge/linking feature, program or event; nothing to map to BridgeIn/BridgeOut/CrossGameLinked/CrossGameAssetGranted."
+  },
+  "operatorGameProgress": {
+    "supported": false,
+    "fields": {
+      "hours": {
+        "status": "unavailable",
+        "reason": "Playtime is not measured or stored anywhere (no foreground/background tracking, no AFK rules)."
+      },
+      "rank": {
+        "status": "partial_code_only",
+        "definition": "floor(active fields / 3) + 1, computed client-side in game/apps/web/src/contexts/GameContext.tsx:203 from on-chain field accounts",
+        "range": "unbounded in code (practically 1..N for N/3 fields)",
+        "persisted": false,
+        "reason": "Not stored server-side; it would have to be reconstructed from chain state. Values shown to a user are not an authoritative progress record."
+      },
+      "updatedAt": {
+        "status": "unavailable",
+        "reason": "No per-player progress row exists."
+      }
+    },
+    "note": "POST /api/games/progress is HMAC-protected and is a separate Operator Game protocol; ARES-1 does not currently produce wallet/hours/rank/updatedAt and will not simulate them."
+  },
+  "knownGaps": [
+    "Deployed binary provenance is unverified: the last devnet deploy (slot 507112076, 2026-10-03) is not verified-build and the committed IDL is only proven for the three sampled event types.",
+    "Only 3 of 31 event types have captured runtime evidence.",
+    "The exporter has not run its certified devnet smoke (no RPC egress from the sandbox and no exporter token/DB/URL); no central handshake has happened.",
+    "Hub adapter names for ares1 mostly do not exist on chain - mapping agreement is the single biggest blocker.",
+    "Off-chain facts exist in PostgreSQL but have no event contract (no eventId/session/seq) and no emitter."
+  ]
+}

@@ -55,6 +55,8 @@ VITE_SOLANA_CLUSTER=devnet
 VITE_RPC_URL=https://api.devnet.solana.com
 VITE_PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf
 VITE_BACKEND_URL=
+VITE_PRESALE_RUN=wave1          # id тиража Фазы 1; совпадает с PRESALE_RUN_ID
+VITE_LANDING_URL=https://ares1-7e1.pages.dev   # куда ведёт блок Фазы 1
 ```
 
 All `VITE_*` values are **public in the browser bundle**, even when injected by a CI
@@ -173,6 +175,25 @@ mount keys read-only, and do not copy env/key files into the image. Runtime curr
 installs the full production workspace graph (including web dependencies); reducing
 image size is deferred. Compose restart handles process exits, not all outages;
 Docker does not automatically restart merely unhealthy containers.
+
+### How the frontends reach the backend
+
+The landing is a static site, so its `/api/*` calls need an explicit path to the
+backend — otherwise the form answers nothing (before 2026-10-06 it 404'd):
+
+```text
+Cloudflare Pages (project ares1) → Settings → Environment variables
+PRESALE_API_ORIGIN=https://<backend host>      # корень, без суффикса /api
+```
+
+`landing/functions/api/[[path]].js` forwards `/api/*` to that origin and answers
+`503 presale_api_not_configured` until the variable is set. Locally the same path
+is proxied by Vite (`PRESALE_API_ORIGIN`, default `http://127.0.0.1:8080`).
+
+The game client talks to the same backend only for gameops and the Phase 1 counter:
+set `VITE_BACKEND_URL`, add the backend origin to the game's `connect-src`
+(`game/apps/web/public/_headers`) and to the backend `CORS_ORIGIN`. Without it the
+Phase 1 block still renders its terms, just without the live remaining counter.
 
 The compose service binds the API to **127.0.0.1** by default
 (`GAME_OPS_BACKEND_BIND`), because the process holds a signing key and the admin

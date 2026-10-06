@@ -4003,8 +4003,8 @@ mod tests {
     }
 
     // ─────────────── Security checklist 2026-09-25 ───────────────
-    // docs/SECURITY_CHECKLIST_AUDIT_2026-09-25.md; each test cites the
-    // checklist item it pins. Removing a guard below must fail CI.
+    // Каждый тест ниже называет пункт чек-листа, который он пинит.
+    // Removing a guard below must fail CI.
 
     #[test]
     fn fee_is_never_greater_than_amount_in_any_tier() {

@@ -14,7 +14,7 @@ cd watchtower
 npm i --no-save @electric-sql/pglite@0.5.8 @electric-sql/pglite-socket@0.2.11
 node scripts/local-pg-pglite.mjs &        # слушает 127.0.0.1:55432, применяет migrations/watchtower-read-model.sql
 export WATCHTOWER_TEST_DATABASE_URL='postgres://postgres:postgres@127.0.0.1:55432/watchtower_test'
-npm test:tests-with-db                    # см. ниже
+npm run test:integration                  # см. ниже
 ```
 
 Тест отказывается работать вне базы с именем `watchtower_test` — это защита от разрушительных
@@ -69,5 +69,5 @@ WATCHTOWER_TEST_DATABASE_URL=... node --import tsx scripts/bench-load.mjs 1500 3
 ```
 
 Выводит JSON: пропускную способность декодера (без БД), ingestion (tx/с, событий/с, строк БД/с) и
-латенси HTTP-маршрутов. Числа на PGlite — **нижняя граница**; результат прогона 2026-09-27 и методика —
-в `docs/DATA_TESTS_AND_CAPACITY_2026-09-27.md`.
+латенси HTTP-маршрутов. Числа на PGlite — **нижняя граница**; методику прогона задаёт сам
+`scripts/bench-load.mjs`, отчёт измерений в репозитории не хранится.

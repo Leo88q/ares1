@@ -103,11 +103,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
-      # §7.1/§7.2: the legal pages and security.txt are generated artifacts;
-      # if someone edits the HTML directly, the next generator run would wipe
-      # the change, so the generated output must always match the source.
-      - name: Legal pages are in sync with the generator
-        run: node scripts/build-legal-pages.mjs --check
+      # §7.2: legal documents were removed from the repository by owner
+      # decision (2026-10-06, RFC §6). The remaining generated artifact here is
+      # security.txt, which is checked below by the public-exposure script.
       # §2.3: source maps off in both bundlers. A silent Vite/framework upgrade
       # must not re-enable them.
       - name: Source maps disabled in both builds
