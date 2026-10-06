@@ -75,6 +75,7 @@
     "jayson": "5.0.0",
     "lodash": "4.18.1",
     "toml": "4.2.0",
+    "proxy-addr": "2.0.8",
     "**/viem/ws": "8.21.3",
     "**/node-cron/uuid": "11.1.1",
     "**/uuidv4/uuid": "11.1.1",

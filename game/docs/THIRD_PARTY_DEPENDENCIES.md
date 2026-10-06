@@ -23,6 +23,7 @@
 | @solana/web3.js | `1.98.4` точный пин + трипваер запрещённых версий (1.95.6/1.95.7 — supply-chain инцидент) в `security-guards.test.mjs` | GitHub solana-labs/solana-web3.js security advisories | владелец репо | перед bump |
 | @solana/spl-token (JS) | `0.4.15` | GitHub solana-program/token | владелец репо | перед bump |
 | @solana/buffer-layout-utils | local `0.3.1+ares1` backport, API-compatible with `0.3.0`; lock-pinned through `file:` | upstream PR #2 + local `apps/web/vendor/solana-buffer-layout-utils/README.vendor.md` | владелец репо | until upstream fixed release |
+| proxy-addr (транзитивно, через `express` в backend) | `2.0.8` через `resolutions` в `game/package.json` (express просит `~2.0.7`, patch-релиз 2.0.8 совместим) | GitHub Advisory DB (GHSA-jqcg-44mw-7w3h — спуфинг IP через IPv4-mapped IPv6; исправлен в 2.0.8) | владелец репо | перед bump express |
 | Rust toolchain | `rust-toolchain.toml` (1.97.1) | Rust security advisories | владелец репо | раз в квартал |
 | protobufjs (транзитивно, через `@trezor/*` в wallet-adapter) | `7.6.6` через `resolutions` в `game/package.json` + трипваер в `security-guards.test.mjs` | GitHub Advisory DB (GHSA-xq3m-2v4x-88gg — RCE, исправлен в 7.5.5; GHSA-wcpc-wj8m-hjx6 ≤7.6.0) | владелец репо | перед bump @trezor/wallet-adapter |
 
