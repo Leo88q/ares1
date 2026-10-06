@@ -374,6 +374,29 @@ export interface RunStatus {
   pack_potato_micro: string;
 }
 
+/**
+ * Публичный вид тиража для покупателя: camelCase и без служебных полей.
+ *
+ * Wire-формат закреплён тестом. Раньше route отдавал доменную snake_case-структуру,
+ * а баннер лендинга читал camelCase: счётчик показывал «NaN», цена — undefined.
+ * Публичный контракт должен быть явным, а не совпадением имён.
+ */
+export function publicRunStatus(status: RunStatus) {
+  return {
+    runId: status.run_id,
+    packId: status.pack_id,
+    currency: status.currency,
+    cap: status.cap,
+    reservedCount: status.reserved_count,
+    remaining: status.remaining,
+    isOpen: status.is_open,
+    soldOut: status.sold_out,
+    priceUnits: status.price_units,
+    unitsPerWhole: status.units_per_whole,
+    packPotatoMicro: status.pack_potato_micro,
+  };
+}
+
 export async function getRunStatus(pool: Pool, runId: string): Promise<RunStatus | null> {
   const rows = await query<RunRow>(pool, 'SELECT * FROM game_ops.presale_runs WHERE run_id = $1', [runId]);
   const run = rows[0];

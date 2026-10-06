@@ -62,6 +62,7 @@ Deploy contract:
 - Market: escrow orders, fee 9-12% (60% burn + 40% treasury)
 - Referrals: -1% fee for both, +0.5% to referrer
 - Presale: 1053 SKR per module, tier rolls randomly (COMMON 70% / RARE 25% / EPIC 5%)
+- Presale Phase 1 (off-chain prepayment): 888 SKR per pack, 500 packs in wave 1, POTATO credited on the mainnet listing day (no refunds; terms §7)
 
 ## License
 

@@ -4,8 +4,12 @@
  * Запуск (из game/):
  *   GAME_OPS_DATABASE_URL=postgres://… ADMIN_API_TOKEN=<≥32 символов> \
  *   PRESALE_RUN_ID=wave1 PRESALE_PACK_ID=meadow-4 PRESALE_CURRENCY=skr \
- *   PRESALE_PRICE_UNITS=1053000000 PRESALE_TREASURY=<ATA казначейства> \
+ *   PRESALE_PRICE_UNITS=888000000 PRESALE_TREASURY=<ATA казначейства> \
  *   yarn presale:open-run
+ *
+ * Цены (решение владельца 2026-10-06): Фаза 1 — 888 SKR за пак, Фаза 2
+ * (ончейн-модуль) — 1053 SKR. Срок выдачи покупателю — в день листинга на
+ * mainnet; формулировка обязана быть видна до оплаты (Terms §7).
  *
  * Дополнительно нужны GAME_OPS_DATABASE_URL и ADMIN_API_TOKEN (≥32 символов)
  * — их читает та же loadGameOpsConfig(), что и бэкенд.
