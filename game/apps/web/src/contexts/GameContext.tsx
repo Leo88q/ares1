@@ -10,11 +10,12 @@ import { useToast } from '../components/Toast'
  decodeField, pdas,
  ixCreateField, ixHarvest, ixRepairField, ixUpgradeField, ixPayTax, ixApplyFertilizer,
  ixBuyFieldSkr, ixBatchHarvest, ixCloseField, SKR_MINT, treasurySkrAta, buybackSkrAta, presaleStatePda, buyerPresalePda, treasurySolPda,
- potatoAta,
+ potatoAta, decodeExportLicense,
  achievementsPda, questTreasuryPda, decodeAchievementsBitmap, ixClaimAchievement, QUEST_REWARDS_MICRO,
 } from '../utils/anchorClient'
 import {
  accumulatedMicro, fieldPriceMicro, fertilizerCostMicro, repairCostMicro, taxCostMicro, upgradeCostMicro, fmtPotato, fmtPotatoExact, MICRO,
+ BATCH_LIMIT_BASE, BATCH_LIMIT_LICENSED,
 } from '../utils/constants'
 import { describeError } from '../utils/errors'
 import { randomU64, withRetry } from '../utils/rpc'
@@ -56,6 +57,11 @@ export interface GameContextType {
  fieldsError: string | null
  purchasing: boolean
  claimed: Record<string, boolean>
+ /** Unix-время истечения экспортной лицензии; 0 — лицензии нет. */
+ licenseExpiresAt: number
+ licenseActive: boolean
+ /** Сколько полей можно собрать одной транзакцией: 10, с лицензией — 30. */
+ batchLimit: number
  harvest: (field: PublicKey) => Promise<boolean>
  batchHarvest: (fields: PublicKey[]) => Promise<boolean>
  closeField: (field: PublicKey) => Promise<boolean>
@@ -91,6 +97,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const [purchasing, setPurchasing] = useState(false)
  const [claimed, setClaimed] = useState<Record<string, boolean>>({})
  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000))
+ const [licenseExpiresAt, setLicenseExpiresAt] = useState(0)
 
  useEffect(() => {
   const t = window.setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 1000)
@@ -111,15 +118,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
    const ata = getAssociatedTokenAddressSync(config.potatoMint, publicKey, false)
    const skrMint = (config.skrMint as unknown as PublicKey) ?? SKR_MINT
    const skrAta = getAssociatedTokenAddressSync(skrMint, publicKey, false)
+   const licensePda = pdas(programId).exportLicense(publicKey)
    const [accounts, infos] = await Promise.all([
     withRetry(() =>
      connection.getProgramAccounts(programId, {
       filters: [{ dataSize: FIELD_ACCOUNT_SIZE }, { memcmp: { offset: 8, bytes: publicKey.toBase58() } }],
      }),
     ),
-    withRetry(() => connection.getMultipleAccountsInfo([publicKey, ata, skrAta])),
+    withRetry(() => connection.getMultipleAccountsInfo([publicKey, ata, skrAta, licensePda])),
    ])
-   const [walletInfo, ataInfo, skrInfo] = infos
+   const [walletInfo, ataInfo, skrInfo, licenseInfo] = infos
    setSolBalance((walletInfo?.lamports ?? 0) / 1e9)
    if (ataInfo) {
     setAtaExists(true)
@@ -129,6 +137,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setPotatoBalance(0)
    }
    setSkrBalance(skrInfo ? Number(unpackAccount(skrAta, skrInfo).amount) / 1e6 : 0)
+   // PDA лицензии может отсутствовать (ещё не покупалась) — это не ошибка:
+   // лимит батча просто остаётся базовым.
+   if (licenseInfo) {
+    try {
+     setLicenseExpiresAt(Number(decodeExportLicense(licenseInfo.data).expiresAt))
+    } catch {
+     setLicenseExpiresAt(0)
+    }
+   } else {
+    setLicenseExpiresAt(0)
+   }
    setRawFields(
     accounts
      .map(({ pubkey, account }) => {
@@ -169,6 +188,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
    accumulated: accumulatedMicro({ ...f, epochId: currentEpoch }, cfg, nowSec),
   }))
  }, [rawFields, config, nowSec])
+
+ const licenseActive = licenseExpiresAt > nowSec
+ // Премиум-тир лицензии: одна транзакция покрывает 30 полей вместо 10.
+ const batchLimit = licenseActive ? BATCH_LIMIT_LICENSED : BATCH_LIMIT_BASE
 
  const stats = useMemo<GameStats>(
   () => {
@@ -334,24 +357,35 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const batchHarvest = useCallback(
   async (fieldPks: PublicKey[]) => {
    if (!config || !publicKey || fieldPks.length === 0) return false
-   if (fieldPks.length > 10) {
-    notify('warning', t('Слишком много полей'), t('Максимум 10 полей за один батч.'))
+   if (fieldPks.length > batchLimit) {
+    notify('warning', t('Слишком много полей'), t('Максимум {n} полей за один батч.', { n: batchLimit }))
     return false
    }
    // LUT: если есть cached lookupTable — шлём VersionedTransaction V0 (дешевле ~40%)
    const useLut = !!lookupTable
+   // Премиум-тир (>10 полей) физически недостижим без LUT: 30 writable-аккаунтов
+   // по 33 байта не влезают в лимит 1232 байта legacy-транзакции. Не даём уйти
+   // в непрозрачную ошибку "Transaction too large" — объясняем заранее.
+   if (!useLut && fieldPks.length > BATCH_LIMIT_BASE) {
+    notify('warning', t('Нужна таблица адресов (LUT)'),
+     t('Батч больше {n} полей требует LUT. Создай её в КАЮТЕ и повтори.', { n: BATCH_LIMIT_BASE }))
+    return false
+   }
    return runTx(t('Не удалось собрать урожай батчем'), async () => {
     const { address: userPotato, ixs } = ownAta()
-    const { config: configPda, epoch } = pdas(programId)
+    const { config: configPda, epoch, exportLicense } = pdas(programId)
     const ix = await ixBatchHarvest(programId, {
      config: configPda(), epoch: epoch(config.epochId), potatoMint: config.potatoMint,
      userPotato, treasuryPotato: potatoAta(configPda(), config.potatoMint), owner: publicKey,
      fieldPks,
+     // PDA лицензии идёт первым remaining_account'ом; on-chain сверяет его с
+     // выведенным адресом и сам решает, активна лицензия или нет.
+     exportLicense: licenseExpiresAt > 0 ? exportLicense(publicKey) : null,
     })
     return [...ixs, ix]
    }, useLut)
   },
-  [config, publicKey, runTx, ownAta, programId, notify, lookupTable],
+  [config, publicKey, runTx, ownAta, programId, notify, lookupTable, batchLimit, licenseExpiresAt],
  )
 
  const closeField = useCallback(
@@ -384,14 +418,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
      // Дожидаемся финализации LUT перед extend (иначе AddressLookupTableNotFound)
      await new Promise(r => setTimeout(r, 800))
      setItem("functional", `ares-lut:${publicKey.toBase58()}`, lutAddress.toBase58())
-     const fieldPks = fields.map(f => f.publicKey)
-     if (fieldPks.length > 0) {
-       const extendIx = AddressLookupTableProgram.extendLookupTable({
-         payer: publicKey,
-         authority: publicKey,
-         lookupTable: lutAddress,
-         addresses: fieldPks.slice(0, 20),
-       })
+    const fieldPks = fields.map(f => f.publicKey)
+    if (fieldPks.length > 0) {
+      const extendIx = AddressLookupTableProgram.extendLookupTable({
+        payer: publicKey,
+        authority: publicKey,
+        lookupTable: lutAddress,
+        // BATCH_LIMIT_LICENSED: премиум-батч на 30 полей обязан находить все
+        // поля в таблице, иначе лимит лицензии недостижим физически.
+        addresses: fieldPks.slice(0, BATCH_LIMIT_LICENSED),
+      })
        try { await sendIx([extendIx]) } catch (e) {
          // extend может упасть если таблица ещё не активна (256 слотов warmup) — не критично, переиспользуется позже
          console.warn('[lut] extend deferred:', describeError(e))
@@ -577,11 +613,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const value = useMemo<GameContextType>(
   () => ({
    fields, stats, solBalance, loading, fieldsError, purchasing, claimed,
+   licenseExpiresAt, licenseActive, batchLimit,
    harvest, batchHarvest, closeField, ensureLut,
    purchaseField, buyFieldPresale, upgradeField, repairField, payTax, applyFertilizer,
    claimReward, airdropSol, sendPotato, sendSol, reload: loadFields,
   }),
-  [fields, stats, solBalance, loading, fieldsError, purchasing, claimed, harvest, batchHarvest, closeField, ensureLut, purchaseField, upgradeField, repairField,
+  [fields, stats, solBalance, loading, fieldsError, purchasing, claimed, licenseExpiresAt, licenseActive, batchLimit,
+   harvest, batchHarvest, closeField, ensureLut, purchaseField, buyFieldPresale, upgradeField, repairField,
    payTax, applyFertilizer, claimReward, airdropSol, sendPotato, sendSol, loadFields],
  )
 

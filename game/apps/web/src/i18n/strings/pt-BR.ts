@@ -527,7 +527,14 @@ const ptBR: Record<string, string> = {
 
   // Тосты транзакций (GameContext)
   'LUT создана': 'LUT criada',
-  'Максимум 10 полей за один батч.': 'Máximo de 10 lotes por batch.',
+  'Максимум {n} полей за один батч.': 'Máximo de {n} lotes por batch.',
+  'Собрать всё': 'Colher tudo',
+  'Нужна таблица адресов (LUT)': 'Tabela de endereços (LUT) necessária',
+  'Батч больше {n} полей требует LUT. Создай её в КАЮТЕ и повтори.': 'Um batch com mais de {n} lotes exige LUT. Crie-a na CABINE e tente de novo.',
+  'Осталось {n} полей — лимит {limit} за транзакцию.': 'Restam {n} lotes — o limite é {limit} por transação.',
+  'Лицензия активна: лимит {limit} полей за транзакцию.': 'Licença ativa: limite de {limit} lotes por transação.',
+  'Лимит {limit} полей за транзакцию. Лицензия поднимает его до {licensed}.': 'Limite de {limit} lotes por transação. A licença eleva para {licensed}.',
+  'Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.': 'Bônus: colheita em lote de até {n} lotes por transação em vez de {base}.',
   'Не удалось закрыть поле': 'Falha ao encerrar o lote',
   'Не удалось отправить SOL': 'Falha ao enviar SOL',
   'Не удалось собрать урожай батчем': 'Falha na colheita em lote',
@@ -596,6 +603,10 @@ const ptBR: Record<string, string> = {
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'A transação foi enviada, mas não houve confirmação. Verifique a carteira antes de tentar de novo — a ação pode já ter sido concluída.',
   'Требуется владеть 6 делянками, и хотя бы одна должна быть 3-го уровня (сейчас макс. ур. {lvl}).': 'Requer 6 parcelas com pelo menos uma no nível 3 (nível máx. atual {lvl}).',
   'нужен ур. 3 (сейчас {n})': 'nível 3 necessário (atual {n})',
+  'Продолжить': 'Continuar',
+  'Гидропонный модуль раскрыт': 'Módulo hidropônico revelado',
+  'Предоплата зачислена': 'Pré-pagamento creditado',
+  'Шанс дропа: {c}%': 'Chance de drop: {c}%',
 };
 
 export default ptBR;

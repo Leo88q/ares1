@@ -2,6 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {
+  BATCH_LIMIT_BASE,
+  BATCH_LIMIT_LICENSED,
   BPS,
   CANCEL_COOLDOWN_HOURS,
   EXPORT_LICENSE_PRICE_SKR_ATOMS,
@@ -178,4 +180,18 @@ test('порог кнопки сбора и цена лицензии — golden
   // 60 % комиссии рынка уходит в сжигание, 40 % — в казну.
   assert.equal(FEE_BURN_PERCENT, 60)
   assert.equal(100 - FEE_BURN_PERCENT, 40)
+})
+
+test('лимиты батч-жатвы совпадают с Rust и держат премиум-тир лицензии', () => {
+  // Golden-литералы: независимые от реализации значения.
+  assert.equal(BATCH_LIMIT_BASE, 10)
+  assert.equal(BATCH_LIMIT_LICENSED, 30)
+  // Сверка с Rust-источником: зеркало не должно разъехаться с программой.
+  assert.equal(BATCH_LIMIT_BASE, rustExpr('BATCH_LIMIT_BASE'))
+  assert.equal(BATCH_LIMIT_LICENSED, rustExpr('BATCH_LIMIT_LICENSED'))
+  // Инвариант монетизации: лицензия строго улучшает лимит, иначе перк ничего не даёт.
+  assert.ok(BATCH_LIMIT_LICENSED > BATCH_LIMIT_BASE)
+  // Премиум-тир обязан быть достижим: клиент режет батч по тому же лимиту,
+  // что и on-chain, иначе транзакция упадёт уже после подписи.
+  assert.ok(BATCH_LIMIT_LICENSED <= 30, 'лимит выше 30 полей не влезет в LUT-транзакцию')
 })

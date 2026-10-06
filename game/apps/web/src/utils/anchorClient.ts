@@ -701,10 +701,15 @@ export function decodeAchievementsBitmap(data: Buffer): number {
  * Поля игрока передаются в remaining_accounts (proof by ownership).
  */
 
-// ── Batch harvest (cheap, 1 tx for up to 10 fields) ──
+// ── Batch harvest (cheap, 1 tx for up to BATCH_LIMIT fields) ──
+// exportLicense передаётся ПЕРВЫМ remaining_account'ом (read-only): on-chain
+// выводит PDA [b"license", owner] и сверяет ключ — активная лицензия поднимает
+// лимит батча с 10 до 30 полей. Когда лицензии нет, ключ не добавляется вовсе:
+// раскладка остаётся 9 фиксированных + поля, как и до премиум-тира.
 export async function ixBatchHarvest(programId: PublicKey, params: {
  config: PublicKey; epoch: PublicKey; potatoMint: PublicKey; userPotato: PublicKey; treasuryPotato: PublicKey; owner: PublicKey;
  fieldPks: PublicKey[];
+ exportLicense?: PublicKey | null;
 }): Promise<TransactionInstruction> {
  const data = concatBytes(await ixDiscriminator('batch_harvest'))
  const keys = [
@@ -717,6 +722,7 @@ export async function ixBatchHarvest(programId: PublicKey, params: {
   { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  ...(params.exportLicense ? [{ pubkey: params.exportLicense, isSigner: false, isWritable: false }] : []),
   ...params.fieldPks.map(pk => ({ pubkey: pk, isSigner: false, isWritable: true })),
  ]
  return new TransactionInstruction({ programId, keys, data })

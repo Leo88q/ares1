@@ -527,7 +527,14 @@ const tl: Record<string, string> = {
 
   // Тосты транзакций (GameContext)
   'LUT создана': 'Nagawa ang LUT',
-  'Максимум 10 полей за один батч.': 'Max 10 bukid kada batch.',
+  'Максимум {n} полей за один батч.': 'Max {n} bukid kada batch.',
+  'Собрать всё': 'Anihin lahat',
+  'Нужна таблица адресов (LUT)': 'Kailangan ng address lookup table (LUT)',
+  'Батч больше {n} полей требует LUT. Создай её в КАЮТЕ и повтори.': 'Ang batch na higit {n} bukid ay nangangailangan ng LUT. Gawin ito sa KABINA at subukan muli.',
+  'Осталось {n} полей — лимит {limit} за транзакцию.': 'May {n} bukid pa — ang limit ay {limit} kada transaksyon.',
+  'Лицензия активна: лимит {limit} полей за транзакцию.': 'Aktibo ang lisensya: limit na {limit} bukid kada transaksyon.',
+  'Лимит {limit} полей за транзакцию. Лицензия поднимает его до {licensed}.': 'Limit na {limit} bukid kada transaksyon. Ang lisensya ay nagtataas nito sa {licensed}.',
+  'Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.': 'Bonus: batch na pag-aani ng hanggang {n} bukid kada transaksyon sa halip na {base}.',
   'Не удалось закрыть поле': 'Nabigong isara ang bukid',
   'Не удалось отправить SOL': 'Nabigong ipadala ang SOL',
   'Не удалось собрать урожай батчем': 'Nabigo ang batch harvest',
@@ -596,6 +603,10 @@ const tl: Record<string, string> = {
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'Naipadala ang transaksyon pero walang kumpirmasyon. Tingnan ang iyong wallet bago subukan ulit — maaaring natuloy na ang aksyon.',
   'Требуется владеть 6 делянками, и хотя бы одна должна быть 3-го уровня (сейчас макс. ур. {lvl}).': 'Kailangan ng 6 na lote na may kahit isa sa antas 3 (kasalukuyang max lvl {lvl}).',
   'нужен ур. 3 (сейчас {n})': 'kailangan ang lvl 3 (ngayon {n})',
+  'Продолжить': 'Magpatuloy',
+  'Гидропонный модуль раскрыт': 'Nabunyag ang hydroponic module',
+  'Предоплата зачислена': 'Na-credit ang paunang bayad',
+  'Шанс дропа: {c}%': 'Tsansa ng drop: {c}%',
 };
 
 export default tl;

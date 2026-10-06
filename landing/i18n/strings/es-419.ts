@@ -425,6 +425,22 @@ const es419: Record<string, string> = {
   '28 лунных эпох Фобоса с множителями урожайности': '28 épocas lunares de Fobos con multiplicadores de rendimiento',
   'Эксклюзивные модули за ончейн-достижения в NeuroForge': 'Módulos exclusivos por logros on-chain en NeuroForge',
   'Играть в ARES-1 ↗': 'Jugar ARES-1 ↗',
+  'Каталог паков недоступен — попробуйте позже': 'Catálogo de packs no disponible — inténtalo más tarde',
+  'PHASE 1 · ПРЕДОПЛАТА': 'FASE 1 · PAGO ANTICIPADO',
+  'Ограниченные паки ARES-1': 'Packs limitados de ARES-1',
+  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — при запуске основной сети. Без возвратов.': '500 packs por pago anticipado ahora + 500 en el lanzamiento de mainnet. El POTATO se acredita al lanzar la mainnet. Sin reembolsos.',
+  'Осталось: {n} из {cap}': 'Quedan: {n} de {cap}',
+  'полей': 'campos',
+  'Адрес кошелька (SOL)': 'Dirección de billetera (SOL)',
+  'Email (необязательно)': 'Email (opcional)',
+  'Зарезервировать пак': 'Reservar un pack',
+  'Не удалось связаться с сервером': 'No se pudo contactar el servidor',
+  'Заказ №{n} зарезервирован': 'Pedido №{n} reservado',
+  'Переведите ровно {u} базовых единиц на:': 'Envía exactamente {u} unidades base a:',
+  'Подпись транзакции': 'Firma de la transacción',
+  'Я оплатил — проверить': 'Ya pagué — verificar',
+  'Подпись получена — проверяем перевод. Статус заказа: №{n}': 'Firma recibida — verificando la transferencia. Estado del pedido: №{n}',
+  'Предоплата не является инвестицией и не гарантирует доход. Условия — Terms §7.': 'El pago anticipado no es una inversión y no garantiza rendimiento. Ver Términos §7.',
 };
 
 export default es419;

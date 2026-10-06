@@ -94,3 +94,28 @@ test('batch harvest and achievement append only correctly privileged field accou
   assert.deepEqual(batch.keys.slice(-2), fields.map(pubkey => ({ pubkey, isSigner: false, isWritable: true })));
   assert.deepEqual(claim.keys.slice(-2), fields.map(pubkey => ({ pubkey, isSigner: false, isWritable: false })));
 });
+
+test('batch harvest puts the export-license PDA first among remaining accounts, read-only', async () => {
+  const fixed = idl.instructions.find(ix => ix.name === 'batch_harvest')!.accounts.length;
+  const fields = [PublicKey.unique(), PublicKey.unique(), PublicKey.unique()];
+  const license = PublicKey.unique();
+  const asFields = fields.map(pubkey => ({ pubkey, isSigner: false, isWritable: true }));
+
+  // Без лицензии раскладка прежняя: фиксированные аккаунты + поля. Это держит
+  // совместимость с уже развёрнутой программой и пинт основного ABI-цикла.
+  const plain = await client.ixBatchHarvest(program, { ...p, fieldPks: fields });
+  assert.equal(plain.keys.length, fixed + fields.length);
+  assert.deepEqual(plain.keys.slice(fixed), asFields);
+
+  // С лицензией её PDA идёт ПЕРВЫМ remaining_account'ом и только на чтение:
+  // on-chain выводит [b"license", owner], сверяет ключ и поднимает лимит батча.
+  const licensed = await client.ixBatchHarvest(program, { ...p, fieldPks: fields, exportLicense: license });
+  assert.equal(licensed.keys.length, fixed + 1 + fields.length);
+  assert.deepEqual(licensed.keys[fixed], { pubkey: license, isSigner: false, isWritable: false });
+  assert.deepEqual(licensed.keys.slice(fixed + 1), asFields);
+
+  // Явный null обязан быть неотличим от отсутствия лицензии.
+  const explicitNull = await client.ixBatchHarvest(program, { ...p, fieldPks: fields, exportLicense: null });
+  assert.equal(explicitNull.keys.length, fixed + fields.length);
+  assert.deepEqual(explicitNull.keys.slice(fixed), asFields);
+});

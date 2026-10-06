@@ -41,8 +41,15 @@ describe("solana_potato", () => {
   const sellerProfilePda = (seller: PublicKey) => pda(Buffer.from("seller"), seller.toBuffer());
   const marketStatsPda = pda(Buffer.from("market_stats"));
   const adminStatePda = pda(Buffer.from("admin_state"));
+  const licensePda = (owner: PublicKey) => pda(Buffer.from("license"), owner.toBuffer());
 
   let mint: PublicKey;
+  /**
+   * Тестовый SKR-минт, переданный в `initialize` через remaining_accounts.
+   * Без него все SKR-рельсы непроверяемы: константный `SKR_MINT` на localnet не
+   * существует, а `update_skr_mint` лежит под 24-часовым таймлоком.
+   */
+  let skrMint: PublicKey;
   const presaleFieldIds: bigint[] = [];
   let adminAta: PublicKey;
   let treasuryAta: PublicKey;
@@ -108,13 +115,31 @@ describe("solana_potato", () => {
       );
     });
 
+    it("rejects a supplied SKR mint with wrong decimals (п.40)", async () => {
+      // SKR-минт передаётся через remaining_accounts; 9 знаков переоценили бы
+      // лицензию (500 SKR) и модуль (1053 SKR) на 10^3, поэтому проверка
+      // decimals срабатывает ещё на шаге initialize.
+      const goodPotato = await createMint(connection, admin, admin.publicKey, null, 6);
+      await setAuthority(connection, admin, goodPotato, admin.publicKey, AuthorityType.MintTokens, configPda);
+      const badSkr = await createMint(connection, admin, admin.publicKey, null, 9);
+      await expectFail(
+        program.methods.initialize().accountsPartial({
+          config: configPda, potatoMint: goodPotato, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+        }).remainingAccounts([{ pubkey: badSkr, isSigner: false, isWritable: false }]).rpc(),
+        "InvalidSkrDecimals",
+      );
+    });
+
     it("creates GameConfig and epoch 0", async () => {
       mint = await createMint(connection, admin, admin.publicKey, null, 6);
       await setAuthority(connection, admin, mint, admin.publicKey, AuthorityType.MintTokens, configPda);
+      // SKR-минт для тестов: 6 знаков (иначе InvalidSkrDecimals), authority —
+      // admin, чтобы тесты могли наминтить себе 500 SKR на лицензию.
+      skrMint = await createMint(connection, admin, admin.publicKey, null, 6);
 
       await program.methods.initialize().accountsPartial({
         config: configPda, potatoMint: mint, authority: admin.publicKey, systemProgram: SystemProgram.programId,
-      }).rpc();
+      }).remainingAccounts([{ pubkey: skrMint, isSigner: false, isWritable: false }]).rpc();
       await program.methods.initEpoch().accountsPartial({
         config: configPda, epoch: epochPda(0), authority: admin.publicKey, systemProgram: SystemProgram.programId,
       }).rpc();
@@ -122,6 +147,7 @@ describe("solana_potato", () => {
       const cfg = await program.account.gameConfig.fetch(configPda);
       expect(cfg.authority.equals(admin.publicKey)).to.be.true;
       expect(cfg.potatoMint.equals(mint)).to.be.true;
+      expect(cfg.skrMint.equals(skrMint)).to.be.true;
       expect(cfg.epochId.toNumber()).to.eq(0);
       expect(cfg.dailyMintCapMicro.toString()).to.eq("250000000000");
       expect(cfg.paused).to.be.false;
@@ -1468,7 +1494,26 @@ describe("solana_potato", () => {
       await expectFail(provider.sendAndConfirm(new Transaction().add(ix), [admin]));
     });
 
-    it("C18: batch_harvest ограничен 10 полями (InvalidAmount до любых чтений)", async () => {
+    it("C18: batch_harvest без лицензии ограничен 10 полями (InvalidAmount до любых чтений)", async () => {
+      const dummies = Array.from({ length: 11 }, () => ({
+        pubkey: PublicKey.unique(), isSigner: false, isWritable: true,
+      }));
+      await expectFail(
+        program.methods.batchHarvest().accountsPartial({
+          config: configPda, epoch: epochPda(0), potatoMint: mint, userPotato: playerAta,
+          treasuryPotato: treasuryAta, owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        }).signers([player]).remainingAccounts(dummies).rpc(),
+        "InvalidAmount",
+      );
+    });
+
+    it("L01: произвольный аккаунт в начале батча не выдаёт премиум-тир (InvalidAmount)", async () => {
+      // 11 аккаунтов, первый — НЕ PDA лицензии. Ончейн обязан сверить его с
+      // выведенным [b"license", owner] и, не совпав, считать все 11 полями.
+      // Если бы программа безусловно отбрасывала первый аккаунт как лицензию,
+      // осталось бы 10 полей — лимит пройден, и транзакция упала бы позже с
+      // BadProof. Именно InvalidAmount отличает корректное поведение.
       const dummies = Array.from({ length: 11 }, () => ({
         pubkey: PublicKey.unique(), isSigner: false, isWritable: true,
       }));
@@ -1533,6 +1578,84 @@ describe("solana_potato", () => {
       }).rpc();
       expect((await program.account.adminState.fetch(adminStatePda)).pendingWithdrawPotato.toNumber()).to.eq(0);
       await expectFail(exec(1_000n, adminAta), "NoPendingWithdrawal");
+    });
+  });
+
+  // ─────────── Премиум-тир батча: активная лицензия → 30 полей ───────────
+  describe("batch_harvest premium tier (export license)", () => {
+    const holder = Keypair.generate();
+    const treasurySolPda = pda(Buffer.from("treasury_sol"));
+    const dummies = (n: number) =>
+      Array.from({ length: n }, () => ({ pubkey: PublicKey.unique(), isSigner: false, isWritable: true }));
+    /**
+     * Батч из `n` заглушек-полей, опционально с PDA лицензии первым аккаунтом.
+     * Поля — заведомо чужие аккаунты: цель не собрать урожай, а отличить
+     * InvalidAmount (лимит не пройден) от BadProof (лимит пройден, упёрлись в
+     * проверку полей). Так тест остаётся мгновенным и не требует 62 с accrual.
+     */
+    const batch = (n: number, withLicense: boolean) =>
+      program.methods.batchHarvest().accountsPartial({
+        config: configPda, epoch: epochPda(0), potatoMint: mint, userPotato: holderPotatoAta,
+        treasuryPotato: treasuryAta, owner: holder.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      }).signers([holder]).remainingAccounts([
+        ...(withLicense ? [{ pubkey: licensePda(holder.publicKey), isSigner: false, isWritable: false }] : []),
+        ...dummies(n),
+      ]).rpc();
+
+    let holderPotatoAta: PublicKey;
+
+    before(async () => {
+      await connection.confirmTransaction(await connection.requestAirdrop(holder.publicKey, 2 * LAMPORTS_PER_SOL));
+      // user_potato constrained by token::authority = owner, поэтому нужен ATA
+      // именно holder'а, а не player'а.
+      holderPotatoAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, holder.publicKey)).address;
+      // Несколько тестов выше ставят paused без finally; снимаем, чтобы
+      // Paused не маскировал проверяемый здесь InvalidAmount/BadProof.
+      const cfg = await program.account.gameConfig.fetch(configPda);
+      if (cfg.paused) {
+        await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
+      }
+      expect(cfg.epochId.toNumber()).to.eq(0);
+    });
+
+    it("до покупки PDA лицензии не существует — тир не выдаётся (InvalidAmount)", async () => {
+      // Ключ совпадает с выведенным PDA, но владельца-программы нет, поэтому
+      // licensed остаётся false, а PDA всё равно исключается из списка полей.
+      await expectFail(batch(11, true), "InvalidAmount");
+    });
+
+    it("buy_export_license создаёт лицензию и забирает 500 SKR в казну", async () => {
+      const userSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, holder.publicKey)).address;
+      const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, treasurySolPda, true)).address;
+      await mintTo(connection, admin, skrMint, userSkrAta, admin, 500_000_000);
+      const treasuryBefore = await ataBalance(treasurySkrAta);
+
+      await program.methods.buyExportLicense().accountsPartial({
+        config: configPda, license: licensePda(holder.publicKey), payer: holder.publicKey,
+        skrMint, userSkrAta, treasurySol: treasurySolPda, treasurySkrAta,
+        tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      }).signers([holder]).rpc();
+
+      const lic = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
+      expect(lic.owner.equals(holder.publicKey)).to.be.true;
+      expect(lic.expiresAt.gt(new BN(Math.floor(Date.now() / 1000)))).to.be.true;
+      expect(await ataBalance(treasurySkrAta) - treasuryBefore).to.eq(500_000_000n);
+      expect(await ataBalance(userSkrAta)).to.eq(0n);
+    });
+
+    it("с активной лицензией 11 полей проходят лимит (падают позже на BadProof)", async () => {
+      await expectFail(batch(11, true), "BadProof");
+    });
+
+    it("граница премиум-тира: 30 полей проходят, 31 — InvalidAmount", async () => {
+      await expectFail(batch(30, true), "BadProof");
+      await expectFail(batch(31, true), "InvalidAmount");
+    });
+
+    it("те же 11 полей без PDA лицензии по-прежнему InvalidAmount", async () => {
+      await expectFail(batch(11, false), "InvalidAmount");
     });
   });
 });

@@ -71,6 +71,6 @@ export function loadGameOpsConfig(env: NodeJS.ProcessEnv = process.env): GameOps
     adminToken,
     reconciliationMaxAgeMinutes: intFromEnv(env.GAME_OPS_RECONCILIATION_MAX_AGE_MINUTES, 20, 1, 1_440, 'GAME_OPS_RECONCILIATION_MAX_AGE_MINUTES'),
     chainId: env.GAME_OPS_CHAIN_ID && /^[a-z0-9_]{3,32}$/.test(env.GAME_OPS_CHAIN_ID) ? env.GAME_OPS_CHAIN_ID : 'reward',
-    expectedSchemaVersion: intFromEnv(env.GAME_OPS_EXPECTED_SCHEMA_VERSION, 3, 1, 1_000, 'GAME_OPS_EXPECTED_SCHEMA_VERSION'),
+    expectedSchemaVersion: intFromEnv(env.GAME_OPS_EXPECTED_SCHEMA_VERSION, 6, 1, 1_000, 'GAME_OPS_EXPECTED_SCHEMA_VERSION'),
   };
 }
