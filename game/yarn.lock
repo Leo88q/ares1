@@ -1308,7 +1308,7 @@
   dependencies:
     "@solana/errors" "2.3.0"
 
-"@solana/buffer-layout-utils@^0.3.0", "@solana/buffer-layout-utils@file:../vendor/solana-buffer-layout-utils":
+"@solana/buffer-layout-utils@^0.3.0", "@solana/buffer-layout-utils@file:apps/web/vendor/solana-buffer-layout-utils":
   version "0.3.1"
   dependencies:
     "@solana/buffer-layout" "^4.0.0"

@@ -18,10 +18,13 @@ The upstream Apache-2.0 license is retained. The upstream 47-test bigint suite
 is kept in `test/` and runs without install scripts via:
 
 ```sh
-node --test vendor/solana-buffer-layout-utils/test/*.test.mjs
+node --test apps/web/vendor/solana-buffer-layout-utils/test/*.test.mjs
 ```
 
 When an upstream fixed release becomes available, compare its source and API,
 remove the local package-manager overrides, and delete this vendored package
+(the real path is `game/apps/web/vendor/solana-buffer-layout-utils`; it sits
+inside the web project tree so a build that only sees that directory still
+resolves the `file:` dependency)
 only after both lockfiles and runtime tests confirm that `bigint-buffer` is no
 longer installed.
