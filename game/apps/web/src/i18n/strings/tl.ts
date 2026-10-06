@@ -385,7 +385,7 @@ const tl: Record<string, string> = {
   'Разделы колонии': 'Mga seksyon ng kolonya',
   'Ранг': 'Ranggo',
   'Рассвет': 'Madaling-araw',
-  'Растение за SKR · Лимит 5 на кошелёк': 'Tanim sa SKR · Limit 5 bawat wallet',
+  'Фаза 2 · Растение за SKR · Лимит 5 на кошелёк': 'Yugto 2 · Tanim sa SKR · Limit 5 bawat wallet',
   'Ремонт, апгрейд, 5% шанс мутации': 'Reperahan, upgrade, 5% na chance ng mutasyon',
   'Реферер зарегистрирован!': 'Na-register na ang referrer!',
   'Рынок': 'Merkado',
@@ -607,6 +607,12 @@ const tl: Record<string, string> = {
   'Гидропонный модуль раскрыт': 'Nabunyag ang hydroponic module',
   'Предоплата зачислена': 'Na-credit ang paunang bayad',
   'Шанс дропа: {c}%': 'Tsansa ng drop: {c}%',
+  'ФАЗА 1 · ПРЕДОПЛАТА (ОФФЧЕЙН)': 'YUGTO 1 · PAUNANG BAYAD (OFF-CHAIN)',
+  'Пак Фазы 1 — {price} SKR за 1 000 POTATO.': 'Pak ng Yugto 1 — {price} SKR para sa 1,000 POTATO.',
+  'POTATO выдаётся в день листинга на mainnet.': 'Ang POTATO ay ibibigay sa araw ng listing sa mainnet.',
+  'Покупка не влияет на devnet-прогресс: пак не действует в текущей бете.': 'Ang pagbiling ito ay hindi nakakaapekto sa progreso ng devnet: hindi ito gumagana sa kasalukuyang beta.',
+  'Осталось: {n} из {cap}': 'Natitira: {n} sa {cap}',
+  'Оформить на лендинге →': 'Kumuha sa landing page →',
 };
 
 export default tl;

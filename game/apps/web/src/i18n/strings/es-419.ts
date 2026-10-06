@@ -385,7 +385,7 @@ const es419: Record<string, string> = {
   'Разделы колонии': 'Secciones de la colonia',
   'Ранг': 'Rango',
   'Рассвет': 'Amanecer',
-  'Растение за SKR · Лимит 5 на кошелёк': 'Plantas por SKR · Límite de 5 por billetera',
+  'Фаза 2 · Растение за SKR · Лимит 5 на кошелёк': 'Fase 2 · Plantas por SKR · Límite de 5 por billetera',
   'Ремонт, апгрейд, 5% шанс мутации': 'Reparación, mejora, 5% de probabilidad de mutación',
   'Реферер зарегистрирован!': '¡Referidor registrado!',
   'Рынок': 'Mercado',
@@ -607,6 +607,12 @@ const es419: Record<string, string> = {
   'Гидропонный модуль раскрыт': 'Módulo hidropónico revelado',
   'Предоплата зачислена': 'Prepago acreditado',
   'Шанс дропа: {c}%': 'Probabilidad de drop: {c}%',
+  'ФАЗА 1 · ПРЕДОПЛАТА (ОФФЧЕЙН)': 'FASE 1 · PAGO ANTICIPADO (OFF-CHAIN)',
+  'Пак Фазы 1 — {price} SKR за 1 000 POTATO.': 'Paquete de Fase 1: {price} SKR por 1.000 POTATO.',
+  'POTATO выдаётся в день листинга на mainnet.': 'El POTATO se entrega el día del listado en la mainnet.',
+  'Покупка не влияет на devnet-прогресс: пак не действует в текущей бете.': 'Esta compra no afecta el progreso de devnet: el paquete no se aplica a la beta actual.',
+  'Осталось: {n} из {cap}': 'Restantes: {n} de {cap}',
+  'Оформить на лендинге →': 'Gestionar en la landing →',
 };
 
 export default es419;

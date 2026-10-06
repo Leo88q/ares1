@@ -385,7 +385,7 @@ const vi: Record<string, string> = {
   'Разделы колонии': 'Khu vực thuộc địa',
   'Ранг': 'Hạng',
   'Рассвет': 'Bình minh',
-  'Растение за SKR · Лимит 5 на кошелёк': 'Cây đổi bằng SKR · Tối đa 5 cây mỗi ví',
+  'Фаза 2 · Растение за SKR · Лимит 5 на кошелёк': 'Giai đoạn 2 · Cây đổi bằng SKR · Tối đa 5 cây mỗi ví',
   'Ремонт, апгрейд, 5% шанс мутации': 'Sửa chữa, nâng cấp, 5% cơ hội biến đổi',
   'Реферер зарегистрирован!': 'Đã đăng ký người giới thiệu!',
   'Рынок': 'Thị trường',
@@ -607,6 +607,12 @@ const vi: Record<string, string> = {
   'Гидропонный модуль раскрыт': 'Mô-đun thủy canh đã mở',
   'Предоплата зачислена': 'Đã ghi có trả trước',
   'Шанс дропа: {c}%': 'Tỉ lệ rơi: {c}%',
+  'ФАЗА 1 · ПРЕДОПЛАТА (ОФФЧЕЙН)': 'GIAI ĐOẠN 1 · TRẢ TRƯỚC (OFF-CHAIN)',
+  'Пак Фазы 1 — {price} SKR за 1 000 POTATO.': 'Gói Giai đoạn 1 — {price} SKR cho 1.000 POTATO.',
+  'POTATO выдаётся в день листинга на mainnet.': 'POTATO được trao vào ngày niêm yết trên mainnet.',
+  'Покупка не влияет на devnet-прогресс: пак не действует в текущей бете.': 'Giao dịch này không ảnh hưởng đến tiến độ devnet: gói không áp dụng trong bản beta hiện tại.',
+  'Осталось: {n} из {cap}': 'Còn lại: {n} / {cap}',
+  'Оформить на лендинге →': 'Thực hiện trên landing page →',
 };
 
 export default vi;

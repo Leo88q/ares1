@@ -23,6 +23,15 @@
 ## 1. Предусловия
 
 - Бэкенд поднят с `GAME_OPS_DATABASE_URL` и `ADMIN_API_TOKEN` (≥32 символов) — админ-эндпоинты отвечают на `/api/presale` и `/api/gameops` с `Authorization: Bearer $ADMIN_API_TOKEN`.
+- Лендинг видит бэкенд: в проде — Cloudflare Pages Function
+  `landing/functions/api/[[path]].js` с переменной Pages-проекта
+  `PRESALE_API_ORIGIN=https://<бэкенд>` (без `/api`). Без неё `/api/*` отвечает
+  `503 presale_api_not_configured`, и купить пак через форму нельзя.
+- `VITE_PRESALE_RUN` (лендинг и игра) совпадает с `PRESALE_RUN_ID` тиража — по
+  умолчанию `wave1`. Если id разойдётся, баннер покажет пустую цену/остаток.
+- Если игра ходит в бэкенд напрямую (`VITE_BACKEND_URL`), origin игры должен
+  быть в `CORS_ORIGIN` бэкенда — иначе счётчик Фазы 1 в игровом окне не
+  загрузится (сам блок условий от этого не зависит).
 - Есть `RPC_URL` нужного кластера (**devnet или mainnet — проверьте дважды**) и `PRESALE_RUN_ID` открытого тиража (открывается `yarn presale:open-run`, W1.1).
 - Authority-ключ доступен только на офлайн-носителе (см. §7). На сервере его быть не должно.
 - Заказы в очереди на выдачу: `state = 'paid'`.
@@ -86,7 +95,8 @@ GAME_OPS_DATABASE_URL=… ADMIN_API_TOKEN=… RPC_URL="$RPC_URL" PRESALE_RUN_ID=
 # exit 0 — расхождений нет, выдавать можно
 # exit 1 — расхождения (chainOnly / dbOnly / amountMismatch / walletMismatch / duplicateSignature):
 #          СТОП, разбираться до выдачи
-# exit 2 — проверка не выполнена (нет конфигурации или тираж не тот)
+# exit 2 — проверка не выполнена: нет конфигурации, тираж не тот или тираж в SKR
+#          (для SKR автосверки нет — см. ниже)
 ```
 
 Эквивалент по HTTP (для журнала): `GET /api/presale/admin/reconcile?runId=$PRESALE_RUN_ID` →
@@ -96,11 +106,11 @@ GAME_OPS_DATABASE_URL=… ADMIN_API_TOKEN=… RPC_URL="$RPC_URL" PRESALE_RUN_ID=
 (`fetchTreasuryTransfers` читает SOL-переводы на адрес `treasury`). Поэтому:
 
 - **SOL-тираж** — это полноценный гейт, как описано выше.
-- **SKR-тираж** — автоматического гейта нет. HTTP `GET /api/presale/admin/reconcile` отвечает
-  `400 VALIDATION` («Автоматическая сверка пока реализована для SOL-тиражей»), а CLI
-  `presale:reconcile` для SKR только печатает «сверка выполняется по подписям заказов» и всё
-  равно читает SOL-историю адреса-ATA — это **не** доказательство получения SKR, даже если он
-  вышел с кодом 0. Не принимайте его вывод за вердикт по SKR-тиражу.
+- **SKR-тираж** — автоматического гейта нет, и CLI это признаёт: `yarn presale:reconcile`
+  для SKR **не запускает** SOL-сверку и выходит с кодом **2**, а не 0 — чтобы зелёный exit
+  нельзя было принять за пройденный гейт. HTTP `GET /api/presale/admin/reconcile` отвечает
+  `400 VALIDATION` («Автоматическая сверка пока реализована для SOL-тиражей»). Ни то, ни
+  другое не является доказательством получения SKR — решает только поштучный `verify`.
 
 Гейт для SKR — поштучная проверка каждого заказа:
 

@@ -11,6 +11,7 @@ import { haptics } from '../utils/haptic'
 import { presaleStatePda } from '../utils/anchorClient'
 import { decodePresaleState } from '../utils/presaleState'
 import CaseReveal from './CaseReveal'
+import Phase1Notice from './Phase1Notice'
 
 // Фолбэк только на время загрузки: истинный cap читается из on-chain
 // PresaleState (его задаёт оператор при init_presale, а не эта константа).
@@ -122,10 +123,13 @@ export default function PresaleSection() {
       PRESALE
      </h2>
      <div className="pf-subtitle" style={{ fontSize: 11, margin: 0, color: '#B3946A' }}>
-      {t('Растение за SKR · Лимит 5 на кошелёк')}
+      {t('Фаза 2 · Растение за SKR · Лимит 5 на кошелёк')}
      </div>
     </div>
    </div>
+
+   {/* Фаза 1 — оффчейн-предоплата: условия + явная пометка RFC §4.4. */}
+   <Phase1Notice />
 
    {/* Внутренняя клёпаная рама с кассетами трёх тиров */}
    <div className="po-rim" style={{ padding: '8px 12px 12px', margin: '6px 0 14px', borderRadius: 2 }} aria-hidden="true">

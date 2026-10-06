@@ -385,7 +385,7 @@ const ptBR: Record<string, string> = {
   'Разделы колонии': 'Seções da colônia',
   'Ранг': 'Rango',
   'Рассвет': 'Amanhecer',
-  'Растение за SKR · Лимит 5 на кошелёк': 'Plantas por SKR · Limite de 5 por carteira',
+  'Фаза 2 · Растение за SKR · Лимит 5 на кошелёк': 'Fase 2 · Plantas por SKR · Limite de 5 por carteira',
   'Ремонт, апгрейд, 5% шанс мутации': 'Reparo, upgrade, 5% de chance de mutação',
   'Реферер зарегистрирован!': 'Referenciador cadastrado!',
   'Рынок': 'Mercado',
@@ -607,6 +607,12 @@ const ptBR: Record<string, string> = {
   'Гидропонный модуль раскрыт': 'Módulo hidropônico revelado',
   'Предоплата зачислена': 'Pré-pagamento creditado',
   'Шанс дропа: {c}%': 'Chance de drop: {c}%',
+  'ФАЗА 1 · ПРЕДОПЛАТА (ОФФЧЕЙН)': 'FASE 1 · PRÉ-PAGAMENTO (OFF-CHAIN)',
+  'Пак Фазы 1 — {price} SKR за 1 000 POTATO.': 'Pacote da Fase 1 — {price} SKR por 1.000 POTATO.',
+  'POTATO выдаётся в день листинга на mainnet.': 'O POTATO é entregue no dia da listagem na mainnet.',
+  'Покупка не влияет на devnet-прогресс: пак не действует в текущей бете.': 'Esta compra não afeta o progresso da devnet: o pacote não vale na beta atual.',
+  'Осталось: {n} из {cap}': 'Restantes: {n} de {cap}',
+  'Оформить на лендинге →': 'Solicitar na landing page →',
 };
 
 export default ptBR;

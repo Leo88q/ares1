@@ -9,7 +9,12 @@
  * автономная команда: оператор может запустить её до того, как поднят бэкенд,
  * и получить вердикт «можно ли выдавать» из терминала.
  *
- * Выходной код: 0 = расхождений нет, 1 = есть расхождения (не выдавать).
+ * Выходной код: 0 = расхождений нет (выдавать можно);
+ *               1 = есть расхождения (не выдавать);
+ *               2 = проверка не выполнена: нет конфигурации/тиража или тираж в SKR.
+ *                   Автосверка читает SOL-историю казначейства, поэтому для
+ *                   SKR-тиража её вердикт был бы ложным; гейт для SKR — поштучный
+ *                   verify заказа (docs/PRESALE_DELIVERY_RUNBOOK.md).
  */
 import process from 'node:process';
 import { Connection, PublicKey } from '@solana/web3.js';
@@ -39,11 +44,19 @@ async function main(): Promise<void> {
     const run = runs[0];
     if (!run) { console.error(`Тираж ${runId} не найден`); process.exit(2); }
 
-    const chainTransfers = await fetchTreasuryTransfers(connection, run.treasury);
-
     if (run.currency === 'skr') {
-      console.log('Тираж в SKR: автосверка токен-переводов выполняется по подписям заказов.');
+      // Не выдаём SOL-историю за «сверку SKR»: fetchTreasuryTransfers читает
+      // только SOL-баланс казначейства, поэтому вердикт для SKR-тиража был бы
+      // ложным в обе стороны (и при зелёном exit 0, и при красном). Честный
+      // выход — «автосверки нет», а гейт для SKR — поштучный verify заказа.
+      console.error('Тираж в SKR: автосверка токен-переводов не реализована.');
+      console.error('Гейт для SKR — поштучная проверка заказа перед выдачей:');
+      console.error('  POST /api/presale/admin/orders/:id/verify  (ожидается verdict.ok = true)');
+      console.error('Подробности: docs/PRESALE_DELIVERY_RUNBOOK.md, шаг 2.');
+      process.exit(2);
     }
+
+    const chainTransfers = await fetchTreasuryTransfers(connection, run.treasury);
 
     const orders = await query<{
       order_no: number; tx_signature: string | null; received_units: string | null;

@@ -385,7 +385,7 @@ const id: Record<string, string> = {
   'Разделы колонии': 'Bagian koloni',
   'Ранг': 'Rangking',
   'Рассвет': 'Fajar',
-  'Растение за SKR · Лимит 5 на кошелёк': 'Tanaman dengan SKR · Batas 5 per dompet',
+  'Фаза 2 · Растение за SKR · Лимит 5 на кошелёк': 'Fase 2 · Tanaman dengan SKR · Batas 5 per dompet',
   'Ремонт, апгрейд, 5% шанс мутации': 'Perbaikan, upgrade, 5% peluang mutasi',
   'Реферер зарегистрирован!': 'Referrer terdaftar!',
   'Рынок': 'Pasar',
@@ -607,6 +607,12 @@ const id: Record<string, string> = {
   'Гидропонный модуль раскрыт': 'Modul hidroponik terungkap',
   'Предоплата зачислена': 'Pembayaran di muka dikreditkan',
   'Шанс дропа: {c}%': 'Peluang drop: {c}%',
+  'ФАЗА 1 · ПРЕДОПЛАТА (ОФФЧЕЙН)': 'FASE 1 · PRABAYAR (OFF-CHAIN)',
+  'Пак Фазы 1 — {price} SKR за 1 000 POTATO.': 'Pak Fase 1 — {price} SKR untuk 1.000 POTATO.',
+  'POTATO выдаётся в день листинга на mainnet.': 'POTATO dikirim pada hari pencatatan di mainnet.',
+  'Покупка не влияет на devnet-прогресс: пак не действует в текущей бете.': 'Pembelian ini tidak memengaruhi progres devnet: pak ini tidak berlaku di beta saat ini.',
+  'Осталось: {n} из {cap}': 'Sisa: {n} dari {cap}',
+  'Оформить на лендинге →': 'Ajukan di landing page →',
 };
 
 export default id;
