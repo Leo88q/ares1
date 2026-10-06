@@ -66,7 +66,7 @@ builders in web/backend must match the generated IDL, not just its address.
 
 | Instruction | Permission and behavior |
 |---|---|
-| `initialize` | First caller initializes singleton with correctly configured POTATO mint; establishes authority/reward signer |
+| `initialize` | First caller initializes singleton with correctly configured POTATO mint; establishes authority/reward signer. `config.skr_mint` defaults to the pinned `SKR_MINT` constant; the deployer may instead pass its own SKR mint as the **first** remaining account (must be owned by SPL Token with `SKR_DECIMALS` decimals, else `InvalidMint`/`InvalidSkrDecimals`). This exists so localnet can exercise the SKR rails — the constant devnet mint does not exist there and `update_skr_mint` sits behind a 24 h timelock. A call with no remaining accounts behaves byte-for-byte as before. |
 | `init_epoch` | Authority; bootstrap cap from `config.daily_mint_cap_micro` |
 | `roll_epoch` | Any funded payer after 24h; dynamic cap = mean(burn axis, utilization axis) clamped to `[daily_mint_cap_micro, 3×daily_mint_cap_micro]` |
 | `close_old_epoch` | Permissionless rent-reclaim crank; closes epoch PDAs older than `current − KEEP_EPOCHS` (2). Historical emission stats remain in events and config counters |
@@ -111,6 +111,13 @@ harvests.
   `roll_epoch` no longer arbitrages the lunar phase.
 - `batch_harvest`: 1–10 unique writable owned Field accounts in remaining accounts;
   aggregate mint limits; updates field timestamps/durability. Covered by localnet CI.
+  The cap rises to **1–30** (`BATCH_LIMIT_BASE` → `BATCH_LIMIT_LICENSED`) when the
+  caller's export-license PDA `[b"license", owner]` is passed as the **first**
+  remaining account (read-only) and `expires_at` is still in the future. The key is
+  compared against the derived PDA and the owner must be this program, so a
+  fabricated account cannot grant the tier. The license is excluded from the field
+  list either way, active or expired. The 30-field tier needs a VersionedTransaction
+  with an Address Lookup Table — 30 writable accounts do not fit a 1232-byte legacy tx.
 - `close_field`: owner closes field account and receives rent, including while paused.
   Now **decrements `GameConfig.field_count`**, keeping global stats truthful.
   Closing still does not guarantee a field ID can never be reused.

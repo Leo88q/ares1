@@ -425,6 +425,22 @@ const id: Record<string, string> = {
   '28 лунных эпох Фобоса с множителями урожайности': '28 zaman bulan Phobos dengan pengganda hasil panen',
   'Эксклюзивные модули за ончейн-достижения в NeuroForge': 'Modul eksklusif untuk pencapaian on-chain di NeuroForge',
   'Играть в ARES-1 ↗': 'Mainkan ARES-1 ↗',
+  'Каталог паков недоступен — попробуйте позже': 'Katalog pak tidak tersedia — coba lagi nanti',
+  'PHASE 1 · ПРЕДОПЛАТА': 'FASE 1 · PRABAYAR',
+  'Ограниченные паки ARES-1': 'Pak ARES-1 terbatas',
+  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — при запуске основной сети. Без возвратов.': '500 pak lewat prabayar sekarang + 500 saat mainnet meluncur. POTATO dikreditkan saat mainnet meluncur. Tanpa pengembalian.',
+  'Осталось: {n} из {cap}': 'Sisa: {n} dari {cap}',
+  'полей': 'ladang',
+  'Адрес кошелька (SOL)': 'Alamat dompet (SOL)',
+  'Email (необязательно)': 'Email (opsional)',
+  'Зарезервировать пак': 'Reservasi pak',
+  'Не удалось связаться с сервером': 'Tidak dapat menghubungi server',
+  'Заказ №{n} зарезервирован': 'Pesanan №{n} direservasi',
+  'Переведите ровно {u} базовых единиц на:': 'Kirim tepat {u} unit dasar ke:',
+  'Подпись транзакции': 'Tanda tangan transaksi',
+  'Я оплатил — проверить': 'Saya sudah bayar — verifikasi',
+  'Подпись получена — проверяем перевод. Статус заказа: №{n}': 'Tanda tangan diterima — memverifikasi transfer. Status pesanan: №{n}',
+  'Предоплата не является инвестицией и не гарантирует доход. Условия — Terms §7.': 'Prabayar bukan investasi dan tidak menjamin imbal hasil. Lihat Ketentuan §7.',
 };
 
 export default id;

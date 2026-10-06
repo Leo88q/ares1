@@ -10,7 +10,7 @@ import { useGame } from '../contexts/GameContext'
 import { getAchievements } from '../utils/achievements'
 import { ShiftTasksList, type ShiftTask } from './ares/ShiftTasksList'
 
-import { fmtPotato, fmtSkr, EXPORT_LICENSE_PRICE_SKR_ATOMS, HARVEST_THRESHOLD_MICRO, MAX_DURABILITY } from '../utils/constants'
+import { fmtPotato, fmtSkr, EXPORT_LICENSE_PRICE_SKR_ATOMS, HARVEST_THRESHOLD_MICRO, MAX_DURABILITY, BATCH_LIMIT_BASE, BATCH_LIMIT_LICENSED } from '../utils/constants'
 import { pdas, decodeExportLicense, ixBuyExportLicense, treasurySolPda, treasurySkrAta, SKR_MINT } from '../utils/anchorClient'
 import { getAssociatedTokenAddress } from '@solana/spl-token'
 import { CabinBay } from './ares/CabinBay'
@@ -174,6 +174,9 @@ function ProfileScreenInner() {
       <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 14, lineHeight: 1.4 }}>
        {t('Торговый сертификат снижает комиссию на P2P бирже Снабжения и даёт приоритет в стакане.')}
       </p>
+      <p style={{ fontSize: 12, color: '#9FBE7A', marginBottom: 14, lineHeight: 1.4 }}>
+       {t('Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.', { n: BATCH_LIMIT_LICENSED, base: BATCH_LIMIT_BASE })}
+      </p>
       <button
        onClick={buyLicense}
        disabled={buyingLicense || !publicKey}
@@ -191,6 +194,9 @@ function ProfileScreenInner() {
      <div>
       <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 12, lineHeight: 1.4 }}>
        {t('Лицензия даёт скидку −3% на торговые сборы P2P биржи и статус верифицированного экспортёра колонии.')}
+      </p>
+      <p style={{ fontSize: 12, color: '#9FBE7A', marginBottom: 12, lineHeight: 1.4 }}>
+       {t('Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.', { n: BATCH_LIMIT_LICENSED, base: BATCH_LIMIT_BASE })}
       </p>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: '#120B07', border: '1px solid #3E2413' }}>
        <span className="ares-mono" style={{ fontSize: 14, fontWeight: 700, color: '#F6F1ED' }}>

@@ -14,6 +14,11 @@ export type GameOpsErrorCode =
   | 'MIGRATIONS_MISSING'
   | 'DUPLICATE_INTENT'
   | 'INTENT_NOT_FOUND'
+  | 'DUPLICATE_PAYMENT'
+  | 'RUN_NOT_FOUND'
+  | 'RUN_CLOSED'
+  | 'RUN_SOLD_OUT'
+  | 'ORDER_NOT_FOUND'
   | 'INVALID_TRANSITION'
   | 'CHAIN_MISMATCH'
   | 'CHAIN_BROKEN'
@@ -49,6 +54,18 @@ const PG_RAISE_CODES: Record<string, { code: GameOpsErrorCode; status: number }>
   INTENT_FAILURE_CODE_REQUIRED: { code: 'VALIDATION', status: 400 },
   CURSOR_VERSION_CONFLICT: { code: 'CURSOR_CONFLICT', status: 409 },
   CURSOR_STREAM_ID_IMMUTABLE: { code: 'VALIDATION', status: 409 },
+  // Phase 1 presale (0005_presale_guards.sql)
+  PRESALE_IMMUTABLE_FIELD: { code: 'VALIDATION', status: 409 },
+  PRESALE_INVALID_TRANSITION: { code: 'INVALID_TRANSITION', status: 409 },
+  PRESALE_SIGNATURE_IMMUTABLE: { code: 'VALIDATION', status: 409 },
+  PRESALE_SIGNATURE_REQUIRES_PAYMENT_SEEN: { code: 'VALIDATION', status: 400 },
+  PRESALE_INTENT_IMMUTABLE: { code: 'VALIDATION', status: 409 },
+  PRESALE_INTENT_REQUIRES_DELIVERED: { code: 'VALIDATION', status: 400 },
+  PRESALE_INITIAL_STATE_MUST_OCCUPY_SLOT: { code: 'VALIDATION', status: 400 },
+  PRESALE_SLOT_CANNOT_BE_RETAKEN: { code: 'INVALID_TRANSITION', status: 409 },
+  PRESALE_RUN_IMMUTABLE_FIELD: { code: 'VALIDATION', status: 409 },
+  PRESALE_RUN_CAP_IMMUTABLE: { code: 'VALIDATION', status: 409 },
+  PRESALE_RUN_CANNOT_REOPEN: { code: 'VALIDATION', status: 409 },
 };
 
 interface PgLikeError {
@@ -69,6 +86,12 @@ export function mapDbError(error: unknown): GameOpsError {
         return new GameOpsError('DUPLICATE_INTENT', 'Эта подпись уже привязана к другому интенту', undefined, 409);
       case 'reward_ledger_signature_recipient_key':
         return new GameOpsError('DUPLICATE_INTENT', 'Это событие уже есть в журнале', undefined, 409);
+      case 'presale_orders_signature_key':
+        // Один платёж не может закрыть два заказа — главная защита от
+        // «я оплатил один раз, дайте два пака».
+        return new GameOpsError('DUPLICATE_PAYMENT', 'Эта транзакция уже привязана к другому заказу', undefined, 409);
+      case 'presale_orders_run_order_key':
+        return new GameOpsError('VALIDATION', 'Номер заказа в этом тираже уже занят', undefined, 409);
       default:
         return new GameOpsError('VALIDATION', 'Нарушено ограничение уникальности', `constraint=${pg.constraint ?? 'unknown'}`, 409);
     }

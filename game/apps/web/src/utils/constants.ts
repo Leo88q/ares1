@@ -26,6 +26,14 @@ export const UNPAID_TAX_YIELD_BPS = 5_000
 export const FERTILIZER_YIELD_BPS = 15_000
 /** Harvest button becomes active above this amount (0.1 POTATO). */
 export const HARVEST_THRESHOLD_MICRO = 100_000
+/**
+ * Mirror of Rust BATCH_LIMIT_BASE / BATCH_LIMIT_LICENSED: how many fields a
+ * single `batch_harvest` may cover. An active export license lifts the cap.
+ * The licensed tier is only reachable via VersionedTransaction + Address
+ * Lookup Table: 30 writable accounts do not fit a 1232-byte legacy tx.
+ */
+export const BATCH_LIMIT_BASE = 10
+export const BATCH_LIMIT_LICENSED = 30
 
 export interface FieldTypeInfo {
  id: 0 | 1 | 2

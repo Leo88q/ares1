@@ -527,7 +527,14 @@ const en: Record<string, string> = {
 
   // Тосты транзакций (GameContext)
   'LUT создана': 'LUT created',
-  'Максимум 10 полей за один батч.': 'Max 10 plots per batch.',
+  'Максимум {n} полей за один батч.': 'Max {n} plots per batch.',
+  'Собрать всё': 'Harvest all',
+  'Нужна таблица адресов (LUT)': 'Address lookup table (LUT) required',
+  'Батч больше {n} полей требует LUT. Создай её в КАЮТЕ и повтори.': 'A batch over {n} plots needs a LUT. Create it in the CABIN and try again.',
+  'Осталось {n} полей — лимит {limit} за транзакцию.': '{n} plots left — limit is {limit} per transaction.',
+  'Лицензия активна: лимит {limit} полей за транзакцию.': 'License active: limit of {limit} plots per transaction.',
+  'Лимит {limit} полей за транзакцию. Лицензия поднимает его до {licensed}.': 'Limit of {limit} plots per transaction. A license raises it to {licensed}.',
+  'Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.': 'Bonus: batch-harvest up to {n} plots per transaction instead of {base}.',
   'Не удалось закрыть поле': 'Failed to close the plot',
   'Не удалось отправить SOL': 'Failed to send SOL',
   'Не удалось собрать урожай батчем': 'Failed to batch-harvest',
@@ -596,6 +603,10 @@ const en: Record<string, string> = {
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'The transaction was sent but no confirmation arrived. Check your wallet before retrying — the action may already have gone through.',
   'Требуется владеть 6 делянками, и хотя бы одна должна быть 3-го уровня (сейчас макс. ур. {lvl}).': 'Requires 6 fields with at least one at level 3 (current max lvl {lvl}).',
   'нужен ур. 3 (сейчас {n})': 'lvl 3 needed (now {n})',
+  'Продолжить': 'Continue',
+  'Гидропонный модуль раскрыт': 'Hydroponic module revealed',
+  'Предоплата зачислена': 'Prepayment credited',
+  'Шанс дропа: {c}%': 'Drop chance: {c}%',
 };
 
 export default en;

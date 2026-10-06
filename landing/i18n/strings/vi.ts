@@ -425,6 +425,22 @@ const vi: Record<string, string> = {
   '28 лунных эпох Фобоса с множителями урожайности': '28 kỷ nguyên mặt trăng Phobos với hệ số nhân sản lượng',
   'Эксклюзивные модули за ончейн-достижения в NeuroForge': 'Các mô-đun độc quyền cho thành tích on-chain trong NeuroForge',
   'Играть в ARES-1 ↗': 'Chơi ARES-1 ↗',
+  'Каталог паков недоступен — попробуйте позже': 'Danh mục gói không khả dụng — hãy thử lại sau',
+  'PHASE 1 · ПРЕДОПЛАТА': 'GIAI ĐOẠN 1 · TRẢ TRƯỚC',
+  'Ограниченные паки ARES-1': 'Các gói ARES-1 giới hạn',
+  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — при запуске основной сети. Без возвратов.': '500 gói trả trước ngay + 500 khi mainnet ra mắt. POTATO được ghi có khi mainnet ra mắt. Không hoàn tiền.',
+  'Осталось: {n} из {cap}': 'Còn lại: {n} / {cap}',
+  'полей': 'ô ruộng',
+  'Адрес кошелька (SOL)': 'Địa chỉ ví (SOL)',
+  'Email (необязательно)': 'Email (không bắt buộc)',
+  'Зарезервировать пак': 'Đặt trước một gói',
+  'Не удалось связаться с сервером': 'Không thể liên hệ máy chủ',
+  'Заказ №{n} зарезервирован': 'Đơn №{n} đã đặt trước',
+  'Переведите ровно {u} базовых единиц на:': 'Chuyển chính xác {u} đơn vị cơ sở tới:',
+  'Подпись транзакции': 'Chữ ký giao dịch',
+  'Я оплатил — проверить': 'Tôi đã thanh toán — kiểm tra',
+  'Подпись получена — проверяем перевод. Статус заказа: №{n}': 'Đã nhận chữ ký — đang xác minh giao dịch. Trạng thái đơn: №{n}',
+  'Предоплата не является инвестицией и не гарантирует доход. Условия — Terms §7.': 'Trả trước không phải khoản đầu tư và không bảo đảm lợi nhuận. Xem Điều khoản §7.',
 };
 
 export default vi;

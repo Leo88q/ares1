@@ -155,7 +155,7 @@ test('loadGameOpsConfig: без URL слой выключен, с URL — тре
     ADMIN_API_TOKEN: 'a'.repeat(32),
     GAME_OPS_DB_ROLE: 'game_ops_writer',
   });
-  assert.equal(config?.expectedSchemaVersion, 3);
+  assert.equal(config?.expectedSchemaVersion, 6);
   assert.equal(config?.role, 'game_ops_writer');
   assert.throws(() => loadGameOpsConfig({
     GAME_OPS_DATABASE_URL: 'postgres://localhost/ares1',

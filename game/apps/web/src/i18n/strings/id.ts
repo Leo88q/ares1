@@ -527,7 +527,14 @@ const id: Record<string, string> = {
 
   // Тосты транзакций (GameContext)
   'LUT создана': 'LUT dibuat',
-  'Максимум 10 полей за один батч.': 'Maks 10 lahan per batch.',
+  'Максимум {n} полей за один батч.': 'Maks {n} lahan per batch.',
+  'Собрать всё': 'Panen semua',
+  'Нужна таблица адресов (LUT)': 'Perlu tabel alamat (LUT)',
+  'Батч больше {n} полей требует LUT. Создай её в КАЮТЕ и повтори.': 'Batch lebih dari {n} lahan butuh LUT. Buat di KABIN lalu ulangi.',
+  'Осталось {n} полей — лимит {limit} за транзакцию.': 'Sisa {n} lahan — batas {limit} per transaksi.',
+  'Лицензия активна: лимит {limit} полей за транзакцию.': 'Lisensi aktif: batas {limit} lahan per transaksi.',
+  'Лимит {limit} полей за транзакцию. Лицензия поднимает его до {licensed}.': 'Batas {limit} lahan per transaksi. Lisensi menaikkannya ke {licensed}.',
+  'Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.': 'Bonus: panen batch hingga {n} lahan per transaksi, bukan {base}.',
   'Не удалось закрыть поле': 'Gagal menutup lahan',
   'Не удалось отправить SOL': 'Gagal mengirim SOL',
   'Не удалось собрать урожай батчем': 'Gagal panen batch',
@@ -596,6 +603,10 @@ const id: Record<string, string> = {
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'Transaksi terkirim, tetapi konfirmasi belum diterima. Periksa dompet sebelum mencoba lagi — tindakan mungkin sudah berhasil.',
   'Требуется владеть 6 делянками, и хотя бы одна должна быть 3-го уровня (сейчас макс. ур. {lvl}).': 'Membutuhkan 6 lahan dengan setidaknya satu di level 3 (level maks saat ini {lvl}).',
   'нужен ур. 3 (сейчас {n})': 'butuh level 3 (sekarang {n})',
+  'Продолжить': 'Lanjutkan',
+  'Гидропонный модуль раскрыт': 'Modul hidroponik terungkap',
+  'Предоплата зачислена': 'Pembayaran di muka dikreditkan',
+  'Шанс дропа: {c}%': 'Peluang drop: {c}%',
 };
 
 export default id;

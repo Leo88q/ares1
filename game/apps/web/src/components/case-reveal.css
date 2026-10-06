@@ -1,0 +1,115 @@
+.cr-overlay {
+ position: fixed;
+ inset: 0;
+ z-index: 9990;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ background: radial-gradient(ellipse at center, rgba(10, 8, 4, 0.92) 0%, rgba(0, 0, 0, 0.98) 70%);
+ backdrop-filter: blur(6px);
+}
+
+.cr-stage {
+ position: relative;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ width: min(92vw, 420px);
+ min-height: 60vh;
+}
+
+.cr-sealed {
+ position: absolute;
+ top: 50%;
+ left: 50%;
+ translate: -50% -60%;
+ width: min(70vw, 300px);
+ filter: drop-shadow(0 0 40px rgba(255, 176, 46, 0.35));
+ z-index: 2;
+}
+
+.cr-burst {
+ position: absolute;
+ top: 50%;
+ left: 50%;
+ translate: -50% -55%;
+ width: min(90vw, 420px);
+ mix-blend-mode: screen;
+ pointer-events: none;
+ z-index: 1;
+}
+
+.cr-reveal {
+ position: relative;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ gap: 18px;
+ z-index: 3;
+}
+
+.cr-cassette {
+ width: min(62vw, 260px);
+ border-radius: 18px;
+ filter: drop-shadow(0 0 46px var(--cr-color, #FFC94A));
+}
+
+.cr-rarity {
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ gap: 8px;
+ text-align: center;
+}
+
+.cr-rarity-badge {
+ padding: 6px 22px;
+ border-radius: 999px;
+ font-weight: 800;
+ letter-spacing: 0.22em;
+ font-size: 15px;
+ color: #120c04;
+ background: var(--cr-color, #FFC94A);
+ box-shadow: 0 0 26px color-mix(in srgb, var(--cr-color, #FFC94A) 70%, transparent);
+ text-transform: uppercase;
+}
+
+.cr-title {
+ color: #f4e8d0;
+ font-size: 19px;
+ font-weight: 700;
+ text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
+}
+
+.cr-amount {
+ color: var(--cr-color, #FFC94A);
+ font-size: 26px;
+ font-weight: 800;
+ text-shadow: 0 0 22px color-mix(in srgb, var(--cr-color, #FFC94A) 60%, transparent);
+}
+
+.cr-chance {
+ color: rgba(244, 232, 208, 0.6);
+ font-size: 13px;
+ letter-spacing: 0.06em;
+}
+
+.cr-close {
+ position: absolute;
+ bottom: 4vh;
+ left: 50%;
+ transform: translateX(-50%);
+ padding: 12px 34px;
+ border-radius: 12px;
+ border: 1px solid rgba(255, 201, 74, 0.4);
+ background: linear-gradient(180deg, rgba(255, 201, 74, 0.16), rgba(255, 201, 74, 0.06));
+ color: #ffd278;
+ font-weight: 700;
+ font-size: 15px;
+ cursor: pointer;
+ z-index: 4;
+ transition: filter 0.2s ease, transform 0.1s ease;
+}
+.cr-close:hover { filter: brightness(1.2); }
+.cr-close:active { transform: translateX(-50%) scale(0.97); }
