@@ -1,4 +1,4 @@
-// Тесты прокси /api/* для Cloudflare Pages (landing/functions/api/[[path]].js).
+// Тесты прокси /api/* для Cloudflare Pages (functions/api/[[path]].js).
 //
 // Зачем тест: без прокси продовая форма молча получает 404, а прод не
 // проверяется из песочницы (нет доступа к Cloudflare). Здесь проверяется сам
@@ -10,8 +10,21 @@ import http from 'node:http';
 
 // Node не любит '[' ']' в спецификаторе импорта, поэтому путь строим как URL.
 const { onRequest } = await import(
-  new URL('../functions/api/[[path]].js', import.meta.url).href
+  new URL('../../functions/api/[[path]].js', import.meta.url).href
 );
+
+// Cloudflare Pages компилирует Functions только из <Root>/functions/. Корень
+// проекта `ares1` — репозиторий: его сборка ставит landing-зависимость
+// file:../game/apps/web/vendor, которая не видна при Root=landing/ (та же
+// причина, по которой ares1-play падал 2026-10-02). Поэтому маршрут /api/*
+// обязан лежать в корне репозитория — и только там: вторая копия внутри
+// landing/ не доедет до прода и создаст иллюзию работающего прокси.
+test('маршрут /api/* объявлен ровно один раз — в корне репозитория', async () => {
+  const { existsSync } = await import('node:fs');
+  const root = new URL('../../', import.meta.url);
+  assert.equal(existsSync(new URL('functions/api/[[path]].js', root)), true);
+  assert.equal(existsSync(new URL('landing/functions', root)), false, 'копия внутри landing/ не попадёт в деплой при Root=репозиторий');
+});
 
 function makeRequest(method, path, init = {}) {
   return new Request(`https://ares1-7e1.pages.dev${path}`, { method, ...init });
