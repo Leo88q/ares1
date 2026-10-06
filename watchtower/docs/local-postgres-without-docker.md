@@ -14,7 +14,7 @@ cd watchtower
 npm i --no-save @electric-sql/pglite@0.5.8 @electric-sql/pglite-socket@0.2.11
 node scripts/local-pg-pglite.mjs &        # слушает 127.0.0.1:55432, применяет migrations/watchtower-read-model.sql
 export WATCHTOWER_TEST_DATABASE_URL='postgres://postgres:postgres@127.0.0.1:55432/watchtower_test'
-npm test:tests-with-db                    # см. ниже
+npm run test:integration                  # см. ниже
 ```
 
 Тест отказывается работать вне базы с именем `watchtower_test` — это защита от разрушительных
