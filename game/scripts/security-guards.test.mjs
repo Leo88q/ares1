@@ -632,8 +632,12 @@ test('2026-10-02: мёртвый Token-2022 и клиентский RNG прес
   // его паритет с SDK пинует tests/offchain/decoders.test.ts, и «чистка мёртвого
   // кода» ломала offchain-набор (поймано прогоном 2026-10-02).
   assert.match(client, /export \{ TOKEN_2022_PROGRAM_ID \}/, 're-export SDK-константы нужен raw-client тесту, это не мёртвый код');
-  const landing = read('../../landing/utils/constants.ts').replace(/^\s*\/\/.*$/gm, '');
-  assert.ok(!/rollPresaleDrop/.test(landing), 'клиентский RNG тира пресейла не должен вернуться: тир решает программа');
+  // S-13: мёртвое зеркало landing/utils/constants.ts удалено 2026-10-06 —
+  // у него не было ни одного импортёра (проверено резолвером импортов), а
+  // вместе с ним ушёл и клиентский RNG пресейла. Отрицание сильнее проверки
+  // текста: вернуть RNG в удалённый файл нельзя, а файл-дубль поймает assert.
+  assert.throws(() => read('../../landing/utils/constants.ts'), /ENOENT/,
+    'мёртвое зеркало landing/utils/constants.ts не должно вернуться: тир решает программа');
 });
 
 test('2026-10-02: duress-протокол существует (п.125 wrench-атаки)', () => {
