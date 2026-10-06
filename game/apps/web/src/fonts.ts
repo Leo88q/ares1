@@ -25,7 +25,7 @@
  * adding it would silently change the visual design. Design decision pending.
  *
  * Licence: SIL Open Font License 1.1. See the third-party notice linked from
- * the site footer (/legal/third-party.html on the public site).
+ * THIRD_PARTY_LICENSES.md in the repository root.
  */
 
 // DM Sans — wallet-adapter modal (was a remote Google Fonts @import upstream)

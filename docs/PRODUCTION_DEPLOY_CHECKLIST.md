@@ -39,7 +39,9 @@ patterns with zero dependencies).
    (`gh api repos/Leo88q/ares1/dependabot/alerts` → "Dependabot alerts are disabled").
 4. **Turn on branch protection for `main` ([S-04]).** `protected: false` today: anyone with write
    access can push straight to `main`, force-push, or delete history.
-5. **Fill in the operator's legal identity ([L-01]).** The new legal pages ship with 36 visible
+5. ~~**Fill in the operator's legal identity ([L-01]).**~~ **Снято решением владельца
+   (2026-10-06):** юридический блок выведен из скоупа, юридические документы удалены
+   из репозитория (RFC §6). Ниже сохранена фактическая история находки. The new legal pages shipped with 36 visible
    placeholders (`[OPERATOR LEGAL NAME]`, `[REGISTERED ADDRESS]`, governing law, target
    countries). Publishing them unfilled is worse than not publishing them.
 
@@ -98,12 +100,12 @@ patterns with zero dependencies).
 | ID | Pri | Where | Finding | Fix | Status |
 |---|---|---|---|---|---|
 | **L-01** | 🔴 | `landing/public/legal/*.html` | Six documents created (privacy, terms, cookies, risk, licences, takedown) in RU + EN, but the operator's identity, address, governing law, supervisory authority, DPO/EU representative and target-country list are **placeholders** (36 markers; `legal.js` renders a "draft — not cleared for launch" banner while any remain). | Fill in every `span.todo` field, or generate them from a single source (`scripts/build-legal-pages.mjs`). | **HUMAN** + **LAWYER** |
-| **L-02** | 🟠 | `landing` | No legal documents were reachable from the site at all. | Footer now links all six documents plus a "Cookie settings" button and the operator contact. `robots.txt`, `sitemap.xml`, `/.well-known/security.txt`, `/legal/*` all 200 on the built output. | ✅ Fixed |
+| **L-02** | 🟠 | `landing` | No legal documents were reachable from the site at all. | Footer linked all six documents plus a "Cookie settings" button and the operator contact. | ⚪ N/A — документы удалены из репозитория решением владельца (RFC §6); «Cookie settings» в футере остались |
 | **L-03** | 🟡 | `game/apps/web` | No `robots.txt`, no `security.txt`, no legal links in the client (a dApp that asks for a signature must link its terms). | `robots.txt` + `/.well-known/security.txt` added to the client. Legal links inside the client are **not** added — pending a decision on where the dApp's footer lives. | PARTIAL — **HUMAN** |
-| **L-04** | 🟡 | Data map | No documented inventory of processors, retention or transfer mechanism. | A first data map, retention column and processor table are in `/legal/privacy.html`, derived by reading the code. It must be checked against what actually runs in production. | **LAWYER** |
+| **L-04** | 🟡 | Data map | No documented inventory of processors, retention or transfer mechanism. | The first data map lived in `/legal/privacy.html`. | ⚪ N/A — страница удалена (RFC §6); карта данных не публикуется |
 | **L-05** | 🟡 | DSAR | No channel or procedure for access/erasure requests, and no verified-export tooling. | Policy declares email + wallet-signature verification and a one-month SLA. The **technical** export/delete path does not exist yet. | **HUMAN** (engineering) + **LAWYER** |
 | **L-06** | 🟡 | §6 (crypto-specific legal risk) | Tokens with market value, a paid presale with a **randomly rolled tier**, and referral bonuses exist. Whether that is a security, e-money, MiCA-regulated asset or gambling depends on jurisdiction. | Facts recorded here; assessment is not ours to make. | **LAWYER** |
-| **L-07** | 🟢 | Third-party attribution | No licence/ attribution page. | `/legal/third-party.html` lists fonts (SIL OFL 1.1) and the main bundled packages, and points at `/music/CREDITS.txt`. Music rights are flagged as unverified. | ✅ Fixed (music rights: **HUMAN**) |
+| **L-07** | 🟢 | Third-party attribution | No licence/ attribution page. | `THIRD_PARTY_LICENSES.md` in the repository lists fonts (SIL OFL 1.1) and the main bundled packages; the generated site page was removed with the rest of the legal documents (RFC §6). Music rights are flagged as unverified. | ✅ Fixed in-repo (music rights: **HUMAN**) |
 
 ### Q — quality and operability (§8)
 
@@ -113,7 +115,7 @@ patterns with zero dependencies).
 | **Q-02** | 🟢 | Builds | `landing`: typecheck ✅, 2/2 tests ✅, build ✅. `game`: typecheck ✅, 89/89 offchain tests ✅, web build ✅. | — | PASS |
 | **Q-03** | 🟡 | Bundle size | Landing JS is 1.13 MB raw / 364 kB gzip in a single chunk — over Vite's 500 kB warning. | Flagged by `check-release-artifacts.mjs`. Code-splitting is not in scope for this pass. | **HUMAN** (performance) |
 | **Q-04** | 🟡 | Lighthouse / CWV, uptime, 404/500 pages, cross-browser wallet checks | Not measurable from this environment (no browser, no egress to the live host). | Run Lighthouse and a real device pass after deploy. | **HUMAN** |
-| **Q-05** | 🟢 | `landing/public/legal/*` | Generated output could silently drift from its source. | `scripts/build-legal-pages.mjs --check` in CI fails if a page is stale. | ✅ Fixed |
+| **Q-05** | 🟢 | `landing/public/legal/*` | Generated output could silently drift from its source. | `scripts/build-legal-pages.mjs --check` in CI failed if a page was stale. | ⚪ N/A — генератор и страницы удалены (RFC §6), дрейфовать нечему |
 
 ---
 
@@ -132,7 +134,7 @@ patterns with zero dependencies).
 | Wallets / custody | Program upgrade authority and `GameConfig.authority` under multisig (Squads ≥ 3-of-N); hot wallet capped; no admin key on the web server | `solana program show <PROGRAM_ID> --url mainnet-beta`; see `game/docs/MAINNET_LAUNCH_GATE.md` |
 | Backups | Encrypted, off-host, restoration actually rehearsed | `game/docs/DB_RUNBOOK.md` |
 | Monitoring / alerting | Uptime check, error tracking, payer-balance and epoch-staleness alerts | `game/docs/OPERATIONS.md` |
-| Legal | Operator identity filled in on every legal page; documents reviewed in all shipped languages | `landing/public/legal/*.html` — every `span.todo` must be gone |
+| ~~Legal~~ | ~~Operator identity filled in on every legal page~~ — юридический блок снят с скоупа решением владельца (RFC §6) | — |
 | Music / art rights | Every track and image in `/music`, `/sfx`, `/ares` is licensed for commercial use | `landing/public/music/CREDITS.txt` |
 | Accessibility | WCAG 2.1 AA pass; confirm whether the European Accessibility Act applies | Manual + Lighthouse |
 
@@ -143,9 +145,9 @@ patterns with zero dependencies).
 Brought forward from §5–§7 with the current state of the site:
 
 1. **Jurisdictions.** Not decided. The site ships RU/EN plus es-419, pt-BR, id, tl and vi, so
-   GDPR/UK GDPR, CCPA/CPRA and 152-ФЗ are all plausibly in scope. Record the real audience list
-   (placeholder `COUNTRIES` on `/legal/privacy.html`) — every other obligation follows from it.
-2. **Operator identity.** Legal name, registered address, contact, governing law, supervisory
+   GDPR/UK GDPR, CCPA/CPRA and 152-ФЗ are all plausibly in scope. Record the real audience list —
+   every other obligation follows from it. (Юрдокументы удалены решением владельца, RFC §6.)
+2. ~~**Operator identity.**~~ Снято решением владельца (RFC §6). Legal name, registered address, contact, governing law, supervisory
    authority, DPO or EU representative: all placeholders.
 3. **Wallet address = personal data.** The code treats the Solana address as an identifier tied to
    gameplay, IP and referral data. The policy says so. Confirm that the "pseudonymous on-chain
@@ -177,7 +179,7 @@ Brought forward from §5–§7 with the current state of the site:
 | Deploy/API keys stored on the current host | Public repository implies infrastructure details are known | operator | ☐ |
 | Domain registrar, DNS, CDN, hosting account passwords | Assume disclosed if they were ever pasted into a chat or issue | operator | ☐ |
 | `GameConfig.authority` and program upgrade authority | Single key today; move to Squads ≥ 3-of-N before real funds | operator | ☐ |
-| `security@ares1.is-a.dev` mailbox | Must exist before `/legal/*` and `security.txt` are published | operator | ☐ |
+| `security@ares1.is-a.dev` mailbox | Must exist before `security.txt` is published (`/legal/*` больше нет — RFC §6) | operator | ☐ |
 
 **Order of operations for S-01:** revoke → issue a restricted replacement → redeploy → confirm the
 old key is rejected → *then* consider history rewriting, and only as a coordinated operation
@@ -196,7 +198,6 @@ old key is rejected → *then* consider history rewriting, and only as a coordin
 - `scripts/check-release-artifacts.mjs` — build-output gate (§1.3.5, §2.2, §2.3, §2.5, §4.6).
 - `scripts/check-public-exposure.sh`, `scripts/check-headers.sh` — passive checks against a live
   deployment (§2.2, §9).
-- `scripts/build-legal-pages.mjs` — generates `landing/public/legal/*.html` (RU/EN) with `--check`.
 - `.githooks/pre-commit` + `scripts/install-git-hooks.sh` — local gate (§1.3.6).
 
 **Configuration**
@@ -216,11 +217,11 @@ old key is rejected → *then* consider history rewriting, and only as a coordin
 - Consent module and UI in both apps; every storage call site routed through it (§4.3).
 - `VITE_RPC_URL` now mandatory in production; RPC forced to HTTPS; localnet fallback dev-only
   (§3.1.1).
-- Landing footer: legal documents, cookie settings, operator contact (§7.1).
+- Landing footer: cookie settings and operator contact (legal documents removed, RFC §6).
 - i18n: three new strings added to all six landing locales so the parity test stays green.
 
 **Documents**
-- This report. `landing/public/legal/` — privacy, terms, cookies, risk, third-party, takedown
+- This report. Юрдокументы (`landing/public/legal/`) — удалены из репозитория (RFC §6), восстанавлимы из истории
   (RU + EN, versioned, with visible placeholders).
 
 ---
@@ -232,7 +233,7 @@ old key is rejected → *then* consider history rewriting, and only as a coordin
 | Every commit / PR | `Secret scanning` workflow (gitleaks + `secret-scan.mjs`), pre-commit hook, CI (typecheck, tests, builds, artifact gate, dependency audit advisory) |
 | Every release | `./scripts/check-release-artifacts.mjs` on the exact build; `./scripts/check-headers.sh` and `./scripts/check-public-exposure.sh` against the deployed URL; `node scripts/secret-scan.mjs --root <dist>` |
 | Monthly | Dependabot PRs reviewed and merged; `npm audit` / `yarn audit --level high` triaged; Dependabot alerts cleared |
-| Quarterly | Full audit against this checklist: `node scripts/secret-scan-history.mjs` (requires `git fetch --unshallow`), legal-page review, key rotation review, restore rehearsal, Lighthouse |
+| Quarterly | Full audit against this checklist: `node scripts/secret-scan-history.mjs` (requires `git fetch --unshallow`), key rotation review, restore rehearsal, Lighthouse |
 | Before real funds | Independent smart-contract audit, penetration test of the site, legal opinion per jurisdiction, multisig custody in place (`game/docs/MAINNET_LAUNCH_GATE.md`) |
 
 ---
@@ -248,4 +249,4 @@ old key is rejected → *then* consider history rewriting, and only as a coordin
 - No egress to `ares1.is-a.dev` from this environment: **nothing about the live deployment has been
   verified**, including whether the new headers are live.
 - No Rust toolchain: the on-chain program was not audited. See `reports/ares1-audit.md`.
-- Legal documents are drafted, not reviewed. They are not legal advice.
+- Юридические документы удалены из репозитория решением владельца (RFC §6).

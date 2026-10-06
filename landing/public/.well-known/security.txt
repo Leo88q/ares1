@@ -14,8 +14,6 @@ Contact: mailto:security@ares1.is-a.dev
 Expires: 2027-01-01T00:00:00.000Z
 Preferred-Languages: ru, en
 Canonical: https://ares1.is-a.dev/.well-known/security.txt
-Policy: https://ares1.is-a.dev/legal/terms.html
-Acknowledgments: https://ares1.is-a.dev/legal/terms.html
 
 # Scope note: the Solana program and the game client are in scope. Third-party
 # services (RPC provider, hosting, wallet apps) should be reported to them.

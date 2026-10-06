@@ -160,7 +160,7 @@ export function PresaleBanner() {
         {step === 'error' && <p className="ps-err">{msg}</p>}
 
         <p className="ps-legal">
-          {t('Предоплата не является инвестицией и не гарантирует доход. Условия — Terms §7.')}
+          {t('Предоплата не является инвестицией и не гарантирует доход.')}
         </p>
       </div>
     </section>

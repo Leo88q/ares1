@@ -25,7 +25,3 @@
 /.gitleaks.toml                     @Leo88q
 /.secret-scan-allowlist.json        @Leo88q
 /scripts/                           @Leo88q
-
-# Legal documents: text a user consents to must not change unnoticed.
-/scripts/build-legal-pages.mjs      @Leo88q
-/landing/public/legal/              @Leo88q
