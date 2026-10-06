@@ -21,6 +21,7 @@
     "scripts/db-verify.ts",
     "scripts/db-bench.ts",
     "scripts/db-mutate.ts",
+    "scripts/presale-reconcile.ts",
     "tests/db/**/*.ts"
   ]
 }

@@ -9,6 +9,7 @@ import { useSolana, PROGRAM_ID } from '../contexts/SolanaContext'
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 import { presaleStatePda } from '../utils/anchorClient'
+import CaseReveal from './CaseReveal'
 
 const PRESALE_CAP = 500
 const PRESALE_PRICE_SKR = 1053
@@ -247,6 +248,13 @@ export default function PresaleSection() {
      {t('80% SKR → казна · 20% → казна команды')}
     </div>
    )}
+
+   <CaseReveal
+    open={lastDrop !== null}
+    tier={lastDrop ?? 0}
+    mode="field"
+    onClose={() => setLastDrop(null)}
+   />
   </motion.div>
  )
 }

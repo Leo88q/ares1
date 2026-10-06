@@ -166,6 +166,18 @@ pub const PRESALE_PRICE_SKR_ATOMS: u64 = 1_053_000_000;
 /// mint bricks the rail instead of selling fields for ~0.
 pub const SKR_DECIMALS: u8 = 6;
 pub const EXPORT_LICENSE_PRICE_SKR_ATOMS: u64 = 500_000_000; // 500 SKR / 30 дней
+/// Премиум-перк лицензии на `batch_harvest`: сколько полей можно собрать одной
+/// транзакцией без активной лицензии и с ней. Батч не меняет доходность —
+/// эмиссия по-прежнему зажата капом эпохи и max_supply, так что это плата за
+/// удобство (1 подпись / 1 CU-оплата / 1 приоритетная комиссия вместо N), а не
+/// pay-to-win по урожаю.
+///
+/// ВАЖНО: `BATCH_LIMIT_LICENSED` достижим только через VersionedTransaction +
+/// Address Lookup Table. Legacy-транзакция ограничена 1232 байтами, и 30
+/// writable-аккаунтов по 33 байта вместе с 9 фиксированными в неё не влезают.
+/// Клиент обязан держать поля в LUT, иначе лимит 30 недостижим физически.
+pub const BATCH_LIMIT_BASE: usize = 10;
+pub const BATCH_LIMIT_LICENSED: usize = 30;
 /// One-time referral registration cost, confirmed by the game owner: 5 POTATO.
 pub const REFERRAL_REGISTRATION_COST_MICRO: u64 = 5_000_000;
 pub const BASE_TAX_MICRO: u64 = 6_000_000; // 6 $POTATO / week
@@ -185,6 +197,10 @@ pub const MIN_ORDER_AMOUNT_MICRO: u64 = 10_000_000; // 10 POTATO
 pub const MIN_ORDER_TOTAL_LAMPORTS: u64 = 1_000_000; // 0.001 SOL
 /// Share of the marketplace fee that is burned; the rest goes to the treasury.
 pub const FEE_BURN_PERCENT: u64 = 60;
+/// Адрес SPL Token. Нужен, чтобы проверить владельца «сырого» аккаунта минта,
+/// переданного в `remaining_accounts` (типизированный `Account<Mint>` там
+/// недоступен). Совпадает с `address` token-программы в pinned IDL.
+pub const SPL_TOKEN_PROGRAM: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
 // ────────────────────────── Program ──────────────────────────────
 
@@ -194,6 +210,19 @@ pub mod solana_potato {
 
     /// Creates the singleton `GameConfig`. The $POTATO mint must already have
     /// the config PDA as its mint authority, 6 decimals and no freeze authority.
+    ///
+    /// SKR-минт по умолчанию — пиновая константа `SKR_MINT`; вызов без
+    /// `remaining_accounts` ведёт себя побайтово как раньше. Деплоер может
+    /// передать собственный SKR-минт ПЕРВЫМ элементом `remaining_accounts` —
+    /// это нужно для localnet, где константный devnet-минт не существует и его
+    /// нельзя наминтить, из-за чего все SKR-рельсы (включая `buy_export_license`)
+    /// были непроверяемы. Минт обязан принадлежать SPL Token и иметь
+    /// `SKR_DECIMALS` знаков, иначе все SKR-цены съехали бы на 10^k.
+    ///
+    /// Доверие: подписант `initialize` и так становится `authority` и
+    /// `reward_signer`, то есть полностью контролирует конфиг, — дополнительный
+    /// минт не расширяет его возможности. Все последующие замены минта идут
+    /// только через двухшаговый `update_skr_mint` под 24-часовым таймлоком.
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let config_key = ctx.accounts.config.key();
         let mint = &ctx.accounts.potato_mint;
@@ -207,11 +236,20 @@ pub mod solana_potato {
         // запас до передачи authority конфиг-PDA, обойдя кап эпохи и max_supply.
         require!(mint.supply == 0, GameError::InvalidMintSupply);
 
+        // SKR-минт: пиновая константа либо явно переданный деплоером минт.
+        let skr_mint = match ctx.remaining_accounts.first() {
+            Some(acc) => {
+                require_skr_mint_info(acc)?;
+                acc.key()
+            }
+            None => SKR_MINT,
+        };
+
         let config = &mut ctx.accounts.config;
         config.authority = ctx.accounts.authority.key();
         config.pending_authority = Pubkey::default();
         config.potato_mint = mint.key();
-        config.skr_mint = SKR_MINT;
+        config.skr_mint = skr_mint;
         config.reward_signer = ctx.accounts.authority.key();
         config.max_supply_micro = DEFAULT_MAX_SUPPLY_MICRO;
         config.daily_mint_cap_micro = MAX_DAILY_CAP_MICRO;
@@ -1834,12 +1872,46 @@ pub mod solana_potato {
     /// Все поля проверяются: owner == signer, is_active, интервал, кроме того
     /// агрегированный mint ограничен капом эпохи и max_supply.
     /// Использует remaining_accounts как список Field PDAs.
+    ///
+    /// Премиум-тир: PDA экспортной лицензии (seeds `[b"license", owner]`),
+    /// переданный ПЕРВЫМ элементом remaining_accounts, поднимает лимит батча
+    /// с `BATCH_LIMIT_BASE` до `BATCH_LIMIT_LICENSED`. Лицензия передаётся
+    /// read-only и опционально: если её нет, действует базовый лимит.
+    /// Схема та же, что в `fill_order` — ключ сравнивается с выведенным PDA,
+    /// а владелец обязан быть нашей программой, иначе поддельный аккаунт
+    /// выдал бы себе тир.
     pub fn batch_harvest<'info>(ctx: Context<'_, '_, '_, 'info, BatchHarvest<'info>>) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(!ctx.remaining_accounts.is_empty(), GameError::NothingToHarvest);
-        require!(ctx.remaining_accounts.len() <= 10, GameError::InvalidAmount); // лимит 10 полей/батч
 
         let now = Clock::get()?.unix_timestamp;
+
+        // ── Премиум-тир: активная лицензия поднимает лимит батча ──
+        // Отделяем лицензию от полей ДО любых валидаций полей, чтобы
+        // InvalidAmount по-прежнему падал раньше чтения аккаунтов (C18).
+        let (expected_lic, _) = Pubkey::find_program_address(
+            &[b"license", ctx.accounts.owner.key().as_ref()],
+            ctx.program_id,
+        );
+        let mut licensed = false;
+        let mut fields: &[AccountInfo<'info>] = &ctx.remaining_accounts;
+        if let Some(first) = ctx.remaining_accounts.first() {
+            if first.key() == expected_lic {
+                if first.owner == ctx.program_id && !first.data_is_empty() {
+                    let data = first.try_borrow_data()?;
+                    if let Ok(lic) = ExportLicense::try_deserialize(&mut &data[..]) {
+                        licensed = lic.expires_at > now;
+                    }
+                }
+                // PDA лицензии не является полем — исключаем из списка
+                // независимо от того, активна лицензия или истекла.
+                fields = &ctx.remaining_accounts[1..];
+            }
+        }
+        let limit = if licensed { BATCH_LIMIT_LICENSED } else { BATCH_LIMIT_BASE };
+        require!(!fields.is_empty(), GameError::NothingToHarvest);
+        require!(fields.len() <= limit, GameError::InvalidAmount); // лимит полей/батч зависит от лицензии
+
         let epoch_id = ctx.accounts.config.epoch_id;
         let base_yield = ctx.accounts.config.base_yield_micro_per_day;
         let global_bps = ctx.accounts.config.global_multiplier_bps;
@@ -1860,12 +1932,12 @@ pub mod solana_potato {
         // Первый проход: валидация + расчёт pending без мутации состояния
         // Собираем данные чтобы проверить лимиты до минта
         // Для защиты от дублей в батче
-        for i in 0..ctx.remaining_accounts.len() {
-            for j in (i+1)..ctx.remaining_accounts.len() {
-                require!(ctx.remaining_accounts[i].key() != ctx.remaining_accounts[j].key(), GameError::BadProof);
+        for i in 0..fields.len() {
+            for j in (i+1)..fields.len() {
+                require!(fields[i].key() != fields[j].key(), GameError::BadProof);
             }
         }
-        for acc in ctx.remaining_accounts.iter() {
+        for acc in fields.iter() {
             require!(acc.owner == ctx.program_id && acc.is_writable, GameError::BadProof);
             let mut slice: &[u8] = &acc.try_borrow_data()?[..];
             let f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
@@ -1904,7 +1976,7 @@ pub mod solana_potato {
         ctx.accounts.epoch.minted_micro = ctx.accounts.epoch.minted_micro
             .saturating_add(scaled_player).saturating_add(scaled_treasury);
 
-        for acc in ctx.remaining_accounts.iter() {
+        for acc in fields.iter() {
             // All remaining accounts were validated before any state mutation.
             let mut data = acc.try_borrow_mut_data()?;
             let mut slice: &[u8] = &data;
@@ -1957,7 +2029,7 @@ pub mod solana_potato {
 
         emit!(BatchHarvested {
             owner: ctx.accounts.owner.key(),
-            field_count: ctx.remaining_accounts.len() as u8,
+            field_count: fields.len() as u8,
             total_micro: scaled_player,
             treasury_micro: scaled_treasury,
         });
@@ -2306,6 +2378,21 @@ fn write_migrated_account<'info>(
 /// mint key alone is not enough — a mint with 9 decimals would make 1053 atoms
 /// worth 1000× less and the presale effectively free.
 fn require_skr_mint(mint: &Account<'_, Mint>) -> Result<()> {
+    require!(mint.decimals == SKR_DECIMALS, GameError::InvalidSkrDecimals);
+    Ok(())
+}
+
+/// То же, что `require_skr_mint`, но для «сырого» аккаунта из
+/// `remaining_accounts`, где типизированный `Account<Mint>` недоступен.
+/// Владелец обязан быть SPL Token: без этой проверки поддельный аккаунт с
+/// подобранными байтами выдал бы произвольный `decimals` и переоценил бы все
+/// SKR-цены (лицензия 500 SKR, модуль 1053 SKR) на 10^k.
+fn require_skr_mint_info(acc: &AccountInfo) -> Result<()> {
+    require!(*acc.owner == SPL_TOKEN_PROGRAM, GameError::InvalidMint);
+    require!(!acc.data_is_empty(), GameError::InvalidMint);
+    let data = acc.try_borrow_data()?;
+    let mint = Mint::try_deserialize(&mut &data[..])
+        .map_err(|_| error!(GameError::InvalidSkrDecimals))?;
     require!(mint.decimals == SKR_DECIMALS, GameError::InvalidSkrDecimals);
     Ok(())
 }

@@ -4,6 +4,7 @@ import cors from "cors";
 import { env } from "./env.js";
 import { configRouter } from "./routes/config.js";
 import { gameOpsRouter } from "./routes/gameops.js";
+import { presaleRouter } from "./routes/presale.js";
 import { loadGameOpsConfig } from "./gameops/env.js";
 import { closePool, createPool } from "./gameops/pool.js";
 import { checkReadiness, httpStatusFor } from "./gameops/readiness.js";
@@ -122,6 +123,24 @@ async function main() {
 
   if (gameOpsConfig && gameOpsPool) {
     app.use("/api/gameops", gameOpsRouter(gameOpsPool, gameOpsConfig));
+  }
+  // Пресейл монтируется только при включённом game_ops и доступной цепи: без БД
+  // нет учёта заказов, без цепи — нет верификации платежа. Fail-closed.
+  if (gameOpsConfig && gameOpsPool) {
+    try {
+      const chainCfg = await fetchConfig();
+      app.use(
+        "/api/presale",
+        rateLimit(env.rateLimitPerMinute),
+        presaleRouter(gameOpsPool, gameOpsConfig, {
+          connection,
+          potatoMint: chainCfg.potatoMint.toBase58(),
+        }),
+      );
+      console.log("[startup] presale router on");
+    } catch (err) {
+      console.log("[startup] presale router not mounted: chain config unavailable");
+    }
   }
   app.use("/api/config", configRouter);
 

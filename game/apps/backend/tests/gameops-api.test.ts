@@ -24,7 +24,7 @@ const config: GameOpsConfig = {
   adminToken: token,
   reconciliationMaxAgeMinutes: 20,
   chainId: 'reward',
-  expectedSchemaVersion: 3,
+  expectedSchemaVersion: 6,
 };
 
 /** Заглушка пула: любая операция падает так, как это делает недоступная БД. */

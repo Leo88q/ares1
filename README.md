@@ -58,7 +58,7 @@ Deploy contract:
 - Harvest: $POTATO accrues per field with lunar cycle (0.85x - 1.15x)
 - Mutations: 5% chance on upgrade - Golden (+25% yield) or Silicon (decay x0.5)
 - Tax: 2-10% on harvest, penalty if unpaid
-- License: 500 SKR / 30 days -> -3% market fee (buy in CABIN)
+- License: 500 SKR / 30 days -> -3% market fee + batch harvest up to 30 fields/tx instead of 10 (buy in CABIN)
 - Market: escrow orders, fee 9-12% (60% burn + 40% treasury)
 - Referrals: -1% fee for both, +0.5% to referrer
 - Presale: 1053 SKR per module, tier rolls randomly (COMMON 70% / RARE 25% / EPIC 5%)

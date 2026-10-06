@@ -527,7 +527,14 @@ const vi: Record<string, string> = {
 
   // Тосты транзакций (GameContext)
   'LUT создана': 'Đã tạo LUT',
-  'Максимум 10 полей за один батч.': 'Tối đa 10 thửa mỗi đợt.',
+  'Максимум {n} полей за один батч.': 'Tối đa {n} thửa mỗi đợt.',
+  'Собрать всё': 'Thu hoạch tất cả',
+  'Нужна таблица адресов (LUT)': 'Cần bảng tra cứu địa chỉ (LUT)',
+  'Батч больше {n} полей требует LUT. Создай её в КАЮТЕ и повтори.': 'Đợt thu hoạch hơn {n} thửa cần LUT. Hãy tạo trong KABIN rồi thử lại.',
+  'Осталось {n} полей — лимит {limit} за транзакцию.': 'Còn {n} thửa — giới hạn {limit} mỗi giao dịch.',
+  'Лицензия активна: лимит {limit} полей за транзакцию.': 'Giấy phép hiệu lực: giới hạn {limit} thửa mỗi giao dịch.',
+  'Лимит {limit} полей за транзакцию. Лицензия поднимает его до {licensed}.': 'Giới hạn {limit} thửa mỗi giao dịch. Giấy phép nâng lên {licensed}.',
+  'Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.': 'Thưởng: thu hoạch theo đợt tới {n} thửa mỗi giao dịch thay vì {base}.',
   'Не удалось закрыть поле': 'Không thể đóng thửa',
   'Не удалось отправить SOL': 'Không thể gửi SOL',
   'Не удалось собрать урожай батчем': 'Thu hoạch hàng loạt thất bại',
@@ -596,6 +603,10 @@ const vi: Record<string, string> = {
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'Giao dịch đã được gửi nhưng chưa có xác nhận. Hãy kiểm tra ví trước khi thử lại — thao tác có thể đã hoàn tất.',
   'Требуется владеть 6 делянками, и хотя бы одна должна быть 3-го уровня (сейчас макс. ур. {lvl}).': 'Yêu cầu 6 ô đất với ít nhất một ô đạt cấp 3 (cấp tối đa hiện tại {lvl}).',
   'нужен ур. 3 (сейчас {n})': 'cần cấp 3 (hiện tại {n})',
+  'Продолжить': 'Tiếp tục',
+  'Гидропонный модуль раскрыт': 'Mô-đun thủy canh đã mở',
+  'Предоплата зачислена': 'Đã ghi có trả trước',
+  'Шанс дропа: {c}%': 'Tỉ lệ rơi: {c}%',
 };
 
 export default vi;

@@ -165,6 +165,25 @@ async function checkPrivileges(client: Client, writerRole: string): Promise<Veri
       detail: 'курсоры меняются, но stream_id изменить нельзя',
     },
     {
+      // Пресейл: состояние двигать можно, деньги и контакты покупателя — нет.
+      id: 'privileges.presale_money_immutable',
+      ok: (await has("SELECT has_column_privilege($1, 'game_ops.presale_orders', 'state', 'UPDATE') AS ok", [writerRole]))
+        && !(await has("SELECT has_column_privilege($1, 'game_ops.presale_orders', 'price_units', 'UPDATE') AS ok", [writerRole]))
+        && !(await has("SELECT has_column_privilege($1, 'game_ops.presale_orders', 'order_no', 'UPDATE') AS ok", [writerRole]))
+        && !(await has("SELECT has_column_privilege($1, 'game_ops.presale_orders', 'payer_wallet', 'UPDATE') AS ok", [writerRole]))
+        && !(await has("SELECT has_column_privilege($1, 'game_ops.presale_orders', 'payer_email', 'UPDATE') AS ok", [writerRole])),
+      detail: 'UPDATE на заказы пресейла — только по служебным колонкам, не по деньгам и контактам',
+    },
+    {
+      // Тираж: счётчик мест триггеру нужен, а цену и cap задним числом не меняют.
+      id: 'privileges.presale_run_immutable',
+      ok: (await has("SELECT has_column_privilege($1, 'game_ops.presale_runs', 'reserved_count', 'UPDATE') AS ok", [writerRole]))
+        && !(await has("SELECT has_column_privilege($1, 'game_ops.presale_runs', 'cap', 'UPDATE') AS ok", [writerRole]))
+        && !(await has("SELECT has_column_privilege($1, 'game_ops.presale_runs', 'price_units', 'UPDATE') AS ok", [writerRole]))
+        && !(await has("SELECT has_column_privilege($1, 'game_ops.presale_runs', 'treasury', 'UPDATE') AS ok", [writerRole])),
+      detail: 'тираж пресейла: счётчик мест доступен, cap/цена/казначейство — нет',
+    },
+    {
       id: 'privileges.no_ddl',
       ok: !(await has("SELECT has_schema_privilege($1, 'game_ops', 'CREATE') AS ok", [writerRole])),
       detail: 'у рантайм-роли нет права CREATE в схеме',
