@@ -4,7 +4,7 @@ First potato colony on Mars. Grow, trade, upgrade - 100% of $POTATO is born in p
 
 ## Demo
 
-- Landing: https://ares1-7e1.pages.dev (домен `ares1.is-a.dev` **не зарегистрирован** в is-a.dev)
+- Landing: https://ares1-7e1.pages.dev (домен `ares1.is-a.dev` **не зарегистрирован** в is-a.dev — см. docs/DOMAIN_DEPLOY_FINDINGS_2026-09-30.md)
 - Game: https://ares1-play.pages.dev (алиас `play.ares1.is-a.dev` отдаёт ошибку TLS: не привязан к проекту Cloudflare Pages)
 - Network: Solana Devnet
 
@@ -62,7 +62,6 @@ Deploy contract:
 - Market: escrow orders, fee 9-12% (60% burn + 40% treasury)
 - Referrals: -1% fee for both, +0.5% to referrer
 - Presale: 1053 SKR per module, tier rolls randomly (COMMON 70% / RARE 25% / EPIC 5%)
-- Presale Phase 1 (off-chain prepayment): 888 SKR per pack, 500 packs in wave 1, POTATO credited on the mainnet listing day (no refunds; terms §7)
 
 ## License
 
@@ -71,7 +70,9 @@ MIT - Zlata, 2026
 ## Production deploy readiness
 
 Website and app preparation for a production deploy: [checklist audit and remediation](docs/PRODUCTION_DEPLOY_CHECKLIST.md)
-(secrets and history, source exposure, OWASP, cookies/GDPR, legal pages, operability).
+(secrets and history, source exposure, OWASP, cookies/GDPR, operability).
+Legal documents were removed from the repository by an owner decision recorded in
+[RFC §6](docs/PRESALE_PHASE1_RFC_2026-10-06.md#6-юридический-блок-решение-владельца).
 
 Run locally before pushing:
 
@@ -79,7 +80,6 @@ Run locally before pushing:
 ./scripts/install-git-hooks.sh        # once per clone: pre-commit secret gate
 node scripts/secret-scan.mjs          # working tree (§1.1)
 node scripts/secret-scan-history.mjs  # all fetched history (§1.2.1)
-node scripts/build-legal-pages.mjs --check
 
 # after building both apps:
 node scripts/check-release-artifacts.mjs landing/dist game/apps/web/dist
@@ -92,8 +92,8 @@ node scripts/check-release-artifacts.mjs landing/dist game/apps/web/dist
 ## Stabilization / beta readiness
 
 Current validation and remaining release blockers: [21 Sep 2026 status](reports/ares1-audit.md).
-Security: [security model and guardrails](game/SECURITY.md), [mainnet launch gate](game/docs/MAINNET_LAUNCH_GATE.md).
-Data: [database design recommendation](game/docs/DATABASE_DESIGN.md).
+Security: [checklist audit 1–30](docs/SECURITY_CHECKLIST_AUDIT_2026-09-25.md), [extended audit 31–70](docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md), [AI-agents / audit poisoning / durable nonce 71–82](docs/SECURITY_CHECKLIST_AUDIT_2026-09-27.md), [incident catalog 94–130 (governance, keys, signers, frontend, people, infrastructure)](docs/SECURITY_CHECKLIST_AUDIT_2026-09-28.md), [mainnet launch gate](game/docs/MAINNET_LAUNCH_GATE.md).
+Data: [database design recommendation](game/docs/DATABASE_DESIGN.md), [test runs and capacity](docs/DATA_TESTS_AND_CAPACITY_2026-09-27.md), [reference storage example reviewed](docs/STORAGE_REFERENCE_EXAMPLE_2026-09-27.md).
 Build, key handling, Docker and incident procedures: [Operations](game/docs/OPERATIONS.md),
 [incident response kit](game/docs/INCIDENT_RESPONSE.md), [key provenance](game/docs/KEY_PROVENANCE.md),
 [third-party dependency registry](game/docs/THIRD_PARTY_DEPENDENCIES.md).

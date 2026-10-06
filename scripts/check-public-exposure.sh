@@ -95,8 +95,6 @@ PATHS=(
   robots.txt
   sitemap.xml
   .well-known/security.txt
-  legal/privacy.html
-  legal/cookies.html
 )
 
 suspicious=0

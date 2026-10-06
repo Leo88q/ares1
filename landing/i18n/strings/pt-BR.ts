@@ -378,7 +378,6 @@ const ptBR: Record<string, string> = {
   'Продукт': 'Produto',
 
   // Футер: правовые документы и настройки согласия (чек-лист §7.1, §4.3)
-  'Правовые документы': 'Documentos legais',
   'Настройки cookies': 'Configurações de cookies',
   'Связь с командой': 'Fale com a equipe',
   'Cookies и локальное хранилище': 'Cookies e armazenamento local',
@@ -394,15 +393,10 @@ const ptBR: Record<string, string> = {
   'Отклонить все': 'Recusar tudo',
   'Сохранить выбор': 'Salvar escolha',
   'Настроить': 'Personalizar',
-  'Политика cookie': 'Política de Cookies',
+  'Cookie не ставятся: выбор хранится только в вашем браузере.': 'Nenhum cookie é usado: sua escolha fica só no seu navegador.',
   'Браузер передаёт сигнал Global Privacy Control — необязательные категории отключены.': 'Seu navegador envia o sinal Global Privacy Control — as categorias opcionais estão desativadas.',
   'всегда': 'sempre ativo',
   'Запись решения': 'Registro da decisão',
-  'Политика конфиденциальности': 'Política de Privacidade',
-  'Условия использования': 'Termos de Uso',
-  'Раскрытие рисков': 'Divulgação de Riscos',
-  'Лицензии третьих лиц': 'Licenças de Terceiros',
-  'Жалобы (DMCA)': 'Reclamações (DMCA)',
   'Растущая луна': 'Lua crescente',
   'Первая четверть': 'Quarto crescente',
   'Прибывающая луна': 'Lua gibosa crescente',
@@ -441,7 +435,7 @@ const ptBR: Record<string, string> = {
   'Подпись транзакции': 'Assinatura da transação',
   'Я оплатил — проверить': 'Já paguei — verificar',
   'Подпись получена — проверяем перевод. Статус заказа: №{n}': 'Assinatura recebida — verificando a transferência. Status do pedido: №{n}',
-  'Предоплата не является инвестицией и не гарантирует доход. Условия — Terms §7.': 'O pré-pagamento não é um investimento e não garante retorno. Veja os Termos §7.',
+  'Предоплата не является инвестицией и не гарантирует доход.': 'O pré-pagamento não é um investimento e não garante retorno.',
 };
 
 export default ptBR;
