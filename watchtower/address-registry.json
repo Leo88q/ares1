@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "network": "devnet",
-  "provenance": "repository_only_not_network_verified",
+  "provenance": "public_devnet_explorer_read_only_2026-10-06_program_mint_and_two_pdas; exporter_rpc_smoke_binary_provenance_and_central_handshake_pending",
   "programs": {
     "solana_potato": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
     "cg_inventory": null,
@@ -9,9 +9,14 @@
     "treasury": null,
     "core": null
   },
-  "mints": [],
+  "mints": [
+    "HFEL9rBqmYwYDsZNxuV2ZonfS7adbjENUc3CdgbaiYxv"
+  ],
   "treasuries": [],
-  "pdas": [],
+  "pdas": [
+    "9FDhkBwmcNx3gh8hSgShpiAVXHW9cZBnv4t1xyHGU39q",
+    "9bGsUX3u2imMyLgu7ottPSxzXs1rSUGJfX9J9r3WJ5s2"
+  ],
   "upgradeAuthorityMultisig": null,
   "timelock": null,
   "deploymentVerified": false,
