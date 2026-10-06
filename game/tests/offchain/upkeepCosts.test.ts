@@ -111,12 +111,13 @@ test('transaction preflight uses field level and shows exact need/available bala
   assert.match(client, /if \(!requireBalance\(cost\(f\)\)\) return false\s+return runTx/);
 });
 
-test('both field card implementations display exact prices from shared helpers', () => {
-  for (const card of ['FieldCard', 'FieldCardVice']) {
-    const source = fs.readFileSync(`apps/web/src/components/${card}.tsx`, 'utf8');
-    for (const helper of ['upgradeCostMicro', 'repairCostMicro', 'taxCostMicro']) {
-      assert(source.includes(`fmtPotatoExact(${helper}(field.level, field.fieldType))`), `${card}: ${helper}`);
-    }
-    assert(source.includes('fmtPotatoExact(fertilizerCostMicro(field.fieldType))'), card);
+// Раньше здесь было ДВЕ реализации карточки поля: FieldCard (легаси, никем не
+// импортировался) и FieldCardVice (живая). Легаси удалён — тест держит цену на
+// той карточке, которую действительно видит игрок.
+test('field card displays exact prices from shared helpers', () => {
+  const source = fs.readFileSync('apps/web/src/components/FieldCardVice.tsx', 'utf8');
+  for (const helper of ['upgradeCostMicro', 'repairCostMicro', 'taxCostMicro']) {
+    assert(source.includes(`fmtPotatoExact(${helper}(field.level, field.fieldType))`), helper);
   }
+  assert(source.includes('fmtPotatoExact(fertilizerCostMicro(field.fieldType))'), 'fertilizerCostMicro');
 });
