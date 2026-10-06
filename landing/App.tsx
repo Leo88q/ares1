@@ -49,6 +49,7 @@ import { Glyph } from "./Glyph";
 import { InterstellarSection } from "./InterstellarBridge";
 import { LivingPhobos } from "./LivingPhobos";
 import { RarityModules } from "./RarityModules";
+import { PresaleBanner } from "./PresaleBanner";
 import { TokenReactor } from "./TokenReactor";
 import { GamificationHud } from "./GamificationHud";
 import {
@@ -2214,6 +2215,7 @@ export default function App(): JSX.Element {
       <Header notify={notify} />
       <main id="main-content" tabIndex={-1}>
         <Hero />
+        <PresaleBanner />
         <Product />
         <Problem />
         <Mechanics />

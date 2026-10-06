@@ -56,7 +56,7 @@ function makeConfig(overrides: Partial<GameOpsConfig> = {}): GameOpsConfig {
     adminToken: 'x'.repeat(32),
     reconciliationMaxAgeMinutes: 60,
     chainId,
-    expectedSchemaVersion: 3,
+    expectedSchemaVersion: 6,
     ...overrides,
   };
 }

@@ -167,7 +167,18 @@ test('C20: админ-рычаги под тимлоком/потолками/д
 });
 
 test('C18/E29: капы циклов и дубликаты', () => {
-  assert.ok(libRs.includes('remaining_accounts.len() <= 10'));
+  // Батч-лимит теперь зависит от лицензии, но remain-условие обязано остаться:
+  // `fields.len() <= limit`, где limit — 10 без лицензии и 30 с активной.
+  assert.ok(libRs.includes('fields.len() <= limit'));
+  assert.ok(libRs.includes('BATCH_LIMIT_BASE: usize = 10'));
+  assert.ok(libRs.includes('BATCH_LIMIT_LICENSED: usize = 30'));
+  // Тир выдаётся только по проверенному PDA лицензии: совпадение с выведенным
+  // адресом, владелец — наша программа, данные не пусты. Без любого из трёх
+  // условий поддельный аккаунт выдал бы себе премиум-лимит.
+  assert.ok(libRs.includes('&[b"license", ctx.accounts.owner.key().as_ref()]'));
+  assert.ok(libRs.includes('if first.key() == expected_lic'));
+  assert.ok(libRs.includes('if first.owner == ctx.program_id && !first.data_is_empty()'));
+  assert.ok(libRs.includes('licensed = lic.expires_at > now'));
   assert.ok(libRs.includes('accs.len() <= MAX_CLAIM_PROOFS'));
   assert.ok(libRs.includes('MAX_CLAIM_PROOFS: usize = 12'));
 });
@@ -240,6 +251,23 @@ test('П.40: SKR decimals проверяются на каждом рельсе,
       `${name}: минт не передан аккаунтом — decimals нечем проверить`,
     );
   }
+});
+
+test('initialize: опциональный SKR-минт проверяется не слабее типизированного рельса', () => {
+  // Деплоер может передать свой SKR-минт через remaining_accounts (это нужно для
+  // localnet, где константный devnet-минт не существует). Проверка обязана быть
+  // не слабее `require_skr_mint`: владелец — SPL Token, данные не пусты,
+  // decimals == SKR_DECIMALS. Иначе подобранные байты переоценили бы лицензию
+  // (500 SKR) и модуль (1053 SKR) на 10^k.
+  assert.ok(libRs.includes('fn require_skr_mint_info(acc: &AccountInfo)'));
+  assert.ok(libRs.includes('require!(*acc.owner == SPL_TOKEN_PROGRAM, GameError::InvalidMint);'));
+  assert.ok(libRs.includes('require!(!acc.data_is_empty(), GameError::InvalidMint);'));
+  assert.ok(libRs.includes('pub const SPL_TOKEN_PROGRAM: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");'));
+  assert.ok(libRs.includes('require_skr_mint_info(acc)?;'));
+  // Фолбэк на пиновую константу: вызов без remaining_accounts обязан вести себя
+  // побайтово как раньше, иначе меняется поведение уже задеплоенных скриптов.
+  assert.ok(libRs.includes('None => SKR_MINT,'));
+  assert.ok(libRs.includes('config.skr_mint = skr_mint;'));
 });
 
 test('П.11/R2: bootstrap-минт обязан иметь нулевой supply', () => {

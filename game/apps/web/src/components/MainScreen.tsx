@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useI18n, t } from '../i18n'
 
@@ -6,17 +7,27 @@ import { useSolana } from '../contexts/SolanaContext'
 import FieldCardVice from './FieldCardVice'
 import PresaleSection from './PresaleSection'
 import Header from './Header'
-import { FIELD_TYPES, fieldPriceMicro, fmtPotato, HARVEST_THRESHOLD_MICRO } from '../utils/constants'
+import { FIELD_TYPES, fieldPriceMicro, fmtPotato, HARVEST_THRESHOLD_MICRO, BATCH_LIMIT_LICENSED } from '../utils/constants'
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 import { AgroBay } from './ares/AgroBay'
 import { FieldGestureLayer } from './ares/FieldGestureLayer'
 import { ErrorState } from '../ui/states'
+import { Key } from '../ui/kit'
 import { Tuber9 } from './ares/mascot'
+import CaseReveal from './CaseReveal'
 
 export default function MainScreen() {
  const { fields, stats, loading, fieldsError, reload, purchasing, harvest, purchaseField, upgradeField, repairField, payTax, applyFertilizer } = useGame()
  const { ready, rpcError, connected } = useSolana()
+ const [revealTier, setRevealTier] = useState<number | null>(null)
+
+ // Покупка поля за POTATO: тип выбирает игрок, поэтому редкость раскрытия = тип.
+ const handlePurchase = async (type: number) => {
+  const ok = await purchaseField(type)
+  if (ok) setRevealTier(type)
+  return ok
+ }
 
  return (
   <AgroBay>
@@ -25,12 +36,19 @@ export default function MainScreen() {
      <Header stats={stats} />
     </div>
             <PresaleSection />
+        <CaseReveal
+         open={revealTier !== null}
+         tier={revealTier ?? 0}
+         mode="field"
+         onClose={() => setRevealTier(null)}
+        />
         <BuyFieldCard
-         onPurchase={purchaseField}
+         onPurchase={handlePurchase}
          purchasing={purchasing}
          balanceMicro={stats.potatoBalance}
          firstField={fields.length === 0}
         />
+<BatchHarvestBar />
 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
      <div
       data-tutorial="fields"
@@ -364,5 +382,51 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
     </div>
    )}
   </motion.div>
+ )
+}
+
+/**
+ * «Собрать всё» — батч-жатва одной транзакцией.
+ *
+ * Доступна всем игрокам: лицензия не обязательна, она лишь поднимает лимит с
+ * BATCH_LIMIT_BASE до BATCH_LIMIT_LICENSED полей за транзакцию. Панель
+ * показывается только когда готовы хотя бы два поля — для одного поля кнопка
+ * на карточке ближе и понятнее.
+ */
+function BatchHarvestBar() {
+ const { fields, batchHarvest, batchLimit, licenseActive } = useGame()
+ const [busy, setBusy] = useState(false)
+
+ const ready = fields.filter(f => f.isActive && f.accumulated >= HARVEST_THRESHOLD_MICRO)
+ if (ready.length < 2) return null
+
+ const take = ready.slice(0, batchLimit)
+ const rest = ready.length - take.length
+
+ const run = async () => {
+  if (busy) return
+  setBusy(true)
+  sounds.harvest()
+  haptics.harvest()
+  try {
+   await batchHarvest(take.map(f => f.publicKey))
+  } finally {
+   setBusy(false)
+  }
+ }
+
+ const hint = rest > 0
+  ? t('Осталось {n} полей — лимит {limit} за транзакцию.', { n: rest, limit: batchLimit })
+  : licenseActive
+   ? t('Лицензия активна: лимит {limit} полей за транзакцию.', { limit: batchLimit })
+   : t('Лимит {limit} полей за транзакцию. Лицензия поднимает его до {licensed}.', { limit: batchLimit, licensed: BATCH_LIMIT_LICENSED })
+
+ return (
+  <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+   <Key onClick={() => void run()} disabled={busy}>
+    {busy ? t('Сбор…') : t('Собрать всё')} · {take.length}
+   </Key>
+   <span style={{ fontSize: 12, opacity: 0.75 }}>{hint}</span>
+  </div>
  )
 }

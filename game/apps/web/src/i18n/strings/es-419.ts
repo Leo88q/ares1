@@ -527,7 +527,14 @@ const es419: Record<string, string> = {
 
   // Тосты транзакций (GameContext)
   'LUT создана': 'LUT creada',
-  'Максимум 10 полей за один батч.': 'Máximo 10 parcelas por lote.',
+  'Максимум {n} полей за один батч.': 'Máximo {n} parcelas por lote.',
+  'Собрать всё': 'Cosechar todo',
+  'Нужна таблица адресов (LUT)': 'Se requiere tabla de direcciones (LUT)',
+  'Батч больше {n} полей требует LUT. Создай её в КАЮТЕ и повтори.': 'Un lote de más de {n} parcelas requiere LUT. Créala en la CABINA e inténtalo de nuevo.',
+  'Осталось {n} полей — лимит {limit} за транзакцию.': 'Quedan {n} parcelas — el límite es {limit} por transacción.',
+  'Лицензия активна: лимит {limit} полей за транзакцию.': 'Licencia activa: límite de {limit} parcelas por transacción.',
+  'Лимит {limit} полей за транзакцию. Лицензия поднимает его до {licensed}.': 'Límite de {limit} parcelas por transacción. La licencia lo sube a {licensed}.',
+  'Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.': 'Bono: cosecha en lote de hasta {n} parcelas por transacción en vez de {base}.',
   'Не удалось закрыть поле': 'No se pudo cerrar la parcela',
   'Не удалось отправить SOL': 'No se pudo enviar SOL',
   'Не удалось собрать урожай батчем': 'Fallo en la cosecha por lote',
@@ -596,6 +603,10 @@ const es419: Record<string, string> = {
   'Транзакция отправлена, но подтверждение не получено. Проверь кошелёк перед повтором — действие может уже выполниться.': 'La transacción se envió, pero no llegó la confirmación. Revisa tu billetera antes de reintentar: la acción puede haberse completado ya.',
   'Требуется владеть 6 делянками, и хотя бы одна должна быть 3-го уровня (сейчас макс. ур. {lvl}).': 'Requiere 6 parcelas con al menos una en nivel 3 (nivel máx. actual {lvl}).',
   'нужен ур. 3 (сейчас {n})': 'nivel 3 requerido (actual {n})',
+  'Продолжить': 'Continuar',
+  'Гидропонный модуль раскрыт': 'Módulo hidropónico revelado',
+  'Предоплата зачислена': 'Prepago acreditado',
+  'Шанс дропа: {c}%': 'Probabilidad de drop: {c}%',
 };
 
 export default es419;

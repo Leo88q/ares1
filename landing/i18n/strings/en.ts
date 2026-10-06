@@ -425,6 +425,22 @@ const en: Record<string, string> = {
   '28 лунных эпох Фобоса с множителями урожайности': '28 Phobos lunar epochs with yield multipliers',
   'Эксклюзивные модули за ончейн-достижения в NeuroForge': 'Exclusive modules for on-chain achievements in NeuroForge',
   'Играть в ARES-1 ↗': 'Play ARES-1 ↗',
+  'Каталог паков недоступен — попробуйте позже': 'Pack catalog unavailable — try again later',
+  'PHASE 1 · ПРЕДОПЛАТА': 'PHASE 1 · PREPAYMENT',
+  'Ограниченные паки ARES-1': 'Limited ARES-1 packs',
+  '500 паков по предоплате сейчас + 500 на старте mainnet. Зачисление POTATO — при запуске основной сети. Без возвратов.': '500 packs by prepayment now + 500 at mainnet launch. POTATO is credited when the mainnet launches. No refunds.',
+  'Осталось: {n} из {cap}': 'Remaining: {n} of {cap}',
+  'полей': 'fields',
+  'Адрес кошелька (SOL)': 'Wallet address (SOL)',
+  'Email (необязательно)': 'Email (optional)',
+  'Зарезервировать пак': 'Reserve a pack',
+  'Не удалось связаться с сервером': 'Could not reach the server',
+  'Заказ №{n} зарезервирован': 'Order №{n} reserved',
+  'Переведите ровно {u} базовых единиц на:': 'Send exactly {u} base units to:',
+  'Подпись транзакции': 'Transaction signature',
+  'Я оплатил — проверить': 'I paid — verify',
+  'Подпись получена — проверяем перевод. Статус заказа: №{n}': 'Signature received — verifying the transfer. Order status: №{n}',
+  'Предоплата не является инвестицией и не гарантирует доход. Условия — Terms §7.': 'Prepayment is not an investment and guarantees no return. See Terms §7.',
 };
 
 export default en;
