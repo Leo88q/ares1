@@ -32,6 +32,8 @@
     "ci:local": "./scripts/ci-local.sh",
     "build": "yarn build:web && yarn build:backend",
     "test:offchain": "tsx --test tests/offchain/*.test.ts",
+    "presale:open-run": "tsx scripts/presale-open-run.ts",
+    "presale:reconcile": "tsx scripts/presale-reconcile.ts",
     "test:economy": "python3 economy/simulate.py --check",
     "check:contract": "node scripts/check-contract.mjs",
     "typecheck:tools": "tsc -p tsconfig.tools.json",
