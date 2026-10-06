@@ -37,7 +37,7 @@ jobs:
       - run: ./scripts/ci-local.sh --skip-chain
       # F-09/2026-10-02: HIGH and CRITICAL findings block. The previously
       # unresolved bigint-buffer native-addon issue is removed by the tested
-      # local @solana/buffer-layout-utils backport (see vendor/solana-buffer-layout-utils/README.vendor.md).
+      # local @solana/buffer-layout-utils backport (see game/apps/web/vendor/solana-buffer-layout-utils/README.vendor.md).
       # Yarn Classic returns a severity bitmask and --level only filters output,
       # so audit-blocking.sh checks bits 8/16 and fails closed on no audit summary.
       - name: Dependency audit — high/critical (blocking)

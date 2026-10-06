@@ -59,6 +59,16 @@ python3 economy/simulate.py        # отчёт по экономике в markd
 ### Сборка web-клиента на Cloudflare Pages
 
 Проект `ares1-play` (play.ares1.is-a.dev) собирается командой `yarn build:web`.
+
+**Важно (2026-10-06).** Cloudflare Pages не отдаёт сборке файлы за пределами
+заданного Root directory, поэтому в `game/` не должно быть `file:`-зависимостей,
+ведущих выше его директории. Аудит'нутый вендор-пакет
+`@solana/buffer-layout-utils` лежит в `apps/web/vendor/solana-buffer-layout-utils`
+(внутри дерева web-приложения), а `apps/web/package.json` дублирует `resolutions`
+и `overrides`, чтобы установка в один проход из `apps/web` тоже брала локальную
+копию. Проверено локальными симуляциями для трёх возможных Root: репо-корень,
+`game/` и `game/apps/web` — `install` + `build` зелёные во всех. Стражи
+(`yarn test:guards`) следят, что ни один манифест не ссылается вверх через `file:../`.
 Задавать `VITE_*` в окружении сборки не обязательно: если их нет, `vite.config.ts`
 берёт публичные devnet-значения из `apps/web/.env.example` и громко печатает
 об этом в лог сборки. Для продакшена задай `VITE_PROGRAM_ID`, `VITE_RPC_URL` и

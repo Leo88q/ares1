@@ -29,7 +29,7 @@ a dependency.
 | React, Vite, Tailwind, framer-motion, canvas-confetti, lenis | MIT |
 | lucide-react | ISC |
 | `@solana/*`, `@solana/wallet-adapter-*`, `@coral-xyz/anchor` | Apache-2.0 / MIT (per package) |
-| Vendored `@solana/buffer-layout-utils` backport | Apache-2.0; source commit and test provenance: [vendor/solana-buffer-layout-utils/README.vendor.md](vendor/solana-buffer-layout-utils/README.vendor.md) |
+| Vendored `@solana/buffer-layout-utils` backport | Apache-2.0; source commit and test provenance: [game/apps/web/vendor/solana-buffer-layout-utils/README.vendor.md](game/apps/web/vendor/solana-buffer-layout-utils/README.vendor.md) |
 
 The project's own source licence is declared in [README.md](README.md). It currently says MIT;
 confirm that is the intended choice for a commercial game before publishing (checklist §2.11).
