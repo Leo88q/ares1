@@ -1,5 +1,5 @@
 # Build from the repository root: docker build -f game/apps/backend/Dockerfile .
-FROM node:22.22.3-bookworm-slim AS build
+FROM node:26.9.0-bookworm-slim AS build
 WORKDIR /app/game
 COPY game/package.json game/yarn.lock ./
 COPY game/apps/web/package.json apps/web/package.json
@@ -18,7 +18,7 @@ COPY game/apps/backend/src apps/backend/src
 COPY game/migrations /app/migrations
 RUN yarn workspace backend build
 
-FROM node:22.22.3-bookworm-slim AS runtime
+FROM node:26.9.0-bookworm-slim AS runtime
 WORKDIR /app/game
 ENV NODE_ENV=production
 # Keep the same workspace graph/lockfile for runtime dependency resolution.
