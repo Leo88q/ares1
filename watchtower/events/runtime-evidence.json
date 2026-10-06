@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "gameId": "ares1",
+  "capturedAt": "2026-10-06",
+  "capturedBy": "ARES-1 handoff, read-only",
+  "method": {
+    "kind": "public_explorer_read",
+    "notes": [
+      "Sandbox RPC egress to devnet is blocked (curl https://api.devnet.solana.com -> OpenSSL SSL_connect: SSL_ERROR_SYSCALL; rpc.ankr.com and api.mainnet-beta.solana.com fail the same way, while https://github.com returns 200), so the exporter's certified scripts/verify-devnet.ts smoke could not be run here.",
+      "Instead, finalized devnet transactions and accounts were read through public explorers (explorer.solana.com / solscan.io) and the base64 event payloads were decoded offline against game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694).",
+      "This is real runtime evidence for the items below, but it is NOT the central handshake, NOT a deployment/binary provenance check, and NOT proof of coverage of all 31 event types."
+    ]
+  },
+  "programAccount": {
+    "cluster": "devnet",
+    "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+    "executable": true,
+    "upgradeable": true,
+    "owner": "BPFLoaderUpgradeab1e11111111111111111111111",
+    "programDataAccount": "CrTBMUR4wyMDT2SZotSrtDAZoWwQC5U9cpvZp4z7pY5Y",
+    "lastDeployedSlot": 507112076,
+    "lastDeployedAtIso": "2026-10-03T20:03:14Z",
+    "programVerifiedBuild": false,
+    "upgradeAuthority": {
+      "kind": "single_wallet",
+      "multisig": false,
+      "addressOmitted": true,
+      "reason": "The upgrade authority is public chain data; its address is deliberately not restated here to avoid implying custody/authority handoff. It is visible via the evidence URLs."
+    },
+    "evidenceUrls": [
+      "https://explorer.solana.com/address/DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf?cluster=devnet",
+      "https://solscan.io/account/DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf?cluster=devnet"
+    ],
+    "observedAt": "2026-10-06"
+  },
+  "stateAccountsConfirmedOnChain": [
+    {
+      "kind": "pda",
+      "seeds": ["config"],
+      "address": "9FDhkBwmcNx3gh8hSgShpiAVXHW9cZBnv4t1xyHGU39q",
+      "how": "Derived offline from the program seeds; appears as account #1 of the ClaimAchievement transactions and as the POTATO mint authority.",
+      "verificationStatus": "verified_runtime"
+    },
+    {
+      "kind": "pda",
+      "seeds": ["quest_treasury"],
+      "address": "9bGsUX3u2imMyLgu7ottPSxzXs1rSUGJfX9J9r3WJ5s2",
+      "how": "Derived offline; appears as the token-account authority of the quest-treasury ATA in the two ClaimAchievement transactions.",
+      "verificationStatus": "verified_runtime"
+    }
+  ],
+  "derivedNotYetObserved": [
+    { "kind": "pda", "seeds": ["treasury_sol"], "address": "2RVYyVzR6tzLXiLsGYrEGSvU8Mj5nQiS7Q3e8MXFa1ao", "verificationStatus": "code_only" },
+    { "kind": "pda", "seeds": ["market_stats"], "address": "8UC7Yw8T3R8JRCpNn2C7uPRf9n7XiwGUyn7G2UVUEqbg", "verificationStatus": "code_only" },
+    { "kind": "pda", "seeds": ["admin_state"], "address": "ADraxnQtgMWUAAn46K5oNf6nRRGrUMS2SxyRmfbCZCfk", "verificationStatus": "code_only" },
+    { "kind": "pda", "seeds": ["presale"], "address": "4NwdeEHuDPfh2oFZ6Bq5SbRxCfxRo7dh9SqhhMAqxs7o", "verificationStatus": "code_only" }
+  ],
+  "assetsConfirmedOnChain": [
+    {
+      "symbol": "POTATO",
+      "mint": "HFEL9rBqmYwYDsZNxuV2ZonfS7adbjENUc3CdgbaiYxv",
+      "decimals": 6,
+      "mintAuthority": "9FDhkBwmcNx3gh8hSgShpiAVXHW9cZBnv4t1xyHGU39q",
+      "mintAuthorityEqualsConfigPda": true,
+      "reportedSupplyDisplay": "434.280849",
+      "supplyCapturedAt": "2026-10-06",
+      "evidenceUrls": [
+        "https://explorer.solana.com/address/HFEL9rBqmYwYDsZNxuV2ZonfS7adbjENUc3CdgbaiYxv?cluster=devnet"
+      ],
+      "verificationStatus": "verified_runtime",
+      "notes": [
+        "Not a committed repository value: identified from the mint whose authority equals the game config PDA and which is moved by ClaimAchievement rewards.",
+        "Current supply is a point-in-time devnet observation, not a supply cap or circulation metric."
+      ]
+    },
+    {
+      "symbol": "SKR",
+      "mint": "Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o",
+      "decimals": 6,
+      "source": "pinned constant SKR_MINT (game/programs/solana_potato/src/lib.rs:159) mirrored in game/apps/web/src/utils/anchorClient.ts:5",
+      "evidenceUrls": [
+        "https://explorer.solana.com/tx/4RjYypniZb9SL85Xn2u4aryiao3gxZqsTN3ed1F32hvbHyHecpCZeZMkvuWQgQbgxn1Jq5DmvcAocQu8iRYetonv?cluster=devnet"
+      ],
+      "verificationStatus": "verified_runtime",
+      "notes": [
+        "The BuyExportLicense transaction moves exactly 500.000000 of this mint (500000000 atoms) from the player ATA, confirming the mint exists on devnet with 6 decimals."
+      ]
+    }
+  ],
+  "decodedRealEvents": [
+    {
+      "onChainEvent": "FieldUpgraded",
+      "signature": "3rNqeHwzy629gPwZYAzBiRtK8HHSNwx2oQ8s18hjLnBj5M8TVxkrQZBjBwmGaqNEgWtKaSuHRRdji5x34U9dfBUH",
+      "slot": 505995704,
+      "blockTimeIso": "2026-09-30T18:27:59Z",
+      "instructionName": "upgrade_field",
+      "instructionIndex": 2,
+      "innerIndex": -1,
+      "applied": true,
+      "payload": { "field": "7oLddctSTQwqhtsbsQ6eqXtyW4ppqXrhNj5XshhEFzXF", "new_level": 2, "cost_micro": "40000000" },
+      "fixture": "watchtower/events/fixtures/real-devnet/devnet-505995704-field-upgraded.json"
+    },
+    {
+      "onChainEvent": "AchievementClaimed",
+      "signature": "5PVnUNjsPPiJh3h9WGrc9WBai9yH8SeQJMDNBbc1zVskz9zzBQodj8M4LoPkeV76B2meHNisxfkZutTd11qCJtaA",
+      "slot": 505985253,
+      "blockTimeIso": "2026-09-30T17:47:07Z",
+      "instructionName": "claim_achievement",
+      "instructionIndex": 3,
+      "innerIndex": -1,
+      "applied": true,
+      "payload": { "user": "HPMr5r9sS5ApWsPNJytZRLbm2jz1veFxTn1wepjAhtho", "quest_id": 1, "reward": "50000000" },
+      "fixture": "watchtower/events/fixtures/real-devnet/devnet-505985253-achievement-claimed-quest1.json"
+    },
+    {
+      "onChainEvent": "AchievementClaimed",
+      "signature": "4pUB58DRUkLGCtzcCPMBHmyTCoJG3uXLKWfQXf3Efki4wLdVLbwbQpjKKwwLdBRspX1BJfmRiRfByCRuPNJbVagp",
+      "slot": 505985220,
+      "blockTimeIso": "2026-09-30T17:46:59Z",
+      "instructionName": "claim_achievement",
+      "instructionIndex": 3,
+      "innerIndex": -1,
+      "applied": true,
+      "payload": { "user": "HPMr5r9sS5ApWsPNJytZRLbm2jz1veFxTn1wepjAhtho", "quest_id": 3, "reward": "100000000" },
+      "fixture": "watchtower/events/fixtures/real-devnet/devnet-505985220-achievement-claimed-quest3.json"
+    },
+    {
+      "onChainEvent": "ExportLicensePurchased",
+      "signature": "4RjYypniZb9SL85Xn2u4aryiao3gxZqsTN3ed1F32hvbHyHecpCZeZMkvuWQgQbgxn1Jq5DmvcAocQu8iRYetonv",
+      "slot": 505983829,
+      "blockTimeIso": "2026-09-30T17:41:33Z",
+      "instructionName": "buy_export_license",
+      "instructionIndex": 2,
+      "innerIndex": -1,
+      "applied": true,
+      "payload": { "owner": "HPMr5r9sS5ApWsPNJytZRLbm2jz1veFxTn1wepjAhtho", "expires_at": 1794616485, "cost_skr_atoms": "500000000" },
+      "fixture": "watchtower/events/fixtures/real-devnet/devnet-505983829-export-license-purchased.json"
+    }
+  ],
+  "coverageStatement": {
+    "eventsWithRuntimeEvidence": 3,
+    "eventsTotalInIdl": 31,
+    "observedWindow": "2026-09-30T15:36:20Z..2026-09-30T20:03:14Z (devnet transactions visible on the explorer pages read on 2026-10-06)",
+    "isCompleteCoverage": false,
+    "reason": "Public explorer pagination was sampled, not exhaustively scanned; the last observed program transaction is an upgrade on 2026-10-03. Absence of events in the sampled window is not evidence of zero activity."
+  },
+  "privateDataStatement": "Fixtures contain only public devnet chain data (beta test wallets). No mainnet players, no emails, no IPs, no device data, no credentials, no production payloads."
+}

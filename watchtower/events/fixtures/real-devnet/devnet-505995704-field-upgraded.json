@@ -1,0 +1,36 @@
+{
+  "provenance": "real_devnet_public_explorer_capture",
+  "capturedAt": "2026-10-06",
+  "capturedBy": "ARES-1 handoff (read-only public explorer; NOT the exporter --capture-fixture smoke)",
+  "method": "Human-readable public explorer (explorer.solana.com) read of a finalized devnet transaction; payload base64 decoded offline with the committed IDL event-only snapshot.",
+  "cluster": "devnet",
+  "commitment": "finalized",
+  "gameId": "ares1",
+  "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+  "idlSha256": "7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694",
+  "signature": "3rNqeHwzy629gPwZYAzBiRtK8HHSNwx2oQ8s18hjLnBj5M8TVxkrQZBjBwmGaqNEgWtKaSuHRRdji5x34U9dfBUH",
+  "slot": 505995704,
+  "blockTime": 1790792879,
+  "blockTimeIso": "2026-09-30T18:27:59Z",
+  "instructionName": "upgrade_field",
+  "instructionIndex": 2,
+  "innerIndex": -1,
+  "applied": true,
+  "status": "Success",
+  "logLine": "Program data: QOXpDEnoh9xlBQlI4ahUK2SCTK1uYBZKTZQpf59+PhtnA6R2odOp3gIAWmICAAAAAA==",
+  "decodedEvent": {
+    "onChainEvent": "FieldUpgraded",
+    "watchtowerEventType": "FieldUpgraded",
+    "payload": {
+      "field": "7oLddctSTQwqhtsbsQ6eqXtyW4ppqXrhNj5XshhEFzXF",
+      "new_level": 2,
+      "cost_micro": "40000000"
+    }
+  },
+  "evidenceUrl": "https://explorer.solana.com/tx/3rNqeHwzy629gPwZYAzBiRtK8HHSNwx2oQ8s18hjLnBj5M8TVxkrQZBjBwmGaqNEgWtKaSuHRRdji5x34U9dfBUH?cluster=devnet",
+  "notes": [
+    "Real devnet beta transaction; public chain data. Devnet test wallets only, no mainnet players, no PII, no credentials.",
+    "Anchor self-log `Instruction: UpgradeField` confirms the emitting instruction; the event payload length (49 bytes = 8 discriminator + 41 fields) matches the committed IDL exactly.",
+    "innerIndex = -1: the emit! happens in the outer invocation frame (the Token Program burn is a CPI, but the event is not emitted from inside it)."
+  ]
+}

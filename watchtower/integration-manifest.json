@@ -5,9 +5,14 @@
   "programIds": [
     "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf"
   ],
-  "mintAddresses": [],
+  "mintAddresses": [
+    "HFEL9rBqmYwYDsZNxuV2ZonfS7adbjENUc3CdgbaiYxv"
+  ],
   "treasuryAddresses": [],
-  "pdaAccounts": [],
+  "pdaAccounts": [
+    "9FDhkBwmcNx3gh8hSgShpiAVXHW9cZBnv4t1xyHGU39q",
+    "9bGsUX3u2imMyLgu7ottPSxzXs1rSUGJfX9J9r3WJ5s2"
+  ],
   "idlVersion": "0.2.0",
   "idlSha256": "7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694",
   "parserVersion": "ares1-v1",
@@ -15,5 +20,5 @@
   "writes": false,
   "lastVerifiedAt": null,
   "deploymentVerified": false,
-  "addressProvenance": "repository_only_not_network_verified"
+  "addressProvenance": "public_devnet_explorer_read_only_2026-10-06_program_mint_and_two_pdas; exporter_rpc_smoke_binary_provenance_and_central_handshake_pending"
 }

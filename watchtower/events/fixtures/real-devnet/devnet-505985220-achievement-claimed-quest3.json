@@ -1,0 +1,46 @@
+{
+  "provenance": "real_devnet_public_explorer_capture",
+  "capturedAt": "2026-10-06",
+  "capturedBy": "ARES-1 handoff (read-only public explorer; NOT the exporter --capture-fixture smoke)",
+  "method": "Human-readable public explorer (explorer.solana.com) read of a finalized devnet transaction; payload base64 decoded offline with the committed IDL event-only snapshot.",
+  "cluster": "devnet",
+  "commitment": "finalized",
+  "gameId": "ares1",
+  "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+  "idlSha256": "7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694",
+  "signature": "4pUB58DRUkLGCtzcCPMBHmyTCoJG3uXLKWfQXf3Efki4wLdVLbwbQpjKKwwLdBRspX1BJfmRiRfByCRuPNJbVagp",
+  "slot": 505985220,
+  "blockTime": 1790790419,
+  "blockTimeIso": "2026-09-30T17:46:59Z",
+  "instructionName": "claim_achievement",
+  "instructionIndex": 3,
+  "innerIndex": -1,
+  "applied": true,
+  "status": "Success",
+  "logLine": "Program data: DjFHx9b4dOjzdVbuNechkGeIQJq5dFj/+Pd0s/U7T8ysCVXFpkkTugMA4fUFAAAAAA==",
+  "decodedEvent": {
+    "onChainEvent": "AchievementClaimed",
+    "watchtowerEventType": null,
+    "payload": {
+      "user": "HPMr5r9sS5ApWsPNJytZRLbm2jz1veFxTn1wepjAhtho",
+      "quest_id": 3,
+      "reward": "100000000"
+    }
+  },
+  "instructionDataHex": "6bb566f7cfd4fb1803",
+  "evidenceUrl": "https://explorer.solana.com/tx/4pUB58DRUkLGCtzcCPMBHmyTCoJG3uXLKWfQXf3Efki4wLdVLbwbQpjKKwwLdBRspX1BJfmRiRfByCRuPNJbVagp?cluster=devnet",
+  "sideFacts": {
+    "tokenTransfer": {
+      "mint": "HFEL9rBqmYwYDsZNxuV2ZonfS7adbjENUc3CdgbaiYxv",
+      "rawAmount": "100000000",
+      "decimals": 6,
+      "displayAmount": "100.000000"
+    },
+    "questRewardTableMicro": [50000000, 50000000, 100000000, 100000000, 200000000, 50000000],
+    "questRewardTableRef": "game/programs/solana_potato/src/lib.rs:4429 (QUEST_REWARD_MICRO)"
+  },
+  "notes": [
+    "Real devnet beta transaction; public chain data. Devnet test wallets only, no mainnet players, no PII, no credentials.",
+    "quest_id 3 -> 100000000 raw = 100.000000 POTATO, consistent with QUEST_REWARD_MICRO[3]."
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "provenance": "real_devnet_public_explorer_capture",
+  "capturedAt": "2026-10-06",
+  "capturedBy": "ARES-1 handoff (read-only public explorer; NOT the exporter --capture-fixture smoke)",
+  "method": "Human-readable public explorer (explorer.solana.com) read of a finalized devnet transaction; payload base64 decoded offline with the committed IDL event-only snapshot.",
+  "cluster": "devnet",
+  "commitment": "finalized",
+  "gameId": "ares1",
+  "programId": "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf",
+  "idlSha256": "7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694",
+  "signature": "4RjYypniZb9SL85Xn2u4aryiao3gxZqsTN3ed1F32hvbHyHecpCZeZMkvuWQgQbgxn1Jq5DmvcAocQu8iRYetonv",
+  "slot": 505983829,
+  "blockTime": 1790790093,
+  "blockTimeIso": "2026-09-30T17:41:33Z",
+  "instructionName": "buy_export_license",
+  "instructionIndex": 2,
+  "innerIndex": -1,
+  "applied": true,
+  "status": "Success",
+  "logLine": "Program data: YTGdk3rgs/jzdVbuNechkGeIQJq5dFj/+Pd0s/U7T8ysCVXFpkkTuqWs92oAAAAAAGXNHQAAAAA=",
+  "decodedEvent": {
+    "onChainEvent": "ExportLicensePurchased",
+    "watchtowerEventType": "PurchaseCompleted",
+    "payload": {
+      "owner": "HPMr5r9sS5ApWsPNJytZRLbm2jz1veFxTn1wepjAhtho",
+      "expires_at": 1794616485,
+      "cost_skr_atoms": "500000000"
+    }
+  },
+  "evidenceUrl": "https://explorer.solana.com/tx/4RjYypniZb9SL85Xn2u4aryiao3gxZqsTN3ed1F32hvbHyHecpCZeZMkvuWQgQbgxn1Jq5DmvcAocQu8iRYetonv?cluster=devnet",
+  "sideFacts": {
+    "tokenTransfer": {
+      "mint": "Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o",
+      "rawAmount": "500000000",
+      "decimals": 6,
+      "displayAmount": "500.000000",
+      "authority": "HPMr5r9sS5ApWsPNJytZRLbm2jz1veFxTn1wepjAhtho",
+      "note": "SKR (pinned constant SKR_MINT in lib.rs:159); 500 SKR matches the owner-confirmed export-license price in game/docs/API.md."
+    }
+  },
+  "notes": [
+    "Real devnet beta transaction; public chain data. Devnet test wallets only, no mainnet players, no PII, no credentials.",
+    "cost_skr_atoms is SKR atoms (6 decimals): the explorer shows the same 500.000000 SKR transfer.",
+    "This is the only currently un-ambiguous purchase rail visible on chain as a single event; PresalePurchase.amount is currency-neutral and must be resolved from the emitting instruction."
+  ]
+}
