@@ -4,7 +4,7 @@ First potato colony on Mars. Grow, trade, upgrade - 100% of $POTATO is born in p
 
 ## Demo
 
-- Landing: https://ares1-7e1.pages.dev (домен `ares1.is-a.dev` **не зарегистрирован** в is-a.dev — см. docs/DOMAIN_DEPLOY_FINDINGS_2026-09-30.md)
+- Landing: https://ares1-7e1.pages.dev (домен `ares1.is-a.dev` **не зарегистрирован** в is-a.dev)
 - Game: https://ares1-play.pages.dev (алиас `play.ares1.is-a.dev` отдаёт ошибку TLS: не привязан к проекту Cloudflare Pages)
 - Network: Solana Devnet
 
@@ -91,8 +91,8 @@ node scripts/check-release-artifacts.mjs landing/dist game/apps/web/dist
 ## Stabilization / beta readiness
 
 Current validation and remaining release blockers: [21 Sep 2026 status](reports/ares1-audit.md).
-Security: [checklist audit 1–30](docs/SECURITY_CHECKLIST_AUDIT_2026-09-25.md), [extended audit 31–70](docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md), [AI-agents / audit poisoning / durable nonce 71–82](docs/SECURITY_CHECKLIST_AUDIT_2026-09-27.md), [incident catalog 94–130 (governance, keys, signers, frontend, people, infrastructure)](docs/SECURITY_CHECKLIST_AUDIT_2026-09-28.md), [mainnet launch gate](game/docs/MAINNET_LAUNCH_GATE.md).
-Data: [database design recommendation](game/docs/DATABASE_DESIGN.md), [test runs and capacity](docs/DATA_TESTS_AND_CAPACITY_2026-09-27.md), [reference storage example reviewed](docs/STORAGE_REFERENCE_EXAMPLE_2026-09-27.md).
+Security: [security model and guardrails](game/SECURITY.md), [mainnet launch gate](game/docs/MAINNET_LAUNCH_GATE.md).
+Data: [database design recommendation](game/docs/DATABASE_DESIGN.md).
 Build, key handling, Docker and incident procedures: [Operations](game/docs/OPERATIONS.md),
 [incident response kit](game/docs/INCIDENT_RESPONSE.md), [key provenance](game/docs/KEY_PROVENANCE.md),
 [third-party dependency registry](game/docs/THIRD_PARTY_DEPENDENCIES.md).
