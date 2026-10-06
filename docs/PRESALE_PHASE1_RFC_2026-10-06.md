@@ -153,7 +153,7 @@ KYC/AML-обязанности и ограничения провайдера, �
 (цена форматируется из `PRESALE_PRICE_UNITS` строки тиража, срок — в копирайте
 на шести локалях); игра — `Phase1Notice.tsx` (888 SKR, выдача в день листинга,
 пометка про devnet, ссылка на форму). Доступ браузера к API в проде закрыт
-Cloudflare Pages Function `landing/functions/api/[[path]].js`; локально тот же
+Cloudflare Pages Function `functions/api/[[path]].js` (корень репозитория — это и есть Root проекта `ares1`, см. §3); локально тот же
 путь проксирует vite (`PRESALE_API_ORIGIN`).
 
 ### 4.5 Лимиты на кошелёк
@@ -301,7 +301,7 @@ cookie-баннер), игры, `sitemap.xml`, `security.txt`, workflow CI, `COD
    срок — «в день листинга на mainnet»); в игре — блок `Phase1Notice` с той же
    ценой 888 SKR и явной пометкой, что пак не действует в devnet-бете (§4.4).
    Продовый доступ браузера к `/api/*` обеспечивает Cloudflare Pages Function
-   `landing/functions/api/[[path]].js` (переменная `PRESALE_API_ORIGIN`).
+   `functions/api/[[path]].js` (переменная `PRESALE_API_ORIGIN`).
 6. **Runbook выдачи:** ✅ Реализовано — `docs/PRESALE_DELIVERY_RUNBOOK.md`
    (ручная выдача `grant_reward_once`, квоты и лимиты, чек-лист офлайн-ключа).
 7. **Только после 1–6** — открывать приём денег. Технические пункты 2–6 закрыты

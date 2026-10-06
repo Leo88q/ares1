@@ -186,7 +186,7 @@ Cloudflare Pages (project ares1) → Settings → Environment variables
 PRESALE_API_ORIGIN=https://<backend host>      # корень, без суффикса /api
 ```
 
-`landing/functions/api/[[path]].js` forwards `/api/*` to that origin and answers
+`functions/api/[[path]].js` (repository root — Cloudflare Pages reads Functions only from the project root) forwards `/api/*` to that origin and answers
 `503 presale_api_not_configured` until the variable is set. Locally the same path
 is proxied by Vite (`PRESALE_API_ORIGIN`, default `http://127.0.0.1:8080`).
 

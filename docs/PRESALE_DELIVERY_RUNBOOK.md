@@ -24,7 +24,7 @@
 
 - Бэкенд поднят с `GAME_OPS_DATABASE_URL` и `ADMIN_API_TOKEN` (≥32 символов) — админ-эндпоинты отвечают на `/api/presale` и `/api/gameops` с `Authorization: Bearer $ADMIN_API_TOKEN`.
 - Лендинг видит бэкенд: в проде — Cloudflare Pages Function
-  `landing/functions/api/[[path]].js` с переменной Pages-проекта
+  `functions/api/[[path]].js` в корне репозитория с переменной Pages-проекта
   `PRESALE_API_ORIGIN=https://<бэкенд>` (без `/api`). Без неё `/api/*` отвечает
   `503 presale_api_not_configured`, и купить пак через форму нельзя.
 - `VITE_PRESALE_RUN` (лендинг и игра) совпадает с `PRESALE_RUN_ID` тиража — по
