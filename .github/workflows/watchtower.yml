@@ -52,3 +52,77 @@ jobs:
       - run: node --test tests/address-registry.test.mjs
       - run: npm run test:os
       - run: npm run os:handoff:check
+
+  # Живой devnet-smoke экспортёра (read-only). Handoff 2026-10-06 называет
+  # «сертифицированный devnet-smoke» блокером интеграции — этот job его
+  # реально выполняет при каждом изменении watchtower/**: миграция схемы,
+  # запуск экспортёра (rpc-провайдер, публичный devnet RPC, postgres-service)
+  # и сверка событий, декодированных офлайн, с тем, что экспортёр фактически
+  # инжестил (verify:devnet). NO_KNOWN_APPLIED_EVENT (нет трафика по программе)
+  # — не регрессия, публикуется warning; любой другой исход — красный.
+  # Подробности и локальный запуск: watchtower/docs/devnet-smoke.md.
+  devnet-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: watchtower_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d watchtower_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SMOKE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/watchtower_test
+      SMOKE_RPC_URL: https://api.devnet.solana.com
+    defaults:
+      run:
+        working-directory: watchtower
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: watchtower/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: devnet smoke (readyz + verify:devnet)
+        run: |
+          set -uo pipefail
+          export WATCHTOWER_EVENT_PROVIDER=rpc
+          export WATCHTOWER_RPC_URL="$SMOKE_RPC_URL"
+          export WATCHTOWER_DATABASE_URL="$SMOKE_DATABASE_URL"
+          export WATCHTOWER_EXPORTER_TOKEN="$(openssl rand -hex 24)"
+          export WATCHTOWER_ENABLE_WRITES=false
+          export WATCHTOWER_POLL_MS=5000
+          npm run migrate
+          nohup npm run dev > /tmp/exporter.log 2>&1 &
+          export EXPORTER_PID=$!
+          trap 'kill "$EXPORTER_PID" 2>/dev/null || true' EXIT
+          ready=""
+          for _ in $(seq 1 36); do
+            code="$(curl -s -o /tmp/readyz.json -w '%{http_code}' -H "Authorization: Bearer $WATCHTOWER_EXPORTER_TOKEN" "http://127.0.0.1:8790/watchtower/readyz" || true)"
+            if [ "$code" = "200" ]; then ready=1; break; fi
+            sleep 5
+          done
+          npm run verify:devnet > /tmp/verify.out 2>&1
+          vstatus=$?
+          cat /tmp/verify.out
+          if [ -z "$ready" ] || [ "$vstatus" -ne 0 ]; then
+            echo "--- exporter log ---"
+            tail -80 /tmp/exporter.log
+          fi
+          if grep -q 'runtime_smoke_pass' /tmp/verify.out; then
+            echo "::notice file=watchtower/scripts/verify-devnet.ts::devnet-smoke: PASS — $(node -e 'try{const d=JSON.parse(require("fs").readFileSync("/tmp/verify.out","utf8"));console.log("slot",d.slot,"| events",d.events,"| sig",d.signature,"| checkedAt",d.checkedAt)}catch{console.log("см. лог job")}' 2>/dev/null || true)"
+            exit 0
+          fi
+          if grep -q 'NO_KNOWN_APPLIED_EVENT' /tmp/verify.out; then
+            echo "::warning file=watchtower/scripts/verify-devnet.ts::devnet-smoke: по программе нет трафика с известными событиями (NO_KNOWN_APPLIED_EVENT) — не регрессия; повторится на следующем изменении watchtower/**"
+            exit 0
+          fi
+          echo "::error file=watchtower/scripts/verify-devnet.ts::devnet-smoke: FAIL — $(head -c 500 /tmp/verify.out | tr '\n' ' ')"
+          exit 1
