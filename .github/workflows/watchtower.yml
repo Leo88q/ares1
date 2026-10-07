@@ -90,7 +90,11 @@ jobs:
           cache: npm
           cache-dependency-path: watchtower/package-lock.json
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      # shell: bash БЕЗ -e: все ошибки обрабатываются явно, и в любом исходе
+      # step доносит диагностику аннотациями (log-архив недоступен из API-only
+      # окружений — аннотации единственный канал).
       - name: devnet smoke (readyz + verify:devnet)
+        shell: bash
         run: |
           set -uo pipefail
           export WATCHTOWER_EVENT_PROVIDER=rpc
@@ -99,30 +103,42 @@ jobs:
           export WATCHTOWER_EXPORTER_TOKEN="$(openssl rand -hex 24)"
           export WATCHTOWER_ENABLE_WRITES=false
           export WATCHTOWER_POLL_MS=5000
-          npm run migrate
+          publish() {
+            # $1 = notice|warning|error, $2 = текст (обрезка под лимит 4096).
+            echo "::${1} file=watchtower/scripts/verify-devnet.ts::devnet-smoke: $(tr '\n' ' ' <<< "$2" | head -c 3500)"
+          }
+          if ! npm run migrate > /tmp/migrate.out 2>&1; then
+            publish error "migrate failed: $(cat /tmp/migrate.out | tail -20)"
+            exit 1
+          fi
+          publish notice "migrate OK; старт экспортёра (rpc, $SMOKE_RPC_URL, pollMs=5000)"
           nohup npm run dev > /tmp/exporter.log 2>&1 &
           export EXPORTER_PID=$!
           trap 'kill "$EXPORTER_PID" 2>/dev/null || true' EXIT
           ready=""
-          for _ in $(seq 1 36); do
-            code="$(curl -s -o /tmp/readyz.json -w '%{http_code}' -H "Authorization: Bearer $WATCHTOWER_EXPORTER_TOKEN" "http://127.0.0.1:8790/watchtower/readyz" || true)"
-            if [ "$code" = "200" ]; then ready=1; break; fi
+          for i in $(seq 1 36); do
+            code="$(curl -s -o /tmp/readyz.json -w '%{http_code}' -H "Authorization: Bearer $WATCHTOWER_EXPORTER_TOKEN" "http://127.0.0.1:8790/watchtower/readyz" 2>/dev/null || true)"
+            if [ "$code" = "200" ]; then ready="$i"; break; fi
+            if ! kill -0 "$EXPORTER_PID" 2>/dev/null; then
+              publish error "процесс экспортёра умер: $(tail -40 /tmp/exporter.log)"
+              exit 1
+            fi
+            if [ $((i % 6)) -eq 0 ]; then
+              publish notice "ожидание readyz ${i}x5s — HTTP ${code:-?} $(head -c 400 /tmp/readyz.json 2>/dev/null || true)"
+            fi
             sleep 5
           done
           npm run verify:devnet > /tmp/verify.out 2>&1
           vstatus=$?
           cat /tmp/verify.out
-          if [ -z "$ready" ] || [ "$vstatus" -ne 0 ]; then
-            echo "--- exporter log ---"
-            tail -80 /tmp/exporter.log
-          fi
-          if grep -q 'runtime_smoke_pass' /tmp/verify.out; then
-            echo "::notice file=watchtower/scripts/verify-devnet.ts::devnet-smoke: PASS — $(node -e 'try{const d=JSON.parse(require("fs").readFileSync("/tmp/verify.out","utf8"));console.log("slot",d.slot,"| events",d.events,"| sig",d.signature,"| checkedAt",d.checkedAt)}catch{console.log("см. лог job")}' 2>/dev/null || true)"
+          if [ -n "$ready" ] && [ "$vstatus" -eq 0 ] && grep -q 'runtime_smoke_pass' /tmp/verify.out; then
+            publish notice "PASS (readyz за ${ready}x5s) — $(cat /tmp/verify.out | head -c 900)"
             exit 0
           fi
           if grep -q 'NO_KNOWN_APPLIED_EVENT' /tmp/verify.out; then
-            echo "::warning file=watchtower/scripts/verify-devnet.ts::devnet-smoke: по программе нет трафика с известными событиями (NO_KNOWN_APPLIED_EVENT) — не регрессия; повторится на следующем изменении watchtower/**"
+            publish warning "по программе нет трафика с известными событиями (NO_KNOWN_APPLIED_EVENT) — не регрессия; повторится на следующем изменении watchtower/**"
             exit 0
           fi
-          echo "::error file=watchtower/scripts/verify-devnet.ts::devnet-smoke: FAIL — $(head -c 500 /tmp/verify.out | tr '\n' ' ')"
+          publish error "FAIL (ready=${ready:-no}, vstatus=$vstatus) — verify: $(cat /tmp/verify.out | head -c 900)"
+          publish error "exporter log: $(tail -60 /tmp/exporter.log)"
           exit 1
