@@ -1659,21 +1659,11 @@ describe("solana_potato", () => {
     };
     // Slot для CreateLookupTable обязан быть в sysvar SlotHashes (программа
     // отклоняет слоты без блока на main fork: «N is not a recent slot»).
-    // getSlot() на нагруженном localnet может вернуть слот, который позже
-    // откалится (дедлайн блока) — поэтому берём слот из самого sysvar,
-    // по которому программа и проверяет, со смещением от края окна.
-    const lutSlot = async (): Promise<number> => {
-      const acc = await connection.getAccountInfo(SYSVAR_SLOT_HASHES_PUBKEY, "processed");
-      if (acc?.data) {
-        const d = acc.data as Buffer;
-        const len = d.readUInt32LE(0);
-        if (len >= 2) {
-          const idx = Math.max(0, len - 20);
-          return Number(d.readBigUInt64LE(4 + idx * 40));
-        }
-      }
-      return connection.getSlot();
-    };
+    // getSlot() (processed) на нагруженном localnet может вернуть слот,
+    // который до исполнения tx откалится (дедлайн блока, смена ветки).
+    // Finalized-слот по определению лежит на main fork, а окно программы
+    // 150 слотов против отставания finality ~2 — расхождение невозможно.
+    const lutSlot = async (): Promise<number> => connection.getSlot("finalized");
 
     const expectV0Fail = async (alt: AddressLookupTableAccount, fields: PublicKey[], customCode: number, label: string) => {
       const ix = await program.methods.batchHarvest().accountsPartial({
