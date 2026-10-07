@@ -35,7 +35,7 @@ const stepDiag = (title: string, info: Record<string, unknown>) => {
       /* локальный прогон */
     }
   }
-  console.error(`::error file=game/tests/solana_potato.ts line=1791::${line}`);
+  console.error(`::error file=game/tests/solana_potato.ts line=1812::${line}`);
 };
 
 const MICRO = 1_000_000n;
@@ -1636,7 +1636,7 @@ describe("solana_potato", () => {
       await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
     };
     const makeAlt = async (addresses: PublicKey[]): Promise<AddressLookupTableAccount> => {
-      const slot = await connection.getSlot();
+      const slot = await lutSlot();
       const [createIx, lutAddr] = AddressLookupTableProgram.createLookupTable({
         authority: admin.publicKey, payer: admin.publicKey, recentSlot: slot,
       });
@@ -1657,6 +1657,24 @@ describe("solana_potato", () => {
       if (!alt.value) throw new Error(`ALT ${lutAddr.toBase58()} не найден после create/extend/freeze`);
       return alt.value;
     };
+    // Slot для CreateLookupTable обязан быть в sysvar SlotHashes (программа
+    // отклоняет слоты без блока на main fork: «N is not a recent slot»).
+    // getSlot() на нагруженном localnet может вернуть слот, который позже
+    // откалится (дедлайн блока) — поэтому берём слот из самого sysvar,
+    // по которому программа и проверяет, со смещением от края окна.
+    const lutSlot = async (): Promise<number> => {
+      const acc = await connection.getAccountInfo(SYSVAR_SLOT_HASHES_PUBKEY, "processed");
+      if (acc?.data) {
+        const d = acc.data as Buffer;
+        const len = d.readUInt32LE(0);
+        if (len >= 2) {
+          const idx = Math.max(0, len - 20);
+          return Number(d.readBigUInt64LE(4 + idx * 40));
+        }
+      }
+      return connection.getSlot();
+    };
+
     const expectV0Fail = async (alt: AddressLookupTableAccount, fields: PublicKey[], customCode: number, label: string) => {
       const ix = await program.methods.batchHarvest().accountsPartial({
         config: configPda, epoch: epochPda(0), potatoMint: mint, userPotato: holderPotatoAta,
@@ -1691,8 +1709,11 @@ describe("solana_potato", () => {
         throw e;
       }
       const errJson = JSON.stringify(tx?.meta?.err ?? null);
-      stepDiag(label, { phase: "result", v0Size, sig, expected: `Custom ${customCode}`, gotErr: (errJson || "").slice(0, 800) });
       expect(errJson, `${label}: tx должна упасть`).to.not.equal("null");
+      if (!errJson.includes(`"Custom":${customCode}`)) {
+        // Только при mismatch — чтобы на зелёном прогоне ::error-аннотаций не было
+        stepDiag(label, { phase: "result", v0Size, sig, expected: `Custom ${customCode}`, gotErr: (errJson || "").slice(0, 800) });
+      }
       expect(errJson, `${label}: ожидается Custom(${customCode})`).to.contain(`"Custom":${customCode}`);
     };
 
