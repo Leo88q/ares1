@@ -1645,6 +1645,52 @@ describe("solana_potato", () => {
       expect(await ataBalance(userSkrAta)).to.eq(0n);
     });
 
+    it("кошелю без 500 SKR отказывают — лицензия не продлевается, казна не тронута (roadmap M0)", async () => {
+      // holder после покупки выше имеет 0 SKR в ATA. Покупка падает на
+      // token::transfer (InsufficientFunds) до любых записей: транзакция
+      // откатывается целиком.
+      const userSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, holder.publicKey)).address;
+      const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, treasurySolPda, true)).address;
+      const licBefore = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
+      const treasuryBefore = await ataBalance(treasurySkrAta);
+
+      await expectFail(
+        program.methods.buyExportLicense().accountsPartial({
+          config: configPda, license: licensePda(holder.publicKey), payer: holder.publicKey,
+          skrMint, userSkrAta, treasurySol: treasurySolPda, treasurySkrAta,
+          tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        }).signers([holder]).rpc(),
+      );
+
+      expect(await ataBalance(treasurySkrAta)).to.eq(treasuryBefore);
+      const licAfter = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
+      expect(licAfter.expiresAt.eq(licBefore.expiresAt)).to.be.true;
+    });
+
+    it("повторная покупка с активной лицензией продлевает на +30 дней от старого срока (roadmap M0)", async () => {
+      // Разветвление программы: активная лицензия продлевается
+      // checked_add(30 дней) от ТЕКУЩЕГО expires_at, а не от now — иначе
+      // ранняя повторная покупка сжигала бы ещё не нажитые дни.
+      const userSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, holder.publicKey)).address;
+      const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, treasurySolPda, true)).address;
+      await mintTo(connection, admin, skrMint, userSkrAta, admin, 500_000_000);
+      const lic1 = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
+      const treasuryBefore = await ataBalance(treasurySkrAta);
+
+      await program.methods.buyExportLicense().accountsPartial({
+        config: configPda, license: licensePda(holder.publicKey), payer: holder.publicKey,
+        skrMint, userSkrAta, treasurySol: treasurySolPda, treasurySkrAta,
+        tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      }).signers([holder]).rpc();
+
+      const lic2 = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
+      expect(lic2.expiresAt.sub(lic1.expiresAt).toNumber()).to.eq(30 * 86400);
+      expect(await ataBalance(treasurySkrAta) - treasuryBefore).to.eq(500_000_000n);
+      expect(await ataBalance(userSkrAta)).to.eq(0n);
+    });
+
     it("с активной лицензией 11 полей проходят лимит (падают позже на BadProof)", async () => {
       await expectFail(batch(11, true), "BadProof");
     });
