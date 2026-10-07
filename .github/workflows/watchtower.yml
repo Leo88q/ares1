@@ -102,7 +102,12 @@ jobs:
       - name: devnet smoke (readyz + verify:devnet)
         shell: bash
         run: |
-          set -uo pipefail
+          # -e ВЫКЛЮЧЕН явно: default-shell GitHub-раннера — `bash -e {0}`, и
+          # `npm run verify:devnet` (exit 1, когда экспортёр не ready) убивал
+          # скрипт до vstatus/publish. Все ошибки ниже обрабатываются явно,
+          # поэтому -e только мешает. -u и pipefail оставлены.
+          set +e
+          set -u -o pipefail
           export WATCHTOWER_EVENT_PROVIDER=rpc
           export WATCHTOWER_RPC_URL="$SMOKE_RPC_URL"
           export WATCHTOWER_DATABASE_URL="$SMOKE_DATABASE_URL"
@@ -141,8 +146,10 @@ jobs:
             fi
             sleep 5
           done
-          npm run verify:devnet > /tmp/verify.out 2>&1
-          vstatus=$?
+          # Явная страховка независимо от -e: exit-код забираем, но не даём
+          # команде прервать скрипт (классификация ниже сама решает исход).
+          vstatus=0
+          npm run verify:devnet > /tmp/verify.out 2>&1 || vstatus=$?
           cat /tmp/verify.out
           if [ -n "$ready" ] && [ "$vstatus" -eq 0 ] && grep -q 'runtime_smoke_pass' /tmp/verify.out; then
             publish notice "PASS (readyz за ${ready}x5s, $RPC_LABEL) — $(cat /tmp/verify.out | head -c 900)"
