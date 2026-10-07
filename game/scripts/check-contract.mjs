@@ -25,7 +25,26 @@ if (!isDeepStrictEqual(errorNames.map((name, i) => ({ name, code: 6000 + i })), 
 }
 if (process.argv[2]) {
   const built = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-  if (!isDeepStrictEqual(built, idl)) errors.push('Built IDL differs from committed IDL (accounts/args/types/events/metadata included)');
+  if (!isDeepStrictEqual(built, idl)) {
+    errors.push('Built IDL differs from committed IDL (accounts/args/types/events/metadata included)');
+    // Пошаговые расхождения печатаем workflow-аннотациями: лог-архив job из
+    // API-окружений недоступен, а «Built IDL differs» без списка путей не
+    // ремонтируемо. Каждая аннотация — один путь + старые/новые значения.
+    const diffs = [];
+    const walk = (a, b, p) => {
+      if (isDeepStrictEqual(a, b)) return;
+      const bothObjects = a !== null && b !== null && typeof a === 'object' && typeof b === 'object'
+        && !Array.isArray(a) && !Array.isArray(b);
+      if (!bothObjects) {
+        diffs.push(`${p || '(root)'}\n  committed: ${JSON.stringify(b)?.slice(0, 1800)}\n  built:     ${JSON.stringify(a)?.slice(0, 1800)}`);
+        return;
+      }
+      for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) walk(a[k], b[k], p ? `${p}.${k}` : k);
+    };
+    walk(built, idl, '');
+    for (const d of diffs) console.error(`::error file=game/apps/web/src/idl.json::idl-diff:\n${d.slice(0, 3500)}`);
+    console.error(`::error file=game/apps/web/src/idl.json::idl-diff: ${diffs.length} path(s) differ in total`);
+  }
 }
 if (errors.length) {
   console.error(errors.join('\n'));

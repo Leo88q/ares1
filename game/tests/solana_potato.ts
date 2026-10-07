@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program, BN } from "@coral-xyz/anchor";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_SLOT_HASHES_PUBKEY, Transaction } from "@solana/web3.js";
+import { AddressLookupTableAccount, AddressLookupTableProgram, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_SLOT_HASHES_PUBKEY, Transaction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   AuthorityType,
@@ -1603,6 +1603,65 @@ describe("solana_potato", () => {
         ...dummies(n),
       ]).rpc();
 
+    // ── v0 + ALT: единственный физически возможный способ донести 30 полей ──
+    // Legacy-транзакция ограничена 1232 байтами: 30 writable-аккаунтов (33B
+    // каждый) + фиксированные не влезают (см. docs к BATCH_LIMIT_LICENSED).
+    // Клиент держит поля в ALT (GameContext.ensureLut) — тест повторяет тот же
+    // механизм, иначе границу 30/31 в принципе нельзя проверить.
+    const sendSigned = async (tx: Transaction | VersionedTransaction, signers: Keypair[]) => {
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+      if (tx instanceof Transaction) tx.recentBlockhash = blockhash;
+      tx.sign(...signers);
+      const sig = await connection.sendRawTransaction(tx.serialize());
+      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+    };
+    const makeAlt = async (addresses: PublicKey[]): Promise<AddressLookupTableAccount> => {
+      const slot = await connection.getSlot();
+      const [createIx, lutAddr] = AddressLookupTableProgram.createLookupTable({
+        authority: admin.publicKey, payer: admin.publicKey, recentSlot: slot,
+      });
+      await sendSigned(new Transaction().add(createIx).feePayer(admin.publicKey), [admin]);
+      for (let i = 0; i < addresses.length; i += 20) {
+        // не более 20 адресов на extend; каждая tx подтверждена ⇒ новый слот
+        const extendIx = AddressLookupTableProgram.extendLookupTable({
+          payer: admin.publicKey, authority: admin.publicKey, lookupTable: lutAddr,
+          addresses: addresses.slice(i, i + 20),
+        });
+        await sendSigned(new Transaction().add(extendIx).feePayer(admin.publicKey), [admin]);
+      }
+      const freezeIx = AddressLookupTableProgram.freezeLookupTable({
+        freezer: admin.publicKey, lookupTable: lutAddr,
+      });
+      await sendSigned(new Transaction().add(freezeIx).feePayer(admin.publicKey), [admin]);
+      const alt = await connection.getAddressLookupTable(lutAddr);
+      if (!alt.value) throw new Error(`ALT ${lutAddr.toBase58()} не найден после create/extend/freeze`);
+      return alt.value;
+    };
+    const expectV0Fail = async (alt: AddressLookupTableAccount, fields: PublicKey[], customCode: number, label: string) => {
+      const ix = await program.methods.batchHarvest().accountsPartial({
+        config: configPda, epoch: epochPda(0), potatoMint: mint, userPotato: holderPotatoAta,
+        treasuryPotato: treasuryAta, owner: holder.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      }).signers([holder]).remainingAccounts([
+        { pubkey: licensePda(holder.publicKey), isSigner: false, isWritable: false },
+        ...fields.map(pk => ({ pubkey: pk, isSigner: false, isWritable: true })),
+      ]).instruction();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+      const msg = new TransactionMessage({
+        payerKey: holder.publicKey, recentBlockhash: blockhash, instructions: [ix],
+      }).compileToV0Message([alt]);
+      const vtx = new VersionedTransaction(msg);
+      vtx.sign([holder]);
+      // Preflight выключен: ожидаем ошибку программы (Custom-код), она
+      // видна по meta.err после включения tx в блок.
+      const sig = await connection.sendRawTransaction(vtx.serialize(), { skipPreflight: true });
+      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+      const tx = await connection.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+      const errJson = JSON.stringify(tx?.meta?.err ?? null);
+      expect(errJson, `${label}: tx должна упасть`).to.not.equal("null");
+      expect(errJson, `${label}: ожидается Custom(${customCode})`).to.contain(`"Custom":${customCode}`);
+    };
+
     let holderPotatoAta: PublicKey;
 
     before(async () => {
@@ -1645,7 +1704,7 @@ describe("solana_potato", () => {
       expect(await ataBalance(userSkrAta)).to.eq(0n);
     });
 
-    it("кошелю без 500 SKR отказывают — лицензия не продлевается, казна не тронута (roadmap M0)", async () => {
+    it("кошельку без 500 SKR отказывают — лицензия не продлевается, казна не тронута (roadmap M0)", async () => {
       // holder после покупки выше имеет 0 SKR в ATA. Покупка падает на
       // token::transfer (InsufficientFunds) до любых записей: транзакция
       // откатывается целиком.
@@ -1695,9 +1754,13 @@ describe("solana_potato", () => {
       await expectFail(batch(11, true), "BadProof");
     });
 
-    it("граница премиум-тира: 30 полей проходят, 31 — InvalidAmount", async () => {
-      await expectFail(batch(30, true), "BadProof");
-      await expectFail(batch(31, true), "InvalidAmount");
+    it("граница премиум-тира: 30 полей проходят, 31 — InvalidAmount (v0 + ALT)", async () => {
+      // 30 writable-аккаунтов не влезают в legacy-транзакцию (лимит 1232B),
+      // поэтому граница проверяется через v0 + ALT — тот же путь, что и клиент.
+      const fields31 = Array.from({ length: 31 }, () => PublicKey.unique());
+      const alt = await makeAlt(fields31);
+      await expectV0Fail(alt, fields31.slice(0, 30), 6001, "30 полей"); // BadProof: лимит пройден, упёрлись в проверку полей
+      await expectV0Fail(alt, fields31, 6010, "31 поле");               // InvalidAmount: 31 > BATCH_LIMIT_LICENSED
     });
 
     it("те же 11 полей без PDA лицензии по-прежнему InvalidAmount", async () => {

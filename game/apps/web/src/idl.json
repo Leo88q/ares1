@@ -286,7 +286,15 @@
         "Экономия: 1 подпись вместо N, 1 CU-оплата, 1 приоритетная комиссия.",
         "Все поля проверяются: owner == signer, is_active, интервал, кроме того",
         "агрегированный mint ограничен капом эпохи и max_supply.",
-        "Использует remaining_accounts как список Field PDAs."
+        "Использует remaining_accounts как список Field PDAs.",
+        "",
+        "Премиум-тир: PDA экспортной лицензии (seeds `[b\"license\", owner]`),",
+        "переданный ПЕРВЫМ элементом remaining_accounts, поднимает лимит батча",
+        "с `BATCH_LIMIT_BASE` до `BATCH_LIMIT_LICENSED`. Лицензия передаётся",
+        "read-only и опционально: если её нет, действует базовый лимит.",
+        "Схема та же, что в `fill_order` — ключ сравнивается с выведенным PDA,",
+        "а владелец обязан быть нашей программой, иначе поддельный аккаунт",
+        "выдал бы себе тир."
       ],
       "discriminator": [
         4,
@@ -2268,10 +2276,10 @@
         "Fee accounting. The escrow holds exactly `amount + fee_listed` and must",
         "drain to zero, so every rupee of the fee has an explicit destination:",
         "* seller with an export license: −3 % of the amount off the fee,",
-        "the difference is refunded to the seller (the fee payer);",
+        "  the difference is refunded to the seller (the fee payer);",
         "* buyer with a registered referrer: −1 % off the fee (refunded to the",
-        "seller) and +0.5 % paid to the referrer **from the fee itself** —",
-        "no fresh supply is minted, so the reward is always cap-safe;",
+        "  seller) and +0.5 % paid to the referrer **from the fee itself** —",
+        "  no fresh supply is minted, so the reward is always cap-safe;",
         "* the net fee is split 60 % burn / 40 % treasury.",
         "",
         "`remaining_accounts` (fixed positions):",
@@ -3068,7 +3076,20 @@
       "name": "initialize",
       "docs": [
         "Creates the singleton `GameConfig`. The $POTATO mint must already have",
-        "the config PDA as its mint authority, 6 decimals and no freeze authority."
+        "the config PDA as its mint authority, 6 decimals and no freeze authority.",
+        "",
+        "SKR-минт по умолчанию — пиновая константа `SKR_MINT`; вызов без",
+        "`remaining_accounts` ведёт себя побайтово как раньше. Деплоер может",
+        "передать собственный SKR-минт ПЕРВЫМ элементом `remaining_accounts` —",
+        "это нужно для localnet, где константный devnet-минт не существует и его",
+        "нельзя наминтить, из-за чего все SKR-рельсы (включая `buy_export_license`)",
+        "были непроверяемы. Минт обязан принадлежать SPL Token и иметь",
+        "`SKR_DECIMALS` знаков, иначе все SKR-цены съехали бы на 10^k.",
+        "",
+        "Доверие: подписант `initialize` и так становится `authority` и",
+        "`reward_signer`, то есть полностью контролирует конфиг, — дополнительный",
+        "минт не расширяет его возможности. Все последующие замены минта идут",
+        "только через двухшаговый `update_skr_mint` под 24-часовым таймлоком."
       ],
       "discriminator": [
         175,
@@ -3995,10 +4016,10 @@
       "docs": [
         "Updates the presale price (authority only). Two-step for safety:",
         "* `price_lamports == 0` — EMERGENCY STOP: applies immediately and closes",
-        "both presale rails (SOL and SKR) until a new price is set.",
+        "  both presale rails (SOL and SKR) until a new price is set.",
         "* `price_lamports > 0` — proposal only: stored in `AdminState` and applied",
-        "by `apply_pending_presale_price` after the 24 h timelock, so a stolen",
-        "authority key cannot silently re-price the presale within one day."
+        "  by `apply_pending_presale_price` after the 24 h timelock, so a stolen",
+        "  authority key cannot silently re-price the presale within one day."
       ],
       "discriminator": [
         140,
