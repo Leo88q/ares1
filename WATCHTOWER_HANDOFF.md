@@ -63,7 +63,7 @@ Machine-readable части:
 
 | Поле | Значение |
 | --- | --- |
-| IDL | `game/apps/web/src/idl.json`, sha256 `2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587` |
+| IDL | `game/apps/web/src/idl.json`, sha256 `6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71` |
 | Артефакт exporter'а | `watchtower/events/ares1-idl.json` (events + layouts + instruction discriminators), `sourceIdlSha256` совпадает с источником |
 | Состав ABI | 44 инструкции / 13 аккаунтов / **31 событие** / 51 ошибка |
 | Anchor / toolchain | anchor 0.31.2, solana 4.2.2 (`game/Anchor.toml`, `game/rust-toolchain.toml`) |

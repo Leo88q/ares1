@@ -5,7 +5,7 @@
   "purpose": "Handoff catalog: real ARES-1 events, proposed Watchtower mapping and honest statuses. Source of truth is the committed IDL and the emit! sites in the game program.",
   "sourceOfTruth": {
     "idl": "game/apps/web/src/idl.json",
-    "idlSha256": "2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587",
+    "idlSha256": "6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71",
     "programSource": "game/programs/solana_potato/src/lib.rs (4429 lines; event structs at ~3462-3665 and 4422)",
     "eventCount": 31,
     "instructionCount": 44,
@@ -107,7 +107,7 @@
       "verificationStatus": "verified_runtime",
       "coverageLimitations": "One real finalized devnet transaction decoded end-to-end against the committed IDL (see runtimeFixture). Not a coverage claim for the whole event type or for production.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "claim_achievement@lib.rs:407"
@@ -188,7 +188,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "accept_authority@lib.rs:1694"
@@ -261,7 +261,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "propose_authority@lib.rs:1686"
@@ -355,7 +355,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "batch_harvest@lib.rs:1883"
@@ -442,7 +442,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "update_config@lib.rs:1710"
@@ -524,7 +524,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "roll_epoch@lib.rs:283"
@@ -613,7 +613,7 @@
       "verificationStatus": "verified_runtime",
       "coverageLimitations": "One real finalized devnet transaction decoded end-to-end against the committed IDL (see runtimeFixture). Not a coverage claim for the whole event type or for production.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "buy_export_license@lib.rs:955"
@@ -703,7 +703,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "apply_fertilizer@lib.rs:926"
@@ -783,7 +783,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "close_field@lib.rs:2043"
@@ -872,7 +872,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "create_field@lib.rs:357",
@@ -954,7 +954,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "repair_field@lib.rs:820"
@@ -1041,7 +1041,7 @@
       "verificationStatus": "verified_runtime",
       "coverageLimitations": "One real finalized devnet transaction decoded end-to-end against the committed IDL (see runtimeFixture). Not a coverage claim for the whole event type or for production.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "upgrade_field@lib.rs:845"
@@ -1129,7 +1129,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "harvest@lib.rs:698"
@@ -1209,7 +1209,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "cancel_order@lib.rs:1311"
@@ -1303,7 +1303,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "create_sell_order@lib.rs:997"
@@ -1376,7 +1376,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "close_expired_order@lib.rs:1339"
@@ -1470,7 +1470,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "fill_order@lib.rs:1075"
@@ -1543,7 +1543,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "set_paused@lib.rs:1662"
@@ -1616,7 +1616,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "migrate_presale_authority@lib.rs:1651"
@@ -1720,7 +1720,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "buy_field_skr@lib.rs:500",
@@ -1808,7 +1808,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "fill_order@lib.rs:1075"
@@ -1888,7 +1888,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "register_referrer@lib.rs:1839"
@@ -1968,7 +1968,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "grant_reward@lib.rs:1365"
@@ -2055,7 +2055,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "grant_reward_once@lib.rs:1415"
@@ -2128,7 +2128,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "update_reward_signer@lib.rs:1793"
@@ -2201,7 +2201,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "apply_pending_skr_mint@lib.rs:1767"
@@ -2290,7 +2290,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "pay_tax@lib.rs:895"
@@ -2370,7 +2370,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "withdraw_skr_treasury@lib.rs:1612"
@@ -2450,7 +2450,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "withdraw_treasury_sol@lib.rs:1572"
@@ -2544,7 +2544,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "harvest@lib.rs:698"
@@ -2624,7 +2624,7 @@
       "verificationStatus": "code_only",
       "coverageLimitations": "Runtime evidence for this specific event type is not captured; the claim rests on the committed IDL + the emit! site + local decoder tests. Not a statement that the event never fires on devnet.",
       "proof": {
-        "idl": "game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587)",
+        "idl": "game/apps/web/src/idl.json (sha256 6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71)",
         "artifact": "watchtower/events/ares1-idl.json",
         "emitSite": [
           "withdraw_treasury@lib.rs:1536"

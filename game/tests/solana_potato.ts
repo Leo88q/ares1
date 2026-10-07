@@ -1640,19 +1640,19 @@ describe("solana_potato", () => {
       const [createIx, lutAddr] = AddressLookupTableProgram.createLookupTable({
         authority: admin.publicKey, payer: admin.publicKey, recentSlot: slot,
       });
-      await sendSigned(new Transaction().add(createIx).feePayer(admin.publicKey), [admin]);
+      await sendSigned(new Transaction({ feePayer: admin.publicKey }).add(createIx), [admin]);
       for (let i = 0; i < addresses.length; i += 20) {
         // не более 20 адресов на extend; каждая tx подтверждена ⇒ новый слот
         const extendIx = AddressLookupTableProgram.extendLookupTable({
           payer: admin.publicKey, authority: admin.publicKey, lookupTable: lutAddr,
           addresses: addresses.slice(i, i + 20),
         });
-        await sendSigned(new Transaction().add(extendIx).feePayer(admin.publicKey), [admin]);
+        await sendSigned(new Transaction({ feePayer: admin.publicKey }).add(extendIx), [admin]);
       }
       const freezeIx = AddressLookupTableProgram.freezeLookupTable({
         freezer: admin.publicKey, lookupTable: lutAddr,
       });
-      await sendSigned(new Transaction().add(freezeIx).feePayer(admin.publicKey), [admin]);
+      await sendSigned(new Transaction({ feePayer: admin.publicKey }).add(freezeIx), [admin]);
       const alt = await connection.getAddressLookupTable(lutAddr);
       if (!alt.value) throw new Error(`ALT ${lutAddr.toBase58()} не найден после create/extend/freeze`);
       return alt.value;

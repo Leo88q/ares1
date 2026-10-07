@@ -2276,10 +2276,10 @@
         "Fee accounting. The escrow holds exactly `amount + fee_listed` and must",
         "drain to zero, so every rupee of the fee has an explicit destination:",
         "* seller with an export license: −3 % of the amount off the fee,",
-        "  the difference is refunded to the seller (the fee payer);",
+        "the difference is refunded to the seller (the fee payer);",
         "* buyer with a registered referrer: −1 % off the fee (refunded to the",
-        "  seller) and +0.5 % paid to the referrer **from the fee itself** —",
-        "  no fresh supply is minted, so the reward is always cap-safe;",
+        "seller) and +0.5 % paid to the referrer **from the fee itself** —",
+        "no fresh supply is minted, so the reward is always cap-safe;",
         "* the net fee is split 60 % burn / 40 % treasury.",
         "",
         "`remaining_accounts` (fixed positions):",
@@ -4016,10 +4016,10 @@
       "docs": [
         "Updates the presale price (authority only). Two-step for safety:",
         "* `price_lamports == 0` — EMERGENCY STOP: applies immediately and closes",
-        "  both presale rails (SOL and SKR) until a new price is set.",
+        "both presale rails (SOL and SKR) until a new price is set.",
         "* `price_lamports > 0` — proposal only: stored in `AdminState` and applied",
-        "  by `apply_pending_presale_price` after the 24 h timelock, so a stolen",
-        "  authority key cannot silently re-price the presale within one day."
+        "by `apply_pending_presale_price` after the 24 h timelock, so a stolen",
+        "authority key cannot silently re-price the presale within one day."
       ],
       "discriminator": [
         140,
