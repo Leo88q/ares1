@@ -226,17 +226,21 @@ jobs:
           key: solana-${{ env.SOLANA_VERSION }}-anchor-${{ env.ANCHOR_VERSION }}
       - name: Unit tests (host)
         run: ./scripts/ci-run.sh cargo test --locked -p solana_potato --lib
-      # F-22: fmt-долг заблокирован на текущем уровне и не может расти.
-      # 127 ханков — состояние программы на 20e0c9d при rustfmt из
-      # rust-toolchain.toml (1.97.1, пин → счёт детерминирован). Не «advisory»:
-      # любой новый неотформатированный код увеличивает счёт и валит шаг.
-      # Устранить долг целиком: `cargo fmt --all`, затем снять baseline.
-      - name: cargo fmt check (debt must not grow, F-22)
+      # F-22: fmt-долг закрыт целиком 2026-10-07 (job fmt-fix, commit a0b6da9 —
+      # `cargo fmt --all` на пине rustfmt 1.97.1 из rust-toolchain.toml).
+      # Теперь строгий гейт: файл обязан быть в rustfmt-формате. При нарушении
+      # весь дифф публикуется аннотациями (fmt-inventory.py в report-режиме —
+      # log-архив job недоступен из API-only окружений).
+      - name: cargo fmt check (strict, F-22)
         if: ${{ !cancelled() }}
         run: |
           set +e
           cargo fmt --all -- --check > /tmp/fmt-check.txt 2>&1
-          python3 scripts/fmt-inventory.py --max-hunks=127 < /tmp/fmt-check.txt
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            python3 scripts/fmt-inventory.py < /tmp/fmt-check.txt || true
+          fi
+          exit "$status"
       # F-22: clippy — блокирующий гейт. Единственное исключение — lint
       # `deprecated`, и оно точечное: предупреждение приходит не из нашего кода,
       # а из кодогена Anchor 0.31.2 (`#[program]` генерирует IDL-хендлеры,
