@@ -44,6 +44,16 @@ if (process.argv[2]) {
     walk(built, idl, '');
     for (const d of diffs) console.error(`::error file=game/apps/web/src/idl.json::idl-diff:\n${d.slice(0, 3500)}`);
     console.error(`::error file=game/apps/web/src/idl.json::idl-diff: ${diffs.length} path(s) differ in total`);
+    // Короткие пути отдельными аннотациями (короткие читаются из API;
+    // длинные лог-фрагменты GitHub шифрует) + полный разбор в step summary.
+    for (const d of diffs) {
+      const pathLine = d.split('\n')[0];
+      console.error(`::error file=game/apps/web/src/idl.json::idl-path: ${pathLine.slice(0, 200)}`);
+    }
+    if (process.env.GITHUB_STEP_SUMMARY) {
+      fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+        `\n## idl-diff (built vs committed): ${diffs.length} path(s)\n\n\`\`\`\n${diffs.map(d => d.slice(0, 1500)).join('\n---\n')}\n\`\`\`\n`);
+    }
   }
 }
 if (errors.length) {

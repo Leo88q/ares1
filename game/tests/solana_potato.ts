@@ -17,6 +17,24 @@ import {
 } from "@solana/spl-token";
 import { assert, expect } from "chai";
 import { SolanaPotato } from "../target/types/solana_potato";
+import fs from "node:fs";
+
+/**
+ * Диагностика в GITHUB_STEP_SUMMARY: логи job'а из API-окружений шифруются
+ * (аннотации-файлы нечитаемы), а summary читаем по Checks API. Локально — no-op.
+ */
+const stepDiag = (title: string, info: Record<string, unknown>) => {
+  const p = process.env.GITHUB_STEP_SUMMARY;
+  if (!p) return;
+  try {
+    fs.appendFileSync(
+      p,
+      `\n### premium-tier diag: ${title}\n\n\`\`\`json\n${JSON.stringify(info, null, 1).slice(0, 2500)}\n\`\`\`\n`,
+    );
+  } catch {
+    /* локальный прогон без summary */
+  }
+};
 
 const MICRO = 1_000_000n;
 const u64 = (v: bigint | number) => {
@@ -1652,12 +1670,26 @@ describe("solana_potato", () => {
       }).compileToV0Message([alt]);
       const vtx = new VersionedTransaction(msg);
       vtx.sign([holder]);
+      const v0Size = vtx.serialize().length;
       // Preflight выключен: ожидаем ошибку программы (Custom-код), она
       // видна по meta.err после включения tx в блок.
-      const sig = await connection.sendRawTransaction(vtx.serialize(), { skipPreflight: true });
-      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
-      const tx = await connection.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+      let sig: string;
+      try {
+        sig = await connection.sendRawTransaction(vtx.serialize(), { skipPreflight: true });
+      } catch (e) {
+        stepDiag(label, { phase: "sendRawTransaction", v0Size, err: String(e).slice(0, 600) });
+        throw e;
+      }
+      let tx;
+      try {
+        await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+        tx = await connection.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+      } catch (e) {
+        stepDiag(label, { phase: "confirm/getTransaction", v0Size, sig, err: String(e).slice(0, 600) });
+        throw e;
+      }
       const errJson = JSON.stringify(tx?.meta?.err ?? null);
+      stepDiag(label, { phase: "result", v0Size, sig, expected: `Custom ${customCode}`, gotErr: (errJson || "").slice(0, 800) });
       expect(errJson, `${label}: tx должна упасть`).to.not.equal("null");
       expect(errJson, `${label}: ожидается Custom(${customCode})`).to.contain(`"Custom":${customCode}`);
     };
@@ -1757,10 +1789,15 @@ describe("solana_potato", () => {
     it("граница премиум-тира: 30 полей проходят, 31 — InvalidAmount (v0 + ALT)", async () => {
       // 30 writable-аккаунтов не влезают в legacy-транзакцию (лимит 1232B),
       // поэтому граница проверяется через v0 + ALT — тот же путь, что и клиент.
-      const fields31 = Array.from({ length: 31 }, () => PublicKey.unique());
-      const alt = await makeAlt(fields31);
-      await expectV0Fail(alt, fields31.slice(0, 30), 6001, "30 полей"); // BadProof: лимит пройден, упёрлись в проверку полей
-      await expectV0Fail(alt, fields31, 6010, "31 поле");               // InvalidAmount: 31 > BATCH_LIMIT_LICENSED
+      try {
+        const fields31 = Array.from({ length: 31 }, () => PublicKey.unique());
+        const alt = await makeAlt(fields31);
+        await expectV0Fail(alt, fields31.slice(0, 30), 6001, "30 полей"); // BadProof: лимит пройден, упёрлись в проверку полей
+        await expectV0Fail(alt, fields31, 6010, "31 поле");               // InvalidAmount: 31 > BATCH_LIMIT_LICENSED
+      } catch (e) {
+        stepDiag("тест-уровень", { err: String(e).slice(0, 600) });
+        throw e;
+      }
     });
 
     it("те же 11 полей без PDA лицензии по-прежнему InvalidAmount", async () => {
