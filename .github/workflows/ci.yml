@@ -22,6 +22,55 @@ defaults:
     shell: bash
 
 jobs:
+  # F-22: одноразовый форматтер (только push-события на arena/**).
+  # Срабатывает при наличии файла `.fmt-fix-requested` в корне репозитория:
+  # `cargo fmt --all` (workspace game/ = programs/*), удаляет маркер и пушит
+  # commit в ту же ветку. После применения снять baseline-гейт на строгий
+  # `cargo fmt --all -- --check`. Ветка выбирается маркером, а не флагом
+  # запуска: workflow_dispatch с non-default ветки невозможен (GitHub
+  # резолвит workflow-файлы только с default-ветки).
+  fmt-fix:
+    name: Fmt remediation (marker-triggered)
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/arena/')
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+      - name: Check marker
+        id: marker
+        working-directory: .
+        run: |
+          if [ -f .fmt-fix-requested ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, pinned (was @master)
+        if: steps.marker.outputs.found == 'true'
+        with:
+          toolchain: '1.97.1' # тот же пин, что в job program (счёт fmt детерминирован)
+          components: rustfmt
+      - name: Format and push
+        if: steps.marker.outputs.found == 'true'
+        working-directory: .
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          (cd game && cargo fmt --all)
+          rm .fmt-fix-requested
+          git add game/ .fmt-fix-requested
+          git config user.name "ARES-1 CI"
+          git config user.email "ares1-ci@users.noreply.github.com"
+          git commit -m "chore(program): cargo fmt --all — закрываем F-22 fmt-долг целиком"
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/${GITHUB_REF_NAME}"
+          echo "Pushed formatting commit to ${GITHUB_REF_NAME}."
+
   offchain:
     name: Web + backend (typecheck, tests, build)
     runs-on: ubuntu-24.04
