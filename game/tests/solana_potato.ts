@@ -24,7 +24,7 @@ import fs from "node:fs";
  * (аннотации-файлы нечитаемы), а summary читаем по Checks API. Локально — no-op.
  */
 const stepDiag = (title: string, info: Record<string, unknown>) => {
-  const flat = JSON.stringify(info).slice(0, 380);
+  const flat = JSON.stringify(info).slice(0, 450);
   // Короткая workflow-аннотация — читаемый канал в CI (длинные лог-фрагменты
   // GitHub шифрует в API). Локально — просто вывод в лог.
   const line = `premium-diag ${title}: ${flat}`;
@@ -1687,7 +1687,7 @@ describe("solana_potato", () => {
       try {
         sig = await connection.sendRawTransaction(vtx.serialize(), { skipPreflight: true });
       } catch (e) {
-        stepDiag(label, { phase: "sendRawTransaction", v0Size, err: String(e).slice(0, 600) });
+        stepDiag(label, { phase: "sendRawTransaction", v0Size, err: (e as Error).stack || String(e) });
         throw e;
       }
       let tx;
@@ -1695,7 +1695,7 @@ describe("solana_potato", () => {
         await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
         tx = await connection.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
       } catch (e) {
-        stepDiag(label, { phase: "confirm/getTransaction", v0Size, sig, err: String(e).slice(0, 600) });
+        stepDiag(label, { phase: "confirm/getTransaction", v0Size, sig, err: (e as Error).stack || String(e) });
         throw e;
       }
       const errJson = JSON.stringify(tx?.meta?.err ?? null);
@@ -1808,7 +1808,7 @@ describe("solana_potato", () => {
         await expectV0Fail(alt, fields31.slice(0, 30), 6001, "30 полей"); // BadProof: лимит пройден, упёрлись в проверку полей
         await expectV0Fail(alt, fields31, 6010, "31 поле");               // InvalidAmount: 31 > BATCH_LIMIT_LICENSED
       } catch (e) {
-        stepDiag("тест-уровень", { err: String(e).slice(0, 600) });
+        stepDiag("тест-уровень", { err: (e as Error).stack || String(e) });
         throw e;
       }
     });
