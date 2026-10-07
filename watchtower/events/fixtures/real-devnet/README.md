@@ -14,7 +14,7 @@ JSON. Every file contains:
 * the finalized coordinates (`slot`, `blockTime`, `instructionIndex`, `innerIndex`);
 * the raw `Program data: <base64>` log line;
 * the payload decoded offline against the committed IDL
-  (`game/apps/web/src/idl.json`, sha256 `7ae6844b…`), plus the IDL hash.
+  (`game/apps/web/src/idl.json`, sha256 `2f03931e…`), plus the IDL hash.
 
 Captured events: `FieldUpgraded`, `AchievementClaimed` (×2), `ExportLicensePurchased`.
 The structured summary lives in `../../runtime-evidence.json`.

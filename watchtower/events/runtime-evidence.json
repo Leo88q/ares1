@@ -7,7 +7,7 @@
     "kind": "public_explorer_read",
     "notes": [
       "Sandbox RPC egress to devnet is blocked (curl https://api.devnet.solana.com -> OpenSSL SSL_connect: SSL_ERROR_SYSCALL; rpc.ankr.com and api.mainnet-beta.solana.com fail the same way, while https://github.com returns 200), so the exporter's certified scripts/verify-devnet.ts smoke could not be run here.",
-      "Instead, finalized devnet transactions and accounts were read through public explorers (explorer.solana.com / solscan.io) and the base64 event payloads were decoded offline against game/apps/web/src/idl.json (sha256 7ae6844bf1a080f58cd98d4bac57ade1280e0244c10dac37eb939e50b0b54694).",
+      "Instead, finalized devnet transactions and accounts were read through public explorers (explorer.solana.com / solscan.io) and the base64 event payloads were decoded offline against game/apps/web/src/idl.json (sha256 2f03931ee9cf4c92b4d95febf67157f741bc022189b3b1187cef4006467f4587).",
       "This is real runtime evidence for the items below, but it is NOT the central handshake, NOT a deployment/binary provenance check, and NOT proof of coverage of all 31 event types."
     ]
   },
