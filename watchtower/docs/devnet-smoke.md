@@ -28,15 +28,36 @@
 
 ## CI
 
-Job `devnet-smoke` в `.github/workflows/watchtower.yml` (push на `main` и
-`arena/**` при изменении `watchtower/**`, либо workflow_dispatch):
+Job `devnet-smoke` в `.github/workflows/watchtower.yml` (push при изменении
+`watchtower/**`, либо workflow_dispatch; PR-запуски пропускаются):
 
 - postgres-сервис (схема `migrations/watchtower-read-model.sql`), экспортёр
-  `npm run dev` с `WATCHTOWER_EVENT_PROVIDER=rpc` и публичным
-  `https://api.devnet.solana.com` (read-only, без кредов), `WATCHTOWER_ENABLE_WRITES=false`;
-- ожидание `readyz` до 3 минут; затем `npm run verify:devnet`;
-- `NO_KNOWN_APPLIED_EVENT` (по программе нет трафика с известными событиями)
-  публикуется **warning**, не падение; любой другой исход — красный run.
+  `npm run dev` с `WATCHTOWER_EVENT_PROVIDER=rpc` (read-only,
+  `WATCHTOWER_ENABLE_WRITES=false`), токен — `openssl rand -hex 24` на каждый run;
+- ожидание `readyz` до 3 минут (прогресс публикуется аннотациями каждые 30 s,
+  вместе с ответом readyz); затем `npm run verify:devnet`;
+- все исходы публикуются аннотациями (`::notice`/`::warning`/`::error`) —
+  архив логов job из API-окружений недоступен, аннотации единственный канал.
+
+Семантика исходов (красный run только при доказанной ошибке декодирования/
+пагинации/конфига экспортёра):
+
+| Исход | Значение | Run |
+|---|---|---|
+| `runtime_smoke_pass` | экспортёр готов и события строго совпали с офлайн-декодом IDL | ✅ + `::notice` |
+| `NO_KNOWN_APPLIED_EVENT` | по программе нет трафика с известными событиями (тихая devnet ≠ регрессия) | ✅ + `::warning` |
+| не `readyz` за 180 s, `phase=backfill/head` + `issues` содержит `RPC_429`/`RPC_5*` | публичный RPC троттлит исторический backfill — данных для сверки нет (окружение, не код) | ✅ + `::warning` |
+| не `readyz` за 180 s с другой причиной (phase=error, процесс ответил не HTTP и т.п.) | экспортёр сломан | ❌ + `::error` |
+| `SMOKE_EVENTS_MISMATCH`, `TRANSACTION_METADATA_MISMATCH`, `INVALID_EXPORTER_PAGINATION`, `WRONG_EXPORTER_CONFIG` и остальные | реальный дефект экспортёра/данных | ❌ + `::error` |
+| процесс экспортёра умер / `migrate` упал | окружение или код — всегда | ❌ + `::error` |
+
+**Жёсткий гейт.** Публичный `https://api.devnet.solana.com` rate-limit'ит
+backfill, поэтому на нём smoke по определению «best effort». Чтобы сделать job
+жёстким гейтом, задайте в репозитории secret (или variable)
+`WATCHTOWER_SMOKE_RPC_URL` — URL с API-ключом (например, пост-S-01 Helius
+devnet-ключ), лимит которого выдерживает backfill; job подхватит его
+автоматически. URL в аннотации не попадает — публикуется только метка
+«публичный/настроенный RPC».
 
 ## Локальный запуск (нужен egress к devnet RPC)
 

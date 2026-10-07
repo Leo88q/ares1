@@ -78,7 +78,13 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       SMOKE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/watchtower_test
-      SMOKE_RPC_URL: https://api.devnet.solana.com
+      # Free public devnet RPC aggressively 429s the exporter's historical
+      # backfill, so a plain push can only produce a "no data → warning" smoke.
+      # To make this a hard gate, set the repo secret (or variable)
+      # WATCHTOWER_SMOKE_RPC_URL to a key-bearing endpoint (e.g. the
+      # post-S-01 Helius devnet key) whose rate limit survives the backfill.
+      # Never echoed into annotations — only a label is.
+      SMOKE_RPC_URL: ${{ secrets.WATCHTOWER_SMOKE_RPC_URL || vars.WATCHTOWER_SMOKE_RPC_URL || 'https://api.devnet.solana.com' }}
     defaults:
       run:
         working-directory: watchtower
@@ -111,7 +117,14 @@ jobs:
             publish error "migrate failed: $(cat /tmp/migrate.out | tail -20)"
             exit 1
           fi
-          publish notice "migrate OK; старт экспортёра (rpc, $SMOKE_RPC_URL, pollMs=5000)"
+          # Метка вместо URL: в кастомном RPC может быть API-ключ,
+          # аннотации видят все со смотрящими в репо.
+          if [ "$SMOKE_RPC_URL" = "https://api.devnet.solana.com" ]; then
+            RPC_LABEL="публичный devnet RPC (rate-limit не гарантирован)"
+          else
+            RPC_LABEL="настроенный RPC (secret/variable WATCHTOWER_SMOKE_RPC_URL)"
+          fi
+          publish notice "migrate OK; старт экспортёра (rpc, $RPC_LABEL, pollMs=5000)"
           nohup npm run dev > /tmp/exporter.log 2>&1 &
           export EXPORTER_PID=$!
           trap 'kill "$EXPORTER_PID" 2>/dev/null || true' EXIT
@@ -132,13 +145,27 @@ jobs:
           vstatus=$?
           cat /tmp/verify.out
           if [ -n "$ready" ] && [ "$vstatus" -eq 0 ] && grep -q 'runtime_smoke_pass' /tmp/verify.out; then
-            publish notice "PASS (readyz за ${ready}x5s) — $(cat /tmp/verify.out | head -c 900)"
+            publish notice "PASS (readyz за ${ready}x5s, $RPC_LABEL) — $(cat /tmp/verify.out | head -c 900)"
             exit 0
           fi
           if grep -q 'NO_KNOWN_APPLIED_EVENT' /tmp/verify.out; then
             publish warning "по программе нет трафика с известными событиями (NO_KNOWN_APPLIED_EVENT) — не регрессия; повторится на следующем изменении watchtower/**"
             exit 0
           fi
-          publish error "FAIL (ready=${ready:-no}, vstatus=$vstatus) — verify: $(cat /tmp/verify.out | head -c 900)"
+          if [ -z "$ready" ]; then
+            # Не добрался до ready: отличаем «RPC троттлит backfill, данных
+            # нет» (окружение, warning) от «экспортёр сломан» (failure).
+            meta="$(node -e 'try{const x=(JSON.parse(require("fs").readFileSync("/tmp/readyz.json","utf8"))||{}).data||{};console.log((x.phase||"unknown")+" "+((x.issues||[]).map(i=>(i&&i.code)||"").join(",")))}catch{console.log("unknown")}' 2>/dev/null || echo "unknown")"
+            phase="${meta%% *}"; issues="${meta#* }"
+            case "${issues:-}" in
+              *RPC_429*|*RPC_5*)
+                publish warning "экспортёр не вышел в readyz за 180s: phase=$phase issues=[$issues] ($RPC_LABEL) — rate-limit, данных для сверки нет; НЕ регрессия кода. Для жёсткого гейта задайте secret WATCHTOWER_SMOKE_RPC_URL"
+                exit 0;;
+              *)
+                publish error "FAIL: экспортёр так и не стал ready — phase=$phase issues=[$issues] | readyz: $(head -c 400 /tmp/readyz.json 2>/dev/null) | verify: $(head -c 400 /tmp/verify.out) | log: $(tail -40 /tmp/exporter.log)"
+                exit 1;;
+            esac
+          fi
+          publish error "FAIL (ready=${ready}, vstatus=$vstatus) — verify: $(cat /tmp/verify.out | head -c 900)"
           publish error "exporter log: $(tail -60 /tmp/exporter.log)"
           exit 1
