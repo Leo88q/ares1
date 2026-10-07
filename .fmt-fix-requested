@@ -1,1 +1,0 @@
-marker: создаёт commit с cargo fmt --all на push-ветке arena/** (см. job fmt-fix в ci.yml)
