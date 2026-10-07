@@ -24,7 +24,18 @@ import fs from "node:fs";
  * (аннотации-файлы нечитаемы), а summary читаем по Checks API. Локально — no-op.
  */
 const stepDiag = (title: string, info: Record<string, unknown>) => {
-  const flat = JSON.stringify(info).slice(0, 450);
+  // Кадры из нашего тест-файла = точные строки локализации (остальной stack —
+  // internals web3.js/anchor, в аннотацию не берём: длинные шифруются).
+  const stack = typeof info.err === "string" ? info.err : "";
+  const ourFrames = stack
+    .split("\n")
+    .filter(l => l.includes("solana_potato.ts"))
+    .map(l => l.replace(/^.*solana_potato\.ts/, "solana_potato.ts"))
+    .slice(0, 4)
+    .join(" | ");
+  const flat =
+    JSON.stringify({ ...info, err: (stack || "").split("\n")[0] }).slice(0, 300) +
+    (ourFrames ? ` frames: ${ourFrames.slice(0, 250)}` : "");
   // Короткая workflow-аннотация — читаемый канал в CI (длинные лог-фрагменты
   // GitHub шифрует в API). Локально — просто вывод в лог.
   const line = `premium-diag ${title}: ${flat}`;
