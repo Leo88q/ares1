@@ -35,24 +35,29 @@ if (process.argv[2]) {
       if (isDeepStrictEqual(a, b)) return;
       const bothObjects = a !== null && b !== null && typeof a === 'object' && typeof b === 'object'
         && !Array.isArray(a) && !Array.isArray(b);
-      if (!bothObjects) {
-        diffs.push(`${p || '(root)'}\n  committed: ${JSON.stringify(b)?.slice(0, 1800)}\n  built:     ${JSON.stringify(a)?.slice(0, 1800)}`);
+      if (bothObjects) {
+        for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) walk(a[k], b[k], p ? `${p}.${k}` : k);
         return;
       }
-      for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) walk(a[k], b[k], p ? `${p}.${k}` : k);
+      if (Array.isArray(a) && Array.isArray(b)) {
+        if (a.length !== b.length) {
+          diffs.push(`${p || '(root)'}[len] committed=${b.length} built=${a.length}`);
+        }
+        const n = Math.max(a.length, b.length);
+        for (let i = 0; i < n; i++) walk(a[i], b[i], `${p || '(root)'}[${i}]`);
+        return;
+      }
+      const j = v => JSON.stringify(v);
+      diffs.push(`${p || '(root)'} committed=${(j(b) ?? 'null').slice(0, 200)} built=${(j(a) ?? 'null').slice(0, 200)}`);
     };
     walk(built, idl, '');
-    for (const d of diffs) console.error(`::error file=game/apps/web/src/idl.json::idl-diff:\n${d.slice(0, 3500)}`);
+    // Короткие аннотации — читаемый канал (длинные лог-фрагменты GitHub
+    // шифрует в API): по одной на лист-путь + итог, плюс step summary.
+    for (const d of diffs) console.error(`::error file=game/apps/web/src/idl.json::idl-diff: ${d.slice(0, 420)}`);
     console.error(`::error file=game/apps/web/src/idl.json::idl-diff: ${diffs.length} path(s) differ in total`);
-    // Короткие пути отдельными аннотациями (короткие читаются из API;
-    // длинные лог-фрагменты GitHub шифрует) + полный разбор в step summary.
-    for (const d of diffs) {
-      const pathLine = d.split('\n')[0];
-      console.error(`::error file=game/apps/web/src/idl.json::idl-path: ${pathLine.slice(0, 200)}`);
-    }
     if (process.env.GITHUB_STEP_SUMMARY) {
       fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-        `\n## idl-diff (built vs committed): ${diffs.length} path(s)\n\n\`\`\`\n${diffs.map(d => d.slice(0, 1500)).join('\n---\n')}\n\`\`\`\n`);
+        `\n## idl-diff (built vs committed): ${diffs.length} path(s)\n\n\`\`\`\n${diffs.map(d => d.slice(0, 1500)).join('\n')}\n\`\`\`\n`);
     }
   }
 }

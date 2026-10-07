@@ -24,16 +24,18 @@ import fs from "node:fs";
  * (аннотации-файлы нечитаемы), а summary читаем по Checks API. Локально — no-op.
  */
 const stepDiag = (title: string, info: Record<string, unknown>) => {
-  const p = process.env.GITHUB_STEP_SUMMARY;
-  if (!p) return;
-  try {
-    fs.appendFileSync(
-      p,
-      `\n### premium-tier diag: ${title}\n\n\`\`\`json\n${JSON.stringify(info, null, 1).slice(0, 2500)}\n\`\`\`\n`,
-    );
-  } catch {
-    /* локальный прогон без summary */
+  const flat = JSON.stringify(info).slice(0, 380);
+  // Короткая workflow-аннотация — читаемый канал в CI (длинные лог-фрагменты
+  // GitHub шифрует в API). Локально — просто вывод в лог.
+  const line = `premium-diag ${title}: ${flat}`;
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    try {
+      fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### premium-tier diag: ${title}\n\n\`\`\`json\n${JSON.stringify(info, null, 1).slice(0, 2500)}\n\`\`\`\n`);
+    } catch {
+      /* локальный прогон */
+    }
   }
+  console.error(`::error file=game/tests/solana_potato.ts line=1791::${line}`);
 };
 
 const MICRO = 1_000_000n;
