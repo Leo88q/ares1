@@ -2134,7 +2134,9 @@ pub mod solana_potato {
             ctx.program_id,
         );
         let mut licensed = false;
-        let mut fields: &[AccountInfo<'info>] = &ctx.remaining_accounts;
+        // ctx.remaining_accounts уже `&[AccountInfo]` — повторный `&` ловится
+        // clippy needless_borrow (строгой веткой F-22).
+        let mut fields: &[AccountInfo<'info>] = ctx.remaining_accounts;
         if let Some(first) = ctx.remaining_accounts.first() {
             if first.key() == expected_lic {
                 if first.owner == ctx.program_id && !first.data_is_empty() {
