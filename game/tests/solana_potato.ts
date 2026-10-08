@@ -1660,8 +1660,11 @@ describe("solana_potato", () => {
         });
         await sendSigned(new Transaction({ feePayer: admin.publicKey }).add(extendIx), [admin]);
       }
+      // Параметр называется authority (владелец LUT = тот, кто его создал),
+      // а не freezer — иная опечатка роняет tx в compileMessage с
+      // «pubkey undefined» (web3.js не валидирует имена параметров).
       const freezeIx = AddressLookupTableProgram.freezeLookupTable({
-        freezer: admin.publicKey, lookupTable: lutAddr,
+        authority: admin.publicKey, lookupTable: lutAddr,
       });
       await sendSigned(new Transaction({ feePayer: admin.publicKey }).add(freezeIx), [admin]);
       const alt = await connection.getAddressLookupTable(lutAddr);
