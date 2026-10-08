@@ -1,14 +1,6 @@
 title = "ARES-1 secret scanning"
 [extend]
 useDefault = true
-# generic-api-key (default catch-all for `key/token/... = <value>`) is red on
-# every push in this codebase: 94 findings in the 2026-10-08 audit, all false
-# positives (Anchor `authority:` fields, test identifiers, public program IDs,
-# e.g. `token.x = token.radius`). The checklist §1.1.3 patterns it was meant to
-# backstop remain enforced by scripts/secret-scan.mjs (dependency-free gate,
-# tree + history) and by the two purpose-built rules below; all 220+ vendor
-# specific default rules (aws, github, slack, ...) stay active.
-disabledRules = ["generic-api-key"]
 
 [[rules]]
 id = "rpc-url-credential"
