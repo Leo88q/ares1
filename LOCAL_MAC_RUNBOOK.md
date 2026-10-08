@@ -62,9 +62,9 @@ docker compose up -d postgres && sleep 5 && docker compose ps   # postgres … (
 
 MIGRATOR='postgres://postgres:localdev@127.0.0.1:5432/ares1'
 yarn db:migrate --url="$MIGRATOR"
-GAME_OPS_WRITER_PASSWORD=localwriter123 GAME_OPS_READER_PASSWORD=localreader123 \
+GAME_OPS_WRITER_PASSWORD=local-writer-dev-2026 GAME_OPS_READER_PASSWORD=local-reader-dev-2026 \
   yarn db:roles --url="$MIGRATOR" --writer-login=ares1_backend --reader-login=ares1_dash
-yarn db:verify --url="$MIGRATOR"        # приёмка слоя: 21/21 ok
+yarn db:verify --url="$MIGRATOR"        # приёмка слоя: 17/17 ok (счётчик растёт с данными)
 ```
 
 Затем — весь CI-набор + полный DB-стенд одной командой (10–20 мин: сборки, bench 2000 строк):
@@ -77,6 +77,11 @@ GAME_OPS_TEST_URL="$MIGRATOR" GAME_OPS_TEST_ROLE=game_ops_writer \
 `--skip-chain` пропускает только Anchor/Solana-часть (её отдельная установка — Solana CLI
 4.2.2 + Anchor 0.31.2; в CI на этом коммите она уже зелёная). Внутри ci-local с заданным
 `GAME_OPS_TEST_URL` пройдут: миграции → интеграционные 32 → мутации **7/7** → `db:verify` → bench.
+
+Число проверок `db:verify` зависит от данных: на пустом стенде 17 (мутационные пробы
+пропущены — нечего мутировать), после `db:bench` добавляются пробы по журналу, аудиту и
+интентам. Пароли ролей — минимум 20 символов, это гейт в `db-roles.ts`; значения выше
+понадобятся снова в `.env` бэкенда, поэтому они фиксированные, а не случайные.
 
 Порт 5432 занят другим Postgres? Добавь в `game/.env` `GAME_OPS_POSTGRES_PORT=55432`
 и поменяй порт в `MIGRATOR`.
@@ -131,6 +136,8 @@ cd ~/LeoGamesStudio/ares1/game && docker compose exec postgres psql -U postgres 
 | `Use Node 22.22.3` в `ci-local.sh` | brew дал другую 22.x → `fnm install 22.22.3 && fnm use 22.22.3` |
 | `Use Yarn 1.22.22` | `npm i -g yarn@1.22.22` |
 | `test:offchain` падает на импортах | не установлен `landing/node_modules` → `(cd ../landing && npm ci)` |
+| `db:roles` → «Пароль роли короче 20 символов» | гейт длины в `db-roles.ts`; берите ≥20 символов |
+| `docker compose` → «env file …/apps/backend/.env not found» | для одного `postgres` безвредно; для полного стека создайте файл из `apps/backend/.env.example` |
 | `postgres` не healthy | занят 5432 → `GAME_OPS_POSTGRES_PORT=55432` в `game/.env` |
 | `yarn install` долго на Apple Silicon | нормально (нативные сборки), ~1 мин на M-серии |
 
