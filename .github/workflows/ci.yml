@@ -22,6 +22,55 @@ defaults:
     shell: bash
 
 jobs:
+  # F-22: одноразовый форматтер (только push-события на arena/**).
+  # Срабатывает при наличии файла `.fmt-fix-requested` в корне репозитория:
+  # `cargo fmt --all` (workspace game/ = programs/*), удаляет маркер и пушит
+  # commit в ту же ветку. После применения снять baseline-гейт на строгий
+  # `cargo fmt --all -- --check`. Ветка выбирается маркером, а не флагом
+  # запуска: workflow_dispatch с non-default ветки невозможен (GitHub
+  # резолвит workflow-файлы только с default-ветки).
+  fmt-fix:
+    name: Fmt remediation (marker-triggered)
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/arena/')
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+      - name: Check marker
+        id: marker
+        working-directory: .
+        run: |
+          if [ -f .fmt-fix-requested ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, pinned (was @master)
+        if: steps.marker.outputs.found == 'true'
+        with:
+          toolchain: '1.97.1' # тот же пин, что в job program (счёт fmt детерминирован)
+          components: rustfmt
+      - name: Format and push
+        if: steps.marker.outputs.found == 'true'
+        working-directory: .
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          (cd game && cargo fmt --all)
+          rm .fmt-fix-requested
+          git add game/ .fmt-fix-requested
+          git config user.name "ARES-1 CI"
+          git config user.email "ares1-ci@users.noreply.github.com"
+          git commit -m "chore(program): cargo fmt --all — закрываем F-22 fmt-долг целиком"
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/${GITHUB_REF_NAME}"
+          echo "Pushed formatting commit to ${GITHUB_REF_NAME}."
+
   offchain:
     name: Web + backend (typecheck, tests, build)
     runs-on: ubuntu-24.04
@@ -177,17 +226,21 @@ jobs:
           key: solana-${{ env.SOLANA_VERSION }}-anchor-${{ env.ANCHOR_VERSION }}
       - name: Unit tests (host)
         run: ./scripts/ci-run.sh cargo test --locked -p solana_potato --lib
-      # F-22: fmt-долг заблокирован на текущем уровне и не может расти.
-      # 127 ханков — состояние программы на 20e0c9d при rustfmt из
-      # rust-toolchain.toml (1.97.1, пин → счёт детерминирован). Не «advisory»:
-      # любой новый неотформатированный код увеличивает счёт и валит шаг.
-      # Устранить долг целиком: `cargo fmt --all`, затем снять baseline.
-      - name: cargo fmt check (debt must not grow, F-22)
+      # F-22: fmt-долг закрыт целиком 2026-10-07 (job fmt-fix, commit a0b6da9 —
+      # `cargo fmt --all` на пине rustfmt 1.97.1 из rust-toolchain.toml).
+      # Теперь строгий гейт: файл обязан быть в rustfmt-формате. При нарушении
+      # весь дифф публикуется аннотациями (fmt-inventory.py в report-режиме —
+      # log-архив job недоступен из API-only окружений).
+      - name: cargo fmt check (strict, F-22)
         if: ${{ !cancelled() }}
         run: |
           set +e
           cargo fmt --all -- --check > /tmp/fmt-check.txt 2>&1
-          python3 scripts/fmt-inventory.py --max-hunks=127 < /tmp/fmt-check.txt
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            python3 scripts/fmt-inventory.py < /tmp/fmt-check.txt || true
+          fi
+          exit "$status"
       # F-22: clippy — блокирующий гейт. Единственное исключение — lint
       # `deprecated`, и оно точечное: предупреждение приходит не из нашего кода,
       # а из кодогена Anchor 0.31.2 (`#[program]` генерирует IDL-хендлеры,

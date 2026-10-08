@@ -33,7 +33,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const INVENTORY_PATH = path.join(here, "..", "program-inventory.json");
+// INVENTORY_PATH (env) — фикстура для тестов; по умолчанию реестр в game/.
+const INVENTORY_PATH = process.env.INVENTORY_PATH
+  ? path.resolve(process.env.INVENTORY_PATH)
+  : path.join(here, "..", "program-inventory.json");
 const args = process.argv.slice(2);
 const JSON_OUT = args.includes("--json");
 const SCHEMA_ONLY = args.includes("--schema-only");
@@ -121,6 +124,7 @@ function b58encode(buf) {
 
 async function checkProgram(entry) {
   const violations = [];
+  const warnings = [];
   const info = await rpc("getAccountInfo", [entry.id, { encoding: "base64" }]);
   const acc = info?.value;
   if (!acc) {
@@ -169,11 +173,16 @@ async function checkProgram(entry) {
     );
   }
   if (!expectedAuthority && entry.status === "active" && !isImmutable) {
-    // Не нарушение, но помечаем: активная программа без зафиксированного ожидания
-    // authority — незакрытый пункт реестра (до mainnet — гейт G-2).
-    violations.push(`ACTIVE программа ${entry.id}: expectedUpgradeAuthority не задан — заполни Squads-мультисиг до mainnet (гейт G-2) или передай --expect-authority <addr>`);
+    // Не нарушение (комментарий 2026-10-03/07): активная mutable-программа без
+    // зафиксированного ожидания authority — незакрытый пункт реестра до Squads
+    // (гейт G-2), а не инцидент. Раньше это шло в violations → exit 1 → cron
+    // открывал issue каждый запуск (issue #55) и прятал настоящие алерты.
+    // Теперь — громкое предупреждение в логе/JSON, но НЕ сбой проверки:
+    // принудительный контроль authority на mainnet делает preflight-mainnet.sh
+    // (items 44/63: без MAINNET_AUTHORITY — fail).
+    warnings.push(`ACTIVE программа ${entry.id}: expectedUpgradeAuthority не задан — заполни Squads-мультисиг до mainnet (гейт G-2) или передай --expect-authority <addr> [текущий authority на цепи: ${authority ?? "None"}]`);
   }
-  return { entry, violations, state: "ok", authority, isImmutable, lamports, programData };
+  return { entry, violations, warnings, state: "ok", authority, isImmutable, lamports, programData };
 }
 
 try {
@@ -182,15 +191,18 @@ try {
     results.push(await checkProgram(entry));
   }
   const violations = results.flatMap((r) => r.violations);
+  const warnings = results.flatMap((r) => r.warnings ?? []);
   if (JSON_OUT) {
-    console.log(JSON.stringify({ ok: violations.length === 0, network: inventory.network, results, violations }, null, 2));
+    console.log(JSON.stringify({ ok: violations.length === 0, network: inventory.network, results, violations, warnings }, null, 2));
   } else {
     for (const r of results) {
       const line = `${r.entry.status.toUpperCase().padEnd(10)} ${r.entry.id}`;
       if (r.violations.length) console.error(`✗ ${line}\n    ${r.violations.join("\n    ")}`);
       else console.log(`✓ ${line} authority=${r.authority ?? "None"} lamports=${r.lamports ?? "-"}`);
     }
-    console.log(violations.length === 0 ? "\ninventory: OK" : `\ninventory: FAIL (${violations.length})`);
+    for (const w of warnings) console.error(`! ${w}`);
+    const verdict = violations.length === 0 ? "OK" : `FAIL (${violations.length})`;
+    console.log(`\ninventory: ${verdict}${warnings.length ? ` [${warnings.length} warning(s)]` : ""}`);
   }
   process.exitCode = violations.length === 0 ? 0 : 1;
 } catch (err) {

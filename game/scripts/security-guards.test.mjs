@@ -134,12 +134,17 @@ test('C13/C14: overflow-гигиена (checked/saturating полы + overflow-c
 });
 
 test('C15: комиссия считается floor-формулой с потолком скидок', () => {
+  // cargo fmt --all (2026-10-07, F-22) развёл require!() по строкам:
+  // «константа, Error» больше не обязаны соседствовать в одной строке.
+  // Проверка инварианта не должна зависеть от форматирования — сжимаем
+  // пробельные (инвариант: оба аргумента require! рядом, в этом порядке).
+  const flat = libRs.replace(/\s+/g, ' ');
   assert.ok(/checked_mul\(calculate_fee_bps\(amount_micro\)\s*as u128\)/.test(libRs));
-  assert.ok(libRs.includes('.min(fee_listed)'), 'скидки не ограничены комиссией');
-  assert.ok(libRs.includes('MIN_ORDER_TOTAL_LAMPORTS, GameError::OrderTotalTooSmall'));
-  assert.ok(libRs.includes('MIN_ORDER_AMOUNT_MICRO, GameError::OrderTooSmall'));
-  assert.ok(libRs.includes('GameError::SelfTradeBlocked'));
-  assert.ok(libRs.includes('GameError::CancelCooldown'));
+  assert.ok(flat.includes('.min(fee_listed)'), 'скидки не ограничены комиссией');
+  assert.ok(flat.includes('MIN_ORDER_TOTAL_LAMPORTS, GameError::OrderTotalTooSmall'));
+  assert.ok(flat.includes('MIN_ORDER_AMOUNT_MICRO, GameError::OrderTooSmall'));
+  assert.ok(flat.includes('GameError::SelfTradeBlocked'));
+  assert.ok(flat.includes('GameError::CancelCooldown'));
 });
 
 test('C16/F-02: вывод казны — двухшаговый, с пином назначения и лимитами окна', () => {
@@ -706,8 +711,18 @@ test('2026-10-02: lint-гейты блокируют, а исключение д
   );
   const fmt = ci.split('name: cargo fmt check')[1]?.split('\n      - name:')[0] ?? '';
   assert.ok(fmt, 'шаг cargo fmt check не найден');
-  assert.match(fmt, /--max-hunks=\d+/, 'fmt-долг должен быть запинен baseline-числом');
-  assert.ok(!fmt.includes('continue-on-error'), 'рост fmt-долга обязан валить шаг');
+  // Pinned 2026-10-07 (F-22): the fmt debt was fully closed with
+  // `cargo fmt --all` (commit a0b6da9), so the baseline gate
+  // (`--check -- --max-hunks=<N>` against game/fmt-baseline.txt) was
+  // replaced by a strict `--check` that fails on any unformatted diff.
+  // This is an intentional pin change: the debt is zero, so there is no
+  // baseline number to pin anymore. Re-introducing `--max-hunks` (or any
+  // non-strict `cargo fmt` invocation) silently re-opens the debt and must
+  // fail this tripwire.
+  assert.match(fmt, /cargo fmt --all -- --check/, 'fmt-гейт обязан быть строгим --check (долг закрыт в a0b6da9)');
+  assert.ok(!fmt.includes('--max-hunks'), 'базовый режим --max-hunks запрещён: fmt-долг должен остаться закрытым');
+  assert.ok(!/cargo fmt(?! --all -- --check)/.test(fmt.replace(/#.*$/gm, '')), 'в fmt-шаге не должно быть нестрогой cargo fmt-команды');
+  assert.ok(!fmt.includes('continue-on-error'), 'нарушение формата обязан валить шаг');
   // Компенсация за -A deprecated: сам вызов, который lint скрыл бы, запрещён
   // tripwire'ом — иначе исключение превратилось бы в дыру.
   for (const rel of ['../programs/solana_potato/src/lib.rs', '../programs/solana_potato/src/migrations.rs']) {

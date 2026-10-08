@@ -172,7 +172,10 @@ mod tests {
         let signer = Pubkey::new_from_array(current[8..40].try_into().unwrap());
         assert!(authority(&current, &signer).is_ok());
         for size in [0, 8, 40, 104, 155, 157, 163, 165, 227, 229, 259, 261] {
-            assert!(config(&vec![0; size]).is_err(), "size {size} must be rejected");
+            assert!(
+                config(&vec![0; size]).is_err(),
+                "size {size} must be rejected"
+            );
         }
         let mut corrupt = current.clone();
         corrupt[0] ^= 1;

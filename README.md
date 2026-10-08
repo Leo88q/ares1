@@ -87,6 +87,10 @@ node scripts/check-release-artifacts.mjs landing/dist game/apps/web/dist
 # against a live deployment (needs network access to the host):
 ./scripts/check-headers.sh https://ares1.is-a.dev
 ./scripts/check-public-exposure.sh https://ares1.is-a.dev
+
+# pre-beta check of the deployed landing+game+devnet program in one pass
+# (headers, exposure, presale API, program ID in the bundle, devnet liveness):
+./scripts/verify-beta-deploy.sh
 ```
 
 ## Stabilization / beta readiness

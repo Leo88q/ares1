@@ -39,9 +39,9 @@
 mod migrations;
 
 use anchor_lang::prelude::*;
-use anchor_lang::AccountDeserialize;
 use anchor_lang::pubkey;
 use anchor_lang::solana_program::program_option::COption;
+use anchor_lang::AccountDeserialize;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, Burn, CloseAccount, Mint, MintTo, Token, TokenAccount, Transfer};
 
@@ -125,9 +125,9 @@ pub const MAX_ACCRUAL_SECONDS: i64 = 7 * SECONDS_PER_DAY;
 // Период 28 эпох («лунный месяц»), день 7 = пик (полнолуние), день 21 = дно (новолуние)
 pub const LUNAR_TABLE: [u16; 28] = [
     10_000, 10_334, 10_651, 10_935, 11_173, 11_352, 11_462, 11_500, // дни 0-7 (пик)
-    11_462, 11_352, 11_173, 10_935, 10_651, 10_334, 10_000, 9_666,  // дни 8-15
-    9_349,  9_065,  8_827,  8_648,  8_538,  8_500,  8_538,  8_648,  // дни 16-23 (дно)
-    8_827,  9_065,  9_349,  9_666,                                   // дни 24-27
+    11_462, 11_352, 11_173, 10_935, 10_651, 10_334, 10_000, 9_666, // дни 8-15
+    9_349, 9_065, 8_827, 8_648, 8_538, 8_500, 8_538, 8_648, // дни 16-23 (дно)
+    8_827, 9_065, 9_349, 9_666, // дни 24-27
 ];
 
 /// A field loses 1 durability point per this much accrued time (≈4 / day),
@@ -231,7 +231,10 @@ pub mod solana_potato {
             GameError::InvalidMintAuthority
         );
         require!(mint.decimals == 6, GameError::InvalidMintDecimals);
-        require!(mint.freeze_authority.is_none(), GameError::MintHasFreezeAuthority);
+        require!(
+            mint.freeze_authority.is_none(),
+            GameError::MintHasFreezeAuthority
+        );
         // R2 (аудит 2026-09-25) → закрыто: до этой проверки деплойер мог наминтить
         // запас до передачи authority конфиг-PDA, обойдя кап эпохи и max_supply.
         require!(mint.supply == 0, GameError::InvalidMintSupply);
@@ -291,16 +294,21 @@ pub mod solana_potato {
         require!(now >= current_end, GameError::EpochNotOver);
 
         let config = &mut ctx.accounts.config;
-        config.epoch_id = config.epoch_id.checked_add(1).ok_or(GameError::MathOverflow)?;
+        config.epoch_id = config
+            .epoch_id
+            .checked_add(1)
+            .ok_or(GameError::MathOverflow)?;
 
         // ═══════════════════════════════════════════════════════════════
         // Гибридный эластичный кап: burn-ось + utilization-ось (п.2 документа)
         // ═══════════════════════════════════════════════════════════════
         // Ось 1 (наша): дефляционная — больше сжигания → больше кап
-        let prev_burned = config.total_burned_micro
+        let prev_burned = config
+            .total_burned_micro
             .saturating_sub(config.last_total_burned_micro);
         let burn_bonus = prev_burned / 2;
-        let cap_from_burn = config.daily_mint_cap_micro
+        let cap_from_burn = config
+            .daily_mint_cap_micro
             .checked_add(burn_bonus)
             .ok_or(GameError::MathOverflow)?;
 
@@ -311,19 +319,19 @@ pub mod solana_potato {
         let last_minted = ctx.accounts.current_epoch.minted_micro;
         let utilization_bps = if last_cap > 0 {
             ((last_minted as u128) * 10_000 / (last_cap as u128)) as i128
-        } else { 8_500i128 };
-        let target_bps: i128 = 8_500;  // 85%
-        let k_bps: i128 = 1_500;       // 15% реакция за эпоху
+        } else {
+            8_500i128
+        };
+        let target_bps: i128 = 8_500; // 85%
+        let k_bps: i128 = 1_500; // 15% реакция за эпоху
         let adjust_bps = k_bps * (utilization_bps - target_bps) / 10_000;
         let cap_from_util: u64 = (if adjust_bps >= 0 {
-            (last_cap as u128)
-                .saturating_mul(10_000u128 + adjust_bps as u128)
-                / 10_000
+            (last_cap as u128).saturating_mul(10_000u128 + adjust_bps as u128) / 10_000
         } else {
-            (last_cap as u128)
-                .saturating_mul(10_000u128 - ((-adjust_bps) as u128))
-                / 10_000
-        }).try_into().unwrap_or(u64::MAX);
+            (last_cap as u128).saturating_mul(10_000u128 - ((-adjust_bps) as u128)) / 10_000
+        })
+        .try_into()
+        .unwrap_or(u64::MAX);
 
         // Гибрид: среднее двух осей, зажатое в [cap, 3×cap], где cap —
         // текущий `config.daily_mint_cap_micro` (админ может снизить его
@@ -344,7 +352,10 @@ pub mod solana_potato {
         // Запоминаем текущее total_burned для следующего roll_epoch
         ctx.accounts.config.last_total_burned_micro = ctx.accounts.config.total_burned_micro;
 
-        emit!(EpochRolled { epoch_id: next.id, start_time: now });
+        emit!(EpochRolled {
+            epoch_id: next.id,
+            start_time: now
+        });
         Ok(())
     }
 
@@ -370,20 +381,29 @@ pub mod solana_potato {
         let now = Clock::get()?.unix_timestamp;
         let config = &mut ctx.accounts.config;
         config.total_burned_micro = config.total_burned_micro.saturating_add(cost);
-        config.field_count = config.field_count.checked_add(1).ok_or(GameError::MathOverflow)?;
+        config.field_count = config
+            .field_count
+            .checked_add(1)
+            .ok_or(GameError::MathOverflow)?;
 
         let field = &mut ctx.accounts.field;
         field.owner = ctx.accounts.owner.key();
         field.level = 1;
         field.durability = MAX_DURABILITY;
         field.last_harvest = now;
-        field.tax_paid_until = now.checked_add(INITIAL_TAX_GRACE).ok_or(GameError::MathOverflow)?;
+        field.tax_paid_until = now
+            .checked_add(INITIAL_TAX_GRACE)
+            .ok_or(GameError::MathOverflow)?;
         field.fertilizer_until = 0;
         field.is_active = true;
         field.field_type = field_type;
         field.bump = ctx.bumps.field;
 
-        emit!(FieldCreated { owner: field.owner, field: field.key(), field_type });
+        emit!(FieldCreated {
+            owner: field.owner,
+            field: field.key(),
+            field_type
+        });
         Ok(())
     }
 
@@ -406,7 +426,10 @@ pub mod solana_potato {
     /// MAX_CLAIM_PROOFS to keep the O(n²) duplicate check inside CU limits.
     pub fn claim_achievement(ctx: Context<ClaimAchievement>, quest_id: u8) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
-        require!((quest_id as usize) < QUEST_REWARD_MICRO.len(), GameError::InvalidFieldType);
+        require!(
+            (quest_id as usize) < QUEST_REWARD_MICRO.len(),
+            GameError::InvalidFieldType
+        );
         let achievements = &mut ctx.accounts.achievements;
         let bit = 1u64 << quest_id;
         require!(achievements.bitmap & bit == 0, GameError::AlreadyClaimed);
@@ -437,7 +460,11 @@ pub mod solana_potato {
             ),
             reward,
         )?;
-        emit!(AchievementClaimed { user, quest_id, reward });
+        emit!(AchievementClaimed {
+            user,
+            quest_id,
+            reward
+        });
         Ok(())
     }
 
@@ -447,7 +474,10 @@ pub mod solana_potato {
     /// * `price_lamports > 0` — proposal only: stored in `AdminState` and applied
     ///   by `apply_pending_presale_price` after the 24 h timelock, so a stolen
     ///   authority key cannot silently re-price the presale within one day.
-    pub fn update_presale_price(ctx: Context<UpdatePresalePrice>, price_lamports: u64) -> Result<()> {
+    pub fn update_presale_price(
+        ctx: Context<UpdatePresalePrice>,
+        price_lamports: u64,
+    ) -> Result<()> {
         if price_lamports == 0 {
             ctx.accounts.presale_state.price_lamports = 0;
             ctx.accounts.admin_state.pending_presale_price = 0;
@@ -476,7 +506,8 @@ pub mod solana_potato {
         );
         let now = Clock::get()?.unix_timestamp;
         require!(
-            now >= state.pending_presale_price_at
+            now >= state
+                .pending_presale_price_at
                 .checked_add(ADMIN_UPDATE_TIMELOCK_SECONDS)
                 .ok_or(GameError::MathOverflow)?,
             GameError::TimelockNotExpired
@@ -507,16 +538,25 @@ pub mod solana_potato {
         require!(presale.sold < presale.cap, GameError::PresaleCapReached);
 
         let buyer_presale = &mut ctx.accounts.buyer_presale;
-        require!(buyer_presale.count < 5, GameError::PresaleWalletLimitReached);
+        require!(
+            buyer_presale.count < 5,
+            GameError::PresaleWalletLimitReached
+        );
 
-        require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
+        require!(
+            ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint,
+            GameError::InvalidMint
+        );
         // П.40: цены SKR зафиксированы в 10^-6 атомах — decimals минта обязаны совпадать.
         require_skr_mint(&ctx.accounts.skr_mint)?;
         // PresaleState.price_lamports — цена SOL-пресейла (buy_field_sol);
         // цена SKR-пресейла зафиксирована константой 1053 SKR (PRESALE_PRICE_SKR_ATOMS).
         // price_lamports == 0 означает аварийную остановку пресейла (kill switch):
         // закрывает ОБЕ ветки покупки — SOL и SKR.
-        require!(presale.cap > 0 && presale.price_lamports > 0, GameError::PresaleNotActive);
+        require!(
+            presale.cap > 0 && presale.price_lamports > 0,
+            GameError::PresaleNotActive
+        );
 
         // ── On-chain drop roll ──
         // Энтропия: buyer ‖ sold ‖ slot ‖ последняя запись SlotHashes.
@@ -537,7 +577,12 @@ pub mod solana_potato {
                 recent_hash.as_ref(),
             ]);
         }
-        let roll = u32::from_le_bytes([roll_hash.0[0], roll_hash.0[1], roll_hash.0[2], roll_hash.0[3]]) % 100;
+        let roll = u32::from_le_bytes([
+            roll_hash.0[0],
+            roll_hash.0[1],
+            roll_hash.0[2],
+            roll_hash.0[3],
+        ]) % 100;
         let field_type: u8 = if roll < 70 {
             0
         } else if roll < 95 {
@@ -548,7 +593,9 @@ pub mod solana_potato {
 
         let total = PRESALE_PRICE_SKR_ATOMS; // 1053 SKR за модуль
         let treasury_amount = total.checked_mul(80).ok_or(GameError::MathOverflow)? / 100;
-        let buyback_amount = total.checked_sub(treasury_amount).ok_or(GameError::MathOverflow)?;
+        let buyback_amount = total
+            .checked_sub(treasury_amount)
+            .ok_or(GameError::MathOverflow)?;
 
         // 80 % SKR -> ATA казны
         token::transfer(
@@ -583,7 +630,9 @@ pub mod solana_potato {
         field.level = 1;
         field.durability = MAX_DURABILITY;
         field.last_harvest = now;
-        field.tax_paid_until = now.checked_add(INITIAL_TAX_GRACE).ok_or(GameError::MathOverflow)?;
+        field.tax_paid_until = now
+            .checked_add(INITIAL_TAX_GRACE)
+            .ok_or(GameError::MathOverflow)?;
         field.fertilizer_until = 0;
         field.is_active = true;
         field.field_type = field_type;
@@ -595,10 +644,16 @@ pub mod solana_potato {
             buyer_presale.buyer = ctx.accounts.buyer.key();
             buyer_presale.bump = ctx.bumps.buyer_presale;
         }
-        buyer_presale.count = buyer_presale.count.checked_add(1).ok_or(GameError::MathOverflow)?;
+        buyer_presale.count = buyer_presale
+            .count
+            .checked_add(1)
+            .ok_or(GameError::MathOverflow)?;
 
         let config = &mut ctx.accounts.config;
-        config.field_count = config.field_count.checked_add(1).ok_or(GameError::MathOverflow)?;
+        config.field_count = config
+            .field_count
+            .checked_add(1)
+            .ok_or(GameError::MathOverflow)?;
 
         emit!(PresalePurchase {
             buyer: field.owner,
@@ -607,7 +662,11 @@ pub mod solana_potato {
             amount: total, // SKR-атомы (6 знаков) — currency см. instruction name
             roll: roll as u8,
         });
-        emit!(FieldCreated { owner: field.owner, field: field.key(), field_type });
+        emit!(FieldCreated {
+            owner: field.owner,
+            field: field.key(),
+            field_type
+        });
 
         Ok(())
     }
@@ -627,20 +686,29 @@ pub mod solana_potato {
     ) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(field_type < FIELD_TYPE_COUNT, GameError::InvalidFieldType);
-        require!(ctx.accounts.presale_state.price_lamports > 0, GameError::PresaleNotActive);
+        require!(
+            ctx.accounts.presale_state.price_lamports > 0,
+            GameError::PresaleNotActive
+        );
 
         let presale = &mut ctx.accounts.presale_state;
         require!(presale.sold < presale.cap, GameError::PresaleCapReached);
 
         let buyer_presale = &mut ctx.accounts.buyer_presale;
-        require!(buyer_presale.count < 5, GameError::PresaleWalletLimitReached);
+        require!(
+            buyer_presale.count < 5,
+            GameError::PresaleWalletLimitReached
+        );
 
         // Цена зависит от типа поля (иначе EPIC-поле стоило бы как Грядка).
         let amount_lamports = ((presale.price_lamports as u128)
             .checked_mul(type_cost_bps(field_type))
             .ok_or(GameError::MathOverflow)?
             / BPS) as u64;
-        require!(amount_lamports <= max_total_lamports, GameError::InvalidPrice);
+        require!(
+            amount_lamports <= max_total_lamports,
+            GameError::InvalidPrice
+        );
 
         // SW003: typed CPI — the System program id is validated by the Rc
         // framework, so no confused-deputy via a caller-supplied program.
@@ -648,8 +716,8 @@ pub mod solana_potato {
             CpiContext::new(
                 ctx.accounts.system_program.to_account_info(),
                 anchor_lang::system_program::Transfer {
-                from: ctx.accounts.buyer.to_account_info(),
-                to: ctx.accounts.treasury_sol.to_account_info(),
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.treasury_sol.to_account_info(),
                 },
             ),
             amount_lamports,
@@ -662,7 +730,9 @@ pub mod solana_potato {
         field.level = 1;
         field.durability = MAX_DURABILITY;
         field.last_harvest = now;
-        field.tax_paid_until = now.checked_add(INITIAL_TAX_GRACE).ok_or(GameError::MathOverflow)?;
+        field.tax_paid_until = now
+            .checked_add(INITIAL_TAX_GRACE)
+            .ok_or(GameError::MathOverflow)?;
         field.fertilizer_until = 0;
         field.is_active = true;
         field.field_type = field_type;
@@ -674,10 +744,16 @@ pub mod solana_potato {
             buyer_presale.buyer = ctx.accounts.buyer.key();
             buyer_presale.bump = ctx.bumps.buyer_presale;
         }
-        buyer_presale.count = buyer_presale.count.checked_add(1).ok_or(GameError::MathOverflow)?;
+        buyer_presale.count = buyer_presale
+            .count
+            .checked_add(1)
+            .ok_or(GameError::MathOverflow)?;
 
         let config = &mut ctx.accounts.config;
-        config.field_count = config.field_count.checked_add(1).ok_or(GameError::MathOverflow)?;
+        config.field_count = config
+            .field_count
+            .checked_add(1)
+            .ok_or(GameError::MathOverflow)?;
 
         emit!(PresalePurchase {
             buyer: field.owner,
@@ -687,7 +763,11 @@ pub mod solana_potato {
             // SOL-пресейл — явный тир, ролла нет (0 = без дропа)
             roll: 0,
         });
-        emit!(FieldCreated { owner: field.owner, field: field.key(), field_type });
+        emit!(FieldCreated {
+            owner: field.owner,
+            field: field.key(),
+            field_type
+        });
 
         Ok(())
     }
@@ -702,7 +782,9 @@ pub mod solana_potato {
 
         let now = Clock::get()?.unix_timestamp;
         let field = &ctx.accounts.field;
-        let elapsed = now.saturating_sub(field.last_harvest).min(MAX_ACCRUAL_SECONDS);
+        let elapsed = now
+            .saturating_sub(field.last_harvest)
+            .min(MAX_ACCRUAL_SECONDS);
         require!(elapsed >= MIN_HARVEST_INTERVAL, GameError::HarvestTooSoon);
 
         let pending = compute_pending_yield(
@@ -741,7 +823,10 @@ pub mod solana_potato {
         // ── Effects ──
         let epoch = &mut ctx.accounts.epoch;
         // minted_micro учитывает ВСЕ минты (player + treasury), а не только player
-        epoch.minted_micro = epoch.minted_micro.saturating_add(player_yield).saturating_add(treasury_share);
+        epoch.minted_micro = epoch
+            .minted_micro
+            .saturating_add(player_yield)
+            .saturating_add(treasury_share);
 
         let field = &mut ctx.accounts.field;
         // Time actually paid for. Equals `elapsed` unless the cap truncated the payout.
@@ -761,14 +846,16 @@ pub mod solana_potato {
         } else {
             DURABILITY_DECAY_INTERVAL
         };
-        let decay = (consumed / decay_interval).max(1).min(MAX_DURABILITY as i64) as u8;
+        let decay = (consumed / decay_interval)
+            .max(1)
+            .min(MAX_DURABILITY as i64) as u8;
         field.durability = field.durability.saturating_sub(decay);
 
         // ── Interaction ──
         let bump = config.bump;
         let seeds: &[&[u8]] = &[b"config", &[bump]];
         let signer: &[&[&[u8]]] = &[seeds];
-        
+
         // Минт игроку (после вычета налога)
         token::mint_to(
             CpiContext::new_with_signer(
@@ -782,7 +869,7 @@ pub mod solana_potato {
             ),
             player_yield,
         )?;
-        
+
         // Минт в treasury (доля налога)
         if treasury_share > 0 {
             token::mint_to(
@@ -804,7 +891,7 @@ pub mod solana_potato {
             field: ctx.accounts.field.key(),
             amount_micro: player_yield,
         });
-        
+
         if treasury_share > 0 {
             emit!(TreasuryTaxed {
                 field: ctx.accounts.field.key(),
@@ -819,7 +906,10 @@ pub mod solana_potato {
     /// Restores durability to 100 for a burn.
     pub fn repair_field(ctx: Context<RepairField>) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
-        require!(ctx.accounts.field.durability < MAX_DURABILITY, GameError::NothingToRepair);
+        require!(
+            ctx.accounts.field.durability < MAX_DURABILITY,
+            GameError::NothingToRepair
+        );
         let base_cost = scaled_cost(BASE_REPAIR_MICRO, ctx.accounts.field.field_type);
         // Прогрессивный множитель ремонта: L1-2 → 1×, L30 → 10×, L50 → 16×
         let level_mult = ((ctx.accounts.field.level as u64) / 3).max(1);
@@ -837,7 +927,10 @@ pub mod solana_potato {
             ctx.accounts.config.total_burned_micro.saturating_add(cost);
         let field = &mut ctx.accounts.field;
         field.durability = MAX_DURABILITY;
-        emit!(FieldRepaired { field: field.key(), cost_micro: cost });
+        emit!(FieldRepaired {
+            field: field.key(),
+            cost_micro: cost
+        });
         Ok(())
     }
 
@@ -887,7 +980,11 @@ pub mod solana_potato {
             }
         }
 
-        emit!(FieldUpgraded { field: field.key(), new_level: field.level, cost_micro: cost });
+        emit!(FieldUpgraded {
+            field: field.key(),
+            new_level: field.level,
+            cost_micro: cost
+        });
         Ok(())
     }
 
@@ -918,7 +1015,11 @@ pub mod solana_potato {
             ctx.accounts.config.total_burned_micro.saturating_add(cost);
         let field = &mut ctx.accounts.field;
         field.tax_paid_until = new_until;
-        emit!(TaxPaid { field: field.key(), paid_until: new_until, cost_micro: cost });
+        emit!(TaxPaid {
+            field: field.key(),
+            paid_until: new_until,
+            cost_micro: cost
+        });
         Ok(())
     }
 
@@ -944,7 +1045,11 @@ pub mod solana_potato {
             ctx.accounts.config.total_burned_micro.saturating_add(cost);
         let field = &mut ctx.accounts.field;
         field.fertilizer_until = new_until;
-        emit!(FertilizerApplied { field: field.key(), active_until: new_until, cost_micro: cost });
+        emit!(FertilizerApplied {
+            field: field.key(),
+            active_until: new_until,
+            cost_micro: cost
+        });
         Ok(())
     }
 
@@ -954,7 +1059,10 @@ pub mod solana_potato {
     /// для продавца с активной лицензией.
     pub fn buy_export_license(ctx: Context<BuyExportLicense>) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
-        require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
+        require!(
+            ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint,
+            GameError::InvalidMint
+        );
         // П.40: 500 SKR — это 500 × 10^6 атомов; минта с другими decimals не принимается.
         require_skr_mint(&ctx.accounts.skr_mint)?;
         let now = Clock::get()?.unix_timestamp;
@@ -981,11 +1089,18 @@ pub mod solana_potato {
         } else if license.expires_at < now {
             license.expires_at = now + thirty_days;
         } else {
-            license.expires_at = license.expires_at.checked_add(thirty_days).ok_or(GameError::MathOverflow)?;
+            license.expires_at = license
+                .expires_at
+                .checked_add(thirty_days)
+                .ok_or(GameError::MathOverflow)?;
         }
         license.bump = ctx.bumps.license;
 
-        emit!(ExportLicensePurchased { owner: ctx.accounts.payer.key(), expires_at: license.expires_at, cost_skr_atoms: EXPORT_LICENSE_PRICE_SKR_ATOMS });
+        emit!(ExportLicensePurchased {
+            owner: ctx.accounts.payer.key(),
+            expires_at: license.expires_at,
+            cost_skr_atoms: EXPORT_LICENSE_PRICE_SKR_ATOMS
+        });
         Ok(())
     }
 
@@ -1001,10 +1116,16 @@ pub mod solana_potato {
         price_lamports_per_potato: u64,
     ) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
-        require!(amount_micro >= MIN_ORDER_AMOUNT_MICRO, GameError::OrderTooSmall);
+        require!(
+            amount_micro >= MIN_ORDER_AMOUNT_MICRO,
+            GameError::OrderTooSmall
+        );
         require!(price_lamports_per_potato > 0, GameError::InvalidPrice);
         let total_lamports = order_total_lamports(amount_micro, price_lamports_per_potato)?;
-        require!(total_lamports >= MIN_ORDER_TOTAL_LAMPORTS, GameError::OrderTotalTooSmall);
+        require!(
+            total_lamports >= MIN_ORDER_TOTAL_LAMPORTS,
+            GameError::OrderTotalTooSmall
+        );
 
         let now = Clock::get()?.unix_timestamp;
 
@@ -1017,7 +1138,9 @@ pub mod solana_potato {
         profile.bump = ctx.bumps.seller_profile;
 
         let fee_micro = order_fee_micro(amount_micro)?;
-        let total_to_escrow = amount_micro.checked_add(fee_micro).ok_or(GameError::MathOverflow)?;
+        let total_to_escrow = amount_micro
+            .checked_add(fee_micro)
+            .ok_or(GameError::MathOverflow)?;
 
         let order = &mut ctx.accounts.order;
         order.seller = ctx.accounts.seller.key();
@@ -1076,9 +1199,15 @@ pub mod solana_potato {
         require!(!ctx.accounts.config.paused, GameError::Paused);
         let now = Clock::get()?.unix_timestamp;
         let order = &ctx.accounts.order;
-        require!(order.status == OrderStatus::Active, GameError::OrderNotActive);
+        require!(
+            order.status == OrderStatus::Active,
+            GameError::OrderNotActive
+        );
         require!(now < order.expires_at, GameError::OrderExpired);
-        require!(order.seller != ctx.accounts.buyer.key(), GameError::SelfTradeBlocked);
+        require!(
+            order.seller != ctx.accounts.buyer.key(),
+            GameError::SelfTradeBlocked
+        );
 
         let order_key = order.key();
         let escrow_bump = order.escrow_bump;
@@ -1102,7 +1231,8 @@ pub mod solana_potato {
                 let data = lic_acc.try_borrow_data()?;
                 if let Ok(lic) = ExportLicense::try_deserialize(&mut &data[..]) {
                     if lic.expires_at > now {
-                        license_discount = ((amount_micro as u128 * 300 / 10_000) as u64).min(fee_listed);
+                        license_discount =
+                            ((amount_micro as u128 * 300 / 10_000) as u64).min(fee_listed);
                     }
                 }
             }
@@ -1141,7 +1271,8 @@ pub mod solana_potato {
             .saturating_add(referral_discount)
             .min(fee_listed);
         let fee_net = fee_listed.saturating_sub(total_discounts);
-        let fee_to_treasury = ((fee_net as u128) * (100u128 - FEE_BURN_PERCENT as u128) / 100) as u64;
+        let fee_to_treasury =
+            ((fee_net as u128) * (100u128 - FEE_BURN_PERCENT as u128) / 100) as u64;
         let fee_to_burn_base = fee_net.saturating_sub(fee_to_treasury);
         let referrer_reward = if referrer_key != Pubkey::default() {
             // 0.5 % от суммы, не больше burn-доли
@@ -1153,8 +1284,11 @@ pub mod solana_potato {
 
         // ── Effects (CEI) ──
         ctx.accounts.order.status = OrderStatus::Filled;
-        ctx.accounts.config.total_burned_micro =
-            ctx.accounts.config.total_burned_micro.saturating_add(fee_to_burn);
+        ctx.accounts.config.total_burned_micro = ctx
+            .accounts
+            .config
+            .total_burned_micro
+            .saturating_add(fee_to_burn);
         let stats = &mut ctx.accounts.market_stats;
         stats.roll_window(now);
         stats.total_trades = stats.total_trades.saturating_add(1);
@@ -1195,8 +1329,7 @@ pub mod solana_potato {
                     let mut slice: &[u8] = &data;
                     TokenAccount::try_deserialize(&mut slice)
                         .map(|ata| {
-                            ata.mint == ctx.accounts.potato_mint.key()
-                                && ata.owner == referrer_key
+                            ata.mint == ctx.accounts.potato_mint.key() && ata.owner == referrer_key
                         })
                         .unwrap_or(false)
                 } else {
@@ -1310,10 +1443,16 @@ pub mod solana_potato {
     /// 3h listing cooldown starts. Works even while the game is paused.
     pub fn cancel_order(ctx: Context<CancelOrder>) -> Result<()> {
         let order = &ctx.accounts.order;
-        require!(order.status == OrderStatus::Active, GameError::OrderNotActive);
+        require!(
+            order.status == OrderStatus::Active,
+            GameError::OrderNotActive
+        );
         let order_key = order.key();
         let escrow_bump = order.escrow_bump;
-        let refund = order.amount_micro.checked_add(order.fee_micro).ok_or(GameError::MathOverflow)?;
+        let refund = order
+            .amount_micro
+            .checked_add(order.fee_micro)
+            .ok_or(GameError::MathOverflow)?;
 
         ctx.accounts.order.status = OrderStatus::Cancelled;
         let profile = &mut ctx.accounts.seller_profile;
@@ -1331,7 +1470,10 @@ pub mod solana_potato {
             refund,
         )?;
 
-        emit!(OrderCancelled { order: order_key, seller: ctx.accounts.seller.key() });
+        emit!(OrderCancelled {
+            order: order_key,
+            seller: ctx.accounts.seller.key()
+        });
         Ok(())
     }
 
@@ -1339,11 +1481,17 @@ pub mod solana_potato {
     pub fn close_expired_order(ctx: Context<CloseExpiredOrder>) -> Result<()> {
         let now = Clock::get()?.unix_timestamp;
         let order = &ctx.accounts.order;
-        require!(order.status == OrderStatus::Active, GameError::OrderNotActive);
+        require!(
+            order.status == OrderStatus::Active,
+            GameError::OrderNotActive
+        );
         require!(now >= order.expires_at, GameError::OrderNotExpired);
         let order_key = order.key();
         let escrow_bump = order.escrow_bump;
-        let refund = order.amount_micro.checked_add(order.fee_micro).ok_or(GameError::MathOverflow)?;
+        let refund = order
+            .amount_micro
+            .checked_add(order.fee_micro)
+            .ok_or(GameError::MathOverflow)?;
 
         ctx.accounts.order.status = OrderStatus::Expired;
 
@@ -1397,7 +1545,10 @@ pub mod solana_potato {
             ),
             amount_micro,
         )?;
-        emit!(RewardGranted { recipient: ctx.accounts.user_potato.owner, amount_micro });
+        emit!(RewardGranted {
+            recipient: ctx.accounts.user_potato.owner,
+            amount_micro
+        });
         Ok(())
     }
 
@@ -1476,7 +1627,11 @@ pub mod solana_potato {
     /// 2=SKR. The rolling 24 h window budget is consumed HERE; execution in
     /// `withdraw_*` becomes possible after `WITHDRAW_TIMELOCK_SECONDS` and can
     /// be aborted in the meantime with `cancel_withdrawal` (budget stays spent).
-    pub fn propose_withdrawal(ctx: Context<ProposeWithdrawal>, kind: u8, amount: u64) -> Result<()> {
+    pub fn propose_withdrawal(
+        ctx: Context<ProposeWithdrawal>,
+        kind: u8,
+        amount: u64,
+    ) -> Result<()> {
         require!(amount > 0, GameError::InvalidAmount);
         require!(kind <= 2, GameError::InvalidWithdrawKind);
         let now = Clock::get()?.unix_timestamp;
@@ -1562,19 +1717,28 @@ pub mod solana_potato {
             amount_micro,
         )?;
         state.clear_pending_withdraw(0)?;
-        emit!(TreasuryWithdrawn { destination: ctx.accounts.destination.key(), amount_micro });
+        emit!(TreasuryWithdrawn {
+            destination: ctx.accounts.destination.key(),
+            amount_micro
+        });
         Ok(())
     }
 
     /// Step 2 (F-02): execute the proposed SOL withdrawal after the timelock.
     /// Balance is checked before the timelock so an over-large proposal fails
     /// fast with `InvalidAmount` and can be cancelled without waiting.
-    pub fn withdraw_treasury_sol(ctx: Context<WithdrawTreasurySol>, amount_lamports: u64) -> Result<()> {
+    pub fn withdraw_treasury_sol(
+        ctx: Context<WithdrawTreasurySol>,
+        amount_lamports: u64,
+    ) -> Result<()> {
         require!(amount_lamports > 0, GameError::InvalidAmount);
         let state = &mut ctx.accounts.admin_state;
         let (pending, proposed_at) = state.pending_withdraw(1)?;
         require!(pending > 0, GameError::NoPendingWithdrawal);
-        require!(pending == amount_lamports, GameError::WithdrawAmountMismatch);
+        require!(
+            pending == amount_lamports,
+            GameError::WithdrawAmountMismatch
+        );
         let current = ctx.accounts.treasury_sol.lamports();
         require!(amount_lamports <= current, GameError::InvalidAmount);
         let now = Clock::get()?.unix_timestamp;
@@ -1603,21 +1767,33 @@ pub mod solana_potato {
         );
         anchor_lang::system_program::transfer(cpi_context, amount_lamports)?;
         state.clear_pending_withdraw(1)?;
-        emit!(TreasurySolWithdrawn { destination: ctx.accounts.authority.key(), amount_lamports });
+        emit!(TreasurySolWithdrawn {
+            destination: ctx.accounts.authority.key(),
+            amount_lamports
+        });
         Ok(())
     }
 
     /// Step 2 (F-02): execute the proposed SKR withdrawal after the timelock
     /// to the authority's own SKR ATA.
-    pub fn withdraw_skr_treasury(ctx: Context<WithdrawSkrTreasury>, amount_skr_atoms: u64) -> Result<()> {
-        require!(ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint, GameError::InvalidMint);
+    pub fn withdraw_skr_treasury(
+        ctx: Context<WithdrawSkrTreasury>,
+        amount_skr_atoms: u64,
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.skr_mint.key() == ctx.accounts.config.skr_mint,
+            GameError::InvalidMint
+        );
         // П.40: лимит окна задан в атомах — вывод по минту с другими decimals запрещён.
         require_skr_mint(&ctx.accounts.skr_mint)?;
         require!(amount_skr_atoms > 0, GameError::InvalidAmount);
         let state = &mut ctx.accounts.admin_state;
         let (pending, proposed_at) = state.pending_withdraw(2)?;
         require!(pending > 0, GameError::NoPendingWithdrawal);
-        require!(pending == amount_skr_atoms, GameError::WithdrawAmountMismatch);
+        require!(
+            pending == amount_skr_atoms,
+            GameError::WithdrawAmountMismatch
+        );
         let now = Clock::get()?.unix_timestamp;
         require!(
             now >= proposed_at
@@ -1641,7 +1817,10 @@ pub mod solana_potato {
             amount_skr_atoms,
         )?;
         state.clear_pending_withdraw(2)?;
-        emit!(TreasurySkrWithdrawn { destination: ctx.accounts.authority.key(), amount_skr_atoms });
+        emit!(TreasurySkrWithdrawn {
+            destination: ctx.accounts.authority.key(),
+            amount_skr_atoms
+        });
         Ok(())
     }
 
@@ -1651,7 +1830,9 @@ pub mod solana_potato {
     pub fn migrate_presale_authority(ctx: Context<MigratePresaleAuthority>) -> Result<()> {
         let presale = &mut ctx.accounts.presale_state;
         presale.authority = ctx.accounts.authority.key();
-        emit!(PresaleAuthorityMigrated { authority: presale.authority });
+        emit!(PresaleAuthorityMigrated {
+            authority: presale.authority
+        });
         Ok(())
     }
 
@@ -1665,12 +1846,17 @@ pub mod solana_potato {
         if signer == config.authority {
             config.paused = paused;
         } else {
-            require!(config.guardian != Pubkey::default(), GameError::Unauthorized);
+            require!(
+                config.guardian != Pubkey::default(),
+                GameError::Unauthorized
+            );
             require!(signer == config.guardian, GameError::Unauthorized);
             require!(paused, GameError::Unauthorized);
             config.paused = true;
         }
-        emit!(PausedToggled { paused: config.paused });
+        emit!(PausedToggled {
+            paused: config.paused
+        });
         Ok(())
     }
 
@@ -1684,9 +1870,14 @@ pub mod solana_potato {
 
     /// Step 1 of the two-step authority transfer.
     pub fn propose_authority(ctx: Context<UpdateConfig>, new_authority: Pubkey) -> Result<()> {
-        require!(new_authority != Pubkey::default(), GameError::InvalidAuthority);
+        require!(
+            new_authority != Pubkey::default(),
+            GameError::InvalidAuthority
+        );
         ctx.accounts.config.pending_authority = new_authority;
-        emit!(AuthorityProposed { pending_authority: new_authority });
+        emit!(AuthorityProposed {
+            pending_authority: new_authority
+        });
         Ok(())
     }
 
@@ -1701,7 +1892,10 @@ pub mod solana_potato {
         let previous = config.authority;
         config.authority = config.pending_authority;
         config.pending_authority = Pubkey::default();
-        emit!(AuthorityAccepted { previous, current: config.authority });
+        emit!(AuthorityAccepted {
+            previous,
+            current: config.authority
+        });
         Ok(())
     }
 
@@ -1749,7 +1943,10 @@ pub mod solana_potato {
         require!(new_skr_mint != Pubkey::default(), GameError::InvalidMint);
         // П.40: миграция на минт с другими decimals переоценила бы все SKR-цены
         // на 10^k, поэтому минт проверяется уже на шаге предложения.
-        require!(ctx.accounts.new_skr_mint.key() == new_skr_mint, GameError::InvalidMint);
+        require!(
+            ctx.accounts.new_skr_mint.key() == new_skr_mint,
+            GameError::InvalidMint
+        );
         require_skr_mint(&ctx.accounts.new_skr_mint)?;
         let state = &mut ctx.accounts.admin_state;
         state.pending_skr_mint = new_skr_mint;
@@ -1772,7 +1969,8 @@ pub mod solana_potato {
         );
         let now = Clock::get()?.unix_timestamp;
         require!(
-            now >= state.pending_skr_mint_at
+            now >= state
+                .pending_skr_mint_at
                 .checked_add(ADMIN_UPDATE_TIMELOCK_SECONDS)
                 .ok_or(GameError::MathOverflow)?,
             GameError::TimelockNotExpired
@@ -1780,7 +1978,10 @@ pub mod solana_potato {
         let new_skr_mint = state.pending_skr_mint;
         // П.40: применяется ровно тот минт, что проверен на шаге предложения,
         // и его decimals обязаны совпадать с SKR_DECIMALS.
-        require!(ctx.accounts.skr_mint.key() == new_skr_mint, GameError::InvalidMint);
+        require!(
+            ctx.accounts.skr_mint.key() == new_skr_mint,
+            GameError::InvalidMint
+        );
         require_skr_mint(&ctx.accounts.skr_mint)?;
         ctx.accounts.config.skr_mint = new_skr_mint;
         state.pending_skr_mint = Pubkey::default();
@@ -1797,7 +1998,7 @@ pub mod solana_potato {
         Ok(())
     }
     // ───────────────────────── Migration (devnet → v2) ───────────────────────────
-    
+
     /// Upgrade supported legacy layouts, preserving existing fields and flags.
     /// Authority pays only the target account's rent shortfall; retries are safe.
     pub fn migrate_config(ctx: Context<MigrateConfig>) -> Result<()> {
@@ -1807,32 +2008,63 @@ pub mod solana_potato {
             migrations::authority(&data, &ctx.accounts.authority.key())?;
             migrations::config(&data)?
         };
-        write_migrated_account(&info, &ctx.accounts.authority, &ctx.accounts.system_program, &updated)
+        write_migrated_account(
+            &info,
+            &ctx.accounts.authority,
+            &ctx.accounts.system_program,
+            &updated,
+        )
     }
 
     pub fn migrate_field(ctx: Context<MigrateField>) -> Result<()> {
-        migrations::authority(&ctx.accounts.config.try_borrow_data()?, &ctx.accounts.authority.key())?;
+        migrations::authority(
+            &ctx.accounts.config.try_borrow_data()?,
+            &ctx.accounts.authority.key(),
+        )?;
         let info = ctx.accounts.field.to_account_info();
         let updated = migrations::field(&info.try_borrow_data()?)?;
-        write_migrated_account(&info, &ctx.accounts.authority, &ctx.accounts.system_program, &updated)
+        write_migrated_account(
+            &info,
+            &ctx.accounts.authority,
+            &ctx.accounts.system_program,
+            &updated,
+        )
     }
 
     pub fn migrate_epoch(ctx: Context<MigrateEpoch>) -> Result<()> {
-        migrations::authority(&ctx.accounts.config.try_borrow_data()?, &ctx.accounts.authority.key())?;
+        migrations::authority(
+            &ctx.accounts.config.try_borrow_data()?,
+            &ctx.accounts.authority.key(),
+        )?;
         let info = ctx.accounts.epoch.to_account_info();
-        let updated = migrations::epoch(&info.try_borrow_data()?)?;        let epoch = Epoch::try_deserialize(&mut &updated[..])?;
-        let (expected, _) = Pubkey::find_program_address(&[b"epoch", &epoch.id.to_le_bytes()], ctx.program_id);
+        let updated = migrations::epoch(&info.try_borrow_data()?)?;
+        let epoch = Epoch::try_deserialize(&mut &updated[..])?;
+        let (expected, _) =
+            Pubkey::find_program_address(&[b"epoch", &epoch.id.to_le_bytes()], ctx.program_id);
         require_keys_eq!(info.key(), expected, GameError::BadProof);
-        write_migrated_account(&info, &ctx.accounts.authority, &ctx.accounts.system_program, &updated)
+        write_migrated_account(
+            &info,
+            &ctx.accounts.authority,
+            &ctx.accounts.system_program,
+            &updated,
+        )
     }
 
     /// F-02: normalizes a legacy AdminState (97 bytes) to the current layout
     /// (145 bytes) after the two-step withdrawal fields were appended.
     pub fn migrate_admin_state(ctx: Context<MigrateAdminState>) -> Result<()> {
-        migrations::authority(&ctx.accounts.config.try_borrow_data()?, &ctx.accounts.authority.key())?;
+        migrations::authority(
+            &ctx.accounts.config.try_borrow_data()?,
+            &ctx.accounts.authority.key(),
+        )?;
         let info = ctx.accounts.admin_state.to_account_info();
         let updated = migrations::admin_state(&info.try_borrow_data()?)?;
-        write_migrated_account(&info, &ctx.accounts.authority, &ctx.accounts.system_program, &updated)
+        write_migrated_account(
+            &info,
+            &ctx.accounts.authority,
+            &ctx.accounts.system_program,
+            &updated,
+        )
     }
 
     /// Registers a one-time referral relationship; burns the registration cost.
@@ -1840,9 +2072,12 @@ pub mod solana_potato {
         // F-17: снятие 5 POTATO за регистрацию — трата, гейтим паузой как
         // остальные расходные инструкции.
         require!(!ctx.accounts.config.paused, GameError::Paused);
-        require!(referrer != ctx.accounts.owner.key(), GameError::Unauthorized);
+        require!(
+            referrer != ctx.accounts.owner.key(),
+            GameError::Unauthorized
+        );
         require!(referrer != Pubkey::default(), GameError::Unauthorized);
-        
+
         // One-time registration burns 5 POTATO; market referral rewards are unchanged.
         token::burn(
             CpiContext::new(
@@ -1855,11 +2090,11 @@ pub mod solana_potato {
             ),
             REFERRAL_REGISTRATION_COST_MICRO,
         )?;
-        
+
         ctx.accounts.referral.owner = ctx.accounts.owner.key();
         ctx.accounts.referral.referrer = referrer;
         ctx.accounts.referral.bump = ctx.bumps.referral;
-        
+
         emit!(ReferrerRegistered {
             owner: ctx.accounts.owner.key(),
             referrer,
@@ -1880,9 +2115,14 @@ pub mod solana_potato {
     /// Схема та же, что в `fill_order` — ключ сравнивается с выведенным PDA,
     /// а владелец обязан быть нашей программой, иначе поддельный аккаунт
     /// выдал бы себе тир.
-    pub fn batch_harvest<'info>(ctx: Context<'_, '_, '_, 'info, BatchHarvest<'info>>) -> Result<()> {
+    pub fn batch_harvest<'info>(
+        ctx: Context<'_, '_, '_, 'info, BatchHarvest<'info>>,
+    ) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
-        require!(!ctx.remaining_accounts.is_empty(), GameError::NothingToHarvest);
+        require!(
+            !ctx.remaining_accounts.is_empty(),
+            GameError::NothingToHarvest
+        );
 
         let now = Clock::get()?.unix_timestamp;
 
@@ -1894,7 +2134,9 @@ pub mod solana_potato {
             ctx.program_id,
         );
         let mut licensed = false;
-        let mut fields: &[AccountInfo<'info>] = &ctx.remaining_accounts;
+        // ctx.remaining_accounts уже `&[AccountInfo]` — повторный `&` ловится
+        // clippy needless_borrow (строгой веткой F-22).
+        let mut fields: &[AccountInfo<'info>] = ctx.remaining_accounts;
         if let Some(first) = ctx.remaining_accounts.first() {
             if first.key() == expected_lic {
                 if first.owner == ctx.program_id && !first.data_is_empty() {
@@ -1908,7 +2150,11 @@ pub mod solana_potato {
                 fields = &ctx.remaining_accounts[1..];
             }
         }
-        let limit = if licensed { BATCH_LIMIT_LICENSED } else { BATCH_LIMIT_BASE };
+        let limit = if licensed {
+            BATCH_LIMIT_LICENSED
+        } else {
+            BATCH_LIMIT_BASE
+        };
         require!(!fields.is_empty(), GameError::NothingToHarvest);
         require!(fields.len() <= limit, GameError::InvalidAmount); // лимит полей/батч зависит от лицензии
 
@@ -1921,7 +2167,9 @@ pub mod solana_potato {
         // Проверка supply-налога один раз для всех полей (консервативно)
         let supply_ratio_bps = if max_supply > 0 {
             ((total_supply as u128) * 10_000 / (max_supply as u128)) as u64
-        } else { 0 };
+        } else {
+            0
+        };
         let base_tax_bps: u64 = 200 + (800 * supply_ratio_bps * supply_ratio_bps / 100_000_000);
         let base_tax_bps = base_tax_bps.min(1000);
 
@@ -1933,19 +2181,23 @@ pub mod solana_potato {
         // Собираем данные чтобы проверить лимиты до минта
         // Для защиты от дублей в батче
         for i in 0..fields.len() {
-            for j in (i+1)..fields.len() {
+            for j in (i + 1)..fields.len() {
                 require!(fields[i].key() != fields[j].key(), GameError::BadProof);
             }
         }
         for acc in fields.iter() {
-            require!(acc.owner == ctx.program_id && acc.is_writable, GameError::BadProof);
+            require!(
+                acc.owner == ctx.program_id && acc.is_writable,
+                GameError::BadProof
+            );
             let mut slice: &[u8] = &acc.try_borrow_data()?[..];
             let f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
             require!(f.owner == ctx.accounts.owner.key(), GameError::Unauthorized);
             require!(f.is_active, GameError::FieldInactive);
             let elapsed = now.saturating_sub(f.last_harvest).min(MAX_ACCRUAL_SECONDS);
             require!(elapsed >= MIN_HARVEST_INTERVAL, GameError::HarvestTooSoon);
-            let pending = compute_pending_yield(base_yield, global_bps, &f, elapsed, now, epoch_id)?;
+            let pending =
+                compute_pending_yield(base_yield, global_bps, &f, elapsed, now, epoch_id)?;
             require!(pending > 0, GameError::NothingToHarvest);
             // Тот же split, что и в одиночном harvest (инвариант чек-листа п. 53).
             let (player_yield, treasury_share) = split_harvest(pending, base_tax_bps)?;
@@ -1956,7 +2208,11 @@ pub mod solana_potato {
         }
 
         // Проверка капов (агрегированно)
-        let epoch_cap_left = ctx.accounts.epoch.mint_cap_micro.saturating_sub(ctx.accounts.epoch.minted_micro);
+        let epoch_cap_left = ctx
+            .accounts
+            .epoch
+            .mint_cap_micro
+            .saturating_sub(ctx.accounts.epoch.minted_micro);
         let supply_left = max_supply.saturating_sub(total_supply);
         let available = epoch_cap_left.min(supply_left);
         // Если капа не хватает на весь батч — пропорционально урезаем каждый harvest
@@ -1973,14 +2229,19 @@ pub mod solana_potato {
         require!(scaled_player > 0, GameError::NothingToHarvest);
 
         // Эффекты: обновляем epoch и каждое поле
-        ctx.accounts.epoch.minted_micro = ctx.accounts.epoch.minted_micro
-            .saturating_add(scaled_player).saturating_add(scaled_treasury);
+        ctx.accounts.epoch.minted_micro = ctx
+            .accounts
+            .epoch
+            .minted_micro
+            .saturating_add(scaled_player)
+            .saturating_add(scaled_treasury);
 
         for acc in fields.iter() {
             // All remaining accounts were validated before any state mutation.
             let mut data = acc.try_borrow_mut_data()?;
             let mut slice: &[u8] = &data;
-            let mut f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
+            let mut f =
+                Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
             // Пропорциональный consumed
             let elapsed = now.saturating_sub(f.last_harvest).min(MAX_ACCRUAL_SECONDS);
             let consumed: i64 = if scale_num == scale_den {
@@ -1990,8 +2251,14 @@ pub mod solana_potato {
             };
             let accrual_start = now.saturating_sub(elapsed);
             f.last_harvest = accrual_start.saturating_add(consumed).min(now);
-            let decay_interval = if f.mutation_type == 2 { DURABILITY_DECAY_INTERVAL * 2 } else { DURABILITY_DECAY_INTERVAL };
-            let decay = (consumed / decay_interval).max(1).min(MAX_DURABILITY as i64) as u8;
+            let decay_interval = if f.mutation_type == 2 {
+                DURABILITY_DECAY_INTERVAL * 2
+            } else {
+                DURABILITY_DECAY_INTERVAL
+            };
+            let decay = (consumed / decay_interval)
+                .max(1)
+                .min(MAX_DURABILITY as i64) as u8;
             f.durability = f.durability.saturating_sub(decay);
             write_field_account(&f, &mut data)?;
         }
@@ -2050,7 +2317,10 @@ pub mod solana_potato {
         let config = &mut ctx.accounts.config;
         config.field_count = config.field_count.saturating_sub(1);
         // Anchor `close = owner` в контексте: lamports уходят владельцу, data зануляется.
-        emit!(FieldClosed { owner: ctx.accounts.owner.key(), field: ctx.accounts.field.key() });
+        emit!(FieldClosed {
+            owner: ctx.accounts.owner.key(),
+            field: ctx.accounts.field.key()
+        });
         Ok(())
     }
 
@@ -2062,13 +2332,14 @@ pub mod solana_potato {
         let epoch_id = ctx.accounts.epoch.id;
         require!(
             config.epoch_id
-                >= epoch_id.checked_add(KEEP_EPOCHS).ok_or(GameError::MathOverflow)?,
+                >= epoch_id
+                    .checked_add(KEEP_EPOCHS)
+                    .ok_or(GameError::MathOverflow)?,
             GameError::EpochTooRecent
         );
         msg!("Epoch {} closed, rent returned to payer", epoch_id);
         Ok(())
     }
-
 }
 
 /// Anchor AccountSerialize writes the discriminator AND payload. Remaining
@@ -2102,7 +2373,10 @@ pub fn charge_epoch_grant(epoch: &mut Epoch, amount_micro: u64) -> Result<()> {
         .minted_micro
         .checked_add(amount_micro)
         .ok_or(GameError::MathOverflow)?;
-    require!(new_minted <= epoch.mint_cap_micro, GameError::EpochCapExceeded);
+    require!(
+        new_minted <= epoch.mint_cap_micro,
+        GameError::EpochCapExceeded
+    );
     epoch.minted_micro = new_minted;
     Ok(())
 }
@@ -2170,13 +2444,13 @@ pub fn durability_mult_bps(durability: u8) -> u128 {
 pub fn calculate_fee_bps(amount_micro: u64) -> u16 {
     // Прогрессивная комиссия 9% – 12% (от объёма ордера)
     if amount_micro < 1_000_000_000 {
-        900    // < 1k POTATO:   9%
+        900 // < 1k POTATO:   9%
     } else if amount_micro < 10_000_000_000 {
-        1_000  // < 10k POTATO:  10%
+        1_000 // < 10k POTATO:  10%
     } else if amount_micro < 100_000_000_000 {
-        1_100  // < 100k POTATO: 11%
+        1_100 // < 100k POTATO: 11%
     } else {
-        1_200  // >= 100k POTATO: 12%
+        1_200 // >= 100k POTATO: 12%
     }
 }
 
@@ -2215,7 +2489,10 @@ pub fn split_harvest(gross_micro: u64, tax_bps: u64) -> Result<(u64, u64)> {
 
 /// Extends a deadline by `period`, starting from `max(current, now)`.
 fn extend_timer(current: i64, now: i64, period: i64) -> Result<i64> {
-    current.max(now).checked_add(period).ok_or(GameError::MathOverflow.into())
+    current
+        .max(now)
+        .checked_add(period)
+        .ok_or(GameError::MathOverflow.into())
 }
 
 /// Time-weighted lunar multiplier (bps) for an accrual window of `elapsed`
@@ -2234,7 +2511,8 @@ pub fn lunar_weighted_bps(elapsed: i64, epoch_id: u64) -> u128 {
     while remaining > 0 {
         let chunk = remaining.min(SECONDS_PER_DAY);
         let idx = ((epoch_id as i128 - age_days).rem_euclid(28)) as usize;
-        weighted = weighted.saturating_add((LUNAR_TABLE[idx] as u128).saturating_mul(chunk as u128));
+        weighted =
+            weighted.saturating_add((LUNAR_TABLE[idx] as u128).saturating_mul(chunk as u128));
         remaining -= chunk;
         age_days += 1;
     }
@@ -2251,11 +2529,19 @@ pub fn compute_pending_yield(
     now: i64,
     epoch_id: u64,
 ) -> Result<u64> {
-    let tax_bps = if now > field.tax_paid_until { UNPAID_TAX_YIELD_BPS } else { BPS };
-    let fert_bps = if now < field.fertilizer_until { FERTILIZER_YIELD_BPS } else { BPS };
+    let tax_bps = if now > field.tax_paid_until {
+        UNPAID_TAX_YIELD_BPS
+    } else {
+        BPS
+    };
+    let fert_bps = if now < field.fertilizer_until {
+        FERTILIZER_YIELD_BPS
+    } else {
+        BPS
+    };
     // Golden Sprout (mutation_type = 1): +25% yield навсегда
     let mutation_bps: u128 = match field.mutation_type {
-        1 => 12_500,  // 1.25× = 12500 bps
+        1 => 12_500, // 1.25× = 12500 bps
         _ => BPS,
     };
     // Лунный цикл: взвешенный по сегментам множитель. Начисление может
@@ -2282,7 +2568,6 @@ pub fn compute_pending_yield(
     }
     Ok(u64::try_from(value).unwrap_or(u64::MAX))
 }
-
 
 // ВНИМАНИЕ: используем UncheckedAccount чтобы избежать deserialization
 // старых аккаунтов (меньшего размера) до realloc.
@@ -2352,12 +2637,19 @@ fn write_migrated_account<'info>(
     system_program: &Program<'info, System>,
     data: &[u8],
 ) -> Result<()> {
-    let shortfall = Rent::get()?.minimum_balance(data.len()).saturating_sub(account.lamports());
+    let shortfall = Rent::get()?
+        .minimum_balance(data.len())
+        .saturating_sub(account.lamports());
     if shortfall > 0 {
         anchor_lang::system_program::transfer(
-            CpiContext::new(system_program.to_account_info(), anchor_lang::system_program::Transfer {
-                from: authority.to_account_info(), to: account.clone(),
-            }), shortfall,
+            CpiContext::new(
+                system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: authority.to_account_info(),
+                    to: account.clone(),
+                },
+            ),
+            shortfall,
         )?;
     }
     if account.data_len() != data.len() {
@@ -2391,8 +2683,8 @@ fn require_skr_mint_info(acc: &AccountInfo) -> Result<()> {
     require!(*acc.owner == SPL_TOKEN_PROGRAM, GameError::InvalidMint);
     require!(!acc.data_is_empty(), GameError::InvalidMint);
     let data = acc.try_borrow_data()?;
-    let mint = Mint::try_deserialize(&mut &data[..])
-        .map_err(|_| error!(GameError::InvalidSkrDecimals))?;
+    let mint =
+        Mint::try_deserialize(&mut &data[..]).map_err(|_| error!(GameError::InvalidSkrDecimals))?;
     require!(mint.decimals == SKR_DECIMALS, GameError::InvalidSkrDecimals);
     Ok(())
 }
@@ -3241,8 +3533,8 @@ pub struct GameConfig {
     pub authority: Pubkey,
     pub pending_authority: Pubkey,
     pub potato_mint: Pubkey,
-    pub skr_mint: Pubkey,              // S-01: конфигурируемый SKR mint (mainnet мигрируется без redeploy)
-    pub reward_signer: Pubkey,         // S-03: low-priv ключ для grant_reward (backend), отделён от authority
+    pub skr_mint: Pubkey, // S-01: конфигурируемый SKR mint (mainnet мигрируется без redeploy)
+    pub reward_signer: Pubkey, // S-03: low-priv ключ для grant_reward (backend), отделён от authority
     pub max_supply_micro: u64,
     pub daily_mint_cap_micro: u64,
     pub base_yield_micro_per_day: u64,
@@ -3250,14 +3542,13 @@ pub struct GameConfig {
     pub field_count: u64,
     pub epoch_id: u64,
     pub total_burned_micro: u64,
-    pub last_total_burned_micro: u64,  // для эластичного капа: значение total_burned на момент прошлого roll_epoch
+    pub last_total_burned_micro: u64, // для эластичного капа: значение total_burned на момент прошлого roll_epoch
     pub paused: bool,
     pub bump: u8,
     /// F-02: guardian — ключ экстренной паузы, отделённый от authority.
     /// Может только `set_paused(true)`; `Pubkey::default()` = не задан.
     pub guardian: Pubkey,
 }
-
 
 /// Состояние пресейла полей за SOL. PDA seeds: `["presale"]`
 #[account]
@@ -3292,7 +3583,7 @@ pub struct Field {
     pub is_active: bool,
     pub field_type: u8,
     pub bump: u8,
-    pub mutation_type: u8,  // 0=None, 1=Golden (+25% yield), 2=Silicon (decay ÷2)
+    pub mutation_type: u8, // 0=None, 1=Golden (+25% yield), 2=Silicon (decay ÷2)
 }
 
 /// One 24h emission window. PDA seeds: `["epoch", id.to_le_bytes()]`.
@@ -3352,7 +3643,10 @@ impl AdminState {
     /// (amount, proposed_at) по активу kind: 0=POTATO, 1=SOL, 2=SKR.
     pub fn pending_withdraw(&self, kind: u8) -> Result<(u64, i64)> {
         match kind {
-            0 => Ok((self.pending_withdraw_potato, self.pending_withdraw_potato_at)),
+            0 => Ok((
+                self.pending_withdraw_potato,
+                self.pending_withdraw_potato_at,
+            )),
             1 => Ok((self.pending_withdraw_sol, self.pending_withdraw_sol_at)),
             2 => Ok((self.pending_withdraw_skr, self.pending_withdraw_skr_at)),
             _ => err!(GameError::InvalidWithdrawKind),
@@ -3361,9 +3655,18 @@ impl AdminState {
 
     pub fn set_pending_withdraw(&mut self, kind: u8, amount: u64, at: i64) -> Result<()> {
         match kind {
-            0 => { self.pending_withdraw_potato = amount; self.pending_withdraw_potato_at = at; }
-            1 => { self.pending_withdraw_sol = amount; self.pending_withdraw_sol_at = at; }
-            2 => { self.pending_withdraw_skr = amount; self.pending_withdraw_skr_at = at; }
+            0 => {
+                self.pending_withdraw_potato = amount;
+                self.pending_withdraw_potato_at = at;
+            }
+            1 => {
+                self.pending_withdraw_sol = amount;
+                self.pending_withdraw_sol_at = at;
+            }
+            2 => {
+                self.pending_withdraw_skr = amount;
+                self.pending_withdraw_skr_at = at;
+            }
             _ => return err!(GameError::InvalidWithdrawKind),
         }
         Ok(())
@@ -3392,11 +3695,10 @@ pub struct RewardClaim {
 #[account]
 #[derive(InitSpace)]
 pub struct Referral {
-    pub owner: Pubkey,     // кому принадлежит
-    pub referrer: Pubkey,  // кто пригласил (Pubkey::default() = нет)
+    pub owner: Pubkey,    // кому принадлежит
+    pub referrer: Pubkey, // кто пригласил (Pubkey::default() = нет)
     pub bump: u8,
 }
-
 
 /// A sell order. PDA seeds: `["order", order_id.to_le_bytes()]`; its escrow
 /// token account is `["escrow", order_pubkey]`. Closed on fill/cancel/expiry.
@@ -3448,7 +3750,9 @@ pub struct SellerProfile {
     pub bump: u8,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, Default, InitSpace)]
+#[derive(
+    AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, Default, InitSpace,
+)]
 pub enum OrderStatus {
     #[default]
     Active,
@@ -3673,7 +3977,7 @@ pub struct RewardSignerUpdated {
 #[error_code]
 pub enum GameError {
     AlreadyClaimed, // 6000
-    BadProof, // 6001
+    BadProof,       // 6001
     #[msg("Game is paused")]
     Paused, // 6002
     #[msg("Field is not active")]
@@ -3798,7 +4102,11 @@ mod tests {
     #[test]
     fn level_multiplier_is_strictly_increasing() {
         for l in 1..MAX_FIELD_LEVEL {
-            assert!(get_level_mult(l + 1) > get_level_mult(l), "level {l} -> {}", l + 1);
+            assert!(
+                get_level_mult(l + 1) > get_level_mult(l),
+                "level {l} -> {}",
+                l + 1
+            );
         }
         assert_eq!(get_level_mult(1), 10_000);
         assert_eq!(get_level_mult(5), 28_600);
@@ -3831,8 +4139,15 @@ mod tests {
     #[test]
     fn one_day_yield_of_reference_field_is_base_yield() {
         let f = field(1, 100, 1);
-        let y = compute_pending_yield(DEFAULT_BASE_YIELD_MICRO_PER_DAY, 10_000, &f, SECONDS_PER_DAY, 1, 0)
-            .unwrap();
+        let y = compute_pending_yield(
+            DEFAULT_BASE_YIELD_MICRO_PER_DAY,
+            10_000,
+            &f,
+            SECONDS_PER_DAY,
+            1,
+            0,
+        )
+        .unwrap();
         assert_eq!(y, DEFAULT_BASE_YIELD_MICRO_PER_DAY);
     }
 
@@ -3859,8 +4174,15 @@ mod tests {
     fn weekly_yield_covers_tax_at_level_one() {
         for t in 0..FIELD_TYPE_COUNT {
             let f = field(1, 100, t);
-            let weekly =
-                compute_pending_yield(DEFAULT_BASE_YIELD_MICRO_PER_DAY, 10_000, &f, TAX_PERIOD, 1, 0).unwrap();
+            let weekly = compute_pending_yield(
+                DEFAULT_BASE_YIELD_MICRO_PER_DAY,
+                10_000,
+                &f,
+                TAX_PERIOD,
+                1,
+                0,
+            )
+            .unwrap();
             let tax = scaled_cost(BASE_TAX_MICRO, t);
             assert!(weekly > tax * 3, "type {t}: weekly {weekly} vs tax {tax}");
         }
@@ -3869,8 +4191,14 @@ mod tests {
     #[test]
     fn lunar_weight_is_segment_weighted_over_trailing_days() {
         // Одна эпоха назад = ровно табличное значение текущей эпохи.
-        assert_eq!(lunar_weighted_bps(SECONDS_PER_DAY, 0), LUNAR_TABLE[0] as u128);
-        assert_eq!(lunar_weighted_bps(SECONDS_PER_DAY, 3), LUNAR_TABLE[3] as u128);
+        assert_eq!(
+            lunar_weighted_bps(SECONDS_PER_DAY, 0),
+            LUNAR_TABLE[0] as u128
+        );
+        assert_eq!(
+            lunar_weighted_bps(SECONDS_PER_DAY, 3),
+            LUNAR_TABLE[3] as u128
+        );
         // elapsed = 0 → текущая эпоха.
         assert_eq!(lunar_weighted_bps(0, 27), LUNAR_TABLE[27] as u128);
         // Двое суток, epoch_id = 0: средняя между LUNAR[0] и LUNAR[27].
@@ -3917,7 +4245,10 @@ mod tests {
         let cap = MAX_DAILY_CAP_MICRO; // 250k 🥔
         let quota = ((cap as u128) * GRANT_QUOTA_SHARE_BPS as u128 / BPS) as u64;
         assert_eq!(quota, 25_000_000_000); // 25k 🥔
-        assert!(quota >= MAX_REWARD_MICRO, "single max reward must fit in quota");
+        assert!(
+            quota >= MAX_REWARD_MICRO,
+            "single max reward must fit in quota"
+        );
     }
 
     #[test]
@@ -3984,7 +4315,16 @@ mod tests {
         let mut data = vec![0; 8 + Field::INIT_SPACE];
         write_field_account(&f, &mut data).unwrap();
         let mut lamports = 1;
-        let account = AccountInfo::new(&key, false, false, &mut lamports, &mut data, &program, false, 0);
+        let account = AccountInfo::new(
+            &key,
+            false,
+            false,
+            &mut lamports,
+            &mut data,
+            &program,
+            false,
+            0,
+        );
         let accounts = [account.clone()];
         assert!(verify_fields(&accounts, &user, &program, 1, 3).is_ok());
         assert!(verify_fields(&[account.clone(), account.clone()], &user, &program, 2, 0).is_err());
@@ -3997,9 +4337,15 @@ mod tests {
         assert_eq!(8 + Field::INIT_SPACE, 70);
         assert_eq!(8 + MarketOrder::INIT_SPACE, 83);
         // GameConfig: 32*5 (authority,pending,potato,skr,reward) + 8*4 +2+8*3+1+1
-        assert_eq!(8 + GameConfig::INIT_SPACE, 8 + 32 * 6 + 8 * 4 + 2 + 8 * 3 + 1 + 1);
+        assert_eq!(
+            8 + GameConfig::INIT_SPACE,
+            8 + 32 * 6 + 8 * 4 + 2 + 8 * 3 + 1 + 1
+        );
         // AdminState: i64 + 3*u64 + Pubkey + i64 + u64 + i64 + u8
-        assert_eq!(8 + AdminState::INIT_SPACE, 8 + 8 + 24 + 32 + 8 + 8 + 8 + 1 + 8 * 6);
+        assert_eq!(
+            8 + AdminState::INIT_SPACE,
+            8 + 8 + 24 + 32 + 8 + 8 + 8 + 1 + 8 * 6
+        );
     }
 
     // ─────────────── Security checklist 2026-09-25 ───────────────
@@ -4033,7 +4379,10 @@ mod tests {
         // П. 15: прогрессия тиров 9–12 % без выбросов на границах диапазона.
         for amount in [0u64, 1, MIN_ORDER_AMOUNT_MICRO, u64::MAX] {
             let bps = calculate_fee_bps(amount);
-            assert!((900u16..=1_200).contains(&bps), "tier {bps} out of range at {amount}");
+            assert!(
+                (900u16..=1_200).contains(&bps),
+                "tier {bps} out of range at {amount}"
+            );
         }
     }
 
@@ -4044,9 +4393,19 @@ mod tests {
         let f = field(MAX_FIELD_LEVEL, MAX_DURABILITY, 2);
         let y = compute_pending_yield(u64::MAX, u16::MAX, &f, MAX_ACCRUAL_SECONDS, 1, u64::MAX)
             .expect("checked math must not overflow-panic");
-        assert_eq!(y, u64::MAX, "extreme yield is capped at u64::MAX, never panics");
-        assert_eq!(compute_pending_yield(u64::MAX, u16::MAX, &f, 0, 0, 0).unwrap(), 0);
-        assert_eq!(compute_pending_yield(6_000_000, 10_000, &f, -1, 0, 0).unwrap(), 0);
+        assert_eq!(
+            y,
+            u64::MAX,
+            "extreme yield is capped at u64::MAX, never panics"
+        );
+        assert_eq!(
+            compute_pending_yield(u64::MAX, u16::MAX, &f, 0, 0, 0).unwrap(),
+            0
+        );
+        assert_eq!(
+            compute_pending_yield(6_000_000, 10_000, &f, -1, 0, 0).unwrap(),
+            0
+        );
     }
 
     #[test]
@@ -4068,7 +4427,14 @@ mod tests {
         let mut min = u128::MAX;
         let mut max = 0u128;
         for epoch in 0..2_000u64 {
-            for elapsed in [0i64, 1, 3_600, SECONDS_PER_DAY, 2 * SECONDS_PER_DAY, MAX_ACCRUAL_SECONDS] {
+            for elapsed in [
+                0i64,
+                1,
+                3_600,
+                SECONDS_PER_DAY,
+                2 * SECONDS_PER_DAY,
+                MAX_ACCRUAL_SECONDS,
+            ] {
                 let w = lunar_weighted_bps(elapsed, epoch);
                 min = min.min(w);
                 max = max.max(w);
@@ -4122,7 +4488,9 @@ mod tests {
             let key: &'static Pubkey = Box::leak(Box::new(Pubkey::new_unique()));
             let lamports: &'static mut u64 = Box::leak(Box::new(1u64));
             let acc_data: &'static mut Vec<u8> = Box::leak(Box::new(data.clone()));
-            accounts.push(AccountInfo::new(key, false, false, lamports, acc_data, &program, false, 0));
+            accounts.push(AccountInfo::new(
+                key, false, false, lamports, acc_data, &program, false, 0,
+            ));
         }
         assert!(verify_fields(&accounts, &user, &program, 1, 0).is_err());
         accounts.pop();
@@ -4185,8 +4553,15 @@ mod tests {
             let fee = order_fee_micro(amount).expect("fee computable for every u64 amount");
             let bps = calculate_fee_bps(amount) as u128;
             assert!(fee <= amount, "fee {fee} exceeds amount {amount}");
-            assert_eq!(fee, (amount as u128 * bps / BPS) as u64, "rounding at {amount}");
-            assert!((900..=1_200).contains(&(bps as u16)), "tier {bps} at {amount}");
+            assert_eq!(
+                fee,
+                (amount as u128 * bps / BPS) as u64,
+                "rounding at {amount}"
+            );
+            assert!(
+                (900..=1_200).contains(&(bps as u16)),
+                "tier {bps} at {amount}"
+            );
         }
     }
 
@@ -4212,7 +4587,10 @@ mod tests {
         assert_eq!(split_harvest(1_000_000, 1_000).unwrap(), (900_000, 50_000));
         assert_eq!(split_harvest(1_000_000, 10_000).unwrap(), (0, 500_000));
         // Потолок налога: >100 % зажимается, а не обнуляет плеера сверх меры.
-        assert_eq!(split_harvest(1_000_000, 60_000).unwrap(), split_harvest(1_000_000, 10_000).unwrap());
+        assert_eq!(
+            split_harvest(1_000_000, 60_000).unwrap(),
+            split_harvest(1_000_000, 10_000).unwrap()
+        );
     }
 
     #[test]
@@ -4229,12 +4607,20 @@ mod tests {
         for _ in 0..2_000 {
             // supply всегда <= max_supply (этот инвариант держит программа).
             let supply = rng.below(max_supply + 1);
-            assert!((200..=1_000).contains(&curve(supply)), "tax {} at supply {}", curve(supply), supply);
+            assert!(
+                (200..=1_000).contains(&curve(supply)),
+                "tax {} at supply {}",
+                curve(supply),
+                supply
+            );
         }
         let mut previous = 0u64;
         for step in 0..200u64 {
             let tax = curve(max_supply / 200 * step);
-            assert!(tax >= previous, "tax curve must be non-decreasing in supply");
+            assert!(
+                tax >= previous,
+                "tax curve must be non-decreasing in supply"
+            );
             previous = tax;
         }
     }
@@ -4266,7 +4652,10 @@ mod tests {
             for day in 1..=MAX_ACCRUAL_SECONDS / SECONDS_PER_DAY {
                 let y = compute_pending_yield(base, global, &f, day * SECONDS_PER_DAY, now, epoch)
                     .expect("checked chain must not panic");
-                assert!(y >= previous, "yield shrank after waiting longer (day {day})");
+                assert!(
+                    y >= previous,
+                    "yield shrank after waiting longer (day {day})"
+                );
                 previous = y;
             }
         }
@@ -4311,7 +4700,13 @@ mod tests {
     }
 }
 
-fn verify_fields(accs: &[AccountInfo], user: &Pubkey, program: &Pubkey, min: usize, min_level: u8) -> Result<()> {
+fn verify_fields(
+    accs: &[AccountInfo],
+    user: &Pubkey,
+    program: &Pubkey,
+    min: usize,
+    min_level: u8,
+) -> Result<()> {
     require!(accs.len() >= min, GameError::BadProof);
     // Верхняя граница: O(n²) проверка дублей с n в тысячи аккаунтов — это
     // DoS по CU (и превышение лимита транзакции). Клиент режет поля сам.
@@ -4330,7 +4725,9 @@ fn verify_fields(accs: &[AccountInfo], user: &Pubkey, program: &Pubkey, min: usi
         let mut slice: &[u8] = &data;
         let f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
         require!(f.owner == *user, GameError::BadProof);
-        if f.level >= min_level { saw_level = true; }
+        if f.level >= min_level {
+            saw_level = true;
+        }
     }
     require!(saw_level, GameError::BadProof);
     Ok(())
@@ -4426,4 +4823,11 @@ pub struct AchievementClaimed {
     pub reward: u64,
 }
 
-pub const QUEST_REWARD_MICRO: [u64; 6] = [50_000_000, 50_000_000, 100_000_000, 100_000_000, 200_000_000, 50_000_000];
+pub const QUEST_REWARD_MICRO: [u64; 6] = [
+    50_000_000,
+    50_000_000,
+    100_000_000,
+    100_000_000,
+    200_000_000,
+    50_000_000,
+];

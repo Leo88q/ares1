@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program, BN } from "@coral-xyz/anchor";
-import { Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_SLOT_HASHES_PUBKEY, Transaction } from "@solana/web3.js";
+import { AddressLookupTableAccount, AddressLookupTableProgram, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY, SYSVAR_SLOT_HASHES_PUBKEY, Transaction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   AuthorityType,
@@ -17,6 +17,37 @@ import {
 } from "@solana/spl-token";
 import { assert, expect } from "chai";
 import { SolanaPotato } from "../target/types/solana_potato";
+import fs from "node:fs";
+
+/**
+ * Диагностика в GITHUB_STEP_SUMMARY: логи job'а из API-окружений шифруются
+ * (аннотации-файлы нечитаемы), а summary читаем по Checks API. Локально — no-op.
+ */
+const stepDiag = (title: string, info: Record<string, unknown>) => {
+  // Кадры из нашего тест-файла = точные строки локализации (остальной stack —
+  // internals web3.js/anchor, в аннотацию не берём: длинные шифруются).
+  const stack = typeof info.err === "string" ? info.err : "";
+  const ourFrames = stack
+    .split("\n")
+    .filter(l => l.includes("solana_potato.ts"))
+    .map(l => l.replace(/^.*solana_potato\.ts/, "solana_potato.ts"))
+    .slice(0, 4)
+    .join(" | ");
+  const flat =
+    JSON.stringify({ ...info, err: (stack || "").split("\n")[0] }).slice(0, 300) +
+    (ourFrames ? ` frames: ${ourFrames.slice(0, 250)}` : "");
+  // Короткая workflow-аннотация — читаемый канал в CI (длинные лог-фрагменты
+  // GitHub шифрует в API). Локально — просто вывод в лог.
+  const line = `premium-diag ${title}: ${flat}`;
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    try {
+      fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### premium-tier diag: ${title}\n\n\`\`\`json\n${JSON.stringify(info, null, 1).slice(0, 2500)}\n\`\`\`\n`);
+    } catch {
+      /* локальный прогон */
+    }
+  }
+  console.error(`::error file=game/tests/solana_potato.ts line=1812::${line}`);
+};
 
 const MICRO = 1_000_000n;
 const u64 = (v: bigint | number) => {
@@ -1603,6 +1634,93 @@ describe("solana_potato", () => {
         ...dummies(n),
       ]).rpc();
 
+    // ── v0 + ALT: единственный физически возможный способ донести 30 полей ──
+    // Legacy-транзакция ограничена 1232 байтами: 30 writable-аккаунтов (33B
+    // каждый) + фиксированные не влезают (см. docs к BATCH_LIMIT_LICENSED).
+    // Клиент держит поля в ALT (GameContext.ensureLut) — тест повторяет тот же
+    // механизм, иначе границу 30/31 в принципе нельзя проверить.
+    const sendSigned = async (tx: Transaction | VersionedTransaction, signers: Keypair[]) => {
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+      if (tx instanceof Transaction) tx.recentBlockhash = blockhash;
+      tx.sign(...signers);
+      const sig = await connection.sendRawTransaction(tx.serialize());
+      await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+    };
+    const makeAlt = async (addresses: PublicKey[]): Promise<AddressLookupTableAccount> => {
+      const slot = await lutSlot();
+      const [createIx, lutAddr] = AddressLookupTableProgram.createLookupTable({
+        authority: admin.publicKey, payer: admin.publicKey, recentSlot: slot,
+      });
+      await sendSigned(new Transaction({ feePayer: admin.publicKey }).add(createIx), [admin]);
+      for (let i = 0; i < addresses.length; i += 20) {
+        // не более 20 адресов на extend; каждая tx подтверждена ⇒ новый слот
+        const extendIx = AddressLookupTableProgram.extendLookupTable({
+          payer: admin.publicKey, authority: admin.publicKey, lookupTable: lutAddr,
+          addresses: addresses.slice(i, i + 20),
+        });
+        await sendSigned(new Transaction({ feePayer: admin.publicKey }).add(extendIx), [admin]);
+      }
+      // Параметр называется authority (владелец LUT = тот, кто его создал),
+      // а не freezer — иная опечатка роняет tx в compileMessage с
+      // «pubkey undefined» (web3.js не валидирует имена параметров).
+      const freezeIx = AddressLookupTableProgram.freezeLookupTable({
+        authority: admin.publicKey, lookupTable: lutAddr,
+      });
+      await sendSigned(new Transaction({ feePayer: admin.publicKey }).add(freezeIx), [admin]);
+      const alt = await connection.getAddressLookupTable(lutAddr);
+      if (!alt.value) throw new Error(`ALT ${lutAddr.toBase58()} не найден после create/extend/freeze`);
+      return alt.value;
+    };
+    // Slot для CreateLookupTable обязан быть в sysvar SlotHashes (программа
+    // отклоняет слоты без блока на main fork: «N is not a recent slot»).
+    // getSlot() (processed) на нагруженном localnet может вернуть слот,
+    // который до исполнения tx откалится (дедлайн блока, смена ветки).
+    // Finalized-слот по определению лежит на main fork, а окно программы
+    // 150 слотов против отставания finality ~2 — расхождение невозможно.
+    const lutSlot = async (): Promise<number> => connection.getSlot("finalized");
+
+    const expectV0Fail = async (alt: AddressLookupTableAccount, fields: PublicKey[], customCode: number, label: string) => {
+      const ix = await program.methods.batchHarvest().accountsPartial({
+        config: configPda, epoch: epochPda(0), potatoMint: mint, userPotato: holderPotatoAta,
+        treasuryPotato: treasuryAta, owner: holder.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      }).signers([holder]).remainingAccounts([
+        { pubkey: licensePda(holder.publicKey), isSigner: false, isWritable: false },
+        ...fields.map(pk => ({ pubkey: pk, isSigner: false, isWritable: true })),
+      ]).instruction();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+      const msg = new TransactionMessage({
+        payerKey: holder.publicKey, recentBlockhash: blockhash, instructions: [ix],
+      }).compileToV0Message([alt]);
+      const vtx = new VersionedTransaction(msg);
+      vtx.sign([holder]);
+      const v0Size = vtx.serialize().length;
+      // Preflight выключен: ожидаем ошибку программы (Custom-код), она
+      // видна по meta.err после включения tx в блок.
+      let sig: string;
+      try {
+        sig = await connection.sendRawTransaction(vtx.serialize(), { skipPreflight: true });
+      } catch (e) {
+        stepDiag(label, { phase: "sendRawTransaction", v0Size, err: (e as Error).stack || String(e) });
+        throw e;
+      }
+      let tx;
+      try {
+        await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+        tx = await connection.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+      } catch (e) {
+        stepDiag(label, { phase: "confirm/getTransaction", v0Size, sig, err: (e as Error).stack || String(e) });
+        throw e;
+      }
+      const errJson = JSON.stringify(tx?.meta?.err ?? null);
+      expect(errJson, `${label}: tx должна упасть`).to.not.equal("null");
+      if (!errJson.includes(`"Custom":${customCode}`)) {
+        // Только при mismatch — чтобы на зелёном прогоне ::error-аннотаций не было
+        stepDiag(label, { phase: "result", v0Size, sig, expected: `Custom ${customCode}`, gotErr: (errJson || "").slice(0, 800) });
+      }
+      expect(errJson, `${label}: ожидается Custom(${customCode})`).to.contain(`"Custom":${customCode}`);
+    };
+
     let holderPotatoAta: PublicKey;
 
     before(async () => {
@@ -1645,13 +1763,68 @@ describe("solana_potato", () => {
       expect(await ataBalance(userSkrAta)).to.eq(0n);
     });
 
+    it("кошельку без 500 SKR отказывают — лицензия не продлевается, казна не тронута (roadmap M0)", async () => {
+      // holder после покупки выше имеет 0 SKR в ATA. Покупка падает на
+      // token::transfer (InsufficientFunds) до любых записей: транзакция
+      // откатывается целиком.
+      const userSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, holder.publicKey)).address;
+      const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, treasurySolPda, true)).address;
+      const licBefore = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
+      const treasuryBefore = await ataBalance(treasurySkrAta);
+
+      await expectFail(
+        program.methods.buyExportLicense().accountsPartial({
+          config: configPda, license: licensePda(holder.publicKey), payer: holder.publicKey,
+          skrMint, userSkrAta, treasurySol: treasurySolPda, treasurySkrAta,
+          tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        }).signers([holder]).rpc(),
+      );
+
+      expect(await ataBalance(treasurySkrAta)).to.eq(treasuryBefore);
+      const licAfter = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
+      expect(licAfter.expiresAt.eq(licBefore.expiresAt)).to.be.true;
+    });
+
+    it("повторная покупка с активной лицензией продлевает на +30 дней от старого срока (roadmap M0)", async () => {
+      // Разветвление программы: активная лицензия продлевается
+      // checked_add(30 дней) от ТЕКУЩЕГО expires_at, а не от now — иначе
+      // ранняя повторная покупка сжигала бы ещё не нажитые дни.
+      const userSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, holder.publicKey)).address;
+      const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, treasurySolPda, true)).address;
+      await mintTo(connection, admin, skrMint, userSkrAta, admin, 500_000_000);
+      const lic1 = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
+      const treasuryBefore = await ataBalance(treasurySkrAta);
+
+      await program.methods.buyExportLicense().accountsPartial({
+        config: configPda, license: licensePda(holder.publicKey), payer: holder.publicKey,
+        skrMint, userSkrAta, treasurySol: treasurySolPda, treasurySkrAta,
+        tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+      }).signers([holder]).rpc();
+
+      const lic2 = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
+      expect(lic2.expiresAt.sub(lic1.expiresAt).toNumber()).to.eq(30 * 86400);
+      expect(await ataBalance(treasurySkrAta) - treasuryBefore).to.eq(500_000_000n);
+      expect(await ataBalance(userSkrAta)).to.eq(0n);
+    });
+
     it("с активной лицензией 11 полей проходят лимит (падают позже на BadProof)", async () => {
       await expectFail(batch(11, true), "BadProof");
     });
 
-    it("граница премиум-тира: 30 полей проходят, 31 — InvalidAmount", async () => {
-      await expectFail(batch(30, true), "BadProof");
-      await expectFail(batch(31, true), "InvalidAmount");
+    it("граница премиум-тира: 30 полей проходят, 31 — InvalidAmount (v0 + ALT)", async () => {
+      // 30 writable-аккаунтов не влезают в legacy-транзакцию (лимит 1232B),
+      // поэтому граница проверяется через v0 + ALT — тот же путь, что и клиент.
+      try {
+        const fields31 = Array.from({ length: 31 }, () => PublicKey.unique());
+        const alt = await makeAlt(fields31);
+        await expectV0Fail(alt, fields31.slice(0, 30), 6001, "30 полей"); // BadProof: лимит пройден, упёрлись в проверку полей
+        await expectV0Fail(alt, fields31, 6010, "31 поле");               // InvalidAmount: 31 > BATCH_LIMIT_LICENSED
+      } catch (e) {
+        stepDiag("тест-уровень", { err: (e as Error).stack || String(e) });
+        throw e;
+      }
     });
 
     it("те же 11 полей без PDA лицензии по-прежнему InvalidAmount", async () => {

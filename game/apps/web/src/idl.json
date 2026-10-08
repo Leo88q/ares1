@@ -286,7 +286,15 @@
         "Экономия: 1 подпись вместо N, 1 CU-оплата, 1 приоритетная комиссия.",
         "Все поля проверяются: owner == signer, is_active, интервал, кроме того",
         "агрегированный mint ограничен капом эпохи и max_supply.",
-        "Использует remaining_accounts как список Field PDAs."
+        "Использует remaining_accounts как список Field PDAs.",
+        "",
+        "Премиум-тир: PDA экспортной лицензии (seeds `[b\"license\", owner]`),",
+        "переданный ПЕРВЫМ элементом remaining_accounts, поднимает лимит батча",
+        "с `BATCH_LIMIT_BASE` до `BATCH_LIMIT_LICENSED`. Лицензия передаётся",
+        "read-only и опционально: если её нет, действует базовый лимит.",
+        "Схема та же, что в `fill_order` — ключ сравнивается с выведенным PDA,",
+        "а владелец обязан быть нашей программой, иначе поддельный аккаунт",
+        "выдал бы себе тир."
       ],
       "discriminator": [
         4,
@@ -3068,7 +3076,20 @@
       "name": "initialize",
       "docs": [
         "Creates the singleton `GameConfig`. The $POTATO mint must already have",
-        "the config PDA as its mint authority, 6 decimals and no freeze authority."
+        "the config PDA as its mint authority, 6 decimals and no freeze authority.",
+        "",
+        "SKR-минт по умолчанию — пиновая константа `SKR_MINT`; вызов без",
+        "`remaining_accounts` ведёт себя побайтово как раньше. Деплоер может",
+        "передать собственный SKR-минт ПЕРВЫМ элементом `remaining_accounts` —",
+        "это нужно для localnet, где константный devnet-минт не существует и его",
+        "нельзя наминтить, из-за чего все SKR-рельсы (включая `buy_export_license`)",
+        "были непроверяемы. Минт обязан принадлежать SPL Token и иметь",
+        "`SKR_DECIMALS` знаков, иначе все SKR-цены съехали бы на 10^k.",
+        "",
+        "Доверие: подписант `initialize` и так становится `authority` и",
+        "`reward_signer`, то есть полностью контролирует конфиг, — дополнительный",
+        "минт не расширяет его возможности. Все последующие замены минта идут",
+        "только через двухшаговый `update_skr_mint` под 24-часовым таймлоком."
       ],
       "discriminator": [
         175,
