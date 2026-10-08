@@ -380,11 +380,28 @@ test('presale: роль-писатель не может менять деньг
     runId, payerWallet: ata('p:1'), payerEmail: 'probe@example.com', actor: ADMIN,
   });
 
+  // Учётные данные зонда подменяем разбором URL, а не заменой подстроки:
+  // раньше здесь было url.replace('postgres:postgres', …), и при любом пароле
+  // кроме «postgres» замена не срабатывала — зонд молча соединялся
+  // суперпользователем и тест честно падал «роль-писатель смогла обновить
+  // price_units» (поймано локально 2026-10-08; в CI пароль совпадал, поэтому
+  // гейт выглядел зелёным).
+  const probeUrl = new URL(url);
+  probeUrl.username = login;
+  probeUrl.password = 'probe';
   const probe = new pg.Pool({
-    connectionString: url.replace('postgres:postgres', `${login}:probe`),
+    connectionString: probeUrl.toString(),
     max: 2, application_name: 'ares1-presale-probe',
   });
   try {
+    // Кто мы на самом деле: без этой проверки зонд, оставшийся суперпользователем,
+    // превращал бы все пробы ниже в бессмысленные «всё можно».
+    const me = await probe.query<{ current_user: string }>('SELECT current_user');
+    assert.equal(
+      me.rows[0]?.current_user,
+      login,
+      `зонд обязан работать под ролью ${login}, иначе проверка прав ничего не доказывает`,
+    );
     // Служебная колонка — можно.
     await probe.query('UPDATE game_ops.presale_orders SET failure_code = $2 WHERE id = $1', [order.id, 'PROBE_OK']);
     // Деньги и персональные данные — нельзя даже своим кодом.
