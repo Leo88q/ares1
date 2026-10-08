@@ -11,6 +11,7 @@ import {
   programId,
 } from "./solana.js";
 import { buildAlert, sendAlert, shouldAlert } from "./alert.js";
+import { LockedRun, RollLock, withEpochRollLock } from "./rollLock.js";
 import {
   DataSourceMismatchError,
   SigningSnapshot,
@@ -82,54 +83,91 @@ async function reportDataSourceProblem(err: unknown): Promise<void> {
   );
 }
 
-export function startEpochRoller() {
+export interface EpochRollerOptions {
+  /**
+   * Общий замок для нескольких инстансов (game_ops advisory lock). null —
+   * ровно один инстанс: такт выполняется без блокировки, как раньше.
+   */
+  lock?: RollLock | null;
+}
+
+export function startEpochRoller(options: EpochRollerOptions = {}) {
+  const lock = options.lock ?? null;
+  const logLine = (message: string) => console.log(`[epoch-roller] ${message}`);
   console.log(
-    `[epoch-roller] schedule=${env.epochRollCron} secondaryRpc=${env.secondaryRpcUrl ? "configured" : "none"} ` +
+    `[epoch-roller] schedule=${env.epochRollCron} lock=${lock ? "game_ops advisory" : "none (single instance)"} ` +
+      `secondaryRpc=${env.secondaryRpcUrl ? "configured" : "none"} ` +
       `requireSecondary=${env.requireSecondaryRpc}`,
   );
-  cron.schedule(env.epochRollCron, async () => {
-    lastRollAttempt = Date.now();
-    try {
-      const sig = await tryRollEpoch();
-      if (sig) {
-        console.log(`[epoch-roller] rolled epoch, tx=${sig}`);
-        lastRollSuccess = Date.now();
-        lastRollError = null;
-        consecutiveFailures = 0;
-      }
-    } catch (err) {
-      consecutiveFailures += 1;
-      lastRollError = safeError(err);
-      console.error(`[epoch-roller] failed (attempt ${consecutiveFailures}):`, safeError(err));
-      // Checklist item 103: disagreement between data sources is not retried
-      // silently — it goes to the alert channel on the FIRST occurrence.
-      if (err instanceof DataSourceMismatchError) {
-        await reportDataSourceProblem(err);
-        return;
-      }
-      // F-10: external alert ladder (3/9/27) — console line above already fired.
-      if (shouldAlert(consecutiveFailures)) {
-        console.error(`[epoch-roller] CRITICAL: ${consecutiveFailures} consecutive roll failures! Check RPC and payer balance.`);
-        void sendAlert(
-          env.alertWebhookUrl,
-          buildAlert(
-            "epoch_roll_failures",
-            `${consecutiveFailures} consecutive roll_epoch failures; check RPC and payer balance`,
-            consecutiveFailures,
-          ),
-        );
-      }
+
+  /** Сбой такта по крону: лестница алертов 3/9/27 (F-10). */
+  async function handleCronFailure(err: unknown): Promise<void> {
+    consecutiveFailures += 1;
+    lastRollError = safeError(err);
+    console.error(`[epoch-roller] failed (attempt ${consecutiveFailures}):`, safeError(err));
+    // Checklist item 103: disagreement between data sources is not retried
+    // silently — it goes to the alert channel on the FIRST occurrence.
+    if (err instanceof DataSourceMismatchError) {
+      await reportDataSourceProblem(err);
+      return;
     }
+    // F-10: external alert ladder (3/9/27) — console line above already fired.
+    if (shouldAlert(consecutiveFailures)) {
+      console.error(`[epoch-roller] CRITICAL: ${consecutiveFailures} consecutive roll failures! Check RPC and payer balance.`);
+      void sendAlert(
+        env.alertWebhookUrl,
+        buildAlert(
+          "epoch_roll_failures",
+          `${consecutiveFailures} consecutive roll_epoch failures; check RPC and payer balance`,
+          consecutiveFailures,
+        ),
+      );
+    }
+  }
+
+  /** Стартовая проверка не считает попытки: это не крон, а разовый прогрев. */
+  async function handleStartupFailure(err: unknown): Promise<void> {
+    if (err instanceof DataSourceMismatchError) await reportDataSourceProblem(err);
+    else console.error("[epoch-roller] startup check failed:", safeError(err));
+  }
+
+  /**
+   * Один такт. Замок берётся до чтения цепи, поэтому два инстанса не выполняют
+   * одну и ту же работу; «замок занят» — штатная ситуация, а не сбой.
+   */
+  async function tick(source: "cron" | "startup"): Promise<void> {
+    let outcome: LockedRun<string | null>;
+    try {
+      outcome = await withEpochRollLock(
+        lock,
+        () => {
+          lastRollAttempt = Date.now();
+          return tryRollEpoch();
+        },
+        logLine,
+      );
+    } catch (err) {
+      if (source === "cron") await handleCronFailure(err);
+      else await handleStartupFailure(err);
+      return;
+    }
+    if (!outcome.ran) return;
+    const sig = outcome.value;
+    if (sig) {
+      console.log(`[epoch-roller] ${source === "startup" ? "startup roll" : "rolled epoch"}, tx=${sig}`);
+      lastRollSuccess = Date.now();
+      lastRollError = null;
+      consecutiveFailures = 0;
+    }
+  }
+
+  cron.schedule(env.epochRollCron, () => {
+    void tick("cron");
   });
 
   // Immediate check on startup after 5s
-  setTimeout(async () => {
-    try {
-      const sig = await tryRollEpoch();
-      if (sig) console.log(`[epoch-roller] startup roll, tx=${sig}`);
-    } catch (err) {
-      if (err instanceof DataSourceMismatchError) await reportDataSourceProblem(err);
-      else console.error("[epoch-roller] startup check failed:", safeError(err));
-    }
+  setTimeout(() => {
+    void tick("startup");
   }, 5000);
 }
+

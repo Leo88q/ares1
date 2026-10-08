@@ -7,6 +7,7 @@ import { gameOpsRouter } from "./routes/gameops.js";
 import { presaleRouter } from "./routes/presale.js";
 import { loadGameOpsConfig } from "./gameops/env.js";
 import { closePool, createPool } from "./gameops/pool.js";
+import { createPgRollLock } from "./gameops/epochLock.js";
 import { checkReadiness, httpStatusFor } from "./gameops/readiness.js";
 import { startEpochRoller } from "./epochRoller.js";
 import { connection, fetchConfig, payerKeypair, programId } from "./solana.js";
@@ -92,6 +93,10 @@ async function main() {
   if (gameOpsConfig && gameOpsPool) {
     console.log(
       `[startup] game_ops on: chain=${gameOpsConfig.chainId} pool=${gameOpsConfig.poolMax} role=${gameOpsConfig.role ?? "connection-default"}`,
+    );
+  } else {
+    console.warn(
+      "[startup] game_ops off: кросс-инстансная блокировка эпохи недоступна — держите ровно одну реплику бэкенда.",
     );
   }
 
@@ -202,7 +207,10 @@ async function main() {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   process.on("SIGINT", () => void shutdown("SIGINT"));
 
-  startEpochRoller();
+  // Крон эпохи защищён общей блокировкой, когда включён game_ops: несколько
+  // реплик (перекрытие при выкатке, горизонтальное масштабирование) тогда не
+  // дублируют roll_epoch. Без БД блокировки нет — это режим «ровно один инстанс».
+  startEpochRoller({ lock: gameOpsPool ? createPgRollLock(gameOpsPool) : null });
   app.listen(env.port, "0.0.0.0", () => {
     console.log(`[startup] Solana Potato backend on :${env.port}`);
     console.log(`[startup] program=${programId.toBase58()}`);
