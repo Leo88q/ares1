@@ -369,10 +369,11 @@
   object-fit: contain;
   border-radius: 6px;
   transition: transform 0.3s ease, filter 0.3s ease;
-  /* фон фото растворяется в фоне панели */
-  mix-blend-mode: screen;
-  -webkit-mask-image: radial-gradient(ellipse 72% 68% at 50% 50%, #000 58%, transparent 96%);
-  mask-image: radial-gradient(ellipse 72% 68% at 50% 50%, #000 58%, transparent 96%);
+  /* Раньше фон фото растворяли `mix-blend-mode: screen` и маской-эллипсом:
+     файлы были вырезаны из чёрного фона грубо, и маска срезала края вместе с
+     самим модулем. Теперь в cassette-*.webp настоящая альфа (чёрный подтёк
+     снят ключом по яркости в краевой зоне, тёмные детали модуля сохранены),
+     поэтому ни подмешивать, ни маскировать больше нечего. */
 }
 
 .mini-hydro--common .mini-hydro-img {
