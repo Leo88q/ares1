@@ -13,6 +13,7 @@
 
 ```bash
 cd ~/LeoGamesStudio/ares1/game
+mkdir -p apps/backend/keys            # каталога нет в git (gitignore), создаём руками
 cat > .local-gen-key.mts <<'EOF'
 import { Keypair } from '@solana/web3.js';
 import { writeFileSync } from 'node:fs';
@@ -28,6 +29,12 @@ yarn tsx .local-gen-key.mts && rm .local-gen-key.mts
 (devnet). Это тестовые деньги.
 
 ## 2. `apps/backend/.env` (файл локальный, в .gitignore)
+
+Файла в чистом клоне нет, и без него бэкенд падает на первой же обязательной
+переменной: `Error: Missing required env var: RPC_URL` — `env.ts` делает
+`import "dotenv/config"`, а dotenv читает `.env` из каталога запуска
+(`apps/backend`), а не из корня монорепо. Обязательны три переменные:
+`RPC_URL`, `PROGRAM_ID`, `PAYER_KEYPAIR_JSON`.
 
 ```bash
 cat > apps/backend/.env <<'ENV'
