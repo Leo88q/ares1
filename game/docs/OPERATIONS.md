@@ -176,6 +176,24 @@ installs the full production workspace graph (including web dependencies); reduc
 image size is deferred. Compose restart handles process exits, not all outages;
 Docker does not automatically restart merely unhealthy containers.
 
+### Реплики и секреты без файлов (2026-10-08)
+
+- **Несколько реплик безопасны, когда включён `game_ops`.** Крон эпохи берёт
+  Postgres advisory-лок (`src/gameops/epochLock.ts`, ключ `ares1`), поэтому
+  перекрытие выкатки или план с 2+ инстансами не приводит к двойному
+  `roll_epoch` и к ложной лестнице алертов 3/9/27. Без `GAME_OPS_DATABASE_URL`
+  общей блокировки нет — тогда допустима ровно одна реплика (старт пишет об
+  этом явное предупреждение). Замок — **подавитель дублей, а не
+  предохранитель**: если БД недоступна, такт выполняется без него (повторный
+  `roll_epoch` отвергает сама цепь), но недоступность замка видна в логах.
+- **Keypair без файловой монтировки.** `PAYER_KEYPAIR_JSON` принимает
+  inline-JSON (`[12,34,…]`) — для платформ, где секрет передаётся только
+  переменной окружения (Flux Orbit и аналоги). Там, где есть volume-секреты,
+  файл остаётся рекомендуемым способом (`keys:ro`), но обе формы
+  поддерживаются одним парсером (`src/payerKey.ts`).
+- Пошаговый деплой под Flux Orbit + внешний managed Postgres:
+  `docs/DEPLOY_BACKEND_ORBIT.md` в корне репозитория.
+
 ### How the frontends reach the backend
 
 The landing is a static site, so its `/api/*` calls need an explicit path to the

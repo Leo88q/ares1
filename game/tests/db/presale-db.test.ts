@@ -138,6 +138,14 @@ test('presale: истёкшая бронь освобождает место, н
     runId, packId: 'bed-10', currency: 'sol', priceUnits: 100_000_000n, cap: 2,
     treasury: ata('treasury'), reserveMinutes: 1, actor: ADMIN,
   });
+  // Набор обязан быть перезапускаемым на постоянной базе, а `expireStaleReservations`
+  // снимает брони по всей таблице (без фильтра по тиражу) и возвращает их число.
+  // Поэтому ДО вставки своей брони убираем чужие истёкшие — остатки прошлых
+  // прогонов (в CI база каждый раз новая, там это не видно). Иначе счётчик
+  // показывает 20 вместо 1 и обвиняет логику, которая исправна
+  // (поймано локально 2026-10-08 на повторном прогоне).
+  await expireStaleReservations(pool, ADMIN);
+
   // Состарить бронь через UPDATE нельзя: reserved_until неизменяем, и это
   // проверяет отдельный тест. Поэтому вставляем историческую строку с датами
   // в прошлом — CHECK (reserved_until > created_at) при этом соблюдается.
@@ -148,11 +156,19 @@ test('presale: истёкшая бронь освобождает место, н
              now() - interval '2 minutes', now() - interval '1 minute')`,
     [runId, ata('e:1')],
   );
+
   let status = await getRunStatus(pool, runId);
   assert.equal(status?.reserved_count, 1, 'вставленная бронь заняла место');
 
   const expired = await expireStaleReservations(pool, ADMIN);
-  assert.equal(expired.expired, 1);
+  assert.equal(expired.expired, 1, 'истекла ровно одна бронь — та, что мы состарили');
+
+  // И главное — наша бронь перешла в expired: число выше доказывает «сколько»,
+  // а это — «именно та самая строка».
+  const ourOrder = await superPool.query<{ state: string }>(
+    `SELECT state FROM game_ops.presale_orders WHERE run_id = $1 AND order_no = 1`, [runId],
+  );
+  assert.equal(ourOrder.rows[0]?.state, 'expired', 'состаренная бронь обязана перейти в expired');
 
   status = await getRunStatus(pool, runId);
   assert.equal(status?.reserved_count, 0, 'истёкшая бронь освободила место');
@@ -380,11 +396,28 @@ test('presale: роль-писатель не может менять деньг
     runId, payerWallet: ata('p:1'), payerEmail: 'probe@example.com', actor: ADMIN,
   });
 
+  // Учётные данные зонда подменяем разбором URL, а не заменой подстроки:
+  // раньше здесь было url.replace('postgres:postgres', …), и при любом пароле
+  // кроме «postgres» замена не срабатывала — зонд молча соединялся
+  // суперпользователем и тест честно падал «роль-писатель смогла обновить
+  // price_units» (поймано локально 2026-10-08; в CI пароль совпадал, поэтому
+  // гейт выглядел зелёным).
+  const probeUrl = new URL(url);
+  probeUrl.username = login;
+  probeUrl.password = 'probe';
   const probe = new pg.Pool({
-    connectionString: url.replace('postgres:postgres', `${login}:probe`),
+    connectionString: probeUrl.toString(),
     max: 2, application_name: 'ares1-presale-probe',
   });
   try {
+    // Кто мы на самом деле: без этой проверки зонд, оставшийся суперпользователем,
+    // превращал бы все пробы ниже в бессмысленные «всё можно».
+    const me = await probe.query<{ current_user: string }>('SELECT current_user');
+    assert.equal(
+      me.rows[0]?.current_user,
+      login,
+      `зонд обязан работать под ролью ${login}, иначе проверка прав ничего не доказывает`,
+    );
     // Служебная колонка — можно.
     await probe.query('UPDATE game_ops.presale_orders SET failure_code = $2 WHERE id = $1', [order.id, 'PROBE_OK']);
     // Деньги и персональные данные — нельзя даже своим кодом.

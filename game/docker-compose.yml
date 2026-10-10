@@ -11,7 +11,12 @@ services:
       POSTGRES_PASSWORD: ${GAME_OPS_POSTGRES_PASSWORD:?set GAME_OPS_POSTGRES_PASSWORD in .env}
       # pgcrypto/расширения намеренно не требуются: hash-chain считает приложение.
     volumes:
-      - gameops-data:/var/lib/postgresql/data
+      # Postgres 18+ переехал на layout pg_ctlcluster: PGDATA по умолчанию
+      # /var/lib/postgresql/18/docker, а VOLUME объявлен как /var/lib/postgresql
+      # (было /var/lib/postgresql/data). Том, смонтированный по старому пути,
+      # entrypoint отвергает даже пустым — контейнер уходит в Restarting (1),
+      # порт не открывается. Монтируем родителя: данные лягут в подкаталог версии.
+      - gameops-data:/var/lib/postgresql
     # Только loopback: с хоста работают psql/бэкапы/`yarn db:roles`/`db:verify`,
     # но в интернет порт не публикуется.
     ports:

@@ -10,10 +10,12 @@ export const env = {
   port: parseInt(process.env.PORT || "8080", 10),
   rpcUrl: required("RPC_URL"),
   programId: required("PROGRAM_ID"),
-  /** Path to the JSON keypair of a DEDICATED low-privilege wallet (NOT the
-   *  program authority!). roll_epoch принимает любого signera как payer —
-   *  ключу нужны только lamports на rent/fee нового epoch-аккаунта (~0.0013 SOL
-   *  в эпоху). 0.1–0.2 SOL примерно на 77–154 эпохи до учёта комиссий; мониторить баланс. */
+  /** Keypair of a DEDICATED low-privilege wallet (NOT the program authority!).
+   *  roll_epoch принимает любого signera как payer — ключу нужны только
+   *  lamports на rent/fee нового epoch-аккаунта (~0.0013 SOL в эпоху).
+   *  0.1–0.2 SOL примерно на 77–154 эпохи до учёта комиссий; мониторить баланс.
+   *  Допустимые формы: путь к JSON-файлу (формат solana-keygen) либо inline-JSON
+   *  того же массива — для платформ без файловых секретов (см. payerKey.ts). */
   payerKeypairJson: required("PAYER_KEYPAIR_JSON"),
   corsOrigin: (() => {
     const v = process.env.CORS_ORIGIN;

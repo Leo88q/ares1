@@ -656,6 +656,29 @@ test('2026-10-02: backend-контейнер по умолчанию не пуб
   assert.match(read('../apps/backend/.env.example'), /TRUST_PROXY=1/, 'TRUST_PROXY должен быть описан в .env.example');
 });
 
+test('2026-10-08: том Postgres монтируется в /var/lib/postgresql (layout 18+), не в /var/lib/postgresql/data', () => {
+  // Поймано на живом маке: образ postgres:18 перенёс VOLUME на /var/lib/postgresql
+  // (PGDATA по умолчанию — /var/lib/postgresql/18/docker), а монтирование тома по
+  // старому пути entrypoint отвергает даже пустым: контейнер уходит в
+  // Restarting (1), порт не открывается, и все db:* падают с ECONNREFUSED без
+  // внятной причины. CI этого не видит — там сервис без тома.
+  const compose = read('../docker-compose.yml');
+  assert.match(compose, /image: postgres:18/, 'образ закреплён — от него зависит раскладка каталогов');
+  // Комментарии вырезаем: в них честно объясняется, какой путь был раньше, и
+  // отрицание должно проверять монтирование, а не текст пояснения.
+  const effective = compose.replace(/^\s*#.*$/gm, '');
+  assert.match(
+    effective,
+    /- gameops-data:\/var\/lib\/postgresql$/m,
+    'том монтируется в /var/lib/postgresql (данные лягут в подкаталог мажорной версии)',
+  );
+  assert.doesNotMatch(
+    effective,
+    /\/var\/lib\/postgresql\/data/,
+    'legacy-путь 17- отвергается entrypoint 18+: контейнер не стартует (см. DB_RUNBOOK § 2)',
+  );
+});
+
 test('2026-10-02: мёртвый Token-2022 и клиентский RNG пресейла не вернулись', () => {
   assert.throws(() => read('../apps/web/src/utils/token2022.ts'), /ENOENT/, 'utils/token2022.ts должен быть удалён: он противоречит SPL-only дизайну');
   const client = read('../apps/web/src/utils/anchorClient.ts').replace(/^\s*\/\/.*$/gm, '');
