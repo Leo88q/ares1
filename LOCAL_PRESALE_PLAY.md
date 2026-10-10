@@ -6,6 +6,34 @@
 Стенд: Postgres уже поднят (`docker compose up -d postgres`), миграции применены,
 логины `ares1_backend` / `ares1_dash` созданы.
 
+## 0. Шпаргалка: что в каком терминале
+
+Четыре терминала, порядок важен (бэкенд не стартует без БД-слоя, лендинг
+проксирует `/api` на уже живой бэкенд):
+
+| # | Что | Команда | Адрес |
+|---|---|---|---|
+| 1 | Postgres | `cd game && docker compose up -d postgres` | 127.0.0.1:5432 |
+| 2 | Бэкенд | `cd game && yarn dev:backend` | http://localhost:8081 |
+| 3 | Лендинг | `cd landing && PRESALE_API_ORIGIN=http://127.0.0.1:8081 npm run dev` | http://localhost:5173 |
+| 4 | Игра | `cd game && yarn dev:web` | http://localhost:5175 |
+
+Игре бэкенд **не нужен**: она сама ходит в RPC. Терминалы 1–3 — только для
+пресейла и game_ops.
+
+Один раз перед стартом: `apps/backend/.env` (см. §2) и `apps/web/.env.local`
+с `VITE_RPC_URL` — без своего RPC публичный devnet отдаёт 429, и бэкенд
+падает фатально на чтении конфига программы.
+
+Проверка всего сразу:
+
+```bash
+echo "backend: $(curl -s -m 3 localhost:8081/live)"
+echo "landing: $(curl -s -m 3 -o /dev/null -w '%{http_code}' localhost:5173)"
+echo "игра:    $(curl -s -m 3 -o /dev/null -w '%{http_code}' localhost:5175)"
+echo "devnet:  $(curl -s -m 8 -X POST \"$RPC_URL\" -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getHealth\"}')"
+```
+
 ## 1. Ключ payer'а (НИЗКОпривилегированный, НЕ authority)
 
 Бэкенд refuses payer = authority/reward_signer при старте (`assertDedicatedPayer`),
