@@ -694,17 +694,15 @@ describe("solana_potato", () => {
       const sellerNet = gross - fee;
       const sellerTokenBefore = await ataBalance(adminAta);
 
-      await v2Methods.createSellOrderV2(
+      const createSignature = await v2Methods.createSellOrderV2(
         new BN(id.toString()), new BN(amountMicro.toString()), new BN(priceLamportsPerPotato.toString()), { sol: {} },
       ).accountsPartial(createOrderV2Accounts(id, admin.publicKey, adminAta)).rpc();
+      await connection.confirmTransaction(createSignature, "confirmed");
 
       expect(sellerTokenBefore - await ataBalance(adminAta)).to.eq(amountMicro);
       expect(await ataBalance(escrow)).to.eq(amountMicro); // no POTATO-denominated listing fee
-      const orderRent = BigInt((await connection.getAccountInfo(order))!.lamports);
-      const escrowRent = BigInt((await connection.getAccountInfo(escrow))!.lamports);
-      const sellerSolBefore = await connection.getBalance(admin.publicKey);
-      const buyerSolBefore = await connection.getBalance(player.publicKey);
-      const treasurySolBefore = await connection.getBalance(treasurySolPda);
+      const buyerSolBefore = await connection.getBalance(player.publicKey, "confirmed");
+      const treasurySolBefore = await connection.getBalance(treasurySolPda, "confirmed");
       const buyerPotatoBefore = await ataBalance(playerAta);
       const supplyBefore = (await getMint(connection, mint)).supply;
 
@@ -725,13 +723,32 @@ describe("solana_potato", () => {
 
       const tx = await connection.getTransaction(signature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
       expect(tx?.meta, "fill transaction metadata missing").not.to.eq(null);
-      const txFee = BigInt(tx?.meta?.fee ?? 0);
-      expect(BigInt(buyerSolBefore - await connection.getBalance(player.publicKey))).to.eq(gross);
-      expect(BigInt(await connection.getBalance(treasurySolPda) - treasurySolBefore)).to.eq(fee);
-      const sellerSolDelta = BigInt(await connection.getBalance(admin.publicKey) - sellerSolBefore);
+      const txMeta = tx!.meta!;
+      const txFee = BigInt(txMeta.fee ?? 0);
+      expect(BigInt(buyerSolBefore - await connection.getBalance(player.publicKey, "confirmed"))).to.eq(gross);
+      expect(BigInt(await connection.getBalance(treasurySolPda, "confirmed") - treasurySolBefore)).to.eq(fee);
+
+      // Use this transaction's canonical pre/post balances. Independent RPC
+      // reads at processed commitment can straddle bank state between calls.
+      const message = tx!.transaction.message as any;
+      const txAccountKeys = (message.staticAccountKeys ?? message.accountKeys) as PublicKey[];
+      const accountIndex = (key: PublicKey) => txAccountKeys.findIndex(accountKey => accountKey.equals(key));
+      const sellerIndex = accountIndex(admin.publicKey);
+      const orderIndex = accountIndex(order);
+      const escrowIndex = accountIndex(escrow);
+      expect(sellerIndex, "seller missing from fill transaction metadata").to.be.at.least(0);
+      expect(orderIndex, "order missing from fill transaction metadata").to.be.at.least(0);
+      expect(escrowIndex, "escrow missing from fill transaction metadata").to.be.at.least(0);
+      const sellerTransactionDelta = BigInt(txMeta.postBalances[sellerIndex]! - txMeta.preBalances[sellerIndex]!);
+      const orderRent = BigInt(txMeta.preBalances[orderIndex]!);
+      const escrowRent = BigInt(txMeta.preBalances[escrowIndex]!);
+      const lamportChanges = txAccountKeys.map((key, index) => {
+        const delta = BigInt(txMeta.postBalances[index]! - txMeta.preBalances[index]!);
+        return delta === 0n ? null : `${key.toBase58()}=${delta}`;
+      }).filter((entry): entry is string => entry !== null).join(", ");
       expect(
-        sellerSolDelta + txFee,
-        `seller delta=${sellerSolDelta}; tx fee=${txFee}; order rent=${orderRent}; escrow rent=${escrowRent}; expected net=${sellerNet}`,
+        sellerTransactionDelta + txFee,
+        `transaction seller delta=${sellerTransactionDelta}; tx fee=${txFee}; order rent=${orderRent}; escrow rent=${escrowRent}; expected net=${sellerNet}; account deltas=${lamportChanges}`,
       ).to.eq(sellerNet + orderRent + escrowRent);
       expect((await ataBalance(playerAta)) - buyerPotatoBefore).to.eq(amountMicro);
       expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
@@ -809,27 +826,32 @@ describe("solana_potato", () => {
       expect(stats.totalTrades.toString()).to.eq("2");
     });
 
-    it("a failed SKR fill leaves the order, escrow, and seller tier unchanged; cancel refunds only principal", async () => {
+    it("a failed SKR fill is atomic; cancel refunds principal and starts the seller cooldown", async () => {
       const id = BigInt(Date.now() + 703);
       const order = orderV2Pda(id);
       const escrow = escrowV2Pda(order);
       const amountMicro = 10_000_000n;
+      const cancelSeller = Keypair.generate();
+      const sellerAirdrop = await connection.requestAirdrop(cancelSeller.publicKey, 2 * LAMPORTS_PER_SOL);
+      await connection.confirmTransaction(sellerAirdrop);
+      const cancelSellerAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, cancelSeller.publicKey)).address;
+      const cancelSellerSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, cancelSeller.publicKey)).address;
+      await transfer(connection, admin, adminAta, cancelSellerAta, admin, amountMicro);
       const buyerSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, player.publicKey)).address;
-      const sellerSkrAta = getAssociatedTokenAddressSync(skrMint, admin.publicKey);
       const treasurySkrAta = getAssociatedTokenAddressSync(skrMint, treasurySolPda, true);
-      const tierBefore = await v2Accounts.sellerVolumeV2.fetch(sellerVolumeV2Pda(admin.publicKey));
-      const potatoBefore = await ataBalance(adminAta);
+      const potatoBefore = await ataBalance(cancelSellerAta);
 
       // 2,000 SKR gross is more than the buyer's remaining 990 SKR.
       await v2Methods.createSellOrderV2(
         new BN(id.toString()), new BN(amountMicro.toString()), new BN(200_000_000), { skr: {} },
-      ).accountsPartial(createOrderV2Accounts(id, admin.publicKey, adminAta)).rpc();
-      expect(potatoBefore - await ataBalance(adminAta)).to.eq(amountMicro);
+      ).accountsPartial(createOrderV2Accounts(id, cancelSeller.publicKey, cancelSellerAta)).signers([cancelSeller]).rpc();
+      expect(potatoBefore - await ataBalance(cancelSellerAta)).to.eq(amountMicro);
+      const tierBefore = await v2Accounts.sellerVolumeV2.fetch(sellerVolumeV2Pda(cancelSeller.publicKey));
       await expectFail(v2Methods.closeExpiredOrderV2().accountsPartial({
         order,
         escrow,
-        sellerPotato: adminAta,
-        seller: admin.publicKey,
+        sellerPotato: cancelSellerAta,
+        seller: cancelSeller.publicKey,
         tokenProgram: TOKEN_PROGRAM_ID,
       }).rpc(), "OrderNotExpired");
       const buyerSkrBefore = await ataBalance(buyerSkrAta);
@@ -837,17 +859,17 @@ describe("solana_potato", () => {
 
       await expectFail(v2Methods.fillOrderV2Skr().accountsPartial({
         buyer: player.publicKey,
-        seller: admin.publicKey,
+        seller: cancelSeller.publicKey,
         config: configPda,
         potatoMint: mint,
         skrMint,
-        sellerVolumeV2: sellerVolumeV2Pda(admin.publicKey),
+        sellerVolumeV2: sellerVolumeV2Pda(cancelSeller.publicKey),
         marketStatsV2: marketStatsV2Pda,
         order,
         escrow,
         buyerPotato: playerAta,
         buyerSkrAta,
-        sellerSkrAta,
+        sellerSkrAta: cancelSellerSkrAta,
         treasurySol: treasurySolPda,
         treasurySkrAta,
         tokenProgram: TOKEN_PROGRAM_ID,
@@ -859,22 +881,26 @@ describe("solana_potato", () => {
       expect(await ataBalance(escrow)).to.eq(amountMicro);
       const active = await v2Accounts.marketOrderV2.fetch(order);
       expect(active.status).to.have.property("active");
-      const tierAfterFailure = await v2Accounts.sellerVolumeV2.fetch(sellerVolumeV2Pda(admin.publicKey));
+      const tierAfterFailure = await v2Accounts.sellerVolumeV2.fetch(sellerVolumeV2Pda(cancelSeller.publicKey));
       expect(tierAfterFailure.filledPotatoMicro.toString()).to.eq(volumeValueBefore);
 
-      const sellerBeforeCancel = await ataBalance(adminAta);
+      const sellerBeforeCancel = await ataBalance(cancelSellerAta);
       await v2Methods.cancelOrderV2().accountsPartial({
-        seller: admin.publicKey,
-        sellerProfile: sellerProfilePda(admin.publicKey),
+        seller: cancelSeller.publicKey,
+        sellerProfile: sellerProfilePda(cancelSeller.publicKey),
         order,
         escrow,
-        sellerPotato: adminAta,
+        sellerPotato: cancelSellerAta,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
-      }).rpc();
-      expect(await ataBalance(adminAta) - sellerBeforeCancel).to.eq(amountMicro);
+      }).signers([cancelSeller]).rpc();
+      expect(await ataBalance(cancelSellerAta) - sellerBeforeCancel).to.eq(amountMicro);
       expect(await connection.getAccountInfo(order)).to.be.null;
       expect(await connection.getAccountInfo(escrow)).to.be.null;
+      await expectFail(v2Methods.createSellOrderV2(
+        new BN((id + 1n).toString()), new BN(amountMicro.toString()), new BN(200_000_000), { skr: {} },
+      ).accountsPartial(createOrderV2Accounts(id + 1n, cancelSeller.publicKey, cancelSellerAta)).signers([cancelSeller]).rpc(), "CancelCooldown");
+      await transfer(connection, admin, cancelSellerAta, adminAta, cancelSeller, amountMicro);
     });
   });
 
