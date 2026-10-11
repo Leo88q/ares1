@@ -732,7 +732,7 @@ describe("solana_potato", () => {
       // while `meta.fee` is retained as an RPC sanity check below.
       const transactionFeeFromBalances = txMeta.preBalances.reduce((total, balance) => total + BigInt(balance), 0n)
         - txMeta.postBalances.reduce((total, balance) => total + BigInt(balance), 0n);
-      expect(transactionFeeFromBalances, "transaction balances show a fee smaller than RPC metadata").to.be.at.least(txFee);
+      expect(transactionFeeFromBalances >= txFee, "transaction balances show a fee smaller than RPC metadata").to.eq(true);
       expect(BigInt(buyerSolBefore - await connection.getBalance(player.publicKey, "confirmed"))).to.eq(gross);
       expect(BigInt(await connection.getBalance(treasurySolPda, "confirmed") - treasurySolBefore)).to.eq(fee);
 
