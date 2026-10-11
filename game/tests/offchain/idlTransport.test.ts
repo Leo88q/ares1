@@ -12,7 +12,8 @@ test('public IDL recovery is checksummed and chunked below GitHub annotation tru
  try {
   fs.mkdirSync(path.join(dir, 'target/idl'), { recursive: true })
   // Transport-only fixture, never written to the application ABI.
-  const data = Buffer.from(JSON.stringify({ address: 'test-only', instructions: [], fixture: randomBytes(8000).toString('hex') }))
+  // Force a compressed payload larger than the old 8 × 3000-character cap.
+  const data = Buffer.from(JSON.stringify({ address: 'test-only', instructions: [], fixture: randomBytes(20_000).toString('hex') }))
   fs.writeFileSync(path.join(dir, 'target/idl/solana_potato.json'), data)
   const result = spawnSync('python3', [path.resolve('scripts/publish-idl-annotation.py')], { cwd: dir, encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr)
