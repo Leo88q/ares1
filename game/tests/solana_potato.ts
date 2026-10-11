@@ -728,13 +728,22 @@ describe("solana_potato", () => {
       expect(tx!.meta, "fill transaction metadata missing").to.exist;
       const txMeta = tx!.meta!;
       const txFee = BigInt(txMeta.fee ?? 0);
+      // The aggregate pre/post balance delta captures the full runtime charge,
+      // while `meta.fee` is retained as an RPC sanity check below.
+      const transactionFeeFromBalances = txMeta.preBalances.reduce((total, balance) => total + BigInt(balance), 0n)
+        - txMeta.postBalances.reduce((total, balance) => total + BigInt(balance), 0n);
+      expect(transactionFeeFromBalances, "transaction balances show a fee smaller than RPC metadata").to.be.at.least(txFee);
       expect(BigInt(buyerSolBefore - await connection.getBalance(player.publicKey, "confirmed"))).to.eq(gross);
       expect(BigInt(await connection.getBalance(treasurySolPda, "confirmed") - treasurySolBefore)).to.eq(fee);
 
       // Use this transaction's canonical pre/post balances. Independent RPC
       // reads at processed commitment can straddle bank state between calls.
       const message = tx!.transaction.message as any;
-      const txAccountKeys = (message.staticAccountKeys ?? message.accountKeys) as PublicKey[];
+      const txAccountKeys = [
+        ...(message.staticAccountKeys ?? message.accountKeys),
+        ...(txMeta.loadedAddresses?.writable ?? []),
+        ...(txMeta.loadedAddresses?.readonly ?? []),
+      ] as PublicKey[];
       const accountIndex = (key: PublicKey) => txAccountKeys.findIndex(accountKey => accountKey.equals(key));
       const sellerIndex = accountIndex(admin.publicKey);
       const orderIndex = accountIndex(order);
@@ -750,8 +759,8 @@ describe("solana_potato", () => {
         return delta === 0n ? null : `${key.toBase58()}=${delta}`;
       }).filter((entry): entry is string => entry !== null).join(", ");
       expect(
-        sellerTransactionDelta + txFee,
-        `transaction seller delta=${sellerTransactionDelta}; tx fee=${txFee}; order rent=${orderRent}; escrow rent=${escrowRent}; expected net=${sellerNet}; account deltas=${lamportChanges}`,
+        sellerTransactionDelta + transactionFeeFromBalances,
+        `transaction seller delta=${sellerTransactionDelta}; RPC fee=${txFee}; balance-derived fee=${transactionFeeFromBalances}; order rent=${orderRent}; escrow rent=${escrowRent}; expected net=${sellerNet}; account deltas=${lamportChanges}`,
       ).to.eq(sellerNet + orderRent + escrowRent);
       expect((await ataBalance(playerAta)) - buyerPotatoBefore).to.eq(amountMicro);
       expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
