@@ -721,8 +721,11 @@ describe("solana_potato", () => {
         systemProgram: SystemProgram.programId,
       }).signers([player]).rpc();
 
+      const fillConfirmation = await connection.confirmTransaction(signature, "confirmed");
+      expect(fillConfirmation.value.err, "fill transaction failed before balance checks").to.eq(null);
       const tx = await connection.getTransaction(signature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
-      expect(tx?.meta, "fill transaction metadata missing").not.to.eq(null);
+      expect(tx, "fill transaction missing at confirmed commitment").to.exist;
+      expect(tx!.meta, "fill transaction metadata missing").to.exist;
       const txMeta = tx!.meta!;
       const txFee = BigInt(txMeta.fee ?? 0);
       expect(BigInt(buyerSolBefore - await connection.getBalance(player.publicKey, "confirmed"))).to.eq(gross);
