@@ -38,6 +38,10 @@
  *            развёрнута схема (сначала `yarn db:migrate`).
  */
 import process from 'node:process';
+import { Connection } from '@solana/web3.js';
+import { expectedGenesisHash } from '../apps/backend/src/cluster.js';
+import type { SolanaCluster } from '../apps/backend/src/cluster.js';
+import { bindPresaleDatabaseCluster } from '../apps/backend/src/gameops/clusterGuard.js';
 import { loadGameOpsConfig } from '../apps/backend/src/gameops/env.js';
 import type { GameOpsConfig } from '../apps/backend/src/gameops/env.js';
 import { closePool, createPool, query } from '../apps/backend/src/gameops/pool.js';
@@ -140,6 +144,7 @@ function printStatus(run: RunRow): void {
   console.log(`  reserved_count : ${run.reserved_count}`);
   console.log(`  is_open        : ${run.is_open}`);
   console.log(`  treasury       : ${run.treasury}`);
+  console.log(`  started_slot   : ${run.started_slot}`);
   console.log(`  started_at     : ${run.started_at}`);
   if (run.closed_at) console.log(`  closed_at      : ${run.closed_at}`);
 }
@@ -165,6 +170,28 @@ function reportExisting(run: RunRow, desired: DesiredRun): number {
 
 async function main(): Promise<number> {
   const desired = readDesired(process.env);
+  const clusterRaw = required(process.env, 'SOLANA_CLUSTER');
+  if (clusterRaw !== 'devnet' && clusterRaw !== 'mainnet-beta') {
+    throw new UsageError('SOLANA_CLUSTER должен быть devnet или mainnet-beta');
+  }
+  const cluster: SolanaCluster = clusterRaw;
+  if (cluster === 'mainnet-beta' && (process.env.NODE_ENV !== 'production' || process.env.PRESALE_MAINNET_LIVE_APPROVED !== 'true')) {
+    throw new UsageError('Mainnet run creation requires NODE_ENV=production and explicit PRESALE_MAINNET_LIVE_APPROVED=true after launch approvals.');
+  }
+  if (cluster === 'devnet' && process.env.PRESALE_DEVNET_TEST_ENABLED !== 'true') {
+    throw new UsageError('Devnet presale writes are disabled by default; set PRESALE_DEVNET_TEST_ENABLED=true only for isolated valueless tests.');
+  }
+  if (cluster === 'mainnet-beta' && desired.currency !== 'sol') {
+    throw new UsageError('Mainnet Phase 1 accepts native SOL only; SKR is not deployed on mainnet.');
+  }
+  const rpcUrl = required(process.env, 'RPC_URL');
+  const connection = new Connection(rpcUrl, 'finalized');
+  const actualGenesis = await connection.getGenesisHash();
+  const expectedGenesis = expectedGenesisHash(cluster);
+  if (actualGenesis !== expectedGenesis) {
+    throw new UsageError(`RPC cluster mismatch: configured=${cluster}, genesis=${actualGenesis}`);
+  }
+  const startedSlot = BigInt(await connection.getSlot('finalized')) + 1n;
   let config: GameOpsConfig | null;
   try {
     // loadGameOpsConfig бросает на битом URL и на коротком ADMIN_API_TOKEN:
@@ -180,6 +207,7 @@ async function main(): Promise<number> {
 
   const pool = createPool(config);
   try {
+    await bindPresaleDatabaseCluster(pool, cluster);
     const existing = await query<RunRow>(
       pool, 'SELECT * FROM game_ops.presale_runs WHERE run_id = $1', [desired.runId],
     );
@@ -195,6 +223,7 @@ async function main(): Promise<number> {
         cap: desired.cap,
         treasury: desired.treasury,
         reserveMinutes: desired.reserveMinutes,
+        startedSlot,
         actor: desired.actor,
       });
     } catch (error) {

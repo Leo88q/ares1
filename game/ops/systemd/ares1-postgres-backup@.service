@@ -1,0 +1,18 @@
+[Unit]
+Description=Encrypted ARES-1 PostgreSQL backup (%i)
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+EnvironmentFile=/etc/ares1/instances/%i/backup.env
+WorkingDirectory=/opt/ares1/game
+ExecStart=/opt/ares1/game/ops/backup-postgres-to-r2.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true

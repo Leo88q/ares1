@@ -1,4 +1,7 @@
 import "dotenv/config";
+import type { SolanaCluster } from './cluster.js';
+export type { SolanaCluster } from './cluster.js';
+export { DEVNET_GENESIS_HASH, MAINNET_GENESIS_HASH, expectedGenesisHash } from './cluster.js';
 
 function required(name: string): string {
   const v = process.env[name];
@@ -6,14 +9,33 @@ function required(name: string): string {
   return v;
 }
 
+function configuredCluster(): SolanaCluster {
+  const raw = process.env.SOLANA_CLUSTER;
+  if (!raw && process.env.NODE_ENV !== 'production') return 'devnet';
+  if (raw === 'devnet' || raw === 'mainnet-beta') return raw;
+  throw new Error('SOLANA_CLUSTER обязателен и должен быть devnet или mainnet-beta');
+}
+
+function configuredBoolean(name: string): boolean {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '' || raw === 'false') return false;
+  if (raw === 'true') return true;
+  throw new Error(`${name} должен быть true или false`);
+}
+
 export const env = {
   port: parseInt(process.env.PORT || "8080", 10),
+  cluster: configuredCluster(),
+  mainnetPresaleApproved: configuredBoolean('PRESALE_MAINNET_LIVE_APPROVED'),
+  devnetPresaleTestEnabled: configuredBoolean('PRESALE_DEVNET_TEST_ENABLED'),
   rpcUrl: required("RPC_URL"),
   programId: required("PROGRAM_ID"),
-  /** Path to the JSON keypair of a DEDICATED low-privilege wallet (NOT the
-   *  program authority!). roll_epoch принимает любого signera как payer —
-   *  ключу нужны только lamports на rent/fee нового epoch-аккаунта (~0.0013 SOL
-   *  в эпоху). 0.1–0.2 SOL примерно на 77–154 эпохи до учёта комиссий; мониторить баланс. */
+  /** Keypair of a DEDICATED low-privilege wallet (NOT the program authority!).
+   *  roll_epoch принимает любого signera как payer — ключу нужны только
+   *  lamports на rent/fee нового epoch-аккаунта (~0.0013 SOL в эпоху).
+   *  0.1–0.2 SOL примерно на 77–154 эпохи до учёта комиссий; мониторить баланс.
+   *  Допустимые формы: путь к JSON-файлу (формат solana-keygen) либо inline-JSON
+   *  того же массива — для платформ без файловых секретов (см. payerKey.ts). */
   payerKeypairJson: required("PAYER_KEYPAIR_JSON"),
   corsOrigin: (() => {
     const v = process.env.CORS_ORIGIN;

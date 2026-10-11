@@ -5,7 +5,7 @@ import { useI18n } from '../../i18n';
 import { haptics } from '../../utils/haptic';
 import { AresHullFrame } from '../../ui/AresHullFrame';
 
-export type AresTab = 'main' | 'market' | 'stats' | 'profile';
+export type AresTab = 'main' | 'market' | 'stats' | 'profile' | 'operation';
 
 export interface AresBottomNavProps {
  active: AresTab;
@@ -37,6 +37,7 @@ export const AresBottomNav = memo(function AresBottomNav({
   { id: 'market', label: t('СНАБ'), code: 'K2', lamp: 'amber' },
   { id: 'stats', label: t('ЖУРНАЛ'), code: 'K3', lamp: 'amber' },
   { id: 'profile', label: t('КАЮТА'), code: 'K4', lamp: 'green' },
+  { id: 'operation', label: t('ОПЕРАЦИЯ'), code: 'K5', lamp: 'magenta' },
  ], [t]);
 
  return (

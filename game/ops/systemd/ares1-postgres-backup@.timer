@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily encrypted ARES-1 PostgreSQL backup (%i)
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 UTC
+Persistent=true
+RandomizedDelaySec=20m
+Unit=ares1-postgres-backup@%i.service
+
+[Install]
+WantedBy=timers.target

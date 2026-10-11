@@ -13,16 +13,18 @@ import {
 } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { env } from "./env.js";
+import { loadPayerSecretKey } from "./payerKey.js";
 import { assertPayerInstructionsAllowed } from "./policy.js";
 import { anchorDiscriminator, u64LE, i64LE, decodeGameConfig, decodeEpoch, GameConfig, EpochAccount } from "./anchorRaw.js";
 
 export const programId = new PublicKey(env.programId);
 export const connection = new Connection(env.rpcUrl, "confirmed");
 
-/** Low-privilege payer key for roll_epoch (AUDIT B4: НЕ authority-ключ). */
+/** Low-privilege payer key for roll_epoch (AUDIT B4: НЕ authority-ключ).
+ *  Значение — путь к файлу или inline-JSON (см. payerKey.ts). */
 export const payerKeypair = (() => {
-  const raw = JSON.parse(fs.readFileSync(env.payerKeypairJson, "utf-8"));
-  return Keypair.fromSecretKey(Uint8Array.from(raw));
+  const secret = loadPayerSecretKey(env.payerKeypairJson, (path) => fs.readFileSync(path, "utf-8"));
+  return Keypair.fromSecretKey(secret);
 })();
 
 export function configPda(): PublicKey {

@@ -11,10 +11,11 @@
  * Ничего изменяющего не происходит без записи в game_ops: резерв, переходы,
  * выдача и возврат идут через триггерную схему, а не «в обход».
  */
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request, type RequestHandler, type Response } from 'express';
 import type { Connection } from '@solana/web3.js';
 import { GameOpsError } from '../gameops/errors.js';
 import type { GameOpsConfig } from '../gameops/env.js';
+import type { SolanaCluster } from '../env.js';
 import type { Pool } from '../gameops/pool.js';
 import { requireAdmin } from './gameops.js';
 import { jsonSafe, send } from './shared.js';
@@ -32,6 +33,10 @@ import { createIntent, getIntent } from '../gameops/intents.js';
 
 export interface PresaleDeps {
   connection: Connection;
+  /** Cluster label is checked against the RPC genesis hash at process startup. */
+  cluster: SolanaCluster;
+  /** False by default; only controlled test/staging money-movement flows may enable writes. */
+  paymentsEnabled: boolean;
   /** Минт POTATO — для расчёта ATA получателя при выдаче. */
   potatoMint: string;
 }
@@ -67,6 +72,19 @@ export function presaleRouter(pool: Pool, config: GameOpsConfig, deps: PresaleDe
       });
   };
 
+  const mainnetWriteGate: RequestHandler = (_req, res, next) => {
+    if (!deps.paymentsEnabled) {
+      res.status(503).json({
+        error: 'NOT_CONFIGURED',
+        message: deps.cluster === 'mainnet-beta'
+          ? 'Mainnet Phase 1 is disabled until the mainnet launch approvals and security gates are complete.'
+          : 'Devnet is a free sandbox; presale test writes are disabled unless explicitly enabled for isolated testing.',
+      });
+      return;
+    }
+    next();
+  };
+
   // ── Публичные ──────────────────────────────────────────────────────────────
 
   router.get('/packs', (_req, res) => {
@@ -85,12 +103,23 @@ export function presaleRouter(pool: Pool, config: GameOpsConfig, deps: PresaleDe
     handleAsync(res, 200, async () => {
       const status = await getRunStatus(pool, runIdParam(req));
       if (!status) throw new GameOpsError('RUN_NOT_FOUND', `Тираж ${runIdParam(req)} не найден`, undefined, 404);
-      // Публичная форма — camelCase (см. RunStatus в баннере лендинга), а не домен.
-      return { run: publicRunStatus(status) };
+      // Public API reflects the launch gate so clients never show a purchasable
+      // mainnet run while payment handling is intentionally disabled.
+      const publicRun = publicRunStatus(status);
+      const clusterAllowsCurrency = deps.cluster !== 'mainnet-beta' || publicRun.currency === 'sol';
+      const paymentsEnabled = deps.paymentsEnabled && clusterAllowsCurrency;
+      return {
+        run: {
+          ...publicRun,
+          isOpen: publicRun.isOpen && paymentsEnabled,
+          cluster: deps.cluster,
+          paymentsEnabled,
+        },
+      };
     });
   });
 
-  router.post('/runs/:runId/reserve', (req, res) => {
+  router.post('/runs/:runId/reserve', mainnetWriteGate, (req, res) => {
     const wallet = typeof req.body?.wallet === 'string' ? req.body.wallet : '';
     const email = typeof req.body?.email === 'string' ? req.body.email : null;
     return handleAsync(res, 201, async () => {
@@ -98,6 +127,7 @@ export function presaleRouter(pool: Pool, config: GameOpsConfig, deps: PresaleDe
         runId: runIdParam(req),
         payerWallet: wallet,
         payerEmail: email,
+        requiredCurrency: deps.cluster === 'mainnet-beta' ? 'sol' : undefined,
         actor: `buyer:${wallet.slice(0, 8) || 'unknown'}`,
       });
       return {
@@ -114,7 +144,7 @@ export function presaleRouter(pool: Pool, config: GameOpsConfig, deps: PresaleDe
     });
   });
 
-  router.post('/runs/:runId/orders/:orderNo/payment', (req, res) => {
+  router.post('/runs/:runId/orders/:orderNo/payment', mainnetWriteGate, (req, res) => {
     const signature = typeof req.body?.signature === 'string' ? req.body.signature : '';
     return handleAsync(res, 200, async () => {
       const order = await attachPayment(pool, {
@@ -137,20 +167,31 @@ export function presaleRouter(pool: Pool, config: GameOpsConfig, deps: PresaleDe
 
   // ── Админские ──────────────────────────────────────────────────────────────
 
-  router.post('/admin/runs', admin, (req, res) => {
+  router.post('/admin/runs', admin, mainnetWriteGate, (req, res) => {
     const body = req.body ?? {};
-    return handleAsync(res, 201, async () => openRun(pool, {
-      runId: String(body.runId ?? ''),
-      packId: String(body.packId ?? ''),
-      currency: body.currency === 'skr' ? 'skr' : 'sol',
-      priceUnits: BigInt(String(body.priceUnits ?? '0')),
-      cap: Number(body.cap ?? 0),
-      treasury: String(body.treasury ?? ''),
-      reserveMinutes: body.reserveMinutes != null ? Number(body.reserveMinutes) : undefined,
-      actor: 'presale.admin',
-    }));
+    return handleAsync(res, 201, async () => {
+      const currency = body.currency === 'skr' ? 'skr' : 'sol';
+      // The only SKR mint in this program is a devnet mint. A mainnet run must
+      // never accept it as payment, even if an operator sends a malformed admin request.
+      if (deps.cluster === 'mainnet-beta' && currency !== 'sol') {
+        throw new GameOpsError('VALIDATION', 'Mainnet Phase 1 currently accepts native SOL only; SKR is not deployed on mainnet.', undefined, 400);
+      }
+      const startedSlot = BigInt(await deps.connection.getSlot('finalized')) + 1n;
+      return openRun(pool, {
+        runId: String(body.runId ?? ''),
+        packId: String(body.packId ?? ''),
+        currency,
+        priceUnits: BigInt(String(body.priceUnits ?? '0')),
+        cap: Number(body.cap ?? 0),
+        treasury: String(body.treasury ?? ''),
+        reserveMinutes: body.reserveMinutes != null ? Number(body.reserveMinutes) : undefined,
+        startedSlot,
+        actor: 'presale.admin',
+      });
+    });
   });
 
+  // Emergency close remains available with the live gate off.
   router.post('/admin/runs/:runId/close', admin, (req, res) => {
     return handleAsync(res, 200, async () => {
       const closed = await closeRun(pool, runIdParam(req), 'presale.admin');
@@ -162,11 +203,11 @@ export function presaleRouter(pool: Pool, config: GameOpsConfig, deps: PresaleDe
     return handleAsync(res, 200, () => expireStaleReservations(pool, 'presale.admin'));
   });
 
-  router.post('/admin/orders/:id/verify', admin, (req, res) => {
+  router.post('/admin/orders/:id/verify', admin, mainnetWriteGate, (req, res) => {
     return handleAsync(res, 200, async () => verifyOrderPayment(pool, deps, String(req.params.id)));
   });
 
-  router.post('/admin/orders/:id/deliver', admin, (req, res) => {
+  router.post('/admin/orders/:id/deliver', admin, mainnetWriteGate, (req, res) => {
     return handleAsync(res, 200, async () => {
       const order = await getOrderRow(pool, String(req.params.id));
       if (!order) throw new GameOpsError('ORDER_NOT_FOUND', 'Заказ не найден', undefined, 404);
@@ -187,7 +228,7 @@ export function presaleRouter(pool: Pool, config: GameOpsConfig, deps: PresaleDe
     });
   });
 
-  router.post('/admin/orders/:id/delivered', admin, (req, res) => {
+  router.post('/admin/orders/:id/delivered', admin, mainnetWriteGate, (req, res) => {
     const intentId = BigInt(String(req.body?.intentId ?? '0'));
     return handleAsync(res, 200, async () => {
       const intent = await getIntent(pool, String(intentId));
@@ -200,6 +241,7 @@ export function presaleRouter(pool: Pool, config: GameOpsConfig, deps: PresaleDe
     });
   });
 
+  // Recording a refund must remain possible after an emergency gate closure.
   router.post('/admin/orders/:id/refund', admin, (req, res) => {
     return handleAsync(res, 200, async () => refundOrder(pool, {
       id: String(req.params.id),
@@ -254,6 +296,9 @@ async function verifyOrderPayment(pool: Pool, deps: PresaleDeps, orderId: string
     throw new GameOpsError('VALIDATION', 'У заказа нет подписи платежа', undefined, 400);
   }
   const run = await runOf(pool, order.run_id);
+  if (deps.cluster === 'mainnet-beta' && run.currency !== 'sol') {
+    throw new GameOpsError('VALIDATION', 'SKR payment verification is unavailable on mainnet; refusing this legacy/non-mainnet run.', undefined, 409);
+  }
   const expected = BigInt(order.price_units);
   const base = expected - BigInt(order.order_no);
 
@@ -288,7 +333,7 @@ function skrMintOf(_run: { currency: string }): string {
 
 async function runOf(pool: Pool, runId: string) {
   const { query } = await import('../gameops/pool.js');
-  const rows = await query<{ run_id: string; currency: 'sol' | 'skr'; treasury: string; price_units: string }>(
+  const rows = await query<{ run_id: string; currency: 'sol' | 'skr'; treasury: string; price_units: string; started_slot: string }>(
     pool, 'SELECT * FROM game_ops.presale_runs WHERE run_id = $1', [runId],
   );
   const run = rows[0];
@@ -301,7 +346,7 @@ async function reconcileRun(pool: Pool, deps: PresaleDeps, runId: string) {
   if (run.currency !== 'sol') {
     throw new GameOpsError('VALIDATION', 'Автоматическая сверка пока реализована для SOL-тиражей', undefined, 400);
   }
-  const chainTransfers = await fetchTreasuryTransfers(deps.connection, run.treasury);
+  const chainTransfers = await fetchTreasuryTransfers(deps.connection, run.treasury, BigInt(run.started_slot));
   const { query } = await import('../gameops/pool.js');
   const rows = await query<{
     order_no: number; tx_signature: string | null; received_units: string | null;

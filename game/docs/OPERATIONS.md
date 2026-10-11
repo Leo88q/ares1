@@ -176,6 +176,24 @@ installs the full production workspace graph (including web dependencies); reduc
 image size is deferred. Compose restart handles process exits, not all outages;
 Docker does not automatically restart merely unhealthy containers.
 
+### Реплики и секреты без файлов (2026-10-08)
+
+- **Несколько реплик безопасны, когда включён `game_ops`.** Крон эпохи берёт
+  Postgres advisory-лок (`src/gameops/epochLock.ts`, ключ `ares1`), поэтому
+  перекрытие выкатки или план с 2+ инстансами не приводит к двойному
+  `roll_epoch` и к ложной лестнице алертов 3/9/27. Без `GAME_OPS_DATABASE_URL`
+  общей блокировки нет — тогда допустима ровно одна реплика (старт пишет об
+  этом явное предупреждение). Замок — **подавитель дублей, а не
+  предохранитель**: если БД недоступна, такт выполняется без него (повторный
+  `roll_epoch` отвергает сама цепь), но недоступность замка видна в логах.
+- **Keypair без файловой монтировки.** `PAYER_KEYPAIR_JSON` принимает
+  inline-JSON (`[12,34,…]`) для secret manager, который передаёт секреты только
+  переменными окружения. На VPS предпочтителен read-only volume с ключом
+  (`keys:ro`); оба формата обрабатывает один parser (`src/payerKey.ts`).
+- Selected deployment target: Cloudflare + isolated VPS Compose projects. Follow
+  [`docs/DEPLOY_BACKEND_VPS.md`](../../docs/DEPLOY_BACKEND_VPS.md). The previous
+  Flux/managed-Postgres guide is superseded.
+
 ### How the frontends reach the backend
 
 The landing is a static site, so its `/api/*` calls need an explicit path to the
@@ -221,6 +239,40 @@ configuration (encrypted if secrets), indexer checkpoints, the `game_ops` databa
 and test restoration. The blockchain is not a backup of private keys; a database
 dump is not a proof of immutability either — that proof is the hash-chain plus the
 on-chain Merkle anchor.
+
+## Cold-key treasury withdrawals
+
+The program already exposes a two-step withdrawal path. A local-only operator CLI
+(`yarn treasury:admin`) now wraps that existing ABI; it is **devnet-only for writes**
+and does not run in the backend or retain/upload key material. Its raw keypair file
+must remain on the operator's Mac/cold workstation, never on the VPS, and must
+have file mode `0600` (the CLI rejects broader POSIX permissions). `status` is
+read-only. `propose`, `execute`, and `cancel` require a TTY and an exact typed
+confirmation; there is no non-interactive `--yes` path. The CLI checks the RPC
+cluster genesis hash, the configured program and authority, amount precision, the
+rolling 24-hour cap, pending amount and timelock, and sends only to the authority's
+own destination. Cancellation clears every pending asset proposal and does not
+refund the allowance already consumed by proposing.
+
+Devnet example (run from `game/`):
+
+```sh
+export SOLANA_CLUSTER=devnet
+export RPC_URL=https://api.devnet.solana.com
+export PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf
+export ADMIN_KEYPAIR_PATH="$HOME/.config/solana/id.json"
+yarn treasury:admin status
+# Then, as separate, interactively confirmed actions:
+yarn treasury:admin propose sol 0.25
+yarn treasury:admin execute sol 0.25   # only after the chain timelock
+```
+
+The CLI intentionally refuses mainnet writes: it signs directly with a keypair and
+is not a Squads proposal/approval workflow. Mainnet treasury use needs a separately
+reviewed Squads-compatible flow and human authorization. The on-chain 30-second
+timelock is **not** a meaningful standalone security delay; it must not be treated
+as a substitute for multisig governance. No withdrawal was executed as part of this
+change.
 
 ## Incident / emergency pause
 

@@ -221,7 +221,7 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
         gap: 6,
        }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-         <span className="pf-subtitle">{t("Таможенный сбор")} ({bps} bps)</span>
+         <span className="pf-subtitle">{t("V1 · комиссия в POTATO")} ({bps} bps)</span>
          <span className="pf-mono" style={{ color: 'var(--pf-text-secondary)' }}>−{feeAmount.toFixed(2)} POTATO</span>
         </div>
         {hasLicense && (
@@ -231,11 +231,11 @@ export default function CreateOrderModal({ open, onClose, onCreate, balanceMicro
          </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-         <span className="pf-subtitle">{t("Спишется")}</span>
+         <span className="pf-subtitle">{t("Спишется при создании")}</span>
          <span className="pf-mono" style={{ color: 'var(--pf-gold)' }}>{totalPotato.toFixed(2)} POTATO</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, borderTop: '1px solid rgba(124,255,107,0.15)', paddingTop: 6 }}>
-         <span className="pf-subtitle" style={{ color: 'var(--pf-text-primary)' }}>{t("Получишь")}</span>
+         <span className="pf-subtitle" style={{ color: 'var(--pf-text-primary)' }}>{t("V1 · валовая выплата продавцу")}</span>
          <span className="pf-mono" style={{ color: 'var(--pf-green)', textShadow: 'var(--pf-glow-green)' }}>
           ≈ {totalSol.toFixed(4)} SOL
          </span>

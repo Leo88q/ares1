@@ -61,6 +61,54 @@ test('static t() literals used by the app exist in en.ts', () => {
   assert.deepEqual(missing, []);
 });
 
+function entriesOf(file) {
+  const src = readFileSync(join(stringsDir, file), 'utf8');
+  const entries = new Map();
+  const re = /^ {1,2}'((?:[^'\\]|\\.)*)':\s*'((?:[^'\\]|\\.)*)',?\s*$/gm;
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    const decode = value => value.replace(/\\'/g, "'").replace(/\\\\/g, "\\");
+    entries.set(decode(m[1]), decode(m[2]));
+  }
+  return entries;
+}
+
+test('new presale, fee and season copy is localized with interpolation tokens preserved', () => {
+  const keys = [
+    'Фаза 1 — отдельный пресейл mainnet. Devnet-бета бесплатна, прогресс не переносится, тестовые SOL/SKR не имеют реальной стоимости.',
+    'Этот сервер работает в devnet: не отправляйте сюда реальные средства.',
+    'Пресейл mainnet пока закрыт: не отправляйте средства.',
+    'Переведите ровно {amount} на:',
+    'Целевая версия V2: 9–12% от gross-суммы удерживается только при успешном fill из выплаты продавцу и поступает в казну в валюте расчёта (SOL или SKR). Суточные маржинальные сегменты seller-wallet: 9% на первые 1 000 POTATO, 10% до 10 000, 11% до 100 000, затем 12%; объём общий для обеих пар — дробление ордеров не снижает ставку. Sybil-кошельки без identity-системы не блокируются. Сейчас devnet-контракт — legacy SOL/POTATO; V2 и пара POTATO/SKR ещё не активны.',
+    'СЕЗОННАЯ ОПЕРАЦИЯ',
+    'ОПЕРАЦИЯ: ПЕРВАЯ ТЕПЛИЦА',
+    'Текущий devnet-контракт V1 сжигает 60% старой комиссии, которую продавец вносит в POTATO при создании ордера; эта схема legacy. Целевая V2-комиссия 9–12% удерживается при успешной сделке из выплаты продавцу в SOL или SKR и идёт в казну — она не сжигает POTATO. Другие игровые расходы могут сжигать POTATO по правилам контракта. Релиз V2 ещё не включён; burn не гарантирует рост цены.',
+    'Что такое «Операция: Первая теплица»?',
+    'Целевая версия V2: 9–12% от gross-суммы удерживается только при успешном fill из выплаты продавцу и поступает в казну в валюте расчёта (SOL или SKR). Суточные маржинальные tiers зависят от суммарного POTATO-объёма seller-wallet и общие для SOL/SKR-пар — дробление ордеров одного адреса не должно обходить ставку. Конкретные границы tiers — рабочий проект и будут опубликованы после финального решения перед релизом. Sybil-кошельки без identity-системы не блокируются. Сейчас devnet-контракт — legacy SOL/POTATO; V2 и пара POTATO/SKR ещё не активны.',
+  ];
+  const english = entriesOf('en.ts');
+  const placeholders = value => [...value.matchAll(/\{[^{}]+\}/g)].map(match => match[0]).sort();
+  const tierDraftKey = keys.find(key => key.includes('Суточные маржинальные сегменты seller-wallet:'));
+  const draftCue = {
+    'es-419.ts': 'borrador',
+    'id.ts': 'rancangan',
+    'pt-BR.ts': 'rascunho',
+    'tl.ts': 'draft',
+    'vi.ts': 'bản nháp',
+  };
+  for (const file of files.filter(file => file !== 'en.ts')) {
+    const translated = entriesOf(file);
+    assert.ok(translated.get(tierDraftKey).toLocaleLowerCase().includes(draftCue[file]),
+      `${file} must clearly label proposed V2 tier breakpoints as a draft`);
+    for (const key of keys) {
+      assert.ok(english.has(key), `missing English source for ${key}`);
+      assert.ok(translated.has(key), `${file} is missing ${key}`);
+      assert.notEqual(translated.get(key), english.get(key), `${file} leaves new launch copy in English: ${key}`);
+      assert.deepEqual(placeholders(translated.get(key)), placeholders(english.get(key)), `${file} changes interpolation tokens for ${key}`);
+    }
+  }
+});
+
 test('translations contain no leftover Russian text', () => {
   const offenders = [];
   for (const f of files) {

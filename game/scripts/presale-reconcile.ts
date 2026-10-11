@@ -17,7 +17,10 @@
  *                   verify заказа (docs/PRESALE_DELIVERY_RUNBOOK.md).
  */
 import process from 'node:process';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection } from '@solana/web3.js';
+import { expectedGenesisHash } from '../apps/backend/src/cluster.js';
+import type { SolanaCluster } from '../apps/backend/src/cluster.js';
+import { bindPresaleDatabaseCluster } from '../apps/backend/src/gameops/clusterGuard.js';
 import { loadGameOpsConfig } from '../apps/backend/src/gameops/env.js';
 import { createPool, query, closePool } from '../apps/backend/src/gameops/pool.js';
 import { fetchTreasuryTransfers } from '../apps/backend/src/presale/chain.js';
@@ -28,22 +31,37 @@ const SKR_MINT = 'Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o';
 async function main(): Promise<void> {
   const runId = process.env.PRESALE_RUN_ID;
   const rpcUrl = process.env.RPC_URL;
+  const clusterRaw = process.env.SOLANA_CLUSTER;
   if (!runId) { console.error('PRESALE_RUN_ID не задан'); process.exit(2); }
   if (!rpcUrl) { console.error('RPC_URL не задан'); process.exit(2); }
+  if (clusterRaw !== 'devnet' && clusterRaw !== 'mainnet-beta') {
+    console.error('SOLANA_CLUSTER должен быть devnet или mainnet-beta');
+    process.exit(2);
+  }
+  const cluster: SolanaCluster = clusterRaw;
 
   const cfg = loadGameOpsConfig();
   if (!cfg) { console.error('GAME_OPS_DATABASE_URL не задан'); process.exit(2); }
 
   const pool = createPool(cfg);
-  const connection = new Connection(rpcUrl, 'confirmed');
+  const connection = new Connection(rpcUrl, 'finalized');
 
   try {
-    const runs = await query<{ currency: 'sol' | 'skr'; treasury: string }>(
-      pool, 'SELECT currency, treasury FROM game_ops.presale_runs WHERE run_id = $1', [runId],
+    const actualGenesis = await connection.getGenesisHash();
+    const expectedGenesis = expectedGenesisHash(cluster);
+    if (actualGenesis !== expectedGenesis) {
+      throw new Error(`RPC cluster mismatch: configured=${cluster}, genesis=${actualGenesis}`);
+    }
+    await bindPresaleDatabaseCluster(pool, cluster);
+    const runs = await query<{ currency: 'sol' | 'skr'; treasury: string; started_slot: string }>(
+      pool, 'SELECT currency, treasury, started_slot FROM game_ops.presale_runs WHERE run_id = $1', [runId],
     );
     const run = runs[0];
     if (!run) { console.error(`Тираж ${runId} не найден`); process.exit(2); }
 
+    if (cluster === 'mainnet-beta' && run.currency !== 'sol') {
+      throw new Error('Mainnet reconciliation only supports native SOL runs; refusing a non-mainnet currency.');
+    }
     if (run.currency === 'skr') {
       // Не выдаём SOL-историю за «сверку SKR»: fetchTreasuryTransfers читает
       // только SOL-баланс казначейства, поэтому вердикт для SKR-тиража был бы
@@ -56,7 +74,7 @@ async function main(): Promise<void> {
       process.exit(2);
     }
 
-    const chainTransfers = await fetchTreasuryTransfers(connection, run.treasury);
+    const chainTransfers = await fetchTreasuryTransfers(connection, run.treasury, BigInt(run.started_slot));
 
     const orders = await query<{
       order_no: number; tx_signature: string | null; received_units: string | null;

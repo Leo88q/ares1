@@ -1,6 +1,6 @@
 # ARES-1 API — source reference, 21 September 2026 (post-audit remediation)
 
-**Not a statement about the deployed binary.** Anchor CLI/crates 0.31.2; source:
+**Not a statement about the deployed binary.** This API still describes the current legacy V1 source/IDL; the V2 marketplace decision recorded on 11 October 2026 is not implemented in this ABI. Anchor CLI/crates 0.31.2; source:
 `programs/solana_potato/src/lib.rs`. Committed `apps/web/src/idl.json` describes
 the remediated source (**44 instructions, 13 accounts, 31 events, 51 errors** —
 counts re-checked against the committed IDL on 2026-10-02; `yarn check:contract`
@@ -23,8 +23,12 @@ Owner clarification: **SKR presale = 1053 SKR; export license = 500 SKR**.
 Ordinary field purchases, tax, repairs, upgrades, fertilizer and referral registration
 retain their original **POTATO** payments/burns. The attempted generalized SKR
 service-pricing rewrite has been withdrawn; it is not the approved game economy.
-Marketplace settlement below describes the restored code, not approval of a new
-market currency. Any market-only conversion requires separate confirmation.
+The current source still has the restored V1 SOL-only market described below. On
+11 October 2026 the owner separately approved a V2 POTATO/SKR market and a seller-paid
+9–12% settlement fee in the quote asset, retained from successful fills and routed
+to the treasury in that same asset. The V2 fee is intended to use cumulative UTC-day
+POTATO volume per seller address across both quote pairs; it is not part of this ABI
+or available to users yet.
 
 ## Units and accounts
 
