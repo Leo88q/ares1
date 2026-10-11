@@ -37,13 +37,19 @@ test('locale files exist and share one key set', () => {
 
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {
-    if (entry === 'node_modules' || entry === 'dist' || entry === 'public' || entry === 'strings') continue;
+    if (entry === 'node_modules' || entry === 'dist' || entry === 'public' || entry === 'strings' || entry === 'tests') continue;
     const p = join(dir, entry);
     if (statSync(p).isDirectory()) walk(p, out);
     else if (/\.tsx?$/.test(entry)) out.push(p);
   }
   return out;
 }
+
+test('English dictionary has no orphaned entries outside production source', () => {
+  const source = walk(root).map(file => readFileSync(file, 'utf8')).join('\n');
+  const orphaned = keysOf('en.ts').filter(key => !source.includes(key));
+  assert.deepEqual(orphaned, [], 'remove translations that no production component or content can use');
+});
 
 test('static t() literals used by the app exist in en.ts', () => {
   const baseline = new Set(keysOf('en.ts'));
@@ -59,6 +65,109 @@ test('static t() literals used by the app exist in en.ts', () => {
     }
   }
   assert.deepEqual(missing, []);
+});
+
+function entriesOf(file) {
+  const src = readFileSync(join(stringsDir, file), 'utf8');
+  const entries = new Map();
+  const re = /^ {1,2}'((?:[^'\\]|\\.)*)':\s*'((?:[^'\\]|\\.)*)',?\s*$/gm;
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    const decode = value => value.replace(/\\'/g, "'").replace(/\\\\/g, "\\");
+    entries.set(decode(m[1]), decode(m[2]));
+  }
+  return entries;
+}
+
+test('new presale, fee and season copy is localized with interpolation tokens preserved', () => {
+  const keys = [
+    'Фаза 1 — отдельный пресейл mainnet. Devnet-бета бесплатна, прогресс не переносится, тестовые SOL/SKR не имеют реальной стоимости.',
+    'Этот сервер работает в devnet: не отправляйте сюда реальные средства.',
+    'Пресейл mainnet пока закрыт: не отправляйте средства.',
+    'Переведите ровно {amount} на:',
+    'СЕЗОННАЯ ОПЕРАЦИЯ',
+    'ОПЕРАЦИЯ: ПЕРВАЯ ТЕПЛИЦА',
+    'Текущий devnet-контракт V1 сжигает 60% старой комиссии, которую продавец вносит в POTATO при создании ордера; эта схема legacy. Целевая V2-комиссия 9–12% удерживается при успешной сделке из выплаты продавцу в SOL или SKR и идёт в казну — она не сжигает POTATO. Другие игровые расходы могут сжигать POTATO по правилам контракта. Релиз V2 ещё не включён; burn не гарантирует рост цены.',
+    'Что такое «Операция: Первая теплица»?',
+    'Целевая версия V2: 9–12% от gross-суммы удерживается только при успешном fill из выплаты продавцу и поступает в казну в валюте расчёта (SOL или SKR). Суточные маржинальные tiers зависят от суммарного POTATO-объёма seller-wallet и общие для SOL/SKR-пар — дробление ордеров одного адреса не должно обходить ставку. Конкретные границы tiers — рабочий проект и будут опубликованы после финального решения перед релизом. Sybil-кошельки без identity-системы не блокируются. Сейчас devnet-контракт — legacy SOL/POTATO; V2 и пара POTATO/SKR ещё не активны.',
+  ];
+  const english = entriesOf('en.ts');
+  const placeholders = value => [...value.matchAll(/\{[^{}]+\}/g)].map(match => match[0]).sort();
+  const tierDraftKey = keys.find(key => key.includes('Конкретные границы tiers — рабочий проект'));
+  assert.ok(tierDraftKey, 'the active V2 copy must keep tier thresholds explicitly marked as a draft');
+  const draftCue = {
+    'es-419.ts': 'borrador',
+    'id.ts': 'rancangan',
+    'pt-BR.ts': 'rascunho',
+    'tl.ts': 'draft',
+    'vi.ts': 'bản nháp',
+  };
+  for (const file of files.filter(file => file !== 'en.ts')) {
+    const translated = entriesOf(file);
+    assert.ok(translated.get(tierDraftKey).toLocaleLowerCase().includes(draftCue[file]),
+      `${file} must clearly label proposed V2 tier breakpoints as a draft`);
+    for (const key of keys) {
+      assert.ok(english.has(key), `missing English source for ${key}`);
+      assert.ok(translated.has(key), `${file} is missing ${key}`);
+      assert.notEqual(translated.get(key), english.get(key), `${file} leaves new launch copy in English: ${key}`);
+      assert.deepEqual(placeholders(translated.get(key)), placeholders(english.get(key)), `${file} changes interpolation tokens for ${key}`);
+    }
+  }
+});
+
+test('NeuroForge integration concept and separate-app notice are localized as non-live', () => {
+  const keys = [
+    'КОНЦЕПЦИЯ: ARES-1 × NEUROFORGE',
+    'Планируемая интеграция; мост и переводы $POTATO пока не работают.',
+    'ПЛАН МЕЖИГРОВОЙ ИНТЕГРАЦИИ',
+    'ПЛАН · НЕ ЗАПУЩЕНО',
+    'Художественный лор — не описание функций',
+    'Интеграция ARES-1 ↔ NeuroForge не запущена: нет работающего маршрута, переводов $POTATO, межигрового burn, предметов или наград. Текст ниже — концепция, а не действующая механика.',
+    'В художественном сценарии ARES-1 получает сигнал от NeuroForge. Это вымышленная часть лора и не подтверждает работающую связь между приложениями.',
+    'Будущий сценарий мог бы использовать $POTATO в отдельных игровых механиках NeuroForge. Сейчас в ARES-1 нет on-chain-маршрута к этому приложению и нет интеграции токена.',
+    'Квантовый мост, межигровой burn, крафт, общие предметы и передача достижений недоступны. Их возможный запуск потребует реализации, проверки и отдельного объявления; сроки не обещаны.',
+    'ПЛАНИРУЕМАЯ СВЯЗЬ · SOLANA',
+    'Отдельное приложение; связь с ARES-1 не запущена.',
+    'Перевод $POTATO между ARES-1 и NeuroForge не работает.',
+    'Общие предметы, достижения, награды и крафт не подключены.',
+    'Межигровой burn и рыночный маршрут не реализованы.',
+    'Цифры и механики NeuroForge из лора не подтверждены как функции интеграции.',
+    'Посмотреть статус интеграции',
+    'Открыть Age of Farming ↗',
+    'Age of Farming — отдельное приложение; переход по ссылке не подключает его к ARES-1.',
+    'Подробнее о статусе',
+    'СТАТУС ИНТЕГРАЦИИ',
+    'Мост ARES-1 ↔ NeuroForge не запущен: отправить или получить $POTATO здесь нельзя. Внешняя ссылка открывает отдельное приложение Age of Farming, не связанное с этой интеграцией.',
+    'ПЛАН · МАРС ↔ NEUROFORGE',
+    'ЧАСТОТА В ХУДОЖЕСТВЕННОМ ЛОРЕ · 17.42 ГГц',
+    'Переводы $POTATO через мост',
+    'Дата запуска интеграции',
+    'Переводы не запущены',
+    'Запуск не объявлен',
+    'Ожидаем официальное объявление',
+    'Интеграция не запущена: переводы не выполняются. На этой странице нельзя отправить $POTATO или списать SOL/SKR.',
+    'Внешняя ссылка не связывает приложения и не переводит токены. До подписания любой операции проверьте адрес программы, сеть и условия транзакции.',
+    'Ссылка на отдельное приложение не настроена.',
+    'Статус интеграции',
+    'Выберите карточку; кросс-игровые функции пока не подключены.',
+  ];
+  const english = entriesOf('en.ts');
+  const importantClaims = [
+    ['Интеграция ARES-1 ↔ NeuroForge не запущена: нет работающего маршрута, переводов $POTATO, межигрового burn, предметов или наград. Текст ниже — концепция, а не действующая механика.', 'not live'],
+    ['Интеграция не запущена: переводы не выполняются. На этой странице нельзя отправить $POTATO или списать SOL/SKR.', 'cannot send $potato'],
+    ['Age of Farming — отдельное приложение; переход по ссылке не подключает его к ARES-1.', 'does not connect'],
+  ];
+  for (const [key, phrase] of importantClaims) {
+    assert.ok(english.get(key)?.toLowerCase().includes(phrase), `English copy must state ${phrase}`);
+  }
+  for (const file of files.filter(file => file !== 'en.ts')) {
+    const translated = entriesOf(file);
+    for (const key of keys) {
+      assert.ok(english.has(key), `missing English source for ${key}`);
+      assert.ok(translated.has(key), `${file} is missing ${key}`);
+      assert.notEqual(translated.get(key), english.get(key), `${file} leaves integration copy in English: ${key}`);
+    }
+  }
 });
 
 test('translations contain no leftover Russian text', () => {

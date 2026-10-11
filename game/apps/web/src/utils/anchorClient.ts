@@ -40,13 +40,18 @@ export function pdas(programId: PublicKey) {
  const field = (id: bigint) => PublicKey.findProgramAddressSync([Buffer.from('field'), u64LE(id)], programId)[0]
  const order = (id: bigint) => PublicKey.findProgramAddressSync([Buffer.from('order'), u64LE(id)], programId)[0]
  const escrow = (orderPk: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from('escrow'), orderPk.toBuffer()], programId)[0]
+ const orderV2 = (id: bigint) => PublicKey.findProgramAddressSync([Buffer.from('order_v2'), u64LE(id)], programId)[0]
+ const escrowV2 = (orderPk: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from('escrow_v2'), orderPk.toBuffer()], programId)[0]
+ const sellerVolumeV2 = (owner: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from('seller_volume_v2'), owner.toBuffer()], programId)[0]
+ const marketStatsV2 = () => PublicKey.findProgramAddressSync([Buffer.from('market_stats_v2')], programId)[0]
  const sellerProfile = (owner: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from('seller'), owner.toBuffer()], programId)[0]
  const marketStats = () => PublicKey.findProgramAddressSync([Buffer.from('market_stats')], programId)[0]
  const treasuryAuthority = () => config()
+ const treasurySol = () => PublicKey.findProgramAddressSync([Buffer.from('treasury_sol')], programId)[0]
  const exportLicense = (owner: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from('license'), owner.toBuffer()], programId)[0]
  // Withdrawal rate limits + timelocked admin proposals (AdminState singleton).
  const adminState = () => PublicKey.findProgramAddressSync([Buffer.from('admin_state')], programId)[0]
- return { config, epoch, field, order, escrow, sellerProfile, marketStats, treasuryAuthority, exportLicense, adminState }
+ return { config, epoch, field, order, escrow, orderV2, escrowV2, sellerVolumeV2, marketStatsV2, sellerProfile, marketStats, treasuryAuthority, treasurySol, exportLicense, adminState }
 }
 
 export function potatoAta(owner: PublicKey, mint: PublicKey): PublicKey {
@@ -149,6 +154,119 @@ export async function ixCreateSellOrder(programId: PublicKey, params: {
   { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
   { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
+
+export type MarketQuoteAsset = 'sol' | 'skr'
+
+/** V2 seller listing; escrow contains only the POTATO principal. */
+export async function ixCreateSellOrderV2(programId: PublicKey, params: {
+ seller: PublicKey; sellerProfile: PublicKey; sellerVolumeV2: PublicKey; marketStatsV2: PublicKey
+ order: PublicKey; sellerPotato: PublicKey; escrow: PublicKey; potatoMint: PublicKey; config: PublicKey
+ orderId: bigint; amountMicro: bigint; priceQuoteAtomsPerPotato: bigint; quoteAsset: MarketQuoteAsset
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(
+  await ixDiscriminator('create_sell_order_v2'),
+  u64LE(params.orderId),
+  u64LE(params.amountMicro),
+  u64LE(params.priceQuoteAtomsPerPotato),
+  u8(params.quoteAsset === 'sol' ? 0 : 1),
+ )
+ const keys = [
+  { pubkey: params.seller, isSigner: true, isWritable: true },
+  { pubkey: params.config, isSigner: false, isWritable: false },
+  { pubkey: params.sellerProfile, isSigner: false, isWritable: true },
+  { pubkey: params.sellerVolumeV2, isSigner: false, isWritable: true },
+  { pubkey: params.marketStatsV2, isSigner: false, isWritable: true },
+  { pubkey: params.order, isSigner: false, isWritable: true },
+  { pubkey: params.sellerPotato, isSigner: false, isWritable: true },
+  { pubkey: params.escrow, isSigner: false, isWritable: true },
+  { pubkey: params.potatoMint, isSigner: false, isWritable: false },
+  { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
+
+export async function ixFillOrderV2(programId: PublicKey, params: {
+ buyer: PublicKey; seller: PublicKey; config: PublicKey; potatoMint: PublicKey
+ sellerVolumeV2: PublicKey; marketStatsV2: PublicKey; order: PublicKey; escrow: PublicKey
+ buyerPotato: PublicKey; treasurySol: PublicKey
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('fill_order_v2'))
+ const keys = [
+  { pubkey: params.buyer, isSigner: true, isWritable: true },
+  { pubkey: params.seller, isSigner: false, isWritable: true },
+  { pubkey: params.config, isSigner: false, isWritable: false },
+  { pubkey: params.potatoMint, isSigner: false, isWritable: false },
+  { pubkey: params.sellerVolumeV2, isSigner: false, isWritable: true },
+  { pubkey: params.marketStatsV2, isSigner: false, isWritable: true },
+  { pubkey: params.order, isSigner: false, isWritable: true },
+  { pubkey: params.escrow, isSigner: false, isWritable: true },
+  { pubkey: params.buyerPotato, isSigner: false, isWritable: true },
+  { pubkey: params.treasurySol, isSigner: false, isWritable: true },
+  { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
+
+export async function ixFillOrderV2Skr(programId: PublicKey, params: {
+ buyer: PublicKey; seller: PublicKey; config: PublicKey; potatoMint: PublicKey; skrMint: PublicKey
+ sellerVolumeV2: PublicKey; marketStatsV2: PublicKey; order: PublicKey; escrow: PublicKey
+ buyerPotato: PublicKey; buyerSkrAta: PublicKey; sellerSkrAta: PublicKey; treasurySol: PublicKey; treasurySkrAta: PublicKey
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('fill_order_v2_skr'))
+ const keys = [
+  { pubkey: params.buyer, isSigner: true, isWritable: true },
+  { pubkey: params.seller, isSigner: false, isWritable: true },
+  { pubkey: params.config, isSigner: false, isWritable: false },
+  { pubkey: params.potatoMint, isSigner: false, isWritable: false },
+  { pubkey: params.skrMint, isSigner: false, isWritable: false },
+  { pubkey: params.sellerVolumeV2, isSigner: false, isWritable: true },
+  { pubkey: params.marketStatsV2, isSigner: false, isWritable: true },
+  { pubkey: params.order, isSigner: false, isWritable: true },
+  { pubkey: params.escrow, isSigner: false, isWritable: true },
+  { pubkey: params.buyerPotato, isSigner: false, isWritable: true },
+  { pubkey: params.buyerSkrAta, isSigner: false, isWritable: true },
+  { pubkey: params.sellerSkrAta, isSigner: false, isWritable: true },
+  { pubkey: params.treasurySol, isSigner: false, isWritable: false },
+  { pubkey: params.treasurySkrAta, isSigner: false, isWritable: true },
+  { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
+
+export async function ixCancelOrderV2(programId: PublicKey, params: {
+ seller: PublicKey; sellerProfile: PublicKey; order: PublicKey; escrow: PublicKey; sellerPotato: PublicKey
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('cancel_order_v2'))
+ const keys = [
+  { pubkey: params.seller, isSigner: true, isWritable: true },
+  { pubkey: params.sellerProfile, isSigner: false, isWritable: true },
+  { pubkey: params.order, isSigner: false, isWritable: true },
+  { pubkey: params.escrow, isSigner: false, isWritable: true },
+  { pubkey: params.sellerPotato, isSigner: false, isWritable: true },
+  { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
+
+export async function ixCloseExpiredOrderV2(programId: PublicKey, params: {
+ order: PublicKey; escrow: PublicKey; sellerPotato: PublicKey; seller: PublicKey
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('close_expired_order_v2'))
+ const keys = [
+  { pubkey: params.order, isSigner: false, isWritable: true },
+  { pubkey: params.escrow, isSigner: false, isWritable: true },
+  { pubkey: params.sellerPotato, isSigner: false, isWritable: true },
+  { pubkey: params.seller, isSigner: false, isWritable: true },
+  { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
  ]
  return new TransactionInstruction({ programId, keys, data })
 }
@@ -259,6 +377,88 @@ export function decodeMarketOrder(data: Buffer): DecodedOrder {
   priceLamportsPerPotato: priceLamportsPerPotato.value, feeMicro: feeMicro.value,
   status: ORDER_STATUS_MAP[statusByte.value] ?? 'active',
   createdAt: createdAt.value, expiresAt: expiresAt.value,
+ }
+}
+
+export type MarketOrderStatus = OrderStatusStr
+export const MARKET_ORDER_V2_ACCOUNT_SIZE = 85
+export const MARKET_ORDER_V2_STATUS_OFFSET = 66
+
+export interface DecodedMarketOrderV2 {
+ orderId: bigint; seller: PublicKey; amountMicro: bigint; priceQuoteAtomsPerPotato: bigint
+ quoteAsset: MarketQuoteAsset; feePolicyVersion: number; status: OrderStatusStr
+ createdAt: bigint; expiresAt: bigint; escrowBump: number; orderBump: number
+}
+
+export function decodeMarketOrderV2(data: Buffer): DecodedMarketOrderV2 {
+ if (data.length !== MARKET_ORDER_V2_ACCOUNT_SIZE) throw new RangeError('invalid MarketOrderV2 account size')
+ let o = 8
+ const orderId = readU64(data, o); o = orderId.next
+ const seller = readPubkey(data, o); o = seller.next
+ const amountMicro = readU64(data, o); o = amountMicro.next
+ const priceQuoteAtomsPerPotato = readU64(data, o); o = priceQuoteAtomsPerPotato.next
+ const quoteAssetByte = readU8(data, o); o = quoteAssetByte.next
+ if (quoteAssetByte.value > 1) throw new RangeError('invalid MarketOrderV2 quote asset')
+ const feePolicyVersion = readU8(data, o); o = feePolicyVersion.next
+ const statusByte = readU8(data, o); o = statusByte.next
+ if (statusByte.value >= ORDER_STATUS_MAP.length) throw new RangeError('invalid MarketOrderV2 status')
+ const createdAt = readI64(data, o); o = createdAt.next
+ const expiresAt = readI64(data, o); o = expiresAt.next
+ const escrowBump = readU8(data, o); o = escrowBump.next
+ const orderBump = readU8(data, o)
+ return {
+  orderId: orderId.value,
+  seller: seller.value,
+  amountMicro: amountMicro.value,
+  priceQuoteAtomsPerPotato: priceQuoteAtomsPerPotato.value,
+  quoteAsset: quoteAssetByte.value === 0 ? 'sol' : 'skr',
+  feePolicyVersion: feePolicyVersion.value,
+  status: ORDER_STATUS_MAP[statusByte.value],
+  createdAt: createdAt.value,
+  expiresAt: expiresAt.value,
+  escrowBump: escrowBump.value,
+  orderBump: orderBump.value,
+ }
+}
+
+export const SELLER_VOLUME_V2_ACCOUNT_SIZE = 57
+export const MARKET_STATS_V2_ACCOUNT_SIZE = 49
+
+export interface DecodedSellerVolumeV2 {
+ seller: PublicKey; dayIndex: bigint; filledPotatoMicro: bigint; bump: number
+}
+
+export function decodeSellerVolumeV2(data: Buffer): DecodedSellerVolumeV2 {
+ if (data.length !== SELLER_VOLUME_V2_ACCOUNT_SIZE) throw new RangeError('invalid SellerVolumeV2 account size')
+ let o = 8
+ const seller = readPubkey(data, o); o = seller.next
+ const dayIndex = readI64(data, o); o = dayIndex.next
+ const filledPotatoMicro = readU64(data, o); o = filledPotatoMicro.next
+ const bump = readU8(data, o)
+ return { seller: seller.value, dayIndex: dayIndex.value, filledPotatoMicro: filledPotatoMicro.value, bump: bump.value }
+}
+
+export interface DecodedMarketStatsV2 {
+ totalPotatoVolumeMicro: bigint; totalSolVolumeLamports: bigint; totalSkrVolumeAtoms: bigint
+ totalTrades: bigint; lastUpdate: bigint; bump: number
+}
+
+export function decodeMarketStatsV2(data: Buffer): DecodedMarketStatsV2 {
+ if (data.length !== MARKET_STATS_V2_ACCOUNT_SIZE) throw new RangeError('invalid MarketStatsV2 account size')
+ let o = 8
+ const potatoVolume = readU64(data, o); o = potatoVolume.next
+ const solVolume = readU64(data, o); o = solVolume.next
+ const skrVolume = readU64(data, o); o = skrVolume.next
+ const trades = readU64(data, o); o = trades.next
+ const lastUpdate = readI64(data, o); o = lastUpdate.next
+ const bump = readU8(data, o)
+ return {
+  totalPotatoVolumeMicro: potatoVolume.value,
+  totalSolVolumeLamports: solVolume.value,
+  totalSkrVolumeAtoms: skrVolume.value,
+  totalTrades: trades.value,
+  lastUpdate: lastUpdate.value,
+  bump: bump.value,
  }
 }
 

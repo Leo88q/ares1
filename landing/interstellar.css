@@ -178,8 +178,17 @@
 
 .interstellar-world-action {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   margin-top: 10px;
+}
+
+.interstellar-external-app-note {
+  flex: 0 0 100%;
+  margin: 8px 0 0;
+  color: #bea6c7;
+  font: 10px/1.7 "Inter", system-ui, sans-serif;
+  text-align: center;
 }
 
 .ares-action-link {
@@ -551,20 +560,20 @@
   font: 11px/1.8 "Inter", system-ui, sans-serif;
 }
 
-.interstellar-reserve-note {
+.tokenomics-notes {
   margin-top: 24px;
   padding: 22px;
   border-left: 2px solid #6b93d6;
   background: linear-gradient(90deg, #6b93d60d, transparent);
 }
 
-.interstellar-reserve-note > p:first-child {
+.tokenomics-notes > p:first-child {
   margin: 0;
   color: #d4c8e0;
   font: 13px/1.9 "Inter", system-ui, sans-serif;
 }
 
-.interstellar-reserve-note > p:last-child {
+.tokenomics-notes > p:last-child {
   margin: 12px 0 0;
   color: #b8a5c3;
   font: 10px/1.85 "Inter", system-ui, sans-serif;
@@ -638,7 +647,7 @@
     font-size: 20px;
   }
 
-  .interstellar-reserve-note {
+  .tokenomics-notes {
     padding: 14px;
   }
 }
@@ -741,7 +750,7 @@
   }
 }
 
-/* ── Квантовый маршрут: неоновый мост между Марсом и NeuroForge ── */
+/* ── Концептуальная схема маршрута; не отображает активный мост ── */
 .quantum-route-arc{position:absolute;left:-50%;width:200%;height:200%;border-radius:50%;pointer-events:none;background:linear-gradient(90deg,#E6751C 15%,#A855F7 50%,#00E5FF 85%);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1px));opacity:.35}
 .quantum-route-arc--top{bottom:50%}
 .quantum-route-arc--bottom{top:50%}

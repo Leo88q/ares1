@@ -10,7 +10,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 2832,
+        "line": 3330,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -21,7 +21,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 2892,
+        "line": 3390,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -32,7 +32,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 2913,
+        "line": 3411,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -43,7 +43,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 2932,
+        "line": 3430,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -54,7 +54,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 2948,
+        "line": 3446,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -65,7 +65,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3001,
+        "line": 3499,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -76,7 +76,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3017,
+        "line": 3518,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -87,7 +87,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3095,
+        "line": 3526,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -98,7 +98,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3136,
+        "line": 3534,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -109,7 +109,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3209,
+        "line": 3652,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -120,7 +120,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3300,
+        "line": 3662,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -131,7 +131,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3321,
+        "line": 3678,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -142,7 +142,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3343,
+        "line": 3744,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -153,7 +153,73 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3354,
+        "line": 3822,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 3863,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 3936,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 4027,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 4048,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 4070,
+        "column": 9
+      },
+      "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
+      "help": "Prefer init for one-shot state. If idempotency is required, verify existing-account invariants and test both branches."
+    },
+    {
+      "rule_id": "SW016-source-inventory",
+      "severity": "review",
+      "location": {
+        "path": "game/programs/solana_potato/src/lib.rs",
+        "line": 4081,
         "column": 8
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -164,7 +230,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3355,
+        "line": 4082,
         "column": 15
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -175,7 +241,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3368,
+        "line": 4095,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -186,7 +252,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3386,
+        "line": 4113,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -197,7 +263,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3444,
+        "line": 4171,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -208,7 +274,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3488,
+        "line": 4215,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -219,7 +285,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 3606,
+        "line": 4333,
         "column": 7
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
@@ -230,7 +296,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 4789,
+        "line": 5771,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",

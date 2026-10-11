@@ -28,6 +28,10 @@ import {
   feeBps,
   levelMultBps,
 } from '../../apps/web/src/utils/constants'
+import {
+  SETTLEMENT_FEE_BPS,
+  SELLER_VOLUME_THRESHOLDS_MICRO,
+} from '../../apps/web/src/utils/marketFeePolicy'
 
 // Зеркала ончейн-констант: клиент печатает цены, комиссии и доходность по
 // своей копии значений из `programs/solana_potato/src/lib.rs`. Тест держит
@@ -155,6 +159,30 @@ test('комиссия рынка совпадает с calculate_fee_bps на �
     [1_000, 999_999_999, 1_000_000_000, 9_999_999_999, 10_000_000_000, 99_999_999_999, 100_000_000_000].map(feeBps),
     [900, 900, 1_000, 1_000, 1_100, 1_100, 1_200],
   )
+})
+
+test('V2 progressive settlement policy mirrors Rust draft tiers and uses separate versioned rails', () => {
+  const rustArray = (name: string): number[] => {
+    const declaration = rust.indexOf(`pub const ${name}:`)
+    assert(declaration >= 0, `в lib.rs нет массива ${name}`)
+    const open = rust.indexOf('[', rust.indexOf('=', declaration))
+    const close = rust.indexOf('];', open)
+    assert(open >= 0 && close > open, `массив ${name} повреждён`)
+    return [...rust.slice(open + 1, close).matchAll(/[0-9][0-9_]*/g)].map(m => Number(m[0].replaceAll('_', '')))
+  }
+  assert.deepEqual(rustArray('V2_SELLER_VOLUME_THRESHOLDS_MICRO'), SELLER_VOLUME_THRESHOLDS_MICRO.map(Number))
+  assert.deepEqual(rustArray('V2_SETTLEMENT_FEE_BPS'), SETTLEMENT_FEE_BPS.map(Number))
+  assert.match(rust, /pub const V2_MIN_GROSS_QUOTE_ATOMS: u64 = 1_000_000;/)
+  assert.match(rust, /pub const V2_FEE_POLICY_VERSION: u8 = 1;/)
+  for (const instruction of [
+    'create_sell_order_v2', 'fill_order_v2', 'fill_order_v2_skr', 'cancel_order_v2', 'close_expired_order_v2',
+  ]) assert.ok(rust.includes(`pub fn ${instruction}(`), `${instruction} must remain a versioned V2 instruction`)
+  assert.match(rust, /pub struct MarketOrderV2/)
+  assert.match(rust, /pub struct SellerVolumeV2/)
+  assert.ok(rust.includes('seeds = [b"seller_volume_v2", seller.key().as_ref()]'))
+  assert.match(rust, /V2 progressive marginal tiers.*draft/i)
+  // The old fee remains frozen on its legacy instruction; new quote fees are not added to it.
+  assert.match(rustBody('create_sell_order'), /order_fee_micro\(amount_micro\)/)
 })
 
 test('LUNAR_TABLE побайтово совпадает с Rust-таблицей и её экстремумами', () => {

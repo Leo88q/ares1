@@ -14,7 +14,7 @@ on:
       site_url:
         description: 'Base URL for the manual header/exposure check'
         type: string
-        default: 'https://play.ares1.is-a.dev'
+        default: 'https://ares1-play.pages.dev'
 
 permissions:
   contents: read

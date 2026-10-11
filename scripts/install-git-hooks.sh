@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the repository's git hooks (production-deploy checklist §1.3.6).
+# Install the repository's local secret-scanning git hook.
 #
 # Hooks live in .githooks/ so they are reviewed like any other code. They are
 # not active until this script is run once per clone:

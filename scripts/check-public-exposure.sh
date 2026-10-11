@@ -2,8 +2,8 @@
 #
 # Passive exposure check against a LIVE deployment (checklist §2.2, §9).
 #
-#   ./scripts/check-public-exposure.sh https://ares1.is-a.dev
-#   ./scripts/check-public-exposure.sh https://play.ares1.is-a.dev
+#   ./scripts/check-public-exposure.sh https://ares1-7e1.pages.dev
+#   ./scripts/check-public-exposure.sh https://ares1-play.pages.dev
 #
 # Why "compare content, not status": an SPA returns index.html with 200 for
 # every unknown path. A status-code check therefore reports "clean" for a site
@@ -26,7 +26,7 @@ if ! command -v curl >/dev/null 2>&1; then
   exit 2
 fi
 
-UA="ARES1-exposure-check/1.0 (+https://ares1.is-a.dev/.well-known/security.txt)"
+UA="ARES1-exposure-check/1.0 (+https://github.com/Leo88q/ares1/security)"
 
 echo "== $DOMAIN =="
 echo

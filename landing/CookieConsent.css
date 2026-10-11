@@ -159,3 +159,41 @@
     box-shadow: none;
   }
 }
+
+/* Keep the non-modal consent card compact enough not to hide mobile CTAs. */
+@media (max-width: 480px) {
+  .consent {
+    padding: 0.5rem;
+  }
+
+  .consent__panel {
+    padding: 0.75rem 0.8rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+
+  .consent__title {
+    margin-bottom: 0.25rem;
+    font-size: 0.98rem;
+    line-height: 1.25;
+  }
+
+  .consent__intro {
+    margin-bottom: 0.5rem;
+    line-height: 1.35;
+  }
+
+  .consent__actions {
+    gap: 0.4rem;
+    margin-top: 0.65rem;
+  }
+
+  .consent__btn {
+    min-height: 2.5rem;
+  }
+
+  .consent__footnote {
+    margin-top: 0.5rem;
+    font-size: 0.72rem;
+  }
+}

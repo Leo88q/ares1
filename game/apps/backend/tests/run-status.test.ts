@@ -23,7 +23,7 @@ const domain: RunStatus = {
   remaining: 497,
   is_open: true,
   sold_out: false,
-  price_units: '888000000',
+  price_units: '1000000',
   units_per_whole: '1000000',
   pack_potato_micro: '1000000000',
 };
@@ -38,7 +38,7 @@ test('publicRunStatus: camelCase-поля совпадают с RunStatus бан
     remaining: 497,
     isOpen: true,
     soldOut: false,
-    priceUnits: '888000000',
+    priceUnits: '1000000',
     unitsPerWhole: '1000000',
     packPotatoMicro: '1000000000',
   });

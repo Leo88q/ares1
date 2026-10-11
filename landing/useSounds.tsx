@@ -18,8 +18,7 @@ export type SoundName =
   | "prize.reveal.seal"
   | "prize.reveal.burst"
   | "level.up"
-  | "mascot.jump"
-  | "interstellar.bridge";
+  | "mascot.jump";
 
 export type SoundSources = Partial<Record<SoundName, string>>;
 
@@ -44,7 +43,6 @@ const soundNames: readonly SoundName[] = [
   "prize.reveal.burst",
   "level.up",
   "mascot.jump",
-  "interstellar.bridge",
 ];
 
 const cooldowns: Record<SoundName, number> = {
@@ -56,7 +54,6 @@ const cooldowns: Record<SoundName, number> = {
   "prize.reveal.burst": 250,
   "level.up": 700,
   "mascot.jump": 180,
-  "interstellar.bridge": 700,
 };
 
 const listeners = new Set<() => void>();

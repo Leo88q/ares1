@@ -58,8 +58,8 @@ If a match is a false positive (a test fixture, a public transaction signature,
 a localhost example), add it to .secret-scan-allowlist.json WITH a reason and
 commit the allowlist in the same change — never silently.
 
-If it is a real secret: stop. Rotate the credential first (checklist §1.2.4 —
-rotation comes BEFORE any history rewrite), then remove the value from the file.
+If it is a real secret: stop. Revoke/rotate it with the owner, remove it from
+current files, and treat Git history as permanently exposed. Do not rewrite history.
 EOF
   exit 1
 fi

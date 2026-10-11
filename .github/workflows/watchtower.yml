@@ -80,10 +80,9 @@ jobs:
       SMOKE_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/watchtower_test
       # Free public devnet RPC aggressively 429s the exporter's historical
       # backfill, so a plain push can only produce a "no data → warning" smoke.
-      # To make this a hard gate, set the repo secret (or variable)
-      # WATCHTOWER_SMOKE_RPC_URL to a key-bearing endpoint (e.g. the
-      # post-S-01 Helius devnet key) whose rate limit survives the backfill.
-      # Never echoed into annotations — only a label is.
+      # To make this a hard gate, an owner may configure a dedicated, newly
+      # rotated, provider-restricted endpoint in WATCHTOWER_SMOKE_RPC_URL.
+      # Never reuse a key exposed in Git history; never echo the secret into logs.
       SMOKE_RPC_URL: ${{ secrets.WATCHTOWER_SMOKE_RPC_URL || vars.WATCHTOWER_SMOKE_RPC_URL || 'https://api.devnet.solana.com' }}
     defaults:
       run:

@@ -1,5 +1,13 @@
 # Production deploy checklist — audit and remediation
 
+> **ARCHIVED SNAPSHOT (2026-10-06) — NOT AN ACTIVE DEPLOY RUNBOOK.**
+> Retained for historical security evidence only. Do not rely on its deployment,
+> domain, legal, credential, or Git instructions as current. Current gates live in
+> `docs/LAUNCH_NEXT_STEPS.md`, `game/docs/MAINNET_LAUNCH_GATE.md`, and
+> `game/docs/OPERATIONS.md`. This archive predates later code and decisions.
+> Any suggestion here to rewrite Git history is superseded: do not rewrite history.
+
+
 **Date:** 2026-09-28 · **Branch:** `arena/01a0e5d9-ares1`
 **Scope:** `landing/` (public site), `game/apps/web` (game client), `game/apps/backend` (read-only API),
 `.github/`, `scripts/`, `docs/`.
@@ -28,8 +36,8 @@ patterns with zero dependencies).
 
 1. **Rotate the Helius RPC key ([S-01]).** A real devnet API key was committed in
    `game/apps/web/.env.production` (commits `55ba9d9`…`87eb954`) and deleted in a later commit.
-   The repository is **public**, so the key is disclosed. Rotation comes **before** any history
-   rewrite — a rewrite does not invalidate the leaked value.
+   The repository is **public**, so the key is disclosed. Revoke/rotate it with the owner and
+   verify the replacement; treat every historical copy as exposed. **Do not rewrite Git history.**
 2. **The repository is public and that is a product decision, not an accident ([S-02]).**
    Everything in it — including the game client economy mirrors and every historical commit — is
    disclosed. Before production, decide what must move to a private repository (server code,
@@ -182,11 +190,10 @@ Brought forward from §5–§7 with the current state of the site:
 | Deploy/API keys stored on the current host | Public repository implies infrastructure details are known | operator | ☐ |
 | Domain registrar, DNS, CDN, hosting account passwords | Assume disclosed if they were ever pasted into a chat or issue | operator | ☐ |
 | `GameConfig.authority` and program upgrade authority | Single key today; move to Squads ≥ 3-of-N before real funds | operator | ☐ |
-| `security@ares1.is-a.dev` mailbox | Must exist before `security.txt` is published (`/legal/*` больше нет — RFC §6) | operator | ☐ |
+| Security disclosure channel | Use GitHub private reporting only after an operator verifies it is enabled; do not rely on an unverified custom-domain mailbox | operator | ☐ |
 
 **Order of operations for S-01:** revoke → issue a restricted replacement → redeploy → confirm the
-old key is rejected → *then* consider history rewriting, and only as a coordinated operation
-(force-push invalidates every clone).
+old key is rejected; treat history as permanently exposed. Do not rewrite Git history or force-push to remove a credential.
 
 ---
 

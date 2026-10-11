@@ -1,23 +1,12 @@
 /**
- * Фаза 1 (оффчейн-предоплата) в игре — требование RFC §4.4.
- *
- * Тестировщики devnet-беты не должны решить, что купленный пак действует в
- * текущей бете: пак Фазы 1 оплачивается оффчейн (лендинг), POTATO выдаётся в
- * день листинга на mainnet, devnet-прогресс покупка не меняет. Поэтому здесь
- * только условия и явная пометка, а оформление — на лендинге, где живёт форма
- * и живой счётчик остатка.
- *
- * Счётчик остатка здесь необязательный: он берётся из того же публичного
- * контракта, что читает баннер лендинга (`GET /api/presale/runs/:runId`,
- * camelCase — см. publicRunStatus() в backend). Если BACKEND_URL не задан или
- * бэкенд недоступен, блок показывает условия без счётчика — это не ошибка.
+ * Phase 1 is a separate mainnet presale, not part of the free devnet beta.
+ * Prices and availability come from the public run API; no test-network price
+ * is presented as a real offer.
  */
 import { useEffect, useState } from 'react'
 import { t } from '../i18n'
 import { BACKEND_URL } from '../contexts/SolanaContext'
 
-/** Цена пака Фазы 1 (решение владельца 2026-10-06). Фаза 2 — 1053 SKR. */
-const PHASE1_PRICE_SKR = 888
 const PHASE1_RUN = (import.meta.env.VITE_PRESALE_RUN as string | undefined) || 'wave1'
 const LANDING_URL = (
   (import.meta.env.VITE_LANDING_URL as string | undefined) || 'https://ares1-7e1.pages.dev'
@@ -26,6 +15,20 @@ const LANDING_URL = (
 interface Phase1Run {
   remaining: number
   cap: number
+  currency: 'sol' | 'skr'
+  priceUnits: string
+  cluster?: 'devnet' | 'mainnet-beta'
+  isOpen: boolean
+  paymentsEnabled?: boolean
+}
+
+function formatOfferPrice(units: string, currency: string): string {
+  const decimals = currency === 'sol' ? 9 : 6
+  const value = BigInt(units)
+  const scale = 10n ** BigInt(decimals)
+  const whole = value / scale
+  const fraction = (value % scale).toString().padStart(decimals, '0').replace(/0+$/, '')
+  return `${fraction ? `${whole}.${fraction}` : whole.toString()} ${currency.toUpperCase()}`
 }
 
 export default function Phase1Notice() {
@@ -35,18 +38,17 @@ export default function Phase1Notice() {
     if (!BACKEND_URL) return
     let cancelled = false
     fetch(`${BACKEND_URL}/api/presale/runs/${PHASE1_RUN}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (cancelled || !d?.run) return
-        setRun({ remaining: d.run.remaining, cap: d.run.cap })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.run) return
+        setRun(data.run)
       })
-      .catch(() => {
-        /* счётчик необязателен: условия показываем и так */
-      })
-    return () => {
-      cancelled = true
-    }
+      .catch(() => { /* informational notice remains visible without API */ })
+    return () => { cancelled = true }
   }, [])
+
+  const mainnet = run?.cluster === 'mainnet-beta'
+  const enabled = mainnet && run?.paymentsEnabled === true && run.isOpen
 
   return (
     <div
@@ -71,18 +73,28 @@ export default function Phase1Notice() {
         {t('ФАЗА 1 · ПРЕДОПЛАТА (ОФФЧЕЙН)')}
       </div>
       <div style={{ color: '#EFD9AC' }}>
-        {t('Пак Фазы 1 — {price} SKR за 1 000 POTATO.', { price: PHASE1_PRICE_SKR })}
+        {t('Фаза 1 — отдельный пресейл mainnet. Devnet-бета бесплатна, прогресс не переносится, тестовые SOL/SKR не имеют реальной стоимости.')}
       </div>
-      <div style={{ color: 'var(--pf-text-muted)' }}>
-        {t('POTATO выдаётся в день листинга на mainnet.')}
-      </div>
-      <div style={{ color: '#E8A3A3' }}>
-        {t('Покупка не влияет на devnet-прогресс: пак не действует в текущей бете.')}
-      </div>
-      {run && (
-        <div className="ares-mono" style={{ color: 'var(--pf-text-muted)', letterSpacing: '0.06em' }}>
-          {t('Осталось: {n} из {cap}', { n: run.remaining, cap: run.cap })}
+
+      {run?.cluster === 'devnet' && (
+        <div style={{ color: '#E8A3A3' }}>
+          {t('Этот сервер работает в devnet: не отправляйте сюда реальные средства.')}
         </div>
+      )}
+      {!enabled && (
+        <div style={{ color: '#E8A3A3' }}>
+          {t('Пресейл mainnet пока закрыт: не отправляйте средства.')}
+        </div>
+      )}
+      {enabled && run && (
+        <>
+          <div style={{ color: '#EFD9AC' }}>
+            {t('Цена пака: {price}', { price: formatOfferPrice(run.priceUnits, run.currency) })}
+          </div>
+          <div className="ares-mono" style={{ color: 'var(--pf-text-muted)', letterSpacing: '0.06em' }}>
+            {t('Осталось: {n} из {cap}', { n: run.remaining, cap: run.cap })}
+          </div>
+        </>
       )}
       <a
         href={`${LANDING_URL}/#presale`}
@@ -90,7 +102,7 @@ export default function Phase1Notice() {
         rel="noopener noreferrer"
         style={{ color: '#F5BE72', textDecoration: 'underline', alignSelf: 'flex-start' }}
       >
-        {t('Оформить на лендинге →')}
+        {t(enabled ? 'Оформить на лендинге →' : 'Посмотреть информацию о Фазе 1 →')}
       </a>
     </div>
   )

@@ -1,112 +1,64 @@
-# ARES-1 - Potato Colony on Solana
+# ARES-1 — Solana potato-colony game
 
-First potato colony on Mars. Grow, trade, upgrade - 100% of $POTATO is born in players' hands.
+**Status: devnet-beta preparation only.** No mainnet ARES-1 deployment, live presale run, or acceptance of real funds has been confirmed or approved. The V2 marketplace and season ledger are drafts, not a released program. See [launch readiness](docs/LAUNCH_NEXT_STEPS.md) before treating any build or URL as a live service.
 
-## Demo
+## Configured web origins
 
-- Landing: https://ares1-7e1.pages.dev (домен `ares1.is-a.dev` **не зарегистрирован** в is-a.dev — см. docs/DOMAIN_DEPLOY_FINDINGS_2026-09-30.md)
-- Game: https://ares1-play.pages.dev (алиас `play.ares1.is-a.dev` отдаёт ошибку TLS: не привязан к проекту Cloudflare Pages)
-- Network: Solana Devnet
+- Landing: `https://ares1-7e1.pages.dev`
+- Game: `https://ares1-play.pages.dev`
 
-## Structure
+These are the configured Cloudflare Pages origins recorded in the repository; **their current ownership, deployment, and availability were not re-verified in this checkout**. Do not promote them until an operator verifies them. The custom `ares1.is-a.dev` / `play.ares1.is-a.dev` aliases were reported unregistered on 2026-10-06; that report is not a live check for today. Do not link to those aliases, publish them as official, or send users or security reports to an email at those names. GitHub Security Advisory reporting is configured in the shipped `security.txt`; verify private vulnerability reporting is enabled before relying on it.
 
-    ares1/
-    |-- landing/          <- React + Vite landing
-    |   |-- App.tsx       <- sections, hero, packs
-    |   |-- content.ts    <- all content + chainConfig
-    |   +-- hooks/        <- useLandingWallet (Phantom)
-    +-- game/             <- Solana program + React client
-        |-- apps/web/     <- React game frontend (Vite)
-        +-- programs/     <- Anchor program (Rust)
+Devnet SOL and SKR have no monetary value. The free devnet beta is separate from the mainnet Phase 1 rail. Mainnet writes remain fail-closed; this README is not launch approval.
 
-## Stack
+## Repository layout
 
-- Contract: Solana + Anchor + Rust
-- Landing: React 18 + Vite 6 + Framer Motion
-- Game: React 18 + Vite + @solana/web3.js
-- Network: Solana Devnet
-- Hosting: Cloudflare Pages (`ares1` for the landing, `ares1-play` for the game client)
+- `landing/` — React/Vite marketing site and Cloudflare Pages function source.
+- `game/` — Anchor/Solana program, React client, backend API/epoch crank, migrations, and tests.
+- `watchtower/` — isolated read-only exporter and verification tooling.
+- `transfer/` — handoff tooling for a separate repository; its optional apply/commit/push scripts are not part of routine CI.
 
-Production HTTP headers and redirects live in `landing/public/_headers` and
-`landing/public/_redirects` — both are understood by Cloudflare Pages and by Netlify.
-`landing/netlify.toml` holds build configuration only: Cloudflare Pages ignores it, so
-platform rules must not be added there.
+This checkout contains ARES-1 only. It does not contain the other two game repositories.
 
-## Run locally
+## Current decisions and boundaries
 
-Landing:
+- The deployment target is Cloudflare Pages plus isolated VPS Compose projects; no VPS or production environment has been provisioned from this workspace.
+- The backend process may host the API and epoch crank together. Only a dedicated low-privilege crank payer may be placed on the VPS. Authority, reward-signer, treasury, program, and Squads keys must remain off-host in cold/hardware-controlled storage.
+- The current Phase 1 implementation accepts native SOL only on mainnet and rejects SKR there. Mainnet presale writes are disabled by default; no run is approved or open.
+- The current on-chain devnet market is legacy V1 (POTATO/SOL). The approved V2 goal is seller-paid 9–12% of quote proceeds, paid to the treasury in the same settlement asset (SOL or SKR), with a separate POTATO/SKR pair and anti-fragmentation tiers. V2 is not released; its feature flag remains off by default. Do not apply both the old POTATO fee and the new quote-asset fee.
+- The repository implements PostgreSQL for `game_ops`. Whether PostgreSQL is acceptable as the final choice remains unresolved; choosing SQLite requires an actual data-layer port and tests. No external managed PostgreSQL is selected.
+- The owner’s 2026-10-06 decision removed public legal pages from the repository. That is not legal clearance; terms, refunds, delivery obligations, and required notices remain launch gates.
 
-    cd landing
-    npm install
-    npm run dev   # http://localhost:5173
+## Current documentation
 
-Game (install the pre-commit secret gate once per clone):
+- [Launch status and blockers](docs/LAUNCH_NEXT_STEPS.md)
+- [Owner-approved product and revenue checklist](docs/ARES1_PRODUCT_HYPE_REVENUE_CHECKLIST_2026-10-11.md)
+- [Cloudflare + VPS operations plan](docs/DEPLOY_BACKEND_VPS.md)
+- [Game implementation and developer setup](game/README.md)
+- [Mainnet launch gates](game/docs/MAINNET_LAUNCH_GATE.md)
+- [Operations and key custody](game/docs/OPERATIONS.md)
+- [Database implementation status](game/docs/DATABASE_DESIGN.md) and [PostgreSQL runbook](game/docs/DB_RUNBOOK.md)
+- [Incident response](game/docs/INCIDENT_RESPONSE.md)
+- [Player guide (devnet draft)](game/docs/USER_GUIDE.md)
+- [Internal audit-gate evidence](reports/ares1-audit.md) — not an independent security audit.
+- [Historical rent-audit measurements](reports/rent-audit/FINAL.md)
+- [Third-party attribution](THIRD_PARTY_LICENSES.md)
 
-    ./scripts/install-git-hooks.sh
-    cd game
-    npm install
-    cd apps/web && npm run dev   # http://localhost:5175
+The old Phase 1 RFC/runbook, six-month roadmap, and unused raster-asset wish list were removed because they no longer match the current implementation or decisions. The 2026-10-06 production checklist is retained under [`docs/archive/`](docs/archive/) as historical evidence, not an active runbook.
 
-Deploy contract:
+## Local checks
 
-    cd game
-    anchor deploy --provider.cluster devnet
-    anchor run initialize
-
-## Mechanics (Phase 1)
-
-- Harvest: $POTATO accrues per field with lunar cycle (0.85x - 1.15x)
-- Mutations: 5% chance on upgrade - Golden (+25% yield) or Silicon (decay x0.5)
-- Tax: 2-10% on harvest, penalty if unpaid
-- License: 500 SKR / 30 days -> -3% market fee + batch harvest up to 30 fields/tx instead of 10 (buy in CABIN)
-- Market: escrow orders, fee 9-12% (60% burn + 40% treasury)
-- Referrals: -1% fee for both, +0.5% to referrer
-- Presale: 1053 SKR per module, tier rolls randomly (COMMON 70% / RARE 25% / EPIC 5%)
-
-## License
-
-MIT - Zlata, 2026
-
-## Production deploy readiness
-
-Website and app preparation for a production deploy: [checklist audit and remediation](docs/PRODUCTION_DEPLOY_CHECKLIST.md)
-(secrets and history, source exposure, OWASP, cookies/GDPR, operability).
-Legal documents were removed from the repository by an owner decision recorded in
-[RFC §6](docs/PRESALE_PHASE1_RFC_2026-10-06.md#6-юридический-блок-решение-владельца).
-
-Run locally before pushing:
+Use the pinned toolchains documented in `game/README.md` and `game/docs/OPERATIONS.md`. From the repository root:
 
 ```sh
-./scripts/install-git-hooks.sh        # once per clone: pre-commit secret gate
-node scripts/secret-scan.mjs          # working tree (§1.1)
-node scripts/secret-scan-history.mjs  # all fetched history (§1.2.1)
-
-# after building both apps:
-node scripts/check-release-artifacts.mjs landing/dist game/apps/web/dist
-
-# against a live deployment (needs network access to the host):
-./scripts/check-headers.sh https://ares1.is-a.dev
-./scripts/check-public-exposure.sh https://ares1.is-a.dev
-
-# pre-beta check of the deployed landing+game+devnet program in one pass
-# (headers, exposure, presale API, program ID in the bundle, devnet liveness):
-./scripts/verify-beta-deploy.sh
+./scripts/install-git-hooks.sh
+node scripts/secret-scan.mjs
 ```
 
-## Stabilization / beta readiness
+For a safe devnet/local development flow, follow [the local Mac runbook](LOCAL_MAC_RUNBOOK.md) and [the local presale/game walkthrough](LOCAL_PRESALE_PLAY.md); both are developer-only and use valueless devnet assets. `anchor test` uses a local validator. Do not point destructive tests or database tools at production.
 
-Current validation and remaining release blockers: [21 Sep 2026 status](reports/ares1-audit.md).
-Security: [checklist audit 1–30](docs/SECURITY_CHECKLIST_AUDIT_2026-09-25.md), [extended audit 31–70](docs/SECURITY_CHECKLIST_AUDIT_2026-09-26.md), [AI-agents / audit poisoning / durable nonce 71–82](docs/SECURITY_CHECKLIST_AUDIT_2026-09-27.md), [incident catalog 94–130 (governance, keys, signers, frontend, people, infrastructure)](docs/SECURITY_CHECKLIST_AUDIT_2026-09-28.md), [mainnet launch gate](game/docs/MAINNET_LAUNCH_GATE.md).
-Data: [database design recommendation](game/docs/DATABASE_DESIGN.md), [test runs and capacity](docs/DATA_TESTS_AND_CAPACITY_2026-09-27.md), [reference storage example reviewed](docs/STORAGE_REFERENCE_EXAMPLE_2026-09-27.md).
-Build, key handling, Docker and incident procedures: [Operations](game/docs/OPERATIONS.md),
-[incident response kit](game/docs/INCIDENT_RESPONSE.md), [key provenance](game/docs/KEY_PROVENANCE.md),
-[third-party dependency registry](game/docs/THIRD_PARTY_DEPENDENCIES.md).
-On-chain program inventory: `game/program-inventory.json` + `node game/scripts/inventory-programs.mjs`;
-domain monitoring: `node scripts/check-dns.mjs` (baseline committed at `scripts/dns-baseline.json`).
-No real-funds/mainnet readiness is claimed.
+The CI workflows test source, builds, and selected read-only monitoring paths; none deploys to mainnet. Mainnet launch requires all code, custody, legal, RPC, database, external review, delivery, monitoring, and recovery gates to be completed and a separate explicit owner GO/NO-GO. Never put keys, RPC credentials, tokens, or database secrets in chat or Git. Do not rewrite Git history.
 
-## Read-only Watchtower integration
+## License status
 
-The isolated exporter, event decoder, PostgreSQL read-model and verification runbook
-are in [watchtower/](watchtower/README.md). No signing capability or game-rule changes.
-Devnet verification and central Games Watchtower connection are **not yet confirmed**.
+No repository-wide license has been confirmed here. Do not assume the code is MIT-licensed from an old README statement; resolve the owner/legal decision and add the authoritative license file before public reuse or commercial release.

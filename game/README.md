@@ -1,157 +1,65 @@
-# 🥔 Solana Potato
+# ARES-1 — Solana Potato
 
-On-chain фарм-игра на Solana с реальной экономикой: поля, урожай $POTATO, P2P-маркетплейс за SOL, PWA-дApp для Solana dApp Store.
+On-chain farming game on Solana. This repository contains the ARES-1 program, web client, backend API/epoch crank, and operational tooling.
 
-Монорепо: Anchor-программа · React/Vite dApp (PWA) · Express-бэкенд эпох и конфига · релиз в Solana dApp Store.
+> **Status: devnet-beta preparation only.** Mainnet deployment, sale, and real-funds acceptance are not approved. The current V2 marketplace/season work is a draft; see [launch readiness](../docs/LAUNCH_NEXT_STEPS.md) and [the product checklist](../docs/ARES1_PRODUCT_HYPE_REVENUE_CHECKLIST_2026-10-11.md). The local report at [reports/ares1-audit.md](../reports/ares1-audit.md) is internal audit-gate evidence, **not an independent security audit**.
 
-> Это игра, а не инвестиционный продукт. Перед mainnet обязателен внешний аудит (см. [../reports/ares1-audit.md](../reports/ares1-audit.md)).
+## Network and product status
 
-## Структура
+- The committed program ID is the devnet program recorded in `programs/solana_potato/src/lib.rs`; it does not establish that a mainnet deployment exists.
+- Devnet SOL and SKR are test assets with no monetary value. The configured Cloudflare Pages origins are in the root README; verify live ownership and deployment before sharing them.
+- The current on-chain market is legacy V1 and settles POTATO/SOL. Its 9–12% fee is reserved in POTATO, uses per-order volume, and splits between legacy burn and treasury; order splitting can lower the effective tier. This is not the approved target model.
+- **Approved V2 goal, not released:** seller-paid 9–12% fee is withheld only from a successful trade’s quote-asset proceeds and sent to the treasury in that same asset (SOL or SKR). POTATO/SKR is a separate market pair; seller tiers use cumulative daily POTATO volume across both pairs to prevent same-wallet order splitting. No second fixed 8% fee applies. The V2 Anchor program/IDL/release and verified season ledger are not complete; `VITE_MARKET_V2_ENABLED` remains off by default.
+- Phase 1 is a separate off-chain mainnet presale rail. Current mainnet code accepts native SOL only and rejects SKR; writes remain fail-closed by default. No run is approved or open, and no price, delivery date, terms, or refund promise is finalized here.
+- Backend API and epoch crank may run in one service. A dedicated low-privilege crank payer may be hosted on the VPS; authority, reward-signer, treasury, program, and Squads keys must stay off-host in cold/hardware-controlled storage.
+- The current `game_ops` implementation uses PostgreSQL. Whether this is acceptable as the final database choice remains unresolved; SQLite would require a real port and parity tests. The VPS target is self-hosted PostgreSQL, not a managed external database.
+
+## Repository map
 
 ```
-programs/solana_potato/     Anchor 0.31.2 программа (Rust) — 44 инструкции, 13 типов аккаунтов
-apps/web/                   PWA / dApp (React 18 + Vite 5 + wallet-adapter) — целим в Solana dApp Store
-apps/backend/               Сервис эпох и конфига: держит authority-ключ, роллит эпохи, отдаёт on-chain config
-tests/                      Интеграционные тесты anchor test (ts-mocha)
-scripts/                    deploy-local/devnet/mainnet, init-onchain, build-apk
-economy/                    simulate.py — годовая симуляция экономики; model.csv — старая ручная модель
-docs/                       AUDIT · ECONOMY · API · USER_GUIDE · MARKETING · ROADMAP · dapp-store-release
-libs/                       sentinel, solana-tx-guard — отдельные репозитории (gitlinks), не часть сборки
+programs/solana_potato/     Anchor program (Rust)
+apps/web/                   React/Vite game client
+apps/backend/               API and epoch crank
+migrations/game_ops/        versioned PostgreSQL schema
+scripts/                    build, test, audit and guarded operator tools
+economy/                    legacy V1 simulation and archived reports
+docs/                       API, operations, launch gates and historical drafts
 ```
 
-Документы: [Независимый аудит 21.09.2026](../reports/ares1-audit.md) · [Исправления аудита + pre-deploy runbook](../reports/ares1-audit.md) · [Аудит безопасности (архив)](../reports/ares1-audit.md) · [Экономика и симуляция](docs/ECONOMY.md) · [API программы и бэкенда](docs/API.md) · [Руководство игрока](docs/USER_GUIDE.md) · [Маркетинг](docs/MARKETING.md) · [Roadmap на 6 месяцев](docs/ROADMAP.md).
+The separate `watchtower/` exporter is read-only; it has no game-signing capability. The `transfer/` directory contains optional handoff tooling for a separate repository—do not run its apply/commit/push path during routine development.
 
-## Как это работает
+## Developer setup
 
-* **GameConfig** (PDA `["config"]`) — mint authority токена $POTATO. Минт возможен только через `harvest` (урожай) и `grant_reward` (квесты, только backend), в пределах дневного капа эпохи (динамический, [daily_mint_cap_micro, 3×] — дефолт 250 000 🥔) и max supply (1 млрд). Ручные гранты дополнительно ограничены квотой 10 % капа эпохи; выводы казны — лимитами 250k 🥔 / 25 SOL / 100k SKR в сутки; смена SKR-минта и повышение цены пресейла — через 24-часовой тимелок.
-* **Поля** трёх типов (100 / 250 / 500 🥔) накапливают урожай до 7 суток; налог раз в 7 дней, износ, удобрения, 50 уровней. Все траты **сжигаются**.
-* **Маркетплейс**: escrow-ордера 🥔 за SOL, TTL 24 ч, комиссия 3–12 % (60 % сжигается, 40 % в казну), запрет self-trade, кулдаун 3 ч после отмены.
-* **Эпохи** по 24 ч ротируются кем угодно (`roll_epoch`), бэкенд делает это кроном.
-* **Награды** за квесты — он-чейн пул (550 POTATO в GameConfig); путь выдачи (claim) включается в следующем релизе. Рефералка — on-chain (−1 % комиссии приглашённому, +0.5 % рефереру за каждую сделку; идентичность — кошелёк).
-
-Формулы, баланс и результаты симуляции — в [docs/ECONOMY.md](docs/ECONOMY.md).
-
-## Требования
-
-| Инструмент | Версия | Примечание |
-|---|---|---|
-| Rust | **1.97.1** (`rust-toolchain.toml`) | host-юниттесты; версия фиксирована |
-| Solana CLI (Agave) | **4.2.2** (`Anchor.toml [toolchain]`, пин CI) | `Cargo.lock` v4; 1.18.x не соберёт |
-| Anchor | **0.31.2** через avm | `Anchor.toml` пинит `solana_version = "4.2.2"` — иначе avm подменит тулчейн на 1.18 |
-| JS-клиент `@coral-xyz/anchor` | **0.30.1** | Запинен отдельно от CLI (см. [docs/OPERATIONS.md](docs/OPERATIONS.md)); это не версия `anchor` |
-| Node | 20+ и yarn 1.22 (corepack) | workspaces: web, backend |
-| Python | 3.10+ | только для `economy/simulate.py` |
-
-## Быстрый старт
-
-```bash
-yarn install                       # все workspaces
-../scripts/install-git-hooks.sh    # pre-commit гейт секретов (один раз на клон)
-cargo test -p solana_potato --lib  # 13 юниттестов чистых функций
-anchor build                       # target/deploy/solana_potato.so + target/idl/solana_potato.json
-anchor test                        # локальный валидатор + tests/solana_potato.ts (~2 мин, есть ожидание 61 с)
-cp target/idl/solana_potato.json apps/web/src/idl.json   # после изменения программы
-yarn typecheck                     # web + backend
-yarn build:web                     # apps/web/dist
-python3 economy/simulate.py        # отчёт по экономике в markdown
-```
-
-### Сборка web-клиента на Cloudflare Pages
-
-Проект `ares1-play` (play.ares1.is-a.dev) собирается командой `yarn build:web`.
-
-**Важно (2026-10-06).** Cloudflare Pages не отдаёт сборке файлы за пределами
-заданного Root directory, поэтому в `game/` не должно быть `file:`-зависимостей,
-ведущих выше его директории. Аудит'нутый вендор-пакет
-`@solana/buffer-layout-utils` лежит в `apps/web/vendor/solana-buffer-layout-utils`
-(внутри дерева web-приложения), а `apps/web/package.json` дублирует `resolutions`
-и `overrides`, чтобы установка в один проход из `apps/web` тоже брала локальную
-копию. Проверено локальными симуляциями для трёх возможных Root: репо-корень,
-`game/` и `game/apps/web` — `install` + `build` зелёные во всех. Стражи
-(`yarn test:guards`) следят, что ни один манифест не ссылается вверх через `file:../`.
-Задавать `VITE_*` в окружении сборки не обязательно: если их нет, `vite.config.ts`
-берёт публичные devnet-значения из `apps/web/.env.example` и громко печатает
-об этом в лог сборки. Для продакшена задай `VITE_PROGRAM_ID`, `VITE_RPC_URL` и
-`VITE_SOLANA_CLUSTER` в Cloudflare Pages → Settings → Environment variables —
-переменные окружения всегда имеют приоритет над фолбэком. При отсутствии
-конфигурации в рантайме игра показывает понятный экран ошибки вместо белого
-экрана.
-
-### Деплой и инициализация
-
-```bash
-bash scripts/deploy-devnet.sh      # anchor build + keys sync + deploy (upgrade authority — ваш кошелёк)
-ADMIN_KEYPAIR_PATH=~/.config/solana/id.json RPC_URL=https://api.devnet.solana.com \
-PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf yarn init-onchain
-```
-
-`init-onchain` создаёт mint (6 decimals, без freeze authority), передаёт mint authority PDA `config`, вызывает `initialize` + `init_epoch`. Скрипт идемпотентен. `initialize` отклонит mint с чужим authority, другим числом decimals или freeze authority.
-
-Текущий devnet: программа `DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf` (развёрнута 14.09.2026 через `scripts/warm-start-devnet.sh`), upgrade authority `HW4ekULcWHiVhDMfWpg8MwJwLqZHYskGMrue44WZ3vJ9` (ключ вне git). Инициализация: GameConfig PDA `9FDhkBwmcNx3gh8hSgShpiAVXHW9cZBnv4t1xyHGU39q`, $POTATO mint `HFEL9rBqmYwYDsZNxuV2ZonfS7adbjENUc3CdgbaiYxv` (6 decimals, без freeze authority, authority = config PDA), пресейл cap 500 / 0.25 SOL / 1053 SKR. Старый devnet-стейт программы `48D2…` (GameConfig `2W5Lxv…`) не мигрирован и abandoned; миграция к нему не поддерживается.
-
-### Фронтенд
-
-```bash
-cd apps/web && cp .env.example .env    # VITE_SOLANA_CLUSTER, VITE_RPC_URL, VITE_PROGRAM_ID, VITE_BACKEND_URL
-yarn dev                                # http://localhost:5173
-yarn build                              # dist/ → любой статический HTTPS-хостинг
-```
-
-Публичный RPC отдаёт 429 уже при десятках игроков — используйте Helius/Triton/QuickNode. Фронт делает один опрос на провайдер (20–30 с), ставит паузу в скрытой вкладке и делает backoff при 429.
-
-### Бэкенд
-
-```bash
-cd apps/backend && cp .env.example .env   # RPC_URL, PROGRAM_ID, PAYER_KEYPAIR_JSON (не authority!), CORS_ORIGIN
-mkdir -p keys && cp <admin-keypair.json> keys/
-yarn build && yarn start
-# Alternative: from game/ (not apps/backend/), run `docker compose up -d backend`.
-curl localhost:8080/health
-```
-
-Эндпоинты и правила — [docs/API.md](docs/API.md).
-
-### Solana dApp Store
-
-[docs/dapp-store-release.md](docs/dapp-store-release.md) — PWA → TWA через Bubblewrap и сабмит на publish.solanamobile.com.
-
-## CI
-
-`.github/workflows/ci.yml`: `cargo test` → `anchor build` → проверка, что `apps/web/src/idl.json` совпадает с IDL сборки → `anchor test`; отдельно `tsc` + `vite build` для web и `tsc` для backend.
-
-**Локальный CI** (когда GitHub Actions недоступен/не оплачен) — та же последовательность команд на своей машине:
+Pinned toolchains: Node `22.22.3`, Yarn Classic `1.22.22`, Rust `1.97.1`, Solana CLI `4.2.2`, Anchor `0.31.2`. The JS Anchor client is pinned separately; see [Operations](docs/OPERATIONS.md).
 
 ```bash
 cd game
-./scripts/ci-local.sh                # всё: unit + anchor build + IDL + validator + web + backend
-./scripts/ci-local.sh --skip-chain   # только web + backend (быстро)
-./scripts/ci-local.sh --skip-validator  # без локального валидатора
+yarn install --frozen-lockfile
+yarn typecheck
+yarn test:offchain
+yarn workspace backend test
+yarn test:guards
+
+yarn build:web
+yarn build:backend
 ```
 
-Версии, как в CI: solana-cli `4.2.2`, anchor `0.31.2`, rustc `1.97.1`, Node `22`.
+Program checks use the pinned Rust/Anchor toolchain and a local validator:
 
-## Безопасность — коротко
+```bash
+cargo test --locked -p solana_potato --lib
+./scripts/build-program.sh
+anchor test
+```
 
-* Все токен-аккаунты и mint проверяются (`token::mint`, `token::authority`, `has_one = potato_mint`); PDA с сохранёнными bump.
-* Двухшаговая передача authority; пауза блокирует минт и траты, но не возвраты.
-* Ключ authority живёт только на сервере; клиент не может вызвать `grant_reward`.
-* Таймлоки admin-изменений и суточные лимиты выводов реализованы 21.09.2026 ([../reports/ares1-audit.md](../reports/ares1-audit.md)). Открытые пункты до mainnet: сборка/тесты по runbook, мультисиг (Squads) для game+upgrade authority, отзыв утёкшего RPC-ключа, эмиссионная политика SKR, внешний аудит.
+`anchor test` deploys to a disposable **local validator**, not devnet or mainnet. `scripts/deploy-devnet.sh` is a separate, transaction-signing devnet action; only run it deliberately with a disposable devnet signer after reviewing its inputs. No mainnet deploy or real payment is part of normal setup.
 
-## Проверено (04.09.2026)
+For a local free/devnet walkthrough on Mac, see [LOCAL_MAC_RUNBOOK.md](../LOCAL_MAC_RUNBOOK.md) and [LOCAL_PRESALE_PLAY.md](../LOCAL_PRESALE_PLAY.md). These do not authorize a live sale. Local PostgreSQL commands exercise only the current implementation; they do not settle the database-choice question.
 
-> Историческая таблица: все строки относятся к сборке **до** исправлений 21.09.2026. Актуальный статус проверок — в runbook [../reports/ares1-audit.md](../reports/ares1-audit.md).
+## Security and release gates
 
-| Проверка | Результат |
-|---|---|
-| `cargo test -p solana_potato --lib` | 13 passed |
-| `anchor build` (Agave 4.2.2, platform-tools v1.54, Anchor 0.30.1) | ок: `.so` 489 400 байт, без предупреждений о стеке; IDL совпадает со старым по всем 19 инструкциям (добавлены только события и ошибки 6022–6029) |
-| `anchor test` (локальный валидатор 4.2.2) | **28 passing** (1 мин) |
-| Compute units (макс. по логам валидатора) | fill_order 80 172 · create_sell_order 42 748 · create_field 15 966 · harvest 13 361 · остальные < 22 000 |
-| `tsc --noEmit` web / backend | 0 ошибок |
-| `vite build` | ок, ~290 KB gzip, 4 lazy-экрана + 5 vendor-чанков |
-| `python3 economy/simulate.py` | ок |
-| Redeploy devnet (`solana program extend` + `deploy`) | ок, слот 493194605, tx `29V5xNzs3MqQHjJS7tGyfFCz5cPaeLNmQMgWuGZPeHzXHD63cj5WoTaeeuG7WpWJ4Vyeeubg4MxmHsas5jMPGaCj` |
-
-## Лицензия
-
-Не указана — добавьте перед публичным релизом.
+- Authority, treasury, reward-signer, Squads, and program keys are not VPS secrets. Do not paste secrets into chat or Git; do not rewrite Git history.
+- Current mainnet route: [MAINNET_LAUNCH_GATE.md](docs/MAINNET_LAUNCH_GATE.md). Current operational/key guidance: [OPERATIONS.md](docs/OPERATIONS.md).
+- Mainnet presale status and unresolved approvals: [root launch checklist](../docs/LAUNCH_NEXT_STEPS.md).
+- The historical marketing analysis and dApp Store guide are explicitly drafts; neither is an approval to publish or submit an app. See [MARKETING.md](docs/MARKETING.md) and [dapp-store-release.md](docs/dapp-store-release.md).
+- The project-wide license is unresolved; no old README wording should be treated as authoritative. See [third-party attribution](../THIRD_PARTY_LICENSES.md).

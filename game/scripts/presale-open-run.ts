@@ -3,13 +3,14 @@
  *
  * Запуск (из game/):
  *   GAME_OPS_DATABASE_URL=postgres://… ADMIN_API_TOKEN=<≥32 символов> \
- *   PRESALE_RUN_ID=wave1 PRESALE_PACK_ID=meadow-4 PRESALE_CURRENCY=skr \
- *   PRESALE_PRICE_UNITS=888000000 PRESALE_TREASURY=<ATA казначейства> \
+ *   SOLANA_CLUSTER=devnet PRESALE_DEVNET_TEST_ENABLED=true \
+ *   PRESALE_RUN_ID=wave1 PRESALE_PACK_ID=meadow-4 PRESALE_CURRENCY=sol \
+ *   PRESALE_PRICE_UNITS=1000000 PRESALE_TREASURY=<devnet SOL treasury address> \
  *   yarn presale:open-run
  *
- * Цены (решение владельца 2026-10-06): Фаза 1 — 888 SKR за пак, Фаза 2
- * (ончейн-модуль) — 1053 SKR. Срок выдачи покупателю — в день листинга на
- * mainnet; формулировка обязана быть видна до оплаты (Terms §7).
+ * Пример выше — только изолированный devnet-тест по цене 0.001 SOL (1,000,000
+ * lamports). Это не утверждённая цена и не инструкция к продаже. Mainnet Phase 1
+ * accepts native SOL only, remains fail-closed, and needs separate owner approval.
  *
  * Дополнительно нужны GAME_OPS_DATABASE_URL и ADMIN_API_TOKEN (≥32 символов)
  * — их читает та же loadGameOpsConfig(), что и бэкенд.
@@ -38,6 +39,10 @@
  *            развёрнута схема (сначала `yarn db:migrate`).
  */
 import process from 'node:process';
+import { Connection } from '@solana/web3.js';
+import { expectedGenesisHash } from '../apps/backend/src/cluster.js';
+import type { SolanaCluster } from '../apps/backend/src/cluster.js';
+import { bindPresaleDatabaseCluster } from '../apps/backend/src/gameops/clusterGuard.js';
 import { loadGameOpsConfig } from '../apps/backend/src/gameops/env.js';
 import type { GameOpsConfig } from '../apps/backend/src/gameops/env.js';
 import { closePool, createPool, query } from '../apps/backend/src/gameops/pool.js';
@@ -140,6 +145,7 @@ function printStatus(run: RunRow): void {
   console.log(`  reserved_count : ${run.reserved_count}`);
   console.log(`  is_open        : ${run.is_open}`);
   console.log(`  treasury       : ${run.treasury}`);
+  console.log(`  started_slot   : ${run.started_slot}`);
   console.log(`  started_at     : ${run.started_at}`);
   if (run.closed_at) console.log(`  closed_at      : ${run.closed_at}`);
 }
@@ -165,6 +171,28 @@ function reportExisting(run: RunRow, desired: DesiredRun): number {
 
 async function main(): Promise<number> {
   const desired = readDesired(process.env);
+  const clusterRaw = required(process.env, 'SOLANA_CLUSTER');
+  if (clusterRaw !== 'devnet' && clusterRaw !== 'mainnet-beta') {
+    throw new UsageError('SOLANA_CLUSTER должен быть devnet или mainnet-beta');
+  }
+  const cluster: SolanaCluster = clusterRaw;
+  if (cluster === 'mainnet-beta' && (process.env.NODE_ENV !== 'production' || process.env.PRESALE_MAINNET_LIVE_APPROVED !== 'true')) {
+    throw new UsageError('Mainnet run creation requires NODE_ENV=production and explicit PRESALE_MAINNET_LIVE_APPROVED=true after launch approvals.');
+  }
+  if (cluster === 'devnet' && process.env.PRESALE_DEVNET_TEST_ENABLED !== 'true') {
+    throw new UsageError('Devnet presale writes are disabled by default; set PRESALE_DEVNET_TEST_ENABLED=true only for isolated valueless tests.');
+  }
+  if (cluster === 'mainnet-beta' && desired.currency !== 'sol') {
+    throw new UsageError('Mainnet Phase 1 accepts native SOL only; SKR is not deployed on mainnet.');
+  }
+  const rpcUrl = required(process.env, 'RPC_URL');
+  const connection = new Connection(rpcUrl, 'finalized');
+  const actualGenesis = await connection.getGenesisHash();
+  const expectedGenesis = expectedGenesisHash(cluster);
+  if (actualGenesis !== expectedGenesis) {
+    throw new UsageError(`RPC cluster mismatch: configured=${cluster}, genesis=${actualGenesis}`);
+  }
+  const startedSlot = BigInt(await connection.getSlot('finalized')) + 1n;
   let config: GameOpsConfig | null;
   try {
     // loadGameOpsConfig бросает на битом URL и на коротком ADMIN_API_TOKEN:
@@ -180,6 +208,7 @@ async function main(): Promise<number> {
 
   const pool = createPool(config);
   try {
+    await bindPresaleDatabaseCluster(pool, cluster);
     const existing = await query<RunRow>(
       pool, 'SELECT * FROM game_ops.presale_runs WHERE run_id = $1', [desired.runId],
     );
@@ -195,6 +224,7 @@ async function main(): Promise<number> {
         cap: desired.cap,
         treasury: desired.treasury,
         reserveMinutes: desired.reserveMinutes,
+        startedSlot,
         actor: desired.actor,
       });
     } catch (error) {
@@ -213,8 +243,9 @@ async function main(): Promise<number> {
     printStatus(created);
     console.log('');
     console.log('Дальше:');
-    console.log('  1) сверка перед выдачей — yarn presale:reconcile (SOL-тиражи; для SKR — поштучный verify, см. ранбук)');
-    console.log('  2) ручная выдача POTATO — docs/PRESALE_DELIVERY_RUNBOOK.md');
+    console.log('  1) presale:reconcile сверяет только наблюдаемую SOL-историю с БД; зелёный результат сам по себе не разрешает продажу или выдачу.');
+    console.log('  2) Выдача не автоматизирована. Не принимайте реальные платежи и не обещайте срок выдачи до human GO и утверждённого cold-key процесса.');
+    console.log('     Текущие blockers: ../docs/LAUNCH_NEXT_STEPS.md и docs/MAINNET_LAUNCH_GATE.md.');
     console.log(`  3) статус для покупателей — GET /api/presale/runs/${created.run_id}`);
     return 0;
   } finally {

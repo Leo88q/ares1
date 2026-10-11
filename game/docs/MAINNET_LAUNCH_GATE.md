@@ -178,8 +178,12 @@ not a substitute for evidence.
 
 ## G-4. Фронтенд и DNS (пп. 50, 67)
 
-Для игрового хоста (`play.ares1.is-a.dev`) выставить те же заголовки, что на
-лендинге (`landing/public/_headers` — файл, который читает Cloudflare Pages; `netlify.toml` платформа игнорирует):
+Для owner-verified игрового хоста выставить те же заголовки, что на лендинге
+(`game/apps/web/public/_headers` — Cloudflare Pages читает этот файл; `netlify.toml`
+платформа игнорирует). Настроенные Pages origins записаны в root README, но
+их live-статус не подтверждён этим checkout. Custom `is-a.dev` aliases были
+отмечены как незарегистрированные в проверке 2026-10-06; не публиковать их без
+новой независимой проверки ownership/DNS.
 
 ```
 Content-Security-Policy: default-src 'self'; script-src 'self';
@@ -192,10 +196,11 @@ X-Frame-Options: DENY (или frame-ancestors 'none' при iframe-кошель�
 Permissions-Policy: camera=(), microphone=(), geolocation=()
 ```
 
-DNS: DNSSEC включён; 2FA + hardware key на аккаунте регистратора; мониторинг
-смены NS/A/AAAA и CT-логов сертификатов; алерт на появление новых сертификатов
-для домена. План отката: заранее подготовленный статус-баннер и альтернативный
-домен для коммуникации при хайджеке.
+DNS/hosting pre-launch requirements (not verified): enable DNSSEC where
+supported; hardware 2FA on registrar/CDN accounts; monitor NS/A/AAAA drift and
+certificate transparency; alert on unexpected certificates. Rehearse a status
+message and an independently controlled fallback channel before using any
+custom domain.
 
 ---
 

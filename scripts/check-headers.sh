@@ -2,7 +2,7 @@
 #
 # Header and TLS sanity check for a live deployment (checklist §3.1, §3.2, §9).
 #
-#   ./scripts/check-headers.sh https://ares1.is-a.dev
+#   ./scripts/check-headers.sh https://ares1-7e1.pages.dev
 #
 # This is the part of the checklist you can verify from outside without
 # touching the host. It does not replace SSL Labs or securityheaders.com — it

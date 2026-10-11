@@ -36,13 +36,15 @@ mainnet (гейт G-7 в [MAINNET_LAUNCH_GATE.md](MAINNET_LAUNCH_GATE.md)).
 | Экстренный триаж (круглосуточно) | SEAL 911 — `https://seal-911.me` / Telegram `@SEAL911_official` | волонтёры-респондеры, быстро соединяют с биржами/аналитикой |
 | Заморозка/трекинг средств | Tether/Circle (если USDC/USDT в пути), биржи: TBD | крупные биржи принимают запросы через своих security-контактов |
 | Аналитика/клейминг | Chainalysis / TRM / Nominis / ZeroShadow — TBD | подать adresse в готовом CSV |
-| Инфраструктура | Cloudflare-аккаунт (отдельный аппаратный 2FA), регистратор is-a.dev (GitHub-репо is-a.dev) | при угоне домена — см. §6 |
+| Инфраструктура | Cloudflare account (hardware 2FA); custom `is-a.dev` aliases were reported unregistered on 2026-10-06 and have not been reverified | do not treat the aliases as official; use verified origin only, see §6 |
 | Юрист | TBD | safe-harbor коммуникация, отчётность |
 | Внутренний эскалационный список | TBD (имя → телефон → дублирующий канал) | минимум два человека на каждую роль |
 
-`security.txt` опубликован: `https://ares1.is-a.dev/.well-known/security.txt`
-(контакт, expiry, канонический URL). После инцидента НЕ менять его молча —
-обновление фиксируется в git.
+`security.txt` is shipped with the landing and game builds at the configured
+Cloudflare Pages origins (`ares1-7e1.pages.dev` and `ares1-play.pages.dev`). Their
+live status was not verified here. The contact points to GitHub Security
+Advisories; verify private vulnerability reporting is enabled before relying on
+it. After an incident, do not change the file silently—record updates in git.
 
 ## 2. Шаблон ончейн-сообщения (memo по адресу upgrade authority / config)
 
@@ -54,9 +56,9 @@ ARES-1 INCIDENT NOTICE <UTC timestamp>
 Status: <PAUSED via set_paused | COMPROMISED — do not interact>
 What happened: <1-2 lines, только подтверждённые факты>
 What is safe: <например: POTATO balances intact; market paused>
-Official channels ONLY: ares1.is-a.dev / play.ares1.is-a.dev
+Official channels ONLY: <owner-verified landing origin> / <owner-verified game origin>
 Next update: <время UTC> в этом же memo и на <канал>
-Reward/bounty contact: security@ares1.is-a.dev (см. security.txt)
+Security reports: https://github.com/Leo88q/ares1/security/advisories/new (only if private reporting is enabled)
 ```
 
 Правила: не обещать суммы выкупа публично; не публиковать адреса атакующего до
@@ -215,3 +217,4 @@ Reward/bounty contact: security@ares1.is-a.dev (см. security.txt)
 [MAINNET_LAUNCH_GATE.md](MAINNET_LAUNCH_GATE.md) (гейты G-2/G-7),
 [KEY_PROVENANCE.md](KEY_PROVENANCE.md) (происхождение ключей),
 [THIRD_PARTY_DEPENDENCIES.md](THIRD_PARTY_DEPENDENCIES.md) (апстрим-риски).
+EPENDENCIES.md) (апстрим-риски).

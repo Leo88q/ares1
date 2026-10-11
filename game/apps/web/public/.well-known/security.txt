@@ -1,19 +1,16 @@
-# ARES-1 — security contact and responsible disclosure (checklist §7.2)
-# RFC 9116. Keep this file at /.well-known/security.txt on every domain you own.
-#
-# TO REPORT A VULNERABILITY
-#   Email the address below. Include the affected URL, a description, and
-#   reproduction steps. Do NOT include other players' personal data, and do not
-#   exploit a live issue beyond what is needed to demonstrate it.
-#
-# WHAT WE DO AND DO NOT ASK FOR
-#   We will never ask you for a seed phrase, a private key, or to deploy a
-#   contract. Anyone who does is not us — the game has no reason to ask.
+# ARES-1 responsible disclosure contact (RFC 9116)
+# Custom is-a.dev aliases were reported unregistered on 2026-10-06 and have not
+# been reverified in this workspace. Do not send reports to email at those names.
+# Report privately through GitHub Security Advisories; availability must be
+# enabled for this repository before relying on this channel.
+# Do not include other players' personal data or exploit a live issue beyond
+# what is needed to demonstrate it. We will never ask for a seed phrase, private
+# key, or contract deployment.
 
-Contact: mailto:security@ares1.is-a.dev
-Expires: 2027-01-01T00:00:00.000Z
+Contact: https://github.com/Leo88q/ares1/security/advisories/new
+Expires: 2027-10-11T00:00:00.000Z
 Preferred-Languages: ru, en
-Canonical: https://play.ares1.is-a.dev/.well-known/security.txt
+Canonical: https://ares1-play.pages.dev/.well-known/security.txt
 
-# Scope note: the Solana program and the game client are in scope. Third-party
-# services (RPC provider, hosting, wallet apps) should be reported to them.
+# Scope: the Solana program and game client. Third-party services (RPC, hosting,
+# wallet apps) should be reported to their respective operators.

@@ -1,35 +1,24 @@
-# Third-party licences
+# Third-party licence inventory
 
-Full attribution, including every font family and the packages that ship in the browser bundle,
-lives in **this file**. The generated site page (`/legal/third-party.html`) was removed together
-with the rest of the legal documents by an owner decision on 2026-10-06 (RFC §6) — attribution in
-the repository is what remains, and it is the copy a developer is most likely to find when adding
-a dependency.
+This is the repository's working attribution inventory for bundled fonts, packages and media; it is not a legal opinion or a guarantee that every transitive dependency is listed. A generated public attribution page and other legal pages were removed by an owner decision on 2026-10-06. That is not legal clearance; required notices remain a release gate.
 
 ## Rules when adding something
 
-1. **Fonts must be self-hosted.** Install `@fontsource/<family>` and import it from
-   `landing/fonts.ts` or `game/apps/web/src/fonts.ts`. Never add a CDN `<link>` or a CSS
-   `@import` from a font host: it discloses every visitor's IP to a third party before any
-   consent exists (production-deploy checklist §4.6). CI fails the build if a font CDN host
-   reappears in source.
-2. **Vendored upstream CSS must stay vendored.** `game/apps/web/src/styles/wallet-adapter.css`
-   is a copy of the wallet-adapter stylesheet with its remote `@import` removed. Its header
-   documents how to re-sync on upgrade.
-3. **Add the licence row** when a new package or asset ships to users.
-4. **Verify asset rights before launch.** The music and SFX in
-   `landing/public/music/` and `game/apps/web/public/sfx/` carry credits in
-   `game/apps/web/public/music/CREDITS.txt`; commercial-use rights are **not yet confirmed**.
+1. **Fonts must be self-hosted.** Install `@fontsource/<family>` and import it from `landing/fonts.ts` or `game/apps/web/src/fonts.ts`. Do not add a CDN `<link>` or CSS `@import` from a font host: it discloses visitor IP addresses before consent. CI fails the build if a font CDN host reappears in source.
+2. **Keep vendored upstream CSS local.** `game/apps/web/src/styles/wallet-adapter.css` is a copy of the wallet-adapter stylesheet with its remote `@import` removed; its header documents the sync procedure.
+3. **Update this inventory** when a new package, font, image, sound, or other asset ships to users. Keep upstream license texts/notices with vendored code.
+4. **Verify asset rights before release.** Music and SFX credits are in `game/apps/web/public/music/CREDITS.txt`; commercial-use rights are **not confirmed** in this repository.
 
-## Summary
+## Working summary
 
-| Category | Licence |
+| Category | Recorded licence |
 |---|---|
 | Inter, Oswald, JetBrains Mono, Anton, Archivo Black, DM Sans | SIL Open Font License 1.1 |
-| React, Vite, Tailwind, framer-motion, canvas-confetti, lenis | MIT |
+| React, Vite, Tailwind, framer-motion, canvas-confetti, lenis | MIT (per package) |
 | lucide-react | ISC |
-| `@solana/*`, `@solana/wallet-adapter-*`, `@coral-xyz/anchor` | Apache-2.0 / MIT (per package) |
-| Vendored `@solana/buffer-layout-utils` backport | Apache-2.0; source commit and test provenance: [game/apps/web/vendor/solana-buffer-layout-utils/README.vendor.md](game/apps/web/vendor/solana-buffer-layout-utils/README.vendor.md) |
+| `@solana/*`, `@solana/wallet-adapter-*`, `@coral-xyz/anchor` | Apache-2.0 / MIT (per package; check each shipped package) |
+| Vendored `@solana/buffer-layout-utils` backport | Apache-2.0; source commit and test provenance: [vendor README](game/apps/web/vendor/solana-buffer-layout-utils/README.vendor.md) |
 
-The project's own source licence is declared in [README.md](README.md). It currently says MIT;
-confirm that is the intended choice for a commercial game before publishing (checklist §2.11).
+## Project licence status
+
+No authoritative top-level `LICENSE` file is present in this checkout. The project's own source licence is **unresolved**. Do not infer an MIT grant from old README wording; the owner must choose and publish an authoritative licence before external reuse or commercial release.

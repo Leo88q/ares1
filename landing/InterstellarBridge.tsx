@@ -16,6 +16,7 @@ import {
 import {
   interstellarConfig,
   interstellarContent,
+  playConfig,
 } from "./content";
 import { LiquidPanel } from "./LiquidPanel";
 import { MorphButton } from "./MorphButton";
@@ -155,7 +156,8 @@ function QuantumRoute({
   readonly compact?: boolean;
 }): JSX.Element {
   const ref = useRef<HTMLDivElement>(null);
-  const animated = useVisibleAnimation(ref);
+  const inView = useVisibleAnimation(ref);
+  const animated = interstellarConfig.status === "available" && inView;
 
   return (
     <div
@@ -224,7 +226,8 @@ function BridgeMetrics({
   readonly metrics: InterstellarMetrics;
 }): JSX.Element {
   const [now, setNow] = useState(() => Date.now());
-  const flightTime = metrics.nextFlightAt
+  const integrationAvailable = interstellarConfig.status === "available";
+  const flightTime = integrationAvailable && metrics.nextFlightAt
     ? Date.parse(metrics.nextFlightAt)
     : NaN;
 
@@ -249,14 +252,15 @@ function BridgeMetrics({
     };
   }, [flightTime]);
 
-  const transferred =
-    metrics.transferredPotato !== null &&
-    Number.isFinite(metrics.transferredPotato) &&
-    metrics.transferredPotato >= 0
+  const transferred = !integrationAvailable
+    ? SC.plannedMetrics
+    : metrics.transferredPotato !== null &&
+        Number.isFinite(metrics.transferredPotato) &&
+        metrics.transferredPotato >= 0
       ? `${new Intl.NumberFormat(currentLocale(), { maximumFractionDigits: 6 }).format(metrics.transferredPotato)} $POTATO`
       : SC.noMetrics;
 
-  let schedule = SC.noSchedule as string;
+  let schedule = (integrationAvailable ? SC.noSchedule : SC.plannedSchedule) as string;
 
   if (Number.isFinite(flightTime)) {
     const remaining = flightTime - now;
@@ -308,7 +312,7 @@ function BridgeDialog({
 
     if (open && !dialog.open) {
       dialog.showModal();
-      play("interstellar.bridge", 0.4);
+      play("ui.click", 0.4);
     } else if (!open && dialog.open) {
       dialog.close();
     }
@@ -388,6 +392,9 @@ function BridgeDialog({
                 {SC.unavailableLink}
               </p>
             )}
+            {url && (
+              <p className="interstellar-external-app-note">{SC.externalAppNotice}</p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -445,7 +452,7 @@ function PlanetCard({
       {planet === "mars" && (
         <div className="interstellar-world-action">
           <a
-            href="https://arena-01a0f067-ares1.ares1-play.pages.dev"
+            href={playConfig.url}
             target="_blank"
             rel="noopener noreferrer"
             className="ares-action-link"
@@ -465,6 +472,7 @@ function PlanetCard({
           >
             {SC.gameCta}
           </a>
+          <p className="interstellar-external-app-note">{SC.externalAppNotice}</p>
         </div>
       )}
     </div>
@@ -567,6 +575,10 @@ export function InterstellarSection(): JSX.Element {
             </div>
           </div>
 
+          <p className="interstellar-narrative-notice" role="note">
+            {SC.narrativeNotice}
+          </p>
+
           <div className="interstellar-story-columns">
             {SC.paragraphs.map((paragraph, index) => (
               <motion.p
@@ -583,10 +595,6 @@ export function InterstellarSection(): JSX.Element {
               </motion.p>
             ))}
           </div>
-
-          <p className="interstellar-narrative-notice">
-            {SC.narrativeNotice}
-          </p>
         </LiquidPanel>
 
         <div className="interstellar-section-actions">
@@ -690,6 +698,9 @@ export function InterstellarBridge({
             ? SC.plannedNotice
             : SC.openNotice}
         </p>
+        {url && (
+          <p className="interstellar-external-app-note">{SC.externalAppNotice}</p>
+        )}
       </LiquidPanel>
 
       <BridgeDialog

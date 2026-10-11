@@ -31,6 +31,11 @@ const args = process.argv.slice(2);
 const UPDATE = args.includes("--update");
 const VERBOSE = args.includes("--verbose");
 
+// Security monitoring targets only: the custom aliases were reported unregistered
+// on 2026-10-06, but their live status has not been rechecked here. The committed
+// DNS snapshot is older still; do not use it as proof of registration/ownership,
+// and do not run --update merely to silence drift. Re-baseline only after an
+// operator independently verifies current registration and DNS control.
 const DEFAULT_DOMAINS = ["ares1.is-a.dev", "play.ares1.is-a.dev"];
 const TYPES = ["A", "AAAA", "CNAME", "NS", "TXT"];
 
