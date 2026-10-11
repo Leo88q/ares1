@@ -66,8 +66,8 @@ CHECKS=(
   "Backend container build"
   "Shell scripts (shellcheck, errors and warnings)"
   "gitleaks"
-  "Secret scan, dependency-free (checklist §1.1)"
-  "Deploy readiness (checklist §2, §7)"
+  "Secret scan, dependency-free"
+  "Deploy readiness"
   "readonly-exporter"
 )
 args=(

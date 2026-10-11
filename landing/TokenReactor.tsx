@@ -23,7 +23,7 @@ function createSectors(): readonly ReactorSector[] {
   ] as const;
   const cycle = [
     { label: TC.birth.title, hint: t("эмиссия эпохи") },
-    { label: TC.flow.title, hint: t("кошельки · ордера · мост AOF") },
+    { label: TC.flow.title, hint: t("кошельки · ордера · рынок") },
     { label: TC.death.title, hint: t("комиссии · налоги · рецепты") },
   ];
 

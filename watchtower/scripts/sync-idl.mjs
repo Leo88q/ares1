@@ -28,12 +28,37 @@ const full = JSON.parse(raw.toString('utf8'));
 const sha256 = createHash('sha256').update(raw).digest('hex');
 
 const eventNames = full.events.map((e) => e.name);
+// Event payloads may refer to named enums/structs. Preserve the transitive
+// dependencies too (e.g. QuoteAsset in the marketplace V2 event payloads), or
+// the event-only artifact cannot decode the payload even though its schema is
+// present in the source IDL.
+const requiredTypeNames = new Set(eventNames);
+const typesByName = new Map(full.types.map((type) => [type.name, type]));
+const pendingTypeNames = [...requiredTypeNames];
+while (pendingTypeNames.length) {
+  const type = typesByName.get(pendingTypeNames.pop());
+  for (const field of type?.type?.fields ?? []) {
+    const visit = (value) => {
+      if (Array.isArray(value)) {
+        value.forEach(visit);
+      } else if (value && typeof value === 'object') {
+        const referencedName = value.defined?.name;
+        if (referencedName && !requiredTypeNames.has(referencedName)) {
+          requiredTypeNames.add(referencedName);
+          pendingTypeNames.push(referencedName);
+        }
+        Object.values(value).forEach(visit);
+      }
+    };
+    visit(field.type);
+  }
+}
 const artifact = {
   address: full.address,
   metadata: full.metadata,
   sourceIdlSha256: sha256,
   events: full.events,
-  types: full.types.filter((t) => eventNames.includes(t.name)),
+  types: full.types.filter((t) => requiredTypeNames.has(t.name)),
   instructionDiscriminators: Object.fromEntries(
     full.instructions.map((i) => [i.name, i.discriminator]),
   ),

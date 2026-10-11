@@ -292,5 +292,51 @@
       "destination": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
       "amount_micro": "9007199254740993"
     }
+  },
+  {
+    "provenance": "synthetic",
+    "onChainEvent": "OrderCancelledV2",
+    "base64": "oM3rmQvXWvUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "expected": {
+      "order": "11111111111111111111111111111111",
+      "seller": "11111111111111111111111111111111"
+    }
+  },
+  {
+    "provenance": "synthetic",
+    "onChainEvent": "OrderCreatedV2",
+    "base64": "AEk5f9SJTuUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAIAAVzVsHAAAAAAE=",
+    "expected": {
+      "order": "11111111111111111111111111111111",
+      "seller": "11111111111111111111111111111111",
+      "amount_micro": "9007199254740993",
+      "price_quote_atoms_per_potato": "123456789",
+      "quote_asset": "Skr"
+    }
+  },
+  {
+    "provenance": "synthetic",
+    "onChainEvent": "OrderExpiredV2",
+    "base64": "798naiCk9EkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+    "expected": {
+      "order": "11111111111111111111111111111111"
+    }
+  },
+  {
+    "provenance": "synthetic",
+    "onChainEvent": "OrderFilledV2",
+    "base64": "vKVRFJWZVU8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAgAAEBAAAAAAAgAOJ6FK5H4QIAH4XrUbgeHQBAQg8AAAAAAOkDAAAAACAA",
+    "expected": {
+      "order": "11111111111111111111111111111111",
+      "seller": "11111111111111111111111111111111",
+      "buyer": "11111111111111111111111111111111",
+      "amount_micro": "9007199254740993",
+      "quote_asset": "Skr",
+      "gross_quote_atoms": "9007199254740993",
+      "fee_quote_atoms": "810647932926690",
+      "seller_net_quote_atoms": "8196551321814303",
+      "seller_volume_before_micro": "1000000",
+      "seller_volume_after_micro": "9007199254741993"
+    }
   }
 ]

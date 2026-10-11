@@ -2,11 +2,14 @@ import { assertDedicatedPayer, safeError } from "./security.js";
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import { env } from "./env.js";
+import { expectedGenesisHash } from "./cluster.js";
 import { configRouter } from "./routes/config.js";
 import { gameOpsRouter } from "./routes/gameops.js";
 import { presaleRouter } from "./routes/presale.js";
 import { loadGameOpsConfig } from "./gameops/env.js";
 import { closePool, createPool } from "./gameops/pool.js";
+import { createPgRollLock } from "./gameops/epochLock.js";
+import { bindPresaleDatabaseCluster } from "./gameops/clusterGuard.js";
 import { checkReadiness, httpStatusFor } from "./gameops/readiness.js";
 import { startEpochRoller } from "./epochRoller.js";
 import { connection, fetchConfig, payerKeypair, programId } from "./solana.js";
@@ -49,6 +52,15 @@ function securityHeaders(_req: Request, res: Response, next: NextFunction) {
 }
 
 async function main() {
+  // Refuse cross-cluster configuration before serving API or running the crank.
+  // This is a hard guard against a devnet RPC accidentally paired with a mainnet
+  // presale (or the reverse); the UI/API label alone is not sufficient.
+  const expectedGenesis = expectedGenesisHash(env.cluster);
+  const actualGenesis = await connection.getGenesisHash();
+  if (actualGenesis !== expectedGenesis) {
+    throw new Error(`RPC cluster mismatch: configured=${env.cluster}, genesis=${actualGenesis}`);
+  }
+
   const app = express();
   // Env-driven (TRUST_PROXY): a hard-coded hop count mis-prices req.ip both
   // behind deeper proxy chains and when the API is exposed without a proxy.
@@ -76,6 +88,7 @@ async function main() {
         payer: payerKeypair.publicKey.toBase58(),
         payerSol: payerBal / 1e9,
         gameOps: gameOpsPool ? "on" : "off",
+        cluster: env.cluster,
         uptime: process.uptime(),
       });
     } catch (err) {
@@ -90,8 +103,15 @@ async function main() {
   const gameOpsConfig = loadGameOpsConfig();
   const gameOpsPool = gameOpsConfig ? createPool(gameOpsConfig) : null;
   if (gameOpsConfig && gameOpsPool) {
+    // A DB is permanently pinned to its first presale network binding; a reused
+    // devnet registry must fail startup rather than ever expose mainnet orders.
+    await bindPresaleDatabaseCluster(gameOpsPool, env.cluster);
     console.log(
       `[startup] game_ops on: chain=${gameOpsConfig.chainId} pool=${gameOpsConfig.poolMax} role=${gameOpsConfig.role ?? "connection-default"}`,
+    );
+  } else {
+    console.warn(
+      "[startup] game_ops off: кросс-инстансная блокировка эпохи недоступна — держите ровно одну реплику бэкенда.",
     );
   }
 
@@ -134,10 +154,17 @@ async function main() {
         rateLimit(env.rateLimitPerMinute),
         presaleRouter(gameOpsPool, gameOpsConfig, {
           connection,
+          cluster: env.cluster,
+          paymentsEnabled: env.cluster === "mainnet-beta"
+            ? process.env.NODE_ENV === "production" && env.mainnetPresaleApproved
+            : env.devnetPresaleTestEnabled,
           potatoMint: chainCfg.potatoMint.toBase58(),
         }),
       );
-      console.log("[startup] presale router on");
+      const paymentsEnabled = env.cluster === "mainnet-beta"
+        ? process.env.NODE_ENV === "production" && env.mainnetPresaleApproved
+        : env.devnetPresaleTestEnabled;
+      console.log(`[startup] presale router on: cluster=${env.cluster} payments=${paymentsEnabled ? "enabled" : "disabled-by-default"}`);
     } catch (err) {
       console.log("[startup] presale router not mounted: chain config unavailable");
     }
@@ -202,7 +229,10 @@ async function main() {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   process.on("SIGINT", () => void shutdown("SIGINT"));
 
-  startEpochRoller();
+  // Крон эпохи защищён общей блокировкой, когда включён game_ops: несколько
+  // реплик (перекрытие при выкатке, горизонтальное масштабирование) тогда не
+  // дублируют roll_epoch. Без БД блокировки нет — это режим «ровно один инстанс».
+  startEpochRoller({ lock: gameOpsPool ? createPgRollLock(gameOpsPool) : null });
   app.listen(env.port, "0.0.0.0", () => {
     console.log(`[startup] Solana Potato backend on :${env.port}`);
     console.log(`[startup] program=${programId.toBase58()}`);

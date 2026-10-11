@@ -112,12 +112,28 @@
     "notes": "Observed program event; not a complete token accounting ledger."
   },
   {
+    "on_chain_event": "OrderCancelledV2",
+    "normalized_event": "OrderCancelled",
+    "category": "economy",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "V2 cancellation returns the escrowed POTATO principal; no settlement fee is charged."
+  },
+  {
     "on_chain_event": "OrderCreated",
     "normalized_event": "OrderCreated",
     "category": "economy",
     "resource": "POTATO",
     "confidence": "partial",
     "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "OrderCreatedV2",
+    "normalized_event": "OrderCreated",
+    "category": "economy",
+    "resource": "POTATO",
+    "confidence": "partial",
+    "notes": "V2 listing; quote asset is retained as an enum in the decoded payload. Listing does not charge a fee."
   },
   {
     "on_chain_event": "OrderExpiredEvent",
@@ -128,12 +144,28 @@
     "notes": "Observed program event; not a complete token accounting ledger."
   },
   {
+    "on_chain_event": "OrderExpiredV2",
+    "normalized_event": "OrderExpired",
+    "category": "economy",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "Permissionless V2 expiry returns escrowed POTATO principal; no settlement fee is charged."
+  },
+  {
     "on_chain_event": "OrderFilled",
     "normalized_event": "OrderFilled",
     "category": "economy",
     "resource": "SOL",
     "confidence": "partial",
     "notes": "Observed program event; not a complete token accounting ledger."
+  },
+  {
+    "on_chain_event": "OrderFilledV2",
+    "normalized_event": "OrderFilled",
+    "category": "economy",
+    "resource": null,
+    "confidence": "partial",
+    "notes": "V2 settlement; quote asset (SOL or SKR) is resolved from the event enum, with fee and seller net reported separately."
   },
   {
     "on_chain_event": "PausedToggled",

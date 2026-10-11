@@ -88,4 +88,4 @@ CLI-паблишинга больше нет — всё через веб: https
 
 - Фарминг, харвест, маркетплейс, нашивки (квесты `claim_achievement`) и рефералка (`register_referrer`/`fill_order`) — **полностью on-chain** и не зависят ни от какого веб-контекста: в APK/TWA работают через любой MWA-совместимый кошелёк.
 - (До 14.09.2026 квесты/реварды шли через backend `/api/reward/claim` с проверкой `X-Telegram-Init-Data` и не работали вне Telegram. Кран и initData **удалены** — квесты теперь on-chain, идентичность = кошелёк.)
-- Перед сабмитом обнови `VITE_RPC_URL`/`VITE_SOLANA_CLUSTER`/`VITE_PROGRAM_ID`/`VITE_BACKEND_URL` в `.env.production` на реальные mainnet-значения — иначе в сторе окажется devnet-сборка.
+- Для локального/предрелизного APK оставляй `VITE_SOLANA_CLUSTER=devnet` и используй только тестовые кошельки. Не выставляй mainnet-переменные и не загружай сборку в Publisher Portal, пока current launch gates, владельческое решение, security review, legal notices, program deployment и transaction path не подтверждены.

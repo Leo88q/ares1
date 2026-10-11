@@ -12,7 +12,24 @@ test('packaged event-only IDL matches the repository compiled IDL exactly', () =
   const full = JSON.parse(raw.toString());
   assert.equal(createHash('sha256').update(raw).digest('hex'), idl.sourceIdlSha256);
   assert.deepEqual(idl.events, full.events);
-  assert.deepEqual(idl.types, full.types.filter((t: { name: string }) => idl.events.some(e => e.name === t.name)));
+  const fullTypes = new Map(full.types.map((t: { name: string }) => [t.name, t]));
+  const requiredTypes = new Set(idl.events.map(e => e.name));
+  const pending = [...requiredTypes];
+  while (pending.length) {
+    const type = fullTypes.get(pending.pop()!);
+    for (const field of (type as { type?: { fields?: { type: unknown }[] } } | undefined)?.type?.fields ?? []) {
+      const visit = (value: unknown) => {
+        if (Array.isArray(value)) value.forEach(visit);
+        else if (value && typeof value === 'object') {
+          const name = (value as { defined?: { name?: string } }).defined?.name;
+          if (name && !requiredTypes.has(name)) { requiredTypes.add(name); pending.push(name); }
+          Object.values(value).forEach(visit);
+        }
+      };
+      visit(field.type);
+    }
+  }
+  assert.deepEqual(idl.types, full.types.filter((t: { name: string }) => requiredTypes.has(t.name)));
   assert.deepEqual(idl.instructionDiscriminators, Object.fromEntries(full.instructions.map((i: { name: string; discriminator: number[] }) => [i.name, i.discriminator])));
   assert.deepEqual(eventMap.map(e => e.on_chain_event).sort(), idl.events.map(e => e.name).sort());
 });
@@ -23,6 +40,23 @@ for (const fixture of fixtureEvents) test(`synthetic IDL decoder: ${fixture.onCh
   assert.deepEqual(decoded.data, fixture.expected);
   assert.notEqual(decoded.eventType, 'Unknown');
   assert.equal(decoded.confidence, 'partial');
+});
+test('V2 marketplace quote-asset enum controls normalized SOL/SKR resource', () => {
+  const fixture = fixtureEvents.find(f => f.onChainEvent === 'OrderFilledV2')!;
+  const skr = decodeEvent(fixture.base64);
+  assert.equal(skr.data.quote_asset, 'Skr');
+  assert.equal(skr.resource, 'SKR');
+
+  // Borsh field offset: discriminator + order/seller/buyer pubkeys + amount.
+  const solBytes = Buffer.from(fixture.base64, 'base64');
+  solBytes[112] = 0;
+  const sol = decodeEvent(solBytes.toString('base64'));
+  assert.equal(sol.data.quote_asset, 'Sol');
+  assert.equal(sol.resource, 'SOL');
+
+  const invalidBytes = Buffer.from(fixture.base64, 'base64');
+  invalidBytes[112] = 2;
+  assert.equal(decodeEvent(invalidBytes.toString('base64')).eventType, 'Unknown');
 });
 test('unknown discriminator, malformed and evolved payloads are retained as Unknown', () => {
   const sample = fixtureEvents[0]!.base64;

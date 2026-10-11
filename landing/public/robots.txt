@@ -15,4 +15,4 @@ Disallow: /*?ref=
 Disallow: /*?utm_
 Disallow: /*?lang=
 
-Sitemap: https://ares1.is-a.dev/sitemap.xml
+Sitemap: https://ares1-7e1.pages.dev/sitemap.xml

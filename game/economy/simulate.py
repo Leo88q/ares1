@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """
-Solana Potato — 12-месячная симуляция экономики (пересчёт 14.09.2026).
+Solana Potato — 12-месячная архивная симуляция экономики.
 
-Синхронизировано с programs/solana_potato/src/lib.rs (после аудита):
+Важно: market-fee часть здесь соответствует legacy V1 (комиссия в POTATO,
+60% burn / 40% treasury), а не целевой V2 settlement-fee, принятой 11.10.2026.
+Не использовать для прогноза комиссионной выручки V2; требуется отдельный
+сценарный расчёт после Anchor-реализации и получения seller-volume/quote данных.
+
+Синхронизировано с программной экономикой в programs/solana_potato/src/lib.rs,
+но рыночная fee-модель специально сохранена как legacy:
 * формула урожая: base(6) × type(0.35/1/2.1) × level_mult × durability × global
   × LUNAR_TABLE[epoch % 28] (0.85–1.15); fertilizer/tax_penalty не моделируются
   (консервативно для burn — они только режут выплату)
@@ -13,7 +19,7 @@ Solana Potato — 12-месячная симуляция экономики (п�
   (lib.rs: epoch.minted_micro учитывает player + treasury + квесты + TG)
 * стоки (total_burned в lib.rs): покупка поля 100/250/500, налог-поддержка
   6/нед × (L+1)/2 × type, ремонт 15 × max(1, L//3) × type, апгрейд 100×L×type,
-  комиссия рынка 9/10/11/12% (60% → burn)
+  legacy V1 комиссия рынка 9/10/11/12% (60% → burn; not target V2)
 * квесты: разовый пул 550 🥔 (on-chain claim_achievement; TG-кран удалён
   продуктовым решением 14.09.2026 — дApp Store, минт только harvest + квесты)
 * max supply 1 000 000 000 🥔
@@ -55,7 +61,7 @@ LUNAR = [10000, 10334, 10651, 10935, 11173, 11352, 11462, 11500,
          8827, 9065, 9349, 9666]
 TAX_BASE_BPS, TAX_GROWTH_BPS = 200, 800   # 2% + 8%·ratio², потолок 10%
 TAX_CAP_BPS = 1000
-FEE_BURN_SHARE = 0.60                    # 60% комиссии рынка → burn
+FEE_BURN_SHARE = 0.60                    # legacy V1 only: 60% market fee → POTATO burn
 QUEST_POOL_ONE_TIME = 550.0
 DURABILITY_FLOOR = 20.0
 DURABILITY_DRAIN = 4.0                    # /день

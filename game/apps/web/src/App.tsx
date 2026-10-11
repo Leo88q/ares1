@@ -26,8 +26,10 @@ const MainScreen = lazy(() => import('./components/MainScreen'))
 const MarketScreen = lazy(() => import('./components/MarketScreen'))
 const StatsScreen = lazy(() => import('./components/StatsScreen'))
 const ProfileScreen = lazy(() => import('./components/ProfileScreen'))
+const OperationScreen = lazy(() => import('./components/OperationScreen'))
+const DemoScreen = lazy(() => import('./components/DemoScreen'))
 
-type Screen = 'farm' | 'market' | 'stats' | 'profile'
+type Screen = 'farm' | 'market' | 'stats' | 'profile' | 'operation'
 
 export default function App() {
  const { lang } = useI18n()
@@ -105,6 +107,7 @@ function AppRoutes() {
   location.pathname === '/market' ? 'market'
   : location.pathname === '/stats' ? 'stats'
   : location.pathname === '/profile' ? 'profile'
+  : location.pathname === '/operation' ? 'operation'
   : 'farm'
 
  const handleNavigate = (screen: Screen) => navigate(screen === 'farm' ? '/' : `/${screen}`)
@@ -119,6 +122,8 @@ function AppRoutes() {
        <Route path="/market" element={<MarketScreen />} />
        <Route path="/stats" element={<StatsScreen />} />
        <Route path="/profile" element={<ProfileScreen />} />
+       <Route path="/operation" element={<OperationScreen />} />
+       <Route path="/demo" element={<DemoScreen />} />
        <Route path="*" element={<MainScreen />} />
       </Routes>
      </Suspense>

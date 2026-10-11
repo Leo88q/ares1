@@ -7,6 +7,8 @@ import BigPurchaseEffect from './BigPurchaseEffect'
 import CreateOrderModal from './CreateOrderModal'
 import { haptics } from '../utils/haptic'
 import { useMarketplace, MarketOrder } from '../hooks/useMarketplace'
+import MarketScreenV2 from './MarketScreenV2'
+import { MARKET_V2_ENABLED } from '../utils/marketFeature'
 import { useGame } from '../contexts/GameContext'
 import { fmtPotato, fmtSol, MICRO, CANCEL_COOLDOWN_HOURS } from '../utils/constants'
 import { SupplyBay } from './ares/SupplyBay';
@@ -71,6 +73,13 @@ function MarketScreenInner() {
     >
      <Plus size={16} aria-hidden="true" /> {t('Отгрузить')}
     </motion.button>
+   </div>
+
+   <div role="status" style={{ padding: '12px 14px', marginBottom: 14, border: '1px solid rgba(255,179,71,0.28)', borderRadius: 8, background: 'linear-gradient(180deg, rgba(37,24,14,0.94), rgba(17,11,7,0.96))' }}>
+    <div className="ares-mono" style={{ color: '#FFC94A', fontSize: 9, letterSpacing: '0.13em', marginBottom: 6 }}>{t('РЫНОК DEVNET · ВЕРСИЯ V1')}</div>
+    <p style={{ color: 'var(--pf-text-secondary)', fontSize: 11, lineHeight: 1.55, margin: 0 }}>
+     {t('Сейчас активна только пара POTATO/SOL; legacy-контракт удерживает комиссию в POTATO при создании ордера. Целевая V2-модель: 9–12% из выплаты продавцу при успешной сделке, в валюте расчёта и в казну; суточные накопительные tiers и отдельная пара POTATO/SKR пока не активны, точные пороги остаются проектом до финального решения. Devnet-активы тестовые.')}
+    </p>
    </div>
 
    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
@@ -404,10 +413,27 @@ function OrderCard({ order, index, busy, onBuy, onCancel }: OrderCardProps) {
 }
 
 
+function MarketV2Rollout() {
+ const [version, setVersion] = useState<'v2' | 'legacy'>('v2')
+ return (
+  <SupplyBay>
+   <div className="main-screen-container" style={{ paddingBottom: 0 }}>
+    <div role="tablist" aria-label={t('Выбор версии рынка')} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+     <button type="button" role="tab" aria-selected={version === 'v2'} onClick={() => setVersion('v2')} className={`mk-key${version === 'v2' ? ' mk-key--engaged' : ''}`} style={{ padding: 11 }}>{t('Рынок V2')}</button>
+     <button type="button" role="tab" aria-selected={version === 'legacy'} onClick={() => setVersion('legacy')} className={`mk-key${version === 'legacy' ? ' mk-key--engaged' : ''}`} style={{ padding: 11 }}>{t('Рынок V1')}</button>
+    </div>
+    <p style={{ margin: '0 0 12px', color: 'var(--pf-text-muted)', fontSize: 10, lineHeight: 1.5 }}>{t('V1-ордера и escrow остаются в отдельном legacy-рынке до исполнения, отмены или закрытия. V2 не меняет их layout и правила; в V1 комиссия удерживается в POTATO при создании.')}</p>
+   </div>
+   {version === 'v2' ? <MarketScreenV2 /> : <MarketScreenInner />}
+  </SupplyBay>
+ )
+}
+
 export default function MarketScreen() {
+ if (MARKET_V2_ENABLED) return <MarketV2Rollout />
  return (
   <SupplyBay>
    <MarketScreenInner />
   </SupplyBay>
- );
+ )
 }

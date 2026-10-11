@@ -11,7 +11,7 @@ function report() {
   return JSON.parse(execFileSync(process.execPath, [script, '--json'], { cwd: gameRoot, encoding: 'utf8' }));
 }
 
-test('coverage ignores comments and counts builder-only mentions before calling an instruction unreferenced', () => {
+test('coverage ignores comments and recognizes the guarded treasury CLI builder', () => {
   const result = report();
   const row = (name) => result.rows.find((item) => item.name === name);
   const migration = ['migrate', 'admin', 'state'].join('_');
@@ -35,7 +35,12 @@ test('coverage ignores comments and counts builder-only mentions before calling 
   assert.equal(row(legacyGrant).hits['web-builder'], 0);
   assert.ok(row(legacyGrant).hits.backend > 0);
 
-  // This instruction has no in-scope code reference (the test mentions it only
-  // in a comment); keep it visible as a review candidate, not an auto-removal.
-  assert.deepEqual(result.unreferenced, [skrWithdraw]);
+  // SKR treasury withdrawal is deliberately absent from the player-facing web
+  // flow. It does have an offline authority CLI builder and ABI tests, so it is
+  // referenced by scripts/tests rather than appearing unreferenced.
+  assert.equal(row(skrWithdraw).hits['web-ui'], 0);
+  assert.equal(row(skrWithdraw).hits['web-builder'], 0);
+  assert.ok(row(skrWithdraw).hits.scripts > 0);
+  assert.ok(row(skrWithdraw).hits.tests > 0);
+  assert.ok(!result.unreferenced.includes(skrWithdraw));
 });

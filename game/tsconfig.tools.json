@@ -23,6 +23,8 @@
     "scripts/db-mutate.ts",
     "scripts/presale-reconcile.ts",
     "scripts/presale-open-run.ts",
+    "scripts/treasury-admin.ts",
+    "scripts/treasury-admin-core.ts",
     "tests/db/**/*.ts"
   ]
 }

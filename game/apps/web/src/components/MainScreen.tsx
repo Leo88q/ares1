@@ -220,6 +220,12 @@ function ConnectHint() {
      {connecting ? t('Авторизация…') : t('Подключить кошелёк')}
     </motion.button>
 
+    <div style={{ marginTop: 10 }}>
+     <a href="/demo" className="mk-key" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', color: '#FFC94A', textDecoration: 'none', fontSize: 10 }}>
+      {t('Сначала попробовать демо →')}
+     </a>
+    </div>
+
     <div
      style={{
       display: 'flex',

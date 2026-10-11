@@ -172,7 +172,7 @@ function ProfileScreenInner() {
        </span>
       </div>
       <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 14, lineHeight: 1.4 }}>
-       {t('Торговый сертификат снижает комиссию на P2P бирже Снабжения и даёт приоритет в стакане.')}
+       {t('Devnet legacy V1 only: the export license discounts the old POTATO market fee by 3%; it does not discount the target V2 SOL/SKR settlement fee. Batch-harvest benefits are shown below.')}
       </p>
       <p style={{ fontSize: 12, color: '#9FBE7A', marginBottom: 14, lineHeight: 1.4 }}>
        {t('Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.', { n: BATCH_LIMIT_LICENSED, base: BATCH_LIMIT_BASE })}
@@ -193,7 +193,7 @@ function ProfileScreenInner() {
     ) : (
      <div>
       <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 12, lineHeight: 1.4 }}>
-       {t('Лицензия даёт скидку −3% на торговые сборы P2P биржи и статус верифицированного экспортёра колонии.')}
+       {t('Devnet legacy V1 only: the export license discounts the old POTATO market fee by 3%; it does not discount the target V2 SOL/SKR settlement fee. Batch-harvest benefits are shown below.')}
       </p>
       <p style={{ fontSize: 12, color: '#9FBE7A', marginBottom: 12, lineHeight: 1.4 }}>
        {t('Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.', { n: BATCH_LIMIT_LICENSED, base: BATCH_LIMIT_BASE })}

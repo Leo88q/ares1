@@ -195,8 +195,18 @@ pub const CANCEL_COOLDOWN: i64 = 3 * 3600;
 pub const MIN_ORDER_AMOUNT_MICRO: u64 = 10_000_000; // 10 POTATO
 /// Minimum SOL an order must be worth so that rounding can never make it free.
 pub const MIN_ORDER_TOTAL_LAMPORTS: u64 = 1_000_000; // 0.001 SOL
-/// Share of the marketplace fee that is burned; the rest goes to the treasury.
+/// Share of the legacy marketplace fee that is burned; the rest goes to the treasury.
+/// V2 settlement fees are paid wholly to the treasury in the quote asset.
 pub const FEE_BURN_PERCENT: u64 = 60;
+/// Minimum gross quote amount for a V2 settlement: 1,000,000 quote atoms
+/// (0.001 SOL or 1 SKR with the pinned six-decimal SKR mint).
+pub const V2_MIN_GROSS_QUOTE_ATOMS: u64 = 1_000_000;
+/// V2 progressive marginal tiers. 1k/10k/100k POTATO thresholds are draft
+/// defaults and MUST receive owner approval before a V2 release.
+pub const V2_SELLER_VOLUME_THRESHOLDS_MICRO: [u64; 3] =
+    [1_000_000_000, 10_000_000_000, 100_000_000_000];
+pub const V2_SETTLEMENT_FEE_BPS: [u16; 4] = [900, 1_000, 1_100, 1_200];
+pub const V2_FEE_POLICY_VERSION: u8 = 1;
 /// Адрес SPL Token. Нужен, чтобы проверить владельца «сырого» аккаунта минта,
 /// переданного в `remaining_accounts` (типизированный `Account<Mint>` там
 /// недоступен). Совпадает с `address` token-программы в pinned IDL.
@@ -1178,6 +1188,295 @@ pub mod solana_potato {
         Ok(())
     }
 
+    /// V2 listing: escrow only the POTATO principal. No fee is charged unless
+    /// the order fills; the eventual 9–12% commission is deducted from seller
+    /// proceeds and paid in the selected quote asset (SOL or SKR).
+    pub fn create_sell_order_v2(
+        ctx: Context<CreateSellOrderV2>,
+        order_id: u64,
+        amount_micro: u64,
+        price_quote_atoms_per_potato: u64,
+        quote_asset: QuoteAsset,
+    ) -> Result<()> {
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        require!(
+            amount_micro >= MIN_ORDER_AMOUNT_MICRO,
+            GameError::OrderTooSmall
+        );
+        require!(price_quote_atoms_per_potato > 0, GameError::InvalidPrice);
+        let gross_quote_atoms = v2_gross_quote_atoms(amount_micro, price_quote_atoms_per_potato)?;
+        require!(
+            gross_quote_atoms >= V2_MIN_GROSS_QUOTE_ATOMS,
+            GameError::V2QuoteTooSmall
+        );
+
+        let now = Clock::get()?.unix_timestamp;
+        let seller_key = ctx.accounts.seller.key();
+        let profile = &mut ctx.accounts.seller_profile;
+        require!(
+            now.saturating_sub(profile.last_cancel_at) >= CANCEL_COOLDOWN,
+            GameError::CancelCooldown
+        );
+        profile.seller = seller_key;
+        profile.bump = ctx.bumps.seller_profile;
+
+        let volume = &mut ctx.accounts.seller_volume_v2;
+        if volume.seller == Pubkey::default() {
+            volume.seller = seller_key;
+            volume.day_index = now.div_euclid(SECONDS_PER_DAY);
+            volume.filled_potato_micro = 0;
+        }
+        require!(
+            volume.seller == seller_key,
+            GameError::InvalidSellerVolumeAccount
+        );
+        volume.bump = ctx.bumps.seller_volume_v2;
+        ctx.accounts.market_stats_v2.bump = ctx.bumps.market_stats_v2;
+
+        let order = &mut ctx.accounts.order;
+        order.order_id = order_id;
+        order.seller = seller_key;
+        order.amount_micro = amount_micro;
+        order.price_quote_atoms_per_potato = price_quote_atoms_per_potato;
+        order.quote_asset = quote_asset;
+        order.fee_policy_version = V2_FEE_POLICY_VERSION;
+        order.status = OrderStatus::Active;
+        order.created_at = now;
+        order.expires_at = now.checked_add(ORDER_TTL).ok_or(GameError::MathOverflow)?;
+        order.escrow_bump = ctx.bumps.escrow;
+        order.order_bump = ctx.bumps.order;
+
+        token::transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.seller_potato.to_account_info(),
+                    to: ctx.accounts.escrow.to_account_info(),
+                    authority: ctx.accounts.seller.to_account_info(),
+                },
+            ),
+            amount_micro,
+        )?;
+
+        emit!(OrderCreatedV2 {
+            order: order.key(),
+            seller: seller_key,
+            amount_micro,
+            price_quote_atoms_per_potato,
+            quote_asset,
+        });
+        Ok(())
+    }
+
+    /// Fill an SOL-quoted V2 order. Buyer pays gross quote; seller receives
+    /// gross minus the progressive fee, and the entire fee goes to treasury_sol.
+    /// Seller daily POTATO volume is shared with the SKR pair and advances only
+    /// in this atomic fill transaction.
+    pub fn fill_order_v2(ctx: Context<FillOrderV2>) -> Result<()> {
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        let now = Clock::get()?.unix_timestamp;
+        let order = &ctx.accounts.order;
+        require!(
+            order.status == OrderStatus::Active,
+            GameError::OrderNotActive
+        );
+        require!(now < order.expires_at, GameError::OrderExpired);
+        require!(
+            order.seller != ctx.accounts.buyer.key(),
+            GameError::SelfTradeBlocked
+        );
+        require!(
+            order.quote_asset == QuoteAsset::Sol,
+            GameError::InvalidQuoteAsset
+        );
+        require!(
+            order.fee_policy_version == V2_FEE_POLICY_VERSION,
+            GameError::UnsupportedFeePolicy
+        );
+
+        let order_key = order.key();
+        let seller_key = order.seller;
+        let amount_micro = order.amount_micro;
+        let price = order.price_quote_atoms_per_potato;
+        let escrow_bump = order.escrow_bump;
+        let volume_before = ctx.accounts.seller_volume_v2.volume_at(now);
+        let settlement = calculate_settlement_fee_v2(amount_micro, price, volume_before)?;
+
+        anchor_lang::system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.seller.to_account_info(),
+                },
+            ),
+            settlement.seller_net_quote_atoms,
+        )?;
+        anchor_lang::system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.treasury_sol.to_account_info(),
+                },
+            ),
+            settlement.fee_quote_atoms,
+        )?;
+
+        let escrow_seeds: &[&[u8]] = &[b"escrow_v2", order_key.as_ref(), &[escrow_bump]];
+        let escrow_signer: &[&[&[u8]]] = &[escrow_seeds];
+        token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.escrow.to_account_info(),
+                    to: ctx.accounts.buyer_potato.to_account_info(),
+                    authority: ctx.accounts.escrow.to_account_info(),
+                },
+                escrow_signer,
+            ),
+            amount_micro,
+        )?;
+        token::close_account(CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            CloseAccount {
+                account: ctx.accounts.escrow.to_account_info(),
+                destination: ctx.accounts.seller.to_account_info(),
+                authority: ctx.accounts.escrow.to_account_info(),
+            },
+            escrow_signer,
+        ))?;
+
+        ctx.accounts.order.status = OrderStatus::Filled;
+        ctx.accounts
+            .seller_volume_v2
+            .record_fill(now, amount_micro)?;
+        ctx.accounts.market_stats_v2.record_fill(
+            QuoteAsset::Sol,
+            amount_micro,
+            settlement.gross_quote_atoms,
+            now,
+        )?;
+        emit!(OrderFilledV2 {
+            order: order_key,
+            seller: seller_key,
+            buyer: ctx.accounts.buyer.key(),
+            amount_micro,
+            quote_asset: QuoteAsset::Sol,
+            gross_quote_atoms: settlement.gross_quote_atoms,
+            fee_quote_atoms: settlement.fee_quote_atoms,
+            seller_net_quote_atoms: settlement.seller_net_quote_atoms,
+            seller_volume_before_micro: settlement.seller_volume_before_micro,
+            seller_volume_after_micro: settlement.seller_volume_after_micro,
+        });
+        Ok(())
+    }
+
+    /// Fill an SKR-quoted V2 order. The configured six-decimal SKR mint is
+    /// pinned by GameConfig; fee and seller net are transfers in that same mint.
+    pub fn fill_order_v2_skr(ctx: Context<FillOrderV2Skr>) -> Result<()> {
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        require_skr_mint(&ctx.accounts.skr_mint)?;
+        let now = Clock::get()?.unix_timestamp;
+        let order = &ctx.accounts.order;
+        require!(
+            order.status == OrderStatus::Active,
+            GameError::OrderNotActive
+        );
+        require!(now < order.expires_at, GameError::OrderExpired);
+        require!(
+            order.seller != ctx.accounts.buyer.key(),
+            GameError::SelfTradeBlocked
+        );
+        require!(
+            order.quote_asset == QuoteAsset::Skr,
+            GameError::InvalidQuoteAsset
+        );
+        require!(
+            order.fee_policy_version == V2_FEE_POLICY_VERSION,
+            GameError::UnsupportedFeePolicy
+        );
+
+        let order_key = order.key();
+        let seller_key = order.seller;
+        let amount_micro = order.amount_micro;
+        let price = order.price_quote_atoms_per_potato;
+        let escrow_bump = order.escrow_bump;
+        let volume_before = ctx.accounts.seller_volume_v2.volume_at(now);
+        let settlement = calculate_settlement_fee_v2(amount_micro, price, volume_before)?;
+
+        token::transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.buyer_skr_ata.to_account_info(),
+                    to: ctx.accounts.seller_skr_ata.to_account_info(),
+                    authority: ctx.accounts.buyer.to_account_info(),
+                },
+            ),
+            settlement.seller_net_quote_atoms,
+        )?;
+        token::transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.buyer_skr_ata.to_account_info(),
+                    to: ctx.accounts.treasury_skr_ata.to_account_info(),
+                    authority: ctx.accounts.buyer.to_account_info(),
+                },
+            ),
+            settlement.fee_quote_atoms,
+        )?;
+
+        let escrow_seeds: &[&[u8]] = &[b"escrow_v2", order_key.as_ref(), &[escrow_bump]];
+        let escrow_signer: &[&[&[u8]]] = &[escrow_seeds];
+        token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.escrow.to_account_info(),
+                    to: ctx.accounts.buyer_potato.to_account_info(),
+                    authority: ctx.accounts.escrow.to_account_info(),
+                },
+                escrow_signer,
+            ),
+            amount_micro,
+        )?;
+        token::close_account(CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            CloseAccount {
+                account: ctx.accounts.escrow.to_account_info(),
+                destination: ctx.accounts.seller.to_account_info(),
+                authority: ctx.accounts.escrow.to_account_info(),
+            },
+            escrow_signer,
+        ))?;
+
+        ctx.accounts.order.status = OrderStatus::Filled;
+        ctx.accounts
+            .seller_volume_v2
+            .record_fill(now, amount_micro)?;
+        ctx.accounts.market_stats_v2.record_fill(
+            QuoteAsset::Skr,
+            amount_micro,
+            settlement.gross_quote_atoms,
+            now,
+        )?;
+        emit!(OrderFilledV2 {
+            order: order_key,
+            seller: seller_key,
+            buyer: ctx.accounts.buyer.key(),
+            amount_micro,
+            quote_asset: QuoteAsset::Skr,
+            gross_quote_atoms: settlement.gross_quote_atoms,
+            fee_quote_atoms: settlement.fee_quote_atoms,
+            seller_net_quote_atoms: settlement.seller_net_quote_atoms,
+            seller_volume_before_micro: settlement.seller_volume_before_micro,
+            seller_volume_after_micro: settlement.seller_volume_after_micro,
+        });
+        Ok(())
+    }
+
     /// Buys an active order: SOL goes to the seller, $POTATO to the buyer, the
     /// fee is split between burn and treasury, escrow and order are closed.
     ///
@@ -1506,6 +1805,66 @@ pub mod solana_potato {
         )?;
 
         emit!(OrderExpiredEvent { order: order_key });
+        Ok(())
+    }
+
+    /// Cancel an unfilled V2 order. Only the escrowed POTATO principal is
+    /// returned; no commission is charged for an unsuccessful trade.
+    pub fn cancel_order_v2(ctx: Context<CancelOrderV2>) -> Result<()> {
+        let now = Clock::get()?.unix_timestamp;
+        let order_key = ctx.accounts.order.key();
+        require!(
+            ctx.accounts.order.status == OrderStatus::Active,
+            GameError::OrderNotActive
+        );
+        let refund_micro = ctx.accounts.order.amount_micro;
+        let escrow_bump = ctx.accounts.order.escrow_bump;
+        ctx.accounts.order.status = OrderStatus::Cancelled;
+
+        ctx.accounts.seller_profile.seller = ctx.accounts.seller.key();
+        ctx.accounts.seller_profile.bump = ctx.bumps.seller_profile;
+        ctx.accounts.seller_profile.last_cancel_at = now;
+        refund_and_close_escrow_v2(
+            &ctx.accounts.token_program,
+            &ctx.accounts.escrow,
+            &ctx.accounts.seller_potato,
+            &ctx.accounts.seller.to_account_info(),
+            order_key,
+            escrow_bump,
+            refund_micro,
+        )?;
+        emit!(OrderCancelledV2 {
+            order: order_key,
+            seller: ctx.accounts.seller.key(),
+        });
+        Ok(())
+    }
+
+    /// Permissionless V2 expiry crank: return the principal, charging no fee.
+    pub fn close_expired_order_v2(ctx: Context<CloseExpiredOrderV2>) -> Result<()> {
+        let now = Clock::get()?.unix_timestamp;
+        require!(
+            ctx.accounts.order.status == OrderStatus::Active,
+            GameError::OrderNotActive
+        );
+        require!(
+            now >= ctx.accounts.order.expires_at,
+            GameError::OrderNotExpired
+        );
+        let order_key = ctx.accounts.order.key();
+        let refund_micro = ctx.accounts.order.amount_micro;
+        let escrow_bump = ctx.accounts.order.escrow_bump;
+        ctx.accounts.order.status = OrderStatus::Expired;
+        refund_and_close_escrow_v2(
+            &ctx.accounts.token_program,
+            &ctx.accounts.escrow,
+            &ctx.accounts.seller_potato,
+            &ctx.accounts.seller.to_account_info(),
+            order_key,
+            escrow_bump,
+            refund_micro,
+        )?;
+        emit!(OrderExpiredV2 { order: order_key });
         Ok(())
     }
 
@@ -2471,6 +2830,145 @@ pub fn order_total_lamports(amount_micro: u64, price_lamports_per_potato: u64) -
     u64::try_from(total).map_err(|_| GameError::MathOverflow.into())
 }
 
+/// Result of a V2 marketplace quote. The commission is deducted from gross
+/// quote proceeds, so buyer payment = seller net + treasury fee exactly.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct V2Settlement {
+    pub gross_quote_atoms: u64,
+    pub fee_quote_atoms: u64,
+    pub seller_net_quote_atoms: u64,
+    pub seller_volume_before_micro: u64,
+    pub seller_volume_after_micro: u64,
+}
+
+fn ceil_div_u128(numerator: u128, denominator: u128) -> Result<u128> {
+    require!(denominator > 0, GameError::InvalidAmount);
+    if numerator == 0 {
+        return Ok(0);
+    }
+    let rounded = numerator
+        .checked_add(denominator - 1)
+        .ok_or(GameError::MathOverflow)?;
+    Ok(rounded / denominator)
+}
+
+/// Gross quote atoms for an amount priced in quote atoms per whole POTATO.
+/// Rounds upward, matching the V2 client quote and preventing dust fills.
+pub fn v2_gross_quote_atoms(amount_micro: u64, price_quote_atoms_per_potato: u64) -> Result<u64> {
+    require!(
+        amount_micro > 0 && price_quote_atoms_per_potato > 0,
+        GameError::InvalidAmount
+    );
+    let product = (amount_micro as u128)
+        .checked_mul(price_quote_atoms_per_potato as u128)
+        .ok_or(GameError::MathOverflow)?;
+    let gross = ceil_div_u128(product, MICRO)?;
+    u64::try_from(gross).map_err(|_| GameError::MathOverflow.into())
+}
+
+/// Calculate V2 settlement fees using a seller's rolling UTC-day POTATO
+/// volume, shared between SOL and SKR pairs. Each fill is split at tier edges;
+/// quote rounding is cumulative-ceil and each marginal segment's fee rounds
+/// upward, so splitting one sale cannot reset the tier or reduce its fee.
+pub fn calculate_settlement_fee_v2(
+    amount_micro: u64,
+    price_quote_atoms_per_potato: u64,
+    seller_volume_before_micro: u64,
+) -> Result<V2Settlement> {
+    require!(amount_micro > 0, GameError::InvalidAmount);
+    require!(price_quote_atoms_per_potato > 0, GameError::InvalidPrice);
+    let seller_volume_after_micro = seller_volume_before_micro
+        .checked_add(amount_micro)
+        .ok_or(GameError::MathOverflow)?;
+    let gross_quote_atoms = v2_gross_quote_atoms(amount_micro, price_quote_atoms_per_potato)?;
+    require!(
+        gross_quote_atoms >= V2_MIN_GROSS_QUOTE_ATOMS,
+        GameError::V2QuoteTooSmall
+    );
+
+    let mut remaining_micro = amount_micro;
+    let mut consumed_micro = 0u64;
+    let mut seller_volume_micro = seller_volume_before_micro;
+    let mut allocated_gross = 0u64;
+    let mut fee_quote_atoms = 0u64;
+
+    while remaining_micro > 0 {
+        let tier_index = if seller_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[0] {
+            0
+        } else if seller_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[1] {
+            1
+        } else if seller_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[2] {
+            2
+        } else {
+            3
+        };
+        let capacity = V2_SELLER_VOLUME_THRESHOLDS_MICRO
+            .get(tier_index)
+            .map(|threshold| threshold.saturating_sub(seller_volume_micro))
+            .unwrap_or(remaining_micro);
+        let segment_micro = remaining_micro.min(capacity);
+        require!(segment_micro > 0, GameError::MathOverflow);
+
+        let next_consumed_micro = consumed_micro
+            .checked_add(segment_micro)
+            .ok_or(GameError::MathOverflow)?;
+        let quote_before = ceil_div_u128(
+            (consumed_micro as u128)
+                .checked_mul(price_quote_atoms_per_potato as u128)
+                .ok_or(GameError::MathOverflow)?,
+            MICRO,
+        )?;
+        let quote_after = ceil_div_u128(
+            (next_consumed_micro as u128)
+                .checked_mul(price_quote_atoms_per_potato as u128)
+                .ok_or(GameError::MathOverflow)?,
+            MICRO,
+        )?;
+        let segment_gross = u64::try_from(
+            quote_after
+                .checked_sub(quote_before)
+                .ok_or(GameError::MathOverflow)?,
+        )
+        .map_err(|_| GameError::MathOverflow)?;
+        let segment_fee = u64::try_from(ceil_div_u128(
+            (segment_gross as u128)
+                .checked_mul(V2_SETTLEMENT_FEE_BPS[tier_index] as u128)
+                .ok_or(GameError::MathOverflow)?,
+            BPS,
+        )?)
+        .map_err(|_| GameError::MathOverflow)?;
+
+        allocated_gross = allocated_gross
+            .checked_add(segment_gross)
+            .ok_or(GameError::MathOverflow)?;
+        fee_quote_atoms = fee_quote_atoms
+            .checked_add(segment_fee)
+            .ok_or(GameError::MathOverflow)?;
+        remaining_micro -= segment_micro;
+        consumed_micro = next_consumed_micro;
+        seller_volume_micro = seller_volume_micro
+            .checked_add(segment_micro)
+            .ok_or(GameError::MathOverflow)?;
+    }
+
+    require!(
+        allocated_gross == gross_quote_atoms,
+        GameError::MathOverflow
+    );
+    require!(
+        fee_quote_atoms < gross_quote_atoms,
+        GameError::V2FeeConsumesProceeds
+    );
+
+    Ok(V2Settlement {
+        gross_quote_atoms,
+        fee_quote_atoms,
+        seller_net_quote_atoms: gross_quote_atoms - fee_quote_atoms,
+        seller_volume_before_micro,
+        seller_volume_after_micro,
+    })
+}
+
 /// Splits a gross emission into `(player, treasury)`; whatever is left is never
 /// minted (the implicit burn). Single source of truth for `harvest` and
 /// `batch_harvest` so the two can never disagree on rounding, and so the
@@ -2719,6 +3217,40 @@ fn refund_and_close_escrow<'info>(
     refund_micro: u64,
 ) -> Result<()> {
     let seeds: &[&[u8]] = &[b"escrow", order_key.as_ref(), &[escrow_bump]];
+    let signer: &[&[&[u8]]] = &[seeds];
+    token::transfer(
+        CpiContext::new_with_signer(
+            token_program.to_account_info(),
+            Transfer {
+                from: escrow.to_account_info(),
+                to: seller_potato.to_account_info(),
+                authority: escrow.to_account_info(),
+            },
+            signer,
+        ),
+        refund_micro,
+    )?;
+    token::close_account(CpiContext::new_with_signer(
+        token_program.to_account_info(),
+        CloseAccount {
+            account: escrow.to_account_info(),
+            destination: seller.clone(),
+            authority: escrow.to_account_info(),
+        },
+        signer,
+    ))
+}
+
+fn refund_and_close_escrow_v2<'info>(
+    token_program: &Program<'info, Token>,
+    escrow: &Account<'info, TokenAccount>,
+    seller_potato: &Account<'info, TokenAccount>,
+    seller: &AccountInfo<'info>,
+    order_key: Pubkey,
+    escrow_bump: u8,
+    refund_micro: u64,
+) -> Result<()> {
+    let seeds: &[&[u8]] = &[b"escrow_v2", order_key.as_ref(), &[escrow_bump]];
     let signer: &[&[&[u8]]] = &[seeds];
     token::transfer(
         CpiContext::new_with_signer(
@@ -3007,6 +3539,235 @@ pub struct FillOrder<'info> {
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(order_id: u64)]
+pub struct CreateSellOrderV2<'info> {
+    #[account(mut)]
+    pub seller: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
+    pub config: Box<Account<'info, GameConfig>>,
+    #[account(
+        init_if_needed,
+        payer = seller,
+        space = 8 + SellerProfile::INIT_SPACE,
+        seeds = [b"seller", seller.key().as_ref()],
+        bump
+    )]
+    pub seller_profile: Box<Account<'info, SellerProfile>>,
+    #[account(
+        init_if_needed,
+        payer = seller,
+        space = 8 + SellerVolumeV2::INIT_SPACE,
+        seeds = [b"seller_volume_v2", seller.key().as_ref()],
+        bump
+    )]
+    pub seller_volume_v2: Box<Account<'info, SellerVolumeV2>>,
+    #[account(
+        init_if_needed,
+        payer = seller,
+        space = 8 + MarketStatsV2::INIT_SPACE,
+        seeds = [b"market_stats_v2"],
+        bump
+    )]
+    pub market_stats_v2: Box<Account<'info, MarketStatsV2>>,
+    #[account(
+        init,
+        payer = seller,
+        space = 8 + MarketOrderV2::INIT_SPACE,
+        seeds = [b"order_v2", order_id.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub order: Box<Account<'info, MarketOrderV2>>,
+    #[account(mut, token::mint = potato_mint, token::authority = seller)]
+    pub seller_potato: Box<Account<'info, TokenAccount>>,
+    #[account(
+        init,
+        payer = seller,
+        seeds = [b"escrow_v2", order.key().as_ref()],
+        bump,
+        token::mint = potato_mint,
+        token::authority = escrow
+    )]
+    pub escrow: Box<Account<'info, TokenAccount>>,
+    pub potato_mint: Box<Account<'info, Mint>>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[derive(Accounts)]
+pub struct FillOrderV2<'info> {
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+    /// CHECK: the order's has_one constraint pins seller; receives SOL and rent.
+    #[account(mut)]
+    pub seller: UncheckedAccount<'info>,
+    #[account(seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
+    pub config: Account<'info, GameConfig>,
+    pub potato_mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        seeds = [b"seller_volume_v2", seller.key().as_ref()],
+        bump = seller_volume_v2.bump,
+        constraint = seller_volume_v2.seller == seller.key() @ GameError::InvalidSellerVolumeAccount
+    )]
+    pub seller_volume_v2: Box<Account<'info, SellerVolumeV2>>,
+    #[account(mut, seeds = [b"market_stats_v2"], bump = market_stats_v2.bump)]
+    pub market_stats_v2: Box<Account<'info, MarketStatsV2>>,
+    #[account(
+        mut,
+        seeds = [b"order_v2", order.order_id.to_le_bytes().as_ref()],
+        bump = order.order_bump,
+        has_one = seller,
+        close = seller
+    )]
+    pub order: Account<'info, MarketOrderV2>,
+    #[account(
+        mut,
+        seeds = [b"escrow_v2", order.key().as_ref()],
+        bump = order.escrow_bump,
+        token::mint = potato_mint,
+        token::authority = escrow
+    )]
+    pub escrow: Box<Account<'info, TokenAccount>>,
+    #[account(mut, token::mint = potato_mint, token::authority = buyer)]
+    pub buyer_potato: Box<Account<'info, TokenAccount>>,
+    /// CHECK: treasury_sol PDA is the established system-owned treasury address.
+    #[account(mut, seeds = [b"treasury_sol"], bump)]
+    pub treasury_sol: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct FillOrderV2Skr<'info> {
+    #[account(mut)]
+    pub buyer: Signer<'info>,
+    /// CHECK: the order's has_one constraint pins seller; receives rent.
+    #[account(mut)]
+    pub seller: UncheckedAccount<'info>,
+    #[account(seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
+    pub config: Account<'info, GameConfig>,
+    pub potato_mint: Account<'info, Mint>,
+    #[account(address = config.skr_mint)]
+    pub skr_mint: Account<'info, Mint>,
+    #[account(
+        mut,
+        seeds = [b"seller_volume_v2", seller.key().as_ref()],
+        bump = seller_volume_v2.bump,
+        constraint = seller_volume_v2.seller == seller.key() @ GameError::InvalidSellerVolumeAccount
+    )]
+    pub seller_volume_v2: Box<Account<'info, SellerVolumeV2>>,
+    #[account(mut, seeds = [b"market_stats_v2"], bump = market_stats_v2.bump)]
+    pub market_stats_v2: Box<Account<'info, MarketStatsV2>>,
+    #[account(
+        mut,
+        seeds = [b"order_v2", order.order_id.to_le_bytes().as_ref()],
+        bump = order.order_bump,
+        has_one = seller,
+        close = seller
+    )]
+    pub order: Account<'info, MarketOrderV2>,
+    #[account(
+        mut,
+        seeds = [b"escrow_v2", order.key().as_ref()],
+        bump = order.escrow_bump,
+        token::mint = potato_mint,
+        token::authority = escrow
+    )]
+    pub escrow: Box<Account<'info, TokenAccount>>,
+    #[account(mut, token::mint = potato_mint, token::authority = buyer)]
+    pub buyer_potato: Box<Account<'info, TokenAccount>>,
+    #[account(mut, token::mint = skr_mint, token::authority = buyer)]
+    pub buyer_skr_ata: Box<Account<'info, TokenAccount>>,
+    #[account(
+        init_if_needed,
+        payer = buyer,
+        associated_token::mint = skr_mint,
+        associated_token::authority = seller
+    )]
+    pub seller_skr_ata: Box<Account<'info, TokenAccount>>,
+    /// CHECK: treasury_sol PDA is the ATA authority for the SKR treasury.
+    #[account(seeds = [b"treasury_sol"], bump)]
+    pub treasury_sol: UncheckedAccount<'info>,
+    #[account(
+        init_if_needed,
+        payer = buyer,
+        associated_token::mint = skr_mint,
+        associated_token::authority = treasury_sol
+    )]
+    pub treasury_skr_ata: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct CancelOrderV2<'info> {
+    #[account(mut)]
+    pub seller: Signer<'info>,
+    #[account(
+        init_if_needed,
+        payer = seller,
+        space = 8 + SellerProfile::INIT_SPACE,
+        seeds = [b"seller", seller.key().as_ref()],
+        bump
+    )]
+    pub seller_profile: Box<Account<'info, SellerProfile>>,
+    #[account(
+        mut,
+        seeds = [b"order_v2", order.order_id.to_le_bytes().as_ref()],
+        bump = order.order_bump,
+        has_one = seller,
+        close = seller
+    )]
+    pub order: Account<'info, MarketOrderV2>,
+    #[account(
+        mut,
+        seeds = [b"escrow_v2", order.key().as_ref()],
+        bump = order.escrow_bump,
+        token::authority = escrow
+    )]
+    pub escrow: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        token::authority = seller,
+        constraint = seller_potato.mint == escrow.mint @ GameError::InvalidMint
+    )]
+    pub seller_potato: Box<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct CloseExpiredOrderV2<'info> {
+    #[account(
+        mut,
+        seeds = [b"order_v2", order.order_id.to_le_bytes().as_ref()],
+        bump = order.order_bump,
+        has_one = seller,
+        close = seller
+    )]
+    pub order: Account<'info, MarketOrderV2>,
+    #[account(
+        mut,
+        seeds = [b"escrow_v2", order.key().as_ref()],
+        bump = order.escrow_bump,
+        token::authority = escrow
+    )]
+    pub escrow: Box<Account<'info, TokenAccount>>,
+    #[account(
+        mut,
+        token::authority = seller,
+        constraint = seller_potato.mint == escrow.mint @ GameError::InvalidMint
+    )]
+    pub seller_potato: Box<Account<'info, TokenAccount>>,
+    /// CHECK: the order's has_one constraint pins seller; receives rent and refund.
+    #[account(mut)]
+    pub seller: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
@@ -3700,6 +4461,32 @@ pub struct Referral {
     pub bump: u8,
 }
 
+/// Quote asset for the V2 market. POTATO is the base asset on both pairs.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
+pub enum QuoteAsset {
+    Sol,
+    Skr,
+}
+
+/// V2 sell order. PDA seeds: `["order_v2", order_id.to_le_bytes()]`; escrow
+/// seeds: `["escrow_v2", order_pubkey]`. This is a new account layout; legacy
+/// `MarketOrder` is intentionally untouched.
+#[account]
+#[derive(InitSpace)]
+pub struct MarketOrderV2 {
+    pub order_id: u64,
+    pub seller: Pubkey,
+    pub amount_micro: u64,
+    pub price_quote_atoms_per_potato: u64,
+    pub quote_asset: QuoteAsset,
+    pub fee_policy_version: u8,
+    pub status: OrderStatus,
+    pub created_at: i64,
+    pub expires_at: i64,
+    pub escrow_bump: u8,
+    pub order_bump: u8,
+}
+
 /// A sell order. PDA seeds: `["order", order_id.to_le_bytes()]`; its escrow
 /// token account is `["escrow", order_pubkey]`. Closed on fill/cancel/expiry.
 #[account]
@@ -3738,6 +4525,90 @@ impl MarketStats {
             self.buy_volume_24h_micro = 0;
         }
         self.last_update = now;
+    }
+}
+
+/// V2 aggregate volumes, kept in a new PDA so legacy stats keep their layout.
+/// PDA seeds: `["market_stats_v2"]`.
+#[account]
+#[derive(InitSpace)]
+pub struct MarketStatsV2 {
+    pub total_potato_volume_micro: u64,
+    pub total_sol_volume_lamports: u64,
+    pub total_skr_volume_atoms: u64,
+    pub total_trades: u64,
+    pub last_update: i64,
+    pub bump: u8,
+}
+
+impl MarketStatsV2 {
+    pub fn record_fill(
+        &mut self,
+        quote_asset: QuoteAsset,
+        amount_micro: u64,
+        gross_quote_atoms: u64,
+        now: i64,
+    ) -> Result<()> {
+        self.total_potato_volume_micro = self
+            .total_potato_volume_micro
+            .checked_add(amount_micro)
+            .ok_or(GameError::MathOverflow)?;
+        match quote_asset {
+            QuoteAsset::Sol => {
+                self.total_sol_volume_lamports = self
+                    .total_sol_volume_lamports
+                    .checked_add(gross_quote_atoms)
+                    .ok_or(GameError::MathOverflow)?;
+            }
+            QuoteAsset::Skr => {
+                self.total_skr_volume_atoms = self
+                    .total_skr_volume_atoms
+                    .checked_add(gross_quote_atoms)
+                    .ok_or(GameError::MathOverflow)?;
+            }
+        }
+        self.total_trades = self
+            .total_trades
+            .checked_add(1)
+            .ok_or(GameError::MathOverflow)?;
+        self.last_update = now;
+        Ok(())
+    }
+}
+
+/// Per-seller daily POTATO volume shared across SOL and SKR V2 pairs.
+/// PDA seeds: `["seller_volume_v2", seller_pubkey]`.
+#[account]
+#[derive(InitSpace)]
+pub struct SellerVolumeV2 {
+    pub seller: Pubkey,
+    pub day_index: i64,
+    pub filled_potato_micro: u64,
+    pub bump: u8,
+}
+
+impl SellerVolumeV2 {
+    pub fn volume_at(&self, now: i64) -> u64 {
+        if self.day_index == now.div_euclid(SECONDS_PER_DAY) {
+            self.filled_potato_micro
+        } else {
+            0
+        }
+    }
+
+    /// Call only after all settlement CPIs succeeded. Solana transaction
+    /// atomicity then guarantees failed fills never advance anti-splitting state.
+    pub fn record_fill(&mut self, now: i64, amount_micro: u64) -> Result<()> {
+        let day_index = now.div_euclid(SECONDS_PER_DAY);
+        if self.day_index != day_index {
+            self.day_index = day_index;
+            self.filled_potato_micro = 0;
+        }
+        self.filled_potato_micro = self
+            .filled_potato_micro
+            .checked_add(amount_micro)
+            .ok_or(GameError::MathOverflow)?;
+        Ok(())
     }
 }
 
@@ -3876,11 +4747,45 @@ pub struct OrderCreated {
 }
 
 #[event]
+pub struct OrderCreatedV2 {
+    pub order: Pubkey,
+    pub seller: Pubkey,
+    pub amount_micro: u64,
+    pub price_quote_atoms_per_potato: u64,
+    pub quote_asset: QuoteAsset,
+}
+
+#[event]
 pub struct OrderFilled {
     pub order: Pubkey,
     pub buyer: Pubkey,
     pub amount_micro: u64,
     pub total_lamports: u64,
+}
+
+#[event]
+pub struct OrderFilledV2 {
+    pub order: Pubkey,
+    pub seller: Pubkey,
+    pub buyer: Pubkey,
+    pub amount_micro: u64,
+    pub quote_asset: QuoteAsset,
+    pub gross_quote_atoms: u64,
+    pub fee_quote_atoms: u64,
+    pub seller_net_quote_atoms: u64,
+    pub seller_volume_before_micro: u64,
+    pub seller_volume_after_micro: u64,
+}
+
+#[event]
+pub struct OrderCancelledV2 {
+    pub order: Pubkey,
+    pub seller: Pubkey,
+}
+
+#[event]
+pub struct OrderExpiredV2 {
+    pub order: Pubkey,
 }
 
 #[event]
@@ -4076,6 +4981,16 @@ pub enum GameError {
     RewardClaimExpired, // 6049
     #[msg("Reward expiry is too far in the future (max 15 minutes)")]
     RewardExpiryTooFar, // 6050
+    #[msg("V2 quote amount is below the minimum settlement value")]
+    V2QuoteTooSmall, // 6051
+    #[msg("Order quote asset does not match this fill instruction")]
+    InvalidQuoteAsset, // 6052
+    #[msg("Order uses an unsupported V2 fee policy version")]
+    UnsupportedFeePolicy, // 6053
+    #[msg("V2 settlement fee would consume all seller proceeds")]
+    V2FeeConsumesProceeds, // 6054
+    #[msg("Seller daily volume account does not match the order seller")]
+    InvalidSellerVolumeAccount, // 6055
 }
 
 // ──────────────────────────── Tests ──────────────────────────────
@@ -4262,6 +5177,108 @@ mod tests {
     }
 
     #[test]
+    fn v2_settlement_fee_is_quote_denominated_and_seller_paid() {
+        let result = calculate_settlement_fee_v2(10 * MICRO as u64, 1_000_000, 0).unwrap();
+        assert_eq!(result.gross_quote_atoms, 10_000_000);
+        assert_eq!(result.fee_quote_atoms, 900_000);
+        assert_eq!(result.seller_net_quote_atoms, 9_100_000);
+        assert_eq!(
+            result.gross_quote_atoms,
+            result.fee_quote_atoms + result.seller_net_quote_atoms
+        );
+        assert_eq!(result.seller_volume_before_micro, 0);
+        assert_eq!(result.seller_volume_after_micro, 10 * MICRO as u64);
+    }
+
+    #[test]
+    fn v2_fee_splits_a_fill_at_progressive_tier_edges() {
+        let result = calculate_settlement_fee_v2(
+            100 * MICRO as u64,
+            10_000_000,
+            999 * MICRO as u64 + 500_000,
+        )
+        .unwrap();
+        // 0.5 POTATO at 9%, then 99.5 POTATO at 10%.
+        assert_eq!(result.gross_quote_atoms, 1_000_000_000);
+        assert_eq!(result.fee_quote_atoms, 99_950_000);
+        assert_eq!(result.seller_net_quote_atoms, 900_050_000);
+        assert_eq!(
+            result.seller_volume_after_micro,
+            1_099 * MICRO as u64 + 500_000
+        );
+    }
+
+    #[test]
+    fn v2_fill_crosses_all_draft_tiers_and_quote_rounding_is_upward() {
+        let result = calculate_settlement_fee_v2(120_000 * MICRO as u64, 1_000_000, 0).unwrap();
+        assert_eq!(result.gross_quote_atoms, 120_000_000_000);
+        assert_eq!(result.fee_quote_atoms, 13_290_000_000);
+        assert_eq!(
+            result.gross_quote_atoms,
+            result.fee_quote_atoms + result.seller_net_quote_atoms
+        );
+        assert_eq!(v2_gross_quote_atoms(1_000_001, 1).unwrap(), 2);
+        assert!(calculate_settlement_fee_v2(10 * MICRO as u64, 1, 0).is_err());
+    }
+
+    #[test]
+    fn v2_split_fills_cannot_reset_daily_marginal_tiers() {
+        let seller = Pubkey::new_unique();
+        let now = 10 * SECONDS_PER_DAY + 1;
+        let mut volume = SellerVolumeV2 {
+            seller,
+            day_index: now.div_euclid(SECONDS_PER_DAY),
+            filled_potato_micro: 0,
+            bump: 0,
+        };
+        let whole = calculate_settlement_fee_v2(1_250 * MICRO as u64, 10_000_003, 0).unwrap();
+        let mut split_fee = 0u64;
+        let mut split_gross = 0u64;
+        for _ in 0..25 {
+            let before = volume.volume_at(now);
+            let part = calculate_settlement_fee_v2(50 * MICRO as u64, 10_000_003, before).unwrap();
+            split_fee += part.fee_quote_atoms;
+            split_gross += part.gross_quote_atoms;
+            volume.record_fill(now, 50 * MICRO as u64).unwrap();
+        }
+        assert_eq!(volume.filled_potato_micro, 1_250 * MICRO as u64);
+        assert!(split_fee >= whole.fee_quote_atoms);
+        assert!(split_gross >= whole.gross_quote_atoms);
+    }
+
+    #[test]
+    fn seller_v2_volume_rolls_by_utc_day_and_is_shared_between_quote_pairs() {
+        let mut volume = SellerVolumeV2 {
+            seller: Pubkey::new_unique(),
+            day_index: 7,
+            filled_potato_micro: 15 * MICRO as u64,
+            bump: 0,
+        };
+        assert_eq!(
+            volume.volume_at(7 * SECONDS_PER_DAY + 12),
+            15 * MICRO as u64
+        );
+        assert_eq!(volume.volume_at(8 * SECONDS_PER_DAY), 0);
+        // Quote asset is deliberately not part of this account/PDA: SOL and
+        // SKR fills share one counter for the same seller address.
+        volume
+            .record_fill(8 * SECONDS_PER_DAY, 20 * MICRO as u64)
+            .unwrap();
+        volume
+            .record_fill(8 * SECONDS_PER_DAY, 30 * MICRO as u64)
+            .unwrap();
+        assert_eq!(volume.day_index, 8);
+        assert_eq!(volume.filled_potato_micro, 50 * MICRO as u64);
+    }
+
+    #[test]
+    fn v2_settlement_rejects_overflow_and_fee_dust() {
+        assert!(calculate_settlement_fee_v2(u64::MAX, 1, 1).is_err());
+        assert!(v2_gross_quote_atoms(u64::MAX, u64::MAX).is_err());
+        assert!(calculate_settlement_fee_v2(10 * MICRO as u64, 1, 0).is_err());
+    }
+
+    #[test]
     fn order_total_rounds_down_and_is_gated() {
         assert_eq!(order_total_lamports(1_000_000, 1_000).unwrap(), 1_000);
         assert_eq!(order_total_lamports(100_000, 1).unwrap(), 0);
@@ -4336,6 +5353,10 @@ mod tests {
     fn account_sizes_match_client_decoders() {
         assert_eq!(8 + Field::INIT_SPACE, 70);
         assert_eq!(8 + MarketOrder::INIT_SPACE, 83);
+        // Versioned market accounts are additive; legacy layout remains 83 bytes.
+        assert_eq!(8 + MarketOrderV2::INIT_SPACE, 85);
+        assert_eq!(8 + SellerVolumeV2::INIT_SPACE, 57);
+        assert_eq!(8 + MarketStatsV2::INIT_SPACE, 49);
         // GameConfig: 32*5 (authority,pending,potato,skr,reward) + 8*4 +2+8*3+1+1
         assert_eq!(
             8 + GameConfig::INIT_SPACE,

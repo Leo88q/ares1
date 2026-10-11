@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useI18n, plural } from '../i18n'
 
 import { motion } from 'framer-motion'
@@ -7,7 +7,8 @@ import { getMint } from '@solana/spl-token'
 import { useSolana } from '../contexts/SolanaContext'
 import { usePolling } from '../hooks/usePolling'
 import { withRetry } from '../utils/rpc'
-import { MICRO } from '../utils/constants'
+import { LUNAR_TABLE, MAX_DURABILITY, MICRO, fieldTypeInfo, mutationInfo } from '../utils/constants'
+import { useGame, type Field } from '../contexts/GameContext'
 import {
   getLunarMultiplier,
   getLunarPhase,
@@ -39,10 +40,10 @@ interface EconomyData {
  elasticCap: number
  fieldCount: number
  players: number
- // ФАЗА 1: лунный цикл + налог
- epochId: number
- lunarMultiplier: number
- lunarPhase: string
+ // Значения лунного цикла доступны только если текущая on-chain эпоха загружена.
+ epochId: number | null
+ lunarMultiplier: number | null
+ lunarPhase: string | null
  taxBps: number
 }
 
@@ -89,7 +90,7 @@ function EconomySection({ data }: { data: EconomyData }) {
       { label: 'EPOCH', value: `${data.mintedToday.toFixed(0)}/${fmtBig(data.dailyCap)}` },
       { label: 'FIELDS', value: String(data.fieldCount) },
       { label: 'CREW', value: String(data.players) },
-      { label: 'LUNAR', value: `x${data.lunarMultiplier.toFixed(2)}` },
+      { label: 'LUNAR', value: data.lunarMultiplier === null ? '—' : `x${data.lunarMultiplier.toFixed(2)}` },
       { label: 'TAX', value: `${(data.taxBps / 100).toFixed(2)}%` },
       { label: 'CAP', value: fmtBig(data.elasticCap) },
      ]}
@@ -97,7 +98,12 @@ function EconomySection({ data }: { data: EconomyData }) {
     <ConsoleStatRow label={t("ТЕКУЩИЙ SUPPLY")} value={`${fmt(data.currentSupply)} POTATO`} pct={pct(data.currentSupply, data.maxSupply)} color="var(--ares-hud-amber, #FFB347)" />
     <ConsoleStatRow label={t("ВСЕГО СОЖЖЕНО")} value={`${fmt(data.burned)} POTATO`} pct={pct(data.burned, data.currentSupply + data.burned)} color="var(--ares-rust, #C1440E)" />
     <ConsoleStatRow label={t("СМАЙНЕНО ЗА ЭПОХУ")} value={`${data.mintedToday.toFixed(0)} / ${fmtBig(data.dailyCap)} POTATO`} pct={pct(data.mintedToday, data.dailyCap)} color="var(--ares-blueset, #6B93D6)" />
-    <ConsoleStatRow label={t("ЛУННЫЙ ЦИКЛ: {phase}", { phase: data.lunarPhase })} value={`x${data.lunarMultiplier.toFixed(2)}`} pct={data.lunarMultiplier * 100 - 85} color="#E0D8C0" />
+    <ConsoleStatRow
+     label={data.lunarPhase ? t("ЛУННЫЙ ЦИКЛ: {phase}", { phase: data.lunarPhase }) : t('ЛУННЫЙ ЦИКЛ')}
+     value={data.lunarMultiplier === null ? '—' : `x${data.lunarMultiplier.toFixed(2)}`}
+     pct={data.lunarMultiplier === null ? undefined : data.lunarMultiplier * 100 - 85}
+     color="#E0D8C0"
+    />
     <ConsoleStatRow label={t("НАЛОГ НА ХАРВЕСТ")} value={`${(data.taxBps / 100).toFixed(2)}%`} pct={(data.taxBps - 200) / 8} color="var(--ares-rust, #C1440E)" />
     <ConsoleStatRow label={t("ЭЛАСТИЧНЫЙ КАП")} value={`${fmtBig(data.elasticCap)} POTATO`} pct={pct(data.elasticCap - 250_000, 750_000 - 250_000)} color="var(--ares-blueset, #6B93D6)" />
     <ConsoleStatRow label={t("ВСЕГО ДЕЛЯНОК")} value={data.fieldCount.toString()} color="#ED8A45" />
@@ -121,7 +127,7 @@ function EconomySection({ data }: { data: EconomyData }) {
       t('Эмиссия только через harvest и награды: лимит эпохи + максимальный supply'),
       t('Эпоха ротируется раз в 24 ч кем угодно (roll_epoch) — лимит не «замерзает»'),
       t('Все траты (налог, ремонт, улучшение, удобрения, покупка полей) сжигаются'),
-      t('Комиссия рынка: 60% сжигается, 40% — в казну на PDA программы'),
+      t('Рынок devnet сейчас legacy V1: комиссия 9–12% в POTATO при создании ордера; settlement fee 9–12% в SOL/SKR и пара SKR ещё не активны'),
       t('Escrow-ордера, запрет self-trade, кулдаун 3 ч после отмены'),
       t('Награды выдаёт только сервер от имени authority, не из клиента'),
      ].map((rule, i) => (
@@ -135,9 +141,133 @@ function EconomySection({ data }: { data: EconomyData }) {
  )
 }
 
+function LunarWeather({ epochId, lunarMultiplier, lunarPhase }: Pick<EconomyData, 'epochId' | 'lunarMultiplier' | 'lunarPhase'>) {
+ const { t } = useI18n()
+ if (epochId === null || lunarMultiplier === null || lunarPhase === null) {
+  return (
+   <ConsolePanel title={t('ЛУННОЕ ОКНО · 28 ЭПОХ')} tone="magenta">
+    <EmptyState title={t('Нет данных текущей on-chain эпохи.')} hint={t('Ожидаем ответ Solana RPC…')} />
+   </ConsolePanel>
+  )
+ }
+
+ const day = ((epochId % 28) + 28) % 28 + 1
+ const minBps = Math.min(...LUNAR_TABLE)
+ const maxBps = Math.max(...LUNAR_TABLE)
+ const range = Math.max(1, maxBps - minBps)
+ const chartLabel = `${t('ЭПОХА {day} ИЗ 28', { day })} · ${lunarPhase} · ${t('МНОЖИТЕЛЬ УРОЖАЯ')}: x${lunarMultiplier.toFixed(2)}`
+
+ return (
+  <ConsolePanel title={t('ЛУННОЕ ОКНО · 28 ЭПОХ')} tone="magenta">
+   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+    <div>
+     <div className="ares-mono" style={{ color: '#C9A176', fontSize: 9, letterSpacing: '0.14em' }}>{t('ТЕКУЩАЯ ФАЗА')}</div>
+     <div className="ares-stencil" style={{ color: '#F2E8DA', fontSize: 16, marginTop: 5 }}>{lunarPhase}</div>
+     <div className="ares-mono" style={{ color: '#A88D70', fontSize: 9, marginTop: 4 }}>{t('ЭПОХА {day} ИЗ 28', { day })}</div>
+    </div>
+    <div style={{ textAlign: 'right', minWidth: 118 }}>
+     <div className="ares-mono" style={{ color: '#C9A176', fontSize: 9, letterSpacing: '0.1em' }}>{t('МНОЖИТЕЛЬ УРОЖАЯ')}</div>
+     <div className="lcd-readout" style={{ display: 'inline-block', color: '#FFC94A', fontSize: 24, fontWeight: 800, marginTop: 4, padding: '5px 10px' }}>x{lunarMultiplier.toFixed(2)}</div>
+    </div>
+   </div>
+
+   <div
+    role="img"
+    aria-label={chartLabel}
+    style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 64, marginTop: 16, padding: '4px 2px', borderBottom: '1px solid rgba(201,161,118,0.25)' }}
+   >
+    {LUNAR_TABLE.map((bps, index) => {
+     const height = 10 + ((bps - minBps) / range) * 40
+     const current = index + 1 === day
+     return (
+      <span
+       key={index}
+       title={t('ЭПОХА {day} ИЗ 28', { day: index + 1 })}
+       style={{
+        flex: '1 1 0',
+        minWidth: 2,
+        height: `${height}px`,
+        borderRadius: '3px 3px 0 0',
+        background: current ? '#FFC94A' : 'linear-gradient(180deg, rgba(224,161,131,0.58), rgba(107,61,35,0.42))',
+        boxShadow: current ? '0 0 10px rgba(255,201,74,0.55)' : 'none',
+        opacity: current ? 1 : 0.74,
+       }}
+      />
+     )
+    })}
+   </div>
+   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 5 }}>
+    <span className="ares-mono" style={{ color: '#A88D70', fontSize: 8 }}>x{(minBps / 10_000).toFixed(2)}</span>
+    <span className="ares-mono" style={{ color: '#A88D70', fontSize: 8 }}>x{(maxBps / 10_000).toFixed(2)}</span>
+   </div>
+   <p style={{ color: 'var(--pf-text-secondary)', fontSize: 10, lineHeight: 1.55, margin: '11px 0 0' }}>
+    {t('Текущий множитель берётся из on-chain эпохи и влияет только на расчёт урожая. Это не прогноз погоды и не отдельная награда.')}
+   </p>
+  </ConsolePanel>
+ )
+}
+
+function MutationArchive({ fields, connected, loading, error, onRetry }: { fields: readonly Field[]; connected: boolean; loading: boolean; error: string | null; onRetry: () => void }) {
+ const { t } = useI18n()
+ const activeMutations = useMemo(
+  () => fields.filter((field) => field.isActive && field.mutationType > 0),
+  [fields],
+ )
+
+ return (
+  <ConsolePanel title={t('АРХИВ МУТАЦИЙ')} tone="amber">
+   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+    <p style={{ color: 'var(--pf-text-secondary)', fontSize: 10, lineHeight: 1.5, margin: 0, flex: 1 }}>
+     {t('Снимок активных on-chain полей этого кошелька, не полная история. Мутации не гарантированы; экран не проверяет честность случайного выбора.')}
+    </p>
+    <span className="ares-mono" style={{ color: '#FFC94A', fontSize: 12, whiteSpace: 'nowrap' }}>{t('МУТАЦИИ')} · {connected ? activeMutations.length : '—'}</span>
+   </div>
+
+   {!connected ? (
+    <EmptyState
+     title={t('Подключи кошелёк, чтобы увидеть текущие on-chain мутации.')}
+     hint={t('Снимок активных on-chain полей этого кошелька, не полная история. Мутации не гарантированы; экран не проверяет честность случайного выбора.')}
+    />
+   ) : error ? (
+    <ErrorState inline message={error} onRetry={onRetry} />
+   ) : loading ? (
+    <LoadingState label={t('Загрузка журнала…')} />
+   ) : activeMutations.length === 0 ? (
+    <EmptyState
+     title={t('Нет активных мутаций в текущих полях.')}
+     hint={t('Мутации могут появиться после улучшения поля, если сработает проверка контракта.')}
+    />
+   ) : (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 9 }}>
+     {activeMutations.map((field) => {
+      const mutation = mutationInfo(field.mutationType)
+      const fieldInfo = fieldTypeInfo(field.fieldType)
+      const address = field.publicKey.toBase58()
+      return (
+       <article key={address} style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0, padding: 11, borderRadius: 8, border: '1px solid rgba(255,179,71,0.2)', background: 'linear-gradient(180deg, rgba(23,16,10,0.96), rgba(15,10,6,0.96))' }}>
+        <img src={fieldInfo.image} alt="" aria-hidden="true" width={42} height={48} loading="lazy" style={{ width: 42, height: 48, objectFit: 'contain', flexShrink: 0 }} />
+        <div style={{ minWidth: 0, flex: 1 }}>
+         <div className="ares-stencil" style={{ color: mutation.color, fontSize: 12 }}>{mutation.name}</div>
+         <div style={{ color: 'var(--pf-text-secondary)', fontSize: 10, marginTop: 3 }}>{mutation.effect}</div>
+         <code className="ares-mono" style={{ display: 'block', color: '#A88D70', fontSize: 8, marginTop: 5 }}>{address.slice(0, 5)}…{address.slice(-4)}</code>
+        </div>
+        <div className="ares-mono" style={{ display: 'grid', gap: 4, color: '#C9A176', fontSize: 8, textAlign: 'right', flexShrink: 0 }}>
+         <span>{t('РАНГ {n}', { n: field.level })}</span>
+         <span>{t('Целостность {d}/{max}', { d: field.durability, max: MAX_DURABILITY })}</span>
+        </div>
+       </article>
+      )
+     })}
+    </div>
+   )}
+  </ConsolePanel>
+ )
+}
+
 function StatsScreenInner() {
  const { t } = useI18n()
- const { connection, programId, publicKey, config, epoch, ready } = useSolana()
+ const { connection, programId, publicKey, config, epoch, ready, connected } = useSolana()
+ const { fields, loading: fieldsLoading, fieldsError, reload: reloadFields } = useGame()
  const [data, setData] = useState<EconomyData | null>(null)
  const [leaders, setLeaders] = useState<LeaderRow[]>([])
  const [loadError, setLoadError] = useState<string | null>(null)
@@ -176,9 +306,9 @@ function StatsScreenInner() {
   const currentSupply = Number(mintInfo.supply) / MICRO
   const maxSupply = Number(config.maxSupplyMicro) / MICRO
   const elasticCap = getElasticCap(prevBurned, lastCap, lastMinted)
-  const epochId = epoch ? Number(epoch.id) : 0
-  const lunarMultiplier = getLunarMultiplier(epochId)
-  const lunarPhase = getLunarPhase(epochId)
+  const epochId = epoch ? Number(epoch.id) : null
+  const lunarMultiplier = epochId === null ? null : getLunarMultiplier(epochId)
+  const lunarPhase = epochId === null ? null : getLunarPhase(epochId)
   const taxBps = getBaseTaxBps(currentSupply * MICRO, maxSupply * MICRO)
 
   setData({
@@ -221,8 +351,10 @@ function StatsScreenInner() {
    <p className="pf-subtitle" style={{ marginBottom: 20 }}>{t("Задачи смены, нашивки и показатели экипажа")}</p>
    {loadError && <ErrorState inline message={loadError} onRetry={() => void load()} />}
 
-   <div style={{ marginBottom: 24 }}>
+   <div style={{ display: 'grid', gap: 14, marginBottom: 24 }}>
     <EconomySection data={data} />
+    <LunarWeather epochId={data.epochId} lunarMultiplier={data.lunarMultiplier} lunarPhase={data.lunarPhase} />
+    <MutationArchive fields={fields} connected={connected} loading={fieldsLoading} error={fieldsError} onRetry={() => void reloadFields()} />
    </div>
 
    <MissionLog />

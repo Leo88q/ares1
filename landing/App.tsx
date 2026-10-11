@@ -1185,6 +1185,51 @@ function Mechanics(): JSX.Element {
   );
 }
 
+function FirstGreenhouseOperation(): JSX.Element {
+  useI18n();
+  const chapters = [
+    { step: "01", title: t("ПОСАДКА"), goal: t("Заложить первую делянку") },
+    { step: "02", title: t("ВОДА"), goal: t("Поддержать рост и подготовить урожай") },
+    { step: "03", title: t("РЕМОНТ КОЛОНИИ"), goal: t("Укрепить гидропонный контур") },
+    { step: "04", title: t("ПЕРВЫЙ УРОЖАЙ"), goal: t("Собрать результат цикла") },
+  ];
+
+  return (
+    <Section id="operation" className="operation-section" speed={0.55}>
+      <SectionHeading
+        id="operation-title"
+        eyebrow={t("СЕЗОН 0 · DEVNET ПИЛОТ")}
+        title={t("ОПЕРАЦИЯ: ПЕРВАЯ ТЕПЛИЦА")}
+        text={t("28-дневная кампания ARES-1: четыре главы, одна общая цель — подготовить первую марсианскую теплицу.")}
+      />
+
+      <Reveal className="panel operation-panel" panel="accent">
+        <div className="operation-chapters">
+          {chapters.map((chapter) => (
+            <article className="operation-chapter" key={chapter.step}>
+              <span className="small-code">{t("ГЛАВА {step}", { step: chapter.step })}</span>
+              <h3>{chapter.title}</h3>
+              <p>{chapter.goal}</p>
+            </article>
+          ))}
+        </div>
+        <div className="operation-status">
+          <p>
+            {t("В игре открыт личный devnet-журнал: он читает текущее состояние кошелька и полей. Сезонные очки, общий рейтинг, призы и архив пока не активны; для них нужен отдельный on-chain учёт.")}
+          </p>
+          <Action href={`${PC.url}/operation`} target="_blank" rel="noopener noreferrer" variant="primary">
+            {t("ОТКРЫТЬ ЖУРНАЛ ОПЕРАЦИИ")}
+            <ArrowUpRight size={16} aria-hidden="true" />
+          </Action>
+        </div>
+      </Reveal>
+      <p className="section-footnote">
+        {t("Тестовый прогресс не переносится в mainnet. Никаких обещаний airdrop, финансовой доходности или роста цены.")}
+      </p>
+    </Section>
+  );
+}
+
 function TuberArt(): JSX.Element {
   return (
     <img
@@ -1409,7 +1454,7 @@ function Tokenomics(): JSX.Element {
         <Reveal className="cycle-panel panel" panel="default">
           <div className="panel-topline">
             <span className="panel-label">{t("ЦИКЛ ТОКЕНА")}</span>
-            <span className="small-code">MINT → FLOW → BURN</span>
+            <span className="small-code">MINT → FLOW → BURN / TREASURY</span>
           </div>
           <div className="cycle-columns">
             {[TC.birth, TC.flow, TC.death].map((col) => (
@@ -1427,15 +1472,15 @@ function Tokenomics(): JSX.Element {
       </div>
 
       <Reveal className="deflation-panel">
-        <div className="burn-symbol" aria-hidden="true">60<span>%</span></div>
+        <div className="burn-symbol" aria-hidden="true">9–12<span>%</span></div>
         <div>
-          <p className="eyebrow">{t("КОМИССИИ СЖИГАЕТСЯ")}</p>
+          <p className="eyebrow">{t("ЦЕЛЕВАЯ V2 · КОМИССИЯ РЫНКА")}</p>
           <p>{SC.tokenomics.deflation}</p>
         </div>
-        <span className="burn-tag">{t("МЕНЬШЕ ТОКЕНОВ")}<br />{t("НЕ ОБЕЩАНИЕ РОСТА ЦЕНЫ")}</span>
+        <span className="burn-tag">{t("ИЗ ВЫПЛАТЫ ПРОДАВЦУ")}<br />{t("В КАЗНУ В SOL / SKR")}</span>
       </Reveal>
 
-      <Reveal className="interstellar-reserve-note">
+      <Reveal className="tokenomics-notes">
         <p>{TC.teamNote}</p>
         <p>{TC.treasuryNote}</p>
         <p>{TC.capNote}</p>
@@ -2027,10 +2072,10 @@ function Footer(): JSX.Element {
         </div>
 
         {/*
-          Юридические документы удалены из репозитория решением владельца
-          (2026-10-06) — см. docs/PRESALE_PHASE1_RFC_2026-10-06.md §6.
-          Здесь остаётся только «Cookie settings»: отозвать согласие должно
-          быть так же просто, как дать его, и не только из баннера (§4.3).
+          Legal pages are intentionally absent per the owner's 2026-10-06 decision.
+          This does not mean legal review is complete: no real-payment launch is
+          approved until terms, refunds, delivery, privacy and applicable notices
+          are explicitly reviewed. Keep the consent controls available here.
         */}
         <nav aria-label={t("Настройки cookies")} className="footer-legal">
           <button type="button" className="footer-legal__button" onClick={openCookieSettings}>
@@ -2042,7 +2087,13 @@ function Footer(): JSX.Element {
           <p>{SC.footer.copyright}</p>
           <p className="footer-contact">
             {t("Связь с командой")}:{" "}
-            <a href="mailto:security@ares1.is-a.dev">security@ares1.is-a.dev</a>
+            <a
+              href="https://github.com/Leo88q/ares1/security/advisories/new"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub Security Advisory
+            </a>
           </p>
         </div>
 
@@ -2197,6 +2248,7 @@ export default function App(): JSX.Element {
         <Product />
         <Problem />
         <Mechanics />
+        <FirstGreenhouseOperation />
         <Mascot />
         <Tokenomics />
         <InterstellarSection />

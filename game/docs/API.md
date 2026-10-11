@@ -1,6 +1,6 @@
 # ARES-1 API — source reference, 21 September 2026 (post-audit remediation)
 
-**Not a statement about the deployed binary.** Anchor CLI/crates 0.31.2; source:
+**Not a statement about the deployed binary.** The checked-in IDL and default live UI remain legacy V1. A draft V2 instruction/account set and raw browser builders/decoders now exist on this branch, but the generated IDL has not been refreshed, Rust/Anchor has not been compiled here, and V2 is not deployed or enabled by default. `VITE_MARKET_V2_ENABLED` must remain `false` until the matching program is deployed to the selected cluster and tier limits are owner-approved. Anchor CLI/crates 0.31.2; source:
 `programs/solana_potato/src/lib.rs`. Committed `apps/web/src/idl.json` describes
 the remediated source (**44 instructions, 13 accounts, 31 events, 51 errors** —
 counts re-checked against the committed IDL on 2026-10-02; `yarn check:contract`
@@ -23,8 +23,20 @@ Owner clarification: **SKR presale = 1053 SKR; export license = 500 SKR**.
 Ordinary field purchases, tax, repairs, upgrades, fertilizer and referral registration
 retain their original **POTATO** payments/burns. The attempted generalized SKR
 service-pricing rewrite has been withdrawn; it is not the approved game economy.
-Marketplace settlement below describes the restored code, not approval of a new
-market currency. Any market-only conversion requires separate confirmation.
+The current source still has the restored V1 SOL-only market described below. On
+11 October 2026 the owner separately approved a V2 POTATO/SKR market and a seller-paid
+9–12% settlement fee in the quote asset, retained from successful fills and routed
+to the treasury in that same asset. The V2 fee is intended to use cumulative UTC-day
+POTATO volume per seller address across both quote pairs; it is not part of this ABI.
+The draft source path is not represented in the committed IDL and the rollout flag is off, so the legacy market remains the only default user path. The V2 fee tiers (1k/10k/100k POTATO) are draft values, not final approved release configuration.
+
+## Draft V2 market (not deploy-verified)
+
+- Versioned handlers use separate `MarketOrderV2`, `SellerVolumeV2`, `MarketStatsV2`, and V2 escrow seeds; they do not reinterpret the legacy `MarketOrder` layout or `fill_order` behavior. When the rollout flag is enabled, the UI keeps the V1 book accessible in its own tab so open legacy escrow remains reachable.
+- Listings escrow only POTATO principal. Successful SOL/SKR fills atomically transfer the buyer's gross quote amount between seller net and the same-asset treasury fee, deliver POTATO, then update seller daily volume and global market stats. Cancel/expiry return the whole POTATO deposit without fee.
+- The seller-volume counter is keyed by seller address, uses UTC-day windows, and is shared between quote pairs. The progressive 9/10/11/12% marginal breakpoints are draft thresholds; same-address splitting should not lower the marginal fee, but Sybil wallets are not prevented.
+- SKR fill is permitted only against `GameConfig.skr_mint` with the classic SPL Token Program and six decimals. The browser blocks new SKR listings/fills until the configured mint passes verification; the pair remains viewable so users can cancel their active orders or return expired escrow if verification fails. On-chain validation remains authoritative.
+- `VITE_MARKET_V2_ENABLED=false` is the shipped default. Enabling it before the matching binary is deployed and final thresholds are approved produces a UI that cannot safely transact; do not enable it for a release yet.
 
 ## Units and accounts
 
@@ -42,6 +54,9 @@ Sizes include the 8-byte Anchor discriminator:
 | Field | `field`, field ID u64 LE | 70 |
 | MarketOrder | `order`, order ID u64 LE | 83 |
 | MarketStats | `market_stats` | 49 |
+| MarketOrderV2 | `order_v2`, order ID u64 LE | 85 (draft) |
+| SellerVolumeV2 | `seller_volume_v2`, seller pubkey | 57 (draft) |
+| MarketStatsV2 | `market_stats_v2` | 49 (draft) |
 | SellerProfile | `seller`, seller pubkey | 49 |
 | PresaleState | `presale` | 57 |
 | BuyerPresaleCounter | `buyer_presale`, buyer pubkey | 42 |

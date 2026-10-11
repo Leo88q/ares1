@@ -44,6 +44,7 @@ export interface RunRow {
   is_open: boolean;
   treasury: string;
   reserve_minutes: number;
+  started_slot: string;
   started_at: string;
   closed_at: string | null;
 }
@@ -111,6 +112,8 @@ export async function openRun(pool: Pool, input: {
   cap: number;
   treasury: string;
   reserveMinutes?: number;
+  /** First finalized slot eligible for this run's treasury reconciliation. */
+  startedSlot?: bigint;
   actor: string;
 }): Promise<RunRow> {
   const pack = findPack(input.packId);
@@ -137,12 +140,12 @@ export async function openRun(pool: Pool, input: {
   const rows = await withTransaction<RunRow[]>(pool, input.actor, async client => {
     const inserted = await client.query<RunRow>(
       `INSERT INTO game_ops.presale_runs
-         (run_id, pack_id, currency, price_units, cap, treasury, reserve_minutes)
-       VALUES ($1, $2, $3, $4, $5, $6, coalesce($7, 30))
+         (run_id, pack_id, currency, price_units, cap, treasury, reserve_minutes, started_slot)
+       VALUES ($1, $2, $3, $4, $5, $6, coalesce($7, 30), $8)
        ON CONFLICT (run_id) DO NOTHING
        RETURNING *`,
       [input.runId, input.packId, input.currency, input.priceUnits.toString(), input.cap,
-       input.treasury, input.reserveMinutes ?? null],
+       input.treasury, input.reserveMinutes ?? null, (input.startedSlot ?? 0n).toString()],
     );
     return inserted.rows;
   });
@@ -171,6 +174,8 @@ export async function reserveOrder(pool: Pool, input: {
   runId: string;
   payerWallet: string;
   payerEmail?: string | null;
+  /** Cluster-level guard; e.g. mainnet must never reserve an old SKR run. */
+  requiredCurrency?: Currency;
   actor: string;
 }): Promise<ReserveResult> {
   assertWallet(input.payerWallet);
@@ -183,6 +188,9 @@ export async function reserveOrder(pool: Pool, input: {
     );
     const run = runs.rows[0];
     if (!run) throw new GameOpsError('RUN_NOT_FOUND', `Тираж ${input.runId} не найден`, undefined, 404);
+    if (input.requiredCurrency && run.currency !== input.requiredCurrency) {
+      throw new GameOpsError('VALIDATION', `Тираж ${input.runId} использует ${run.currency}, а для этого кластера разрешена только ${input.requiredCurrency}`, undefined, 409);
+    }
     if (!run.is_open) throw new GameOpsError('RUN_CLOSED', `Тираж ${input.runId} закрыт`, undefined, 409);
     if (run.reserved_count >= run.cap) {
       throw new GameOpsError('RUN_SOLD_OUT', `Тираж ${input.runId} распродан`, undefined, 409);

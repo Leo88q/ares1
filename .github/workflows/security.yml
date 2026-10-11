@@ -48,12 +48,12 @@ jobs:
   #
   # gitleaks is the pinned scanner, but its release asset is hosted on a CDN
   # that is unreachable from some networks — including sandboxes where an audit
-  # agent runs. scripts/secret-scan.mjs covers the patterns the deploy
-  # checklist names explicitly (§1.1.3) with zero dependencies, so the gate
+  # agent runs. scripts/secret-scan.mjs covers repository-specific credential
+  # patterns with zero dependencies, so the gate
   # exists even when the download fails. Both scanners run: they use different
   # rule sets and disagree usefully.
   secret-scan-node:
-    name: Secret scan, dependency-free (checklist §1.1)
+    name: Secret scan, dependency-free
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -77,9 +77,8 @@ jobs:
       # and deleted later) is NOT allowlisted on purpose, and this step is a
       # REAL gate: the scan is run with continue-on-error only so that the
       # annotation step below still executes, and the step after that turns a
-      # red history scan into a red job. Until the key is rotated and history is
-      # rewritten, this job must fail — a green job while a credential sits in
-      # history reports nothing useful.
+      # red history scan into a red job. Until the key is revoked and the owner
+      # verifies the replacement, this job must fail. Git history is not rewritten.
       - name: Full history scan
         continue-on-error: true
         id: history
@@ -87,7 +86,7 @@ jobs:
       - name: Annotate historical findings
         if: steps.history.outcome == 'failure'
         run: |
-          echo "::error title=Historical secret scan is RED::A committed credential is reachable in git history. Rotate the credential first, then rewrite history (docs/PRODUCTION_DEPLOY_CHECKLIST.md, finding S-01). Do not add it to .secret-scan-allowlist.json."
+          echo "::error title=Historical secret scan is RED::A committed credential is reachable in git history. Revoke/rotate it with the owner, verify the replacement, and treat historical copies as exposed (game/docs/OPERATIONS.md). Do not rewrite history or add the finding to .secret-scan-allowlist.json."
       - name: Enforce the history gate
         if: steps.history.outcome == 'failure'
         run: |
@@ -95,7 +94,7 @@ jobs:
           exit 1
 
   deploy-readiness:
-    name: Deploy readiness (checklist §2, §7)
+    name: Deploy readiness
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -103,9 +102,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
-      # §7.2: legal documents were removed from the repository by owner
-      # decision (2026-10-06, RFC §6). The remaining generated artifact here is
-      # security.txt, which is checked below by the public-exposure script.
+      # The owner removed public legal pages on 2026-10-06; required legal review is
+      # still a launch gate. The generated security.txt is checked below by the
+      # public-exposure script.
       # §2.3: source maps off in both bundlers. A silent Vite/framework upgrade
       # must not re-enable them.
       - name: Source maps disabled in both builds

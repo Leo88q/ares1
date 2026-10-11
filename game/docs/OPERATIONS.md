@@ -1,7 +1,9 @@
 # Operations — closed devnet beta
 
-Status: **not approved for real funds or mainnet**. See [../../reports/ares1-audit.md](../../reports/ares1-audit.md).
+Status: **not approved for real funds or mainnet**. Current blockers: [../../docs/LAUNCH_NEXT_STEPS.md](../../docs/LAUNCH_NEXT_STEPS.md) and [MAINNET_LAUNCH_GATE.md](MAINNET_LAUNCH_GATE.md). The local report at [../../reports/ares1-audit.md](../../reports/ares1-audit.md) is not an independent security audit.
 No key, mnemonic, secret JSON, private RPC URL or admin token belongs in this document.
+
+The current `game_ops` implementation and VPS runbook use self-hosted PostgreSQL. Whether this is an acceptable final choice remains unresolved; the earlier SQLite preference was not explicitly reversed. A SQLite choice requires a real data-layer port and tests. This document describes the current implementation, not that decision.
 
 ## Reproducible checks
 
@@ -25,15 +27,51 @@ The JS test client is pinned separately to **@coral-xyz/anchor 0.30.1** (previou
 used by the integration suite). This is not the CLI version; compatibility with the
 new generated IDL must be validated by `anchor test`, not assumed.
 
+### Local toolchain check and install (Mac/Linux)
+
+Run these commands from the `game/` directory. If your shell prompt already ends
+in `game %`, you are there; do not run `cd game` again. This project requires the
+exact versions above. In particular, Anchor CLI 0.30.1 and Solana CLI 2.1.0 are
+not substitutes for the pinned 0.31.2 / 4.2.2 pair, even though the JS test client
+uses Anchor 0.30.1.
+
 ```sh
-cargo test --locked -p solana_potato --lib
-./scripts/build-program.sh  # standard anchor build + locked metadata + unchanged Cargo.lock check
+# Choose ONE Anchor installation method.
+# Existing AVM installation:
+avm install 0.31.2 && avm use 0.31.2
+# Or direct Cargo installation (do not mix with an AVM shim earlier in PATH):
+# cargo install anchor-cli --version '=0.31.2' --locked
+
+# Install the pinned Anza/Solana CLI and prefer its active binary in this shell.
+curl -fsSL "https://release.anza.xyz/v4.2.2/install" -o /tmp/solana-install.sh
+sh /tmp/solana-install.sh
+export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+hash -r
+
+type -a anchor solana
+anchor --version  # anchor-cli 0.31.2
+solana --version  # solana-cli 4.2.2
+rustc --version   # rustc 1.97.1
+```
+
+Do not check an IDL after a failed build: the target may be stale. Run the build
+and comparison with a shell guard so the second command executes only on success;
+review any diff before copying a generated IDL into `apps/web/src/idl.json`.
+This only builds locally and does not deploy or submit a transaction.
+
+```sh
+yarn check:contract:build
+```
+
+```sh
 # A disposable LOCALNET provider wallet must exist at the Anchor.toml wallet path.
 # Never use the deploy/admin wallet for tests. On a clean test machine only:
 # solana-keygen new --no-bip39-passphrase --silent --outfile ~/.config/solana/id.json
-anchor test --skip-build
-# Also supported: anchor test (build + fresh validator + deploy + integration tests).
-yarn check:contract target/idl/solana_potato.json
+cargo test --locked -p solana_potato --lib && \
+  yarn check:contract:build && \
+  anchor test --skip-build
+# Alternative after the IDL has been reviewed/synced:
+anchor test && yarn check:contract target/idl/solana_potato.json
 ```
 
 `anchor test` is the clean-localnet deployment smoke test: initialize, fields,
@@ -56,7 +94,7 @@ VITE_RPC_URL=https://api.devnet.solana.com
 VITE_PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf
 VITE_BACKEND_URL=
 VITE_PRESALE_RUN=wave1          # id тиража Фазы 1; совпадает с PRESALE_RUN_ID
-VITE_LANDING_URL=https://ares1-7e1.pages.dev   # куда ведёт блок Фазы 1
+VITE_LANDING_URL=https://ares1-7e1.pages.dev   # configured example; operator must verify ownership/deployment before sharing
 ```
 
 All `VITE_*` values are **public in the browser bundle**, even when injected by a CI
@@ -71,10 +109,8 @@ No mainnet deployment has been verified for the program ID above.
 3. Update platform secret stores, redeploy browser assets and restart the backend.
 4. Verify that the old key is denied and the new service works. Record owner/date,
    not key values. Purge stale deployment artifacts/caches where supported.
-5. Review Git history, all branches/tags, CI logs/artifacts and published bundles.
-6. History rewriting is a separate coordinated operation after revocation. It
-   cannot invalidate copies already downloaded. Do not force-push another branch
-   from this session; coordinate repository-wide cleanup with its owner.
+5. Review Git history, all branches/tags, CI logs/artifacts and published bundles; assume every exposed credential was copied.
+6. **Do not rewrite Git history or force-push to remove the old value.** Revocation/rotation is the human-owned remediation; history remains part of the repository record and must be treated as permanently exposed.
 
 The tracked `.env.production` was removed; **revocation is not confirmed**.
 
@@ -84,10 +120,10 @@ Pinned scanner: Gitleaks 8.30.1 with default rules plus RPC URL and numeric Sola
 keypair rules in `.gitleaks.toml`. Numeric-array detection is heuristic, not proof
 that a file is a valid/invalid keypair. Treat findings as sensitive even when redacted.
 
-Dependency-free scanners from the repository root — these cover the patterns the
-production-deploy checklist names explicitly and work where the gitleaks release
-asset cannot be downloaded (§1.1, §1.2.1 of
-[docs/PRODUCTION_DEPLOY_CHECKLIST.md](../../docs/PRODUCTION_DEPLOY_CHECKLIST.md)):
+Dependency-free scanners from the repository root cover repository-specific
+credential patterns and work where the pinned gitleaks release asset cannot be
+downloaded. They complement, but do not replace, the pinned scanner or a review of
+provider-side credentials:
 
 ```sh
 node scripts/secret-scan.mjs                  # working tree
@@ -176,6 +212,24 @@ installs the full production workspace graph (including web dependencies); reduc
 image size is deferred. Compose restart handles process exits, not all outages;
 Docker does not automatically restart merely unhealthy containers.
 
+### Реплики и секреты без файлов (2026-10-08)
+
+- **Несколько реплик безопасны, когда включён `game_ops`.** Крон эпохи берёт
+  Postgres advisory-лок (`src/gameops/epochLock.ts`, ключ `ares1`), поэтому
+  перекрытие выкатки или план с 2+ инстансами не приводит к двойному
+  `roll_epoch` и к ложной лестнице алертов 3/9/27. Без `GAME_OPS_DATABASE_URL`
+  общей блокировки нет — тогда допустима ровно одна реплика (старт пишет об
+  этом явное предупреждение). Замок — **подавитель дублей, а не
+  предохранитель**: если БД недоступна, такт выполняется без него (повторный
+  `roll_epoch` отвергает сама цепь), но недоступность замка видна в логах.
+- **Keypair без файловой монтировки.** `PAYER_KEYPAIR_JSON` принимает
+  inline-JSON (`[12,34,…]`) для secret manager, который передаёт секреты только
+  переменными окружения. На VPS предпочтителен read-only volume с ключом
+  (`keys:ro`); оба формата обрабатывает один parser (`src/payerKey.ts`).
+- Selected deployment target: Cloudflare + isolated VPS Compose projects. Follow
+  [`docs/DEPLOY_BACKEND_VPS.md`](../../docs/DEPLOY_BACKEND_VPS.md). The previous
+  Flux/managed-Postgres guide is superseded.
+
 ### How the frontends reach the backend
 
 The landing is a static site, so its `/api/*` calls need an explicit path to the
@@ -221,6 +275,40 @@ configuration (encrypted if secrets), indexer checkpoints, the `game_ops` databa
 and test restoration. The blockchain is not a backup of private keys; a database
 dump is not a proof of immutability either — that proof is the hash-chain plus the
 on-chain Merkle anchor.
+
+## Cold-key treasury withdrawals
+
+The program already exposes a two-step withdrawal path. A local-only operator CLI
+(`yarn treasury:admin`) now wraps that existing ABI; it is **devnet-only for writes**
+and does not run in the backend or retain/upload key material. Its raw keypair file
+must remain on the operator's Mac/cold workstation, never on the VPS, and must
+have file mode `0600` (the CLI rejects broader POSIX permissions). `status` is
+read-only. `propose`, `execute`, and `cancel` require a TTY and an exact typed
+confirmation; there is no non-interactive `--yes` path. The CLI checks the RPC
+cluster genesis hash, the configured program and authority, amount precision, the
+rolling 24-hour cap, pending amount and timelock, and sends only to the authority's
+own destination. Cancellation clears every pending asset proposal and does not
+refund the allowance already consumed by proposing.
+
+Devnet example (run from `game/`):
+
+```sh
+export SOLANA_CLUSTER=devnet
+export RPC_URL=https://api.devnet.solana.com
+export PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf
+export ADMIN_KEYPAIR_PATH="$HOME/.config/solana/id.json"
+yarn treasury:admin status
+# Then, as separate, interactively confirmed actions:
+yarn treasury:admin propose sol 0.25
+yarn treasury:admin execute sol 0.25   # only after the chain timelock
+```
+
+The CLI intentionally refuses mainnet writes: it signs directly with a keypair and
+is not a Squads proposal/approval workflow. Mainnet treasury use needs a separately
+reviewed Squads-compatible flow and human authorization. The on-chain 30-second
+timelock is **not** a meaningful standalone security delay; it must not be treated
+as a substitute for multisig governance. No withdrawal was executed as part of this
+change.
 
 ## Incident / emergency pause
 
@@ -316,9 +404,18 @@ Drift — месяцы выстраивания отношений перед а
 
 ## Домены и DNS (п. 119 — урок BONKfun)
 
-Домены проекта: `ares1.is-a.dev` (лендинг), `play.ares1.is-a.dev` (клиент).
-is-a.dev — субдоменная программа на GitHub: «регистратор» = аккаунт GitHub,
-через который вносилась заявка.
+Configured Cloudflare Pages origins: `ares1-7e1.pages.dev` (landing) and
+`ares1-play.pages.dev` (game). Their live status was not rechecked in this
+workspace; verify ownership and deployment before announcing them. A repository
+check on 2026-10-06 reported that the custom `ares1.is-a.dev` aliases were
+unregistered; that is not a live check for today. Do not link to, email, or send
+users to those aliases until an operator independently verifies registration
+and control. The DNS workflow is a drift detector, not proof of ownership or
+availability.
+
+is-a.dev — субдоменная программа на GitHub. Регистрация/возврат алиаса
+потребует owner-verification through its repository; до этого aliases are not
+official. Treat any future DNS/ownership change as a security-sensitive action.
 
 1. **Аккаунт GitHub (владелец заявки)**: аппаратный 2FA, отдельная парольная
    фраза для поддержки, минимум людей с доступом, включённый transfer-lock-
@@ -327,10 +424,13 @@ is-a.dev — субдоменная программа на GitHub: «регис
    расписанию workflow `Monitoring` (`.github/workflows/monitoring.yml`, каждые
    15 минут; падение открывает issue с меткой `monitoring-alert`). Baseline
    `scripts/dns-baseline.json` коммитится в репозиторий; любой не-нулевой exit —
-   алерт. Подробности — в шапке скрипта.
-3. **Резервный канал коммуникации** заранее: второй домен вне is-a.dev (TBD),
-   статус-страница вне общего DNS; шаблон сообщения при угоне —
-   [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) §6.
+   алерт. Snapshot от 2026-09-28 старше отчёта о незарегистрированных alias от
+   2026-10-06 и не подтверждает текущее состояние. Не запускай `--update`, чтобы
+   просто убрать alert: сначала независимо проверь ownership/DNS и зафиксируй
+   результат. Подробности — в шапке скрипта.
+3. **Резервный канал коммуникации** заранее: an independently controlled status
+   channel (TBD). Do not treat an unverified custom alias as a backup;
+   incident-message template: [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) §6.
 4. Контакты команд кошельков и блок-листов для пометки фишингового домена —
    в INCIDENT_RESPONSE.md §1.
 
@@ -391,4 +491,6 @@ node scripts/inventory-programs.mjs --expect-authority <squads-address>
   осознанно);
 - расхождение источников — инцидент (`data_source_mismatch`), не ретрай.
 Поставить второй RPC от ДРУГОГО провайдера до mainnet — гейт G-7 в
+[MAINNET_LAUNCH_GATE.md](MAINNET_LAUNCH_GATE.md).
+а до mainnet — гейт G-7 в
 [MAINNET_LAUNCH_GATE.md](MAINNET_LAUNCH_GATE.md).
