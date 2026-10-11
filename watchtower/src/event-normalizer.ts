@@ -14,6 +14,11 @@ export function normalize(name: string, data: Fields, instructionName: string | 
   if (name === 'PresalePurchase') {
     resource = instructionName === 'buy_field_skr' ? 'SKR' : instructionName === 'buy_field_sol' ? 'SOL' : null;
   }
+  // V2 settlement atoms use the enum carried by the event payload. Keeping the
+  // quote-asset choice payload-driven avoids misclassifying SKR fills as SOL.
+  if (name === 'OrderFilledV2') {
+    resource = data.quote_asset === 'Sol' ? 'SOL' : data.quote_asset === 'Skr' ? 'SKR' : null;
+  }
   return { eventType: entry.normalized_event, onChainEvent: name, category: entry.category, resource,
     data, parserVersion: PARSER_VERSION, dataQuality: 'partial', confidence: 'partial',
     ...(name === 'PresalePurchase' && resource === null ? { reason: 'unknown_payment_instruction' } : {}) };

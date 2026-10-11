@@ -7,7 +7,14 @@ import type { Fields, Instruction, Normalized, ObservedTransaction, RawFrame, Tr
 interface EventIdl {
   address: string; sourceIdlSha256: string;
   events: { name: string; discriminator: number[] }[];
-  types: { name: string; type: { kind: string; fields: { name: string; type: string }[] } }[];
+  types: {
+    name: string;
+    type: {
+      kind: string;
+      fields?: { name: string; type: string | { defined: { name: string } } }[];
+      variants?: { name: string }[];
+    };
+  }[];
   instructionDiscriminators: Record<string, number[]>;
 }
 export const idl = artifact<EventIdl>('events/ares1-idl.json');
@@ -19,10 +26,23 @@ export function decodeEvent(base64: string, instructionName: string | null = nul
     const event = idl.events.find(e => bytes.subarray(0, 8).equals(Buffer.from(e.discriminator)));
     if (!event) return unparsed('unknown_discriminator');
     const type = idl.types.find(t => t.name === event.name);
-    if (!type || type.type.kind !== 'struct') return unparsed('unsupported_layout');
+    if (!type || type.type.kind !== 'struct' || !Array.isArray(type.type.fields)) return unparsed('unsupported_layout');
     let offset = 8;
     const data: Fields = {};
     for (const field of type.type.fields) {
+      if (typeof field.type !== 'string') {
+        // Anchor/Borsh enums are encoded as a one-byte variant index. Resolve
+        // the name through the same compiled IDL so V2 quote assets are never
+        // guessed from amounts or instruction names.
+        const definedName = field.type.defined?.name;
+        const definedType = idl.types.find(t => t.name === definedName);
+        const variants = definedType?.type.kind === 'enum' ? definedType.type.variants : undefined;
+        const variant = variants?.[bytes[offset]!];
+        if (!variant || offset >= bytes.length) return unparsed('invalid_layout');
+        data[field.name] = variant.name;
+        offset += 1;
+        continue;
+      }
       const size = ({ pubkey: 32, u64: 8, i64: 8, u32: 4, u16: 2, u8: 1, bool: 1 } as Record<string, number>)[field.type];
       if (!size || offset + size > bytes.length) return unparsed('invalid_layout');
       switch (field.type) {

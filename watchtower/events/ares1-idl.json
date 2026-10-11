@@ -6,7 +6,7 @@
     "spec": "0.1.0",
     "description": "Solana Potato game program"
   },
-  "sourceIdlSha256": "6a2bdaabf243324440a8bf53f427aae8ebcbd746fae4f12d318f5f23bc301b71",
+  "sourceIdlSha256": "1a3b7d2e6b84ac9ba8d87837f392f5e965f1f54c5aca5165dc41f7b067b8af2e",
   "events": [
     {
       "name": "AchievementClaimed",
@@ -191,6 +191,19 @@
       ]
     },
     {
+      "name": "OrderCancelledV2",
+      "discriminator": [
+        160,
+        205,
+        235,
+        153,
+        11,
+        215,
+        90,
+        245
+      ]
+    },
+    {
       "name": "OrderCreated",
       "discriminator": [
         224,
@@ -201,6 +214,19 @@
         60,
         190,
         159
+      ]
+    },
+    {
+      "name": "OrderCreatedV2",
+      "discriminator": [
+        0,
+        73,
+        57,
+        127,
+        212,
+        137,
+        78,
+        229
       ]
     },
     {
@@ -217,6 +243,19 @@
       ]
     },
     {
+      "name": "OrderExpiredV2",
+      "discriminator": [
+        239,
+        223,
+        39,
+        106,
+        32,
+        164,
+        244,
+        73
+      ]
+    },
+    {
       "name": "OrderFilled",
       "discriminator": [
         120,
@@ -227,6 +266,19 @@
         116,
         174,
         30
+      ]
+    },
+    {
+      "name": "OrderFilledV2",
+      "discriminator": [
+        188,
+        165,
+        81,
+        20,
+        149,
+        153,
+        85,
+        79
       ]
     },
     {
@@ -670,6 +722,22 @@
       }
     },
     {
+      "name": "OrderCancelledV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
       "name": "OrderCreated",
       "type": {
         "kind": "struct",
@@ -694,7 +762,51 @@
       }
     },
     {
+      "name": "OrderCreatedV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "price_quote_atoms_per_potato",
+            "type": "u64"
+          },
+          {
+            "name": "quote_asset",
+            "type": {
+              "defined": {
+                "name": "QuoteAsset"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "OrderExpiredEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderExpiredV2",
       "type": {
         "kind": "struct",
         "fields": [
@@ -724,6 +836,58 @@
           },
           {
             "name": "total_lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderFilledV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "quote_asset",
+            "type": {
+              "defined": {
+                "name": "QuoteAsset"
+              }
+            }
+          },
+          {
+            "name": "gross_quote_atoms",
+            "type": "u64"
+          },
+          {
+            "name": "fee_quote_atoms",
+            "type": "u64"
+          },
+          {
+            "name": "seller_net_quote_atoms",
+            "type": "u64"
+          },
+          {
+            "name": "seller_volume_before_micro",
+            "type": "u64"
+          },
+          {
+            "name": "seller_volume_after_micro",
             "type": "u64"
           }
         ]
@@ -784,6 +948,23 @@
               "On-chain drop roll, 0-99: <70 COMMON, <95 RARE, else EPIC."
             ],
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuoteAsset",
+      "docs": [
+        "Quote asset for the V2 market. POTATO is the base asset on both pairs."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Sol"
+          },
+          {
+            "name": "Skr"
           }
         ]
       }
@@ -1071,6 +1252,16 @@
       223,
       132
     ],
+    "cancel_order_v2": [
+      110,
+      83,
+      130,
+      136,
+      146,
+      136,
+      66,
+      67
+    ],
     "cancel_withdrawal": [
       183,
       104,
@@ -1100,6 +1291,16 @@
       40,
       220,
       44
+    ],
+    "close_expired_order_v2": [
+      25,
+      22,
+      125,
+      173,
+      30,
+      172,
+      154,
+      236
     ],
     "close_field": [
       119,
@@ -1141,6 +1342,16 @@
       171,
       225
     ],
+    "create_sell_order_v2": [
+      251,
+      138,
+      137,
+      77,
+      89,
+      173,
+      183,
+      222
+    ],
     "fill_order": [
       232,
       122,
@@ -1149,6 +1360,26 @@
       199,
       143,
       136,
+      162
+    ],
+    "fill_order_v2": [
+      66,
+      12,
+      52,
+      136,
+      172,
+      148,
+      145,
+      230
+    ],
+    "fill_order_v2_skr": [
+      236,
+      244,
+      79,
+      90,
+      253,
+      204,
+      178,
       162
     ],
     "grant_reward": [

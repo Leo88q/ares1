@@ -1460,6 +1460,121 @@
       "args": []
     },
     {
+      "name": "cancel_order_v2",
+      "docs": [
+        "Cancel an unfilled V2 order. Only the escrowed POTATO principal is",
+        "returned; no commission is charged for an unsuccessful trade."
+      ],
+      "discriminator": [
+        110,
+        83,
+        130,
+        136,
+        146,
+        136,
+        66,
+        67
+      ],
+      "accounts": [
+        {
+          "name": "seller",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "order"
+          ]
+        },
+        {
+          "name": "seller_profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  108,
+                  108,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "seller"
+              }
+            ]
+          }
+        },
+        {
+          "name": "order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order.order_id",
+                "account": "MarketOrderV2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "seller_potato",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "cancel_withdrawal",
       "docs": [
         "Cancels ALL pending withdrawal proposals. The window budget already",
@@ -1883,6 +1998,92 @@
       "args": []
     },
     {
+      "name": "close_expired_order_v2",
+      "docs": [
+        "Permissionless V2 expiry crank: return the principal, charging no fee."
+      ],
+      "discriminator": [
+        25,
+        22,
+        125,
+        173,
+        30,
+        172,
+        154,
+        236
+      ],
+      "accounts": [
+        {
+          "name": "order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order.order_id",
+                "account": "MarketOrderV2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "seller_potato",
+          "writable": true
+        },
+        {
+          "name": "seller",
+          "writable": true,
+          "relations": [
+            "order"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "close_field",
       "docs": [
         "Закрывает поле и возвращает ренту владельцу. Поле становится неактивным",
@@ -2268,6 +2469,228 @@
       ]
     },
     {
+      "name": "create_sell_order_v2",
+      "docs": [
+        "V2 listing: escrow only the POTATO principal. No fee is charged unless",
+        "the order fills; the eventual 9–12% commission is deducted from seller",
+        "proceeds and paid in the selected quote asset (SOL or SKR)."
+      ],
+      "discriminator": [
+        251,
+        138,
+        137,
+        77,
+        89,
+        173,
+        183,
+        222
+      ],
+      "accounts": [
+        {
+          "name": "seller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "seller_profile",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  108,
+                  108,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "seller"
+              }
+            ]
+          }
+        },
+        {
+          "name": "seller_volume_v2",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  108,
+                  108,
+                  101,
+                  114,
+                  95,
+                  118,
+                  111,
+                  108,
+                  117,
+                  109,
+                  101,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "seller"
+              }
+            ]
+          }
+        },
+        {
+          "name": "market_stats_v2",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "order_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "seller_potato",
+          "writable": true
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "potato_mint",
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "order_id",
+          "type": "u64"
+        },
+        {
+          "name": "amount_micro",
+          "type": "u64"
+        },
+        {
+          "name": "price_quote_atoms_per_potato",
+          "type": "u64"
+        },
+        {
+          "name": "quote_asset",
+          "type": {
+            "defined": {
+              "name": "QuoteAsset"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "fill_order",
       "docs": [
         "Buys an active order: SOL goes to the seller, $POTATO to the buyer, the",
@@ -2449,6 +2872,610 @@
               {
                 "kind": "account",
                 "path": "potato_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "fill_order_v2",
+      "docs": [
+        "Fill an SOL-quoted V2 order. Buyer pays gross quote; seller receives",
+        "gross minus the progressive fee, and the entire fee goes to treasury_sol.",
+        "Seller daily POTATO volume is shared with the SKR pair and advances only",
+        "in this atomic fill transaction."
+      ],
+      "discriminator": [
+        66,
+        12,
+        52,
+        136,
+        172,
+        148,
+        145,
+        230
+      ],
+      "accounts": [
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "seller",
+          "writable": true,
+          "relations": [
+            "order"
+          ]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "potato_mint",
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "seller_volume_v2",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  108,
+                  108,
+                  101,
+                  114,
+                  95,
+                  118,
+                  111,
+                  108,
+                  117,
+                  109,
+                  101,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "seller"
+              }
+            ]
+          }
+        },
+        {
+          "name": "market_stats_v2",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order.order_id",
+                "account": "MarketOrderV2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyer_potato",
+          "writable": true
+        },
+        {
+          "name": "treasury_sol",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "fill_order_v2_skr",
+      "docs": [
+        "Fill an SKR-quoted V2 order. The configured six-decimal SKR mint is",
+        "pinned by GameConfig; fee and seller net are transfers in that same mint."
+      ],
+      "discriminator": [
+        236,
+        244,
+        79,
+        90,
+        253,
+        204,
+        178,
+        162
+      ],
+      "accounts": [
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "seller",
+          "writable": true,
+          "relations": [
+            "order"
+          ]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "potato_mint",
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "skr_mint"
+        },
+        {
+          "name": "seller_volume_v2",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  108,
+                  108,
+                  101,
+                  114,
+                  95,
+                  118,
+                  111,
+                  108,
+                  117,
+                  109,
+                  101,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "seller"
+              }
+            ]
+          }
+        },
+        {
+          "name": "market_stats_v2",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  115,
+                  95,
+                  118,
+                  50
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "order",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  100,
+                  101,
+                  114,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order.order_id",
+                "account": "MarketOrderV2"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  50
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "order"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyer_potato",
+          "writable": true
+        },
+        {
+          "name": "buyer_skr_ata",
+          "writable": true
+        },
+        {
+          "name": "seller_skr_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "seller"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "skr_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "treasury_sol",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121,
+                  95,
+                  115,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury_skr_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "treasury_sol"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "skr_mint"
               }
             ],
             "program": {
@@ -5096,6 +6123,19 @@
       ]
     },
     {
+      "name": "MarketOrderV2",
+      "discriminator": [
+        227,
+        241,
+        195,
+        213,
+        48,
+        210,
+        144,
+        239
+      ]
+    },
+    {
       "name": "MarketStats",
       "discriminator": [
         240,
@@ -5106,6 +6146,19 @@
         118,
         209,
         83
+      ]
+    },
+    {
+      "name": "MarketStatsV2",
+      "discriminator": [
+        123,
+        237,
+        209,
+        47,
+        27,
+        6,
+        185,
+        6
       ]
     },
     {
@@ -5158,6 +6211,19 @@
         158,
         255,
         21
+      ]
+    },
+    {
+      "name": "SellerVolumeV2",
+      "discriminator": [
+        25,
+        133,
+        237,
+        119,
+        215,
+        130,
+        107,
+        156
       ]
     }
   ],
@@ -5345,6 +6411,19 @@
       ]
     },
     {
+      "name": "OrderCancelledV2",
+      "discriminator": [
+        160,
+        205,
+        235,
+        153,
+        11,
+        215,
+        90,
+        245
+      ]
+    },
+    {
       "name": "OrderCreated",
       "discriminator": [
         224,
@@ -5355,6 +6434,19 @@
         60,
         190,
         159
+      ]
+    },
+    {
+      "name": "OrderCreatedV2",
+      "discriminator": [
+        0,
+        73,
+        57,
+        127,
+        212,
+        137,
+        78,
+        229
       ]
     },
     {
@@ -5371,6 +6463,19 @@
       ]
     },
     {
+      "name": "OrderExpiredV2",
+      "discriminator": [
+        239,
+        223,
+        39,
+        106,
+        32,
+        164,
+        244,
+        73
+      ]
+    },
+    {
       "name": "OrderFilled",
       "discriminator": [
         120,
@@ -5381,6 +6486,19 @@
         116,
         174,
         30
+      ]
+    },
+    {
+      "name": "OrderFilledV2",
+      "discriminator": [
+        188,
+        165,
+        81,
+        20,
+        149,
+        153,
+        85,
+        79
       ]
     },
     {
@@ -5819,6 +6937,31 @@
       "code": 6050,
       "name": "RewardExpiryTooFar",
       "msg": "Reward expiry is too far in the future (max 15 minutes)"
+    },
+    {
+      "code": 6051,
+      "name": "V2QuoteTooSmall",
+      "msg": "V2 quote amount is below the minimum settlement value"
+    },
+    {
+      "code": 6052,
+      "name": "InvalidQuoteAsset",
+      "msg": "Order quote asset does not match this fill instruction"
+    },
+    {
+      "code": 6053,
+      "name": "UnsupportedFeePolicy",
+      "msg": "Order uses an unsupported V2 fee policy version"
+    },
+    {
+      "code": 6054,
+      "name": "V2FeeConsumesProceeds",
+      "msg": "V2 settlement fee would consume all seller proceeds"
+    },
+    {
+      "code": 6055,
+      "name": "InvalidSellerVolumeAccount",
+      "msg": "Seller daily volume account does not match the order seller"
     }
   ],
   "types": [
@@ -6430,6 +7573,71 @@
       }
     },
     {
+      "name": "MarketOrderV2",
+      "docs": [
+        "V2 sell order. PDA seeds: `[\"order_v2\", order_id.to_le_bytes()]`; escrow",
+        "seeds: `[\"escrow_v2\", order_pubkey]`. This is a new account layout; legacy",
+        "`MarketOrder` is intentionally untouched."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order_id",
+            "type": "u64"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "price_quote_atoms_per_potato",
+            "type": "u64"
+          },
+          {
+            "name": "quote_asset",
+            "type": {
+              "defined": {
+                "name": "QuoteAsset"
+              }
+            }
+          },
+          {
+            "name": "fee_policy_version",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "OrderStatus"
+              }
+            }
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "escrow_bump",
+            "type": "u8"
+          },
+          {
+            "name": "order_bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "MarketStats",
       "docs": [
         "Global marketplace counters. PDA seeds: `[\"market_stats\"]`.",
@@ -6466,7 +7674,59 @@
       }
     },
     {
+      "name": "MarketStatsV2",
+      "docs": [
+        "V2 aggregate volumes, kept in a new PDA so legacy stats keep their layout.",
+        "PDA seeds: `[\"market_stats_v2\"]`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "total_potato_volume_micro",
+            "type": "u64"
+          },
+          {
+            "name": "total_sol_volume_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "total_skr_volume_atoms",
+            "type": "u64"
+          },
+          {
+            "name": "total_trades",
+            "type": "u64"
+          },
+          {
+            "name": "last_update",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "OrderCancelled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderCancelledV2",
       "type": {
         "kind": "struct",
         "fields": [
@@ -6506,7 +7766,51 @@
       }
     },
     {
+      "name": "OrderCreatedV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "price_quote_atoms_per_potato",
+            "type": "u64"
+          },
+          {
+            "name": "quote_asset",
+            "type": {
+              "defined": {
+                "name": "QuoteAsset"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "OrderExpiredEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderExpiredV2",
       "type": {
         "kind": "struct",
         "fields": [
@@ -6536,6 +7840,58 @@
           },
           {
             "name": "total_lamports",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderFilledV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "order",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "quote_asset",
+            "type": {
+              "defined": {
+                "name": "QuoteAsset"
+              }
+            }
+          },
+          {
+            "name": "gross_quote_atoms",
+            "type": "u64"
+          },
+          {
+            "name": "fee_quote_atoms",
+            "type": "u64"
+          },
+          {
+            "name": "seller_net_quote_atoms",
+            "type": "u64"
+          },
+          {
+            "name": "seller_volume_before_micro",
+            "type": "u64"
+          },
+          {
+            "name": "seller_volume_after_micro",
             "type": "u64"
           }
         ]
@@ -6647,6 +8003,23 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "QuoteAsset",
+      "docs": [
+        "Quote asset for the V2 market. POTATO is the base asset on both pairs."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Sol"
+          },
+          {
+            "name": "Skr"
           }
         ]
       }
@@ -6810,6 +8183,34 @@
           {
             "name": "last_cancel_at",
             "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SellerVolumeV2",
+      "docs": [
+        "Per-seller daily POTATO volume shared across SOL and SKR V2 pairs.",
+        "PDA seeds: `[\"seller_volume_v2\", seller_pubkey]`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "day_index",
+            "type": "i64"
+          },
+          {
+            "name": "filled_potato_micro",
+            "type": "u64"
           },
           {
             "name": "bump",

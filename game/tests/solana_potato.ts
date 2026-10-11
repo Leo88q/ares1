@@ -728,8 +728,10 @@ describe("solana_potato", () => {
       const txFee = BigInt(tx?.meta?.fee ?? 0);
       expect(BigInt(buyerSolBefore - await connection.getBalance(player.publicKey))).to.eq(gross);
       expect(BigInt(await connection.getBalance(treasurySolPda) - treasurySolBefore)).to.eq(fee);
+      const sellerSolDelta = BigInt(await connection.getBalance(admin.publicKey) - sellerSolBefore);
       expect(
-        BigInt(await connection.getBalance(admin.publicKey) - sellerSolBefore) + txFee,
+        sellerSolDelta + txFee,
+        `seller delta=${sellerSolDelta}; tx fee=${txFee}; order rent=${orderRent}; escrow rent=${escrowRent}; expected net=${sellerNet}`,
       ).to.eq(sellerNet + orderRent + escrowRent);
       expect((await ataBalance(playerAta)) - buyerPotatoBefore).to.eq(amountMicro);
       expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
