@@ -203,11 +203,8 @@ pub const FEE_BURN_PERCENT: u64 = 60;
 pub const V2_MIN_GROSS_QUOTE_ATOMS: u64 = 1_000_000;
 /// V2 progressive marginal tiers. 1k/10k/100k POTATO thresholds are draft
 /// defaults and MUST receive owner approval before a V2 release.
-pub const V2_SELLER_VOLUME_THRESHOLDS_MICRO: [u64; 3] = [
-    1_000_000_000,
-    10_000_000_000,
-    100_000_000_000,
-];
+pub const V2_SELLER_VOLUME_THRESHOLDS_MICRO: [u64; 3] =
+    [1_000_000_000, 10_000_000_000, 100_000_000_000];
 pub const V2_SETTLEMENT_FEE_BPS: [u16; 4] = [900, 1_000, 1_100, 1_200];
 pub const V2_FEE_POLICY_VERSION: u8 = 1;
 /// Адрес SPL Token. Нужен, чтобы проверить владельца «сырого» аккаунта минта,
@@ -1202,7 +1199,10 @@ pub mod solana_potato {
         quote_asset: QuoteAsset,
     ) -> Result<()> {
         require!(!ctx.accounts.config.paused, GameError::Paused);
-        require!(amount_micro >= MIN_ORDER_AMOUNT_MICRO, GameError::OrderTooSmall);
+        require!(
+            amount_micro >= MIN_ORDER_AMOUNT_MICRO,
+            GameError::OrderTooSmall
+        );
         require!(price_quote_atoms_per_potato > 0, GameError::InvalidPrice);
         let gross_quote_atoms = v2_gross_quote_atoms(amount_micro, price_quote_atoms_per_potato)?;
         require!(
@@ -1226,7 +1226,10 @@ pub mod solana_potato {
             volume.day_index = now.div_euclid(SECONDS_PER_DAY);
             volume.filled_potato_micro = 0;
         }
-        require!(volume.seller == seller_key, GameError::InvalidSellerVolumeAccount);
+        require!(
+            volume.seller == seller_key,
+            GameError::InvalidSellerVolumeAccount
+        );
         volume.bump = ctx.bumps.seller_volume_v2;
         ctx.accounts.market_stats_v2.bump = ctx.bumps.market_stats_v2;
 
@@ -1273,10 +1276,19 @@ pub mod solana_potato {
         require!(!ctx.accounts.config.paused, GameError::Paused);
         let now = Clock::get()?.unix_timestamp;
         let order = &ctx.accounts.order;
-        require!(order.status == OrderStatus::Active, GameError::OrderNotActive);
+        require!(
+            order.status == OrderStatus::Active,
+            GameError::OrderNotActive
+        );
         require!(now < order.expires_at, GameError::OrderExpired);
-        require!(order.seller != ctx.accounts.buyer.key(), GameError::SelfTradeBlocked);
-        require!(order.quote_asset == QuoteAsset::Sol, GameError::InvalidQuoteAsset);
+        require!(
+            order.seller != ctx.accounts.buyer.key(),
+            GameError::SelfTradeBlocked
+        );
+        require!(
+            order.quote_asset == QuoteAsset::Sol,
+            GameError::InvalidQuoteAsset
+        );
         require!(
             order.fee_policy_version == V2_FEE_POLICY_VERSION,
             GameError::UnsupportedFeePolicy
@@ -1336,7 +1348,9 @@ pub mod solana_potato {
         ))?;
 
         ctx.accounts.order.status = OrderStatus::Filled;
-        ctx.accounts.seller_volume_v2.record_fill(now, amount_micro)?;
+        ctx.accounts
+            .seller_volume_v2
+            .record_fill(now, amount_micro)?;
         ctx.accounts.market_stats_v2.record_fill(
             QuoteAsset::Sol,
             amount_micro,
@@ -1365,10 +1379,19 @@ pub mod solana_potato {
         require_skr_mint(&ctx.accounts.skr_mint)?;
         let now = Clock::get()?.unix_timestamp;
         let order = &ctx.accounts.order;
-        require!(order.status == OrderStatus::Active, GameError::OrderNotActive);
+        require!(
+            order.status == OrderStatus::Active,
+            GameError::OrderNotActive
+        );
         require!(now < order.expires_at, GameError::OrderExpired);
-        require!(order.seller != ctx.accounts.buyer.key(), GameError::SelfTradeBlocked);
-        require!(order.quote_asset == QuoteAsset::Skr, GameError::InvalidQuoteAsset);
+        require!(
+            order.seller != ctx.accounts.buyer.key(),
+            GameError::SelfTradeBlocked
+        );
+        require!(
+            order.quote_asset == QuoteAsset::Skr,
+            GameError::InvalidQuoteAsset
+        );
         require!(
             order.fee_policy_version == V2_FEE_POLICY_VERSION,
             GameError::UnsupportedFeePolicy
@@ -1430,7 +1453,9 @@ pub mod solana_potato {
         ))?;
 
         ctx.accounts.order.status = OrderStatus::Filled;
-        ctx.accounts.seller_volume_v2.record_fill(now, amount_micro)?;
+        ctx.accounts
+            .seller_volume_v2
+            .record_fill(now, amount_micro)?;
         ctx.accounts.market_stats_v2.record_fill(
             QuoteAsset::Skr,
             amount_micro,
@@ -1822,7 +1847,10 @@ pub mod solana_potato {
             ctx.accounts.order.status == OrderStatus::Active,
             GameError::OrderNotActive
         );
-        require!(now >= ctx.accounts.order.expires_at, GameError::OrderNotExpired);
+        require!(
+            now >= ctx.accounts.order.expires_at,
+            GameError::OrderNotExpired
+        );
         let order_key = ctx.accounts.order.key();
         let refund_micro = ctx.accounts.order.amount_micro;
         let escrow_bump = ctx.accounts.order.escrow_bump;
@@ -2827,7 +2855,10 @@ fn ceil_div_u128(numerator: u128, denominator: u128) -> Result<u128> {
 /// Gross quote atoms for an amount priced in quote atoms per whole POTATO.
 /// Rounds upward, matching the V2 client quote and preventing dust fills.
 pub fn v2_gross_quote_atoms(amount_micro: u64, price_quote_atoms_per_potato: u64) -> Result<u64> {
-    require!(amount_micro > 0 && price_quote_atoms_per_potato > 0, GameError::InvalidAmount);
+    require!(
+        amount_micro > 0 && price_quote_atoms_per_potato > 0,
+        GameError::InvalidAmount
+    );
     let product = (amount_micro as u128)
         .checked_mul(price_quote_atoms_per_potato as u128)
         .ok_or(GameError::MathOverflow)?;
@@ -2920,7 +2951,10 @@ pub fn calculate_settlement_fee_v2(
             .ok_or(GameError::MathOverflow)?;
     }
 
-    require!(allocated_gross == gross_quote_atoms, GameError::MathOverflow);
+    require!(
+        allocated_gross == gross_quote_atoms,
+        GameError::MathOverflow
+    );
     require!(
         fee_quote_atoms < gross_quote_atoms,
         GameError::V2FeeConsumesProceeds
@@ -4428,9 +4462,7 @@ pub struct Referral {
 }
 
 /// Quote asset for the V2 market. POTATO is the base asset on both pairs.
-#[derive(
-    AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace,
-)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
 pub enum QuoteAsset {
     Sol,
     Skr,
@@ -5222,12 +5254,19 @@ mod tests {
             filled_potato_micro: 15 * MICRO as u64,
             bump: 0,
         };
-        assert_eq!(volume.volume_at(7 * SECONDS_PER_DAY + 12), 15 * MICRO as u64);
+        assert_eq!(
+            volume.volume_at(7 * SECONDS_PER_DAY + 12),
+            15 * MICRO as u64
+        );
         assert_eq!(volume.volume_at(8 * SECONDS_PER_DAY), 0);
         // Quote asset is deliberately not part of this account/PDA: SOL and
         // SKR fills share one counter for the same seller address.
-        volume.record_fill(8 * SECONDS_PER_DAY, 20 * MICRO as u64).unwrap();
-        volume.record_fill(8 * SECONDS_PER_DAY, 30 * MICRO as u64).unwrap();
+        volume
+            .record_fill(8 * SECONDS_PER_DAY, 20 * MICRO as u64)
+            .unwrap();
+        volume
+            .record_fill(8 * SECONDS_PER_DAY, 30 * MICRO as u64)
+            .unwrap();
         assert_eq!(volume.day_index, 8);
         assert_eq!(volume.filled_potato_micro, 50 * MICRO as u64);
     }
