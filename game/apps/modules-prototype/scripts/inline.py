@@ -12,5 +12,6 @@ def in_js(m):
 
 html = re.sub(r'<link[^>]+href="([^"]+\.css)"[^>]*>', in_css, html)
 html = re.sub(r'<script[^>]+src="([^"]+\.js)"[^>]*></script>', in_js, html)
+html = re.sub(r'//# sourceMappingURL=[^\n]*', '', html)  # не мусорим в консоли file://
 (d / 'colony.html').write_text(html)
 print('inline ok:', (d / 'colony.html').stat().st_size, 'bytes')

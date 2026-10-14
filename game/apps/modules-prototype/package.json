@@ -16,6 +16,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "draco3dgltf": "^1.5.7",
+    "gltf-pipeline": "^4.3.1",
     "vite": "^6.0.7"
   }
 }
