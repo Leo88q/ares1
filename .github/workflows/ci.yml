@@ -71,7 +71,7 @@ jobs:
   # «чистая эмиссия ≤+5% за эпоху». Красный джоб = регрессия механики
   # (или честно сломанный критерий — лучше увидеть в CI, чем на пилоте).
   econ-sim:
-    name: Econ simulator (smoke: pilot + days, критерий ≤+5%)
+    name: "Econ simulator (smoke: pilot + days, критерий ≤+5%)"
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
