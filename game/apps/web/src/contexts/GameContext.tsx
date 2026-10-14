@@ -9,7 +9,7 @@ import { useToast } from '../components/Toast'
  import {
  decodeField, pdas,
  ixCreateField, ixHarvest, ixRepairField, ixUpgradeField, ixPayTax, ixApplyFertilizer,
- ixBuyFieldSkr, ixBatchHarvest, ixCloseField, SKR_MINT, treasurySkrAta, buybackSkrAta, presaleStatePda, buyerPresalePda, treasurySolPda,
+ ixBuyFieldSkr, ixRevealDrop, ixBatchHarvest, ixCloseField, SKR_MINT, treasurySkrAta, buybackSkrAta, presaleStatePda, buyerPresalePda, treasurySolPda,
  potatoAta, decodeExportLicense,
  achievementsPda, questTreasuryPda, decodeAchievementsBitmap, ixClaimAchievement, QUEST_REWARDS_MICRO,
 } from '../utils/anchorClient'
@@ -23,7 +23,7 @@ import { track, type TelemetryEventName } from '../utils/telemetry'
 
 import { usePolling } from '../hooks/usePolling'
 
-const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1 // 70: +mutation_type (v2)
+const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1 + 8 // 78: +mutation_type (v2), +pending_drop_slot (commit-reveal)
 const FIELDS_POLL_MS = 20_000
 
 export interface Field {
@@ -169,6 +169,29 @@ export function GameProvider({ children }: { children: ReactNode }) {
      .sort((a, b) => a.lastHarvest - b.lastHarvest),
    )
    setFieldsError(null)
+
+   // ── Commit-reveal: авто-открытие созревших sealed-полей ──
+   // Без ОДНОЙ permissionless-транзакции поле навсегда осталось бы Common
+   // (тире-слот прошёл, а reveal никто не вызвал). Молча: если tx не прошла,
+   // следующий поллинг (20 с) повторит — цикла нет: после reveal поле
+   // перестаёт быть sealed.
+   try {
+    const currentSlot = await withRetry(() => connection.getSlot())
+    const due = accounts
+     .filter(({ account }) => {
+      try {
+       const d = decodeField(account.data)
+       return d.pendingDropSlot > 0n && Number(d.pendingDropSlot) <= currentSlot
+      } catch {
+       return false
+      }
+     })
+     .map(({ pubkey }) => pubkey)
+    if (due.length) {
+     const ixs = await Promise.all(due.map((pubkey) => ixRevealDrop(programId, { field: pubkey })))
+     await sendIx(ixs)
+    }
+   } catch { /* молча: авто-reveal повторится на следующем поллинге */ }
   } catch (err) {
    // Не пробрасываем: поллинг продолжится, экран покажет ErrorState с ретраем,
    // а успешные операции (claim/airdrop) не превратятся в ложные тосты ошибок.
@@ -176,7 +199,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   } finally {
    setLoading(false)
   }
- }, [ready, connected, publicKey, config, connection, programId])
+ }, [ready, connected, publicKey, config, connection, programId, sendIx])
 
  usePolling(loadFields, FIELDS_POLL_MS, ready && connected && !!publicKey)
 
@@ -286,6 +309,39 @@ export function GameProvider({ children }: { children: ReactNode }) {
   [config, publicKey, ready, requireBalance, runTx, ownAta, programId, notify],
  )
 
+ /**
+ * Commit-reveal дропа: ждать наступления pending_drop_slot и вызвать
+ * permissionless reveal_drop (сида нет — тир детерминирован). Возвращает
+ * открытый тир или null (поле докрутит авто-reveal в loadFields).
+ */
+ const revealDrop = useCallback(
+  async (fieldPk: PublicKey): Promise<number | null> => {
+   if (!ready || !connected || !publicKey) return null
+   try {
+    let info = await withRetry(() => connection.getAccountInfo(fieldPk))
+    if (!info) return null
+    let d = decodeField(info.data)
+    if (d.pendingDropSlot === 0n) return d.fieldType
+    const target = Number(d.pendingDropSlot)
+    const deadline = Date.now() + 30_000 // ~8 слотов ≈ 3.2 с; 30 с — запас на лаг RPC
+    while (Date.now() < deadline) {
+     const slot = await withRetry(() => connection.getSlot())
+     if (slot >= target) break
+     await new Promise((r) => setTimeout(r, 600))
+    }
+    await sendIx([await ixRevealDrop(programId, { field: fieldPk })])
+    info = await withRetry(() => connection.getAccountInfo(fieldPk))
+    if (!info) return null
+    d = decodeField(info.data)
+    return d.pendingDropSlot === 0n ? d.fieldType : null
+   } catch {
+    // кошелёк отклонил / нет сети — авто-reveal в loadFields повторит
+    return null
+   }
+  },
+  [ready, connected, publicKey, connection, sendIx, programId],
+ )
+
  const buyFieldPresale = useCallback(
   async (): Promise<number | null> => {
    if (!config || !publicKey || !ready) {
@@ -334,7 +390,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
     try {
      const info = await withRetry(() => connection.getAccountInfo(field(fieldId)))
      if (info) {
-      const tier = info.data[67]
+      const d = decodeField(info.data)
+      if (d.pendingDropSlot > 0n) {
+       // sealed-дроп: тир определится reveal_drop после target-слота.
+       notify('success', t('Модуль получен'), t('Дроп открывается: тир определится on-chain через несколько секунд.'))
+       const opened = await revealDrop(field(fieldId))
+       if (opened !== null) {
+        notify('success', t('On-chain дроп: {tier}', { tier: ['COMMON', 'RARE', 'EPIC'][opened] ?? 'COMMON' }))
+        void refreshAll()
+       }
+       return opened ?? d.fieldType
+      }
+      const tier = d.fieldType
       notify('success', t('Модуль получен'), t('On-chain дроп: {tier}', { tier: ['COMMON', 'RARE', 'EPIC'][tier] ?? 'COMMON' }))
       return tier
      }
@@ -347,7 +414,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setPurchasing(false)
    }
   },
-  [config, publicKey, ready, solBalance, sendIx, refreshAll, programId, notify, connection],
+  [config, publicKey, ready, solBalance, sendIx, refreshAll, programId, notify, connection, revealDrop],
  )
 
  const harvest = useCallback(

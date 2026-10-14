@@ -702,6 +702,7 @@ const tl: Record<string, string> = {
   'Рынок V2': 'Pamilihan V2',
   'Рынок V1': 'Pamilihan V1',
   'V1-ордера и escrow остаются в отдельном legacy-рынке до исполнения, отмены или закрытия. V2 не меняет их layout и правила; в V1 комиссия удерживается в POTATO при создании.': 'Mananatili ang V1 orders at escrow sa hiwalay na legacy market hanggang ma-fill, makansela, o maisara. Hindi binabago ng V2 ang layout o mga patakaran nito; kinokolekta ng V1 ang bayad sa POTATO kapag gumawa ng order.',
+  'Дроп открывается: тир определится on-chain через несколько секунд.': 'Bubukas ang drop: ang tier ay itatakda on-chain sa loob ng ilang segundo.',
 };
 
 export default tl;

@@ -187,14 +187,19 @@ test('C18/E29: капы циклов и дубликаты', () => {
 });
 
 test('C17/D30: энтропия SlotHashes спинована по адресу и смешивается с keccak', () => {
-  assert.equal(count(libRs, 'SysvarS1otHashes111111111111111111111111111'), 2);
-  assert.equal(count(libRs, 'keccak::hashv'), 4);
+  //3 адреса: покупка за POTATO + buy_field_skr + reveal_drop (commit-reveal).
+  assert.equal(count(libRs, 'SysvarS1otHashes111111111111111111111111111'), 3);
+  //3: roll-энтропия reveal_drop + два сида; старый roll-блок buy_field_skr
+  // заменён commit'ом (тир до открытия неизвестен никому — см. reveal_drop).
+  assert.equal(count(libRs, 'keccak::hashv'), 3);
   assert.ok(libRs.includes('fn parse_slot_hash(data: &[u8])'));
+  assert.ok(libRs.includes('fn find_slot_hash_in(data: &[u8], target: u64)'));
+  assert.ok(libRs.includes('fn drop_tier(roll: u8) -> u8'));
 });
 
 test('D24: миграции валидируют раскладки и authority', () => {
   assert.equal(count(libRs, 'migrations::authority('), 4);
-  for (const whitelist of ['&[156, 164, 228, 260]', '&[97, 145]', '&[69, 70]', '&[41, 49]']) {
+  for (const whitelist of ['&[156, 164, 228, 260]', '&[97, 145]', '&[69, 70, 78]', '&[41, 49]']) {
     assert.ok(migrationsRs.includes(whitelist), `белый список размеров ${whitelist} отсутствует`);
   }
   assert.ok(migrationsRs.includes('fn check_layout('));

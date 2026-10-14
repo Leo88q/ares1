@@ -333,6 +333,8 @@ export interface DecodedField {
  owner: PublicKey; level: number; durability: number; lastHarvest: bigint
  taxPaidUntil: bigint; fertilizerUntil: bigint; isActive: boolean; fieldType: number
  bump: number; mutationType: number
+ /** Commit sealed-дропа: слот открытия;0 = отложенного дропа нет. */
+ pendingDropSlot: bigint
 }
 
 export function decodeField(data: Buffer): DecodedField {
@@ -346,12 +348,13 @@ export function decodeField(data: Buffer): DecodedField {
  const isActive = readBool(data, o); o = isActive.next
  const fieldType = readU8(data, o); o = fieldType.next
  const bump = readU8(data, o); o = bump.next
- const mutationType = readU8(data, o)
+ const mutationType = readU8(data, o); o = mutationType.next
+ const pendingDropSlot = readU64(data, o)
  return {
   owner: owner.value, level: level.value, durability: durability.value,
   lastHarvest: lastHarvest.value, taxPaidUntil: taxPaidUntil.value,
   fertilizerUntil: fertilizerUntil.value, isActive: isActive.value, fieldType: fieldType.value,
-  bump: bump.value, mutationType: mutationType.value,
+  bump: bump.value, mutationType: mutationType.value, pendingDropSlot: pendingDropSlot.value,
  }
 }
 
@@ -671,6 +674,25 @@ export async function ixBuyFieldSkr(programId: PublicKey, params: {
       { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
       // Энтропия drop-roll'а: SlotHashes[0] неизвестен покупателю при подписании.
+      { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
+    ],
+  })
+}
+
+/**
+ * Открытие sealed-дропа (2-й ход commit-reveal, см. reveal_drop в программе).
+ * permissionless: владелец не обязан подписывать — тир детерминирован;
+ * клиент шлёт tx сам после наступления pending_drop_slot.
+ */
+export async function ixRevealDrop(programId: PublicKey, params: {
+  field: PublicKey;
+}): Promise<TransactionInstruction> {
+  const data = concatBytes(await ixDiscriminator('reveal_drop'))
+  return new TransactionInstruction({
+    programId,
+    data,
+    keys: [
+      { pubkey: params.field, isSigner: false, isWritable: true },
       { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
     ],
   })

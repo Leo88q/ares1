@@ -702,6 +702,7 @@ const id: Record<string, string> = {
   'Рынок V2': 'Pasar V2',
   'Рынок V1': 'Pasar V1',
   'V1-ордера и escrow остаются в отдельном legacy-рынке до исполнения, отмены или закрытия. V2 не меняет их layout и правила; в V1 комиссия удерживается в POTATO при создании.': 'Order dan escrow V1 tetap berada di pasar legacy terpisah sampai dieksekusi, dibatalkan, atau ditutup. V2 tidak mengubah layout atau aturannya; V1 mengenakan biaya dalam POTATO saat order dibuat.',
+  'Дроп открывается: тир определится on-chain через несколько секунд.': 'Drop sedang dibuka: tier akan ditentukan on-chain dalam beberapa detik.',
 };
 
 export default id;

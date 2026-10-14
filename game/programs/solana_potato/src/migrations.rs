@@ -52,9 +52,11 @@ pub(crate) fn authority(data: &[u8], signer: &Pubkey) -> Result<()> {
 }
 
 pub(crate) fn field(data: &[u8]) -> Result<Vec<u8>> {
-    check_layout(data, Field::DISCRIMINATOR, &[69, 70])?;
+    // 69 = до mutation_type, 70 = до pending_drop_slot, 78 = текущий layout.
+    // pending_drop_slot = 0 у мигрируемых полей: «отложенного дропа нет».
+    check_layout(data, Field::DISCRIMINATOR, &[69, 70, 78])?;
     let mut out = data.to_vec();
-    out.resize(70, 0);
+    out.resize(78, 0);
     Field::try_deserialize(&mut &out[..])?;
     Ok(out)
 }
@@ -201,13 +203,22 @@ mod tests {
             field_type: 2,
             bump: 254,
             mutation_type: 2,
+            pending_drop_slot: 0,
         };
         let mut bytes = Vec::new();
         f.try_serialize(&mut bytes).unwrap();
+        assert_eq!(bytes.len(), 78);
         assert_eq!(field(&bytes).unwrap(), bytes);
         let migrated = field(&bytes[..69]).unwrap();
         assert_eq!(&migrated[..69], &bytes[..69]);
         assert_eq!(migrated[69], 0);
+        // 70-байтовый лэйаут (до pending_drop_slot) дорастает до78 нулями:
+        // pending_drop_slot = 0 = «отложенного дропа нет» — старые поля
+        // остаются с немедленным тиром, reveal_drop им не нужен.
+        let migrated70 = field(&bytes[..70]).unwrap();
+        assert_eq!(&migrated70[..70], &bytes[..70]);
+        assert_eq!(&migrated70[70..], &[0u8; 8]);
+        assert_eq!(field(&migrated70).unwrap(), migrated70); // идемпотентно
         assert!(field(&bytes[..68]).is_err());
         let e = Epoch {
             id: 42,

@@ -762,12 +762,12 @@
     {
       "name": "buy_field_skr",
       "docs": [
-        "Покупка поля за SKR во время пресейла.",
-        "Тир поля (0/1/2) определяется on-chain: keccak(buyer ‖ sold ‖ slot) % 100",
-        "→ COMMON 70 % / RARE 25 % / EPIC 5 %. Клиентский выбор тира не принимается —",
-        "это закрывает обход, при котором покупатель всегда забирал EPIC за цену дропа.",
-        "`sold` и `slot` покупатель не контролирует в момент подписания (конкурентные",
-        "покупки сдвигают `sold`, слот включения в блок неизвестен заранее)."
+        "Покупка поля за SKR во время пресейла (commit provably-fair дропа):",
+        "покупка фиксирует `pending_drop_slot = слот + DROP_REVEAL_DELAY_SLOTS`,",
+        "тир открывает `reveal_drop` записью SlotHashes[target-слота] — hash,",
+        "неизвестный в момент покупки никому (см. также док у `reveal_drop`).",
+        "Клиентский выбор тира не принимается — это закрывает обход, при котором",
+        "покупатель всегда забирал EPIC за цену дропа. До открытия — sealed (Common)."
       ],
       "discriminator": [
         122,
@@ -4799,6 +4799,41 @@
       "args": []
     },
     {
+      "name": "reveal_drop",
+      "docs": [
+        "Открытие тира пресейл-дропа: второй ход commit-reveal (commit — в",
+        "`buy_field_skr`: поле зафиксировало `pending_drop_slot = слот + 8`).",
+        "Энтропия — hash записей SlotHashes РОВНО target-слота, неизвестного",
+        "в момент покупки никому; sid открывания — данные, зафиксированные при",
+        "покупке: owner ‖ field PDA ‖ target ‖ target_hash. permissionless:",
+        "тир детерминирован, вызвать может кто угодно — подпись владельца",
+        "не нужна и ничего не даёт."
+      ],
+      "discriminator": [
+        132,
+        115,
+        222,
+        36,
+        232,
+        84,
+        21,
+        123
+      ],
+      "accounts": [
+        {
+          "name": "field",
+          "writable": true
+        },
+        {
+          "name": "slot_hashes",
+          "docs": [
+            "Энтропия открытия: запись target-слота (см. find_slot_hash)."
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "roll_epoch",
       "docs": [
         "Permissionless: anyone may roll to the next epoch once the current one is",
@@ -6294,6 +6329,19 @@
       ]
     },
     {
+      "name": "DropRevealed",
+      "discriminator": [
+        177,
+        48,
+        195,
+        6,
+        30,
+        11,
+        103,
+        72
+      ]
+    },
+    {
       "name": "EpochRolled",
       "discriminator": [
         185,
@@ -6962,6 +7010,21 @@
       "code": 6055,
       "name": "InvalidSellerVolumeAccount",
       "msg": "Seller daily volume account does not match the order seller"
+    },
+    {
+      "name": "DropNotPending",
+      "code": 6056,
+      "msg": "This field has no sealed drop awaiting reveal"
+    },
+    {
+      "name": "DropNotDue",
+      "code": 6057,
+      "msg": "Drop reveal target slot has not arrived yet"
+    },
+    {
+      "name": "DropEntropyUnavailable",
+      "code": 6058,
+      "msg": "SlotHashes has no entry for the drop target slot"
     }
   ],
   "types": [
@@ -7344,6 +7407,10 @@
           {
             "name": "mutation_type",
             "type": "u8"
+          },
+          {
+            "name": "pending_drop_slot",
+            "type": "u64"
           }
         ]
       }

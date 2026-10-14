@@ -47,7 +47,7 @@ interface EconomyData {
  taxBps: number
 }
 
-const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1
+const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1 + 8 // 78: +mutation_type, +pending_drop_slot
 const STATS_POLL_MS = 30_000
 
 /** Консольная строка-прибор: моно-лейбл, янтарное значение, светящийся бар (без смайлов и иконок) */

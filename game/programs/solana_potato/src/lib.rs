@@ -159,6 +159,13 @@ pub const BASE_FIELD_PRICE_MICRO: u64 = 250_000_000; // 250 $POTATO
 pub const SKR_MINT: Pubkey = pubkey!("Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o");
 /// 1053 SKR (6 decimals) = 2000 RUB при курсе 1.90
 pub const PRESALE_PRICE_SKR_ATOMS: u64 = 1_053_000_000;
+/// Provably-fair commit-reveal: тир дропа открывается не раньше чем через
+/// столько слотов (~400 мс каждый) после покупки. Ровно в этот слот и берётся
+/// энтропия из записей SlotHashes: hash(target-слота) в момент покупки не
+/// знает НИКТО — ни покупатель, ни релей, включивший транзакцию, ни валидатор
+/// target-слота задолго до его создания. Delay мал по UX (~3 с), но достаточен:
+/// включатель не может дождаться «удачного» target'а, не перезаписав сам commit.
+pub const DROP_REVEAL_DELAY_SLOTS: u64 = 8;
 /// Every SKR amount in this program is priced in 10^-6 atoms
 /// (`PRESALE_PRICE_SKR_ATOMS`, `EXPORT_LICENSE_PRICE_SKR_ATOMS`,
 /// `MAX_WITHDRAW_SKR_ATOMS_PER_WINDOW`). A mint with any other decimals would
@@ -530,12 +537,12 @@ pub mod solana_potato {
         Ok(())
     }
 
-    /// Покупка поля за SKR во время пресейла.
-    /// Тир поля (0/1/2) определяется on-chain: keccak(buyer ‖ sold ‖ slot) % 100
-    /// → COMMON 70 % / RARE 25 % / EPIC 5 %. Клиентский выбор тира не принимается —
-    /// это закрывает обход, при котором покупатель всегда забирал EPIC за цену дропа.
-    /// `sold` и `slot` покупатель не контролирует в момент подписания (конкурентные
-    /// покупки сдвигают `sold`, слот включения в блок неизвестен заранее).
+    /// Покупка поля за SKR во время пресейла (commit provably-fair дропа):
+    /// покупка фиксирует `pending_drop_slot = слот + DROP_REVEAL_DELAY_SLOTS`,
+    /// тир открывает `reveal_drop` записью SlotHashes[target-слота] — hash,
+    /// неизвестный в момент покупки никому (см. также док у `reveal_drop`).
+    /// Клиентский выбор тира не принимается — это закрывает обход, при котором
+    /// покупатель всегда забирал EPIC за цену дропа. До открытия — sealed (Common).
     // `field_id` связывает PDA поля через seeds, в теле не читается.
     #[allow(unused_variables)]
     pub fn buy_field_skr(ctx: Context<BuyFieldSkr>, field_id: u64) -> Result<()> {
@@ -568,38 +575,23 @@ pub mod solana_potato {
             GameError::PresaleNotActive
         );
 
-        // ── On-chain drop roll ──
-        // Энтропия: buyer ‖ sold ‖ slot ‖ последняя запись SlotHashes.
-        // SlotHashes-хеш текущего слота не известен в момент подписания и не
-        // контролируется покупателем. Вместе с assert_no_cpi_grind() (верхний
-        // уровень транзакции) это закрывает и слотный grind, и revert-if-unlucky
-        // обёртку: повторить транзакцию до удачного ролла нельзя.
+        // ── Provably-fair commit (см. reveal_drop) ──
+        // Тир НЕ роллится в момент покупки: покупка только фиксирует
+        // target-слот = текущий + DROP_REVEAL_DELAY_SLOTS, а энтропия берётся
+        // из записей SlotHashes ЭТОГО слота при открытии. hash(target) в момент
+        // подписания/включения неизвестен никому, включая валидатор, который
+        // позже включит покупку: слот target ещё не создан и его hash зависит
+        // от будущего. Это закрывает и revert-if-unlucky, и слотный grind
+        // релея-включателя (подбор слота включения не двигает энтропию:
+        // target сдвигается вместе с включением, а его hash всё равно неизвестен).
+        // До открытия поле — консервативный Common (field_type = 0): sealed-состояние
+        // не может дать преимущества (лучший тир — только после reveal).
         let slot = Clock::get()?.slot;
-        let mut roll_hash = anchor_lang::solana_program::keccak::hashv(&[
-            ctx.accounts.buyer.key().as_ref(),
-            &presale.sold.to_le_bytes(),
-            &slot.to_le_bytes(),
-        ]);
-        if let Some((recent_slot, recent_hash)) = recent_slot_hash(&ctx.accounts.slot_hashes) {
-            roll_hash = anchor_lang::solana_program::keccak::hashv(&[
-                roll_hash.as_ref(),
-                &recent_slot.to_le_bytes(),
-                recent_hash.as_ref(),
-            ]);
-        }
-        let roll = u32::from_le_bytes([
-            roll_hash.0[0],
-            roll_hash.0[1],
-            roll_hash.0[2],
-            roll_hash.0[3],
-        ]) % 100;
-        let field_type: u8 = if roll < 70 {
-            0
-        } else if roll < 95 {
-            1
-        } else {
-            2
-        };
+        let field = &mut ctx.accounts.field;
+        field.field_type = 0;
+        field.pending_drop_slot = slot
+            .checked_add(DROP_REVEAL_DELAY_SLOTS)
+            .ok_or(GameError::MathOverflow)?;
 
         let total = PRESALE_PRICE_SKR_ATOMS; // 1053 SKR за модуль
         let treasury_amount = total.checked_mul(80).ok_or(GameError::MathOverflow)? / 100;
@@ -645,7 +637,7 @@ pub mod solana_potato {
             .ok_or(GameError::MathOverflow)?;
         field.fertilizer_until = 0;
         field.is_active = true;
-        field.field_type = field_type;
+        // field_type уже выставлен commit-блоком выше: 0 (sealed) до reveal_drop.
         field.bump = ctx.bumps.field;
 
         // Обновляем счётчики
@@ -668,14 +660,14 @@ pub mod solana_potato {
         emit!(PresalePurchase {
             buyer: field.owner,
             field: field.key(),
-            field_type,
+            field_type: 0, // sealed: тир откроет reveal_drop
             amount: total, // SKR-атомы (6 знаков) — currency см. instruction name
-            roll: roll as u8,
+            roll: 255,     // 255 = не открыт;0-99 появится в DropRevealed
         });
         emit!(FieldCreated {
             owner: field.owner,
             field: field.key(),
-            field_type
+            field_type: 0 // sealed до reveal_drop
         });
 
         Ok(())
@@ -779,6 +771,66 @@ pub mod solana_potato {
             field_type
         });
 
+        Ok(())
+    }
+
+    /// Открытие тира пресейл-дропа: второй ход commit-reveal (commit — в
+    /// `buy_field_skr`: поле зафиксировало `pending_drop_slot = слот + 8`).
+    /// Энтропия — hash записей SlotHashes РОВНО target-слота, неизвестного
+    /// в момент покупки никому; sid открывания — данные, зафиксированные при
+    /// покупке: owner ‖ field PDA ‖ target ‖ target_hash. permissionless:
+    /// тир детерминирован, вызвать может кто угодно — подпись владельца
+    /// не нужна и ничего не даёт.
+    pub fn reveal_drop(ctx: Context<RevealDrop>) -> Result<()> {
+        let slot = Clock::get()?.slot;
+        let info = ctx.accounts.field.to_account_info();
+        // PDA поля не передаётся аргументом (id не извлечь из адреса):
+        // аккаунт обязан быть полем ЭТОЙ программы в ТЕКУЩЕМ layout —
+        // иначе байты ниже читались бы не как Field.
+        require_keys_eq!(info.owner, crate::ID, GameError::BadProof);
+        let (owner, target) = {
+            let data = info.try_borrow_data()?;
+            require!(data.len() == 8 + Field::INIT_SPACE, GameError::BadProof);
+            let field = Field::try_deserialize(&mut &data[..])?;
+            require!(field.pending_drop_slot > 0, GameError::DropNotPending);
+            require!(slot >= field.pending_drop_slot, GameError::DropNotDue);
+            (field.owner, field.pending_drop_slot)
+        };
+        let field_key = info.key();
+        let target_hash =
+            find_slot_hash(&ctx.accounts.slot_hashes, target).ok_or(GameError::DropEntropyUnavailable)?;
+        let roll_hash = anchor_lang::solana_program::keccak::hashv(&[
+            owner.as_ref(),
+            field_key.as_ref(),
+            &target.to_le_bytes(),
+            target_hash.as_ref(),
+        ]);
+        let roll = u32::from_le_bytes([
+            roll_hash.0[0],
+            roll_hash.0[1],
+            roll_hash.0[2],
+            roll_hash.0[3],
+        ]) % 100;
+        let field_type = drop_tier(roll as u8);
+
+        // Запись того же layout: десериализация — мутация — сериализация
+        // в тот же буфер (длина не меняется, миграция для reveal не нужна).
+        let mut field = {
+            let data = info.try_borrow_data()?;
+            Field::try_deserialize(&mut &data[..])?
+        };
+        field.field_type = field_type;
+        field.pending_drop_slot = 0;
+        let mut encoded = Vec::with_capacity(8 + Field::INIT_SPACE);
+        field.try_serialize(&mut encoded)?;
+        info.try_borrow_mut_data()?[..encoded.len()].copy_from_slice(&encoded);
+
+        emit!(DropRevealed {
+            field: field_key,
+            field_type,
+            roll: roll as u8,
+            target_slot: target,
+        });
         Ok(())
     }
 
@@ -3949,6 +4001,22 @@ pub struct BuyFieldSkr<'info> {
     pub slot_hashes: UncheckedAccount<'info>,
 }
 
+/// Открытие пресейл-дропа (commit-reveal, см. `reveal_drop`).
+#[derive(Accounts)]
+pub struct RevealDrop<'info> {
+    /// CHECK: поле ЭТОЙ программы: владелец и длина layout (8 + INIT_SPACE)
+    /// проверяются в обработчике перед десериализацией; PDA-переопределение
+    /// не нужно — reveal безвреден для любого валидного Field (тир публичен).
+    #[account(mut, owner = crate::ID)]
+    pub field: UncheckedAccount<'info>,
+
+    /// Энтропия открытия: запись target-слота (см. find_slot_hash).
+    /// CHECK: SlotHashes sysvar pinned by `address`; payload читается сырым
+    /// байтом (from_account_info/get — UnsupportedSysvar), валидация — в обработчике.
+    #[account(address = pubkey!("SysvarS1otHashes111111111111111111111111111"))]
+    pub slot_hashes: UncheckedAccount<'info>,
+}
+
 #[derive(Accounts)]
 #[instruction(field_id: u64)]
 pub struct BuyFieldSol<'info> {
@@ -4345,6 +4413,10 @@ pub struct Field {
     pub field_type: u8,
     pub bump: u8,
     pub mutation_type: u8, // 0=None, 1=Golden (+25% yield), 2=Silicon (decay ÷2)
+    /// Commit provably-fair дропа: слот, начиная с которого можно открыть тир
+    /// (покупка фиксирует `slot + DROP_REVEAL_DELAY_SLOTS`). 0 = отложенного
+    /// открытия нет: старые поля (migrate) и `buy_field_sol` — тип задан сразу.
+    pub pending_drop_slot: u64,
 }
 
 /// One 24h emission window. PDA seeds: `["epoch", id.to_le_bytes()]`.
@@ -4649,7 +4721,18 @@ pub struct PresalePurchase {
     /// SKR atoms (6 decimals) from `buy_field_skr`, lamports from `buy_field_sol`.
     pub amount: u64,
     /// On-chain drop roll, 0-99: <70 COMMON, <95 RARE, else EPIC.
+    /// 255 = sealed (коммит в buy_field_skr; настоящий roll — в DropRevealed).
     pub roll: u8,
+}
+
+/// Тир пресейл-модуля открыт (commit-reveal: commit — в buy_field_skr,
+/// энтропия — hash SlotHashes[target_slot], неизвестный до target-слота).
+#[event]
+pub struct DropRevealed {
+    pub field: Pubkey,
+    pub field_type: u8,
+    pub roll: u8,
+    pub target_slot: u64,
 }
 
 #[event]
@@ -4991,6 +5074,12 @@ pub enum GameError {
     V2FeeConsumesProceeds, // 6054
     #[msg("Seller daily volume account does not match the order seller")]
     InvalidSellerVolumeAccount, // 6055
+    #[msg("This field has no sealed drop awaiting reveal")]
+    DropNotPending, // 6056
+    #[msg("Drop reveal target slot has not arrived yet")]
+    DropNotDue, // 6057
+    #[msg("SlotHashes has no entry for the drop target slot")]
+    DropEntropyUnavailable, // 6058
 }
 
 // ──────────────────────────── Tests ──────────────────────────────
@@ -5011,6 +5100,7 @@ mod tests {
             field_type,
             bump: 0,
             mutation_type: 0,
+            pending_drop_slot: 0,
         }
     }
 
@@ -5664,6 +5754,7 @@ mod tests {
                 field_type: rng.below(FIELD_TYPE_COUNT as u64) as u8,
                 bump: 0,
                 mutation_type: rng.below(3) as u8,
+                pending_drop_slot: 0,
             };
             let base = rng.below(MAX_BASE_YIELD_MICRO_PER_DAY) + 1;
             let global = rng.below(MAX_GLOBAL_MULTIPLIER_BPS as u64 + 1) as u16;
@@ -5709,7 +5800,7 @@ mod tests {
         // принимает только размеры из белого списка и дополняет до текущего —
         // эти числа обязаны быть ПОСЛЕДНИМИ элементами списков, иначе миграция
         // «улучшит» актуальный аккаунт до устаревшего размера.
-        assert_eq!(8 + Field::INIT_SPACE, 70);
+        assert_eq!(8 + Field::INIT_SPACE, 78);
         assert_eq!(8 + Epoch::INIT_SPACE, 49);
         assert_eq!(8 + AdminState::INIT_SPACE, 145);
         assert_eq!(8 + GameConfig::INIT_SPACE, 260);
@@ -5718,6 +5809,40 @@ mod tests {
         assert_eq!(PRESALE_PRICE_SKR_ATOMS, 1_053 * (MICRO as u64));
         assert_eq!(EXPORT_LICENSE_PRICE_SKR_ATOMS, 500 * (MICRO as u64));
         assert_eq!(MAX_WITHDRAW_SKR_ATOMS_PER_WINDOW, 100_000 * (MICRO as u64));
+    }
+
+    #[test]
+    fn find_slot_hash_locates_target_and_never_panics_on_bad_payload() {
+        // Payload SlotHashes: len u64 LE + [slot u64 LE ‖ hash32]×n (DESC).
+        let mut data = Vec::new();
+        data.extend_from_slice(&3u64.to_le_bytes());
+        for (slot, byte) in [(900u64, 7u8), (890, 8), (880, 9)] {
+            data.extend_from_slice(&slot.to_le_bytes());
+            data.extend_from_slice(&[byte; 32]);
+        }
+        assert_eq!(find_slot_hash_in(&data, 890), Some([8; 32]));
+        assert_eq!(find_slot_hash_in(&data, 900), Some([7; 32]));
+        assert_eq!(find_slot_hash_in(&data, 999), None); // слот выпал из окна
+        assert_eq!(find_slot_hash_in(&[], 900), None);
+        assert_eq!(find_slot_hash_in(&data[..8], 900), None); // len есть, записей нет
+        // Битая длина (u64::MAX) не должна паниковать: обрезается payload'ом.
+        let mut corrupt = Vec::new();
+        corrupt.extend_from_slice(&u64::MAX.to_le_bytes());
+        corrupt.extend_from_slice(&data[8..48]); // одна запись: слот900
+        assert_eq!(find_slot_hash_in(&corrupt, 900), Some([7; 32]));
+        assert_eq!(find_slot_hash_in(&corrupt, 890), None);
+        // Слишком короткий хвост записи (нет 32-байтного hash) — None, не паника.
+        assert_eq!(find_slot_hash_in(&data[..44], 900), None);
+    }
+
+    #[test]
+    fn drop_tier_matches_70_25_5() {
+        assert_eq!(drop_tier(0), 0);
+        assert_eq!(drop_tier(69), 0);
+        assert_eq!(drop_tier(70), 1);
+        assert_eq!(drop_tier(94), 1);
+        assert_eq!(drop_tier(95), 2);
+        assert_eq!(drop_tier(99), 2);
     }
 }
 
@@ -5765,6 +5890,45 @@ fn verify_fields(
 fn recent_slot_hash(account: &UncheckedAccount) -> Option<(u64, [u8; 32])> {
     let data = account.try_borrow_data().ok()?;
     parse_slot_hash(&data)
+}
+
+/// Энтропия открытия дропа: hash КОНКРЕТНОГО target-слота в payload SlotHashes.
+/// Host-testable core — [`find_slot_hash_in`].
+fn find_slot_hash(account: &UncheckedAccount, target: u64) -> Option<[u8; 32]> {
+    let data = account.try_borrow_data().ok()?;
+    find_slot_hash_in(&data, target)
+}
+
+/// SlotHashes = bincode `Vec<(u64, Hash)>`: len u64 LE + [slot u64 LE ‖ hash 32]×n,
+/// отсортировано по убыванию слота. Линейный проход ≤512 записей — дешевле
+/// бинарного поиска с учётом лимита CU; битая длина обрезается размером payload.
+fn find_slot_hash_in(data: &[u8], target: u64) -> Option<[u8; 32]> {
+    if data.len() < 8 {
+        return None;
+    }
+    let len = u64::from_le_bytes(data[0..8].try_into().ok()?) as usize;
+    let max_entries = (data.len() - 8) / 40;
+    for i in 0..len.min(max_entries) {
+        let off = 8 + i * 40;
+        let slot = u64::from_le_bytes(data[off..off + 8].try_into().ok()?);
+        if slot == target {
+            let mut hash = [0u8; 32];
+            hash.copy_from_slice(&data[off + 8..off + 40]);
+            return Some(hash);
+        }
+    }
+    None
+}
+
+/// Тир по roll'у 0-99: <70 COMMON, <95 RARE, else EPIC (70/25/5, §4.5).
+fn drop_tier(roll: u8) -> u8 {
+    if roll < 70 {
+        0
+    } else if roll < 95 {
+        1
+    } else {
+        2
+    }
 }
 
 /// Host-testable core of [`recent_slot_hash`]: fail-safe (None) on any
