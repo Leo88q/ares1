@@ -39,25 +39,35 @@ function uriToArrayBuffer(uri) {
 function preloadModels(notify) {
   const entries = Object.entries(MODEL_DATA || {});
   if (!entries.length) return;
-  const loader = new GLTFLoader();
-  for (const [id, uri] of entries) {
-    // парсим напрямую из памяти: никаких fetch/XHR — работает из file:// в любом браузере
+  let i = 0, failed = [];
+  // строго последовательно и с отдельным загрузчиком на каждую модель:
+  // общий экземпляр GLTFLoader при параллельных parse меж собой гонится
+  function next() {
+    if (i >= entries.length) {
+      if (failed.length) console.error('[models] failed:', failed);
+      notify && notify();
+      return;
+    }
+    const [id, uri] = entries[i++];
     try {
-      loader.parse(
+      new GLTFLoader().parse(
         uriToArrayBuffer(uri),
         '',
         (gltf) => {
           normalizeModel(gltf.scene);
           modelCache[id] = gltf.scene;
           notify && notify();
+          next();
         },
-        (err) => { console.error('[models] parse failed:', id, err); notify && notify(); }
+        (err) => { failed.push(id); console.error('[models] parse failed:', id, err); next(); }
       );
     } catch (e) {
+      failed.push(id);
       console.error('[models] exception:', id, e);
-      notify && notify();
+      next();
     }
   }
+  next();
 }
 
 function buildModule(def) {
@@ -174,6 +184,7 @@ export function createGame(container, onState) {
   camera.position.set(11, 11, 11);
   camera.lookAt(0, 0, 0);
   let zoom = 0.82;
+  let userZoom = false;
   camera.zoom = zoom;
   camera.updateProjectionMatrix();
 
@@ -246,6 +257,7 @@ export function createGame(container, onState) {
       science: Math.floor(res.science),
       count: placed.size,
       models: `${Object.keys(modelCache).length}/${Object.keys(MODEL_DATA || {}).length}`,
+      zoom: (camera.zoom || 1).toFixed(2),
       toast
     });
   }
@@ -352,9 +364,11 @@ export function createGame(container, onState) {
     if (e.key === 'Escape') { placingDef = null; ghost.visible = false; push(); }
   }
   function onWheel(e) {
-    zoom = Math.max(0.6, Math.min(2.2, zoom - Math.sign(e.deltaY) * 0.1));
+    userZoom = true;
+    zoom = Math.max(0.5, Math.min(2.6, zoom - Math.sign(e.deltaY) * 0.12));
     camera.zoom = zoom;
     camera.updateProjectionMatrix();
+    push();
   }
 
   renderer.domElement.addEventListener('pointermove', onMove);
@@ -369,6 +383,16 @@ export function createGame(container, onState) {
     camera.right = frustum * aspect;
     camera.top = frustum;
     camera.bottom = -frustum;
+    if (!userZoom && w > 0 && h > 0) {
+      // авто-вписывание решётки: изо-проекция GRID×GRID при взгляде (1,1,1)
+      const isoW = GRID * Math.SQRT2;
+      const isoH = GRID * Math.SQRT2 * 0.577;
+      zoom = Math.min(
+        (0.86 * 2 * frustum * aspect) / isoW,
+        (0.84 * 2 * frustum) / isoH
+      );
+      camera.zoom = zoom;
+    }
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
   }
