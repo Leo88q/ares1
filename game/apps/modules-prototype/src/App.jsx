@@ -22,7 +22,7 @@ export default function App() {
   const engine = useRef(null);
   const [state, setState] = useState({
     balance: START.balance, energy: START.energy, water: START.water,
-    food: START.food, air: START.air, science: 0, count: 0, toast: null
+    food: START.food, air: START.air, science: 0, count: 0, models: '0/6', toast: null
   });
   const [placing, setPlacing] = useState(null);
 
@@ -56,7 +56,7 @@ export default function App() {
           <span className="burn-tag">BURN</span>
           <b>{state.balance}</b> <span>🥔</span>
         </div>
-        <div className="meta">📦 {state.count} модулей · ⭐ {Math.floor(state.science)} науки</div>
+        <div className="meta">📦 {state.count} модулей · ⭐ {Math.floor(state.science)} науки · 🧩 модели {state.models}</div>
       </header>
 
       <aside className="stats glass">

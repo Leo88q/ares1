@@ -28,20 +28,35 @@ function normalizeModel(obj) {
   obj.position.y -= box.min.y; // на землю
 }
 
-function preloadModels() {
+function uriToArrayBuffer(uri) {
+  const b64 = uri.slice(uri.indexOf(',') + 1);
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out.buffer;
+}
+
+function preloadModels(notify) {
   const entries = Object.entries(MODEL_DATA || {});
   if (!entries.length) return;
   const loader = new GLTFLoader();
   for (const [id, uri] of entries) {
-    loader.load(
-      uri,
-      (gltf) => {
-        normalizeModel(gltf.scene);
-        modelCache[id] = gltf.scene;
-      },
-      undefined,
-      () => { /* нет модели — остаются примитивы */ }
-    );
+    // парсим напрямую из памяти: никаких fetch/XHR — работает из file:// в любом браузере
+    try {
+      loader.parse(
+        uriToArrayBuffer(uri),
+        '',
+        (gltf) => {
+          normalizeModel(gltf.scene);
+          modelCache[id] = gltf.scene;
+          notify && notify();
+        },
+        (err) => { console.error('[models] parse failed:', id, err); notify && notify(); }
+      );
+    } catch (e) {
+      console.error('[models] exception:', id, e);
+      notify && notify();
+    }
   }
 }
 
@@ -143,7 +158,7 @@ function buildPrimitives(def) {
 }
 
 export function createGame(container, onState) {
-  preloadModels();
+  preloadModels(push);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(PALETTE.bg);
   scene.fog = new THREE.Fog(PALETTE.bg, 18, 42);
@@ -231,6 +246,7 @@ export function createGame(container, onState) {
       air: Math.round(res.air),
       science: Math.floor(res.science),
       count: placed.size,
+      models: `${Object.keys(modelCache).length}/${Object.keys(MODEL_DATA || {}).length}`,
       toast
     });
   }
@@ -379,6 +395,7 @@ export function createGame(container, onState) {
     renderer.render(scene, camera);
   }
   raf = requestAnimationFrame(loop);
+  preloadModels(push);
   push();
 
   return {
