@@ -5441,7 +5441,9 @@ mod tests {
 
     #[test]
     fn account_sizes_match_client_decoders() {
-        assert_eq!(8 + Field::INIT_SPACE, 70);
+        //78: +pending_drop_slot (commit-reveal дропа) — клиентское поле
+        // decodeField читает u64 @70 (см. apps/web anchorClient).
+        assert_eq!(8 + Field::INIT_SPACE, 78);
         assert_eq!(8 + MarketOrder::INIT_SPACE, 83);
         // Versioned market accounts are additive; legacy layout remains 83 bytes.
         assert_eq!(8 + MarketOrderV2::INIT_SPACE, 85);

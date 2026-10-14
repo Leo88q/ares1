@@ -224,7 +224,27 @@ jobs:
           cache-on-failure: true
           key: solana-${{ env.SOLANA_VERSION }}-anchor-${{ env.ANCHOR_VERSION }}
       - name: Unit tests (host)
-        run: ./scripts/ci-run.sh cargo test --locked -p solana_potato --lib
+        run: |
+          set -o pipefail
+          ./scripts/ci-run.sh cargo test --locked -p solana_potato --lib 2>&1 | tee /tmp/unit-test.log
+      # Логи-джобы из API-окружений недоступны (EOF у results-receiver), а
+      # диагностика падения нужна прямо в annotations — хвост unit-лога
+      # публикуется всегда, когда шаг дожил до конца (F-18-подход).
+      - name: Unit failure tail (bounded annotation)
+        if: ${{ !cancelled() }}
+        run: |
+          if [ -f /tmp/unit-test.log ]; then
+            {
+              echo '### cargo test --lib tail'
+              echo '```'
+              tail -n 60 /tmp/unit-test.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            tail -n 40 /tmp/unit-test.log | while IFS= read -r line; do
+              printf '::error title=unit-test::%s\n' "$line"
+            done
+          fi
+          exit 0
       # Strict formatting is a read-only CI gate. Format locally; CI never
       # commits or pushes changes back to a contributor branch.
       - name: cargo fmt check (strict, F-22)
