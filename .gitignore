@@ -124,3 +124,6 @@ Thumbs.db
 *.tfstate
 *.tfstate.*
 .terraform/
+
+# arena session artifacts
+image-search/
