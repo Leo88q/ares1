@@ -787,7 +787,7 @@ pub mod solana_potato {
         // PDA поля не передаётся аргументом (id не извлечь из адреса):
         // аккаунт обязан быть полем ЭТОЙ программы в ТЕКУЩЕМ layout —
         // иначе байты ниже читались бы не как Field.
-        require_keys_eq!(info.owner, crate::ID, GameError::BadProof);
+        require_keys_eq!(*info.owner, crate::ID, GameError::BadProof);
         let (owner, target) = {
             let data = info.try_borrow_data()?;
             require!(data.len() == 8 + Field::INIT_SPACE, GameError::BadProof);
@@ -797,8 +797,8 @@ pub mod solana_potato {
             (field.owner, field.pending_drop_slot)
         };
         let field_key = info.key();
-        let target_hash =
-            find_slot_hash(&ctx.accounts.slot_hashes, target).ok_or(GameError::DropEntropyUnavailable)?;
+        let target_hash = find_slot_hash(&ctx.accounts.slot_hashes, target)
+            .ok_or(GameError::DropEntropyUnavailable)?;
         let roll_hash = anchor_lang::solana_program::keccak::hashv(&[
             owner.as_ref(),
             field_key.as_ref(),
@@ -5824,7 +5824,8 @@ mod tests {
         assert_eq!(find_slot_hash_in(&data, 900), Some([7; 32]));
         assert_eq!(find_slot_hash_in(&data, 999), None); // слот выпал из окна
         assert_eq!(find_slot_hash_in(&[], 900), None);
-        assert_eq!(find_slot_hash_in(&data[..8], 900), None); // len есть, записей нет
+        // Слишком короткий префикс: len есть, записей нет.
+        assert_eq!(find_slot_hash_in(&data[..8], 900), None);
         // Битая длина (u64::MAX) не должна паниковать: обрезается payload'ом.
         let mut corrupt = Vec::new();
         corrupt.extend_from_slice(&u64::MAX.to_le_bytes());
