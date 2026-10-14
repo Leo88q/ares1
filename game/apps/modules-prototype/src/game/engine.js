@@ -1,5 +1,7 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { PALETTE, MODULES, START, CAPS } from '../data/modules.js';
+import { MODEL_DATA } from '../data/modelData.js';
 
 const GRID = 8;          // 8x8 клеток
 const CELL = 1;          // 1 клетка = 1 юнит
@@ -10,8 +12,55 @@ function tex(hex) {
   return new THREE.MeshLambertMaterial({ color: hex });
 }
 
-// ——— Модули из примитивов (low-poly, flat-стиль Kenney) ———
+// ——— Модули: настоящие модели (Quaternius, CC0-1.0) + фолбэк из примитивов ———
+const modelCache = {};
+
+function normalizeModel(obj) {
+  let box = new THREE.Box3().setFromObject(obj);
+  if (!isFinite(box.min.x)) return;
+  const size = box.getSize(new THREE.Vector3());
+  const s = 0.9 / Math.max(size.x, size.z, 1e-4); // влезаем в клетку
+  obj.scale.setScalar(s);
+  box = new THREE.Box3().setFromObject(obj);
+  const c = box.getCenter(new THREE.Vector3());
+  obj.position.x -= c.x;
+  obj.position.z -= c.z;
+  obj.position.y -= box.min.y; // на землю
+}
+
+function preloadModels() {
+  const entries = Object.entries(MODEL_DATA || {});
+  if (!entries.length) return;
+  const loader = new GLTFLoader();
+  for (const [id, uri] of entries) {
+    loader.load(
+      uri,
+      (gltf) => {
+        normalizeModel(gltf.scene);
+        modelCache[id] = gltf.scene;
+      },
+      undefined,
+      () => { /* нет модели — остаются примитивы */ }
+    );
+  }
+}
+
 function buildModule(def) {
+  const wrap = new THREE.Group();
+  const src = modelCache[def.id];
+  if (src) {
+    const clone = src.clone(true);
+    clone.traverse((o) => {
+      if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+    });
+    wrap.add(clone);
+    return wrap;
+  }
+  wrap.add(buildPrimitives(def));
+  return wrap;
+}
+
+function buildPrimitives(def) {
   const g = new THREE.Group();
   const white = tex(PALETTE.hull);
   const dark = tex('#3a3f45');
@@ -94,6 +143,7 @@ function buildModule(def) {
 }
 
 export function createGame(container, onState) {
+  preloadModels();
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(PALETTE.bg);
   scene.fog = new THREE.Fog(PALETTE.bg, 18, 42);

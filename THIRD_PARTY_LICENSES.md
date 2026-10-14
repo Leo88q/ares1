@@ -16,6 +16,14 @@ This is the repository's working attribution inventory for bundled fonts, packag
 | Inter, Oswald, JetBrains Mono, Anton, Archivo Black, DM Sans | SIL Open Font License 1.1 |
 | React, Vite, Tailwind, framer-motion, canvas-confetti, lenis | MIT (per package) |
 | lucide-react | ISC |
+| Quaternius 3D models (Ultimate Space Kit, Ultimate Modular Sci-Fi Pack) in `game/apps/modules-prototype/models/` | CC0-1.0 |
+
+### Prototype models (modules-prototype)
+
+Six GLB models under `game/apps/modules-prototype/models/` come from Quaternius packs
+"Ultimate Space Kit" and "Ultimate Modular Sci-Fi Pack" (both CC0-1.0), taken from the
+`trebeljahr/quaternius-showcase` mirror (per-pack licences in its `LICENSES.md`).
+Retrieved 2026-10-14; inlined into `colony.html` by `scripts/build-models.mjs`.
 | `@solana/*`, `@solana/wallet-adapter-*`, `@coral-xyz/anchor` | Apache-2.0 / MIT (per package; check each shipped package) |
 | Vendored `@solana/buffer-layout-utils` backport | Apache-2.0; source commit and test provenance: [vendor README](game/apps/web/vendor/solana-buffer-layout-utils/README.vendor.md) |
 
