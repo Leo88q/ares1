@@ -158,7 +158,6 @@ function buildPrimitives(def) {
 }
 
 export function createGame(container, onState) {
-  preloadModels(push);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(PALETTE.bg);
   scene.fog = new THREE.Fog(PALETTE.bg, 18, 42);

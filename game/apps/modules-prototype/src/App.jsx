@@ -26,8 +26,15 @@ export default function App() {
   });
   const [placing, setPlacing] = useState(null);
 
+  const [fatal, setFatal] = useState(null);
+
   useEffect(() => {
-    engine.current = createGame(mount.current, setState);
+    try {
+      engine.current = createGame(mount.current, setState);
+    } catch (e) {
+      console.error(e);
+      setFatal(String(e && e.stack ? e.stack.split('\n').slice(0, 4).join('\n') : e));
+    }
     return () => engine.current?.dispose();
   }, []);
 
@@ -36,6 +43,14 @@ export default function App() {
     setPlacing(next);
     engine.current?.setPlacing(next);
   }, [placing]);
+
+  if (fatal) {
+    return (
+      <div style={{ padding: 24, color: '#ffb4b4', font: '13px/1.5 Menlo,monospace', whiteSpace: 'pre-wrap', background: '#3a1010', margin: 16, borderRadius: 10 }}>
+        {'Движок упал:\n' + fatal}
+      </div>
+    );
+  }
 
   const nodeBonus = 0; // лимит энергии показываем базовый; фактический считает движок
   const eCap = CAPS.energy + (state.count > 0 ? 0 : 0) + nodeBonus;
