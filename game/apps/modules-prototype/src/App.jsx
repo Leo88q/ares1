@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { createGame } from './game/engine.js';
-import { MODULES, START, CAPS } from './data/modules.js';
+import { MODULES, START, CAPS, M1_RULES } from './data/modules.js';
 
 const ICONS = { solar: '⚡', water: '💧', greenhouse: '🍠', habitat: '🌬', node: '🔗', lab: '⭐' };
 
@@ -22,7 +22,9 @@ export default function App() {
   const engine = useRef(null);
   const [state, setState] = useState({
     balance: START.balance, energy: START.energy, water: START.water,
-    food: START.food, air: START.air, science: 0, count: 0, models: '0/6', zoom: '0.82', toast: null
+    food: START.food, air: START.air, science: 0, count: 0,
+    powered: 0, idle: 0, energyCap: CAPS.energy,
+    models: '0/6', zoom: '0.82', toast: null
   });
   const [placing, setPlacing] = useState(null);
 
@@ -52,8 +54,9 @@ export default function App() {
     );
   }
 
-  const nodeBonus = 0; // лимит энергии показываем базовый; фактический считает движок
-  const eCap = CAPS.energy + (state.count > 0 ? 0 : 0) + nodeBonus;
+  const netState = state.idle > 0
+    ? <span style={{ color: '#ff8a4c' }}>⚠ idle {state.idle}</span>
+    : <span style={{ color: '#4fd1c5' }}>в сети {state.powered}</span>;
 
   return (
     <div className="app">
@@ -64,24 +67,25 @@ export default function App() {
           <span className="logo">🥔</span>
           <div>
             <b>МОДУЛИ КОЛОНИИ</b>
-            <small>пилот · прототип ARES-1</small>
+            <small>пилот · прототип ARES-1 · M1 связность</small>
           </div>
         </div>
         <div className="balance">
           <span className="burn-tag">BURN</span>
           <b>{state.balance}</b> <span>🥔</span>
         </div>
-        <div className="meta">📦 {state.count} модулей · ⭐ {Math.floor(state.science)} науки · 🧩 модели {state.models} · 🔍 {state.zoom}</div>
+        <div className="meta">📦 {state.count} модулей · 🔌 {netState} · ⭐ {Math.floor(state.science)} науки · 🧩 {state.models} · 🔍 {state.zoom}</div>
       </header>
 
       <aside className="stats glass">
-        <Bar icon="⚡" label="Энергия" value={state.energy} max={140} color="#f6c453" />
+        <Bar icon="⚡" label="Энергия" value={state.energy} max={state.energyCap} color="#f6c453" />
         <Bar icon="💧" label="Вода" value={state.water} max={CAPS.water} color="#5aa9e6" />
         <Bar icon="🍠" label="Еда" value={state.food} max={CAPS.food} color="#e8925c" />
         <Bar icon="🌬" label="Воздух" value={state.air} max={CAPS.air} color="#7fd8be" />
         <div className="hint">
           {placing ? <>Ставьте: <b>{placing.name}</b> — клик по клетке · ESC отмена</>
             : <>Выберите модуль внизу и соберите станцию. Клик — поставить.</>}
+          <div className="net-rules">{M1_RULES}</div>
         </div>
       </aside>
 
@@ -101,6 +105,7 @@ export default function App() {
             </div>
             <b>{m.name}</b>
             <span className="card-effect">{m.effect}</span>
+            {m.bonus && <span className="card-bonus">{m.bonus}</span>}
             <span className="card-cost">🔥 {m.cost} 🥔</span>
           </button>
         ))}

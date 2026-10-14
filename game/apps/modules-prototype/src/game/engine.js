@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { PALETTE, MODULES, START, CAPS } from '../data/modules.js';
 import { MODEL_DATA } from '../data/modelData.js';
+import { computePowered, bonusMultiplier } from './rules.js';
 
 const GRID = 8;          // 8x8 клеток
 const CELL = 1;          // 1 клетка = 1 юнит
@@ -237,11 +238,13 @@ export function createGame(container, onState) {
   scene.add(ghost);
 
   // Состояние
-  const placed = new Map();   // "x,z" -> {def, group}
+  const placed = new Map();   // "x,z" -> {def, group, badge?}
   const cableGroup = new THREE.Group();
   scene.add(cableGroup);
 
   const res = { ...START };
+  let network = new Set();    // M1: запитанные клетки (компонент с солнцем)
+  let eCapNow = CAPS.energy;  // реальный кап — считает tick с учётом узлов в сети
   let placingDef = null;
   let hovered = null;
   let toast = null;
@@ -256,6 +259,9 @@ export function createGame(container, onState) {
       air: Math.round(res.air),
       science: Math.floor(res.science),
       count: placed.size,
+      powered: network.size,
+      idle: placed.size - network.size,
+      energyCap: eCapNow,
       models: `${Object.keys(modelCache).length}/${Object.keys(MODEL_DATA || {}).length}`,
       zoom: (camera.zoom || 1).toFixed(2),
       toast
@@ -271,7 +277,8 @@ export function createGame(container, onState) {
       const c = cableGroup.children.pop();
       c.geometry?.dispose(); c.material?.dispose();
     }
-    const mat = tex('#2c2f33');
+    const matLive = tex('#2f9f92');  // ток идёт — запитанный кабель M1
+    const matDark = tex('#2c2f33');  // обесточенная ветка
     placed.forEach((entry, k) => {
       const [x, z] = k.split(',').map(Number);
       const dirs = [[1, 0], [0, 1]];
@@ -285,9 +292,49 @@ export function createGame(container, onState) {
         const mid = p0.clone().add(p1).multiplyScalar(0.5);
         mid.y = 0.6;
         const curve = new THREE.QuadraticBezierCurve3(p0, mid, p1);
-        const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 12, 0.035, 6, false), mat);
+        const live = network.has(k) && network.has(nk);
+        const tube = new THREE.Mesh(
+          new THREE.TubeGeometry(curve, 12, live ? 0.045 : 0.03, 6, false),
+          live ? matLive : matDark
+        );
         tube.castShadow = true;
         cableGroup.add(tube);
+      }
+    });
+  }
+
+  // ——— M1: индикатор idle (нет пути к солнцу) — один канвас-знак на движок ———
+  let _badgeTex = null;
+  function badgeTexture() {
+    if (_badgeTex) return _badgeTex;
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d');
+    g.fillStyle = '#ff8a4c';
+    g.beginPath(); g.moveTo(32, 3); g.lineTo(61, 57); g.lineTo(3, 57); g.closePath(); g.fill();
+    g.fillStyle = '#1c1a17';
+    g.fillRect(30, 21, 4, 21);
+    g.fillRect(30, 47, 4, 4);
+    _badgeTex = new THREE.CanvasTexture(c);
+    return _badgeTex;
+  }
+
+  function refreshBadges() {
+    placed.forEach((entry, k) => {
+      const powered = network.has(k);
+      if (powered && entry.badge) {
+        entry.group.remove(entry.badge);
+        entry.badge.material.dispose();
+        entry.badge = null;
+      } else if (!powered && !entry.badge) {
+        const s = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: badgeTexture(), depthTest: false, transparent: true,
+        }));
+        s.scale.set(0.4, 0.4, 1);
+        s.position.set(0, 1.35, 0);
+        s.renderOrder = 20;
+        entry.group.add(s);
+        entry.badge = s;
       }
     });
   }
@@ -298,6 +345,7 @@ export function createGame(container, onState) {
       toast = 'Недостаточно 🥔 — нужно ' + placingDef.cost;
       push(); return;
     }
+    const beforeSize = network.size;
     const group = buildModule(placingDef);
     group.position.set(c.x * CELL - offset, TILE_H, c.z * CELL - offset);
     group.scale.setScalar(0.01);
@@ -305,30 +353,57 @@ export function createGame(container, onState) {
     scene.add(group);
     placed.set(key(c), { def: placingDef, group });
     res.balance -= placingDef.cost;                 // BURN: списание стоимости постройки
+
+    // M1: пересчёт сети после каждой постройки — кабели, idle-бейджи, тост.
+    network = computePowered(placed);
     rebuildCables();
-    toast = `${placingDef.name}: −${placingDef.cost} 🥔 сожжено (BURN)`;
-    toastT = 2.5;
+    refreshBadges();
+    const revived = Math.max(0, network.size - beforeSize - 1); // −1: сама новая клетка
+    const k = key(c);
+    const inNet = network.has(k);
+    const { mult } = bonusMultiplier(placingDef.id, k, placed, network);
+    const bump = Math.round((mult - 1) * 100);
+    if (!inNet) {
+      toast = `⚠ ${placingDef.name}: −${placingDef.cost} 🥔 (BURN) · нет сети — протяни кабелями путь до солнца`;
+    } else {
+      toast = `${placingDef.name}: −${placingDef.cost} 🥔 сожжено (BURN)`
+        + (bump > 0 ? ` · соседи +${bump}%` : '');
+    }
+    if (revived > 0) toast += ` · оживлено клеток: ${revived}`;
+    toastT = 3;
     push();
   }
 
-  // ——— Ресурсы ———
-  let acc = 0;
+  // ——— Ресурсы (M1: работают только запитанные модули; бонусы соседей) ———
   function tick(dt) {
-    const has = (id) => [...placed.values()].filter((e) => e.def.id === id).length;
-    const nSolar = has('solar'), nWater = has('water'), nGh = has('greenhouse'),
-          nHab = has('habitat'), nNode = has('node'), nLab = has('lab');
-
-    const eCap = CAPS.energy + nNode * 40;
+    let solarN = 0, waterN = 0, habN = 0, nodeN = 0;
+    let ghPower = 0, ghRate = 0, labRate = 0;
+    placed.forEach((entry, k) => {
+      const id = entry.def.id;
+      if (id === 'solar') { solarN++; return; }      // источник — работает всегда
+      if (!network.has(k)) return;                   // idle: нет пути до солнца
+      if (id === 'water') waterN++;
+      else if (id === 'habitat') habN++;
+      else if (id === 'node') nodeN++;
+      else if (id === 'greenhouse') {
+        ghPower++;
+        ghRate += 3 * bonusMultiplier(id, k, placed, network).mult;
+      } else if (id === 'lab') {
+        labRate += 1 * bonusMultiplier(id, k, placed, network).mult;
+      }
+    });
+    eCapNow = CAPS.energy + nodeN * 40;
     // производители
-    res.energy = Math.min(eCap, res.energy + nSolar * 6 * dt);
-    res.water = Math.min(CAPS.water, res.water + nWater * 4 * dt);
-    res.air = Math.min(CAPS.air, res.air + nHab * 2 * dt);
-    res.science += nLab * 1 * dt;
-    // теплица: ест энергию и воду
-    if (nGh > 0 && res.energy >= nGh * 2 * dt && res.water >= nGh * 2 * dt) {
-      res.energy -= nGh * 2 * dt;
-      res.water -= nGh * 2 * dt;
-      res.food = Math.min(CAPS.food, res.food + nGh * 3 * dt);
+    res.energy = Math.min(eCapNow, res.energy + solarN * 6 * dt);
+    res.water = Math.min(CAPS.water, res.water + waterN * 4 * dt);
+    res.air = Math.min(CAPS.air, res.air + habN * 2 * dt);
+    res.science += labRate * dt;
+    // теплица: ест энергию и воду (расход — по числу работающих теплиц,
+    // бонус соседей повышает только выход)
+    if (ghPower > 0 && res.energy >= ghPower * 2 * dt && res.water >= ghPower * 2 * dt) {
+      res.energy -= ghPower * 2 * dt;
+      res.water -= ghPower * 2 * dt;
+      res.food = Math.min(CAPS.food, res.food + ghRate * dt);
     }
     if (toast && (toastT -= dt) <= 0) { toast = null; push(); }
   }

@@ -87,7 +87,11 @@ body {
 .card-tag { font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; color: #9a938b; }
 .card b { font-size: 12.5px; }
 .card-effect { font-size: 11px; color: #7fd8be; }
+.card-bonus { font-size: 10.5px; color: #f6c453; }
 .card-cost { font-size: 11.5px; color: #ffd27f; font-weight: 600; }
+.net-rules {
+  margin-top: 7px; font-size: 10.5px; line-height: 1.4; color: #8f887e;
+}
 
 @media (max-width: 760px) {
   .stats { width: 200px; top: 70px; right: 8px; padding: 10px; }
