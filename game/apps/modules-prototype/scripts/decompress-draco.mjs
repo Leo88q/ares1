@@ -74,16 +74,12 @@ function decompressPrimitive(json, bin, primitive) {
   const chunks = [];
   let byteOffset = 0;
 
-  // индексы → Uint32
-  const idx = new Uint32Array(numFaces * 3);
-  const ia = new decoderModule.DracoInt32Array();
-  for (let f = 0; f < numFaces; f++) {
-    decoder.GetFaceFromMesh(mesh, f, ia);
-    idx[f * 3] = ia.GetValue(0);
-    idx[f * 3 + 1] = ia.GetValue(1);
-    idx[f * 3 + 2] = ia.GetValue(2);
-  }
-  decoderModule.destroy(ia);
+  // индексы — как в DRACOLoader: GetTrianglesUInt32Array в HEAP
+  const numIndices = numFaces * 3;
+  const iptr = decoderModule._malloc(numIndices * 4);
+  decoder.GetTrianglesUInt32Array(mesh, numIndices * 4, iptr);
+  const idx = new Uint32Array(decoderModule.HEAPF32.buffer, iptr, numIndices).slice();
+  decoderModule._free(iptr);
   const idxBuf = Buffer.from(idx.buffer);
   const idxViewIndex = json.bufferViews.length;
   json.bufferViews.push({ buffer: 0, byteOffset, byteLength: idxBuf.length });
@@ -115,8 +111,14 @@ function decompressPrimitive(json, bin, primitive) {
     const attr = decoder.GetAttributeByUniqueId(mesh, uid);
     if (!attr || attr.ptr === 0) throw new Error(`attribute ${semantic} not found`);
     const nc = attr.num_components();
-    const arr = new Float32Array(numPoints * nc);
-    decoder.GetAttributeFloatForAllPoints(mesh, attr, arr);
+    // КАК В DRACOLoader: GetAttributeDataArrayForAllPoints с явным DT_FLOAT32
+    // (применяет де-квантизацию; GetAttributeFloatForAllPoints этого не делал)
+    const numValues = numPoints * nc;
+    const byteLen = numValues * 4;
+    const ptr = decoderModule._malloc(byteLen);
+    decoder.GetAttributeDataArrayForAllPoints(mesh, attr, decoderModule.DT_FLOAT32, byteLen, ptr);
+    const arr = new Float32Array(decoderModule.HEAPF32.buffer, ptr, numValues).slice();
+    decoderModule._free(ptr);
     const buf = Buffer.from(arr.buffer);
     const viewIndex = json.bufferViews.length;
     json.bufferViews.push({ buffer: 0, byteOffset, byteLength: buf.length });
