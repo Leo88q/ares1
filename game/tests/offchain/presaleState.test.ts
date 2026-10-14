@@ -88,9 +88,15 @@ test('PresaleSection: sold/cap приходят из цепи, констант�
 
 test('Field.field_type@67 — тир раскрытия тоже берётся из цепи (W2.2)', () => {
   const fields = structFields('Field');
-  const at = fieldOffsets(fields, { Pubkey: 32, u8: 1, i64: 8, bool: 1 });
+  const at = fieldOffsets(fields, { Pubkey: 32, u8: 1, i64: 8, bool: 1, u64: 8 });
   assert.equal(at.field_type, 67, 'field_type сместился: UI читает data[67]');
+  // Commit-reveal: pending_drop_slot живёт сразу за mutation_type.
+  assert.equal(at.pending_drop_slot, 70, 'pending_drop_slot должен начинаться с70-го байта');
 
   const gameContext = fs.readFileSync(path.join(gameRoot, 'apps/web/src/contexts/GameContext.tsx'), 'utf8');
-  assert.match(gameContext, /info\.data\[67\]/, 'тир после покупки обязан читаться из аккаунта поля');
+  assert.match(
+    gameContext,
+    /info\.data\[67\]|decodeField\(info\.data\)/,
+    'тир после покупки обязан читаться из аккаунта поля (data[67] или decodeField)',
+  );
 });

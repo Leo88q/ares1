@@ -155,7 +155,8 @@ test('loadGameOpsConfig: без URL слой выключен, с URL — тре
     ADMIN_API_TOKEN: 'a'.repeat(32),
     GAME_OPS_DB_ROLE: 'game_ops_writer',
   });
-  assert.equal(config?.expectedSchemaVersion, 8);
+  //10: env-дефолт (env.ts:74) и полный набор миграций 0001..0010 (player_events + roles).
+  assert.equal(config?.expectedSchemaVersion, 10);
   assert.equal(config?.role, 'game_ops_writer');
   assert.throws(() => loadGameOpsConfig({
     GAME_OPS_DATABASE_URL: 'postgres://localhost/ares1',
