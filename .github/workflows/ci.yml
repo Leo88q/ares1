@@ -43,6 +43,54 @@ jobs:
       - name: Dependency audit — high/critical (blocking)
         run: ./scripts/audit-blocking.sh
 
+  # Прототип «Модули колонии» вне yarn-workspaces: свои правила M1 (связность
+  # сети, соседские бонусы) и своя сборка. Пока этот джоб не существовал,
+  # тесты правил в CI не гонялись вообще.
+  modules-prototype:
+    name: Modules prototype (M1 rules + build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: game/apps/modules-prototype/package-lock.json
+      - name: Установка зависимостей (npm ci по lockfile)
+        working-directory: game/apps/modules-prototype
+        run: npm ci --no-audit --no-fund
+      - name: Правила M1 — связность сети и соседские бонусы (10 сценариев)
+        working-directory: game/apps/modules-prototype
+        run: npm test
+      - name: Сборка прототипа (vite ловит ошибки App/engine)
+        working-directory: game/apps/modules-prototype
+        run: npm run build
+
+  # Экономический симулятор = сжатый чек-лист §10: якоря цен и критерий
+  # «чистая эмиссия ≤+5% за эпоху». Красный джоб = регрессия механики
+  # (или честно сломанный критерий — лучше увидеть в CI, чем на пилоте).
+  econ-sim:
+    name: Econ simulator (smoke: pilot + days, критерий ≤+5%)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Якорь pilot (70/135/250) — прогон без исключений + критерий
+        working-directory: .
+        run: |
+          node tools/econ-sim/sim.mjs --anchor pilot --players 300 --epochs 3 | tee /tmp/econ-pilot.txt
+          grep -q 'Критерий чек-листа' /tmp/econ-pilot.txt
+          grep -q '✅ ВЫПОЛНЕН' /tmp/econ-pilot.txt
+      - name: Якорь days (2/5/12 дней) — прогон + критерий
+        working-directory: .
+        run: |
+          node tools/econ-sim/sim.mjs --anchor days --players 300 --epochs 3 | tee /tmp/econ-days.txt
+          grep -q '✅ ВЫПОЛНЕН' /tmp/econ-days.txt
+
   # Слой данных game_ops. Без этого джоба «append-only», «аудит» и «сверка»
   # остаются словами: здесь схема применяется на настоящем PostgreSQL, права
   # проверяются по факту, мутации (подмена строки, откат головы, снятие
