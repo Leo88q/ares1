@@ -21,6 +21,8 @@ import { latestReconciliation, recordReconciliation, reconciliationHistory } fro
 import { advanceCursor, advanceCursorBy, ensureCursor, getCursor, listCursors } from '../gameops/cursors.js';
 import { listAudit, recordAudit, recordDenied } from '../gameops/audit.js';
 import { checkReadiness, httpStatusFor } from '../gameops/readiness.js';
+import { normalizeEvents, recordEvents, retentionReport } from '../gameops/retention.js';
+import { RETENTION_HTML } from '../gameops/retentionView.js';
 
 /** JSON не переносит bigint: превращаем в строки, а не в «примерно такое» число. */
 function jsonSafe(value: unknown): unknown {
@@ -127,6 +129,38 @@ export function gameOpsRouter(pool: Pool, config: GameOpsConfig): Router {
 
   router.get('/readiness', admin, (_req, res) => {
     handle(res, payload => httpStatusFor(payload as Awaited<ReturnType<typeof checkReadiness>>), () => checkReadiness(pool, config));
+  });
+
+  // События удержания: единственный публичный POST gameops (его шлёт браузер
+  // игрока, токена у него нет). Честные границы — в шапке retention.ts:
+  // время ставит сервер, подписи нет, валидация до БД, глобальный rate-limit
+  // и лимит 16 кб на запрос уже навешаны на app.
+  router.post('/events', (req, res) => {
+    handle(res, 202, async () => {
+      const events = normalizeEvents(req.body);
+      return recordEvents(pool, events, `telemetry:${req.ip ?? 'unknown'}`);
+    });
+  });
+
+  // Операторская сводка когорт: только под админ-токеном.
+  router.get('/retention', admin, (req, res) => {
+    handle(res, () => 200, () => {
+      const raw = req.query.days;
+      const days = raw === undefined ? 30 : Number(Array.isArray(raw) ? raw[0] : raw);
+      return retentionReport(pool, Number.isFinite(days) ? days : NaN);
+    });
+  });
+
+  // HTML-экран к той же сводке: сама страница публична (шелл без данных),
+  // за JSONом ходит с Authorization. CSP здесь СОЗНАТЕЛЬНО шире глобального
+  // (там default-src 'none' — для API; здесь нужен inline-скрипт рендера).
+  router.get('/retention/view', (_req, res) => {
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'",
+    );
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('html').send(RETENTION_HTML);
   });
 
   // ── Интенты выплат ────────────────────────────────────────────────────────

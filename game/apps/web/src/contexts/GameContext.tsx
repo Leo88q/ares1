@@ -1,5 +1,5 @@
 import { setItem } from '../utils/consent'
-import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { t } from '../i18n'
 
 import { PublicKey, SystemProgram, TransactionInstruction, AddressLookupTableProgram } from '@solana/web3.js'
@@ -19,6 +19,7 @@ import {
 } from '../utils/constants'
 import { describeError } from '../utils/errors'
 import { randomU64, withRetry } from '../utils/rpc'
+import { track, type TelemetryEventName } from '../utils/telemetry'
 
 import { usePolling } from '../hooks/usePolling'
 
@@ -230,23 +231,34 @@ export function GameProvider({ children }: { children: ReactNode }) {
  )
 
  const runTx = useCallback(
-  async (label: string, build: () => Promise<TransactionInstruction[]>, lut?: boolean): Promise<boolean> => {
+  async (label: string, build: () => Promise<TransactionInstruction[]>, lut?: boolean, event?: TelemetryEventName): Promise<boolean> => {
    try {
     const ixs = await build()
     if (lut && lookupTable) {
-      await sendIx(ixs, { lookupTables: [lookupTable] })
+     await sendIx(ixs, { lookupTables: [lookupTable] })
     } else {
-      await sendIx(ixs)
+     await sendIx(ixs)
     }
     await refreshAll()
+    // Телеметрия удержания — только после подтверждённой отправки (fire-and-forget).
+    if (event) track(event, publicKey?.toBase58())
     return true
    } catch (err) {
     notify('error', label, describeError(err))
     return false
    }
   },
-  [sendIx, refreshAll, notify, lookupTable],
+  [sendIx, refreshAll, notify, lookupTable, publicKey],
  )
+
+ // День0 когорты: один session_start на заход (в т.ч. с анон-идентичностью,
+ // если кошелёк подключается позже — события телеметрии не ретроактивны).
+ const sessionTracked = useRef(false)
+ useEffect(() => {
+  if (sessionTracked.current) return
+  sessionTracked.current = true
+  track('session_start', publicKey?.toBase58())
+ }, [publicKey])
 
  const purchaseField = useCallback(
   async (fieldType: number) => {
@@ -266,7 +278,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       potatoMint: config.potatoMint, userPotato, fieldId, fieldType,
      })
      return [...ixs, ix]
-    })
+    }, undefined, 'buy_field')
    } finally {
     setPurchasing(false)
    }
@@ -318,6 +330,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     })
     await sendIx([ataIx, ix])
     await refreshAll()
+    track('presale_buy', publicKey?.toBase58())
     try {
      const info = await withRetry(() => connection.getAccountInfo(field(fieldId)))
      if (info) {
@@ -349,7 +362,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
      treasuryPotato: potatoAta(configPda(), config.potatoMint),
     })
     return [...ixs, ix]
-   })
+   }, undefined, 'harvest')
   },
   [config, publicKey, runTx, ownAta, programId],
  )
@@ -383,7 +396,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
      exportLicense: licenseExpiresAt > 0 ? exportLicense(publicKey) : null,
     })
     return [...ixs, ix]
-   }, useLut)
+   }, useLut, 'harvest')
   },
   [config, publicKey, runTx, ownAta, programId, notify, lookupTable, batchLimit, licenseExpiresAt],
  )
@@ -395,7 +408,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const { config: configPda } = pdas(programId)
     const ix = await ixCloseField(programId, { config: configPda(), field: fieldPk, owner: publicKey })
     return [ix]
-   })
+   }, undefined, 'close_field')
   },
   [config, publicKey, runTx, programId, notify],
  )
@@ -542,6 +555,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     await sendIx([...ataIx, ix])
     const amount = QUEST_REWARDS_MICRO[qid]
     setClaimed((c) => ({ ...c, [questId]: true }))
+    track('claim_reward', publicKey?.toBase58())
     notify('success', t('Награда получена'), t('+{amount} POTATO (on-chain)', { amount: fmtPotato(amount, 0) }))
     await loadFields()
     return true
@@ -586,7 +600,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const toInfo = await withRetry(() => connection.getAccountInfo(toAta))
     const createTo = toInfo ? [] : [createAssociatedTokenAccountInstruction(publicKey, toAta, toPub, config.potatoMint)]
     return [...ixs, ...createTo, createTransferInstruction(fromAta, toAta, publicKey, amountMicro)]
-   })
+   }, undefined, 'transfer')
   },
   [publicKey, config, requireBalance, runTx, ownAta, connection, notify],
  )
@@ -605,7 +619,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
    if (lamports <= 0) return false
    return runTx(t('Не удалось отправить SOL'), async () => [
     SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: toPub, lamports }),
-   ])
+   ], undefined, 'transfer')
   },
   [publicKey, runTx, notify],
  )
