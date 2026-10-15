@@ -702,6 +702,7 @@ const en: Record<string, string> = {
   'Рынок V2': 'V2 market',
   'Рынок V1': 'V1 market',
   'V1-ордера и escrow остаются в отдельном legacy-рынке до исполнения, отмены или закрытия. V2 не меняет их layout и правила; в V1 комиссия удерживается в POTATO при создании.': 'V1 orders and escrow stay in the separate legacy market until filled, canceled, or closed. V2 does not change their layout or rules; V1 charges its fee in POTATO when an order is created.',
+ 'Открыть 3D-колонию': 'Open the 3D colony',
 };
 
 export default en;

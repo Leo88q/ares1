@@ -702,6 +702,7 @@ const ptBR: Record<string, string> = {
   'Рынок V2': 'Mercado V2',
   'Рынок V1': 'Mercado V1',
   'V1-ордера и escrow остаются в отдельном legacy-рынке до исполнения, отмены или закрытия. V2 не меняет их layout и правила; в V1 комиссия удерживается в POTATO при создании.': 'As ordens e o escrow V1 permanecem no mercado legacy separado até serem executados, cancelados ou encerrados. O V2 não altera seu layout nem suas regras; o V1 cobra a taxa em POTATO na criação da ordem.',
+ 'Открыть 3D-колонию': 'Abrir a colônia 3D',
 };
 
 export default ptBR;

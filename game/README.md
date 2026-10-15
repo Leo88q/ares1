@@ -22,11 +22,63 @@ apps/web/                   React/Vite game client
 apps/backend/               API and epoch crank
 migrations/game_ops/        versioned PostgreSQL schema
 scripts/                    build, test, audit and guarded operator tools
-economy/                    legacy V1 simulation and archived reports
+economy/                    local colony resource study + archived legacy V1 simulation
 docs/                       API, operations, launch gates and historical drafts
 ```
 
 The separate `watchtower/` exporter is read-only; it has no game-signing capability. The `transfer/` directory contains optional handoff tooling for a separate repository—do not run its apply/commit/push path during routine development.
+
+## Warm industrial art pass
+
+The field screen now uses an illustrated Mars backdrop, ready CC0 equipment prefabs, local painted image icons, bronze kit surfaces and a generated blank button texture. The simulation/financial engine is unchanged. Equipment is no longer drawn from bespoke visible box/cylinder primitives; the invisible shadow catcher is purely technical. The UI is not a flattened generated screenshot.
+
+[Art implementation and pinned sources](../docs/WARM_MARS_ART_PASS.md). Offline integrity: `yarn check:field-assets`; visual/browser tests include responsive tabs and the original callbacks.
+
+## Distinct section artwork
+
+The real SupplyBay/StatsBay/CabinBay now use local illustrated headers instead of the same procedural dome. MarketScreen, StatsScreen, ProfileScreen and OperationScreen stay byte-for-byte unchanged. Image navigation has the same five route callbacks and reactive translations. `/demo` previews art only, with links to the real sections and no mock balances/orders in the shipped app.
+
+```sh
+CHROMIUM_EXECUTABLE_PATH=/path/to/chrome yarn workspace web test:sections-browser
+```
+
+The actual V1 market/create-modal fixture only replaces providers with local callback spies: no RPC/signing/real trades. See [section art and verification](../docs/WARM_MARS_SECTIONS.md).
+
+## Martian fields in 3D
+
+The main farm renders the same `Field[]` from `GameContext`, selects by public key and reuses all five original field actions. The cards remain available, and V1 POTATO/SOL is unchanged. `/demo` mounts the same renderer with explicitly local examples **before wallet/RPC providers**; full-page links enter/leave it.
+
+```sh
+yarn check:field-assets
+# Optional production-CSP browser test (installed browser only):
+CHROMIUM_EXECUTABLE_PATH=/path/to/chrome yarn workspace web test:fields-browser
+```
+
+The test includes the actual `MainScreen` with mocked providers to verify account identity/action forwarding, not signed on-chain transactions. See [implementation, model provenance and limits](../docs/MARTIAN_FIELDS_IMPLEMENTATION.md).
+
+## Field engineering (local SIM)
+
+`/demo` now starts the engineering layer, with battery, pump/reservoir, lights, crop stages and food lots. On the main farm it is an opt-in layer for the **same account public key**; all original POTATO actions remain in the on-chain tab. No financial callbacks, rewards, persistent storage or new accounts are added.
+
+```sh
+yarn simulate:engineering
+yarn simulate:engineering --report economy/engineering-climate-report-2026-10-15.md
+CHROMIUM_EXECUTABLE_PATH=/path/to/chrome yarn workspace web test:engineering-browser
+```
+
+The current LAB/2 solver adds thermal inertia, a bounded thermostat, heat accounting and operator-selectable power priorities. It conserves dispatched energy, water, nutrients, harvested food mass and recorded heat. Parameters are labelled game assumptions, not NASA/Mars validation. See [current climate profile and checks](../docs/FIELD_CLIMATE.md), with [LAB/1 notes](../docs/FIELD_ENGINEERING.md) retained as history.
+
+## Earlier local 3D colony sandbox
+
+Open **`/colony`** after `yarn dev:web`. This standalone lunar design study needs no wallet or RPC and leaves the existing on-chain game unchanged. It bundles 14 CC0 models and a deterministic power/water/crop/maintenance simulation. CR are fictional budget credits, not POTATO or money; reload resets progress.
+
+```sh
+yarn simulate:colony                                      # six 180-day resource scenarios
+yarn simulate:colony --report economy/colony-report-2026-10-14.md
+yarn check:colony-assets                                  # offline hashes and notices
+```
+
+See [research, assumptions and integration plan](../docs/LUNAR_FARM_PLAN.md). The optional production-browser smoke test uses an installed Chromium, not a downloaded browser: build with `yarn build:web`, start `yarn workspace web preview` in another terminal, then run `CHROMIUM_EXECUTABLE_PATH=/path/to/chrome yarn workspace web test:colony-browser`. It checks the shipped CSP, desktop/mobile, WebGL fallback, actions, language and absence of external requests.
 
 ## Developer setup
 

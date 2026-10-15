@@ -702,6 +702,7 @@ const vi: Record<string, string> = {
   'Рынок V2': 'Thị trường V2',
   'Рынок V1': 'Thị trường V1',
   'V1-ордера и escrow остаются в отдельном legacy-рынке до исполнения, отмены или закрытия. V2 не меняет их layout и правила; в V1 комиссия удерживается в POTATO при создании.': 'Các lệnh và khoản ký quỹ V1 vẫn nằm ở thị trường legacy riêng cho đến khi khớp, bị hủy hoặc được đóng. V2 không thay đổi cấu trúc hay quy tắc của chúng; V1 thu phí bằng POTATO khi tạo lệnh.',
+ 'Открыть 3D-колонию': 'Mở thuộc địa 3D',
 };
 
 export default vi;

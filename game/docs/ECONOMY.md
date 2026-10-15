@@ -1,5 +1,7 @@
 # Экономика Solana Potato
 
+**Новая отдельная ресурсная песочница (14.10.2026):** [план лунной фермы](../../docs/LUNAR_FARM_PLAN.md), [180-дневный эксперимент](../economy/colony-report-2026-10-14.md), команда `yarn simulate:colony`. Она считает кВт·ч, литры, кг и условный бюджет CR; не заменяет on-chain токеномику, не устанавливает курс POTATO и не делает следующий архив актуальным.
+
 > ⚠️ **Архивная модель (срез 14.09.2026; V1-рынок).** Данные и выводы ниже — не прогноз текущих доходов и не спецификация целевой комиссии. `economy/simulate.py` отражает старую комиссию рынка в POTATO с 60% burn; после принятия V2 settlement-fee модель необходимо пересчитать по фактическим объёмам, парам, округлению и quote-ценам. Остальные разделы сохранены как исторический экономический анализ.
 >
 > **Решение владельца от 11.10.2026:** целевой V2 fee — 9/10/11/12% прогрессивно по суточному накопленному объёму POTATO одного seller address (UTC), общий для SOL/SKR; взимается с выплаты продавцу только при успешном fill и отправляется в казну в той же quote-валюте. Fee не сжигает POTATO. V2 ещё не реализована; действующий devnet-контракт остаётся legacy V1.
@@ -242,3 +244,13 @@ Limit orders, сортировка по цене на клиенте, TTL 24 ч,
 дашборд не подтверждён. Не использовать цели из исторического `MARKETING.md` как
 KPI-факты или сроки. Метрики юнит-экономики не подменяют on-chain ledger:
 выручка = фактические входящие переводы, не «активность».
+
+
+## Field engineering SIM (2026-10-15)
+
+[ARES-LAB/1](../../docs/FIELD_ENGINEERING.md) adds a local engineering layer to the same fields, not a change to POTATO accrual, fees or V1 settlement. Food lots and spoilage use kg SIM only; fungible POTATO never spoils. The [six-scenario report](../economy/engineering-report-2026-10-15.md) is an accounting/gameplay study, not prices, buyers, profit or ROI. Any authoritative rewards/emission changes require a separate approved specification.
+
+
+### ARES-LAB/2 — thermal extension
+
+The [climate layer](../../docs/FIELD_CLIMATE.md) adds an explicitly fictional greenhouse temperature/heat ledger and selectable dispatch priority. Neither can mint or modify POTATO; all original program, market and yield/cost inputs are unchanged. The current CLI writes the [ten-scenario LAB/2 study](../economy/engineering-climate-report-2026-10-15.md); the LAB/1 report remains historical.

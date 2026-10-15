@@ -2,8 +2,7 @@ import { memo } from 'react';
 import { t } from '../../i18n'
 
 import type { ReactNode } from 'react';
-import { useSeekerPhase } from '../../theme/ares';
-import { DomeFrame } from './DomeFrame';
+import { SectionFrame } from './SectionFrame';
 import { SolHud } from './SeekerHud';
 
 export interface SupplyBayProps {
@@ -14,14 +13,13 @@ export interface SupplyBayProps {
 }
 
 export const SupplyBay = memo(function SupplyBay({ children, o2Percent, h2oPercent, rationLabel }: SupplyBayProps): JSX.Element {
- const phase = useSeekerPhase();
  return (
-  <DomeFrame
-   phase={phase}
+  <SectionFrame
+   section="supply"
    label={t("СНАБЖЕНИЕ")}
    hud={<SolHud o2Percent={o2Percent} h2oPercent={h2oPercent} rationLabel={rationLabel} />}
   >
    {children}
-  </DomeFrame>
+  </SectionFrame>
  );
 });

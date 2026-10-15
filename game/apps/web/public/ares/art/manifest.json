@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "createdOn": "2026-10-15",
+  "notes": "Original fictional game artwork, not NASA imagery, real terrain or ready-made 3D model output. Background and medallion icons generated individually, never a flattened interface. UI text/values remain live DOM.",
+  "assets": [
+    {
+      "file": "battery.webp",
+      "bytes": 19504,
+      "sha256": "2f9a027addce09f17086e7a66cd994f7361a9eb69569a591b706cbb62b6f34ca",
+      "width": 256,
+      "height": 256,
+      "origin": "AI-generated for ARES in Arena image generation, selected warm-industrial art direction; optimized locally",
+      "alpha": true
+    },
+    {
+      "file": "mars-sector.webp",
+      "bytes": 76692,
+      "sha256": "55e4a4797a641fa38bcf2d2651dc524487084bd744b6d9cf654aef9fda544441",
+      "width": 1376,
+      "height": 768,
+      "origin": "AI-generated for ARES in Arena image generation, selected warm-industrial art direction; optimized locally",
+      "alpha": false
+    },
+    {
+      "file": "reservoir.webp",
+      "bytes": 16342,
+      "sha256": "9e21335f5e3b65d5b241363c0261746b59af3da3db65d53afcbd3cea8f36f0cf",
+      "width": 256,
+      "height": 256,
+      "origin": "AI-generated for ARES in Arena image generation, selected warm-industrial art direction; optimized locally",
+      "alpha": true
+    },
+    {
+      "file": "solar.webp",
+      "bytes": 17952,
+      "sha256": "09af91f50e9be97f463c57a37e0dd97100284a5aa47c3540cd70f57f275c961f",
+      "width": 256,
+      "height": 256,
+      "origin": "AI-generated for ARES in Arena image generation, selected warm-industrial art direction; optimized locally",
+      "alpha": true
+    },
+    {
+      "file": "button-bronze.webp",
+      "origin": "AI-generated single blank mechanical button plate in Arena; resized/WebP optimization. Live text is not part of the image.",
+      "width": 640,
+      "height": 128,
+      "alpha": false,
+      "bytes": 7448,
+      "sha256": "6805ba7cc06fd5533274afa06738d74ed13a9f02ba663a029c1a36ed17c1e4aa"
+    },
+    {
+      "file": "plate-surface.webp",
+      "origin": "Derived crop of existing /ares/kit/panel-bronze.webp, retaining painted material; no procedural texture generation.",
+      "width": 688,
+      "height": 275,
+      "alpha": false,
+      "bytes": 12310,
+      "sha256": "442413b0a13bc71b7592973f4d7650c72eec01ef467922f8a70b7821d939b917"
+    },
+    {
+      "file": "market-background.webp",
+      "width": 1376,
+      "height": 768,
+      "alpha": false,
+      "bytes": 80792,
+      "sha256": "dec9c263c16e169eea011fe1cc3c79882725373d67bf3df1f4a6a7c97e68bb68",
+      "origin": "AI-generated individually in Arena for the selected warm-industrial ARES art direction. Fictional room background, not real NASA telemetry/location; text/actions remain live DOM."
+    },
+    {
+      "file": "journal-background.webp",
+      "width": 1376,
+      "height": 768,
+      "alpha": false,
+      "bytes": 78580,
+      "sha256": "acd340111dca9a5d117756c7e8d3f405de7b70a66e10537f73fabafce328807d",
+      "origin": "AI-generated individually in Arena for the selected warm-industrial ARES art direction. Fictional room background, not real NASA telemetry/location; text/actions remain live DOM."
+    },
+    {
+      "file": "cabin-background.webp",
+      "width": 1376,
+      "height": 768,
+      "alpha": false,
+      "bytes": 66472,
+      "sha256": "35453d8d87985af8fe760e22ae21e726b82c6a319752405f944d8242d361f599",
+      "origin": "AI-generated individually in Arena for the selected warm-industrial ARES art direction. Fictional room background, not real NASA telemetry/location; text/actions remain live DOM."
+    }
+  ]
+}

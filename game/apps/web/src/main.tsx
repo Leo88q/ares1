@@ -159,6 +159,27 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 
 async function bootstrap(): Promise<void> {
   try {
+    // Standalone, local design sandbox: do not mount wallet auto-connect,
+    // SolanaProvider, GameProvider, onboarding or any RPC polling on this route.
+    // Full-page links enter/leave it so the on-chain app keeps its existing boot.
+    if (window.location.pathname.replace(/\/+$/, '') === '/colony') {
+      const { default: ColonyScreen } = await import('./colony/ColonyScreen')
+      ReactDOM.createRoot(document.getElementById('root')!).render(
+        <React.StrictMode><ErrorBoundary><ColonyScreen /></ErrorBoundary></React.StrictMode>,
+      )
+      return
+    }
+
+    // The existing demo now shares the actual field renderer, but still must
+    // mount no wallet auto-connect, RPC polling, presale or on-chain providers.
+    if (window.location.pathname.replace(/\/+$/, '') === '/demo') {
+      const { default: DemoScreen } = await import('./components/DemoScreen')
+      ReactDOM.createRoot(document.getElementById('root')!).render(
+        <React.StrictMode><ErrorBoundary><DemoScreen /></ErrorBoundary></React.StrictMode>,
+      )
+      return
+    }
+
     // Только прикладные модули — динамически (в них живут fail-fast
     // проверки конфигурации на уровне модуля). Вендор — статически,
     // чтобы не терять tree-shaking.
