@@ -36,6 +36,14 @@ All 14 model files are local under `game/apps/web/public/models/colony/`. The [m
 
 Offline integrity check: `cd game && yarn check:colony-assets`. Optional pinned restoration: `python3 scripts/fetch-colony-assets.py` using the existing GitHub CLI connection. No marketplace/CDN model requests are made by the game.
 
+### KayKit Space Base Bits 1.0 (added 2026-10-16)
+
+- 57 glTF 2.0 models with their `.bin` buffers and one shared texture (`spacebits_texture.png`) from [KayKit Space Base Bits 1.0](https://kaylousberg.itch.io/space-base-bits) by Kay Lousberg, **CC0 1.0**. Copied unmodified from the official GitHub repository [KayKit-Game-Assets/KayKit-Space-Base-Bits-1.0](https://github.com/KayKit-Game-Assets/KayKit-Space-Base-Bits-1.0) at commit `6dfbcac`.
+- Notice: [`licenses/kaykit-space-base-bits-LICENSE.txt`](game/apps/web/public/models/space-base-bits/licenses/kaykit-space-base-bits-LICENSE.txt). Attribution is not required; it is given as a courtesy.
+- **Not loaded by the game yet.** Files are staged for later use only.
+
+Offline check: `cd game/apps/web && node --test tests/space-base-bits-assets.test.mjs`.
+
 ## Martian field view (added 2026-10-15)
 
 Ten local GLBs under `game/apps/web/public/models/fields/` reuse:
