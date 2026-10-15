@@ -5,48 +5,48 @@
   "assets": [
     {
       "file": "battery.webp",
-      "bytes": 19504,
-      "sha256": "2f9a027addce09f17086e7a66cd994f7361a9eb69569a591b706cbb62b6f34ca",
+      "bytes": 14596,
+      "sha256": "6f13a84b757dd1448c11f935aad5d2ecb7018818d4ed30ea020fb51ab508f1d4",
       "width": 256,
       "height": 256,
-      "origin": "AI-generated for ARES in Arena image generation, selected warm-industrial art direction; optimized locally",
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-15) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in. Transparent background via flood-fill of the flat backdrop.",
       "alpha": true
     },
     {
       "file": "mars-sector.webp",
-      "bytes": 76692,
-      "sha256": "55e4a4797a641fa38bcf2d2651dc524487084bd744b6d9cf654aef9fda544441",
+      "bytes": 50092,
+      "sha256": "2652d90b6a99c2618907891bc5d065a831e852abc6196c5908ae3429c043c5d5",
       "width": 1376,
       "height": 768,
-      "origin": "AI-generated for ARES in Arena image generation, selected warm-industrial art direction; optimized locally",
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-15) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in.",
       "alpha": false
     },
     {
       "file": "reservoir.webp",
-      "bytes": 16342,
-      "sha256": "9e21335f5e3b65d5b241363c0261746b59af3da3db65d53afcbd3cea8f36f0cf",
+      "bytes": 18982,
+      "sha256": "7d80c333078af97c58b10ec6da6bf6e77d57575b2e9b2b4f5fb7a958a6af8bcd",
       "width": 256,
       "height": 256,
-      "origin": "AI-generated for ARES in Arena image generation, selected warm-industrial art direction; optimized locally",
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-15) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in. Transparent background via flood-fill of the flat backdrop.",
       "alpha": true
     },
     {
       "file": "solar.webp",
-      "bytes": 17952,
-      "sha256": "09af91f50e9be97f463c57a37e0dd97100284a5aa47c3540cd70f57f275c961f",
+      "bytes": 17032,
+      "sha256": "735187b5ff2700fc57ed30a49959a707e8ebc123bfb7ac2b3806c1f0988b49f0",
       "width": 256,
       "height": 256,
-      "origin": "AI-generated for ARES in Arena image generation, selected warm-industrial art direction; optimized locally",
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-15) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in. Transparent background via flood-fill of the flat backdrop.",
       "alpha": true
     },
     {
       "file": "button-bronze.webp",
-      "origin": "AI-generated single blank mechanical button plate in Arena; resized/WebP optimization. Live text is not part of the image.",
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-15) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in.",
       "width": 640,
       "height": 128,
       "alpha": false,
-      "bytes": 7448,
-      "sha256": "6805ba7cc06fd5533274afa06738d74ed13a9f02ba663a029c1a36ed17c1e4aa"
+      "bytes": 15996,
+      "sha256": "147ff9966241141a7ce1292f92521af585a0233828a413306772be5f66cf68d1"
     },
     {
       "file": "plate-surface.webp",
@@ -54,35 +54,35 @@
       "width": 688,
       "height": 275,
       "alpha": false,
-      "bytes": 12310,
-      "sha256": "442413b0a13bc71b7592973f4d7650c72eec01ef467922f8a70b7821d939b917"
+      "bytes": 10718,
+      "sha256": "e834f6a9ba0eb54ebc6bb85e7c68233c888a1488ce5569cd497fbd868d4ffe83"
     },
     {
       "file": "market-background.webp",
       "width": 1376,
       "height": 768,
       "alpha": false,
-      "bytes": 80792,
-      "sha256": "dec9c263c16e169eea011fe1cc3c79882725373d67bf3df1f4a6a7c97e68bb68",
-      "origin": "AI-generated individually in Arena for the selected warm-industrial ARES art direction. Fictional room background, not real NASA telemetry/location; text/actions remain live DOM."
+      "bytes": 70656,
+      "sha256": "dccd2272fc569fbba70524ccec654cef24daad45234f4e8fa03dcc0c33d2a0c4",
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-15) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in."
     },
     {
       "file": "journal-background.webp",
       "width": 1376,
       "height": 768,
       "alpha": false,
-      "bytes": 78580,
-      "sha256": "acd340111dca9a5d117756c7e8d3f405de7b70a66e10537f73fabafce328807d",
-      "origin": "AI-generated individually in Arena for the selected warm-industrial ARES art direction. Fictional room background, not real NASA telemetry/location; text/actions remain live DOM."
+      "bytes": 91512,
+      "sha256": "3e240b748bd041cd38ac743b53cab47f3d225c330ca0fd4b7c057beca448422e",
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-15) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in."
     },
     {
       "file": "cabin-background.webp",
       "width": 1376,
       "height": 768,
       "alpha": false,
-      "bytes": 66472,
-      "sha256": "35453d8d87985af8fe760e22ae21e726b82c6a319752405f944d8242d361f599",
-      "origin": "AI-generated individually in Arena for the selected warm-industrial ARES art direction. Fictional room background, not real NASA telemetry/location; text/actions remain live DOM."
+      "bytes": 62014,
+      "sha256": "764541f20494cb1eabffeeba425d6fd9507e322f44b7a8aa7843f5f840b0adc7",
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-15) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in."
     }
   ]
 }
