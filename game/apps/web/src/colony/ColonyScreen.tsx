@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { ArrowLeft, ArrowRight, BatteryMedium, Box, Check, ChevronRight, CircleHelp, Droplets, ExternalLink, FlaskConical, Hammer, House, Leaf, Orbit, Package, Pause, Play, Plus, RotateCcw, Sun, Truck, Wrench, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BatteryMedium, Box, Check, ChevronRight, CircleHelp, Droplets, ExternalLink, FlaskConical, Hammer, House, Leaf, Orbit, Package, Pause, Play, Plus, RotateCcw, Sun, Truck, Wind, Wrench, Zap } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { colonyCopy, moduleCopy } from './copy'
 import { advanceDays, batteryCapacity, buildModule, buySupplies, CATALOG, canBuild, canRepair, countModules, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, initialColony, MODULE_KINDS, PARAMETERS, repairColony, sellableKg, SLOTS } from './simulation'
@@ -55,9 +55,10 @@ export default function ColonyScreen(): JSX.Element {
     setMessage(`${descriptions[kind].name} · −${CATALOG[kind].credits} CR`)
   }
   const warning = end ? c.dayLimit : state.foodKg < foodDemand(state) ? c.foodWarning
+    : budget.oxygenShortfallKg > 0.001 || budget.oxygenEndKg < budget.oxygenDemandKg * 3 ? c.oxygenWarning
     : budget.unmetKwh > 0.01 ? c.powerWarning : budget.waterShortfallLitres > 0.01 ? c.waterWarning
     : budget.growthFraction < 0.95 ? c.cropWarning : c.healthy
-  const constrained = end || state.foodKg < foodDemand(state) || budget.unmetKwh > 0.01 || budget.waterShortfallLitres > 0.01 || budget.growthFraction < 0.95
+  const constrained = end || state.foodKg < foodDemand(state) || budget.oxygenShortfallKg > 0.001 || budget.unmetKwh > 0.01 || budget.waterShortfallLitres > 0.01 || budget.growthFraction < 0.95
 
   return (
     <div className="colony-app">
@@ -84,6 +85,7 @@ export default function ColonyScreen(): JSX.Element {
             <Resource icon={Droplets} label={c.water} value={number(state.waterLitres)} unit={c.litres} detail={`−${number(budget.waterUsedLitres, 1)} ${c.litres} ${c.perDay} · ${c.netWater}`} tone={state.waterLitres < budget.waterNeededLitres * 7 ? 'danger' : undefined} />
             <Resource icon={Leaf} label={c.food} value={number(state.foodKg, 1)} unit={c.kg} detail={`${number(state.foodKg / Math.max(foodDemand(state), 0.001))} ${c.foodDays}`} tone={state.foodKg < foodDemand(state) * 14 ? 'danger' : undefined} />
             <Resource icon={Package} label={c.budget} value={number(state.credits)} unit="CR" detail={`${c.spares}: ${number(state.sparesKg, 1)} ${c.kg}`} />
+            <Resource icon={Wind} label={c.oxygen} value={number(state.oxygenKg, 1)} unit={c.kg} detail={`+${number(budget.oxygenProducedKg, 1)} / −${number(budget.oxygenDemandKg, 1)} ${c.kg} ${c.perDay} · ${c.oxygenNote}`} tone={budget.oxygenShortfallKg > 0.001 || budget.oxygenEndKg < budget.oxygenDemandKg * 3 ? 'danger' : undefined} />
           </div>
 
           <div className="colony-command-bar">

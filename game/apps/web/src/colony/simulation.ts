@@ -24,6 +24,13 @@ export const PARAMETERS = {
   crewPerHabitat: 4,
   crewWaterLitresDay: 3.8,
   freshFoodKgCrewDay: 0.5, // A fresh-food supplement, NOT a complete diet.
+  crewO2KgDay: 0.84, // Typical resting-to-light-work metabolic O2 use per person; design value.
+  cropO2KgPerKgFresh: 0.25, // Photosynthetic O2 per kg fresh biomass; design assumption, not a measurement.
+  recyclerO2KgDay: 1.6, // Electrolysis output per recycler at full power; design target.
+  electrolysisKwhKgO2: 15, // Practical electrolysis energy per kg O2; design assumption (theory is ~5).
+  electrolysisWaterKgPerKgO2: 1.125, // Stoichiometry: 2 H2O -> 2 H2 + O2, 36 g water per 32 g O2.
+  oxygenStartKg: 30, // About 9 days of full crew demand at the starting crew of 4.
+  oxygenTankKg: 60, // Surplus above this is vented, not stored.
   leakLitresDay: 1,
   recyclerLitresDay: 120,
   recyclerKwhLitre: 0.03,
@@ -86,6 +93,8 @@ export interface ColonyState {
   nutrientsKg: number
   sparesKg: number
   foodKg: number
+  oxygenKg: number
+  oxygenShortfallKg: number
   batteryKwh: number
   harvestedKg: number
   consumedFoodKg: number
@@ -114,6 +123,11 @@ export interface DayBudget {
   growthFraction: number
   workHours: number
   availableWorkHours: number
+  oxygenProducedKg: number
+  oxygenDemandKg: number
+  oxygenShortfallKg: number
+  oxygenVentedKg: number
+  oxygenEndKg: number
 }
 
 export function initialColony(): ColonyState {
@@ -129,7 +143,8 @@ export function initialColony(): ColonyState {
       growthDays: kind === 'greenhouse' ? 60 : 0,
     })),
     crew: 4, credits: PARAMETERS.initialCredits, spentCredits: 0, earnedCredits: 0,
-    waterLitres: 800, nutrientsKg: 4, sparesKg: 8, foodKg: 80, batteryKwh: 80,
+    waterLitres: 800, nutrientsKg: 4, sparesKg: 8, foodKg: 80, oxygenKg: PARAMETERS.oxygenStartKg, oxygenShortfallKg: 0,
+    batteryKwh: 80,
     harvestedKg: 0, consumedFoodKg: 0, foodShortfallKg: 0, deliveredKg: 0, lastDay: null,
   }
 }
@@ -162,9 +177,12 @@ export function dailyBudget(state: ColonyState, scenario: Scenario = DEFAULT_SCE
   const recyclerCapacity = state.modules.filter(m => m.kind === 'recycler')
     .reduce((sum, m) => sum + p.recyclerLitresDay * capacityFactor(m), 0)
   const recyclerKwh = Math.min(grossLoopWater, recyclerCapacity) * p.recyclerKwhLitre
+  const recyclerO2CapacityKg = state.modules.filter(m => m.kind === 'recycler')
+    .reduce((sum, m) => sum + p.recyclerO2KgDay * capacityFactor(m), 0)
+  const electrolysisKwh = recyclerO2CapacityKg * p.electrolysisKwhKgO2
   const essentialKwh = countModules(state, 'habitat') * p.habitatKwhDay
     + countModules(state, 'rover') * p.roverKwhDay
-    + countModules(state, 'workshop') * p.workshopKwhDay + recyclerKwh
+    + countModules(state, 'workshop') * p.workshopKwhDay + recyclerKwh + electrolysisKwh
   const cropKwh = cropAreaM2 * (p.ledKwM2 * p.photoperiodHours + p.cropUtilitiesKwM2 * 24)
   const demandKwh = essentialKwh + cropKwh
   const shortage = Math.max(0, demandKwh - generationKwh)
@@ -181,7 +199,12 @@ export function dailyBudget(state: ColonyState, scenario: Scenario = DEFAULT_SCE
   // Treat operating all essential systems at the served fraction. No recycling
   // credit is given to unpowered hardware. Capacity is deliberately finite.
   const recovery = scenario.waterRecovery * fraction(recyclerCapacity, grossLoopWater) * essentialPowerFraction
-  const crewMakeup = crewWater * (1 - recovery) + p.leakLitresDay
+  // Electrolysis water circulates in the same recycler loop as crew water; only the unrecovered share is makeup.
+  // Electrolysis cannot run without makeup water in the tank: cap output by the water it can draw.
+  const o2WaterCapKg = state.waterLitres / (p.electrolysisWaterKgPerKgO2 * (1 - recovery))
+  const electrolysisO2Kg = Math.min(recyclerO2CapacityKg * essentialPowerFraction, o2WaterCapKg)
+  const o2WaterLitres = electrolysisO2Kg * p.electrolysisWaterKgPerKgO2 * (1 - recovery)
+  const crewMakeup = crewWater * (1 - recovery) + p.leakLitresDay + o2WaterLitres
   const cropMakeup = evaporation * (1 - recovery) + healthyCropArea * p.cropKgM2Day * p.cropWaterBoundLitresKg
   const workHours = healthyCropArea * p.cropWorkHoursM2Day
     + countModules(state, 'solar') * 0.2 + countModules(state, 'recycler') * 0.5
@@ -195,6 +218,10 @@ export function dailyBudget(state: ColonyState, scenario: Scenario = DEFAULT_SCE
     fraction(state.nutrientsKg, nutrientsNeeded)) * essentialPowerFraction
   const waterNeededLitres = crewMakeup + cropMakeup * Math.min(cropPowerFraction, workFraction) * essentialPowerFraction
   const waterUsedLitres = Math.min(state.waterLitres, crewMakeup + cropMakeup * growthFraction)
+  // Oxygen: electrolysis (powered recyclers) plus photosynthesis (actual biomass growth).
+  const oxygenProducedKg = electrolysisO2Kg + healthyCropArea * p.cropKgM2Day * growthFraction * p.cropO2KgPerKgFresh
+  const oxygenDemandKg = state.crew * p.crewO2KgDay
+  const oxygenAvailableKg = state.oxygenKg + oxygenProducedKg
   return {
     generationKwh, demandKwh, servedKwh, unmetKwh: Math.max(0, demandKwh - servedKwh),
     curtailedKwh: surplus - batteryChargeInputKwh,
@@ -204,6 +231,10 @@ export function dailyBudget(state: ColonyState, scenario: Scenario = DEFAULT_SCE
     waterShortfallLitres: Math.max(0, waterNeededLitres - state.waterLitres),
     nutrientsUsedKg: Math.min(state.nutrientsKg, nutrientsNeeded * growthFraction),
     growthFraction, workHours, availableWorkHours,
+    oxygenProducedKg, oxygenDemandKg,
+    oxygenShortfallKg: Math.max(0, oxygenDemandKg - oxygenAvailableKg),
+    oxygenVentedKg: Math.max(0, oxygenAvailableKg - oxygenDemandKg - p.oxygenTankKg),
+    oxygenEndKg: Math.min(p.oxygenTankKg, Math.max(0, oxygenAvailableKg - oxygenDemandKg)),
   }
 }
 
@@ -226,6 +257,7 @@ export function advanceDay(state: ColonyState, scenario: Scenario = DEFAULT_SCEN
   const eaten = Math.min(availableFood, foodDemand(state))
   return {
     ...state, modules, day: state.day + 1, batteryKwh: budget.batteryEndKwh,
+    oxygenKg: budget.oxygenEndKg, oxygenShortfallKg: state.oxygenShortfallKg + budget.oxygenShortfallKg,
     waterLitres: Math.max(0, state.waterLitres - budget.waterUsedLitres),
     nutrientsKg: Math.max(0, state.nutrientsKg - budget.nutrientsUsedKg),
     foodKg: Math.max(0, availableFood - eaten),

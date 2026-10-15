@@ -14,9 +14,13 @@ const checkAccounting = (s: ColonyState): void => {
 test('colony: explicit initial units and reference arithmetic', () => {
   const s = initialColony(), b = dailyBudget(s)
   close(b.generationKwh, 2 * 1.361 * 40 * 0.28 * 0.8 * 18)
-  close(b.demandKwh, 20 * (0.2 * 16 + 0.04 * 24) + 24 + 4 + 2 + 101.2 * 0.03)
-  close(b.waterUsedLitres, 101.2 * 0.06 + 1 + 20 * 0.12 * 0.8)
-  assert.equal(b.growthFraction, 1)
+  close(b.demandKwh, 20 * (0.2 * 16 + 0.04 * 24) + 24 + 4 + 2 + 101.2 * 0.03 + 1.6 * 15)
+  close(b.waterUsedLitres, 101.2 * 0.06 + 1 + 20 * 0.12 * 0.8 + 1.6 * 1.125 * 0.06)
+  close(b.oxygenProducedKg, 1.6 + 20 * 0.12 * 0.25)
+  close(b.oxygenDemandKg, 4 * 0.84)
+  close(b.oxygenEndKg, P.oxygenStartKg + b.oxygenProducedKg - b.oxygenDemandKg)
+  assert.equal(b.oxygenShortfallKg, 0)
+  close(b.growthFraction, 1, 1e-12)
   assert.equal(s.modules.find(m => m.kind === 'greenhouse')?.growthDays, 60)
 })
 
@@ -70,6 +74,27 @@ test('colony: electricity, water, nutrients and habitat capacity independently c
     assert.equal(next.lastDay!.growthFraction, 0, resource)
     close(next.modules.find(m => m.kind === 'greenhouse')!.growthDays, 60)
     assert.equal(next.harvestedKg, 0)
+  }
+})
+
+test('colony: oxygen comes only from powered recyclers and growing crop, and reconciles', () => {
+  const base = initialColony()
+  const noRecycler = { ...base, modules: base.modules.filter(m => m.kind !== 'recycler') }
+  close(dailyBudget(noRecycler).oxygenProducedKg, 20 * 0.12 * 0.25)
+  assert.equal(dailyBudget(noRecycler).oxygenShortfallKg, 0)
+  assert.ok(dailyBudget({ ...noRecycler, oxygenKg: 0 }).oxygenShortfallKg > 0)
+  const unpowered = { ...base, batteryKwh: 0, modules: base.modules.filter(m => m.kind !== 'solar') }
+  assert.equal(dailyBudget(unpowered).oxygenProducedKg, 0)
+  assert.ok(dailyBudget({ ...unpowered, oxygenKg: 0 }).oxygenShortfallKg > 0)
+  const starved = { ...base, waterLitres: 0 }
+  assert.equal(dailyBudget(starved).oxygenProducedKg, 0)
+  let s = initialColony()
+  for (let day = 0; day < 120; day++) {
+    const before = s
+    s = advanceDay(s, { sunHours: 12, waterRecovery: 0.94 })
+    const b = s.lastDay!
+    close(before.oxygenKg + b.oxygenProducedKg - b.oxygenDemandKg, b.oxygenEndKg + b.oxygenVentedKg - b.oxygenShortfallKg)
+    assert.ok(s.oxygenKg >= 0 && s.oxygenKg <= P.oxygenTankKg)
   }
 })
 
