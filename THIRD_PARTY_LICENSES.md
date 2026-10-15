@@ -28,6 +28,12 @@ This is the repository's working attribution inventory for bundled fonts, packag
 
 All 14 model files are local under `game/apps/web/public/models/colony/`. The [manifest](game/apps/web/public/models/colony/manifest.json) records pinned GitHub mirror commits/blobs, original author pages, packaging changes, byte sizes and SHA-256 hashes. Unmodified upstream notices are retained in that directory's `licenses/` subdirectory. The mirrored Quaternius `License.txt` misnames the pack as “Ultimate Platformer Pack”; it is preserved verbatim, and the official **Ultimate Space Kit** page separately confirms CC0. Runtime alterations include schematic scale, greenhouse glazing/interior crops and recoloured rocks; these are illustrative art, not engineering CAD. NASA models are research references only, not bundled.
 
+### NASA 3D Resources (added 2026-10-16)
+
+- **Habitat Demonstration Unit** (`habitat.glb`, two source parts merged) and **Mars 2020 Perseverance Rover** (`rover.glb`) from [NASA 3D Resources](https://nasa3d.arc.nasa.gov/models), pinned to commit `11ebb4e`. The repository README states the assets are free and without copyright; NASA's [image and media guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media) govern logo use.
+- Per the project decision of 2026-10-16, NASA insignia, JPL logos, US flags and mission-name text were painted out of the textures. Geometry was simplified and textures re-encoded. The models are **not endorsed by NASA**, and NASA's source disclosure is stated as a fact only.
+- Notice: [`licenses/nasa-3d-resources.txt`](game/apps/web/public/models/colony/licenses/nasa-3d-resources.txt). Per-model author credits from the NASA repo were not individually verified; the manifest records the collection.
+
 Offline integrity check: `cd game && yarn check:colony-assets`. Optional pinned restoration: `python3 scripts/fetch-colony-assets.py` using the existing GitHub CLI connection. No marketplace/CDN model requests are made by the game.
 
 ## Martian field view (added 2026-10-15)

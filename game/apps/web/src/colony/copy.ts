@@ -56,9 +56,9 @@ const en = {
   initial: 'Initial construction budget', maxRevenue: 'Maximum external order receipts', current: 'Current balance',
   scope: 'IMPLEMENTATION BOUNDARY', scopeText: 'Fields, harvest, upgrades and repairs already exist on Solana. Power, water, crew, vehicles and physical kilograms do not. This sandbox does not change contract yields, charge fees, submit transactions or sell modules.',
   sources: 'Sources & licences', assetsTitle: 'Real assets. Local files.',
-  assetsIntro: '14 bundled CC0 models by Quaternius and Kenney. No asset CDN or runtime download from a marketplace. SHA-256 and pinned source commits are in the manifest.',
+  assetsIntro: '12 bundled CC0 models by Quaternius and Kenney, plus 2 NASA 3D Resources models (habitat, Perseverance rover) with NASA, JPL, flag and mission logos removed. Not endorsed by NASA. No asset CDN or runtime download. SHA-256 and pinned source commits are in the manifest.',
   author: 'Author', source: 'Upstream file', manifest: 'Open provenance manifest',
-  assetNotice: 'The geodesic dome is adapted as a greenhouse; its glazing and interior beds are scene changes. The generator mesh is a battery stand-in. Tools and plants are illustrative, not validated lunar hardware or botanical models.',
+  assetNotice: 'The geodesic dome is adapted as a greenhouse; its glazing and interior beds are scene changes. The generator mesh is a battery stand-in. The NASA models are simplified and their insignia removed. Tools and plants are illustrative, not validated lunar hardware or botanical models.',
   total: 'model payload', referenceOnly: 'Measured in terrestrial/ISS conditions; extrapolation is an assumption.',
   firstGoal: 'MISSION / FIRST HARVEST', goalText: 'Reach the first batch harvest while keeping power and water available. Then expand the farm without exhausting supplies.',
 }
@@ -119,9 +119,9 @@ const ru: typeof en = {
   initial: 'Стартовый строительный бюджет', maxRevenue: 'Максимум поступлений извне', current: 'Текущий остаток',
   scope: 'ГРАНИЦЫ РЕАЛИЗАЦИИ', scopeText: 'Поля, сбор, улучшения и ремонт уже есть в Solana. Электричества, воды, экипажа, машин и физических килограммов пока нет. Песочница не меняет контрактный урожай, не взимает комиссии, не отправляет транзакции и не продаёт модули.',
   sources: 'Источники и лицензии', assetsTitle: 'Настоящие модели. Локальные файлы.',
-  assetsIntro: '14 моделей CC0 от Quaternius и Kenney включены в проект. Без CDN и обращений к маркетплейсам при игре. SHA-256 и закреплённые коммиты источников указаны в манифесте.',
+  assetsIntro: '12 моделей CC0 от Quaternius и Kenney и 2 модели NASA 3D Resources (жилой модуль, ровер Perseverance) без логотипов NASA, JPL, флагов и названий миссии. NASA не одобряет и не участвует. Без CDN и загрузок при игре. SHA-256 и коммиты источников — в манифесте.',
   author: 'Автор', source: 'Файл-источник', manifest: 'Открыть манифест происхождения',
-  assetNotice: 'Геодезический купол адаптирован под теплицу: остекление и грядки изменены в сцене. Модель генератора изображает накопитель. Инструменты и растения иллюстративные, это не проверенное лунное оборудование и не ботанические модели.',
+  assetNotice: 'Геодезический купол адаптирован под теплицу: остекление и грядки изменены в сцене. Модель генератора изображает накопитель. Модели NASA упрощены, их логотипы удалены. Инструменты и растения иллюстративные, это не проверенное лунное оборудование и не ботанические модели.',
   total: 'всего моделей', referenceOnly: 'Измерено на Земле/МКС; перенос на Луну — допущение.',
   firstGoal: 'ЗАДАЧА / ПЕРВЫЙ УРОЖАЙ', goalText: 'Дойди до первого сбора, сохранив электричество и воду. Затем расширь ферму, не исчерпав снабжение.',
 }

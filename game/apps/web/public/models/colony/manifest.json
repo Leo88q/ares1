@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "checkedOn": "2026-10-14",
+  "checkedOn": "2026-10-16",
   "notes": "CC0 game-ready art, not engineering CAD. glTF sources losslessly repacked to GLB; originals pinned by Git blob SHA. Runtime scale and greenhouse glazing adapted in scene. Quaternius upstream License.txt misnames the pack Ultimate Platformer Pack; the author page independently confirms CC0 for Ultimate Space Kit. Generator mesh is a visual stand-in for a battery, not a specific battery product. Kenney Survival Kit tool textures were embedded from the separately pinned CC0 colormap.png; no external texture requests remain.",
   "assets": [
     {
@@ -19,17 +19,22 @@
     },
     {
       "file": "habitat.glb",
-      "author": "Quaternius",
-      "pack": "Ultimate Space Kit",
-      "license": "CC0-1.0",
-      "officialSource": "https://quaternius.com/packs/ultimatespacekit.html",
-      "repository": "tilakpatell/tilakverse-assets",
-      "commit": "5fe11b4a452555401915f4f16c88464b05c54664",
-      "sourcePath": "quaternius/ultimate-space-kit/Environment/GLTF/House_Long.gltf",
-      "sourceBlob": "f63e241f53297effd8769fbad05c7c74b5bd67e8",
-      "sourceUrl": "https://github.com/tilakpatell/tilakverse-assets/blob/5fe11b4a452555401915f4f16c88464b05c54664/quaternius/ultimate-space-kit/Environment/GLTF/House_Long.gltf",
-      "sha256": "021795d8000cf2c15506a4fc531ccb48af3b8495908f1512c1c6cd3b7c9d218a",
-      "bytes": 106716
+      "author": "NASA 3D Resources collection (NASA centres; per-model credit not verified)",
+      "pack": "Habitat Demonstration Unit (parts 1 and 2, merged)",
+      "license": "NASA-3D-Resources",
+      "officialSource": "https://nasa3d.arc.nasa.gov/models",
+      "repository": "nasa/NASA-3D-Resources",
+      "commit": "11ebb4ee043715aefbba6aeec8a61746fad67fa7",
+      "sourcePath": "3D Models/Habitat Demonstration Unit/Habitat Demonstration Unit (part 1).glb + 3D Models/Habitat Demonstration Unit/Habitat Demonstration Unit (part 2).glb",
+      "sourceBlob": "3a16e21105438b4fc7be2717698d570fc9100b9f",
+      "sourceBlobs": [
+        "3a16e21105438b4fc7be2717698d570fc9100b9f",
+        "a5c41e1e661482955380450d240d7ed2418df0b7"
+      ],
+      "sourceUrl": "https://github.com/nasa/NASA-3D-Resources/blob/11ebb4ee043715aefbba6aeec8a61746fad67fa7/3D%20Models/Habitat%20Demonstration%20Unit/Habitat%20Demonstration%20Unit%20(part%201).glb",
+      "sha256": "2fdb8e9d1e76a810713cd2a66f29738873c9b44596a8bfd675ca1e5a4155c781",
+      "bytes": 235740,
+      "modifications": "Draco decompressed; merged parts; simplified; WebP textures 1024 px; NASA/JPL logos, flags and programme mark painted out of textures."
     },
     {
       "file": "greenhouse.glb",
@@ -75,17 +80,18 @@
     },
     {
       "file": "rover.glb",
-      "author": "Quaternius",
-      "pack": "Ultimate Space Kit",
-      "license": "CC0-1.0",
-      "officialSource": "https://quaternius.com/packs/ultimatespacekit.html",
-      "repository": "tilakpatell/tilakverse-assets",
-      "commit": "5fe11b4a452555401915f4f16c88464b05c54664",
-      "sourcePath": "quaternius/ultimate-space-kit/Vehicles/GLTF/Rover_1.gltf",
-      "sourceBlob": "a79061948d443c7bd0c6b84416a26f1c0442b955",
-      "sourceUrl": "https://github.com/tilakpatell/tilakverse-assets/blob/5fe11b4a452555401915f4f16c88464b05c54664/quaternius/ultimate-space-kit/Vehicles/GLTF/Rover_1.gltf",
-      "sha256": "ac6298f25f8ba9071193a5d2390e3cdb57659c5d2a7cc87a2b017bc867132a38",
-      "bytes": 327672
+      "author": "NASA 3D Resources collection (NASA JPL; per-model credit not verified)",
+      "pack": "Mars 2020 Perseverance Rover",
+      "license": "NASA-3D-Resources",
+      "officialSource": "https://nasa3d.arc.nasa.gov/models",
+      "repository": "nasa/NASA-3D-Resources",
+      "commit": "11ebb4ee043715aefbba6aeec8a61746fad67fa7",
+      "sourcePath": "3D Models/Mars 2020 Perseverance Rover/Mars 2020 Perseverance Rover.glb",
+      "sourceBlob": "eb129b730235dd2c751417914b3fb4017d0e7895",
+      "sourceUrl": "https://github.com/nasa/NASA-3D-Resources/blob/11ebb4ee043715aefbba6aeec8a61746fad67fa7/3D%20Models/Mars%202020%20Perseverance%20Rover/Mars%202020%20Perseverance%20Rover.glb",
+      "sha256": "0a290885febdd5af5ae7137635a86baf393548444299da381c5f4d2ce7be60e8",
+      "bytes": 1921200,
+      "modifications": "Draco decompressed; simplified to 35% of vertices; WebP textures 512 px; NASA/JPL logos, flags and mission name text painted out of textures."
     },
     {
       "file": "plant.glb",
@@ -266,6 +272,20 @@
       "sourceUrl": "https://github.com/eturner58/game-assets/blob/260d55430c63747eb8c7119ead9607734ab7d90e/kenney/3D%20assets/Survival%20Kit/License.txt",
       "sha256": "8807e46183d2f0a08ca8525079ffbf2b9e3b33efd7f5f27f225a060b4d9c051b",
       "bytes": 688
+    },
+    {
+      "file": "licenses/nasa-3d-resources.txt",
+      "author": "NASA 3D Resources collection",
+      "pack": "NASA 3D Resources (habitat, rover)",
+      "license": "NASA-3D-Resources",
+      "officialSource": "https://nasa3d.arc.nasa.gov/models",
+      "repository": "nasa/NASA-3D-Resources",
+      "commit": "11ebb4ee043715aefbba6aeec8a61746fad67fa7",
+      "sourcePath": "README.md",
+      "sourceBlob": "9d5d1a8a2d03a1dcb65e5cdc8e97bfb7f12ce43d",
+      "sourceUrl": "https://github.com/nasa/NASA-3D-Resources/blob/11ebb4ee043715aefbba6aeec8a61746fad67fa7/README.md",
+      "sha256": "3ff476fbb8f79c977191d2bdc75cb5cde4eac4560ae634ee59bbc852f62d840c",
+      "bytes": 1470
     }
   ]
 }

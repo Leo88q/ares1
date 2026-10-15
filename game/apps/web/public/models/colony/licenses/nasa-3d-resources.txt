@@ -1,0 +1,18 @@
+NASA 3D Resources — notice for habitat.glb and rover.glb (ARES colony prototype)
+
+Source repository: https://github.com/nasa/NASA-3D-Resources (pinned commit 11ebb4ee043715aefbba6aeec8a61746fad67fa7)
+Collection page: https://nasa3d.arc.nasa.gov/models
+Upstream statement (repository README): "These assets are free and without copyright."
+Usage guidance linked from the repository: https://www.nasa.gov/nasa-brand-center/images-and-media
+
+Models used:
+- "Habitat Demonstration Unit" (parts 1 and 2, merged into habitat.glb)
+- "Mars 2020 Perseverance Rover" (rover.glb)
+
+Changes made in this project (2026-10-16):
+- Draco mesh compression removed; geometry simplified to 35% of the original vertex count; textures re-encoded as WebP at 1024 px (habitat) and 512 px (rover).
+- NASA insignia (meatball), NASA worm logotype, JPL logos and captions, US flags, the HDU programme mark and the mission name text were painted out of the textures. Nothing else in the textures was intentionally altered.
+
+Not endorsed by NASA. This project is not affiliated with, sponsored by, or approved by NASA, and the models are not presented as NASA products. NASA insignia and logotypes are not used in this project. Per NASA's guidance, the source is acknowledged as a statement of fact only; no review or permission by NASA is implied.
+
+Upstream per-model credits in the NASA repository were not individually verified for this build; the manifest records the collection as the author.
