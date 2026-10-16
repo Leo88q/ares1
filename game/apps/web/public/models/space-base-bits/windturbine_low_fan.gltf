@@ -1,0 +1,189 @@
+{
+  "accessors": [
+    {
+      "name": "windturbine_low_fan_Cylinder.2740-Mesh_0_positions",
+      "componentType": 5126,
+      "count": 746,
+      "min": [
+        -0.4980370104312897,
+        0.3149459958076477,
+        -0.6452040076255798
+      ],
+      "max": [
+        0.49801400303840637,
+        1.4649770259857178,
+        0.6452040076255798
+      ],
+      "type": "VEC3",
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "name": "windturbine_low_fan_Cylinder.2740-Mesh_0_normals",
+      "componentType": 5126,
+      "count": 746,
+      "min": [
+        -0.9922701716423035,
+        -0.9922701716423035,
+        -1
+      ],
+      "max": [
+        0.9922701716423035,
+        0.9922701716423035,
+        1
+      ],
+      "type": "VEC3",
+      "bufferView": 1,
+      "byteOffset": 0
+    },
+    {
+      "name": "windturbine_low_fan_Cylinder.2740-Mesh_0_texcoords",
+      "componentType": 5126,
+      "count": 746,
+      "min": [
+        0.1499200016260147,
+        0.018389999866485596
+      ],
+      "max": [
+        0.44505900144577026,
+        0.3862749934196472
+      ],
+      "type": "VEC2",
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "name": "windturbine_low_fan_Cylinder.2740-Mesh_0_indices",
+      "componentType": 5123,
+      "count": 1716,
+      "min": [
+        0
+      ],
+      "max": [
+        745
+      ],
+      "type": "SCALAR",
+      "bufferView": 3,
+      "byteOffset": 0
+    }
+  ],
+  "asset": {
+    "generator": "obj2gltf",
+    "version": "2.0"
+  },
+  "buffers": [
+    {
+      "name": "windturbine_low_fan",
+      "byteLength": 27304,
+      "uri": "windturbine_low_fan.bin"
+    }
+  ],
+  "bufferViews": [
+    {
+      "name": "bufferView_0",
+      "buffer": 0,
+      "byteLength": 8952,
+      "byteOffset": 0,
+      "byteStride": 12,
+      "target": 34962
+    },
+    {
+      "name": "bufferView_1",
+      "buffer": 0,
+      "byteLength": 8952,
+      "byteOffset": 8952,
+      "byteStride": 12,
+      "target": 34962
+    },
+    {
+      "name": "bufferView_2",
+      "buffer": 0,
+      "byteLength": 5968,
+      "byteOffset": 17904,
+      "byteStride": 8,
+      "target": 34962
+    },
+    {
+      "name": "bufferView_3",
+      "buffer": 0,
+      "byteLength": 3432,
+      "byteOffset": 23872,
+      "target": 34963
+    }
+  ],
+  "images": [
+    {
+      "name": "spacebits_texture",
+      "uri": "spacebits_texture.png"
+    }
+  ],
+  "materials": [
+    {
+      "name": "spacebits_texture",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "baseColorFactor": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.840000019
+      },
+      "emissiveFactor": [
+        0,
+        0,
+        0
+      ],
+      "alphaMode": "OPAQUE",
+      "doubleSided": false
+    }
+  ],
+  "meshes": [
+    {
+      "name": "windturbine_low_fan_Cylinder.2740-Mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "windturbine_low_fan_Cylinder.2740",
+      "mesh": 0
+    }
+  ],
+  "samplers": [
+    {
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "name": "spacebits_texture",
+      "sampler": 0,
+      "source": 0
+    }
+  ]
+}
