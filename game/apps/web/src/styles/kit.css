@@ -66,7 +66,7 @@
   padding: 2px 10px;
   border: 0 solid transparent;
   border-width: 6px;
-  border-image: url('/ares/kit/btn-secondary.webp') 40 fill / 6px;
+  border-image: url('/ares/art/button-bronze.webp') 40 fill / 6px;
   border-radius: 0;
   background: none;
   color: var(--ares-hud-amber, var(--pf-gold));
@@ -142,11 +142,11 @@
   padding: 11px 20px;
   border: 0 solid transparent;
   border-width: 15px;
-  border-image: url('/ares/kit/btn-primary.webp') 40 fill / 15px;
+  border-image: url('/ares/art/button-bronze.webp') 40 fill / 15px;
   border-radius: 0;
   background: none;
-  color: #2B1403;
-  text-shadow: 0 1px 0 rgba(255, 220, 150, 0.55);
+  color: #f0d4a3;
+  text-shadow: 0 1px 2px #000c;
   box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.8);
   font-family: var(--pf-font-ui);
   font-weight: 700;
@@ -155,7 +155,7 @@
 }
 .k-key:hover {
   filter: brightness(1.14) saturate(1.06);
-  box-shadow: 0 6px 22px -6px rgba(0, 0, 0, 0.85), 0 0 22px -4px rgba(255, 158, 44, 0.55);
+  box-shadow: 0 6px 22px -6px rgba(0, 0, 0, 0.85), 0 0 18px -6px rgba(214, 165, 95, 0.45);
 }
 .k-key:focus-visible { outline: 2px solid var(--pf-info); outline-offset: 2px; }
 .k-key:active,
@@ -166,14 +166,14 @@
 }
 .k-key:disabled { opacity: 0.55; cursor: not-allowed; transform: none; filter: saturate(0.4) brightness(0.8); }
 .k-key--ghost {
-  border-image-source: url('/ares/kit/btn-secondary.webp');
+  border-image-source: url('/ares/art/button-bronze.webp');
   color: #E9DBC4;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.8);
 }
 .k-key--ghost:hover { filter: brightness(1.22); }
 .k-key--danger {
-  border-image-source: url('/ares/kit/btn-primary.webp');
+  border-image-source: url('/ares/art/button-bronze.webp');
   filter: hue-rotate(-32deg) saturate(1.25);
 }
 .k-key--danger:hover { filter: hue-rotate(-32deg) saturate(1.3) brightness(1.12); }
@@ -189,7 +189,7 @@ input[type='range'].ares-range {
 input[type='range'].ares-range::-webkit-slider-runnable-track {
   height: 14px;
   border: 4px solid transparent;
-  border-image: url('/ares/kit/input.webp') 30 fill / 4px;
+  border-image: url('/ares/kit/track.webp') 30 fill / 4px;
   box-sizing: border-box;
 }
 input[type='range'].ares-range::-webkit-slider-thumb {
@@ -206,7 +206,7 @@ input[type='range'].ares-range::-webkit-slider-thumb {
 input[type='range'].ares-range::-moz-range-track {
   height: 14px;
   border: 4px solid transparent;
-  border-image: url('/ares/kit/input.webp') 30 fill / 4px;
+  border-image: url('/ares/kit/track.webp') 30 fill / 4px;
   box-sizing: border-box;
 }
 input[type='range'].ares-range::-moz-range-thumb {

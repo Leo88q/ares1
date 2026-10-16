@@ -22,5 +22,6 @@ export const RESOURCE_ART = {
   pump: '/ares/icons/gear.webp', light: '/ares/icons/flame.webp', food: '/ares/icons/crate.webp',
   service: '/ares/icons/gear.webp', log: '/ares/icons/clipboard.webp', telemetry: '/ares/icons/gauge.webp',
   nutrients: '/ares/flask.webp',
+  budget: '/ares/icons/bank.webp', oxygen: '/ares/icons/gauge.webp',
 } as const
 export type ResourceArt = keyof typeof RESOURCE_ART

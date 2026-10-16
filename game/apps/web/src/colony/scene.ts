@@ -45,7 +45,8 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   onModelError: () => void
   onContextLost: () => void
 }): ColonyScene {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'low-power' })
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
+  renderer.setClearColor(0x000000, 0)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75))
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.toneMapping = THREE.ACESFilmicToneMapping
@@ -56,8 +57,9 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   host.appendChild(renderer.domElement)
 
   const scene = new THREE.Scene()
-  scene.background = new THREE.Color('#080e16')
-  scene.fog = new THREE.Fog('#080e16', 65, 170)
+  // Transparent WebGL over the v2 Mars sector artwork (CSS backdrop), warm dust haze instead of space black.
+  scene.background = null
+  scene.fog = new THREE.Fog('#b7855a', 65, 170)
   const camera = new THREE.OrthographicCamera(-22, 22, 17, -17, 0.1, 250)
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = false
@@ -84,7 +86,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
       if (!disposed) renderer.render(scene, camera)
     })
   }
-  const sky = new THREE.HemisphereLight('#dbe7ff', '#45413d', 2.1)
+  const sky = new THREE.HemisphereLight('#ffe0b5', '#4a2c1c', 2.1)
   scene.add(sky)
   const sun = new THREE.DirectionalLight('#fff1d9', 3.5)
   sun.position.set(-25, 32, -17)
@@ -93,7 +95,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   Object.assign(sun.shadow.camera, { left: -26, right: 26, top: 24, bottom: -24, near: 1, far: 100 })
   sun.shadow.normalBias = 0.035
   scene.add(sun)
-  const rim = new THREE.DirectionalLight('#6b9ccc', 1)
+  const rim = new THREE.DirectionalLight('#c99a6c', 1)
   rim.position.set(10, 10, 22)
   scene.add(rim)
 
@@ -112,7 +114,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     }
     if (Math.abs(x) < 17 && Math.abs(z) < 12) height = -0.18
     positions.setY(i, height)
-    tone.set('#62666a').multiplyScalar(0.64 + rand(i + 7) * 0.08)
+    tone.set('#8a5a3e').multiplyScalar(0.64 + rand(i + 7) * 0.08)
     colors.push(tone.r, tone.g, tone.b)
   }
   terrain.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
@@ -126,23 +128,13 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   for (let i = 0; i <= 4; i++) gridPoints.push(-14.4, -0.13, (i - 2) * 4.8, 14.4, -0.13, (i - 2) * 4.8)
   scene.add(new THREE.LineSegments(
     new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(gridPoints, 3)),
-    new THREE.LineBasicMaterial({ color: '#9bafbc', transparent: true, opacity: 0.18 }),
-  ))
-
-  const starPositions: number[] = []
-  for (let i = 0; i < 170; i++) {
-    const theta = rand(i + 200) * Math.PI * 2, phi = rand(i + 600) * Math.PI * 0.45
-    starPositions.push(Math.cos(theta) * Math.cos(phi) * 115, Math.sin(phi) * 115 + 10, Math.sin(theta) * Math.cos(phi) * 115)
-  }
-  scene.add(new THREE.Points(
-    new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3)),
-    new THREE.PointsMaterial({ color: '#b8c9df', size: 0.15, transparent: true, opacity: 0.6 }),
+    new THREE.LineBasicMaterial({ color: '#d9a46a', transparent: true, opacity: 0.18 }),
   ))
 
   const moduleRoot = new THREE.Group()
   const propsRoot = new THREE.Group()
   scene.add(moduleRoot, propsRoot)
-  const selection = new THREE.Mesh(new THREE.RingGeometry(2.48, 2.55, 64), new THREE.MeshBasicMaterial({ color: '#a3e4e8', side: THREE.DoubleSide, transparent: true, opacity: 0.9 }))
+  const selection = new THREE.Mesh(new THREE.RingGeometry(2.48, 2.55, 64), new THREE.MeshBasicMaterial({ color: '#f0cf8a', side: THREE.DoubleSide, transparent: true, opacity: 0.9 }))
   selection.rotation.x = -Math.PI / 2
   selection.visible = false
   selection.position.y = 0.19
@@ -240,7 +232,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     const edge = object.userData.edge as THREE.LineSegments | undefined
     if (edge) {
       const base = (CATALOG as Record<string, { color: string }>)[mv.kind]?.color ?? '#ffffff'
-      (edge.material as THREE.LineBasicMaterial).color.set(mv.damaged ? '#ff6b4a' : base)
+      ;(edge.material as THREE.LineBasicMaterial).color.set(mv.damaged ? '#ff6b4a' : base)
     }
     if (mv.kind === 'solar') {
       const body = object.getObjectByName('body')
@@ -316,7 +308,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     root.userData.moduleId = m.id
     const { x, z } = SLOTS[m.slot]
     root.position.set(x, 0, z)
-    const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.32, 2.4, 0.12, 6), new THREE.MeshStandardMaterial({ color: '#323b42', roughness: 0.95, metalness: 0.15 }))
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.32, 2.4, 0.12, 6), new THREE.MeshStandardMaterial({ color: '#4a3a2e', roughness: 0.95, metalness: 0.15 }))
     pad.position.y = 0.02; pad.receiveShadow = true; root.add(pad)
     const edge = new THREE.LineSegments(new THREE.EdgesGeometry(pad.geometry), new THREE.LineBasicMaterial({ color: CATALOG[m.kind].color, transparent: true, opacity: 0.45 }))
     edge.position.copy(pad.position); root.add(edge); root.userData.edge = edge

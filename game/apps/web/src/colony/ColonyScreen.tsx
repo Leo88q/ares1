@@ -1,18 +1,22 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { ArrowLeft, ArrowRight, BatteryMedium, Box, Check, ChevronRight, CircleHelp, Droplets, ExternalLink, FlaskConical, Hammer, House, Leaf, Orbit, Package, Pause, Play, Plus, RotateCcw, Sun, Truck, Wind, Wrench, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BatteryMedium, Box, Check, ChevronRight, CircleHelp, Droplets, ExternalLink, FlaskConical, Hammer, House, Leaf, Orbit, Package, Pause, Play, Plus, RotateCcw, Sun, Truck, Wrench } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { colonyCopy, moduleCopy } from './copy'
 import { advanceDays, batteryCapacity, buildModule, buySupplies, CATALOG, canBuild, canRepair, countModules, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, initialColony, MODULE_KINDS, PARAMETERS, repairColony, sellableKg, SLOTS } from './simulation'
 import type { ColonyState, DayBudget, ModuleKind, Scenario } from './simulation'
 import provenance from '../../public/models/colony/manifest.json'
+import ResourceIcon from '../fields/ResourceIcon'
+import type { ResourceArt } from '../fields/visualAssets'
 import './colony.css'
 
 const ColonyViewport = lazy(() => import('./ColonyViewport'))
 const ICONS: Record<ModuleKind, LucideIcon> = { solar: Sun, greenhouse: Leaf, habitat: House, recycler: Droplets, rover: Truck, workshop: Wrench, battery: BatteryMedium }
 const number = (value: number, decimals = 0): string => value.toFixed(decimals)
 type View = 'base' | 'economy' | 'assets'
+// Same v2 painted art the ARES section screens use; text stays live DOM.
+const HERO_ART: Record<View, string> = { base: '/ares/art/mars-sector.webp', economy: '/ares/art/journal-background.webp', assets: '/ares/art/cabin-background.webp' }
 
 export default function ColonyScreen(): JSX.Element {
   const { lang, setLang } = useI18n()
@@ -73,19 +77,20 @@ export default function ColonyScreen(): JSX.Element {
       </header>
 
       <main className="colony-main" id="main">
-        <div className="colony-intro">
-          <div><p className="colony-eyebrow">{c.eyebrow}</p><h1>{view === 'base' ? c.title : view === 'economy' ? c.economyTitle : c.assetsTitle}</h1><p className="colony-lead">{view === 'base' ? c.intro : view === 'economy' ? c.economyIntro : c.assetsIntro}</p></div>
+        <section className="colony-hero" data-view={view}>
+          <img className="colony-hero-image" src={HERO_ART[view]} alt="" aria-hidden="true" draggable={false} />
+          <div className="colony-hero-copy"><p className="colony-eyebrow">{c.eyebrow}</p><h1>{view === 'base' ? c.title : view === 'economy' ? c.economyTitle : c.assetsTitle}</h1><p className="colony-lead">{view === 'base' ? c.intro : view === 'economy' ? c.economyIntro : c.assetsIntro}</p></div>
           <a className="colony-back" href="/"><ArrowLeft size={14} />{c.back}</a>
-        </div>
+        </section>
 
         {view === 'base' && <>
           <div className="colony-resource-grid">
-            <Resource icon={Zap} label={c.energy} value={`${number(budget.generationKwh)} / ${number(budget.demandKwh)}`} unit={c.kwh} detail={`${c.perDay} · ${number(budget.curtailedKwh)} ${c.kwh} ${c.surplus}`} tone={budget.unmetKwh > 0.01 ? 'danger' : 'gold'} />
-            <Resource icon={BatteryMedium} label={c.battery} value={number(state.batteryKwh)} unit={c.kwh} detail={`${c.outOf} ${batteryCapacity(state)} ${c.kwh}`} progress={batteryCapacity(state) ? state.batteryKwh / batteryCapacity(state) : 0} />
-            <Resource icon={Droplets} label={c.water} value={number(state.waterLitres)} unit={c.litres} detail={`−${number(budget.waterUsedLitres, 1)} ${c.litres} ${c.perDay} · ${c.netWater}`} tone={state.waterLitres < budget.waterNeededLitres * 7 ? 'danger' : undefined} />
-            <Resource icon={Leaf} label={c.food} value={number(state.foodKg, 1)} unit={c.kg} detail={`${number(state.foodKg / Math.max(foodDemand(state), 0.001))} ${c.foodDays}`} tone={state.foodKg < foodDemand(state) * 14 ? 'danger' : undefined} />
-            <Resource icon={Package} label={c.budget} value={number(state.credits)} unit="CR" detail={`${c.spares}: ${number(state.sparesKg, 1)} ${c.kg}`} />
-            <Resource icon={Wind} label={c.oxygen} value={number(state.oxygenKg, 1)} unit={c.kg} detail={`+${number(budget.oxygenProducedKg, 1)} / −${number(budget.oxygenDemandKg, 1)} ${c.kg} ${c.perDay} · ${c.oxygenNote}`} tone={budget.oxygenShortfallKg > 0.001 || budget.oxygenEndKg < budget.oxygenDemandKg * 3 ? 'danger' : undefined} />
+            <Resource art="solar" label={c.energy} value={`${number(budget.generationKwh)} / ${number(budget.demandKwh)}`} unit={c.kwh} detail={`${c.perDay} · ${number(budget.curtailedKwh)} ${c.kwh} ${c.surplus}`} tone={budget.unmetKwh > 0.01 ? 'danger' : 'gold'} />
+            <Resource art="battery" label={c.battery} value={number(state.batteryKwh)} unit={c.kwh} detail={`${c.outOf} ${batteryCapacity(state)} ${c.kwh}`} progress={batteryCapacity(state) ? state.batteryKwh / batteryCapacity(state) : 0} />
+            <Resource art="water" label={c.water} value={number(state.waterLitres)} unit={c.litres} detail={`−${number(budget.waterUsedLitres, 1)} ${c.litres} ${c.perDay} · ${c.netWater}`} tone={state.waterLitres < budget.waterNeededLitres * 7 ? 'danger' : undefined} />
+            <Resource art="crop" label={c.food} value={number(state.foodKg, 1)} unit={c.kg} detail={`${number(state.foodKg / Math.max(foodDemand(state), 0.001))} ${c.foodDays}`} tone={state.foodKg < foodDemand(state) * 14 ? 'danger' : undefined} />
+            <Resource art="budget" label={c.budget} value={number(state.credits)} unit="CR" detail={`${c.spares}: ${number(state.sparesKg, 1)} ${c.kg}`} />
+            <Resource art="oxygen" label={c.oxygen} value={number(state.oxygenKg, 1)} unit={c.kg} detail={`+${number(budget.oxygenProducedKg, 1)} / −${number(budget.oxygenDemandKg, 1)} ${c.kg} ${c.perDay} · ${c.oxygenNote}`} tone={budget.oxygenShortfallKg > 0.001 || budget.oxygenEndKg < budget.oxygenDemandKg * 3 ? 'danger' : undefined} />
           </div>
 
           <div className="colony-command-bar">
@@ -158,10 +163,10 @@ export default function ColonyScreen(): JSX.Element {
   )
 }
 
-function Resource({ icon: Icon, label, value, unit, detail, progress, tone }: {
-  icon: LucideIcon; label: string; value: string; unit: string; detail: string; progress?: number; tone?: string
+function Resource({ art, label, value, unit, detail, progress, tone }: {
+  art: ResourceArt; label: string; value: string; unit: string; detail: string; progress?: number; tone?: string
 }): JSX.Element {
-  return <div className={`colony-resource ${tone ? `colony-resource--${tone}` : ''}`}><div className="colony-resource-label"><Icon size={13} />{label}</div><div className="colony-resource-value">{value}<small>{unit}</small></div><p>{detail}</p>{progress !== undefined && <div className="colony-resource-progress"><span style={{ width: `${Math.max(0, Math.min(100, progress * 100))}%` }} /></div>}</div>
+  return <div className={`colony-resource ${tone ? `colony-resource--${tone}` : ''}`}><div className="colony-resource-label"><ResourceIcon kind={art} size={22} />{label}</div><div className="colony-resource-value">{value}<small>{unit}</small></div><p>{detail}</p>{progress !== undefined && <div className="colony-resource-progress"><span style={{ width: `${Math.max(0, Math.min(100, progress * 100))}%` }} /></div>}</div>
 }
 
 function Logistics({ state, onChange, language }: { state: ColonyState; onChange: (action: (s: ColonyState) => ColonyState) => void; language: string }): JSX.Element {
