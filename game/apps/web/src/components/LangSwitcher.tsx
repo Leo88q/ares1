@@ -42,7 +42,8 @@ export default function LangSwitcher({ compact = false }: { compact?: boolean })
     }}
    >
     <Glyph name="globe" size={compact ? 13 : 15} aria-hidden="true" />
-    <span className="ares-mono">{(current?.label || 'English').split(' ')[0].toUpperCase().slice(0, 6)}</span>
+    {/* Short code (EN, RU, PT, ES, VI, ID, TL): the old 6-char cut showed "ENGLIS" on phones. */}
+    <span className="ares-mono">{(current?.code || 'en').split('-')[0].toUpperCase()}</span>
    </button>
    {open && (
     <div

@@ -1,0 +1,13 @@
+/*
+ * Touch comfort for phones (target device: Solana Seeker, 6.36", 1200×2670 px panel,
+ * ≈400×890 CSS px at 3×). Targets stay at least 44 px (WCAG 2.5.5 / Apple HIG).
+ * Only sizes change here; colours and layout keep their existing rules.
+ */
+@media (max-width: 480px), (pointer: coarse) {
+  .mk-key { min-height: 44px; }
+}
+
+/* Market filter chips: class selectors alone lose to the lazily loaded market sheet. */
+@media (max-width: 480px), (pointer: coarse) {
+  .ares-stencil.market-filter-app, .ares-stencil.market-filter-res { min-height: 44px; }
+}

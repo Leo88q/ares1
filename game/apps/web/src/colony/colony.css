@@ -438,3 +438,11 @@
 .colony-app--embedded .colony-footer-mark { max-width: none; }
 .colony-app--embedded .colony-table-scroll { overflow-x: auto; }
 .colony-app--embedded .colony-table-scroll table { min-width: 460px; }
+
+/* Phone touch targets (Solana Seeker class screens). Lives here, not in styles/seeker-touch.css:
+   colony.css loads lazily after the global sheets and would otherwise override them. */
+@media (max-width: 480px), (pointer: coarse) {
+  .colony-camera-controls button { width: 44px; height: 44px; }
+  .colony-module-selector button { min-height: 44px; }
+  .colony-world-footer button { min-height: 44px; padding: 0 12px; }
+}
