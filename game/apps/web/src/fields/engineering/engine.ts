@@ -3,28 +3,8 @@
  * ARES-LAB/2 parameters are game assumptions, NOT validated Mars agriculture.
  * No token balances, accounts, RPC, storage, randomness or wall-clock ticks.
  */
-export const LAB = Object.freeze({
-  version: 'ARES-LAB/2', solHours: 24.66, tickHours: 0.25,
-  maxAdvanceHours: 24.66 * 7, maxHours: 24.66 * 60,
-  growthLightHours: 96, lightHoursPerSol: 16,
-  batteryCapacityKwh: 12, batteryInitialKwh: 8,
-  chargeEfficiency: 0.9, dischargeEfficiency: 0.9,
-  solarPeakKw: 3.2, lampKw: 0.7, pumpKw: 0.08, coolerKw: 0.12, processorKw: 0.35,
-  tankCapacityL: 120, tankInitialL: 100, supplyInitialL: 240,
-  lineCapacityL: 6, lineInitialL: 4, pumpRateLph: 3,
-  nutrientsInitialKg: 0.65, nutrientsPerCycleKg: 0.16,
-  seedsInitial: 3, sparesInitial: 3, harvestKg: 18, storageCapacityKg: 45,
-  rawShelfHours: 72, processedShelfHours: 336, coldAgeFactor: 0.12,
-  processorRateKgph: 0.7, processingYield: 0.85, processBatchKg: 5,
-  maxLots: 12, maxHistory: 192, maxEvents: 40,
-  initialTemperatureC: 20, targetTemperatureC: 20, minTargetC: 12, maxTargetC: 26,
-  thermalCapacityKwhPerC: 0.9, envelopeKwPerC: 0.006,
-  heaterKw: 0.9, climateCoolerKw: 0.45, climateCoolingCop: 2.4,
-  thermostatResponseHours: 2, lampHeatFraction: 0.65,
-  evapFraction: 0.55, latentKwhPerL: 0.68,
-  outsideMinC: -52, outsideDayAmplitudeC: 28, coldEventDropC: 26,
-
-})
+import { LAB } from '../../organism/parameters'
+export { LAB }
 
 export type CropStage = 'empty' | 'seedling' | 'vegetative' | 'tuber' | 'mature' | 'dead'
 export type Bottleneck = 'none' | 'pump' | 'water' | 'power' | 'nutrients' | 'storage' | 'temperature' | 'dead'

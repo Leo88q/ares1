@@ -6,53 +6,8 @@
  */
 export type ModuleKind = 'solar' | 'greenhouse' | 'habitat' | 'recycler' | 'rover' | 'workshop' | 'battery'
 
-export const PARAMETERS = {
-  solarFluxKwM2: 1.361, // NASA TSI at ~1 AU; not surface generation.
-  panelAreaM2: 40,
-  panelEfficiency: 0.28, // Design assumption, not a vendor specification.
-  panelDerating: 0.8,
-  cropAreaM2: 20,
-  cropCycleDays: 90,
-  cropKgM2Day: 0.12, // Design target: 10.8 kg/m²/90 days, not a lunar measurement.
-  cropEvapLitresM2Day: 4.3, // Midpoint within Wheeler's terrestrial CEA range, 3.4–5.2.
-  cropWaterBoundLitresKg: 0.8, // Water retained in growing edible biomass.
-  cropNutrientKgPerKg: 0.01,
-  ledKwM2: 0.2,
-  photoperiodHours: 16,
-  cropUtilitiesKwM2: 0.04, // Pumps + climate placeholder; no thermal/radiation model.
-  habitatKwhDay: 24,
-  crewPerHabitat: 4,
-  crewWaterLitresDay: 3.8,
-  freshFoodKgCrewDay: 0.5, // A fresh-food supplement, NOT a complete diet.
-  crewO2KgDay: 0.84, // Typical resting-to-light-work metabolic O2 use per person; design value.
-  cropO2KgPerKgFresh: 0.25, // Photosynthetic O2 per kg fresh biomass; design assumption, not a measurement.
-  recyclerO2KgDay: 1.6, // Electrolysis output per recycler at full power; design target.
-  electrolysisKwhKgO2: 15, // Practical electrolysis energy per kg O2; design assumption (theory is ~5).
-  electrolysisWaterKgPerKgO2: 1.125, // Stoichiometry: 2 H2O -> 2 H2 + O2, 36 g water per 32 g O2.
-  oxygenStartKg: 30, // About 9 days of full crew demand at the starting crew of 4.
-  oxygenTankKg: 60, // Surplus above this is vented, not stored.
-  leakLitresDay: 1,
-  recyclerLitresDay: 120,
-  recyclerKwhLitre: 0.03,
-  roverKwhDay: 4,
-  workshopKwhDay: 2,
-  batteryKwh: 100,
-  batteryChargeEfficiency: 0.9,
-  batteryDischargeEfficiency: 0.9,
-  workHoursCrewDay: 6,
-  cropWorkHoursM2Day: 0.08,
-  reserveDays: 14,
-  initialCredits: 1400,
-  contractKg: 60,
-  contractCreditsKg: 4,
-  repairCredits: 20,
-  repairSparesKg: 2,
-  supplyCredits: 80,
-  supplyWaterLitres: 100,
-  supplyNutrientKg: 1,
-  supplySparesKg: 2,
-  maxDays: 365,
-} as const
+import { PARAMETERS } from '../organism/parameters'
+export { PARAMETERS }
 
 export const CATALOG: Record<ModuleKind, { credits: number; wearDay: number; file: string; color: string }> = {
   solar: { credits: 120, wearDay: 0.25, file: 'solar.glb', color: '#e6bc6b' },
