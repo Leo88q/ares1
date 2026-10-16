@@ -446,3 +446,15 @@
   .colony-module-selector button { min-height: 44px; }
   .colony-world-footer button { min-height: 44px; padding: 0 12px; }
 }
+
+/* Phone (≤480px, embedded in the ARES column): the time buttons (Run / +1 day / +7 days) float just
+   above the section key bar, so they stay in the thumb zone while scrolling the colony page.
+   Fixed (not sticky): a sticky bottom bar only pins once its normal position is below the viewport.
+   The key bar is 90 px + 10 px inset, so `bottom: 100px` clears it. */
+@media (max-width: 480px) {
+  .colony-app--embedded .colony-time-buttons {
+    position: fixed; left: 0; right: 0; bottom: calc(100px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+    justify-content: flex-end; padding: 8px 12px;
+    background: #0f0b07; border-top: 1px solid #6e5532; box-shadow: 0 -8px 16px #0008;
+  }
+}
