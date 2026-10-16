@@ -4,7 +4,18 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { CATALOG, PARAMETERS, SLOTS } from './simulation'
 import type { ColonyModule, ColonyState } from './simulation'
 
-const FILES = [...Object.values(CATALOG).map(m => m.file), 'plant.glb', 'rock.glb', 'connector.glb', 'astronaut.glb', 'cargo.glb', 'hammer.glb', 'shovel.glb']
+// Entries with a '/' live in another same-origin model folder (KayKit Space Base Bits, CC0).
+const KAYKIT_DIR = 'space-base-bits'
+const KAYKIT_TURBINE_LOW = `${KAYKIT_DIR}/windturbine_low.gltf`
+const KAYKIT_TURBINE_TALL = `${KAYKIT_DIR}/windturbine_tall.gltf`
+const FILES = [...Object.values(CATALOG).map(m => m.file), 'plant.glb', 'rock.glb', 'connector.glb', 'astronaut.glb', 'cargo.glb', 'hammer.glb', 'shovel.glb', KAYKIT_TURBINE_LOW, KAYKIT_TURBINE_TALL]
+
+/** URL and loader base for a model entry: same-origin only. */
+function modelLocation(file: string): { url: string; base: string } {
+  if (!file.includes('/')) return { url: `/models/colony/${file}`, base: '/models/colony/' }
+  const dir = file.slice(0, file.lastIndexOf('/'))
+  return { url: `/models/${file}`, base: `/models/${dir}/` }
+}
 
 export interface ColonyScene {
   update: (state: ColonyState, selectedId: string | null, sunHours: number) => void
@@ -230,6 +241,11 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     cargo.position.set(-2, 0.05, 8); propsRoot.add(cargo)
     const connector = model('connector.glb', 2.5)
     connector.position.set(5, 0.02, -4.7); connector.rotation.y = Math.PI / 2; propsRoot.add(connector)
+    // Two KayKit wind turbines on the outer edge of the base (decor only; no economy effect).
+    const turbineLow = model(KAYKIT_TURBINE_LOW, 3.2)
+    turbineLow.position.set(-17, 0.02, -10); turbineLow.rotation.y = 0.6; propsRoot.add(turbineLow)
+    const turbineTall = model(KAYKIT_TURBINE_TALL, 2.6)
+    turbineTall.position.set(17, 0.02, 10); turbineTall.rotation.y = -0.9; propsRoot.add(turbineTall)
   }
 
   function update(state: ColonyState, selectedId: string | null, sunHours: number): void {
@@ -287,11 +303,12 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   }
   void Promise.all(FILES.map(async file => {
     try {
-      const response = await fetch(`/models/colony/${file}`, { signal: abort.signal })
+      const { url, base } = modelLocation(file)
+      const response = await fetch(url, { signal: abort.signal })
       if (!response.ok) throw new Error(`Model HTTP ${response.status}`)
       const bytes = await response.arrayBuffer()
       if (disposed) return
-      const gltf = await loader.parseAsync(bytes, '/models/colony/')
+      const gltf = await loader.parseAsync(bytes, base)
       if (disposed) { disposeTrees([gltf.scene]); return }
       templates.set(file, gltf.scene)
     } catch {

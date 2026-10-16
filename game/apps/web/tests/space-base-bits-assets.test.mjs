@@ -68,3 +68,11 @@ test('space-base-bits: payload stays small and does not count against colony/fie
   }
   assert.ok(total < 3 * 1024 * 1024, `space-base-bits payload must stay below 3 MiB, got ${total}`)
 })
+
+test('space-base-bits: colony scene loads only KayKit files that are shipped, same-origin', () => {
+  const scene = readFileSync(new URL('../src/colony/scene.ts', import.meta.url), 'utf8')
+  const used = [...scene.matchAll(/(windturbine_[a-z]+\.gltf)/g)].map(m => m[1])
+  assert.ok(used.length >= 2, 'colony scene should reference the KayKit turbines')
+  for (const f of used) assert.ok(existsSync(new URL(f, root)), `scene references missing ${f}`)
+  assert.doesNotMatch(scene, /https?:\/\//)
+})

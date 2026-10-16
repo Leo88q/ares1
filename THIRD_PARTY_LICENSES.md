@@ -40,7 +40,7 @@ Offline integrity check: `cd game && yarn check:colony-assets`. Optional pinned 
 
 - 73 glTF 2.0 models with their `.bin` buffers and one shared texture (`spacebits_texture.png`) from [KayKit Space Base Bits 1.0](https://kaylousberg.itch.io/space-base-bits) by Kay Lousberg, **CC0 1.0**. Copied unmodified from the official GitHub repository [KayKit-Game-Assets/KayKit-Space-Base-Bits-1.0](https://github.com/KayKit-Game-Assets/KayKit-Space-Base-Bits-1.0) at commit `6dfbcac`. 16 of them (truck wheels, turbine fans, garage door, drill module) exist in the repo only as OBJ and were converted to glTF with obj2gltf 3.2.0 (`--separate`), without geometry edits.
 - Notice: [`licenses/kaykit-space-base-bits-LICENSE.txt`](game/apps/web/public/models/space-base-bits/licenses/kaykit-space-base-bits-LICENSE.txt). Attribution is not required; it is given as a courtesy.
-- **Not loaded by the game yet.** Files are staged for later use only.
+- **Used in the colony view:** `windturbine_low` and `windturbine_tall` are loaded as decorative props (no economy effect). The other models are staged for later use.
 
 Offline check: `cd game/apps/web && node --test tests/space-base-bits-assets.test.mjs`.
 
