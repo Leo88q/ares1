@@ -1,12 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, advanceDays, batteryCapacity, bedCycleKg, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, greenhouseBeds, initialColony, PARAMETERS as P, repairColony, sellableKg, SLOTS, stepBeds } from '../../apps/web/src/colony/simulation'
+import { advanceDay, advanceDays, batteryCapacity, bedCycleKg, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, greenhouseBeds, INITIAL_FOOD_KG, initialColony, PARAMETERS as P, repairColony, sellableKg, SLOTS, stepBeds } from '../../apps/web/src/colony/simulation'
 import type { ColonyState } from '../../apps/web/src/colony/simulation'
 
 const close = (actual: number, expected: number, tolerance = 1e-7): void => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`)
 const checkAccounting = (s: ColonyState): void => {
   close(s.credits, P.initialCredits + s.earnedCredits - s.spentCredits)
-  close(s.foodKg, 80 + s.harvestedKg - s.consumedFoodKg - s.deliveredKg)
+  close(s.foodKg, INITIAL_FOOD_KG + s.harvestedKg - s.consumedFoodKg - s.deliveredKg)
   assert.ok(s.deliveredKg <= P.contractKg)
   close(s.earnedCredits, s.deliveredKg * P.contractCreditsKg)
 }
@@ -31,7 +31,7 @@ test('colony: immutable deterministic steps, no instant harvest or credit mint',
   assert.deepEqual(s, original)
   assert.equal(a.harvestedKg, 0)
   assert.equal(a.credits, s.credits)
-  close(a.foodKg, 80 - 10 * foodDemand(s))
+  close(a.foodKg, INITIAL_FOOD_KG - 10 * foodDemand(s))
   assert.ok(a.modules.find(m => m.kind === 'greenhouse')!.growthDays > 69)
   assert.notEqual(initialColony().modules, initialColony().modules)
 })
@@ -63,6 +63,16 @@ test('colony: each greenhouse bed is harvested once per 90-day cycle, staggered 
   close(next.modules.find(m => m.kind === 'greenhouse')!.growthDays, 0)
   assert.deepEqual(next.modules.find(m => m.kind === 'greenhouse')!.beds!.map(v => Math.round(v)), [0, 75, 60, 45, 30, 15])
   checkAccounting(next)
+})
+
+test('colony: without any player action the starting food lasts the first crop cycle plus 30 days', () => {
+  let s = initialColony()
+  for (let day = 1; day <= 120; day++) {
+    s = advanceDay(s)
+    assert.ok(s.foodKg > 0, `food ran out on day ${day}`)
+    assert.equal(s.foodShortfallKg, 0)
+  }
+  checkAccounting(s)
 })
 
 test('colony: battery dispatch conserves energy and never generates in darkness', () => {
@@ -168,10 +178,13 @@ test('colony: deliveries preserve reserve and exhaust a funded order, not unlimi
   let s = advanceDays(initialColony(), 60)
   assert.ok(s.harvestedKg > 0)
   const surplus = s.foodKg - foodReserve(s)
-  assert.ok(surplus > 0 && surplus < 10)
+  assert.ok(surplus > 0)
   for (let i = 0; i < 20; i++) s = deliverFood(s)
-  close(s.deliveredKg, surplus)
-  close(s.earnedCredits, surplus * P.contractCreditsKg)
+  // sold = min(surplus, funded contract); a single delivery is capped at 10 kg, so 20 calls exhaust either limit
+  const expected = Math.min(surplus, P.contractKg)
+  close(s.deliveredKg, expected)
+  close(s.earnedCredits, expected * P.contractCreditsKg)
+  assert.equal(sellableKg(s), 0)
   assert.ok(s.foodKg >= foodReserve(s))
   assert.equal(deliverFood(s), s)
   checkAccounting(s)

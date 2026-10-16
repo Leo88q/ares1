@@ -91,6 +91,10 @@ export interface DayBudget {
   oxygenEndKg: number
 }
 
+/** Starting food (kg). 120 kg lets a colony with no repairs get through the first full crop cycle plus 30 days
+ *  without shortfall (80 kg ran out on day 112). Owner balance decision — see docs/ORGANISM_INTEGRATION.md §29. */
+export const INITIAL_FOOD_KG = 120
+
 export function initialColony(): ColonyState {
   const starter: Array<[ModuleKind, number]> = [
     ['solar', 0], ['solar', 6], ['battery', 1], ['habitat', 4],
@@ -105,7 +109,7 @@ export function initialColony(): ColonyState {
       beds: kind === 'greenhouse' ? greenhouseBeds(60) : undefined,
     })),
     crew: 4, credits: PARAMETERS.initialCredits, spentCredits: 0, earnedCredits: 0,
-    waterLitres: 800, nutrientsKg: 4, sparesKg: 8, foodKg: 80, oxygenKg: PARAMETERS.oxygenStartKg, oxygenShortfallKg: 0,
+    waterLitres: 800, nutrientsKg: 4, sparesKg: 8, foodKg: INITIAL_FOOD_KG, oxygenKg: PARAMETERS.oxygenStartKg, oxygenShortfallKg: 0,
     batteryKwh: 80,
     harvestedKg: 0, consumedFoodKg: 0, foodShortfallKg: 0, deliveredKg: 0, lastDay: null,
   }
