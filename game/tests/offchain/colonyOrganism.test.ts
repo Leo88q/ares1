@@ -118,3 +118,14 @@ test('colony organism: crew and rover flags follow the snapshot', () => {
   assert.equal(colonyVisualState({ ...base, crew: 0 }, DEFAULT_SCENARIO.sunHours).crewLanded, false)
   assert.equal(colonyVisualState(base, DEFAULT_SCENARIO.sunHours).roverDeployed, true)
 })
+
+test('colony organism: truck runs only with a rover and food available under the contract', () => {
+  const base = advanceDay(initialColony(), DEFAULT_SCENARIO)
+  assert.equal(colonyVisualState(base, DEFAULT_SCENARIO.sunHours).truckActive, true)
+  assert.equal(colonyVisualState({ ...base, foodKg: 0 }, DEFAULT_SCENARIO.sunHours).truckActive, false)
+  const noRover = { ...base, modules: base.modules.filter(m => m.kind !== 'rover') }
+  assert.equal(colonyVisualState(noRover, DEFAULT_SCENARIO.sunHours).truckActive, false)
+  const done = { ...base, deliveredKg: 60 }
+  assert.equal(colonyVisualState(done, DEFAULT_SCENARIO.sunHours).truckActive, false)
+  assert.equal(colonyVisualState(done, DEFAULT_SCENARIO.sunHours).contractProgress, 1)
+})

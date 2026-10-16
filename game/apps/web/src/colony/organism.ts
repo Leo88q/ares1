@@ -1,7 +1,7 @@
 // Visual-only read model: turns the colony simulation snapshot into values the 3D scene can show.
 // Pure and framework-free so it can be tested offline. It never writes to ColonyState and has
 // no effect on credits, rewards, tokens or any on-chain value.
-import { batteryCapacity } from './simulation'
+import { batteryCapacity, PARAMETERS, sellableKg } from './simulation'
 import type { ColonyState } from './simulation'
 
 export interface PowerVisual {
@@ -88,6 +88,10 @@ export interface ColonyVisual {
   roverDeployed: boolean
   /** Crew present, so the lander pad shows a landed craft. */
   crewLanded: boolean
+  /** Truck drives only while a rover exists and food can be sold under the contract. */
+  truckActive: boolean
+  /** Delivered share of the contract, 0–1. */
+  contractProgress: number
   modules: ModuleVisual[]
 }
 
@@ -124,6 +128,8 @@ export function colonyVisualState(state: ColonyState, sunHours: number): ColonyV
     links,
     roverDeployed: state.modules.some(m => m.kind === 'rover' && m.condition >= DAMAGED_CONDITION),
     crewLanded: state.crew > 0,
+    truckActive: sellableKg(state) > 0,
+    contractProgress: Math.min(1, Math.max(0, state.deliveredKg / PARAMETERS.contractKg)),
     modules,
   }
 }

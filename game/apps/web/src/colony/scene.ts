@@ -20,6 +20,7 @@ const K = {
   pad: `${KAYKIT}/landingpad_small.gltf`,
   garage: `${KAYKIT}/basemodule_garage.gltf`,
   drill: `${KAYKIT}/drill_structure.gltf`,
+  truck: `${KAYKIT}/spacetruck.gltf`,
 } as const
 const FILES = [...Object.values(CATALOG).map(m => m.file), 'plant.glb', 'rock.glb', 'connector.glb', 'astronaut.glb', 'cargo.glb', 'hammer.glb', 'shovel.glb', ...Object.values(K)]
 
@@ -161,7 +162,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   scene.add(linkRoot)
   let linkKey = ''
   const LIGHT_COLORS: Record<'green' | 'amber' | 'red', string> = { green: '#7fe0a0', amber: '#ffb347', red: '#ff4d4d' }
-  const spinners: Array<{ pivot: THREE.Object3D; axis: 'x' | 'y' | 'z'; speed: number; gain: number }> = []
+  const spinners: Array<{ pivot: THREE.Object3D; axis: 'x' | 'y' | 'z'; speed: number; group: 'wind' | 'drill' | 'truck' }> = []
   let spinFrame = 0
   let lastSpin = 0
   function spinStep(now: number): void {
@@ -192,8 +193,8 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     const center = box.getCenter(new THREE.Vector3())
     return { scale: width / Math.max(size.x, size.z, 0.001), offset: new THREE.Vector3(-center.x, -box.min.y, -center.z) }
   }
-  /** Places a KayKit model without re-centring per file, then moves a named part onto a pivot so it can turn. */
-  function spinningRig(file: string, partName: string | null, width: number, axis: 'x' | 'y' | 'z', gain: number): THREE.Group | null {
+  /** Places a KayKit model without re-centring per file; each named part (fan, drill bit, wheel) gets its own pivot. */
+  function spinningRig(file: string, partNames: string[], width: number, axis: 'x' | 'y' | 'z', group: 'wind' | 'drill' | 'truck'): THREE.Group | null {
     const template = templates.get(file)
     if (!template) return null
     const rig = rigFor(template, width)
@@ -203,14 +204,15 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     root.add(copy)
     root.scale.setScalar(rig.scale)
     root.updateMatrixWorld(true)
-    const part = partName ? copy.getObjectByName(partName) : undefined
-    if (part) {
+    for (const partName of partNames) {
+      const part = copy.getObjectByName(partName)
+      if (!part) continue
       const centre = root.worldToLocal(new THREE.Box3().setFromObject(part).getCenter(new THREE.Vector3()))
       const pivot = new THREE.Group()
       pivot.position.copy(centre)
       root.add(pivot)
       pivot.attach(part)
-      spinners.push({ pivot, axis, speed: 0, gain })
+      spinners.push({ pivot, axis, speed: 0, group })
     }
     return root
   }
@@ -368,12 +370,14 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     // KayKit props. Decor only: none of these change credits, rewards or simulation values.
     spinners.length = 0
     crateStages.length = 0
-    const turbineLow = spinningRig(K.turbineLow, 'windturbine_low_fan', 3.2, 'z', 1)
+    const turbineLow = spinningRig(K.turbineLow, ['windturbine_low_fan'], 3.2, 'z', 'wind')
     if (turbineLow) { turbineLow.position.set(-17, 0.02, -10); turbineLow.rotation.y = 0.6; propsRoot.add(turbineLow) }
-    const turbineTall = spinningRig(K.turbineTall, 'windturbine_tall_fan', 2.6, 'z', 1)
+    const turbineTall = spinningRig(K.turbineTall, ['windturbine_tall_fan'], 2.6, 'z', 'wind')
     if (turbineTall) { turbineTall.position.set(17, 0.02, 10); turbineTall.rotation.y = -0.9; propsRoot.add(turbineTall) }
-    const drill = spinningRig(K.drill, 'drill_module', 2.4, 'y', 0.4)
+    const drill = spinningRig(K.drill, ['drill_module'], 2.4, 'y', 'drill')
     if (drill) { drill.position.set(22, 0.02, -8); propsRoot.add(drill) }
+    const truck = spinningRig(K.truck, ['spacetruck_wheel_front_left', 'spacetruck_wheel_front_right', 'spacetruck_wheel_rear_left', 'spacetruck_wheel_rear_right'], 2.4, 'x', 'truck')
+    if (truck) { truck.position.set(9, 0.02, 15); truck.rotation.y = -0.4; propsRoot.add(truck) }
     if (templates.has(K.garage)) {
       const garage = model(K.garage, 3.2)
       garage.position.set(-12, 0.02, -15); garage.rotation.y = 0.2; propsRoot.add(garage)
@@ -433,8 +437,12 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     rebuildLinks(visual.links)
     crateStages.forEach((crate, index) => { crate.visible = index === visual.cargoStage })
     if (lander) lander.visible = visual.crewLanded
-    const turn = visual.power.blackout ? 0 : 2.5 * visual.power.turbineSpin
-    for (const spinner of spinners) spinner.speed = spinner.gain * turn
+    const wind = visual.power.blackout ? 0 : 2.5 * visual.power.turbineSpin
+    const drillSpeed = visual.power.blackout ? 0 : 0.8
+    const truckSpeed = visual.truckActive ? 4 : 0
+    for (const spinner of spinners) {
+      spinner.speed = spinner.group === 'wind' ? wind : spinner.group === 'drill' ? drillSpeed : truckSpeed
+    }
     ensureSpin()
     sun.intensity = sunHours > 0 ? 3.5 : 0.08
     sky.intensity = sunHours > 0 ? 2.1 : 0.55
