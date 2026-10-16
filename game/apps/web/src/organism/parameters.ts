@@ -13,7 +13,11 @@ export const LAB = Object.freeze({
   chargeEfficiency: 0.9, dischargeEfficiency: 0.9,
   solarPeakKw: 3.2, lampKw: 0.7, pumpKw: 0.08, coolerKw: 0.12, processorKw: 0.35,
   tankCapacityL: 120, tankInitialL: 100, supplyInitialL: 240,
-  lineCapacityL: 6, lineInitialL: 4, pumpRateLph: 3,
+  // T5 (approved, H): line buffer 6 → 2 L, so a pump outage bites within hours, not a day.
+  lineCapacityL: 2, lineInitialL: 2, pumpRateLph: 3,
+  // T4 (approved, H): nominal cycle from planting to ripeness at ideal conditions (measured 148 h).
+  // Harvest after this loses yield linearly, reaching 0 at 2 × nominalCycleHours.
+  nominalCycleHours: 148,
   nutrientsInitialKg: 0.65, nutrientsPerCycleKg: 0.16,
   seedsInitial: 3, sparesInitial: 3, harvestKg: 18, storageCapacityKg: 45,
   rawShelfHours: 72, processedShelfHours: 336, coldAgeFactor: 0.12,

@@ -18,7 +18,7 @@ export interface FoodLot {
   baseQuality: number
 }
 export interface ProcessingJob { remainingKg: number; ageHours: number; baseQuality: number; outputId: number }
-export interface Crop { planted: boolean; progress: number; health: number; matureHour?: number }
+export interface Crop { planted: boolean; progress: number; health: number; matureHour?: number; plantedHour?: number }
 export interface LabSample {
   hour: number; battery: number; water: number; growth: number; health: number
   solarKw: number; servedKw: number; light: number; irrigation: number; cold: number
@@ -84,9 +84,18 @@ export const maturityRatio = (state: EngineeringState): number => {
   const since = Math.max(0, state.hour - (crop.matureHour ?? state.hour))
   return 1 + since / LAB.overripeHours
 }
-/** Harvest mass now: base × scale × health × window factor (continuous, 0 outside the window). */
+/**
+ * T4 (approved, H): cost of delay. Time from planting to harvest beyond nominalCycleHours
+ * reduces yield linearly, reaching 0 at 2 × nominalCycleHours. Crops without plantedHour: 1.
+ */
+export const delayFactor = (state: EngineeringState): number => {
+  if (state.crop.plantedHour === undefined) return 1
+  const elapsed = Math.max(0, state.hour - state.crop.plantedHour)
+  return clamp(1 - Math.max(0, elapsed - LAB.nominalCycleHours) / LAB.nominalCycleHours)
+}
+/** Harvest mass now: base × scale × health × window factor × delay factor (T4). */
 export const harvestMass = (state: EngineeringState): number =>
-  LAB.harvestKg * labScale(state.tier) * clamp(state.crop.health) * harvestFactor(maturityRatio(state))
+  LAB.harvestKg * labScale(state.tier) * clamp(state.crop.health) * harvestFactor(maturityRatio(state)) * delayFactor(state)
 export const canHarvest = (state: EngineeringState): boolean => harvestFactor(maturityRatio(state)) > 0 && state.lots.length < LAB.maxLots && storageKg(state) + harvestMass(state) <= LAB.storageCapacityKg * labScale(state.tier) + EPS
 export const solarFraction = (hour: number): number => Math.max(0, Math.sin(Math.PI * (((hour + 8) % LAB.solHours) / LAB.solHours * 2 - 0.5)))
 export const lightsScheduled = (hour: number): boolean => {
@@ -111,7 +120,7 @@ export function initialEngineering(fieldId: string, tier: 0 | 1 | 2): Engineerin
     profileVersion: LAB.version, fieldId, tier, hour: 0, temperatureC: LAB.initialTemperatureC, batteryKwh: LAB.batteryInitialKwh * scale,
     tankL: LAB.tankInitialL * scale, supplyL: LAB.supplyInitialL * scale, lineL: LAB.lineInitialL * scale,
     nutrientsKg: LAB.nutrientsInitialKg * scale, seeds: LAB.seedsInitial - 1, spares: LAB.sparesInitial,
-    crop: { planted: true, progress: 0, health: 1 },
+    crop: { planted: true, progress: 0, health: 1, plantedHour: 0 },
     controls: { lights: true, pump: true, battery: true, cooling: true, pumpFault: false, climate: true, targetC: LAB.targetTemperatureC, priority: 'crop' },
     dustUntil: 0, coldUntil: 0, lots: [], processing: null, nextLotId: 1, history: [sample], events: [{ hour: 0, code: 'seed', amount: 1 }],
     last: { ...sample, bottleneck: 'none' },
@@ -260,7 +269,7 @@ export function engineeringAction(input: EngineeringState, action: EngineeringAc
     case 'cold': state.coldUntil = state.hour + 2 * LAB.solHours; event(state, 'cold'); return state
     case 'plant':
       if (state.crop.planted || state.seeds <= 0) return input
-      state.seeds -= 1; state.crop = { planted: true, progress: 0, health: 1 }; event(state, 'seed', 1); return state
+      state.seeds -= 1; state.crop = { planted: true, progress: 0, health: 1, plantedHour: state.hour }; event(state, 'seed', 1); return state
     case 'clear':
       if (!state.crop.planted) return input
       state.crop = { planted: false, progress: 0, health: 1 }; return state

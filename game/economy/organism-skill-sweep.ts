@@ -31,6 +31,7 @@ function run(label: string, mistake: Mistake | null, base: (s: any) => any = s =
 
 const pump: Mistake = { start: 24, end: 72, apply: s => ({ ...s, controls: { ...s.controls, pumpFault: true } }), undo: s => ({ ...s, controls: { ...s.controls, pumpFault: false } }) }
 const climate: Mistake = { start: 24, end: 72, apply: s => ({ ...s, controls: { ...s.controls, climate: false } }), undo: s => ({ ...s, controls: { ...s.controls, climate: true } }) }
+const climate3: Mistake = { start: 24, end: 96, apply: s => ({ ...s, controls: { ...s.controls, climate: false } }), undo: s => ({ ...s, controls: { ...s.controls, climate: true } }) }
 const lights: Mistake = { start: 24, end: 72, apply: s => ({ ...s, controls: { ...s.controls, lights: false } }), undo: s => ({ ...s, controls: { ...s.controls, lights: true } }) }
 const setT = (t: number) => (s: any) => ({ ...s, controls: { ...s.controls, targetC: t, priority: 'crop' } })
 
@@ -39,6 +40,7 @@ rows.push(run('optimum 20 °C', null, setT(20)))
 for (const t of [12, 16, 24, 26]) rows.push(run(`target ${t} °C`, null, setT(t)))
 rows.push(run('MISTAKE: pump off 2 days (24–72 h)', pump, setT(20)))
 rows.push(run('MISTAKE: climate off 2 days (24–72 h)', climate, setT(20)))
+rows.push(run('MISTAKE: climate off 3 days (24–96 h, §14.7)', climate3, setT(20)))
 rows.push(run('MISTAKE: lights off 2 days (24–72 h)', lights, setT(20)))
 
 const ref = rows[0].best
