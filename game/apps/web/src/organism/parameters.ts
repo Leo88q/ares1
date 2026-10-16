@@ -17,6 +17,7 @@ export const LAB = Object.freeze({
   nutrientsInitialKg: 0.65, nutrientsPerCycleKg: 0.16,
   seedsInitial: 3, sparesInitial: 3, harvestKg: 18, storageCapacityKg: 45,
   rawShelfHours: 72, processedShelfHours: 336, coldAgeFactor: 0.12,
+  overripeHours: 240, // H (WP11): 120 % window closes 48 h after maturity; not validated (raised from 120 after browser check: 7-sol wait missed the window)
   processorRateKgph: 0.7, processingYield: 0.85, processBatchKg: 5,
   maxLots: 12, maxHistory: 192, maxEvents: 40,
   initialTemperatureC: 20, targetTemperatureC: 20, minTargetC: 12, maxTargetC: 26,

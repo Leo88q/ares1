@@ -3,7 +3,8 @@
  * ARES-LAB/2 parameters are game assumptions, NOT validated Mars agriculture.
  * No token balances, accounts, RPC, storage, randomness or wall-clock ticks.
  */
-import { LAB } from '../../organism/parameters'
+import { BEDS, LAB } from '../../organism/parameters'
+import { harvestFactor } from '../../organism/beds'
 export { LAB }
 
 export type CropStage = 'empty' | 'seedling' | 'vegetative' | 'tuber' | 'mature' | 'dead'
@@ -17,7 +18,7 @@ export interface FoodLot {
   baseQuality: number
 }
 export interface ProcessingJob { remainingKg: number; ageHours: number; baseQuality: number; outputId: number }
-export interface Crop { planted: boolean; progress: number; health: number }
+export interface Crop { planted: boolean; progress: number; health: number; matureHour?: number }
 export interface LabSample {
   hour: number; battery: number; water: number; growth: number; health: number
   solarKw: number; servedKw: number; light: number; irrigation: number; cold: number
@@ -72,8 +73,21 @@ export const labScale = (tier: 0 | 1 | 2): number => [1, 1.35, 1.7][tier]
 export const cropStage = (crop: Crop): CropStage => !crop.planted ? 'empty' : crop.health <= EPS ? 'dead' : crop.progress >= 1 - EPS ? 'mature' : crop.progress < 0.2 ? 'seedling' : crop.progress < 0.55 ? 'vegetative' : 'tuber'
 export const lotQuality = (lot: Pick<FoodLot, 'kind' | 'baseQuality' | 'ageHours'>): number => clamp(lot.baseQuality * (1 - lot.ageHours / (lot.kind === 'raw' ? LAB.rawShelfHours : LAB.processedShelfHours)))
 export const storageKg = (state: EngineeringState): number => state.lots.reduce((sum, lot) => sum + lot.kg, 0) + (state.processing?.remainingKg ?? 0)
-export const harvestMass = (state: EngineeringState): number => LAB.harvestKg * labScale(state.tier) * clamp(state.crop.health)
-export const canHarvest = (state: EngineeringState): boolean => cropStage(state.crop) === 'mature' && state.lots.length < LAB.maxLots && storageKg(state) + harvestMass(state) <= LAB.storageCapacityKg * labScale(state.tier) + EPS
+/**
+ * Maturity ratio for the harvest window (WP11). Before maturity: growth progress (0…1).
+ * After maturity: 1 + hours since maturity / overripeHours. Dead or unplanted crops: 0.
+ */
+export const maturityRatio = (state: EngineeringState): number => {
+  const crop = state.crop
+  if (!crop.planted || crop.health <= EPS) return 0
+  if (crop.progress < 1 - EPS) return crop.progress
+  const since = Math.max(0, state.hour - (crop.matureHour ?? state.hour))
+  return 1 + since / LAB.overripeHours
+}
+/** Harvest mass now: base × scale × health × window factor (continuous, 0 outside the window). */
+export const harvestMass = (state: EngineeringState): number =>
+  LAB.harvestKg * labScale(state.tier) * clamp(state.crop.health) * harvestFactor(maturityRatio(state))
+export const canHarvest = (state: EngineeringState): boolean => harvestFactor(maturityRatio(state)) > 0 && state.lots.length < LAB.maxLots && storageKg(state) + harvestMass(state) <= LAB.storageCapacityKg * labScale(state.tier) + EPS
 export const solarFraction = (hour: number): number => Math.max(0, Math.sin(Math.PI * (((hour + 8) % LAB.solHours) / LAB.solHours * 2 - 0.5)))
 export const lightsScheduled = (hour: number): boolean => {
   const phase = (hour + 8) % LAB.solHours
@@ -176,6 +190,7 @@ function tick(state: EngineeringState, dt: number): void {
     const used = need * nutrientFraction
     state.nutrientsKg -= used; state.totals.nutrientsConsumedKg += used
     state.crop.progress = clamp(state.crop.progress + potential * nutrientFraction)
+    if (state.crop.progress >= 1 - EPS && state.crop.matureHour === undefined) state.crop.matureHour = state.hour + dt
   }
   if (living) {
     const resourceStress = irrigation < 0.6 ? (1 - irrigation) * 0.028 : scheduled && lightFraction < 0.5 ? (1 - lightFraction) * 0.006 : nutrientFraction < 0.5 ? 0.009 : 0
@@ -212,7 +227,7 @@ function tick(state: EngineeringState, dt: number): void {
   else if (living && temperatureFactor < 0.75) bottleneck = 'temperature'
   else if (scheduled && lightFraction < 0.5) bottleneck = 'power'
   else if (nutrientFraction < 0.5) bottleneck = 'nutrients'
-  else if (cropStage(state.crop) === 'mature' && !canHarvest(state)) bottleneck = 'storage'
+  else if (maturityRatio(state) >= BEDS.harvestWindowMinRatio && !canHarvest(state)) bottleneck = 'storage'
   state.last = { hour: state.hour, battery: clamp(state.batteryKwh / (LAB.batteryCapacityKwh * scale)), water: clamp(state.tankL / (LAB.tankCapacityL * scale)), growth: state.crop.progress, health: state.crop.health, solarKw: solar / dt, servedKw: served / dt, light: lightFraction, irrigation, cold: coldFraction, temperatureC: state.temperatureC, outsideC, targetC: state.controls.targetC, temperatureFactor, climateMode, climateKw: climateKw * climateFraction, climateFraction, bottleneck }
 }
 

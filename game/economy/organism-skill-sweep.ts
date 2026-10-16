@@ -1,36 +1,43 @@
 /**
- * Skill-spread sweep for docs/ORGANISM_INTEGRATION.md §14. Runs the existing
- * ARES-LAB/2 engine unchanged over one growth cycle per setting combination.
+ * Skill-spread sweep for docs/ORGANISM_INTEGRATION.md §14.7 (WP11 version).
+ * Runs the ARES-LAB/2 engine (with the continuous harvest window) hour by hour and
+ * records the best harvest the player could take during the run, plus the harvest
+ * when the crop first reaches 80 % maturity (early) and at maturity (ideal).
  * Run: game/node_modules/.bin/tsx game/economy/organism-skill-sweep.ts
  */
-import { initialEngineering, engineeringAction, advanceEngineering } from '../apps/web/src/fields/engineering/engine.ts'
-type Row = { label: string; kg: number; hours: number; health: number; kwhServed: number; waterL: number; bottleneck: string }
+import { initialEngineering, engineeringAction, advanceEngineering, harvestMass, canHarvest, maturityRatio } from '../apps/web/src/fields/engineering/engine.ts'
 
-function run(label: string, setup: (s: any) => any, refillBelow = 40, maxHours = 24.66 * 40): Row {
-  let s: any = setup({ ...initialEngineering('sweep', 0), seeds: 9 })
-  let hours = 0
-  while (hours < maxHours) {
+type Row = { label: string; best: number; atHour: number; early: number; ideal: number; bottleneck: string }
+
+function run(label: string, setup: (s: any) => any, refillBelow = 40): Row {
+  let s: any = setup({ ...initialEngineering('sweep', 0), seeds: 99 })
+  const maxHours = 24.66 * 40
+  let best = 0, atHour = 0, early: number | null = null, ideal: number | null = null
+  for (let h = 0; h < maxHours; h++) {
     if (s.tankL < refillBelow && s.supplyL > 0) s = engineeringAction(s, { type: 'refill' } as any)
-    s = advanceEngineering(s, 1); hours += 1
-    if (s.crop.progress >= 1 - 1e-9 || s.last.bottleneck === 'dead') break
+    s = advanceEngineering(s, 1)
+    const r = maturityRatio(s)
+    if (canHarvest(s)) {
+      const kg = harvestMass(s)
+      if (kg > best) { best = kg; atHour = Math.round(s.hour) }
+      if (early === null && r >= 0.8) early = kg
+      if (ideal === null && r >= 1) ideal = kg
+    }
+    if (s.last.bottleneck === 'dead') break
+    if (r > 1.2) break // window closed
   }
-  const matured = s.crop.progress >= 1 - 1e-9
-  const kg = matured && s.last.bottleneck !== 'dead' ? s.lots.reduce((a: number, l: any) => a + l.kg, 0) + (matured ? 0 : 0) : 0
-  // harvest collected at maturity (what the player would sell): harvestMass uses health
-  const harvestKg = matured ? 18 * s.crop.health : 0
-  return { label, kg: +harvestKg.toFixed(2), hours: Math.round(hours), health: +s.crop.health.toFixed(2), kwhServed: +s.totals.servedKwh.toFixed(1), waterL: +s.totals.waterConsumedL.toFixed(1), bottleneck: s.last.bottleneck }
+  const f = (x: number | null) => (x === null ? 0 : +x.toFixed(2))
+  return { label, best: +best.toFixed(2), atHour, early: f(early), ideal: f(ideal), bottleneck: s.last.bottleneck }
 }
 
 const rows: Row[] = []
-// 1) setpoint × priority; lights and climate on
-for (const t of [12, 16, 20, 24, 26]) for (const pr of ['crop', 'food'] as const) {
-  rows.push(run(`target ${t}°C, priority ${pr}`, s => ({ ...s, controls: { ...s.controls, targetC: t, priority: pr } })))
-}
-// 2) mistakes (one error each, otherwise optimal)
+for (const t of [12, 16, 20, 24, 26]) rows.push(run(`target ${t}°C, priority crop`, s => ({ ...s, controls: { ...s.controls, targetC: t, priority: 'crop' } })))
 rows.push(run('MISTAKE: lights off all the time', s => ({ ...s, controls: { ...s.controls, lights: false } })))
 rows.push(run('MISTAKE: climate off (no thermostat)', s => ({ ...s, controls: { ...s.controls, climate: false } })))
 rows.push(run('MISTAKE: pump fault not repaired', s => ({ ...s, controls: { ...s.controls, pumpFault: true } })))
-rows.push(run('MISTAKE: no refill of tank (supply kept)', s => s, 0))
-rows.push(run('OPTIMAL: 20°C, priority crop', s => ({ ...s, controls: { ...s.controls, targetC: 20, priority: 'crop' } })))
+rows.push(run('MISTAKE: tank never refilled', s => s, 0))
 
-for (const r of rows) console.log(`${r.label.padEnd(40)} kg=${String(r.kg).padStart(5)} hours=${String(r.hours).padStart(4)} health=${r.health} served=${r.kwhServed}kWh water=${r.waterL}L bottleneck=${r.bottleneck}`)
+const ref = rows.find(r => r.label.includes('20°C'))!.best
+for (const r of rows) {
+  console.log(`${r.label.padEnd(38)} best=${String(r.best).padStart(6)} kg (×${(r.best / ref).toFixed(2)})  at ${String(r.atHour).padStart(4)}h  early(80%)=${r.early}  ideal(100%)=${r.ideal}  bottleneck=${r.bottleneck}`)
+}

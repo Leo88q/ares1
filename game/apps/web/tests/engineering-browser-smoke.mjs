@@ -77,7 +77,8 @@ try {
   assert.equal(await page.getByTestId('lab-stage').getAttribute('data-stage'), 'mature')
   await screenshot(page, 'engineering-grown.png')
   await actionButton(page, 'Собрать еду SIM')
-  assert.match(await page.getByTestId('lab-mass-ledger').innerText(), /18\.00 kg/)
+  // WP11: +7 sols is 24.6 h after maturity → overripe factor 0.743 → 13.38 kg (window 80–120 %, overripeHours 240)
+  assert.match(await page.getByTestId('lab-mass-ledger').innerText(), /13\.38 kg/)
   assert.equal(await page.getByRole('button', { name: 'Партии', exact: true }).getAttribute('aria-pressed'), 'true')
   await page.getByRole('button', { name: 'Журнал', exact: true }).click()
   assert.match(await page.locator('.eg-deck-log').innerText(), /Собрана партия еды/)
@@ -106,7 +107,8 @@ try {
   // Storage age is independent of wallet tokens. No financial callback exists here.
   await actionButton(page, 'Охлаждение: вкл.')
   await actionButton(page, '+7 солов')
-  assert.match(await page.getByTestId('lab-mass-ledger').innerText(), /Испорчено: 13\.00 kg/)
+  // WP11: 13.38 harvested − 5 processed = 8.38 raw spoiled
+  assert.match(await page.getByTestId('lab-mass-ledger').innerText(), /Испорчено: 8\.38 kg/)
   await actionButton(page, 'Новый сценарий SIM')
   assert.equal(await time(page), 0)
   await actionButton(page, 'Смоделировать поломку')
@@ -172,7 +174,8 @@ try {
     assert.equal(await page.getByTestId('engineering-console').getAttribute('data-field-id'), 'demo-2')
     await actionButton(page, '+7 солов')
     await actionButton(page, 'Собрать еду SIM')
-    assert.match(await page.getByTestId('lab-mass-ledger').innerText(), /30\.60 kg/)
+    // WP11: tier 2 base 30.60 kg × overripe factor at +24.6 h (0.743) = 22.75 kg
+    assert.match(await page.getByTestId('lab-mass-ledger').innerText(), /22\.75 kg/)
     await actionButton(page, 'Защитить хранилище')
     await climateSlider(page, 'Home')
     assert.equal(await page.getByRole('slider', { name: 'Уставка термостата', exact: true }).inputValue(), '12')
