@@ -53,3 +53,77 @@ export function powerVisualState(state: ColonyState, sunHours: number): PowerVis
     lights,
   }
 }
+
+// ---------------------------------------------------------------------------
+// Whole-base read model: every visible system derived from the same snapshot.
+// ---------------------------------------------------------------------------
+
+/** Visual scale only for cargo crates; not a game rule. */
+export const CARGO_CAPACITY_KG = 120
+/** Condition below this shows damage on a module pad. */
+export const DAMAGED_CONDITION = 50
+/** Slot grid used by the scene (6 columns, 4 rows). */
+const COLUMNS = 6
+const ROWS = 4
+
+export interface ModuleVisual {
+  id: string
+  kind: string
+  slot: number
+  lights: 'off' | 'green' | 'amber' | 'red'
+  damaged: boolean
+}
+
+export interface ColonyVisual {
+  power: PowerVisual
+  /** Oxygen shortfall on the last simulated day: habitat and recycler glow red. */
+  oxygenAlarm: boolean
+  /** Share of the cargo capacity used by food and spares, 0–1. */
+  cargoFill: number
+  /** Crate stage: 0 empty, 1 packed, 2 stacked. */
+  cargoStage: 0 | 1 | 2
+  /** Pairs of occupied neighbouring slots that get a tunnel. */
+  links: Array<[number, number]>
+  /** A rover is docked, so the truck and garage show activity. */
+  roverDeployed: boolean
+  /** Crew present, so the lander pad shows a landed craft. */
+  crewLanded: boolean
+  modules: ModuleVisual[]
+}
+
+const OXYGEN_KINDS = new Set(['habitat', 'recycler'])
+
+export function colonyVisualState(state: ColonyState, sunHours: number): ColonyVisual {
+  const power = powerVisualState(state, sunHours)
+  const oxygenAlarm = (state.lastDay?.oxygenShortfallKg ?? 0) > 0.01
+  const cargoFill = Math.min(1, Math.max(0, (state.foodKg + state.sparesKg) / CARGO_CAPACITY_KG))
+  const cargoStage: 0 | 1 | 2 = cargoFill < 1 / 3 ? 0 : cargoFill < 2 / 3 ? 1 : 2
+  const occupied = new Set(state.modules.map(m => m.slot))
+  const links: Array<[number, number]> = []
+  for (const slot of occupied) {
+    const col = slot % COLUMNS
+    const row = Math.floor(slot / COLUMNS)
+    if (col < COLUMNS - 1 && occupied.has(slot + 1)) links.push([slot, slot + 1])
+    if (row < ROWS - 1 && occupied.has(slot + COLUMNS)) links.push([slot, slot + COLUMNS])
+  }
+  const modules: ModuleVisual[] = state.modules.map(m => {
+    const alarm = oxygenAlarm && OXYGEN_KINDS.has(m.kind)
+    return {
+      id: m.id,
+      kind: m.kind,
+      slot: m.slot,
+      lights: alarm ? 'red' : power.lights,
+      damaged: m.condition < DAMAGED_CONDITION,
+    }
+  })
+  return {
+    power,
+    oxygenAlarm,
+    cargoFill,
+    cargoStage,
+    links,
+    roverDeployed: state.modules.some(m => m.kind === 'rover' && m.condition >= DAMAGED_CONDITION),
+    crewLanded: state.crew > 0,
+    modules,
+  }
+}

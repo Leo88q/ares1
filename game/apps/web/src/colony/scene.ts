@@ -3,12 +3,25 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { CATALOG, PARAMETERS, SLOTS } from './simulation'
 import type { ColonyModule, ColonyState } from './simulation'
+import { colonyVisualState, type ModuleVisual } from './organism'
 
 // Entries with a '/' live in another same-origin model folder (KayKit Space Base Bits, CC0).
-const KAYKIT_DIR = 'space-base-bits'
-const KAYKIT_TURBINE_LOW = `${KAYKIT_DIR}/windturbine_low.gltf`
-const KAYKIT_TURBINE_TALL = `${KAYKIT_DIR}/windturbine_tall.gltf`
-const FILES = [...Object.values(CATALOG).map(m => m.file), 'plant.glb', 'rock.glb', 'connector.glb', 'astronaut.glb', 'cargo.glb', 'hammer.glb', 'shovel.glb', KAYKIT_TURBINE_LOW, KAYKIT_TURBINE_TALL]
+const KAYKIT = 'space-base-bits'
+/** KayKit Space Base Bits (CC0). Fan and drill bit are named nodes inside their models. */
+const K = {
+  turbineLow: `${KAYKIT}/windturbine_low.gltf`,
+  turbineTall: `${KAYKIT}/windturbine_tall.gltf`,
+  lights: `${KAYKIT}/lights.gltf`,
+  tunnel: `${KAYKIT}/tunnel_straight_A.gltf`,
+  crate0: `${KAYKIT}/cargo_A.gltf`,
+  crate1: `${KAYKIT}/cargo_A_packed.gltf`,
+  crate2: `${KAYKIT}/cargo_A_stacked.gltf`,
+  lander: `${KAYKIT}/lander_A.gltf`,
+  pad: `${KAYKIT}/landingpad_small.gltf`,
+  garage: `${KAYKIT}/basemodule_garage.gltf`,
+  drill: `${KAYKIT}/drill_structure.gltf`,
+} as const
+const FILES = [...Object.values(CATALOG).map(m => m.file), 'plant.glb', 'rock.glb', 'connector.glb', 'astronaut.glb', 'cargo.glb', 'hammer.glb', 'shovel.glb', ...Object.values(K)]
 
 /** URL and loader base for a model entry: same-origin only. */
 function modelLocation(file: string): { url: string; base: string } {
@@ -141,6 +154,116 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   const retired: THREE.Object3D[] = []
   let latest: { state: ColonyState; selectedId: string | null; sunHours: number } | null = null
 
+  // ---- Whole-base organism: KayKit parts driven by colonyVisualState (visual only) ----
+  let lander: THREE.Object3D | null = null
+  const crateStages: THREE.Object3D[] = []
+  const linkRoot = new THREE.Group()
+  scene.add(linkRoot)
+  let linkKey = ''
+  const LIGHT_COLORS: Record<'green' | 'amber' | 'red', string> = { green: '#7fe0a0', amber: '#ffb347', red: '#ff4d4d' }
+  const spinners: Array<{ pivot: THREE.Object3D; axis: 'x' | 'y' | 'z'; speed: number; gain: number }> = []
+  let spinFrame = 0
+  let lastSpin = 0
+  function spinStep(now: number): void {
+    spinFrame = 0
+    const dt = lastSpin ? Math.min(0.1, (now - lastSpin) / 1000) : 0
+    lastSpin = now
+    let moving = false
+    for (const spinner of spinners) {
+      if (spinner.speed <= 0) continue
+      spinner.pivot.rotation[spinner.axis] += spinner.speed * dt
+      moving = true
+    }
+    requestRender()
+    if (moving) spinFrame = requestAnimationFrame(spinStep)
+    else lastSpin = 0
+  }
+  /** Keeps animation running only while something turns; otherwise the scene stays demand-rendered. */
+  function ensureSpin(): void {
+    if (!disposed && !spinFrame && spinners.some(spinner => spinner.speed > 0)) {
+      lastSpin = 0
+      spinFrame = requestAnimationFrame(spinStep)
+    }
+  }
+  type Rig = { scale: number; offset: THREE.Vector3 }
+  function rigFor(reference: THREE.Object3D, width: number): Rig {
+    const box = new THREE.Box3().setFromObject(reference)
+    const size = box.getSize(new THREE.Vector3())
+    const center = box.getCenter(new THREE.Vector3())
+    return { scale: width / Math.max(size.x, size.z, 0.001), offset: new THREE.Vector3(-center.x, -box.min.y, -center.z) }
+  }
+  /** Places a KayKit model without re-centring per file, then moves a named part onto a pivot so it can turn. */
+  function spinningRig(file: string, partName: string | null, width: number, axis: 'x' | 'y' | 'z', gain: number): THREE.Group | null {
+    const template = templates.get(file)
+    if (!template) return null
+    const rig = rigFor(template, width)
+    const root = new THREE.Group()
+    const copy = template.clone(true)
+    copy.position.copy(rig.offset)
+    root.add(copy)
+    root.scale.setScalar(rig.scale)
+    root.updateMatrixWorld(true)
+    const part = partName ? copy.getObjectByName(partName) : undefined
+    if (part) {
+      const centre = root.worldToLocal(new THREE.Box3().setFromObject(part).getCenter(new THREE.Vector3()))
+      const pivot = new THREE.Group()
+      pivot.position.copy(centre)
+      root.add(pivot)
+      pivot.attach(part)
+      spinners.push({ pivot, axis, speed: 0, gain })
+    }
+    return root
+  }
+  function ensureLamp(object: THREE.Group): THREE.Object3D | null {
+    const existing = object.getObjectByName('lamp')
+    if (existing || !templates.has(K.lights)) return existing ?? null
+    const lamp = model(K.lights, 0.6)
+    lamp.name = 'lamp'
+    lamp.position.set(1.9, 0.5, 1.9)
+    object.add(lamp)
+    return lamp
+  }
+  function applyModuleVisual(object: THREE.Group, mv: ModuleVisual, solarTilt: number): void {
+    const lamp = ensureLamp(object)
+    if (lamp) {
+      lamp.visible = mv.lights !== 'off'
+      if (mv.lights !== 'off' && lamp.userData.color !== LIGHT_COLORS[mv.lights]) {
+        const color = LIGHT_COLORS[mv.lights]
+        lamp.userData.color = color
+        lamp.traverse(child => {
+          if (child instanceof THREE.Mesh) child.material = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.4 })
+        })
+      }
+    }
+    const edge = object.userData.edge as THREE.LineSegments | undefined
+    if (edge) {
+      const base = (CATALOG as Record<string, { color: string }>)[mv.kind]?.color ?? '#ffffff'
+      (edge.material as THREE.LineBasicMaterial).color.set(mv.damaged ? '#ff6b4a' : base)
+    }
+    if (mv.kind === 'solar') {
+      const body = object.getObjectByName('body')
+      if (body) body.rotation.x = -0.35 + 0.45 * solarTilt
+    }
+  }
+  function rebuildLinks(links: Array<[number, number]>): void {
+    const key = links.map(link => link.join('-')).join(',')
+    if (key === linkKey) return
+    const template = templates.get(K.tunnel)
+    if (!template) return
+    linkKey = key
+    for (const child of [...linkRoot.children]) { linkRoot.remove(child); retired.push(child) }
+    const size = new THREE.Box3().setFromObject(template).getSize(new THREE.Vector3())
+    const alongX = size.x >= size.z
+    for (const [a, b] of links) {
+      const pa = SLOTS[a], pb = SLOTS[b]
+      const horizontal = pa.z === pb.z
+      const tunnel = model(K.tunnel, 2.6, false)
+      tunnel.position.set((pa.x + pb.x) / 2, 0.3, (pa.z + pb.z) / 2)
+      tunnel.rotation.y = horizontal === alongX ? 0 : Math.PI / 2
+      linkRoot.add(tunnel)
+    }
+  }
+
   function model(file: string, width: number, glass = false): THREE.Group {
     const group = new THREE.Group()
     const template = templates.get(file)
@@ -194,10 +317,11 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.32, 2.4, 0.12, 6), new THREE.MeshStandardMaterial({ color: '#323b42', roughness: 0.95, metalness: 0.15 }))
     pad.position.y = 0.02; pad.receiveShadow = true; root.add(pad)
     const edge = new THREE.LineSegments(new THREE.EdgesGeometry(pad.geometry), new THREE.LineBasicMaterial({ color: CATALOG[m.kind].color, transparent: true, opacity: 0.45 }))
-    edge.position.copy(pad.position); root.add(edge)
+    edge.position.copy(pad.position); root.add(edge); root.userData.edge = edge
     const width = m.kind === 'solar' ? 3.9 : m.kind === 'battery' ? 2.3 : m.kind === 'rover' ? 3.2 : 3.75
     const body = model(CATALOG[m.kind].file, width, m.kind === 'greenhouse')
     body.position.y = 0.1
+    body.name = 'body'
     if (m.kind === 'solar') body.rotation.y = Math.PI / 5
     if (m.kind === 'habitat' || m.kind === 'workshop') body.rotation.y = Math.PI / 2
     root.add(body)
@@ -241,11 +365,43 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     cargo.position.set(-2, 0.05, 8); propsRoot.add(cargo)
     const connector = model('connector.glb', 2.5)
     connector.position.set(5, 0.02, -4.7); connector.rotation.y = Math.PI / 2; propsRoot.add(connector)
-    // Two KayKit wind turbines on the outer edge of the base (decor only; no economy effect).
-    const turbineLow = model(KAYKIT_TURBINE_LOW, 3.2)
-    turbineLow.position.set(-17, 0.02, -10); turbineLow.rotation.y = 0.6; propsRoot.add(turbineLow)
-    const turbineTall = model(KAYKIT_TURBINE_TALL, 2.6)
-    turbineTall.position.set(17, 0.02, 10); turbineTall.rotation.y = -0.9; propsRoot.add(turbineTall)
+    // KayKit props. Decor only: none of these change credits, rewards or simulation values.
+    spinners.length = 0
+    crateStages.length = 0
+    const turbineLow = spinningRig(K.turbineLow, 'windturbine_low_fan', 3.2, 'z', 1)
+    if (turbineLow) { turbineLow.position.set(-17, 0.02, -10); turbineLow.rotation.y = 0.6; propsRoot.add(turbineLow) }
+    const turbineTall = spinningRig(K.turbineTall, 'windturbine_tall_fan', 2.6, 'z', 1)
+    if (turbineTall) { turbineTall.position.set(17, 0.02, 10); turbineTall.rotation.y = -0.9; propsRoot.add(turbineTall) }
+    const drill = spinningRig(K.drill, 'drill_module', 2.4, 'y', 0.4)
+    if (drill) { drill.position.set(22, 0.02, -8); propsRoot.add(drill) }
+    if (templates.has(K.garage)) {
+      const garage = model(K.garage, 3.2)
+      garage.position.set(-12, 0.02, -15); garage.rotation.y = 0.2; propsRoot.add(garage)
+    }
+    if (templates.has(K.pad)) {
+      const pad = model(K.pad, 3.6)
+      pad.position.set(-22, 0.02, 4); propsRoot.add(pad)
+    }
+    if (templates.has(K.lander)) {
+      lander = model(K.lander, 2.2)
+      lander.position.set(-22, 0.1, 4); lander.visible = false; propsRoot.add(lander)
+    }
+    // Crate stages share one reference scale, so empty, packed and stacked crates line up.
+    const crateReference = templates.get(K.crate0)
+    if (crateReference) {
+      const crateRig = rigFor(crateReference, 2.2)
+      for (const file of [K.crate0, K.crate1, K.crate2]) {
+        const template = templates.get(file)
+        if (!template) continue
+        const crate = new THREE.Group()
+        const copy = template.clone(true)
+        copy.position.copy(crateRig.offset)
+        crate.add(copy)
+        crate.scale.setScalar(crateRig.scale)
+        crate.position.set(-5, 0.05, 8); crate.visible = false
+        propsRoot.add(crate); crateStages.push(crate)
+      }
+    }
   }
 
   function update(state: ColonyState, selectedId: string | null, sunHours: number): void {
@@ -268,6 +424,18 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     if (selected) {
       const { x, z } = SLOTS[selected.slot]; selection.position.set(x, 0.19, z)
     }
+    const visual = colonyVisualState(state, sunHours)
+    const byId = new Map(visual.modules.map(mv => [mv.id, mv] as const))
+    for (const m of state.modules) {
+      const object = moduleObjects.get(m.id), mv = byId.get(m.id)
+      if (object && mv) applyModuleVisual(object, mv, visual.power.solarCoverage)
+    }
+    rebuildLinks(visual.links)
+    crateStages.forEach((crate, index) => { crate.visible = index === visual.cargoStage })
+    if (lander) lander.visible = visual.crewLanded
+    const turn = visual.power.blackout ? 0 : 2.5 * visual.power.turbineSpin
+    for (const spinner of spinners) spinner.speed = spinner.gain * turn
+    ensureSpin()
     sun.intensity = sunHours > 0 ? 3.5 : 0.08
     sky.intensity = sunHours > 0 ? 2.1 : 0.55
     requestRender()
@@ -360,7 +528,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     resetCamera,
     zoom: factor => { camera.zoom = THREE.MathUtils.clamp(camera.zoom * factor, controls.minZoom, controls.maxZoom); camera.updateProjectionMatrix(); requestRender() },
     dispose: () => {
-      disposed = true; abort.abort(); cancelAnimationFrame(frame); observer.disconnect()
+      disposed = true; abort.abort(); cancelAnimationFrame(frame); cancelAnimationFrame(spinFrame); observer.disconnect()
       controls.removeEventListener('change', requestRender); controls.dispose()
       renderer.domElement.removeEventListener('pointerdown', onDown)
       renderer.domElement.removeEventListener('pointerup', onUp)

@@ -69,3 +69,52 @@ test('colony organism: read model never mutates the simulation state', () => {
   powerVisualState(s, DEFAULT_SCENARIO.sunHours)
   assert.equal(JSON.stringify(s), before)
 })
+
+import { colonyVisualState, CARGO_CAPACITY_KG } from '../../apps/web/src/colony/organism'
+
+test('colony organism: whole-base view links only adjacent occupied slots', () => {
+  const s = advanceDay(initialColony(), DEFAULT_SCENARIO)
+  const v = colonyVisualState(s, DEFAULT_SCENARIO.sunHours)
+  for (const [a, b] of v.links) {
+    assert.ok(Math.abs(a - b) === 1 || Math.abs(a - b) === 6, `${a}-${b} not neighbours`)
+    assert.ok(s.modules.some(m => m.slot === a) && s.modules.some(m => m.slot === b))
+  }
+  assert.equal(v.links.length > 0, true)
+})
+
+test('colony organism: oxygen shortfall turns habitat and recycler red, others follow power', () => {
+  const base = advanceDay(initialColony(), DEFAULT_SCENARIO)
+  const s: ColonyState = { ...base, lastDay: { ...base.lastDay!, oxygenShortfallKg: 3 } }
+  const v = colonyVisualState(s, DEFAULT_SCENARIO.sunHours)
+  assert.equal(v.oxygenAlarm, true)
+  for (const m of v.modules) {
+    if (m.kind === 'habitat' || m.kind === 'recycler') assert.equal(m.lights, 'red')
+    else assert.equal(m.lights, v.power.lights)
+  }
+})
+
+test('colony organism: cargo stage follows food and spares fill', () => {
+  const base = advanceDay(initialColony(), DEFAULT_SCENARIO)
+  const empty = colonyVisualState({ ...base, foodKg: 0, sparesKg: 0 }, DEFAULT_SCENARIO.sunHours)
+  const half = colonyVisualState({ ...base, foodKg: CARGO_CAPACITY_KG / 2, sparesKg: 0 }, DEFAULT_SCENARIO.sunHours)
+  const full = colonyVisualState({ ...base, foodKg: CARGO_CAPACITY_KG * 2, sparesKg: 0 }, DEFAULT_SCENARIO.sunHours)
+  assert.equal(empty.cargoStage, 0)
+  assert.equal(half.cargoStage, 1)
+  assert.equal(full.cargoStage, 2)
+  assert.equal(full.cargoFill, 1)
+})
+
+test('colony organism: damaged modules are flagged below the condition threshold', () => {
+  const base = advanceDay(initialColony(), DEFAULT_SCENARIO)
+  const worn = { ...base, modules: base.modules.map((m, i) => (i === 0 ? { ...m, condition: 10 } : m)) }
+  const v = colonyVisualState(worn, DEFAULT_SCENARIO.sunHours)
+  assert.equal(v.modules[0].damaged, true)
+  assert.equal(v.modules.slice(1).every(m => !m.damaged), true)
+})
+
+test('colony organism: crew and rover flags follow the snapshot', () => {
+  const base = advanceDay(initialColony(), DEFAULT_SCENARIO)
+  assert.equal(colonyVisualState(base, DEFAULT_SCENARIO.sunHours).crewLanded, base.crew > 0)
+  assert.equal(colonyVisualState({ ...base, crew: 0 }, DEFAULT_SCENARIO.sunHours).crewLanded, false)
+  assert.equal(colonyVisualState(base, DEFAULT_SCENARIO.sunHours).roverDeployed, true)
+})
