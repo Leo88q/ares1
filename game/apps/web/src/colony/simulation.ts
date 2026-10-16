@@ -6,7 +6,7 @@
  */
 export type ModuleKind = 'solar' | 'greenhouse' | 'habitat' | 'recycler' | 'rover' | 'workshop' | 'battery'
 
-import { PARAMETERS } from '../organism/parameters'
+import { BEDS, PARAMETERS } from '../organism/parameters'
 export { PARAMETERS }
 
 export const CATALOG: Record<ModuleKind, { credits: number; wearDay: number; file: string; color: string }> = {
@@ -30,6 +30,12 @@ export interface ColonyModule {
   slot: number
   condition: number
   growthDays: number
+  /**
+   * WP10 (§14.3): greenhouse beds, one value per bed (K = BEDS.perField). Value = days of growth,
+   * 0 ≤ v < cycle while growing; negative = not yet planted (staggered by cycle / K). growthDays mirrors
+   * beds[0]. Missing (legacy saves) → derived from growthDays.
+   */
+  beds?: number[]
 }
 export interface Scenario {
   sunHours: number
@@ -96,6 +102,7 @@ export function initialColony(): ColonyState {
       id: `${kind}-${i + 1}`, kind, slot, condition: 100,
       // Existing expedition crop. NEW greenhouses always start at zero.
       growthDays: kind === 'greenhouse' ? 60 : 0,
+      beds: kind === 'greenhouse' ? greenhouseBeds(60) : undefined,
     })),
     crew: 4, credits: PARAMETERS.initialCredits, spentCredits: 0, earnedCredits: 0,
     waterLitres: 800, nutrientsKg: 4, sparesKg: 8, foodKg: 80, oxygenKg: PARAMETERS.oxygenStartKg, oxygenShortfallKg: 0,
@@ -112,6 +119,26 @@ export function validateScenario(s: Scenario): void {
 }
 const fraction = (available: number, required: number): number => required > 0 ? Math.min(1, Math.max(0, available / required)) : 1
 const capacityFactor = (m: ColonyModule): number => Math.max(0.2, m.condition / 100)
+
+/** WP10: bed i is planted (cycle / K) days after bed i − 1. `leadDays` = growth of bed 0. */
+export const bedStepDays = (): number => PARAMETERS.cropCycleDays / BEDS.perField
+export function greenhouseBeds(leadDays: number): number[] {
+  return Array.from({ length: BEDS.perField }, (_, i) => leadDays - i * bedStepDays())
+}
+/** Grow every bed by `growth` days; a bed that completes one cycle is harvested and restarts from the excess. */
+export function stepBeds(beds: readonly number[], growth: number): { beds: number[]; completed: number } {
+  const cycle = PARAMETERS.cropCycleDays
+  let completed = 0
+  const next = beds.map(v => {
+    if (v < 0) return v + growth >= 0 ? 0 : v + growth // planting: the excess day is dropped
+    let x = v + growth
+    if (x >= cycle - 1e-9) { completed += 1; x -= cycle }
+    return x
+  })
+  return { beds: next, completed }
+}
+/** kg of one bed at full cycle: area × yield × cycle ÷ K (216 kg / 6 = 36 kg for the default greenhouse). */
+export const bedCycleKg = (): number => PARAMETERS.cropAreaM2 * PARAMETERS.cropKgM2Day * PARAMETERS.cropCycleDays / BEDS.perField
 export const countModules = (s: ColonyState, kind: ModuleKind): number => s.modules.filter(m => m.kind === kind).length
 export const batteryCapacity = (s: ColonyState): number => countModules(s, 'battery') * PARAMETERS.batteryKwh
 export const foodDemand = (s: ColonyState): number => s.crew * PARAMETERS.freshFoodKgCrewDay
@@ -198,15 +225,15 @@ export function advanceDay(state: ColonyState, scenario: Scenario = DEFAULT_SCEN
   if (state.day >= PARAMETERS.maxDays) return state
   let harvested = 0
   const modules = state.modules.map(m => {
-    let growthDays = m.growthDays
-    if (m.kind === 'greenhouse') {
-      growthDays += budget.growthFraction * capacityFactor(m)
-      if (growthDays >= PARAMETERS.cropCycleDays - 1e-9) {
-        harvested += PARAMETERS.cropAreaM2 * PARAMETERS.cropKgM2Day * PARAMETERS.cropCycleDays
-        growthDays = Math.max(0, growthDays - PARAMETERS.cropCycleDays)
-      }
+    if (m.kind !== 'greenhouse') return { ...m, condition: Math.max(20, m.condition - CATALOG[m.kind].wearDay) }
+    // WP10: beds grow at the greenhouse rate; each completed bed is harvested (36 kg), staggered every 15 days.
+    const beds = m.beds ?? greenhouseBeds(m.growthDays)
+    const stepped = stepBeds(beds, budget.growthFraction * capacityFactor(m))
+    harvested += stepped.completed * bedCycleKg()
+    return {
+      ...m, beds: stepped.beds, growthDays: Math.max(0, stepped.beds[0]),
+      condition: Math.max(20, m.condition - CATALOG[m.kind].wearDay),
     }
-    return { ...m, growthDays, condition: Math.max(20, m.condition - CATALOG[m.kind].wearDay) }
   })
   const availableFood = state.foodKg + harvested
   const eaten = Math.min(availableFood, foodDemand(state))
@@ -241,7 +268,8 @@ export function buildModule(state: ColonyState, kind: ModuleKind): ColonyState {
   const cost = CATALOG[kind].credits
   return { ...state, credits: state.credits - cost, spentCredits: state.spentCredits + cost,
     sparesKg: state.sparesKg - 1,
-    modules: [...state.modules, { id: `${kind}-${state.modules.length + 1}`, kind, slot, condition: 100, growthDays: 0 }],
+    modules: [...state.modules, { id: `${kind}-${state.modules.length + 1}`, kind, slot, condition: 100, growthDays: 0,
+      beds: kind === 'greenhouse' ? greenhouseBeds(0) : undefined }],
   }
 }
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, advanceDays, batteryCapacity, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, initialColony, PARAMETERS as P, repairColony, sellableKg, SLOTS } from '../../apps/web/src/colony/simulation'
+import { advanceDay, advanceDays, batteryCapacity, bedCycleKg, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, greenhouseBeds, initialColony, PARAMETERS as P, repairColony, sellableKg, SLOTS, stepBeds } from '../../apps/web/src/colony/simulation'
 import type { ColonyState } from '../../apps/web/src/colony/simulation'
 
 const close = (actual: number, expected: number, tolerance = 1e-7): void => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`)
@@ -36,14 +36,32 @@ test('colony: immutable deterministic steps, no instant harvest or credit mint',
   assert.notEqual(initialColony().modules, initialColony().modules)
 })
 
-test('colony: a productive 90-day crop is harvested as a batch exactly once', () => {
+test('colony: each greenhouse bed is harvested once per 90-day cycle, staggered by 15 days', () => {
+  assert.equal(bedCycleKg(), 36)
+  // a new greenhouse plants bed i at day 15·i: nothing before day 90, then one 36 kg bed every 15 days
+  let beds = greenhouseBeds(0), harvestDays: number[] = []
+  for (let day = 1; day <= 180; day++) {
+    const step = stepBeds(beds, 1)
+    if (step.completed) harvestDays.push(day)
+    beds = step.beds
+  }
+  assert.deepEqual(harvestDays, [90, 105, 120, 135, 150, 165, 180])
+  // the starter greenhouse (lead at day 60) harvests bed 0 at day 30, bed 1 at day 45, ...
+  let starter = greenhouseBeds(60), starterDays: number[] = []
+  for (let day = 1; day <= 105; day++) {
+    const step = stepBeds(starter, 1)
+    if (step.completed) starterDays.push(day)
+    starter = step.beds
+  }
+  assert.deepEqual(starterDays, [30, 45, 60, 75, 90, 105])
+  // one day in the simulation: a bed completing at day 90 gives exactly one bed, not the whole greenhouse
   const s = initialColony()
-  s.modules = s.modules.map(m => m.kind === 'greenhouse' ? { ...m, growthDays: 89 } : m)
+  s.modules = s.modules.map(m => m.kind === 'greenhouse' ? { ...m, growthDays: 89, beds: [89, 74, 59, 44, 29, 14] } : m)
   const next = advanceDay(s)
-  close(next.harvestedKg, 20 * 0.12 * 90)
-  close(next.foodKg, s.foodKg + 216 - foodDemand(s))
+  close(next.harvestedKg, 36)
+  close(next.foodKg, s.foodKg + 36 - foodDemand(s))
   close(next.modules.find(m => m.kind === 'greenhouse')!.growthDays, 0)
-  close(advanceDay(next).harvestedKg, next.harvestedKg)
+  assert.deepEqual(next.modules.find(m => m.kind === 'greenhouse')!.beds!.map(v => Math.round(v)), [0, 75, 60, 45, 30, 15])
   checkAccounting(next)
 })
 
@@ -146,11 +164,14 @@ test('colony: servicing and resupply require real game budget and stock', () => 
 })
 
 test('colony: deliveries preserve reserve and exhaust a funded order, not unlimited demand', () => {
-  let s = advanceDays(initialColony(), 35)
+  // day 60: the first 36 kg bed (day 30) and the second (day 45) are in; the surplus above reserve is what can be sold
+  let s = advanceDays(initialColony(), 60)
   assert.ok(s.harvestedKg > 0)
+  const surplus = s.foodKg - foodReserve(s)
+  assert.ok(surplus > 0 && surplus < 10)
   for (let i = 0; i < 20; i++) s = deliverFood(s)
-  close(s.deliveredKg, 60)
-  close(s.earnedCredits, 240)
+  close(s.deliveredKg, surplus)
+  close(s.earnedCredits, surplus * P.contractCreditsKg)
   assert.ok(s.foodKg >= foodReserve(s))
   assert.equal(deliverFood(s), s)
   checkAccounting(s)
