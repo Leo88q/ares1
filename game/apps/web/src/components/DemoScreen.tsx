@@ -11,12 +11,13 @@ import type { AresTab } from './ares/AresBottomNav'
 import SectionArtPreview from './ares/SectionArtPreview'
 import '../ui/hull-ui.css'
 
-export default function DemoScreen(): JSX.Element {
+/** `embedded`: the ARES АГРО tab's field lab (no own nav/lang/bottom bar; still wallet-free). */
+export default function DemoScreen({ embedded = false }: { embedded?: boolean } = {}): JSX.Element {
   const { t, lang, setLang } = useI18n()
   const c = fieldCopy(lang)
   const [artSection, setArtSection] = useState<AresTab>(() => {
     const section = new URLSearchParams(window.location.search).get('section')
-    return section === 'market' || section === 'stats' || section === 'profile' ? section : 'main'
+    return !embedded && (section === 'market' || section === 'stats' || section === 'profile') ? section : 'main'
   })
   // A planted example makes the new art visible immediately. Reset starts the
   // original plant -> water -> harvest lesson. These are NOT on-chain accounts.
@@ -84,15 +85,15 @@ export default function DemoScreen(): JSX.Element {
       </div>
   )
 
-  return <div className="mf-demo-shell"><div className="mf-demo">
-    <nav className="mf-demo-nav">
+  return <div className={embedded ? 'mf-demo mf-demo--embedded' : 'mf-demo-shell'}><div className={embedded ? 'mf-demo-embed' : 'mf-demo'}>
+    {!embedded && <nav className="mf-demo-nav">
       <div className="mf-demo-brand">ARES—1 / FIELD LAB</div>
       <div className="mf-demo-lang" aria-label={c.language}>
         <button type="button" aria-pressed={lang === 'ru'} onClick={() => setLang('ru')}>RU</button>
         <button type="button" aria-pressed={lang !== 'ru'} onClick={() => setLang('en')}>EN</button>
       </div>
       <a href="/" style={{ display: 'inline-flex', gap: 7, alignItems: 'center' }}><ArrowLeft size={14} />{t('НАЗАД В КОЛОНИЮ')}</a>
-    </nav>
+    </nav>}
     <div className="mf-demo-view" hidden={artSection !== 'main'}>
     <header className="mf-demo-hero">
       <img className="mf-hero-panorama" src="/ares/plantation.webp" alt="" aria-hidden="true" />
@@ -110,13 +111,13 @@ export default function DemoScreen(): JSX.Element {
       renderInspector={() => <>{lesson}<button type="button" className="mf-button" style={{ marginTop: 10 }} aria-pressed={worn} onClick={() => setWorn(value => !value)}>{worn ? c.restored : c.wear}</button></>}
     />
     </div>
-    {artSection !== 'main' && artSection !== 'operation' && <SectionArtPreview section={artSection === 'market' ? 'supply' : artSection === 'stats' ? 'journal' : 'cabin'} />}
-    <div className="mf-demo-actions">
+    {!embedded && artSection !== 'main' && artSection !== 'operation' && <SectionArtPreview section={artSection === 'market' ? 'supply' : artSection === 'stats' ? 'journal' : 'cabin'} />}
+    {!embedded && <div className="mf-demo-actions">
       <a href="/" className="mf-button">{t('ОТКРЫТЬ НАСТОЯЩУЮ ИГРУ')} →</a>
       <a href="/market" className="mf-button">{c.market} →</a>
       <a href="/operation" className="mf-button">{t('ПЕРЕЙТИ К ОПЕРАЦИИ')} →</a>
-    </div>
-    <details className="mf-demo-archive"><summary>{c.archive}</summary><a href="/colony">{t('Открыть 3D-колонию')} →</a></details>
-    <AresBottomNav active={artSection} onChange={tab => { if (tab === 'operation') window.location.assign('/operation'); else setArtSection(tab) }} />
+    </div>}
+    {!embedded && <details className="mf-demo-archive"><summary>{c.archive}</summary><a href="/colony">{t('Открыть 3D-колонию')} →</a></details>}
+    {!embedded && <AresBottomNav active={artSection} onChange={tab => { if (tab === 'operation') window.location.assign('/operation'); else if (tab === 'colony') window.location.assign('/base'); else setArtSection(tab) }} />}
   </div></div>
 }

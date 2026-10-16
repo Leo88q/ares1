@@ -1,0 +1,21 @@
+/* АГРО tab: segmented switch between the real fields and the local field lab. Bronze plates only. */
+.farm-tab { position: relative; min-width: 0; padding-bottom: 112px; }
+.farm-switch { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding: 12px 14px 10px; background: linear-gradient(180deg, #160f0bf2, #120c08cc); border-bottom: 1px solid #a7834855; }
+.farm-switch button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 50px; padding: 6px 8px; background: url('/ares/art/button-bronze.webp') center/100% 100% no-repeat; border: 0; border-radius: 0; color: #bda47e; font: 600 12px/1.2 var(--pf-font-ui, sans-serif); letter-spacing: .08em; text-shadow: 0 1px 1px #000; cursor: pointer; }
+.farm-switch button small { color: #c9a56e; font: 8px/1.2 var(--ares-font-mono, monospace); letter-spacing: .1em; opacity: .85; }
+.farm-switch button[aria-pressed=true] { color: #f6dca8; filter: brightness(1.28); }
+.farm-switch button:focus-visible { outline: 2px solid #f6cf85; outline-offset: 2px; }
+@media (max-width: 360px) { .farm-switch { gap: 6px; padding: 10px 8px 8px; } .farm-switch button { font-size: 11px; letter-spacing: .04em; } }
+
+/* Field lab inside the АГРО tab: phone column, no own page chrome, bottom room for the section key bar. */
+.farm-tab .mf-demo--embedded { padding-bottom: 124px; max-width: none; }
+.farm-tab .mf-demo-embed { padding: 0 12px; }
+.farm-tab .mf-demo--embedded .mf-demo-hero { margin-top: 12px; }
+.farm-tab .mf-demo--embedded .mf-hero-copy { padding-right: 96px; }
+.farm-tab .mf-demo--embedded .mf-hero-mascot { width: 84px; height: 100px; right: 10px; bottom: 14px; }
+.farm-tab .mf-demo--embedded .mf-demo-hero h1 { font-size: clamp(26px, 8vw, 34px); }
+.farm-tab .mf-demo--embedded .mf-demo-hero .mf-hero-copy p { font-size: 11px; }
+.farm-tab .mf-demo--embedded .mf-hero-disclaimer { display: none; }
+.farm-tab .mf-demo--embedded .mf-field-picker { padding: 10px 0; }
+.farm-tab .mf-demo--embedded .mf-viewport { height: 360px; }
+.farm-tab .mf-demo--embedded .mf-inspector { padding: 10px 0 0; }

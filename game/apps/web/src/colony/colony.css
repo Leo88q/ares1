@@ -410,3 +410,31 @@
 }
 /* Resource grid: unused cells (6 resources in 5 columns) show dark seams, not the bronze divider colour. */
 .colony-resource-grid { background: #0f0b07; border-color: #6e553299; }
+
+/* ── Embedded in the ARES phone column (КОЛОНИЯ tab). Designed for a 360–480px column; the section key bar overlays the bottom. ── */
+.colony-app--embedded { min-height: 0; background: none; color-scheme: dark; }
+.colony-app--embedded .colony-main { max-width: none; padding: 12px 12px 124px; }
+.colony-app--embedded .colony-hero { min-height: 170px; margin-bottom: 14px; }
+.colony-app--embedded .colony-hero-copy { padding: 18px 16px 16px; }
+.colony-app--embedded .colony-hero h1 { font-size: 24px; margin-bottom: 6px; }
+.colony-app--embedded .colony-lead { font-size: 11px; }
+.colony-app--embedded .colony-resource-grid { margin-bottom: 14px; }
+.colony-app--embedded .colony-resource { padding: 12px 13px 12px; }
+.colony-app--embedded .colony-resource-value { font-size: 20px; }
+.colony-app--embedded .colony-command-bar { flex-wrap: wrap; gap: 12px 14px; min-height: 0; margin-bottom: 12px; }
+.colony-app--embedded .colony-time-buttons { margin-left: auto; }
+.colony-app--embedded .colony-sun-control { order: 3; flex: 1 1 100%; min-width: 0; }
+.colony-app--embedded .colony-sun-control input { max-width: none; }
+.colony-app--embedded .colony-button { min-height: 44px; padding: 8px 12px; }
+.colony-app--embedded .colony-viewport { height: 360px; }
+.colony-app--embedded .colony-module-selector { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.colony-app--embedded .colony-module-selector button { flex: 0 0 auto; min-height: 36px; }
+.colony-app--embedded .colony-world-footer { flex-wrap: wrap; gap: 10px 14px; }
+.colony-app--embedded .colony-sidebar { margin-top: 12px; }
+.colony-app--embedded .colony-workspace { grid-template-columns: minmax(0, 1fr); gap: 0; }
+.colony-app--embedded .colony-bottom-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 14px; }
+.colony-app--embedded .colony-study-card { padding: 16px; }
+.colony-app--embedded .colony-footer { flex-direction: column; gap: 10px; align-items: flex-start; }
+.colony-app--embedded .colony-footer-mark { max-width: none; }
+.colony-app--embedded .colony-table-scroll { overflow-x: auto; }
+.colony-app--embedded .colony-table-scroll table { min-width: 460px; }

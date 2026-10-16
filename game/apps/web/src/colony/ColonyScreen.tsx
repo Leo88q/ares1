@@ -18,7 +18,8 @@ type View = 'base' | 'economy' | 'assets'
 // Same v2 painted art the ARES section screens use; text stays live DOM.
 const HERO_ART: Record<View, string> = { base: '/ares/art/mars-sector.webp', economy: '/ares/art/journal-background.webp', assets: '/ares/art/cabin-background.webp' }
 
-export default function ColonyScreen(): JSX.Element {
+/** `embedded`: inside the ARES app tab (АГРО/КОЛОНИЯ shell owns header, language and nav). */
+export default function ColonyScreen({ embedded = false }: { embedded?: boolean } = {}): JSX.Element {
   const { lang, setLang } = useI18n()
   const c = colonyCopy(lang)
   const descriptions = moduleCopy(lang)
@@ -34,10 +35,11 @@ export default function ColonyScreen(): JSX.Element {
   const end = state.day >= PARAMETERS.maxDays
 
   useEffect(() => {
+    if (embedded) return undefined
     const previous = document.title
     document.title = `ARES-1 / ${c.base}`
     return () => { document.title = previous }
-  }, [c.base])
+  }, [c.base, embedded])
   useEffect(() => {
     if (!running || end) return
     const timer = window.setInterval(() => setState(s => advanceDays(s, 1, scenario)), 1200)
@@ -62,11 +64,12 @@ export default function ColonyScreen(): JSX.Element {
     : budget.oxygenShortfallKg > 0.001 || budget.oxygenEndKg < budget.oxygenDemandKg * 3 ? c.oxygenWarning
     : budget.unmetKwh > 0.01 ? c.powerWarning : budget.waterShortfallLitres > 0.01 ? c.waterWarning
     : budget.growthFraction < 0.95 ? c.cropWarning : c.healthy
+  const Main = embedded ? 'div' : 'main'
   const constrained = end || state.foodKg < foodDemand(state) || budget.oxygenShortfallKg > 0.001 || budget.unmetKwh > 0.01 || budget.waterShortfallLitres > 0.01 || budget.growthFraction < 0.95
 
   return (
-    <div className="colony-app">
-      <header className="colony-header">
+    <div className={`colony-app${embedded ? ' colony-app--embedded' : ''}`}>
+      {!embedded && <header className="colony-header">
         <a className="colony-brand" href="/" aria-label={c.back}><Orbit size={29} strokeWidth={1.3} /><span>ARES<span className="colony-brand-number"> / 01</span><small>{c.program}</small></span></a>
         <nav className="colony-tabs" aria-label="Colony">
           {(['base', 'economy', 'assets'] as const).map(tab => <button type="button" key={tab} onClick={() => setView(tab)} aria-current={view === tab ? 'page' : undefined} className={view === tab ? 'is-active' : ''}>{c[tab]}</button>)}
@@ -74,13 +77,13 @@ export default function ColonyScreen(): JSX.Element {
         <div className="colony-header-right"><span className="colony-local"><i />{c.local}</span><div className="colony-languages" aria-label="Language">
           <button type="button" aria-pressed={lang !== 'ru'} onClick={() => setLang('en')}>EN</button><span>/</span><button type="button" aria-pressed={lang === 'ru'} onClick={() => setLang('ru')}>RU</button>
         </div></div>
-      </header>
+      </header>}
 
-      <main className="colony-main" id="main">
+      <Main className="colony-main" {...(embedded ? {} : { id: 'main' })}>
         <section className="colony-hero" data-view={view}>
           <img className="colony-hero-image" src={HERO_ART[view]} alt="" aria-hidden="true" draggable={false} />
           <div className="colony-hero-copy"><p className="colony-eyebrow">{c.eyebrow}</p><h1>{view === 'base' ? c.title : view === 'economy' ? c.economyTitle : c.assetsTitle}</h1><p className="colony-lead">{view === 'base' ? c.intro : view === 'economy' ? c.economyIntro : c.assetsIntro}</p></div>
-          <a className="colony-back" href="/"><ArrowLeft size={14} />{c.back}</a>
+          {!embedded && <a className="colony-back" href="/"><ArrowLeft size={14} />{c.back}</a>}
         </section>
 
         {view === 'base' && <>
@@ -158,7 +161,7 @@ export default function ColonyScreen(): JSX.Element {
         {view === 'assets' && <AssetLibrary language={lang} />}
 
         <footer className="colony-footer"><span className="colony-footer-mark">ARES / FIELD NOTES — 001</span><p>{c.disclaimer}</p><button type="button" onClick={() => setView(view === 'assets' ? 'economy' : 'assets')}>{c.sources}<ArrowRight size={13} /></button></footer>
-      </main>
+      </Main>
     </div>
   )
 }

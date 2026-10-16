@@ -50,3 +50,12 @@
 .ship-preview-open { display: inline-flex; align-items: center; color: #ecd0a0; text-decoration: none; padding: 13px 24px; min-height: 42px; font-size: 12px; background: url('/ares/art/button-bronze.webp') center/100% 100%; }
 .ship-preview-content > small { display: block; margin-top: 15px; color: #95886e; font-size: 10px; }
 @media(max-width:600px) { .ship-preview .ship-section-hero { height: 245px; } .ship-preview .ship-section-image { object-position: 67% center; } .ship-preview .ship-section-title { left: 18px; top: 25px; } .ship-preview .ship-section-title h2 { font-size: 28px; } .ship-preview .ship-section-title > img { width: 48px; height: 48px; } .ship-preview-content { padding: 18px 15px 24px; } .ship-preview-cards { grid-template-columns: minmax(0,1fr); gap: 10px; } .ship-preview-content > p { font-size: 11px; } .ship-preview-cards article { padding: 19px 15px; } .ship-preview-cards h3 { font-size: 18px; } }
+
+/* Six section keys (АГРО · КОЛОНИЯ · СНАБ · ЖУРНАЛ · КАЮТА · ОПЕРАЦИЯ) in one phone column.
+   Scoped with .hull-nav so these beat the base hull-ui.css rules regardless of stylesheet order. */
+@media (max-width: 480px) {
+  .hull-nav-wrap { width: calc(100% - 12px); }
+  .hull-nav .hull-nav-key { padding: 5px 1px 4px; min-width: 0; }
+  .hull-nav .hull-nav-key__label { font-size: 8.5px; letter-spacing: 0.02em; }
+  .hull-nav .hull-nav-key__code { display: none; }
+}

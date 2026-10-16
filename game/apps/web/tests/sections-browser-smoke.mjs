@@ -52,10 +52,10 @@ try {
     assert.equal(await page.locator('.hull-nav-key[aria-current="page"]').innerText().then(text => text.includes(label)), true)
     await noOverflow(page); await shot(page, `${section}-desktop.png`)
   }
-  assert.equal(await page.locator('.ship-nav-icon').count(), 5)
+  assert.equal(await page.locator('.ship-nav-icon').count(), 6)
   assert.equal(await page.locator('.ship-nav-icon').evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0)), true)
   await page.getByRole('button', { name: 'EN', exact: true }).click()
-  for (const label of ['AGRO', 'SUPPLY', 'LOG', 'CABIN', 'OPERATION']) assert.equal(await page.getByRole('button', { name: label, exact: true }).count(), 1)
+  for (const label of ['AGRO', 'COLONY', 'SUPPLY', 'LOG', 'CABIN', 'OPERATION']) assert.equal(await page.getByRole('button', { name: label, exact: true }).count(), 1)
   await page.getByRole('button', { name: 'RU', exact: true }).click()
   await page.getByRole('button', { name: 'АГРО', exact: true }).click()
   await page.locator('[data-testid="fields-viewport"][data-ready="true"]').waitFor()

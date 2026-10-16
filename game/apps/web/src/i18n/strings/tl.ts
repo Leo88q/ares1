@@ -703,6 +703,12 @@ const tl: Record<string, string> = {
   'Рынок V1': 'Pamilihan V1',
   'V1-ордера и escrow остаются в отдельном legacy-рынке до исполнения, отмены или закрытия. V2 не меняет их layout и правила; в V1 комиссия удерживается в POTATO при создании.': 'Mananatili ang V1 orders at escrow sa hiwalay na legacy market hanggang ma-fill, makansela, o maisara. Hindi binabago ng V2 ang layout o mga patakaran nito; kinokolekta ng V1 ang bayad sa POTATO kapag gumawa ng order.',
  'Открыть 3D-колонию': 'Buksan ang 3D colony',
+  'КОЛОНИЯ': 'KOLONYA',
+  'ПОЛЯ': 'MGA BUKID',
+  'ЛАБОРАТОРИЯ': 'LABORATORYO',
+  'ИГРА · SOLANA': 'LARO · SOLANA',
+  'БЕЗ КОШЕЛЬКА': 'WALANG WALLET',
+  'Режим фермы': 'Mode ng sakahan',
 };
 
 export default tl;

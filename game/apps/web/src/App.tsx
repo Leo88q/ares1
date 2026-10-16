@@ -23,13 +23,15 @@ import { HullSkinMounter } from './ui/HullSkinMounter'
 import { CookieConsent } from './components/CookieConsent'
 
 // Route-level code splitting: each screen is its own chunk.
-const MainScreen = lazy(() => import('./components/MainScreen'))
 const MarketScreen = lazy(() => import('./components/MarketScreen'))
 const StatsScreen = lazy(() => import('./components/StatsScreen'))
 const ProfileScreen = lazy(() => import('./components/ProfileScreen'))
 const OperationScreen = lazy(() => import('./components/OperationScreen'))
+// АГРО tab: real fields + field lab. КОЛОНИЯ tab: the 3D base, embedded (no own header).
+const FarmTab = lazy(() => import('./components/ares/FarmTab'))
+const ColonyScreen = lazy(() => import('./colony/ColonyScreen'))
 
-type Screen = 'farm' | 'market' | 'stats' | 'profile' | 'operation'
+type Screen = 'farm' | 'colony' | 'market' | 'stats' | 'profile' | 'operation'
 
 export default function App() {
  const { lang } = useI18n()
@@ -113,9 +115,10 @@ function AppRoutes() {
   : location.pathname === '/stats' ? 'stats'
   : location.pathname === '/profile' ? 'profile'
   : location.pathname === '/operation' ? 'operation'
+  : location.pathname === '/base' ? 'colony'
   : 'farm'
 
- const handleNavigate = (screen: Screen) => navigate(screen === 'farm' ? '/' : `/${screen}`)
+  const handleNavigate = (screen: Screen) => navigate(screen === 'farm' ? '/' : screen === 'colony' ? '/base' : `/${screen}`)
 
  return (
   <>
@@ -123,13 +126,14 @@ function AppRoutes() {
     <PageTransition>
      <Suspense fallback={<ScreenFallback />}>
       <Routes location={location}>
-       <Route path="/" element={<MainScreen />} />
+       <Route path="/" element={<FarmTab />} />
+       <Route path="/base" element={<ColonyScreen embedded />} />
        <Route path="/market" element={<MarketScreen />} />
        <Route path="/stats" element={<StatsScreen />} />
        <Route path="/profile" element={<ProfileScreen />} />
        <Route path="/operation" element={<SectionFrame section="journal" label={t('ОПЕРАЦИЯ: ПЕРВАЯ ТЕПЛИЦА')}><OperationScreen /></SectionFrame>} />
        <Route path="/demo" element={<StandaloneDemoRedirect />} />
-       <Route path="*" element={<MainScreen />} />
+       <Route path="*" element={<FarmTab />} />
       </Routes>
      </Suspense>
     </PageTransition>
