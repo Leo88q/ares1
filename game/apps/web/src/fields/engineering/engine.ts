@@ -193,8 +193,10 @@ function tick(state: EngineeringState, dt: number): void {
     if (state.crop.progress >= 1 - EPS && state.crop.matureHour === undefined) state.crop.matureHour = state.hour + dt
   }
   if (living) {
-    const resourceStress = irrigation < 0.6 ? (1 - irrigation) * 0.028 : scheduled && lightFraction < 0.5 ? (1 - lightFraction) * 0.006 : nutrientFraction < 0.5 ? 0.009 : 0
-    const stress = resourceStress + (temperatureFactor < 0.7 ? (1 - temperatureFactor) * 0.014 : 0)
+    const resourceStress = irrigation < 0.6 ? (1 - irrigation) * LAB.irrigationStressPerHour : scheduled && lightFraction < 0.5 ? (1 - lightFraction) * 0.006 : nutrientFraction < 0.5 ? 0.009 : 0
+    // T1: sustained heat above the plateau slowly damages health (per degree-hour above heatStressAboveC).
+    const heatStress = Math.max(0, (startTemperature + state.temperatureC) / 2 - LAB.heatStressAboveC) * LAB.heatStressPerCHour
+    const stress = resourceStress + heatStress + (temperatureFactor < 0.7 ? (1 - temperatureFactor) * 0.014 : 0)
     state.crop.health = clamp(state.crop.health + (stress > 0 ? -stress : 0.0018) * dt)
     if (state.crop.health <= EPS) { state.crop.health = 0; event(state, 'dead', 0, state.hour + dt) }
   }
