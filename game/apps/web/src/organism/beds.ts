@@ -65,3 +65,24 @@ export function harvestFactor(ratio: number): number {
   if (ratio < 1) return 0.5 + 0.5 * ((ratio - lo) / (1 - lo))
   return 1 - 0.5 * ((ratio - 1) / (hi - 1))
 }
+
+/**
+ * WP10 flow (§14.3). K beds are planted at t = 0 with offsets i × cycle / K. Bed i reaches
+ * maturity at offset_i + cycle; the player harvests it there (ratio 1, full window factor).
+ * Returns one event per bed in the first cycle after the first maturity.
+ * Sum over one cycle = field cycle kg; one bed is ready every cycle / K days.
+ */
+export interface BedHarvestEvent { bed: number; day: number; kg: number }
+export function bedHarvestSchedule(fieldCycleKg: number, cycleDays: number, beds: number = BEDS.perField, ratio = 1): BedHarvestEvent[] {
+  const kgPerBed = bedCycleKg(fieldCycleKg, beds) * harvestFactor(ratio)
+  return Array.from({ length: beds }, (_, bed) => ({
+    bed,
+    day: bedOffsetDays(bed, cycleDays, beds) + cycleDays,
+    kg: kgPerBed,
+  })).sort((a, b) => a.day - b.day)
+}
+
+/** Kilograms in the half-open day interval [from, to) for a list of harvest events. */
+export function kgInInterval(events: readonly BedHarvestEvent[], from: number, to: number): number {
+  return events.reduce((sum, e) => (e.day >= from && e.day < to ? sum + e.kg : sum), 0)
+}
