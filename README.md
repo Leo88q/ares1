@@ -29,8 +29,40 @@ This checkout contains ARES-1 only. It does not contain the other two game repos
 - The repository implements PostgreSQL for `game_ops`. Whether PostgreSQL is acceptable as the final choice remains unresolved; choosing SQLite requires an actual data-layer port and tests. No external managed PostgreSQL is selected.
 - The owner’s 2026-10-06 decision removed public legal pages from the repository. That is not legal clearance; terms, refunds, delivery obligations, and required notices remain launch gates.
 
+## Current visual direction: warm industrial Mars
+
+The first finished art pass combines ready-made CC0 prefab equipment with individually generated local background/medallion/button artwork and the existing painted bronze UI kit. Procedural field terrain/noise and custom visible hardware primitives are removed; live text, actions, physics and market behavior are preserved. `/demo` has an illustrated scene, image resource icons and compact control/climate/service plus telemetry/batch/log tabs.
+
+See [art sources, implementation and verification](docs/WARM_MARS_ART_PASS.md). The field kit now contains 18 local GLBs + 4 original notices (338,808 B); The original six field-art files add 150,248 B; three section backgrounds bring the current nine-file art inventory to 376,092 B. No external image/model service is called by the app.
+
+## Illustrated ship sections
+
+Supply/market, mission journal/stats and crew cabin/profile now have distinct local illustrated headers and the same bronze asset surfaces. Five image-based navigation keys preserve the original route callbacks. The actual market/stat/profile/operation screen source and financial logic remain unchanged.
+
+`/demo` lets you review the section art via the bottom dock without fake orders, balances or rewards. Direct art states: `/demo?section=market`, `?section=stats`, `?section=profile`. Real actions still live at `/market`, `/stats`, `/profile`, `/operation`. See [section art, unchanged logic and browser proof](docs/WARM_MARS_SECTIONS.md).
+
+## 3D Martian fields
+
+Existing wallet fields now have a shared **3D/card view**: planting rows, plants, industrial supports, pipes, cutaway/glazing and a warm Martian palette. The inspector still uses the original field public key and all existing actions; market/program/yield/cost logic is unchanged. The expanded ready-made CC0 model kit and original notices are bundled locally; see the current art-pass inventory above.
+
+Open **`/demo`** for the wallet/RPC-free preview of Common/Rare/Epic using the same renderer and the existing local lesson. Its examples are not owned accounts, tokens or a separate economy. See [implementation and verification](docs/MARTIAN_FIELDS_IMPLEMENTATION.md). `cd game && yarn check:field-assets` verifies provenance offline.
+
+## Field engineering mode
+
+The same field sector now includes **Engineering · SIM (ARES-LAB/2)**: finite battery/water/nutrients, pump and lighting control, a temperature/thermostat heat ledger, selectable crop-vs-food power priority, staged crops, storage/spoilage, and time/power-limited processing. Sessions are keyed by the existing field ID. Main farm defaults to **POTATO · on-chain**; `/demo` opens SIM, with the original local lesson still available. No simulation result changes tokens or calls financial actions. Reload/new scenario resets the local session.
+
+See [current climate profile and verification](docs/FIELD_CLIMATE.md), [ten LAB/2 scenarios](game/economy/engineering-climate-report-2026-10-15.md), and [historical first-slice notes](docs/FIELD_ENGINEERING.md). Run `cd game && yarn simulate:engineering`.
+
+## Earlier local 3D colony sandbox
+
+The earlier wallet-free design prototype remains available at **`/colony`** on the game client (linked from the farm and `/demo`). It includes 14 locally bundled CC0 models, construction, power/storage, water recycling, batch crops, maintenance and a finite fictional food order. It is a separate lunar design study, not a mainnet launch, a change to on-chain yields, or a token-to-food conversion. Browser progress resets on reload.
+
+See [the asset research, resource assumptions and integration plan](docs/LUNAR_FARM_PLAN.md) and the [reproducible 180-day study](game/economy/colony-report-2026-10-14.md). Run with `cd game && yarn dev:web`, then open `/colony`; `yarn simulate:colony` runs the same resource engine without a browser.
+
 ## Current documentation
 
+- [Martian fields: visual asset comparison](docs/MARTIAN_FIELDS_ASSETS.html), [reuse of verified Kenney/Quaternius CC0 parts](docs/MARTIAN_FIELDS_CC0_REUSE.md) and [source/format/licence research](docs/MARTIAN_FIELDS_ASSET_SEARCH.md) — asset research; the [implemented field renderer](docs/MARTIAN_FIELDS_IMPLEMENTATION.md) now uses the selected CC0 parts
+- [3D lunar farm: assets, evidence and economy](docs/LUNAR_FARM_PLAN.md)
 - [Launch status and blockers](docs/LAUNCH_NEXT_STEPS.md)
 - [Owner-approved product and revenue checklist](docs/ARES1_PRODUCT_HYPE_REVENUE_CHECKLIST_2026-10-11.md)
 - [Cloudflare + VPS operations plan](docs/DEPLOY_BACKEND_VPS.md)

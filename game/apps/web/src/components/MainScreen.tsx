@@ -5,6 +5,9 @@ import { useI18n, t } from '../i18n'
 import { useGame } from '../contexts/GameContext'
 import { useSolana } from '../contexts/SolanaContext'
 import FieldCardVice from './FieldCardVice'
+import FieldsPanel from '../fields/FieldsPanel'
+import { fieldVisual } from '../fields/model'
+import { fieldCopy } from '../fields/copy'
 import PresaleSection from './PresaleSection'
 import Header from './Header'
 import { FIELD_TYPES, fieldPriceMicro, fmtPotato, HARVEST_THRESHOLD_MICRO, BATCH_LIMIT_LICENSED } from '../utils/constants'
@@ -20,6 +23,9 @@ import CaseReveal from './CaseReveal'
 export default function MainScreen() {
  const { fields, stats, loading, fieldsError, reload, purchasing, harvest, purchaseField, upgradeField, repairField, payTax, applyFertilizer } = useGame()
  const { ready, rpcError, connected } = useSolana()
+ const { lang } = useI18n()
+ const fieldText = fieldCopy(lang)
+ const visualFields = fields.map(field => fieldVisual(field, Math.floor(Date.now() / 1000)))
  const [revealTier, setRevealTier] = useState<number | null>(null)
 
  // Покупка поля за POTATO: тип выбирает игрок, поэтому редкость раскрытия = тип.
@@ -35,7 +41,11 @@ export default function MainScreen() {
     <div style={{ position: 'relative' }}>
      <Header stats={stats} />
     </div>
-            <PresaleSection />
+    <a href="/demo" className="mk-key" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, textDecoration: 'none', padding: '14px 16px', marginBottom: 16, fontSize: 12 }}>
+     <span>{fieldText.preview} →</span>
+     <small style={{ color: '#C9A176', fontSize: 8 }}>3D · CC0</small>
+    </a>
+    <PresaleSection />
         <CaseReveal
          open={revealTier !== null}
          tier={revealTier ?? 0}
@@ -48,8 +58,8 @@ export default function MainScreen() {
          balanceMicro={stats.potatoBalance}
          firstField={fields.length === 0}
         />
-<BatchHarvestBar />
-<motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+    <BatchHarvestBar />
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
      <div
       data-tutorial="fields"
       style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 16, marginTop: 20, alignItems: 'start' }}
@@ -73,27 +83,41 @@ export default function MainScreen() {
           <ErrorState inline message={fieldsError} onRetry={() => void reload()} />
          </div>
         )}
-        {fields.map((field, i) => (
-         <FieldGestureLayer
-          key={field.publicKey.toString()}
-          canHarvest={field.accumulated >= HARVEST_THRESHOLD_MICRO}
-          onHarvest={() => harvest(field.publicKey)}
-          scanData={[
-           { label: 'LVL', value: String(field.level) },
-           { label: 'DUR', value: `${field.durability}%` },
-          ]}
-         >
-          <FieldCardVice
-           field={field}
-           index={i}
-           onHarvest={harvest}
-           onUpgrade={upgradeField}
-           onRepair={repairField}
-           onPayTax={payTax}
-           onApplyFertilizer={applyFertilizer}
-          />
-         </FieldGestureLayer>
-        ))}
+        {fields.length > 0 && <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
+         <FieldsPanel
+          fields={visualFields}
+          language={lang}
+          renderInspector={selected => {
+           // Resolve the latest account by its public key, never by slot/index.
+           const index = fields.findIndex(field => field.publicKey.toString() === selected.id)
+           const field = fields[index]
+           return field ? <FieldCardVice
+            key={selected.id}
+            field={field}
+            index={index}
+            onHarvest={harvest}
+            onUpgrade={upgradeField}
+            onRepair={repairField}
+            onPayTax={payTax}
+            onApplyFertilizer={applyFertilizer}
+           /> : null
+          }}
+          renderCards={() => fields.map((field, i) => (
+           <FieldGestureLayer
+            key={field.publicKey.toString()}
+            canHarvest={field.accumulated >= HARVEST_THRESHOLD_MICRO}
+            onHarvest={() => harvest(field.publicKey)}
+            scanData={[{ label: 'LVL', value: String(field.level) }, { label: 'DUR', value: `${field.durability}%` }]}
+           >
+            <FieldCardVice
+             field={field} index={i}
+             onHarvest={harvest} onUpgrade={upgradeField} onRepair={repairField}
+             onPayTax={payTax} onApplyFertilizer={applyFertilizer}
+            />
+           </FieldGestureLayer>
+          ))}
+         />
+        </div>}
 
        </>
       )}

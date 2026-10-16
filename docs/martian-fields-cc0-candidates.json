@@ -1,0 +1,309 @@
+{
+  "checkedOn": "2026-10-15",
+  "status": "Historical initial sample audit; selected source files are now shipped in the field kit. See the authoritative public/models/fields/manifest.json and MARTIAN_FIELDS_IMPLEMENTATION.md.",
+  "assets": [
+    {
+      "repository": "eturner58/game-assets",
+      "commit": "260d55430c63747eb8c7119ead9607734ab7d90e",
+      "sourceBlob": "f4c0bb6a1f398882e6a0b4417f69e5fc84ba53bc",
+      "sourcePath": "kenney/3D assets/Nature Kit/License.txt",
+      "filename": "License.txt",
+      "author": "Kenney",
+      "pack": "Nature Kit",
+      "officialSource": "https://kenney.nl/assets/nature-kit",
+      "license": "CC0-1.0",
+      "sha256": "cb96b75e3560ac78d7a53ce6f083f4cdb5c53faea6141b62d63458dcfe1e4b9d",
+      "bytes": 611,
+      "downloadedForEvaluationOnly": true
+    },
+    {
+      "repository": "eturner58/game-assets",
+      "commit": "260d55430c63747eb8c7119ead9607734ab7d90e",
+      "sourceBlob": "db5bf7b07bdbc1b7f145acd3474b54f6a87c5839",
+      "sourcePath": "kenney/3D assets/Nature Kit/Models/GLTF format/crops_dirtDoubleRow.glb",
+      "filename": "crops_dirtDoubleRow.glb",
+      "author": "Kenney",
+      "pack": "Nature Kit",
+      "officialSource": "https://kenney.nl/assets/nature-kit",
+      "license": "CC0-1.0",
+      "sha256": "b5c330d81a4efe0944caf5f1d1dd0c0d50227c93f2a4a57ec2425d2c9b7a2d84",
+      "bytes": 7560,
+      "downloadedForEvaluationOnly": true,
+      "meshTriangles": 88,
+      "externalImages": [],
+      "materials": [
+        "dirtDark",
+        "dirt"
+      ],
+      "hasVertexColors": false,
+      "positionBounds": [
+        {
+          "min": [
+            -0.5,
+            0,
+            -0.438
+          ],
+          "max": [
+            0.5,
+            0.05,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "eturner58/game-assets",
+      "commit": "260d55430c63747eb8c7119ead9607734ab7d90e",
+      "sourceBlob": "b5a87ac78ef61d297644a907d1f669c4080d017b",
+      "sourcePath": "kenney/3D assets/Nature Kit/Models/GLTF format/crops_dirtRow.glb",
+      "filename": "crops_dirtRow.glb",
+      "author": "Kenney",
+      "pack": "Nature Kit",
+      "officialSource": "https://kenney.nl/assets/nature-kit",
+      "license": "CC0-1.0",
+      "sha256": "a36752160e42703c0539386bf07260984796dd07674d322ae18c1fc5201b59b2",
+      "bytes": 4712,
+      "downloadedForEvaluationOnly": true,
+      "meshTriangles": 44,
+      "externalImages": [],
+      "materials": [
+        "dirtDark",
+        "dirt"
+      ],
+      "hasVertexColors": false,
+      "positionBounds": [
+        {
+          "min": [
+            -0.5,
+            0,
+            -0.278999984
+          ],
+          "max": [
+            0.5,
+            0.05,
+            0.341
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "eturner58/game-assets",
+      "commit": "260d55430c63747eb8c7119ead9607734ab7d90e",
+      "sourceBlob": "8d7d41906be246688bffacb492a08fe0279c34d4",
+      "sourcePath": "kenney/3D assets/Nature Kit/Models/GLTF format/crops_dirtSingle.glb",
+      "filename": "crops_dirtSingle.glb",
+      "author": "Kenney",
+      "pack": "Nature Kit",
+      "officialSource": "https://kenney.nl/assets/nature-kit",
+      "license": "CC0-1.0",
+      "sha256": "6d9df48fa8b691a949c053f56977e1134cd917ec7c8a936612d7fa1978dcce1d",
+      "bytes": 4196,
+      "downloadedForEvaluationOnly": true,
+      "meshTriangles": 32,
+      "externalImages": [],
+      "materials": [
+        "dirt",
+        "dirtDark"
+      ],
+      "hasVertexColors": false,
+      "positionBounds": [
+        {
+          "min": [
+            -0.2,
+            0,
+            -0.173205078
+          ],
+          "max": [
+            0.2,
+            0.1,
+            0.173205078
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "eturner58/game-assets",
+      "commit": "260d55430c63747eb8c7119ead9607734ab7d90e",
+      "sourceBlob": "5686f064d1261fea4d77f07d319f0ca919447dac",
+      "sourcePath": "kenney/3D assets/Nature Kit/Models/GLTF format/crops_leafsStageA.glb",
+      "filename": "crops_leafsStageA.glb",
+      "author": "Kenney",
+      "pack": "Nature Kit",
+      "officialSource": "https://kenney.nl/assets/nature-kit",
+      "license": "CC0-1.0",
+      "sha256": "f30d55780aa6668316a272eac8ea908e981d16fea7dc4fd1de4e68aa8170cee2",
+      "bytes": 7144,
+      "downloadedForEvaluationOnly": true,
+      "meshTriangles": 76,
+      "externalImages": [],
+      "materials": [
+        "grass"
+      ],
+      "hasVertexColors": false,
+      "positionBounds": [
+        {
+          "min": [
+            -0.194689274,
+            0,
+            -0.194689274
+          ],
+          "max": [
+            0.194689274,
+            0.42707476,
+            0.194689274
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "eturner58/game-assets",
+      "commit": "260d55430c63747eb8c7119ead9607734ab7d90e",
+      "sourceBlob": "46374194f6b99cb0feeab5ef68e5761d6eacc507",
+      "sourcePath": "kenney/3D assets/Nature Kit/Models/GLTF format/crops_leafsStageB.glb",
+      "filename": "crops_leafsStageB.glb",
+      "author": "Kenney",
+      "pack": "Nature Kit",
+      "officialSource": "https://kenney.nl/assets/nature-kit",
+      "license": "CC0-1.0",
+      "sha256": "aea4fe9a7943e7b2b7df99dc4fa00b85e34d00ea9b8e1b144504cef25d77b98c",
+      "bytes": 7768,
+      "downloadedForEvaluationOnly": true,
+      "meshTriangles": 84,
+      "externalImages": [],
+      "materials": [
+        "grass"
+      ],
+      "hasVertexColors": false,
+      "positionBounds": [
+        {
+          "min": [
+            -0.194689274,
+            -2.25597316e-17,
+            -0.194689274
+          ],
+          "max": [
+            0.194689274,
+            0.67707473,
+            0.194689274
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "Fopull-LLC/Solar",
+      "commit": "c9276fddb8d09649a39bfbfe20482fa9fd76e417",
+      "sourceBlob": "285b82669b7337182e401dc97149dbfbb68c671e",
+      "sourcePath": "models/space-kit/hangar_roundGlass.glb",
+      "filename": "hangar_roundGlass.glb",
+      "author": "Kenney",
+      "pack": "Space Kit",
+      "officialSource": "https://kenney.nl/assets/space-kit",
+      "license": "CC0-1.0",
+      "sha256": "6b6346d95b90b8c012880832cef3969a108ae2b153bef8e2106b27997e33d601",
+      "bytes": 10076,
+      "downloadedForEvaluationOnly": true,
+      "meshTriangles": 113,
+      "externalImages": [],
+      "materials": [
+        "metalRed",
+        "metalDark",
+        "_defaultMat",
+        "dark"
+      ],
+      "hasVertexColors": false,
+      "positionBounds": [
+        {
+          "min": [
+            -1.63562191,
+            0,
+            -1.41649
+          ],
+          "max": [
+            1.63562191,
+            1.4,
+            1.41649
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "Fopull-LLC/Solar",
+      "commit": "c9276fddb8d09649a39bfbfe20482fa9fd76e417",
+      "sourceBlob": "7d502446b3fff7bb8aa5d27f8af282dbc51fc646",
+      "sourcePath": "models/space-kit/pipe_straight.glb",
+      "filename": "pipe_straight.glb",
+      "author": "Kenney",
+      "pack": "Space Kit",
+      "officialSource": "https://kenney.nl/assets/space-kit",
+      "license": "CC0-1.0",
+      "sha256": "3386146dbfa9a9f2c7bcc5a6599a3c9d43a9e029c26f61b345ff6b16df80e6a1",
+      "bytes": 6492,
+      "downloadedForEvaluationOnly": true,
+      "meshTriangles": 80,
+      "externalImages": [],
+      "materials": [
+        "metal",
+        "metalDark",
+        "dark"
+      ],
+      "hasVertexColors": false,
+      "positionBounds": [
+        {
+          "min": [
+            -0.346410155,
+            -1.490117e-08,
+            -0.5
+          ],
+          "max": [
+            0.346410155,
+            0.6,
+            0.5
+          ]
+        }
+      ]
+    },
+    {
+      "repository": "tilakpatell/tilakverse-assets",
+      "commit": "5fe11b4a452555401915f4f16c88464b05c54664",
+      "sourceBlob": "e71051f9e6e0571a2f7ed2bfb4ac1ccd7434d0dc",
+      "sourcePath": "quaternius/ultimate-space-kit/Environment/GLTF/MetalSupport.gltf",
+      "filename": "MetalSupport.gltf",
+      "author": "Quaternius",
+      "pack": "Ultimate Space Kit",
+      "officialSource": "https://quaternius.com/packs/ultimatespacekit.html",
+      "license": "CC0-1.0",
+      "sha256": "796070d5a2116ede96d7f25f208f665ef810c062fad29112798fdab594967b9f",
+      "bytes": 50722,
+      "downloadedForEvaluationOnly": true,
+      "meshTriangles": 540,
+      "externalImages": [],
+      "materials": [
+        "Atlas"
+      ],
+      "hasVertexColors": false,
+      "positionBounds": [
+        {
+          "min": [
+            -0.05747056007385254,
+            0.02272617816925049,
+            -3.0081210136413574
+          ],
+          "max": [
+            0.08404803276062012,
+            1.2236310243606567,
+            2.9468159675598145
+          ]
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Selected originals downloaded to ignored evaluation scratch; no models added to the application.",
+    "Kenney Nature and Survival subtrees were queried separately after the full repository recursive tree reported truncation.",
+    "Seven sampled GLBs have no images/textures and use plain baseColorFactor materials; original metallicFactor=1 needs correction for soil/foliage.",
+    "hangar_roundGlass.glb has OPAQUE source materials despite its name; transparent roof/walls need runtime material treatment.",
+    "Triangle counts are unique primitive geometry, not a fully instanced scene GPU measurement.",
+    "Ultimate Crops Pack was checked on the author page only; its individual crop species/files are not downloaded or verified."
+  ],
+  "currentManifest": "../game/apps/web/public/models/fields/manifest.json"
+}

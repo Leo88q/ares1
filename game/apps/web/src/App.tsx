@@ -14,22 +14,25 @@ import { ambientMusic } from './utils/ambientMusic'
 
 import { useReferralRegistration } from './hooks/useReferralRegistration'
 import { AresBottomNav } from './components/ares/AresBottomNav'
+import { SectionFrame } from './components/ares/SectionFrame'
 import type { AresTab } from './components/ares/AresBottomNav'
 import { LandingSequence } from './components/ares/loading'
 import './ui/hull-ui.css'
+import './styles/seeker-touch.css'
 import './ui/prize-reveal.css'
 import { HullSkinMounter } from './ui/HullSkinMounter'
 import { CookieConsent } from './components/CookieConsent'
 
 // Route-level code splitting: each screen is its own chunk.
-const MainScreen = lazy(() => import('./components/MainScreen'))
 const MarketScreen = lazy(() => import('./components/MarketScreen'))
 const StatsScreen = lazy(() => import('./components/StatsScreen'))
 const ProfileScreen = lazy(() => import('./components/ProfileScreen'))
 const OperationScreen = lazy(() => import('./components/OperationScreen'))
-const DemoScreen = lazy(() => import('./components/DemoScreen'))
+// АГРО tab: real fields + field lab. КОЛОНИЯ tab: the 3D base, embedded (no own header).
+const FarmTab = lazy(() => import('./components/ares/FarmTab'))
+const ColonyScreen = lazy(() => import('./colony/ColonyScreen'))
 
-type Screen = 'farm' | 'market' | 'stats' | 'profile' | 'operation'
+type Screen = 'farm' | 'colony' | 'market' | 'stats' | 'profile' | 'operation'
 
 export default function App() {
  const { lang } = useI18n()
@@ -99,6 +102,11 @@ function ScreenFallback() {
  )
 }
 
+function StandaloneDemoRedirect() {
+ useEffect(() => { window.location.replace('/demo') }, [])
+ return <ScreenFallback />
+}
+
 function AppRoutes() {
  const navigate = useNavigate()
  const location = useLocation()
@@ -108,9 +116,10 @@ function AppRoutes() {
   : location.pathname === '/stats' ? 'stats'
   : location.pathname === '/profile' ? 'profile'
   : location.pathname === '/operation' ? 'operation'
+  : location.pathname === '/base' ? 'colony'
   : 'farm'
 
- const handleNavigate = (screen: Screen) => navigate(screen === 'farm' ? '/' : `/${screen}`)
+  const handleNavigate = (screen: Screen) => navigate(screen === 'farm' ? '/' : screen === 'colony' ? '/base' : `/${screen}`)
 
  return (
   <>
@@ -118,13 +127,14 @@ function AppRoutes() {
     <PageTransition>
      <Suspense fallback={<ScreenFallback />}>
       <Routes location={location}>
-       <Route path="/" element={<MainScreen />} />
+       <Route path="/" element={<FarmTab />} />
+       <Route path="/base" element={<ColonyScreen embedded />} />
        <Route path="/market" element={<MarketScreen />} />
        <Route path="/stats" element={<StatsScreen />} />
        <Route path="/profile" element={<ProfileScreen />} />
-       <Route path="/operation" element={<OperationScreen />} />
-       <Route path="/demo" element={<DemoScreen />} />
-       <Route path="*" element={<MainScreen />} />
+       <Route path="/operation" element={<SectionFrame section="journal" label={t('ОПЕРАЦИЯ: ПЕРВАЯ ТЕПЛИЦА')}><OperationScreen /></SectionFrame>} />
+       <Route path="/demo" element={<StandaloneDemoRedirect />} />
+       <Route path="*" element={<FarmTab />} />
       </Routes>
      </Suspense>
     </PageTransition>

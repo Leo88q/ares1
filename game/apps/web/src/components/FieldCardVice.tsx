@@ -164,7 +164,7 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
        {t('Собрать')}
       </span>
       <span className="field-action-btn__badge">
-       {canHarvest ? `+${accumulated.toFixed(2)} POTATO` : '≥ 1.00 POTATO'}
+       {canHarvest ? `+${accumulated.toFixed(2)} POTATO` : `≥ ${(HARVEST_THRESHOLD_MICRO / MICRO).toFixed(2)} POTATO`}
       </span>
      </button>
 

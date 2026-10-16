@@ -1,0 +1,61 @@
+/* Shared finished section surfaces: real artwork, original UI actions. */
+.ship-section { color: #efdebc; min-width: 0; position: relative; min-height: 100%; background: #160f0b; }
+.ship-section-hero { position: relative; height: 220px; overflow: hidden; background: #1b140e; border-bottom: 1px solid #a7834866; }
+.ship-section-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 66% center; pointer-events: none; }
+.ship-section-hero::after { content: ''; position: absolute; inset: 0; background: #120c082c; pointer-events: none; }
+.ship-section-title { position: absolute; z-index: 1; left: 18px; top: 22px; display: flex; gap: 12px; align-items: center; max-width: calc(100% - 36px); }
+.ship-section-title > img { width: 44px; height: 44px; object-fit: contain; filter: drop-shadow(0 2px 3px #000a); }
+.ship-section-title span { color: #bd9a69; font: 8px/1.6 var(--ares-font-mono,monospace); letter-spacing: .1em; }
+.ship-section-title h2 { margin: 4px 0 0; color: #f0d4a3; font: 600 25px/1.2 var(--pf-font-ui,sans-serif); text-transform: none; letter-spacing: -.02em; text-shadow: 0 2px 6px #000c; }
+.ship-section-hud { position: absolute; z-index: 1; right: 14px; bottom: 16px; max-width: calc(100% - 28px); }
+.ship-section-body { position: relative; min-width: 0; padding-top: 8px; border-top: 1px solid #73573355; background: #19120d url('/ares/art/plate-surface.webp') top center/100% 520px; }
+.ship-section-body .main-screen-container { padding-top: 14px; }
+.ship-section-body .pf-h1 { color: #f0d4a5; text-shadow: 0 2px 2px #0007; }
+.ship-section-body .pf-subtitle { color: #c0aa86; }
+.ship-section-body .hull-panel, .ship-section-body .pf-card, .ship-section-body .po-plate { background: #21190f url('/ares/kit/panel-bronze.webp') center/100% 100%; border-color: #9e784255; }
+.ship-section-body .hull-panel .ares-hull-frame { display: none; }
+.ship-section-body .hull-panel > .hull-panel-content { padding: 3px; }
+.ship-section-body .mk-key { background: url('/ares/art/button-bronze.webp') center/100% 100% no-repeat; color: #e0bf88; border: 0; border-radius: 0; box-shadow: none; min-height: 38px; }
+.ship-section-body .mk-key--paint, .ship-section-body .mk-key--engaged { color: #f3d59a; background-image: url('/ares/art/button-bronze.webp'); box-shadow: inset 0 0 0 1px #b8925166; }
+.ship-section-body .mk-key:disabled { opacity: .4; }
+.ship-section-body button:focus-visible, .ship-section-body a:focus-visible { outline: 2px solid #f6cf85; outline-offset: 2px; }
+.ship-section-body input, .ship-section-body select { background-color: #160f09; color: #ecd2a4; border-color: #8b663d88; }
+.ship-section-body .market-filter-field input { min-width: 0; }
+.ship-nav .hull-panel-content { padding: 4px; gap: 3px; }
+.ship-nav.hull-nav { background: #21170e url('/ares/art/plate-surface.webp') center/cover; border: 1px solid #a4814c88; border-radius: 7px; box-shadow: 0 7px 22px #000a; }
+.ship-nav .hull-nav-key { position: relative; background: url('/ares/art/button-bronze.webp') center/100% 100% no-repeat; border: 0; min-width: 0; min-height: 68px; padding: 8px 4px; gap: 4px; box-shadow: none; border-radius: 0; }
+.ship-nav .hull-nav-key[aria-pressed=true] { box-shadow: inset 0 0 0 1px #d7af6899; }
+.ship-nav-icon { width: 29px; height: 29px; object-fit: contain; flex: 0 0 auto; filter: drop-shadow(0 2px 2px #0009); }
+.ship-nav .hull-nav-key__label { color: #cdb28b; font-size: 10px; letter-spacing: .08em; }
+.ship-nav .hull-nav-key[aria-pressed=true] .hull-nav-key__label { color: #f0d5a2; }
+.ship-nav .hull-nav-key__code { position: absolute; right: 7px; top: 5px; color: #b89a6977; font-size: 6px; }
+@media(max-width:380px) { .ship-section-hero { height: 205px; } .ship-section-title { left: 12px; top: 18px; gap: 9px; } .ship-section-title > img { width: 38px; height: 38px; } .ship-section-title h2 { font-size: 23px; } .ship-section-hud { bottom: 13px; right: 10px; } .ship-nav .hull-nav-key { min-height: 62px; padding: 7px 2px; } .ship-nav .hull-nav-key__label { font-size: 8px; letter-spacing: .035em; } .ship-nav-icon { width: 26px; height: 26px; } }
+
+.mf-demo { padding-bottom: 120px; }
+.mf-demo-view[hidden] { display: none !important; }
+.ship-preview { max-width: 1180px; margin: 10px auto 0; border: 1px solid #96734177; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 38px #0006; }
+.ship-preview .ship-section-hero { height: 310px; }
+.ship-preview .ship-section-image { object-position: center center; }
+.ship-preview .ship-section-title { left: 30px; top: 36px; }
+.ship-preview .ship-section-title h2 { font-size: 37px; }
+.ship-preview .ship-section-title > img { width: 64px; height: 64px; }
+.ship-preview-content { padding: 28px 30px 32px; color: #cbb48e; }
+.ship-preview-badge { color: #adb99a; font: 9px/1.6 var(--ares-font-mono,monospace); letter-spacing: .07em; }
+.ship-preview-content > p { font-size: 13px; line-height: 1.7; max-width: 720px; margin: 12px 0 20px; }
+.ship-preview-cards { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 15px; margin-bottom: 22px; }
+.ship-preview-cards article { background: #20170e url('/ares/kit/panel-bronze.webp') center/100% 100%; padding: 25px 22px; min-width: 0; display: grid; grid-template-columns: 64px minmax(0,1fr); gap: 4px 15px; align-items: center; }
+.ship-preview-cards img { width: 62px; height: 62px; object-fit: contain; grid-row: span 2; }
+.ship-preview-cards h3 { margin: 0; color: #ecd0a0; font: 500 20px/1.3 var(--pf-font-ui,sans-serif); text-transform: none; letter-spacing: 0; }
+.ship-preview-cards span { color: #ab9879; font-size: 10px; }
+.ship-preview-open { display: inline-flex; align-items: center; color: #ecd0a0; text-decoration: none; padding: 13px 24px; min-height: 42px; font-size: 12px; background: url('/ares/art/button-bronze.webp') center/100% 100%; }
+.ship-preview-content > small { display: block; margin-top: 15px; color: #95886e; font-size: 10px; }
+@media(max-width:600px) { .ship-preview .ship-section-hero { height: 245px; } .ship-preview .ship-section-image { object-position: 67% center; } .ship-preview .ship-section-title { left: 18px; top: 25px; } .ship-preview .ship-section-title h2 { font-size: 28px; } .ship-preview .ship-section-title > img { width: 48px; height: 48px; } .ship-preview-content { padding: 18px 15px 24px; } .ship-preview-cards { grid-template-columns: minmax(0,1fr); gap: 10px; } .ship-preview-content > p { font-size: 11px; } .ship-preview-cards article { padding: 19px 15px; } .ship-preview-cards h3 { font-size: 18px; } }
+
+/* Six section keys (АГРО · КОЛОНИЯ · СНАБ · ЖУРНАЛ · КАЮТА · ОПЕРАЦИЯ) in one phone column.
+   Scoped with .hull-nav so these beat the base hull-ui.css rules regardless of stylesheet order. */
+@media (max-width: 480px) {
+  .hull-nav-wrap { width: calc(100% - 12px); }
+  .hull-nav .hull-nav-key { padding: 5px 1px 4px; min-width: 0; }
+  .hull-nav .hull-nav-key__label { font-size: 8.5px; letter-spacing: 0.02em; }
+  .hull-nav .hull-nav-key__code { display: none; }
+}

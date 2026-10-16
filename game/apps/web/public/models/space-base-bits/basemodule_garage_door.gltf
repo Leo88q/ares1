@@ -1,0 +1,189 @@
+{
+  "accessors": [
+    {
+      "name": "basemodule_garage_door_Cylinder.2719-Mesh_0_positions",
+      "componentType": 5126,
+      "count": 120,
+      "min": [
+        -0.3499999940395355,
+        0.15000000596046448,
+        0.8500000238418579
+      ],
+      "max": [
+        0.3499999940395355,
+        0.8500000238418579,
+        0.949999988079071
+      ],
+      "type": "VEC3",
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "name": "basemodule_garage_door_Cylinder.2719-Mesh_0_normals",
+      "componentType": 5126,
+      "count": 120,
+      "min": [
+        -1,
+        -1,
+        -1
+      ],
+      "max": [
+        1,
+        1,
+        1
+      ],
+      "type": "VEC3",
+      "bufferView": 1,
+      "byteOffset": 0
+    },
+    {
+      "name": "basemodule_garage_door_Cylinder.2719-Mesh_0_texcoords",
+      "componentType": 5126,
+      "count": 120,
+      "min": [
+        0.2770029902458191,
+        0.11365900188684464
+      ],
+      "max": [
+        0.33024901151657104,
+        0.19946399331092834
+      ],
+      "type": "VEC2",
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "name": "basemodule_garage_door_Cylinder.2719-Mesh_0_indices",
+      "componentType": 5123,
+      "count": 180,
+      "min": [
+        0
+      ],
+      "max": [
+        119
+      ],
+      "type": "SCALAR",
+      "bufferView": 3,
+      "byteOffset": 0
+    }
+  ],
+  "asset": {
+    "generator": "obj2gltf",
+    "version": "2.0"
+  },
+  "buffers": [
+    {
+      "name": "basemodule_garage_door",
+      "byteLength": 4200,
+      "uri": "basemodule_garage_door.bin"
+    }
+  ],
+  "bufferViews": [
+    {
+      "name": "bufferView_0",
+      "buffer": 0,
+      "byteLength": 1440,
+      "byteOffset": 0,
+      "byteStride": 12,
+      "target": 34962
+    },
+    {
+      "name": "bufferView_1",
+      "buffer": 0,
+      "byteLength": 1440,
+      "byteOffset": 1440,
+      "byteStride": 12,
+      "target": 34962
+    },
+    {
+      "name": "bufferView_2",
+      "buffer": 0,
+      "byteLength": 960,
+      "byteOffset": 2880,
+      "byteStride": 8,
+      "target": 34962
+    },
+    {
+      "name": "bufferView_3",
+      "buffer": 0,
+      "byteLength": 360,
+      "byteOffset": 3840,
+      "target": 34963
+    }
+  ],
+  "images": [
+    {
+      "name": "spacebits_texture",
+      "uri": "spacebits_texture.png"
+    }
+  ],
+  "materials": [
+    {
+      "name": "spacebits_texture",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "baseColorFactor": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.840000019
+      },
+      "emissiveFactor": [
+        0,
+        0,
+        0
+      ],
+      "alphaMode": "OPAQUE",
+      "doubleSided": false
+    }
+  ],
+  "meshes": [
+    {
+      "name": "basemodule_garage_door_Cylinder.2719-Mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "basemodule_garage_door_Cylinder.2719",
+      "mesh": 0
+    }
+  ],
+  "samplers": [
+    {
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "name": "spacebits_texture",
+      "sampler": 0,
+      "source": 0
+    }
+  ]
+}

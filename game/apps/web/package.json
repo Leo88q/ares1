@@ -7,7 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "test:colony-browser": "node tests/colony-browser-smoke.mjs",
+    "test:fields-browser": "node tests/fields-browser-smoke.mjs",
+    "test:engineering-browser": "node tests/engineering-browser-smoke.mjs",
+    "test:sections-browser": "node tests/sections-browser-smoke.mjs",
+    "test:tap-audit": "node tests/tap-target-audit.mjs"
   },
   "dependencies": {
     "@solana-mobile/wallet-adapter-mobile": "2.1.5",
@@ -23,7 +28,8 @@
     "lucide-react": "^0.427.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.0"
+    "react-router-dom": "^6.26.0",
+    "three": "0.180.0"
   },
   "devDependencies": {
     "@fontsource/anton": "5.3.0",
@@ -36,7 +42,9 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "typescript": "^5.5.4",
-    "vite": "^5.4.0"
+    "vite": "^5.4.0",
+    "@types/three": "0.180.0",
+    "playwright-core": "1.56.1"
   },
   "resolutions": {
     "@solana/buffer-layout-utils": "file:vendor/solana-buffer-layout-utils",

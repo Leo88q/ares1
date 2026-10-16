@@ -3,9 +3,9 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { useI18n } from '../../i18n';
 
 import { haptics } from '../../utils/haptic';
-import { AresHullFrame } from '../../ui/AresHullFrame';
+import './section-art.css';
 
-export type AresTab = 'main' | 'market' | 'stats' | 'profile' | 'operation';
+export type AresTab = 'main' | 'colony' | 'market' | 'stats' | 'profile' | 'operation';
 
 export interface AresBottomNavProps {
  active: AresTab;
@@ -30,20 +30,20 @@ export const AresBottomNav = memo(function AresBottomNav({
  onChange,
 }: AresBottomNavProps): JSX.Element {
  const reducedMotion = useReducedMotion();
- const { t } = useI18n();
+ const { t, lang } = useI18n();
 
  const navItems: NavItem[] = useMemo(() => [
   { id: 'main', label: t('АГРО'), code: 'K1', lamp: 'green' },
-  { id: 'market', label: t('СНАБ'), code: 'K2', lamp: 'amber' },
-  { id: 'stats', label: t('ЖУРНАЛ'), code: 'K3', lamp: 'amber' },
-  { id: 'profile', label: t('КАЮТА'), code: 'K4', lamp: 'green' },
-  { id: 'operation', label: t('ОПЕРАЦИЯ'), code: 'K5', lamp: 'magenta' },
- ], [t]);
+  { id: 'colony', label: t('КОЛОНИЯ'), code: 'K2', lamp: 'green' },
+  { id: 'market', label: t('СНАБ'), code: 'K3', lamp: 'amber' },
+  { id: 'stats', label: t('ЖУРНАЛ'), code: 'K4', lamp: 'amber' },
+  { id: 'profile', label: t('КАЮТА'), code: 'K5', lamp: 'green' },
+  { id: 'operation', label: t('ОПЕРАЦИЯ'), code: 'K6', lamp: 'magenta' },
+ ], [t, lang]);
 
  return (
   <div className="hull-nav-wrap">
-   <nav className="hull-panel hull-nav" aria-label={t("Разделы колонии")}>
-    <AresHullFrame variant="default" runningLight={false} />
+   <nav className="hull-panel hull-nav ship-nav" aria-label={t("Разделы колонии")}>
     <div className="hull-panel-content">
      {navItems.map((item) => {
       const isActive = item.id === active;
@@ -61,9 +61,7 @@ export const AresBottomNav = memo(function AresBottomNav({
          onChange(item.id);
         }}
        >
-        <span className="hull-nav-key__lamp">
-         <span className={`mk-lamp ${isActive ? `mk-lamp--${item.lamp}` : 'mk-lamp--off'}`} />
-        </span>
+        <img className="ship-nav-icon" src={item.id === 'main' ? '/ares/icons/sprout.webp' : item.id === 'colony' ? '/ares/icons/gear.webp' : item.id === 'market' ? '/ares/icons/crate.webp' : item.id === 'stats' ? '/ares/icons/clipboard.webp' : item.id === 'profile' ? '/ares/icons/bunk.webp' : '/ares/icons/license.webp'} alt="" aria-hidden="true" />
         <span className="hull-nav-key__label">{item.label}</span>
         <span className="hull-nav-key__code" aria-hidden="true">{item.code}</span>
        </motion.button>

@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "createdOn": "2026-10-15",
+  "notes": "Original fictional game artwork, not NASA imagery, real terrain or ready-made 3D model output. Background and medallion icons generated individually, never a flattened interface. UI text/values remain live DOM.",
+  "assets": [
+    {
+      "file": "battery.webp",
+      "bytes": 14322,
+      "sha256": "17d23096c712e2dbd93b408fdab0ab4df99cc85291ea1211b0437b2c2850db36",
+      "width": 256,
+      "height": 256,
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-16) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in. Transparent background via flood-fill of the flat backdrop.",
+      "alpha": true
+    },
+    {
+      "file": "mars-sector.webp",
+      "bytes": 63612,
+      "sha256": "ad33ee132bfffe880434ab3058c3d5e429111aaa6225c76c05076b86be62947f",
+      "width": 1376,
+      "height": 768,
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-16) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in.",
+      "alpha": false
+    },
+    {
+      "file": "reservoir.webp",
+      "bytes": 19908,
+      "sha256": "b84f237544ca04d393dfe3a1def65a585bed8e026085ce92d0d6abc8e94dec61",
+      "width": 256,
+      "height": 256,
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-16) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in. Transparent background via flood-fill of the flat backdrop.",
+      "alpha": true
+    },
+    {
+      "file": "solar.webp",
+      "bytes": 16848,
+      "sha256": "8e3d0dd60271c8c7db25d90a25dc324e691b78df640e5f0d437218cc3dabb8fd",
+      "width": 256,
+      "height": 256,
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-16) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in. Transparent background via flood-fill of the flat backdrop.",
+      "alpha": true
+    },
+    {
+      "file": "button-bronze.webp",
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-16) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in.",
+      "width": 640,
+      "height": 128,
+      "alpha": false,
+      "bytes": 4294,
+      "sha256": "7112222fe96db18efcdb70ce9fe5c711c1ab17333676426d8ba1e3dc04613f20"
+    },
+    {
+      "file": "plate-surface.webp",
+      "origin": "Derived crop of existing /ares/kit/panel-bronze.webp, retaining painted material; no procedural texture generation.",
+      "width": 688,
+      "height": 275,
+      "alpha": false,
+      "bytes": 10718,
+      "sha256": "e834f6a9ba0eb54ebc6bb85e7c68233c888a1488ce5569cd497fbd868d4ffe83"
+    },
+    {
+      "file": "market-background.webp",
+      "width": 1376,
+      "height": 768,
+      "alpha": false,
+      "bytes": 85948,
+      "sha256": "2c26a9dc22317ee81c458803c5bab7aafb29390d2c129cac6beaba059649e191",
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-16) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in."
+    },
+    {
+      "file": "journal-background.webp",
+      "width": 1376,
+      "height": 768,
+      "alpha": false,
+      "bytes": 97766,
+      "sha256": "9fea82359669ed9ae8bd9045bbd34d2a78d706bad500de722b0ee5b053b6889b",
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-16) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in."
+    },
+    {
+      "file": "cabin-background.webp",
+      "width": 1376,
+      "height": 768,
+      "alpha": false,
+      "bytes": 81256,
+      "sha256": "e28e845c3f0aaf27759ce69c4dde846df896fb77de109715bd6e797fc84888e6",
+      "origin": "AI-generated in Arena image generation (regenerated 2026-10-16) for the warm-industrial ARES art direction; cropped/optimized locally to WebP. Fictional artwork, no text or logos baked in."
+    }
+  ]
+}

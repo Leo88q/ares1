@@ -24,6 +24,7 @@ __pycache__/
 venv/
 
 # Build output / caches
+.cache/
 dist/
 build/
 out/

@@ -702,6 +702,13 @@ const es419: Record<string, string> = {
   'Рынок V2': 'Mercado V2',
   'Рынок V1': 'Mercado V1',
   'V1-ордера и escrow остаются в отдельном legacy-рынке до исполнения, отмены или закрытия. V2 не меняет их layout и правила; в V1 комиссия удерживается в POTATO при создании.': 'Las órdenes y el escrow V1 permanecen en el mercado legacy separado hasta ejecutarse, cancelarse o cerrarse. V2 no cambia su estructura ni sus reglas; V1 cobra la comisión en POTATO al crear la orden.',
+ 'Открыть 3D-колонию': 'Abrir la colonia 3D',
+  'КОЛОНИЯ': 'COLONIA',
+  'ПОЛЯ': 'CAMPOS',
+  'ЛАБОРАТОРИЯ': 'LABORATORIO',
+  'ИГРА · SOLANA': 'JUEGO · SOLANA',
+  'БЕЗ КОШЕЛЬКА': 'SIN BILLETERA',
+  'Режим фермы': 'Modo de granja',
 };
 
 export default es419;

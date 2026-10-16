@@ -131,7 +131,11 @@ class Archetype:
         return total
 
 
-def simulate(n_players: int, months: int = 12) -> dict:
+def simulate(n_players: int, months: int = 12, fee_in_potato: bool = True) -> dict:
+    """fee_in_potato=True — legacy V1 (комиссия в POTATO, 60% burn).
+    fee_in_potato=False — целевой V2: комиссия 9–12% в SOL/SKR, POTATO не сжигается
+    и не идёт в казну 🥔. Объём продаж — та же модельная допущенная величина;
+    реальных seller-volume данных нет, поэтому сравнение относительное."""
     cohorts = [
         Archetype(name, max(1, round(n_players * share)), fields, sr, up)
         for name, share, fields, sr, up in ARCHETYPES
@@ -147,6 +151,7 @@ def simulate(n_players: int, months: int = 12) -> dict:
     mint_total = burn_total = 0.0
     fee_burn_total = tax_burn_total = sold_total = treasury_total = 0.0
     entry_burn_total = 0.0
+    settlement_fee_total = 0.0
     cap_hits = 0
     quest_granted = False
     daily_burn = []                                 # для burn_прошлой_эпохи
@@ -263,11 +268,15 @@ def simulate(n_players: int, months: int = 12) -> dict:
         # ── комиссия рынка (по среднему чеку за день) ──
         avg_check = day_sold / max(1, n * 0.5)
         fee = day_sold * fee_bps(avg_check) / 10_000
-        fee_burn_total += fee * FEE_BURN_SHARE
-        burn_total += fee * FEE_BURN_SHARE
-        treasury_total += fee * (1 - FEE_BURN_SHARE)
+        fee_pot_burn = fee * FEE_BURN_SHARE if fee_in_potato else 0.0
+        fee_burn_total += fee_pot_burn
+        burn_total += fee_pot_burn
+        if fee_in_potato:
+            treasury_total += fee * (1 - FEE_BURN_SHARE)
+        else:
+            settlement_fee_total += fee   # V2: в SOL/SKR (POTATO-эквивалент, для оценки)
         sold_total += day_sold
-        supply = max(0.0, supply - fee * FEE_BURN_SHARE)
+        supply = max(0.0, supply - fee_pot_burn)
 
         # ── клиринг цены ──
         # Спрос = закупки новичков: поле входа + топливо на 30 дней upkeep.
@@ -306,17 +315,17 @@ def simulate(n_players: int, months: int = 12) -> dict:
         "totals": {
             "mint": mint_total, "burn": burn_total, "fee_burn": fee_burn_total,
             "tax_burn": tax_burn_total, "entry_burn": entry_burn_total,
-            "sold": sold_total,
+            "sold": sold_total, "settlement_fee": settlement_fee_total,
             "treasury": treasury_total, "cap_hits": cap_hits,
         },
     }
 
 
-def cross_scale() -> list:
+def cross_scale(fee_in_potato: bool = True) -> list:
     """Просмотр масштабов: где кап становится ограничением, где дефляция."""
     rows = []
     for n in (10, 100, 1_000, 5_000, 10_000, 50_000, 100_000):
-        r = simulate(n, months=12)
+        r = simulate(n, months=12, fee_in_potato=fee_in_potato)
         t = r["totals"]
         rows.append({
             "n": n,
@@ -359,6 +368,24 @@ def report() -> str:
             f"({'дефляция' if row['burn_mint'] > 1 else 'инфляция'}) "
             f"| {'**режет**' if row['cap_hits'] else 'нет'} "
             f"| {row['supply_m']:,.2f} | {fmt_price(row['price_end'])} |")
+    lines += [
+        "",
+        "## Сравнение: legacy V1 (комиссия в POTATO) и целевой V2 (комиссия в SOL/SKR)",
+        "",
+        "Допущение: объём продаж и цены такие же, как в модели; реальных seller-volume данных нет.",
+        "Это относительное сравнение эффекта на POTATO, а не прогноз выручки.",
+        "",
+        "| Игроки | Burn/Mint V1 | Burn/Mint V2 | Supply через год V1, M🥔 | Supply через год V2, M🥔 | Комиссия V2 (POTATO-экв.), M🥔 |",
+        "|---|---|---|---|---|---|",
+    ]
+    for n in (10, 1_000, 100_000):
+        a = simulate(n, months=12, fee_in_potato=True)
+        b = simulate(n, months=12, fee_in_potato=False)
+        ta, tb = a["totals"], b["totals"]
+        lines.append(
+            f"| {n:,} | {ta['burn'] / max(1e-9, ta['mint']):.2f} | {tb['burn'] / max(1e-9, tb['mint']):.2f} "
+            f"| {a['final_supply'] / 1e6:,.2f} | {b['final_supply'] / 1e6:,.2f} "
+            f"| {tb['settlement_fee'] / 1e6:,.3f} |")
     lines += ["", "---", ""]
     for n in (10, 1_000, 100_000):
         r = simulate(n)
