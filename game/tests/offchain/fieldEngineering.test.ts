@@ -128,8 +128,15 @@ test('storage capacity blocks a whole harvest rather than discarding or overfill
     s = engineeringAction(s, { type: 'harvest' }); s = engineeringAction(s, { type: 'plant' })
   }
   s = engineeringAction(s, { type: 'refill' }); s = advanceEngineering(s, 7 * LAB.solHours)
-  assert.equal(cropStage(s.crop), 'mature'); assert.equal(canHarvest(s), false)
-  assert.equal(engineeringAction(s, { type: 'harvest' }), s)
+  assert.equal(cropStage(s.crop), 'mature')
+  // Fill storage explicitly so the next harvest would overflow (the yield itself is not tuned by this test).
+  const cap = LAB.storageCapacityKg * labScale(s.tier)
+  const filler = cap - storageKg(s) - harvestMass(s) / 2
+  assert.ok(filler > 0)
+  const full = { ...s, lots: [...s.lots, { id: 99, kind: 'raw' as const, kg: filler, bornHour: 0, ageHours: 0, baseQuality: 1 }] }
+  assert.ok(storageKg(full) + harvestMass(full) > cap)
+  assert.equal(canHarvest(full), false)
+  assert.equal(engineeringAction(full, { type: 'harvest' }), full)
   accounting(s)
 })
 test('processing is time/energy bounded and conserves input mass plus declared loss', () => {
