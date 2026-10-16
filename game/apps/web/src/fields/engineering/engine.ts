@@ -104,9 +104,11 @@ export const lightsScheduled = (hour: number): boolean => {
 }
 
 /** Versioned game response curve; not a measured cultivar-specific model. */
+// T6b (approved, H): the cold branch below 16 °C is squared, so cold costs more growth than before
+// (0.67 → 0.44 at 12 °C). Continuous at 16 °C (value 1) and at 4 °C (value 0).
 export const temperatureGrowthFactor = (celsius: number): number =>
   !Number.isFinite(celsius) || celsius <= 4 || celsius >= 36 ? 0
-    : celsius < 16 ? (celsius - 4) / 12 : celsius <= 22 ? 1 : (36 - celsius) / 14
+    : celsius < 16 ? ((celsius - 4) / 12) ** 2 : celsius <= 22 ? 1 : (36 - celsius) / 14
 export const outsideTemperature = (hour: number, coldUntil = 0): number =>
   LAB.outsideMinC + LAB.outsideDayAmplitudeC * solarFraction(hour) - (hour < coldUntil ? LAB.coldEventDropC : 0)
 
