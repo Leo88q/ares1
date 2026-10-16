@@ -5,6 +5,14 @@
  */
 @media (max-width: 480px), (pointer: coarse) {
   .mk-key { min-height: 44px; }
+  /* section-art.css sets 38 px on the ship button with higher specificity; match it, don't fight it */
+  .ship-section-body button.mk-key { min-height: 44px; }
+}
+
+/* Market filter fields and APPLY / RESET (34–36 px before). */
+@media (max-width: 480px), (pointer: coarse) {
+  .market-filter-grid .market-filter-field input { min-height: 44px; }
+  .ares-stencil.market-filter-apply, .ares-stencil.market-filter-reset { min-height: 44px; }
 }
 
 /* Market filter chips: class selectors alone lose to the lazily loaded market sheet. */

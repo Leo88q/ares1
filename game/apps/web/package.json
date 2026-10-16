@@ -11,7 +11,8 @@
     "test:colony-browser": "node tests/colony-browser-smoke.mjs",
     "test:fields-browser": "node tests/fields-browser-smoke.mjs",
     "test:engineering-browser": "node tests/engineering-browser-smoke.mjs",
-    "test:sections-browser": "node tests/sections-browser-smoke.mjs"
+    "test:sections-browser": "node tests/sections-browser-smoke.mjs",
+    "test:tap-audit": "node tests/tap-target-audit.mjs"
   },
   "dependencies": {
     "@solana-mobile/wallet-adapter-mobile": "2.1.5",

@@ -444,7 +444,13 @@
 @media (max-width: 480px), (pointer: coarse) {
   .colony-camera-controls button { width: 44px; height: 44px; }
   .colony-module-selector button { min-height: 44px; }
+  /* the embedded selector rule (36 px) has higher specificity, so it is repeated here */
+  .colony-app--embedded .colony-module-selector button { min-height: 44px; }
   .colony-world-footer button { min-height: 44px; padding: 0 12px; }
+  .colony-build-item > button { min-height: 44px; }
+  .colony-footer button { min-height: 44px; }
+  .colony-app input[type=range] { height: 44px; }
+  .colony-time-buttons button { min-width: 44px; }
 }
 
 /* Phone (≤480px, embedded in the ARES column): the time buttons (Run / +1 day / +7 days) float just
