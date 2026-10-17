@@ -17,8 +17,7 @@ import {
 import { t } from '../i18n'
 import { getItem, setItem } from '../utils/consent'
 import { SKR_MINT } from '../utils/anchorClient'
-import { BACKEND_URL } from '../contexts/SolanaContext'
-import { SLOT_PRICE_UNITS, SLOT_TREASURY_OWNER } from './config'
+import { SLOTS_BACKEND_URL, SLOT_PRICE_UNITS, SLOT_TREASURY_OWNER } from './config'
 import { postSlotGrant } from './api'
 import type { SlotRecordView } from './api'
 import { SKR_DECIMALS, formatSkr, isPaidSlot, slotNumbers, slotRequestMessage } from './protocol'
@@ -105,7 +104,7 @@ export default function SlotsPanel({ fieldId }: { fieldId: string }) {
       const fields = { field_id: fieldId, slot, wallet: publicKey.toBase58(), payment_signature: payment }
       const ts = Math.floor(Date.now() / 1000)
       const sig = await signMessage(new TextEncoder().encode(slotRequestMessage(fields, ts)))
-      const res = await postSlotGrant(BACKEND_URL, { ...fields, ts, sig: toBase64(sig) })
+      const res = await postSlotGrant(SLOTS_BACKEND_URL, { ...fields, ts, sig: toBase64(sig) })
       if (res.ok) {
         setItem('functional', grantKey(fieldId, slot), JSON.stringify({ record: res.record, signature: res.signature }))
         setItem('functional', payKey(fieldId, slot), '')
