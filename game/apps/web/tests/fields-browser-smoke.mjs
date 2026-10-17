@@ -13,6 +13,8 @@ const origin = new URL(base).origin
 const csp = readFileSync(new URL('../public/_headers', import.meta.url), 'utf8').match(/^\s+Content-Security-Policy: (.+)$/m)?.[1]
 assert.ok(csp)
 const screenshots = process.env.FIELDS_SCREENSHOT_DIR
+// NO_WEBGL=1: skip the 3D demo and the 3D view switch; fallback views are still tested. CI runs the full 3D suite.
+const noWebgl = process.env.NO_WEBGL === '1'
 if (screenshots) mkdirSync(screenshots, { recursive: true })
 const fixture = await mainFixture()
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
@@ -28,7 +30,8 @@ async function open(width, { fallback = false, breakModel = false, realMain = fa
   page.on('pageerror', error => errors.push(error.message))
   page.on('console', message => {
     if (message.type() !== 'error') return
-    if (fallback && /Error creating WebGL context/.test(message.text())) return
+    if (noWebgl && /WebGL/.test(message.text())) return // NO_WEBGL: the missing GPU context is the expected condition
+    if (fallback && /WebGL context could not be created|Error creating WebGL context/.test(message.text())) return
     if (breakModel && /\/models\/fields\//.test(message.location().url)) return
     errors.push(message.text())
   })
@@ -58,50 +61,52 @@ async function open(width, { fallback = false, breakModel = false, realMain = fa
 }
 
 try {
-  const { page, context } = await open(1440)
-  assert.equal(await page.locator('.mf-field-picker button').count(), 3)
-  assert.equal(await page.locator('.mf-canvas-host canvas').count(), 1)
-  await page.getByRole('button', { name: /Поле 03 EPIC/ }).click()
-  assert.equal(await page.getByTestId('fields-viewport').getAttribute('data-selected-id'), 'demo-2')
-  await page.getByRole('button', { name: 'Остекление', exact: true }).click()
-  await shot(page, 'desktop-epic.png')
-  await page.getByRole('button', { name: 'Обзор сектора', exact: true }).click()
-  await shot(page, 'desktop-sector.png')
-  // Clicking actual rendered geometry selects a field; it never performs harvest.
-  const rect = await page.locator('.mf-canvas-host canvas').boundingBox()
-  const camera = new THREE.OrthographicCamera(-25 * rect.width / rect.height, 25 * rect.width / rect.height, 25, -25, 0.1, 180)
-  camera.position.set(30, 30, 34); camera.lookAt(0, 0.6, 0); camera.updateMatrixWorld()
-  const point = new THREE.Vector3(-13, 0.3, 0).project(camera)
-  await page.locator('.mf-canvas-host canvas').click({ position: { x: (point.x + 1) / 2 * rect.width, y: (1 - point.y) / 2 * rect.height } })
-  await page.waitForFunction(() => document.querySelector('[data-testid="fields-viewport"]')?.getAttribute('data-selected-id') === 'demo-0')
-  await page.getByRole('button', { name: 'Выбранное поле', exact: true }).click()
-  await page.getByRole('button', { name: 'Приблизить', exact: true }).click()
-  await page.getByRole('button', { name: 'Вернуть камеру', exact: true }).click()
-  await page.getByRole('button', { name: 'СБРОСИТЬ ДЕМО', exact: true }).click()
-  assert.match(await page.getByTestId('fields-status').innerText(), /Неактивно/)
-  await page.getByRole('button', { name: 'ПОСАДИТЬ', exact: true }).click()
-  await page.getByRole('button', { name: 'ПОЛИТЬ', exact: true }).click()
-  await page.getByRole('button', { name: 'ПОЛИТЬ', exact: true }).click()
-  assert.match(await page.getByTestId('fields-status').innerText(), /Урожай готов/)
-  await page.getByRole('button', { name: 'ПОЛИТЬ', exact: true }).click()
-  assert.match(await page.getByTestId('fields-status').innerText(), /Питание активно/)
-  await page.getByRole('button', { name: 'СОБРАТЬ', exact: true }).click()
-  assert.match(await page.locator('.mf-inspector').innerText(), /ДЕМО-УРОЖАЙ: 1/)
-  await page.getByRole('button', { name: 'Показать износ', exact: true }).click()
-  assert.match(await page.getByTestId('fields-status').innerText(), /38%/)
-  await page.getByRole('button', { name: 'EN', exact: true }).click()
-  assert.match(await page.getByTestId('fields-status').innerText(), /38%/)
-  assert.match(await page.locator('.mf-inspector').innerText(), /DEMO HARVEST: 1/)
-  await page.getByRole('button', { name: 'RU', exact: true }).click()
-  await page.locator('.mf-canvas-host canvas').evaluate(canvas => canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext())
-  await page.getByTestId('fields-fallback').waitFor()
-  await page.locator('.mf-field-picker button').nth(1).press('Enter')
-  assert.equal(await page.locator('.mf-inspector').getAttribute('data-selected-id'), 'demo-1')
-  await noOverflow(page); await context.close()
-  console.log('PASS demo: real GLBs, tier/geometry selection, camera, glazing, local lesson, wear, language, context loss')
+  if (!noWebgl) {
+    const { page, context } = await open(1440)
+    assert.equal(await page.locator('.mf-field-picker button').count(), 3)
+    assert.equal(await page.locator('.mf-canvas-host canvas').count(), 1)
+    await page.getByRole('button', { name: /Поле 03 EPIC/ }).click()
+    assert.equal(await page.getByTestId('fields-viewport').getAttribute('data-selected-id'), 'demo-2')
+    await page.getByRole('button', { name: 'Остекление', exact: true }).click()
+    await shot(page, 'desktop-epic.png')
+    await page.getByRole('button', { name: 'Обзор сектора', exact: true }).click()
+    await shot(page, 'desktop-sector.png')
+    // Clicking actual rendered geometry selects a field; it never performs harvest.
+    const rect = await page.locator('.mf-canvas-host canvas').boundingBox()
+    const camera = new THREE.OrthographicCamera(-25 * rect.width / rect.height, 25 * rect.width / rect.height, 25, -25, 0.1, 180)
+    camera.position.set(30, 30, 34); camera.lookAt(0, 0.6, 0); camera.updateMatrixWorld()
+    const point = new THREE.Vector3(-13, 0.3, 0).project(camera)
+    await page.locator('.mf-canvas-host canvas').click({ position: { x: (point.x + 1) / 2 * rect.width, y: (1 - point.y) / 2 * rect.height } })
+    await page.waitForFunction(() => document.querySelector('[data-testid="fields-viewport"]')?.getAttribute('data-selected-id') === 'demo-0')
+    await page.getByRole('button', { name: 'Выбранное поле', exact: true }).click()
+    await page.getByRole('button', { name: 'Приблизить', exact: true }).click()
+    await page.getByRole('button', { name: 'Вернуть камеру', exact: true }).click()
+    await page.getByRole('button', { name: 'СБРОСИТЬ ДЕМО', exact: true }).click()
+    assert.match(await page.getByTestId('fields-status').innerText(), /Неактивно/)
+    await page.getByRole('button', { name: 'ПОСАДИТЬ', exact: true }).click()
+    await page.getByRole('button', { name: 'ПОЛИТЬ', exact: true }).click()
+    await page.getByRole('button', { name: 'ПОЛИТЬ', exact: true }).click()
+    assert.match(await page.getByTestId('fields-status').innerText(), /Урожай готов/)
+    await page.getByRole('button', { name: 'ПОЛИТЬ', exact: true }).click()
+    assert.match(await page.getByTestId('fields-status').innerText(), /Питание активно/)
+    await page.getByRole('button', { name: 'СОБРАТЬ', exact: true }).click()
+    assert.match(await page.locator('.mf-inspector').innerText(), /ДЕМО-УРОЖАЙ: 1/)
+    await page.getByRole('button', { name: 'Показать износ', exact: true }).click()
+    assert.match(await page.getByTestId('fields-status').innerText(), /38%/)
+    await page.getByRole('button', { name: 'EN', exact: true }).click()
+    assert.match(await page.getByTestId('fields-status').innerText(), /38%/)
+    assert.match(await page.locator('.mf-inspector').innerText(), /DEMO HARVEST: 1/)
+    await page.getByRole('button', { name: 'RU', exact: true }).click()
+    await page.locator('.mf-canvas-host canvas').evaluate(canvas => canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext())
+    await page.getByTestId('fields-fallback').waitFor()
+    await page.locator('.mf-field-picker button').nth(1).press('Enter')
+    assert.equal(await page.locator('.mf-inspector').getAttribute('data-selected-id'), 'demo-1')
+    await noOverflow(page); await context.close()
+    console.log('PASS demo: real GLBs, tier/geometry selection, camera, glazing, local lesson, wear, language, context loss')
+  }
 
   for (const width of [390, 320]) {
-    const { page, context } = await open(width)
+    const { page, context } = await open(width, { fallback: noWebgl })
     await page.getByRole('button', { name: /Поле 03 EPIC/ }).click()
     await page.getByRole('button', { name: 'Остекление', exact: true }).click()
     await shot(page, `mobile-${width}.png`)
@@ -122,34 +127,41 @@ try {
   }
   console.log('PASS no WebGL / failed model: keyboard selection and controls remain usable')
 
-  // The actual MainScreen + FieldCardVice, with fake providers only. There is
-  // no RPC or signing. Confirm every unchanged callback receives the selected
-  // account public key, even after a polling-order change.
-  const real = await open(390, { realMain: true })
-  const keys = await real.page.evaluate(() => window.__fieldKeys)
-  await real.page.locator('.mf-field-picker button').nth(1).click()
-  assert.equal(await real.page.locator('.mf-inspector').getAttribute('data-selected-id'), keys[1])
-  assert.equal(await real.page.evaluate(() => window.__fieldCalls.length), 0)
-  await real.page.evaluate(() => window.__reorderFields())
-  for (const [label, action] of [['Апгрейд модуля', 'upgrade'], ['Собрать', 'harvest'], ['Полив', 'repair'], ['Пошлина', 'tax'], ['Питание +50% · 24ч', 'fertilizer']]) {
-    const count = await real.page.evaluate(() => window.__fieldCalls.length)
-    await real.page.locator('.mf-inspector').getByRole('button', { name: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click()
-    await real.page.waitForFunction(n => window.__fieldCalls.length === n + 1, count)
-    assert.deepEqual(await real.page.evaluate(() => window.__fieldCalls.at(-1)), [action, keys[1]])
+  // NO_WEBGL: the MainScreen callback check needs the 3D inspector; engineering-browser-smoke covers the same callbacks in fallback.
+  if (!noWebgl) {
+    // The actual MainScreen + FieldCardVice, with fake providers only. There is
+    // no RPC or signing. Confirm every unchanged callback receives the selected
+    // account public key, even after a polling-order change.
+    const real = await open(390, { realMain: true, fallback: noWebgl })
+    const keys = await real.page.evaluate(() => window.__fieldKeys)
+    await real.page.locator('.mf-field-picker button').nth(1).click()
+    assert.equal(await real.page.locator('.mf-inspector').getAttribute('data-selected-id'), keys[1])
+    assert.equal(await real.page.evaluate(() => window.__fieldCalls.length), 0)
+    await real.page.evaluate(() => window.__reorderFields())
+    for (const [label, action] of [['Апгрейд модуля', 'upgrade'], ['Собрать', 'harvest'], ['Полив', 'repair'], ['Пошлина', 'tax'], ['Питание +50% · 24ч', 'fertilizer']]) {
+      const count = await real.page.evaluate(() => window.__fieldCalls.length)
+      await real.page.locator('.mf-inspector').getByRole('button', { name: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click()
+      await real.page.waitForFunction(n => window.__fieldCalls.length === n + 1, count)
+      assert.deepEqual(await real.page.evaluate(() => window.__fieldCalls.at(-1)), [action, keys[1]])
+    }
+    await real.page.getByRole('button', { name: 'Карточки', exact: true }).click()
+    assert.equal(await real.page.locator('.mf-card-grid .plant-module-panel').count(), 2)
+    if (!noWebgl) {
+    await real.page.getByRole('button', { name: '3D-вид', exact: true }).click()
+    await real.page.locator('[data-testid="fields-viewport"][data-ready="true"]').waitFor()
+    assert.equal(await real.page.locator('.mf-inspector').getAttribute('data-selected-id'), keys[1])
+    }
+    await real.page.evaluate(() => window.__removeSelected())
+    assert.equal(await real.page.locator('.mf-inspector').getAttribute('data-selected-id'), keys[0])
+    await shot(real.page, 'main-390.png')
+    await noOverflow(real.page); await real.context.close()
+    console.log('PASS actual MainScreen: stable public-key selection, all 5 original action callbacks, cards, account removal (mock providers, no transactions)')
   }
-  await real.page.getByRole('button', { name: 'Карточки', exact: true }).click()
-  assert.equal(await real.page.locator('.mf-card-grid .plant-module-panel').count(), 2)
-  await real.page.getByRole('button', { name: '3D-вид', exact: true }).click()
-  await real.page.locator('[data-testid="fields-viewport"][data-ready="true"]').waitFor()
-  assert.equal(await real.page.locator('.mf-inspector').getAttribute('data-selected-id'), keys[1])
-  await real.page.evaluate(() => window.__removeSelected())
-  assert.equal(await real.page.locator('.mf-inspector').getAttribute('data-selected-id'), keys[0])
-  await shot(real.page, 'main-390.png')
-  await noOverflow(real.page); await real.context.close()
-  console.log('PASS actual MainScreen: stable public-key selection, all 5 original action callbacks, cards, account removal (mock providers, no transactions)')
 
+  if (!noWebgl) { // 18 models load only when WebGL runs the 3D demo
   assert.equal(successfulModels.size, 18)
   assert.ok([...successfulModels.values()].every(status => status === 200))
+  }
   assert.deepEqual(external, [], 'no external RPC/wallet/font/model requests in the demo/fixture')
   assert.deepEqual(errors, [], 'no unexpected runtime, console or CSP errors')
   console.log('PASS production CSP, all 18 local models, no external requests or unexpected errors')

@@ -358,3 +358,46 @@ jobs:
       # `-S warning` = real defects; info/note findings are style and stay out.
       - name: ShellCheck (tracked *.sh)
         run: shellcheck -S warning $(git ls-files '*.sh')
+
+  # §31.6/§31.7 (ветка arena/96ed96bd-ares1): браузерные smoke-тесты раньше шли только локально.
+  # Chromium ставит playwright-core (версия из lockfile), WebGL через SwiftShader. Smoke-тесты
+  # запускаются на production-сборке, так что CSP и _headers проверяются так же, как в проде.
+  browser:
+    name: Browser smoke (colony, engineering, fields, sections, tap audit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+          cache: yarn
+          cache-dependency-path: game/yarn.lock
+      - run: npm install --global yarn@1.22.22
+      - run: yarn install --frozen-lockfile --ignore-scripts --non-interactive
+      - name: Install Chromium for playwright-core
+        run: yarn workspace web exec playwright-core install --with-deps chromium
+      - name: Build production web bundle
+        working-directory: game/apps/web
+        env:
+          VITE_SOLANA_CLUSTER: devnet
+          VITE_RPC_URL: https://api.devnet.solana.com
+          VITE_PROGRAM_ID: DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf
+          VITE_BACKEND_URL: ''
+        run: ../../node_modules/.bin/vite build
+      - name: Start preview server
+        run: |
+          (yarn workspace web preview --host 127.0.0.1 --port 4173 --strictPort > /tmp/preview.log 2>&1 &)
+          timeout 60 bash -c 'until curl -sf http://127.0.0.1:4173/ >/dev/null; do sleep 1; done'
+      - name: Browser smoke tests (WebGL via SwiftShader)
+        run: |
+          export CHROMIUM_EXECUTABLE_PATH="$(node -e "console.log(require('playwright-core').chromium.executablePath())")"
+          export CHROMIUM_ARGS_JSON='["--no-sandbox","--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist"]'
+          yarn workspace web test:colony-browser
+          yarn workspace web test:engineering-browser
+          yarn workspace web test:fields-browser
+          yarn workspace web test:sections-browser
+          yarn workspace web test:tap-audit
+      - name: Preview log on failure
+        if: failure()
+        run: cat /tmp/preview.log || true
