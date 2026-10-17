@@ -6,6 +6,8 @@ import { expectedGenesisHash } from "./cluster.js";
 import { configRouter } from "./routes/config.js";
 import { gameOpsRouter } from "./routes/gameops.js";
 import { presaleRouter } from "./routes/presale.js";
+import { slotsRouter } from "./routes/slots.js";
+import { resolveSlotsConfig } from "./slots/config.js";
 import { loadGameOpsConfig } from "./gameops/env.js";
 import { closePool, createPool } from "./gameops/pool.js";
 import { createPgRollLock } from "./gameops/epochLock.js";
@@ -168,6 +170,17 @@ async function main() {
     } catch (err) {
       console.log("[startup] presale router not mounted: chain config unavailable");
     }
+  }
+  // Слоты грядок (S7): маршрут есть только при SLOTS_ENABLED=true, полной конфигурации
+  // и работающем game_ops. Иначе маршрута нет, причина пишется в лог (fail-closed).
+  const slotsCfg = resolveSlotsConfig(process.env, env.cluster);
+  if (slotsCfg.enabled && gameOpsPool) {
+    app.use("/api/slots", slotsRouter(gameOpsPool, { connection, config: slotsCfg.config }));
+    console.log(`[startup] slots router on: cluster=${env.cluster} key=${slotsCfg.config.keyId}`);
+  } else if (slotsCfg.enabled) {
+    console.log("[startup] slots router off: game_ops off");
+  } else {
+    console.log(`[startup] slots router off: ${slotsCfg.reason}${"detail" in slotsCfg ? ` (${slotsCfg.detail})` : ""}`);
   }
   app.use("/api/config", configRouter);
 

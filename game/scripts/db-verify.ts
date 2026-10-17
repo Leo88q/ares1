@@ -149,8 +149,10 @@ async function checkPrivileges(client: Client, writerRole: string): Promise<Veri
     {
       id: 'privileges.slot_grants_immutable',
       ok: !(await has("SELECT has_table_privilege($1, 'game_ops.slot_grants', 'UPDATE') AS ok", [writerRole]))
-        && !(await has("SELECT has_table_privilege($1, 'game_ops.slot_grants', 'DELETE') AS ok", [writerRole])),
-      detail: 'у писателя нет UPDATE/DELETE на журнал выдачи слотов (S7)',
+        && !(await has("SELECT has_table_privilege($1, 'game_ops.slot_grants', 'DELETE') AS ok", [writerRole]))
+        && !(await has("SELECT has_table_privilege($1, 'game_ops.slot_record_issuances', 'UPDATE') AS ok", [writerRole]))
+        && !(await has("SELECT has_table_privilege($1, 'game_ops.slot_record_issuances', 'DELETE') AS ok", [writerRole])),
+      detail: 'у писателя нет UPDATE/DELETE на владение и выдачи слотов (S7)',
     },
     {
       id: 'privileges.reconciliation_immutable',

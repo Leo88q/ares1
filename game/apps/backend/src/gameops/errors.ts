@@ -15,6 +15,8 @@ export type GameOpsErrorCode =
   | 'DUPLICATE_INTENT'
   | 'INTENT_NOT_FOUND'
   | 'DUPLICATE_PAYMENT'
+  | 'SLOT_TAKEN'
+  | 'PAYMENT_ALREADY_USED'
   | 'RUN_NOT_FOUND'
   | 'RUN_CLOSED'
   | 'RUN_SOLD_OUT'
@@ -90,6 +92,11 @@ export function mapDbError(error: unknown): GameOpsError {
         // Один платёж не может закрыть два заказа — главная защита от
         // «я оплатил один раз, дайте два пака».
         return new GameOpsError('DUPLICATE_PAYMENT', 'Эта транзакция уже привязана к другому заказу', undefined, 409);
+      // S7: слоты грядок (migration 0009).
+      case 'slot_grants_field_slot_key':
+        return new GameOpsError('SLOT_TAKEN', 'Этот слот уже занят', undefined, 409);
+      case 'slot_grants_payment_key':
+        return new GameOpsError('PAYMENT_ALREADY_USED', 'Этот платёж уже использован для слота', undefined, 409);
       case 'presale_orders_run_order_key':
         return new GameOpsError('VALIDATION', 'Номер заказа в этом тираже уже занят', undefined, 409);
       default:
