@@ -36,6 +36,8 @@ export interface ColonyModule {
    * beds[0]. Missing (legacy saves) → derived from growthDays.
    */
   beds?: number[]
+  /** Cumulative kg collected from this greenhouse's beds (each completed bed cycle, 36 kg by default). */
+  bedsHarvestedKg?: number
 }
 export interface Scenario {
   sunHours: number
@@ -141,6 +143,36 @@ export function stepBeds(beds: readonly number[], growth: number): { beds: numbe
   })
   return { beds: next, completed }
 }
+/**
+ * Per-bed summary for the colony screen. Planted = bed value ≥ 0 (values never go negative again once planted).
+ * Ripe = inside the maturity window (≥ 80 % of the cycle, M2) but not yet collected. The colony model collects a
+ * bed automatically at 100 % of the cycle, so "ripe" is the pre-harvest window, not a separate manual action.
+ */
+export type BedState = 'waiting' | 'growing' | 'ripe'
+export interface BedSummary {
+  beds: Array<{ state: BedState; progress: number }>
+  planted: number
+  ripe: number
+  total: number
+  collectedKg: number
+}
+export function bedSummary(m: ColonyModule): BedSummary {
+  const values = m.beds ?? greenhouseBeds(m.growthDays)
+  const cycle = PARAMETERS.cropCycleDays
+  const beds = values.slice(0, BEDS.perField).map(v => {
+    if (v < 0) return { state: 'waiting' as BedState, progress: 0 }
+    const progress = Math.min(1, v / cycle)
+    return { state: (progress >= BEDS.harvestWindowMinRatio ? 'ripe' : 'growing') as BedState, progress }
+  })
+  return {
+    beds,
+    planted: beds.filter(b => b.state !== 'waiting').length,
+    ripe: beds.filter(b => b.state === 'ripe').length,
+    total: BEDS.perField,
+    collectedKg: m.bedsHarvestedKg ?? 0,
+  }
+}
+
 /** kg of one bed at full cycle: area × yield × cycle ÷ K (216 kg / 6 = 36 kg for the default greenhouse). */
 export const bedCycleKg = (): number => PARAMETERS.cropAreaM2 * PARAMETERS.cropKgM2Day * PARAMETERS.cropCycleDays / BEDS.perField
 export const countModules = (s: ColonyState, kind: ModuleKind): number => s.modules.filter(m => m.kind === kind).length
@@ -233,9 +265,11 @@ export function advanceDay(state: ColonyState, scenario: Scenario = DEFAULT_SCEN
     // WP10: beds grow at the greenhouse rate; each completed bed is harvested (36 kg), staggered every 15 days.
     const beds = m.beds ?? greenhouseBeds(m.growthDays)
     const stepped = stepBeds(beds, budget.growthFraction * capacityFactor(m))
-    harvested += stepped.completed * bedCycleKg()
+    const kg = stepped.completed * bedCycleKg()
+    harvested += kg
     return {
       ...m, beds: stepped.beds, growthDays: Math.max(0, stepped.beds[0]),
+      bedsHarvestedKg: (m.bedsHarvestedKg ?? 0) + kg,
       condition: Math.max(20, m.condition - CATALOG[m.kind].wearDay),
     }
   })

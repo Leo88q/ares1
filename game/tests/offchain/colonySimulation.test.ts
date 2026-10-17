@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, advanceDays, batteryCapacity, bedCycleKg, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, greenhouseBeds, INITIAL_FOOD_KG, initialColony, PARAMETERS as P, repairColony, sellableKg, SLOTS, stepBeds } from '../../apps/web/src/colony/simulation'
+import { advanceDay, advanceDays, batteryCapacity, bedCycleKg, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, greenhouseBeds, INITIAL_FOOD_KG, initialColony, PARAMETERS as P, repairColony, sellableKg, SLOTS, stepBeds, bedSummary } from '../../apps/web/src/colony/simulation'
 import type { ColonyState } from '../../apps/web/src/colony/simulation'
 
 const close = (actual: number, expected: number, tolerance = 1e-7): void => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`)
@@ -62,6 +62,36 @@ test('colony: each greenhouse bed is harvested once per 90-day cycle, staggered 
   close(next.foodKg, s.foodKg + 36 - foodDemand(s))
   close(next.modules.find(m => m.kind === 'greenhouse')!.growthDays, 0)
   assert.deepEqual(next.modules.find(m => m.kind === 'greenhouse')!.beds!.map(v => Math.round(v)), [0, 75, 60, 45, 30, 15])
+  checkAccounting(next)
+})
+
+test('colony: bed summary counts planted, ripe (≥ 80 % of cycle) and collected kg per greenhouse (§31)', () => {
+  const starter = initialColony().modules.find(m => m.kind === 'greenhouse')!
+  // starter: beds at 60, 45, 30, 15, 0 days (planted) and −15 (waiting to plant); none ≥ 72 days yet
+  const a = bedSummary(starter)
+  assert.equal(a.planted, 5)
+  assert.equal(a.ripe, 0)
+  assert.equal(a.total, 6)
+  assert.deepEqual(a.beds.map(b => b.state), ['growing', 'growing', 'growing', 'growing', 'growing', 'waiting'])
+  close(a.collectedKg, 0)
+  // one bed in the ripe window (80 days ≥ 72), one planted early, four waiting
+  const b = bedSummary({ ...starter, beds: [80, 50, -5, -20, -30, -40] })
+  assert.equal(b.planted, 2)
+  assert.equal(b.ripe, 1)
+  assert.equal(b.beds[0].state, 'ripe')
+  close(b.beds[0].progress, 80 / 90)
+  // collected kg accumulate in the simulation: a bed completing at day 90 adds 36 kg to that greenhouse
+  const s = initialColony()
+  s.modules = s.modules.map(m => m.kind === 'greenhouse' ? { ...m, growthDays: 89, beds: [89, 74, 59, 44, 29, 14] } : m)
+  const next = advanceDay(s)
+  const gh = next.modules.find(m => m.kind === 'greenhouse')!
+  close(gh.bedsHarvestedKg!, 36)
+  close(bedSummary(gh).collectedKg, 36)
+  close(bedSummary(gh).planted, 6)
+  // legacy save without beds: derived from growthDays (lead bed 60 → same as the starter)
+  const legacy = bedSummary({ ...starter, beds: undefined, growthDays: 60 })
+  assert.equal(legacy.planted, 5)
+  assert.equal(legacy.ripe, 0)
   checkAccounting(next)
 })
 

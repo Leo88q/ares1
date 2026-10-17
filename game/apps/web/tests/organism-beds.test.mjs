@@ -87,10 +87,14 @@ console.log(JSON.stringify({ offs, kg: bedCycleKg(216), k: BEDS.perField, sum: [
   assert.ok(Math.abs(r.sum - 216) < 1e-9)
 })
 
-test('harvest window 80–120 % of maturity (M2) with bounded factor', () => {
+test('harvest window 80–120 % of maturity (M2) with bounded factor; early 30–80 % (T2)', () => {
   const r = runTs(`import { harvestFactor } from '__WEB__/organism/beds.ts';
-console.log(JSON.stringify({ early: harvestFactor(0.79), lo: harvestFactor(0.8), mid: harvestFactor(0.9), full: harvestFactor(1), late: harvestFactor(1.1), hi: harvestFactor(1.2), closed: harvestFactor(1.21) }))`)
-  assert.equal(r.early, 0)
+console.log(JSON.stringify({ below: harvestFactor(0.29), early30: harvestFactor(0.3), early: harvestFactor(0.79), lo: harvestFactor(0.8), mid: harvestFactor(0.9), full: harvestFactor(1), late: harvestFactor(1.1), hi: harvestFactor(1.2), closed: harvestFactor(1.21) }))`)
+  assert.equal(r.below, 0)
+  assert.ok(Math.abs(r.early30 - 0.1875) < 1e-12)
+  // T2: 0.5 × r / 0.8 is continuous with the window start (0.5 at 80 %) and rises towards it
+  assert.ok(Math.abs(r.early - 0.5 * 0.79 / 0.8) < 1e-12)
+  assert.ok(r.early < r.lo)
   assert.equal(r.lo, 0.5)
   assert.equal(r.full, 1)
   assert.ok(r.mid > r.lo && r.mid < 1)

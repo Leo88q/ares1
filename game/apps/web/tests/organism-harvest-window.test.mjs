@@ -1,4 +1,4 @@
-// WP11: continuous harvest window in the ARES-LAB/2 engine (M2: 80–120 % of maturity).
+// WP11: continuous harvest window in the ARES-LAB/2 engine (M2: 80–120 % of maturity; T2: early 30–80 %).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
@@ -22,13 +22,22 @@ const base = (over) => ({ ...initialEngineering('t', 0), ...over });
 const at = (progress, hour = 0, matureHour) => base({ hour, crop: { planted: true, progress, health: 1, ...(matureHour === undefined ? {} : { matureHour }) } });
 `
 
-test('no harvest before the 80 % window; partial at 80 %; full at 100 %', () => {
+test('T2: no harvest below 30 %; early harvest 30–80 % with 0.5 × r / 0.8; full window from 80 %', () => {
   const r = runTs(common + `console.log(JSON.stringify({
+    p29: [canHarvest(at(0.29)), harvestMass(at(0.29))],
+    p30: [canHarvest(at(0.3)), harvestMass(at(0.3))],
     p50: [canHarvest(at(0.5)), harvestMass(at(0.5))],
     p80: [canHarvest(at(0.8)), harvestMass(at(0.8))],
     p100: [canHarvest(at(1, 10, 10)), harvestMass(at(1, 10, 10))],
   }))`)
-  assert.deepEqual(r.p50, [false, 0])
+  assert.deepEqual(r.p29, [false, 0])
+  // r = 0.3 → factor 0.5 × 0.3 / 0.8 = 0.1875 → 18 × 0.1875 = 3.375 kg
+  assert.equal(r.p30[0], true)
+  assert.ok(Math.abs(r.p30[1] - 18 * 0.1875) < 1e-9, `30% mass ${r.p30[1]}`)
+  // r = 0.5 → factor 0.3125 → 5.625 kg
+  assert.equal(r.p50[0], true)
+  assert.ok(Math.abs(r.p50[1] - 18 * 0.3125) < 1e-9, `50% mass ${r.p50[1]}`)
+  // r = 0.8 → factor 0.5 (continuous with the window ramp) → 9 kg
   assert.equal(r.p80[0], true)
   assert.ok(Math.abs(r.p80[1] - 18 * 0.5) < 1e-9, `80% mass ${r.p80[1]}`)
   assert.equal(r.p100[0], true)

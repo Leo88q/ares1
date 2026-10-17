@@ -464,3 +464,16 @@
     background: #0f0b07; border-top: 1px solid #6e5532; box-shadow: 0 -8px 16px #0008;
   }
 }
+
+/* WP10 §31: per-bed summary in the greenhouse inspector */
+.colony-beds { margin-top: 14px; padding-top: 12px; border-top: 1px solid #3a2c1c; }
+.colony-bed-totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0 0 8px; }
+.colony-bed-totals div { background: #120c08; border: 1px solid #3a2c1c; padding: 6px; }
+.colony-bed-totals dt { font-size: 10px; color: #ab9a75; }
+.colony-bed-totals dd { margin: 2px 0 0; font-size: 13px; color: #fff3d6; font-variant-numeric: tabular-nums; }
+.colony-bed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.colony-bed-list li { display: grid; grid-template-columns: 22px 1fr; gap: 2px 8px; align-items: center; font-size: 11px; color: #cdb28b; }
+.colony-bed-list li > span { font-weight: 700; color: #fff3d6; }
+.colony-bed-list li > small { grid-column: 2; color: #ab9a75; }
+.colony-bed-list li[data-state='ripe'] > small { color: #91cba2; }
+.colony-bed-list li > .colony-meter { grid-column: 1 / -1; }
