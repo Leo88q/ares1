@@ -363,7 +363,7 @@ jobs:
   # Chromium ставит playwright-core (версия из lockfile), WebGL через SwiftShader. Smoke-тесты
   # запускаются на production-сборке, так что CSP и _headers проверяются так же, как в проде.
   browser:
-    name: Browser smoke (colony, engineering, fields, sections, tap audit)
+    name: Browser smoke (colony, engineering, fields, lab, sections, tap audit)
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -396,6 +396,7 @@ jobs:
           yarn workspace web test:colony-browser
           yarn workspace web test:engineering-browser
           yarn workspace web test:fields-browser
+          yarn workspace web test:lab-browser
           yarn workspace web test:sections-browser
           yarn workspace web test:tap-audit
       - name: Preview log on failure

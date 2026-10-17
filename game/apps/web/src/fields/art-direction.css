@@ -1,21 +1,6 @@
 /* Warm industrial Mars. Visual surfaces are actual local artwork/kit textures.
    CSS handles responsive composition, text and state, not illustration. */
 .mf-resource-icon { display: inline-block; object-fit: contain; flex: 0 0 auto; vertical-align: middle; filter: drop-shadow(0 2px 2px #0008); }
-.mf-demo-shell { background: #110e0a; padding: 24px 28px; }
-.mf-demo { max-width: 1420px; }
-.mf-demo-nav { margin-bottom: 18px; padding: 11px 15px; border: 1px solid #84623a77; background: #22190fd9 url('/ares/art/plate-surface.webp') center/cover; border-radius: 6px; }
-.mf-demo-brand { color: #efcc8e; font-size: 17px; text-shadow: 0 2px 2px #000; }
-.mf-demo-nav > a { color: #d3b58a; font-size: 10px; }
-.mf-demo-lang button { background: #271b0e url('/ares/art/button-bronze.webp') center/100% 100% no-repeat; border: 0; border-radius: 0; padding: 8px 12px; color: #c3a47a; }
-.mf-demo-lang button[aria-pressed=true] { background-image: url('/ares/art/button-bronze.webp'); color: #f2cf91; }
-.mf-demo-hero { position: relative; min-height: 205px; overflow: hidden; padding: 26px 30px 14px; border: 1px solid #9b784477; border-radius: 7px; background: #231b10; box-shadow: 0 8px 32px #0005; }
-.mf-hero-panorama { position: absolute; inset: 0 0 0 auto; width: 60%; height: 100%; object-fit: cover; object-position: center 55%; opacity: .75; mask-image: linear-gradient(90deg,transparent,#000 38%); }
-.mf-hero-copy { position: relative; z-index: 1; max-width: 700px; padding-right: 130px; }
-.mf-demo-hero h1 { font-size: clamp(28px,4.2vw,49px); margin: 8px 0 9px; color: #f5ddb2; text-shadow: 0 3px 9px #1e140ddd; }
-.mf-demo-hero .mf-hero-copy p { margin: 0; font-size: 12px; color: #d3bea1; line-height: 1.6; max-width: 590px; }
-.mf-hero-mascot { position: absolute; right: 24px; bottom: 30px; width: 120px; height: 145px; object-fit: contain; filter: drop-shadow(0 5px 8px #0009); }
-.mf-demo-hero .mf-hero-disclaimer { position: relative; z-index: 1; color: #baab90; font-size: 9px; margin: 18px 0 0; max-width: 100%; padding-top: 9px; border-top: 1px solid #a9854d44; line-height: 1.6; }
-.mf-demo > .mf-eyebrow { padding: 14px 4px 0; color: #ab987a; }
 .mf-panel { background: #20170f url('/ares/art/plate-surface.webp') center top/100% 650px; border-color: #a1804d; border-radius: 8px; box-shadow: 0 12px 40px #0008,inset 0 0 0 3px #22180f; }
 .mf-panel-header { background: #21180edb; padding: 18px 22px 16px; border-bottom-color: #b18b4955; }
 .mf-panel-header h2 { color: #f0d4a4; font-size: 27px; text-shadow: 0 2px 2px #000; }
@@ -30,11 +15,10 @@
 .mf-field-picker button.is-selected { background: #352615 url('/ares/kit/panel-bronze.webp') center/100% 100%; box-shadow: inset 0 0 0 2px #d3ab5b88,0 0 15px #c3984c22; color: #f6d49b; }
 .mf-field-picker button b { font-size: 13px; letter-spacing: .11em; }
 .mf-field-picker button small { color: #bda47e; }
-.mf-demo .mf-workspace { grid-template-columns: minmax(0,1fr) 345px; }
 .mf-view-area { border-right: 1px solid #95744466; background: #18120e88; }
 .mf-scene-options { background: #241a11b3; border: 0; padding: 8px 12px; }
 .mf-scene-options button { font-size: 10px; padding: 8px 12px; }
-.mf-viewport, .mf-demo .mf-viewport { height: 510px; background: #734b32; border-top: 1px solid #ac8b4c66; }
+.mf-viewport { height: 510px; background: #734b32; border-top: 1px solid #ac8b4c66; }
 .mf-stage-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 66%; z-index: -1; pointer-events: none; }
 .mf-canvas-host { position: relative; z-index: 1; }
 .mf-stage-art { z-index: 0; }
@@ -43,8 +27,8 @@
 .mf-scene-tag { z-index: 3; color: #edd3a9; border: 1px solid #b58b4d88; background: #24170ee0; }
 .mf-scene-hint { z-index: 3; background: #271b10d9; color: #ddc49f; font-size: 9px; }
 .mf-status-strip { background: #211a12eb; border-color: #b18b4944; padding: 10px 16px; }
-.mf-demo .mf-inspector, .mf-inspector { background: #1b140ee6; border-color: #8d693c55; padding: 14px; }
-.mf-panel button:focus-visible, .mf-panel a:focus-visible, .mf-demo button:focus-visible, .mf-demo a:focus-visible { outline: 2px solid #f5cd7c; outline-offset: 2px; }
+.mf-inspector { background: #1b140ee6; border-color: #8d693c55; padding: 14px; }
+.mf-panel button:focus-visible, .mf-panel a:focus-visible { outline: 2px solid #f5cd7c; outline-offset: 2px; }
 .mf-panel .eg-console button, .mf-panel .eg-telemetry button, .mf-button { background: url('/ares/art/button-bronze.webp') center/100% 100% no-repeat; border: 0; border-radius: 0; color: #e0c397; min-height: 38px; padding: 9px 12px; }
 .mf-panel .eg-console .eg-primary { background: url('/ares/art/button-bronze.webp') center/100% 100% no-repeat; color: #e8d2a1; }
 .mf-panel .eg-console button[aria-pressed=true] { background: url('/ares/art/button-bronze.webp') center/100% 100% no-repeat; color: #f1d39a; filter: brightness(1.22); border: 0; }
@@ -102,22 +86,27 @@
 .eg-source-note { font-size: 8px; margin-top: 8px; }
 .mf-footer { background: #17110ce6; border-color: #94714255; padding: 10px 18px; }
 .mf-footer p { font-size: 9px; color: #a99d83; }
-.mf-demo-actions { margin: 18px 0 10px; }
-.mf-demo-actions a { min-height: 40px; padding: 12px 20px; }
-.mf-demo-archive { font-size: 10px; margin-top: 18px; }
 .mf-fallback { position: relative; z-index: 2; background: #1b140fe0; }
 .mf-fallback-image { display: block; width: min(100%,340px); height: 150px; object-fit: cover; border: 1px solid #a47f49; border-radius: 5px; }
 .mf-fallback p { color: #e1c99e; }
-@media(min-width: 1500px) { .mf-demo .mf-viewport { height: 550px; } }
-@media(max-width:1000px) { .mf-demo .mf-workspace { grid-template-columns: minmax(0,1fr) 315px; } .eg-topology { grid-template-columns: repeat(2,minmax(0,1fr)); } }
-@media(max-width:820px) { .mf-demo .mf-workspace { grid-template-columns: minmax(0,1fr); } .mf-view-area { border-right: 0; } .mf-demo .mf-inspector { border-left: 0; padding: 15px; } .mf-demo .mf-viewport { height: 420px; } .eg-console-page { height: auto; max-height: 430px; } .mf-demo-hero { padding: 22px 20px 12px; } .mf-hero-copy { padding-right: 95px; } .mf-hero-mascot { right: 10px; width: 95px; height: 115px; } }
-@media(max-width:480px) { .mf-demo-shell { padding: 12px 9px; } .mf-demo-nav { padding: 9px; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; } .mf-demo-brand { font-size: 13px; } .mf-demo-nav > a { font-size: 8px; } .mf-demo-hero { min-height: 180px; padding: 17px 15px 11px; } .mf-demo-hero h1 { font-size: 30px; } .mf-demo-hero .mf-hero-copy p { font-size: 10px; line-height: 1.6; } .mf-hero-copy { padding-right: 55px; } .mf-hero-mascot { width: 65px; height: 85px; bottom: 56px; right: 5px; } .mf-hero-panorama { width: 100%; opacity: .4; } .mf-demo-hero .mf-hero-disclaimer { font-size: 8px; margin-top: 12px; } .mf-panel-header { padding: 14px 13px 11px; } .mf-panel-header h2 { font-size: 23px; } .mf-source-tabs { padding: 8px 10px; gap: 3px; } .mf-source-tabs button { font-size: 9px; padding: 9px; } .mf-field-picker { padding: 9px; gap: 5px; } .mf-field-picker button { padding: 11px 9px; min-height: 70px; } .mf-field-picker button b { font-size: 10px; letter-spacing: .05em; } .mf-field-picker button > span, .mf-field-picker button small { font-size: 8px; } .mf-scene-options { padding: 6px; gap: 3px; } .mf-scene-options button { font-size: 9px; padding: 8px; } .mf-viewport, .mf-demo .mf-viewport { height: 360px; } .eg-topology { padding: 7px; gap: 5px; } .eg-topology > div { padding-left: 46px; min-height: 57px; } .eg-topology .mf-resource-icon { left: 5px; width: 35px; height: 35px; } .eg-topology b { font-size: 11px; } .mf-status-strip { font-size: 9px; padding: 9px 11px; } .eg-telemetry { padding: 10px; } .eg-deck-tabs { gap: 3px; } .eg-deck-tabs button { min-width: 0; flex: 1; font-size: 10px; } .eg-deck-pane { min-height: 220px; } .eg-console h3 { font-size: 23px; } .mf-footer { padding: 10px 12px; } .mf-footer p { font-size: 8px; } }
+@media(max-width:1000px) { .eg-topology { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:820px) { .mf-view-area { border-right: 0; } .eg-console-page { height: auto; max-height: 430px; } }
+@media(max-width:480px) { .mf-panel-header { padding: 14px 13px 11px; } .mf-panel-header h2 { font-size: 23px; } .mf-source-tabs { padding: 8px 10px; gap: 3px; } .mf-source-tabs button { font-size: 9px; padding: 9px; } .mf-field-picker { padding: 9px; gap: 5px; } .mf-field-picker button { padding: 11px 9px; min-height: 70px; } .mf-field-picker button b { font-size: 10px; letter-spacing: .05em; } .mf-field-picker button > span, .mf-field-picker button small { font-size: 8px; } .mf-scene-options { padding: 6px; gap: 3px; } .mf-scene-options button { font-size: 9px; padding: 8px; } .mf-viewport { height: 360px; } .eg-topology { padding: 7px; gap: 5px; } .eg-topology > div { padding-left: 46px; min-height: 57px; } .eg-topology .mf-resource-icon { left: 5px; width: 35px; height: 35px; } .eg-topology b { font-size: 11px; } .mf-status-strip { font-size: 9px; padding: 9px 11px; } .eg-telemetry { padding: 10px; } .eg-deck-tabs { gap: 3px; } .eg-deck-tabs button { min-width: 0; flex: 1; font-size: 10px; } .eg-deck-pane { min-height: 220px; } .eg-console h3 { font-size: 23px; } .mf-footer { padding: 10px 12px; } .mf-footer p { font-size: 8px; } }
 
-.mf-demo-nav { background: #21180f url('/ares/art/plate-surface.webp') center/cover; }
-.mf-demo .mf-panel { background: #1a140d url('/ares/art/plate-surface.webp') center top/100% 640px; }
 .mf-field-picker { background: #21190fc9; }
 .mf-source-tabs button[aria-pressed=true], .mf-panel .eg-console-tabs button[aria-pressed=true], .eg-telemetry .eg-deck-tabs button[aria-pressed=true] { color: #f2d49a; box-shadow: inset 0 0 0 1px #d2a36177; }
-.mf-demo .mf-panel .eg-console button[aria-pressed=true] { color: #f2d49a; }
 .mf-panel .eg-console .eg-primary { color: #dfd8a3; box-shadow: inset 0 0 0 1px #a2ad6477; }
-.mf-demo-actions a { color: #dfc496; }
-.mf-demo-hero { box-shadow: 0 8px 26px #0006; }
+
+/* Тактильный минимум 44 px для панели полей и SIM-консоли (2026-10-17).
+   Продуктовая лаборатория /lab открывает панель полей и без кошелька, поэтому на
+   телефоне каждая её клавиша обязана быть ≥44 px — как во всей игре (§31, п. 7).
+   Правила только под мобильную ширину: десктопный вид панели не меняется. */
+@media (max-width: 480px) {
+  .mf-view-toggle button, .mf-source-tabs button, .mf-scene-options button, .mf-button,
+  .mf-panel .eg-console button, .mf-panel .eg-telemetry button,
+  .eg-console-tabs button, .eg-deck-tabs button { min-height: 44px; min-width: 44px; }
+  .mf-camera-controls button { width: 44px; height: 44px; }
+  .mf-footer a { display: inline-flex; align-items: center; min-height: 44px; }
+  .mf-panel input[type='range'] { height: 44px; }
+  .field-action-btn { min-height: 44px; }
+}

@@ -1,11 +1,14 @@
 // Production-CSP UI test. Installed browser only; never downloads Chromium.
 // CHROMIUM_EXECUTABLE_PATH=... [FIELDS_BASE_URL=...] yarn workspace web test:fields-browser
+// Песочница /demo удалена: учебные стенды теперь живут в продуктовой лаборатории
+// /lab, поэтому 3D-слой полей проверяется на её фикстуре (без кошелька).
 import assert from 'node:assert/strict'
 import { readFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright-core'
 import * as THREE from 'three'
 import { mainFixture } from './fields-main-fixture.mjs'
+import { labFixture } from './lab-fixture.mjs'
 
 if (!process.env.CHROMIUM_EXECUTABLE_PATH) throw new Error('Set CHROMIUM_EXECUTABLE_PATH to an installed browser')
 const base = (process.env.FIELDS_BASE_URL || 'http://127.0.0.1:4173').replace(/\/$/, '')
@@ -16,7 +19,10 @@ const screenshots = process.env.FIELDS_SCREENSHOT_DIR
 // NO_WEBGL=1: skip the 3D demo and the 3D view switch; fallback views are still tested. CI runs the full 3D suite.
 const noWebgl = process.env.NO_WEBGL === '1'
 if (screenshots) mkdirSync(screenshots, { recursive: true })
-const fixture = await mainFixture()
+const fixture = await labFixture({ slug: 'lab-bench' })
+const mainFixtureAssets = await mainFixture()
+const assets = new Map([...fixture.assets, ...mainFixtureAssets.assets])
+const htmlPaths = new Set(['/__lab-bench/main', '/__fields/main'])
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
   args: process.env.CHROMIUM_ARGS_JSON ? JSON.parse(process.env.CHROMIUM_ARGS_JSON) : ['--no-sandbox'], headless: true })
 const errors = [], external = [], successfulModels = new Map()
@@ -41,9 +47,9 @@ async function open(width, { fallback = false, breakModel = false, realMain = fa
   await page.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url())
     if (url.origin !== origin && !/^(data|blob):/.test(request.url())) { external.push(request.url()); return route.abort() }
-    const mocked = fixture.assets.get(url.pathname)
-    if (realMain && mocked) return route.fulfill({ status: 200, contentType: mocked.type, body: mocked.bytes,
-      headers: url.pathname === '/__fields/main' ? { 'content-security-policy': csp } : {} })
+    const mocked = assets.get(url.pathname)
+    if (mocked) return route.fulfill({ status: 200, contentType: mocked.type, body: mocked.bytes,
+      headers: htmlPaths.has(url.pathname) ? { 'content-security-policy': csp } : {} })
     if (breakModel && url.pathname === '/models/fields/canopy.glb') return route.fulfill({ status: 503, body: 'Model unavailable' })
     if (!request.isNavigationRequest()) return route.continue()
     const response = await route.fetch()
@@ -53,9 +59,10 @@ async function open(width, { fallback = false, breakModel = false, realMain = fa
     const getContext = HTMLCanvasElement.prototype.getContext
     HTMLCanvasElement.prototype.getContext = function (type, ...args) { return /webgl/.test(type) ? null : getContext.call(this, type, ...args) }
   })
-  await page.goto(`${base}${realMain ? '/__fields/main' : '/demo'}`, { waitUntil: 'networkidle' })
+  await page.goto(`${base}${realMain ? '/__fields/main' : '/__lab-bench/main'}`, { waitUntil: 'networkidle' })
   await page.locator(fallback || breakModel ? '[data-testid="fields-fallback"]' : '[data-testid="fields-viewport"][data-ready="true"]').waitFor()
-  if (!realMain) await page.getByRole('button', { name: 'Учебный урок', exact: true }).click()
+  // Лаборатория открывается на настоящем слое поля (initialLayer="chain"): 3D-вид,
+  // статус-полоса и инспектор доступны сразу, переключать слой не нужно.
   await noOverflow(page)
   return { page, context }
 }
@@ -66,7 +73,7 @@ try {
     assert.equal(await page.locator('.mf-field-picker button').count(), 3)
     assert.equal(await page.locator('.mf-canvas-host canvas').count(), 1)
     await page.getByRole('button', { name: /Поле 03 EPIC/ }).click()
-    assert.equal(await page.getByTestId('fields-viewport').getAttribute('data-selected-id'), 'demo-2')
+    assert.equal(await page.getByTestId('fields-viewport').getAttribute('data-selected-id'), 'lab-bench-2')
     await page.getByRole('button', { name: 'Остекление', exact: true }).click()
     await shot(page, 'desktop-epic.png')
     await page.getByRole('button', { name: 'Обзор сектора', exact: true }).click()
@@ -77,32 +84,28 @@ try {
     camera.position.set(30, 30, 34); camera.lookAt(0, 0.6, 0); camera.updateMatrixWorld()
     const point = new THREE.Vector3(-13, 0.3, 0).project(camera)
     await page.locator('.mf-canvas-host canvas').click({ position: { x: (point.x + 1) / 2 * rect.width, y: (1 - point.y) / 2 * rect.height } })
-    await page.waitForFunction(() => document.querySelector('[data-testid="fields-viewport"]')?.getAttribute('data-selected-id') === 'demo-0')
+    await page.waitForFunction(() => document.querySelector('[data-testid="fields-viewport"]')?.getAttribute('data-selected-id') === 'lab-bench-0')
     await page.getByRole('button', { name: 'Выбранное поле', exact: true }).click()
     await page.getByRole('button', { name: 'Приблизить', exact: true }).click()
     await page.getByRole('button', { name: 'Вернуть камеру', exact: true }).click()
-    await page.getByRole('button', { name: 'СБРОСИТЬ ДЕМО', exact: true }).click()
-    assert.match(await page.getByTestId('fields-status').innerText(), /Неактивно/)
-    await page.getByRole('button', { name: 'ПОСАДИТЬ', exact: true }).click()
-    await page.getByRole('button', { name: 'ПОЛИТЬ', exact: true }).click()
-    await page.getByRole('button', { name: 'ПОЛИТЬ', exact: true }).click()
-    assert.match(await page.getByTestId('fields-status').innerText(), /Урожай готов/)
-    await page.getByRole('button', { name: 'ПОЛИТЬ', exact: true }).click()
-    assert.match(await page.getByTestId('fields-status').innerText(), /Питание активно/)
-    await page.getByRole('button', { name: 'СОБРАТЬ', exact: true }).click()
-    assert.match(await page.locator('.mf-inspector').innerText(), /ДЕМО-УРОЖАЙ: 1/)
-    await page.getByRole('button', { name: 'Показать износ', exact: true }).click()
-    assert.match(await page.getByTestId('fields-status').innerText(), /38%/)
-    await page.getByRole('button', { name: 'EN', exact: true }).click()
-    assert.match(await page.getByTestId('fields-status').innerText(), /38%/)
-    assert.match(await page.locator('.mf-inspector').innerText(), /DEMO HARVEST: 1/)
-    await page.getByRole('button', { name: 'RU', exact: true }).click()
+    // Возвращаем выбор на стенд тира: геометрия выше выбирала bench-0.
+    await page.getByRole('button', { name: /Поле 03 EPIC/ }).click()
+    // Стенд тира помечен как учебный: без кошелька, без POTATO, без блокчейна.
+    assert.equal(await page.getByTestId('lab-bench').getAttribute('data-tier'), '2')
+    assert.match(await page.getByTestId('lab-bench').innerText(), /УЧЕБНЫЙ СТЕНД · НЕ АККАУНТ КОШЕЛЬКА/)
+    assert.match(await page.getByTestId('fields-status').innerText(), /Рост/)
+    assert.match(await page.getByTestId('fields-status').innerText(), /82%|100%/)
+    await page.evaluate(() => window.__setLang('en'))
+    assert.match(await page.getByTestId('lab-bench').innerText(), /TRAINING BENCH · NOT A WALLET ACCOUNT/)
+    assert.match(await page.getByTestId('fields-status').innerText(), /Growing/)
+    await page.evaluate(() => window.__setLang('ru'))
+    assert.match(await page.getByTestId('lab-bench').innerText(), /УЧЕБНЫЙ СТЕНД/)
     await page.locator('.mf-canvas-host canvas').evaluate(canvas => canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext())
     await page.getByTestId('fields-fallback').waitFor()
     await page.locator('.mf-field-picker button').nth(1).press('Enter')
-    assert.equal(await page.locator('.mf-inspector').getAttribute('data-selected-id'), 'demo-1')
+    assert.equal(await page.locator('.mf-inspector').getAttribute('data-selected-id'), 'lab-bench-1')
     await noOverflow(page); await context.close()
-    console.log('PASS demo: real GLBs, tier/geometry selection, camera, glazing, local lesson, wear, language, context loss')
+    console.log('PASS field lab benches: real GLBs, tier/geometry selection, camera, glazing, training-bench inspector, language, context loss')
   }
 
   for (const width of [390, 320]) {
@@ -116,13 +119,10 @@ try {
   for (const flags of [{ fallback: true }, { breakModel: true }]) {
     const { page, context } = await open(390, flags)
     await page.locator('.mf-field-picker button').last().press('Enter')
-    assert.equal(await page.locator('.mf-inspector').getAttribute('data-selected-id'), 'demo-2')
-    await page.getByRole('button', { name: 'СБРОСИТЬ ДЕМО', exact: true }).click()
-    await page.getByRole('button', { name: 'ПОСАДИТЬ', exact: true }).click()
-    await page.getByRole('button', { name: 'ПОЛИТЬ', exact: true }).click()
-    await page.getByRole('button', { name: 'ПОЛИТЬ', exact: true }).click()
-    await page.getByRole('button', { name: 'СОБРАТЬ', exact: true }).click()
-    assert.match(await page.locator('.mf-inspector').innerText(), /ДЕМО-УРОЖАЙ: 1/)
+    assert.equal(await page.locator('.mf-inspector').getAttribute('data-selected-id'), 'lab-bench-2')
+    assert.equal(await page.getByTestId('lab-bench').getAttribute('data-tier'), '2')
+    await page.getByRole('button', { name: 'Инженерный режим · SIM', exact: true }).click()
+    await page.getByTestId('engineering-console').waitFor()
     await noOverflow(page); await context.close()
   }
   console.log('PASS no WebGL / failed model: keyboard selection and controls remain usable')
@@ -158,13 +158,13 @@ try {
     console.log('PASS actual MainScreen: stable public-key selection, all 5 original action callbacks, cards, account removal (mock providers, no transactions)')
   }
 
-  if (!noWebgl) { // 18 models load only when WebGL runs the 3D demo
+  if (!noWebgl) { // 18 models load only when WebGL runs the 3D view
   assert.equal(successfulModels.size, 18)
   assert.ok([...successfulModels.values()].every(status => status === 200))
   }
-  assert.deepEqual(external, [], 'no external RPC/wallet/font/model requests in the demo/fixture')
+  assert.deepEqual(external, [], 'no external RPC/wallet/font/model requests in the lab/fixture')
   assert.deepEqual(errors, [], 'no unexpected runtime, console or CSP errors')
   console.log('PASS production CSP, all 18 local models, no external requests or unexpected errors')
 } finally {
-  await browser.close(); fixture.dispose()
+  await browser.close(); fixture.dispose(); mainFixtureAssets.dispose()
 }

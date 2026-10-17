@@ -5,7 +5,18 @@ import { useI18n } from '../../i18n';
 import { haptics } from '../../utils/haptic';
 import './section-art.css';
 
-export type AresTab = 'main' | 'colony' | 'market' | 'stats' | 'profile' | 'operation';
+export type AresTab = 'main' | 'lab' | 'colony' | 'market' | 'stats' | 'profile' | 'operation';
+
+/** Настоящие иконки секций (те же файлы, что в ресурсах игры), по одной на клавишу. */
+const NAV_ICON: Record<AresTab, string> = {
+  main: '/ares/icons/sprout.webp',
+  lab: '/ares/icons/gauge.webp',
+  colony: '/ares/icons/gear.webp',
+  market: '/ares/icons/crate.webp',
+  stats: '/ares/icons/clipboard.webp',
+  profile: '/ares/icons/bunk.webp',
+  operation: '/ares/icons/license.webp',
+};
 
 export interface AresBottomNavProps {
  active: AresTab;
@@ -20,8 +31,8 @@ interface NavItem {
 }
 
 /**
- * Пульт секций (MK-редизайн, 2026-09-28): вместо плоской панели иконок —
- * ряд клавиш пульта. Активная клавиша защёлкнута в нажатом положении
+ * Пульт секций (MK-редизайн, 2026-09-28; +ЛАБ 2026-10-17): вместо плоской панели
+ * иконок — ряд клавиш пульта. Активная клавиша защёлкнута в нажатом положении
  * (mk-key--engaged: утоплена, грань подсвечена), над ней горит лампа реле.
  * Пропсы: `active` / `onChange`. Динамический i18n перевод на всех языках.
  */
@@ -32,13 +43,15 @@ export const AresBottomNav = memo(function AresBottomNav({
  const reducedMotion = useReducedMotion();
  const { t, lang } = useI18n();
 
+ // Семь клавиш пульта (2026-10-17): ЛАБ — продуктовая полевая лаборатория /lab.
  const navItems: NavItem[] = useMemo(() => [
   { id: 'main', label: t('АГРО'), code: 'K1', lamp: 'green' },
-  { id: 'colony', label: t('КОЛОНИЯ'), code: 'K2', lamp: 'green' },
-  { id: 'market', label: t('СНАБ'), code: 'K3', lamp: 'amber' },
-  { id: 'stats', label: t('ЖУРНАЛ'), code: 'K4', lamp: 'amber' },
-  { id: 'profile', label: t('КАЮТА'), code: 'K5', lamp: 'green' },
-  { id: 'operation', label: t('ОПЕРАЦИЯ'), code: 'K6', lamp: 'magenta' },
+  { id: 'lab', label: t('ЛАБ'), code: 'K2', lamp: 'amber' },
+  { id: 'colony', label: t('КОЛОНИЯ'), code: 'K3', lamp: 'green' },
+  { id: 'market', label: t('СНАБ'), code: 'K4', lamp: 'amber' },
+  { id: 'stats', label: t('ЖУРНАЛ'), code: 'K5', lamp: 'amber' },
+  { id: 'profile', label: t('КАЮТА'), code: 'K6', lamp: 'green' },
+  { id: 'operation', label: t('ОПЕРАЦИЯ'), code: 'K7', lamp: 'magenta' },
  ], [t, lang]);
 
  return (
@@ -61,7 +74,7 @@ export const AresBottomNav = memo(function AresBottomNav({
          onChange(item.id);
         }}
        >
-        <img className="ship-nav-icon" src={item.id === 'main' ? '/ares/icons/sprout.webp' : item.id === 'colony' ? '/ares/icons/gear.webp' : item.id === 'market' ? '/ares/icons/crate.webp' : item.id === 'stats' ? '/ares/icons/clipboard.webp' : item.id === 'profile' ? '/ares/icons/bunk.webp' : '/ares/icons/license.webp'} alt="" aria-hidden="true" />
+        <img className="ship-nav-icon" src={NAV_ICON[item.id]} alt="" aria-hidden="true" />
         <span className="hull-nav-key__label">{item.label}</span>
         <span className="hull-nav-key__code" aria-hidden="true">{item.code}</span>
        </motion.button>

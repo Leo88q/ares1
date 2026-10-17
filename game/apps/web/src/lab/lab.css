@@ -1,0 +1,167 @@
+/* ARES—1 / FIELD LAB — продуктовая секция (2026-10-17).
+   Тот же бронзовый кит, что у КОЛОНИИ и АГРО: plate-surface / panel-bronze /
+   button-bronze, живой текст DOM. Мобильная версия — основная: одна колонка,
+   все клавиши ≥44 px, никакого горизонтального переполнения. */
+.lab-app { position: relative; min-width: 0; min-height: 100%; color: #efdebc; background: #160f0b; }
+.lab-main { min-width: 0; max-width: none; padding: 12px 12px 124px; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Герой секции ── */
+.lab-hero { position: relative; min-height: 176px; overflow: hidden; border: 1px solid #9b784477; border-radius: 7px; background: #231b10; box-shadow: 0 8px 32px #0005; }
+.lab-hero-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 62% center; opacity: .55; pointer-events: none; }
+.lab-hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, #120c0833, #120c08cc); pointer-events: none; }
+.lab-hero-copy { position: relative; z-index: 1; padding: 18px 16px 16px; }
+.lab-hero-copy h1 { margin: 6px 0 8px; color: #f5ddb2; font: 600 clamp(24px, 6.4vw, 34px)/1.14 var(--pf-font-ui, sans-serif); letter-spacing: -.02em; text-shadow: 0 3px 9px #1e140ddd; }
+.lab-lead { margin: 0; max-width: 620px; color: #d3bea1; font-size: 11px; line-height: 1.6; }
+.lab-eyebrow { display: flex; align-items: center; gap: 6px; margin: 0; color: #c8aa78; font: 9px/1.6 var(--ares-font-mono, monospace); letter-spacing: .13em; }
+.lab-hero-chip { position: relative; z-index: 1; display: flex; align-items: center; gap: 7px; margin: 0 16px 16px; padding: 9px 12px; min-height: 44px; border: 1px solid #a4814c66; border-radius: 6px; background: #100b07cc; color: #e3c79b; font-size: 10px; }
+.lab-hero-chip a { display: inline-flex; align-items: center; min-height: 44px; color: #f0cf95; text-decoration: none; border-bottom: 1px solid #a4814c88; }
+
+/* ── Живые плитки: игра + колония ── */
+.lab-live { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(158px, 100%), 1fr)); gap: 8px; }
+.lab-tile { min-width: 0; padding: 12px 13px; border: 1px solid #8d693c55; border-radius: 6px; background: #21170ec9 url('/ares/kit/panel-bronze.webp') center/100% 100%; }
+.lab-tile-label { display: flex; align-items: center; gap: 7px; color: #c9a97c; font: 9px/1.5 var(--ares-font-mono, monospace); letter-spacing: .08em; }
+.lab-tile-value { margin-top: 6px; color: #f4dcae; font: 600 20px/1.2 var(--pf-font-ui, sans-serif); font-variant-numeric: tabular-nums; }
+.lab-tile-value small { margin-left: 5px; color: #bda47e; font: 9px/1.4 var(--ares-font-mono, monospace); letter-spacing: .08em; }
+.lab-tile p { margin: 5px 0 0; color: #b3a184; font-size: 9px; line-height: 1.5; }
+.lab-tile--ok { box-shadow: inset 0 0 0 1px #9fbc7a44; }
+.lab-tile--ok .lab-tile-value { color: #dceab8; }
+.lab-tile--danger { box-shadow: inset 0 0 0 1px #d98d6a55; }
+.lab-tile--danger .lab-tile-value { color: #f0b58f; }
+
+/* ── Рабочая область: поля/стенды + боковые карты ── */
+.lab-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+.lab-fields { min-width: 0; }
+.lab-side { min-width: 0; display: grid; gap: 12px; }
+.lab-note { margin: 0 0 10px; padding: 11px 13px; border: 1px solid #8d693c55; border-radius: 6px; background: #1b140ee6; color: #cdb693; font-size: 11px; line-height: 1.55; }
+.lab-note--warning { border-color: #d98d6a66; color: #f0b58f; }
+
+/* Панель полей внутри лаборатории: свой двухколоночный слой на широких экранах. */
+.lab-fields .mf-panel { margin-top: 0; }
+.lab-fields .mf-inspector { border-top: 1px solid #654a3166; }
+
+/* ── Карты (колония, стакан, рынок) ── */
+.lab-card { min-width: 0; padding: 14px; border: 1px solid #8d693c55; border-radius: 7px; background: #21190f url('/ares/kit/panel-bronze.webp') center/100% 100%; box-shadow: inset 0 1px 0 #ffd6aa0f; }
+.lab-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 8px 0 10px; }
+.lab-card-head h2 { margin: 0; color: #f0d4a3; font: 600 17px/1.25 var(--pf-font-ui, sans-serif); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.lab-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 12px; margin: 0 0 10px; }
+.lab-figures > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-bottom: 6px; border-bottom: 1px solid #8d693c33; }
+.lab-figures dt { color: #b8a17c; font: 8px/1.5 var(--ares-font-mono, monospace); letter-spacing: .09em; }
+.lab-figures dd { margin: 0; color: #f2d9a9; font: 600 13px/1.3 var(--pf-font-ui, sans-serif); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.lab-card-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-bottom: 10px; }
+.lab-fineprint { margin: 8px 0 0; color: #ab9879; font-size: 9px; line-height: 1.6; }
+.lab-inline-figures { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.lab-inline-figures span { display: inline-flex; align-items: center; gap: 5px; }
+.lab-warning { color: #f0b58f; }
+.lab-tag { display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; border: 1px solid #a4814c66; border-radius: 4px; color: #d8bd90; font: 8px/1.4 var(--ares-font-mono, monospace); letter-spacing: .1em; }
+
+/* ── Клавиши: единый бронзовый кит, минимум 44 px по высоте ── */
+.lab-key { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 9px 12px; border: 0; border-radius: 0; background: url('/ares/art/button-bronze.webp') center/100% 100% no-repeat; color: #e0bf88; font: 600 11px/1.25 var(--pf-font-ui, sans-serif); letter-spacing: .05em; text-decoration: none; text-shadow: 0 1px 1px #000; cursor: pointer; }
+.lab-key:disabled { opacity: .4; cursor: not-allowed; }
+.lab-key--small { min-height: 44px; padding: 8px 10px; font-size: 10px; }
+.lab-key--ghost { color: #c6ab83; filter: saturate(.72) brightness(.94); }
+.lab-key:focus-visible, .lab-hero-chip a:focus-visible { outline: 2px solid #f6cf85; outline-offset: 2px; }
+
+/* ── Таблица рынка ── */
+.lab-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 8px; }
+.lab-table { width: 100%; border-collapse: collapse; color: #e2c79c; font-size: 10px; }
+.lab-table th, .lab-table td { padding: 8px 7px; border-bottom: 1px solid #8d693c33; text-align: left; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lab-table thead th { color: #b8a17c; font: 8px/1.5 var(--ares-font-mono, monospace); letter-spacing: .09em; }
+.lab-table tbody th { color: #f2d9a9; font: 600 11px/1.3 var(--pf-font-ui, sans-serif); }
+.lab-table tbody tr[data-tier='micro'] th { color: #cfe0a8; }
+
+/* ── Мост ресурсов: колония → стенд → хранилище ── */
+.lab-supply { margin-top: 12px; padding: 13px; border: 1px solid #a1804d66; border-radius: 7px; background: #1d1610 url('/ares/kit/panel-bronze.webp') center/100% 100%; }
+.lab-supply-rows { display: grid; gap: 8px; margin: 10px 0; }
+.lab-supply-row { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 4px 10px; align-items: center; padding: 9px 10px; border: 1px solid #8d693c44; border-radius: 6px; background: #17110cb3; }
+.lab-supply-row > .mf-resource-icon { grid-row: span 2; width: 34px; height: 34px; }
+.lab-supply-text { min-width: 0; display: grid; gap: 2px; }
+.lab-supply-text b { color: #f0d4a3; font: 600 12px/1.3 var(--pf-font-ui, sans-serif); }
+.lab-supply-text span { color: #b3a184; font-size: 9px; letter-spacing: .04em; }
+.lab-supply-row .lab-key { grid-column: 1 / -1; width: 100%; }
+.lab-ship { margin-top: 12px; padding-top: 11px; border-top: 1px solid #8d693c44; }
+.lab-ship-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.lab-ship-head span { color: #b3a184; font-size: 9px; }
+.lab-ship ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 7px; }
+.lab-ship li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; padding: 9px 10px; border: 1px solid #8d693c44; border-radius: 6px; background: #17110cb3; }
+.lab-ship li > span { color: #cdb693; font: 9px/1.5 var(--ares-font-mono, monospace); letter-spacing: .06em; }
+.lab-ship li > b { color: #f2d9a9; font: 600 12px/1.3 var(--pf-font-ui, sans-serif); text-align: right; font-variant-numeric: tabular-nums; }
+.lab-ship li .lab-key { grid-column: 1 / -1; width: 100%; }
+
+/* ── Учебный стенд ── */
+.lab-bench { padding: 14px; border: 1px solid #8d693c55; border-radius: 7px; background: #1b140ee6; }
+.lab-bench h2 { margin: 6px 0 8px; color: #f0d4a3; font: 600 18px/1.25 var(--pf-font-ui, sans-serif); }
+.lab-bench > p { margin: 0 0 10px; color: #b8a58a; font-size: 10px; line-height: 1.6; }
+.lab-bench-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.lab-bench-list li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 5px; border-bottom: 1px solid #8d693c33; color: #b8a17c; font: 9px/1.5 var(--ares-font-mono, monospace); letter-spacing: .06em; }
+.lab-bench-list b { color: #f2d9a9; font: 600 12px/1.3 var(--pf-font-ui, sans-serif); }
+.lab-bench .lab-key { width: 100%; }
+
+/* ── Отчёт и подвал ── */
+.lab-report { min-height: 18px; margin: 0; color: #cfe0a8; font: 10px/1.5 var(--ares-font-mono, monospace); letter-spacing: .05em; }
+.lab-footer { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding-top: 12px; border-top: 1px solid #8d693c44; }
+.lab-footer-mark { color: #a4895f; font: 8px/1.6 var(--ares-font-mono, monospace); letter-spacing: .16em; }
+.lab-footer p { margin: 0; color: #9c8b70; font-size: 9px; line-height: 1.7; }
+
+/* ── Планшет и десктоп ──
+   ВАЖНО: игра на любом экране живёт внутри «телефонного» шасси
+   .pf-phone-chassis (max-width 480 px, см. styles/global.css). Поэтому раскладка
+   лаборатории не может зависеть от min-width вьюпорта: на десктопе вьюпорт
+   широкий, а места всё равно 480 px, и двухколоночные схемы сжимали бы панель
+   полей до десятков пикселей. Широкие схемы включаются контейнерным запросом
+   по фактической ширине секции — внутри шасси он не сработает никогда, а вне
+   шасси (если секцию когда-нибудь вынесут на полный экран) раскладка оживёт. */
+.lab-app { container-type: inline-size; container-name: lab; }
+@media (min-width: 700px) {
+  .lab-main { padding: 16px 16px 128px; gap: 16px; }
+  .lab-hero { min-height: 200px; }
+  .lab-hero-copy { padding: 24px 24px 18px; }
+  .lab-lead { font-size: 12px; }
+  .lab-hero-chip { margin: 0 24px 20px; }
+  .lab-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container lab (min-width: 900px) {
+  .lab-main { max-width: 1420px; width: 100%; margin: 0 auto; padding: 20px 20px 132px; }
+  .lab-workspace { grid-template-columns: minmax(0, 1fr) 348px; gap: 16px; }
+  .lab-hero { min-height: 220px; }
+  .lab-fields .mf-viewport { height: 470px; }
+}
+@container lab (min-width: 1150px) {
+  /* Инспектор поля и SIM-консоль встают рядом с 3D-сценой только там, где для
+     этого реально есть место. */
+  .lab-fields .mf-workspace { grid-template-columns: minmax(0, 1fr) 340px; }
+  .lab-fields .mf-inspector { border-left: 1px solid #654a3166; border-top: 0; }
+  .lab-fields .mf-viewport { height: 510px; }
+}
+
+/* ── Мобильная версия (как во всей игре: одна колонка, крупные клавиши) ── */
+@media (max-width: 820px) {
+  .lab-fields .mf-workspace { grid-template-columns: minmax(0, 1fr); }
+  .lab-fields .mf-inspector { border-left: 0; }
+  .lab-fields .mf-viewport { height: 380px; }
+}
+@media (max-width: 480px) {
+  .lab-main { padding: 10px 10px 124px; }
+  .lab-hero { min-height: 168px; }
+  .lab-hero-copy { padding: 16px 14px 14px; }
+  .lab-hero-copy h1 { font-size: 24px; }
+  .lab-lead { font-size: 10px; }
+  .lab-hero-chip { margin: 0 14px 14px; font-size: 9px; }
+  .lab-live { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .lab-tile { padding: 11px 11px; }
+  .lab-tile-value { font-size: 17px; }
+  .lab-figures { grid-template-columns: minmax(0, 1fr); }
+  .lab-card { padding: 12px; }
+  .lab-card-actions { grid-template-columns: minmax(0, 1fr); }
+  .lab-fields .mf-viewport { height: 340px; }
+  .lab-supply-row { grid-template-columns: 30px minmax(0, 1fr); }
+  .lab-supply-row > .mf-resource-icon { width: 30px; height: 30px; }
+}
+@media (max-width: 360px) {
+  .lab-live { grid-template-columns: minmax(0, 1fr); }
+  .lab-hero-copy h1 { font-size: 21px; }
+  .lab-fields .mf-viewport { height: 300px; }
+  .lab-key { font-size: 10px; letter-spacing: .03em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab-app *, .lab-app *::before, .lab-app *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

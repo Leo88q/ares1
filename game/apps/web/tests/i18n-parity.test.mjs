@@ -116,8 +116,6 @@ test('new greenhouse and settlement copy is translated, with interpolation token
     'Мутации могут появиться после улучшения поля, если сработает проверка контракта.',
     'Фаза 1 — отдельный пресейл mainnet. Devnet-бета бесплатна, прогресс не переносится, тестовые SOL/SKR не имеют реальной стоимости.',
     'Этот сервер работает в devnet: не отправляйте сюда реальные средства.',
-    'НАЗАД В КОЛОНИЮ',
-    'Это локальная демо-сцена: кнопки меняют только состояние в браузере. Здесь нет токенов, транзакций, кошелька или сохранения прогресса.',
     'Сейчас активна только пара POTATO/SOL; legacy-контракт удерживает комиссию в POTATO при создании ордера. Целевая V2-модель: 9–12% из выплаты продавцу при успешной сделке, в валюте расчёта и в казну; суточные накопительные tiers и отдельная пара POTATO/SKR пока не активны, точные пороги остаются проектом до финального решения. Devnet-активы тестовые.',
     'ОПЕРАЦИЯ: ПЕРВАЯ ТЕПЛИЦА',
     'ЭКИПАЖ: {wallet} · ЦИКЛ #{cycle}',
@@ -192,6 +190,59 @@ test('new greenhouse and settlement copy is translated, with interpolation token
       assert.ok(english.has(key), `missing English source for ${key}`);
       assert.ok(translated.has(key), `${file} is missing ${key}`);
       assert.notEqual(translated.get(key), english.get(key), `${file} leaves new product copy in English: ${key}`);
+      assert.deepEqual(placeholders(translated.get(key)), placeholders(english.get(key)), `${file} changes interpolation tokens for ${key}`);
+    }
+  }
+});
+
+test('field lab product copy is translated, with interpolation tokens preserved', () => {
+  // /lab (2026-10-17): живые данные игры, общий сток колонии и мост стенд↔база.
+  // 'ЛАБ' — навигационное сокращение: во всех языках клавиша пульта подписана
+  // универсальным «LAB», поэтому в список «обязательно отличается от английского»
+  // она не входит (ключ и переводы присутствуют и проверяются паритетом).
+  const keys = [
+    'ПОЛЕВАЯ ЛАБОРАТОРИЯ',
+    'ПРОДАКТ · ЖИВЫЕ ДАННЫЕ ИГРЫ',
+    'Настоящие поля кошелька, общий сток колонии и правила рынка в одной секции. Инженерный SIM остаётся учебным слоем и не платит токенами.',
+    'ЭКИПАЖ: {wallet}',
+    'ЖДЁТ СБОРА: {n} POTATO',
+    'ВЫХОД ПОЛЕЙ В ДЕНЬ',
+    'ЛИМИТ БАТЧА: {n} ПОЛЕЙ',
+    'ДЕФИЦИТ: {n} КВТ·Ч',
+    'УЧЕБНЫЙ СТЕНД · НЕ АККАУНТ КОШЕЛЬКА',
+    'СТЕНД {tier} · {name}',
+    'СНАБЖЕНИЕ СТЕНДА ИЗ КОЛОНИИ',
+    'Один сток на секции: сколько забрал стенд, столько списано у базы. Партии еды возвращаются в её хранилище.',
+    'ОСТАНОВИ ЧАСЫ КОЛОНИИ, ЧТОБЫ ПЕРЕДАТЬ СНАБЖЕНИЕ',
+    'СТОК КОЛОНИИ: {value} {unit}',
+    'СВОБОДНО НА СТЕНДЕ: {value} {unit}',
+    'ПЕРЕДАТЬ {amount} {unit}',
+    'ПЕРЕДАНО ИЗ КОЛОНИИ: {amount} {unit}',
+    'ПАРТИЯ {kg} КГ ПРИНЯТА В ХРАНИЛИЩЕ БАЗЫ',
+    'СВОБОДНО В ХРАНИЛИЩЕ: {kg} КГ ИЗ {cap} КГ',
+    'ПОЛУЧЕНО ОТ БАЗЫ: {litres} {unit} / {nutrients} {nutrientUnit}',
+    'МАСШТАБ СТЕНДА: ×{scale} · ПОТОЛОК РЕЗЕРВА {cap} {unit}',
+    'СВЯЗЬ С КОЛОНИЕЙ',
+    'ДЕНЬ {day} ИЗ {total}',
+    'ПОЛЯ, СВЯЗАННЫЕ С БАЗОЙ',
+    'Предел связи с базой достигнут: освободи площадку или построй новый модуль.',
+    'СТАКАН СНАБЖЕНИЯ',
+    'ЛУЧШАЯ ЦЕНА ПОКУПКИ',
+    'РЫНОК И ЭКОНОМИКА',
+    'ОКУПАЕМОСТЬ',
+    'МИКРО-ПОЛЕ',
+    'БАЛАНС: {amount} POTATO',
+    'СВЯЗЬ С БАЗОЙ: {linked} ИЗ {cap} ПОЛЕЙ ПРИ {free} СВОБОДНЫХ ПЛОЩАДКАХ',
+    'Полевая лаборатория читает настоящие поля, балансы и ордера, но SIM-партии еды и ресурсы колонии остаются локальным учётом: они не конвертируются в POTATO и не создают транзакций.',
+  ];
+  const english = entriesOf('en.ts');
+  const placeholders = (value) => [...value.matchAll(/\{[^{}]+\}/g)].map(match => match[0]).sort();
+  for (const key of keys) assert.ok(english.has(key), `missing English source for ${key}`);
+  for (const file of files.filter(file => file !== 'en.ts')) {
+    const translated = entriesOf(file);
+    for (const key of keys) {
+      assert.ok(translated.has(key), `${file} is missing ${key}`);
+      assert.notEqual(translated.get(key), english.get(key), `${file} leaves field lab copy in English: ${key}`);
       assert.deepEqual(placeholders(translated.get(key)), placeholders(english.get(key)), `${file} changes interpolation tokens for ${key}`);
     }
   }

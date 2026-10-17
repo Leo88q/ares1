@@ -16,15 +16,15 @@ test('three actual screen wrappers use distinct local illustration assets and pr
     assert.match(wrapper, /SolHud/)
   }
 })
-test('navigation uses real image icons, same five callbacks/route choices and reactive language labels', () => {
+test('navigation uses real image icons, the same callback/route choices and reactive language labels', () => {
   const nav = source('components/ares/AresBottomNav.tsx')
   assert.match(nav, /ship-nav-icon/)
   assert.doesNotMatch(nav, /<AresHullFrame|<svg/)
   assert.match(nav, /onChange\(item\.id\)/)
   assert.match(nav, /\[t, lang\]/)
-  for (const id of ['main', 'market', 'stats', 'profile', 'operation']) assert.ok(nav.includes(`id: '${id}'`))
-  const preview = source('components/ares/SectionArtPreview.tsx')
-  assert.match(preview, /АРТ-ПРОСМОТР · БЕЗ АККАУНТОВ И ТРАНЗАКЦИЙ/)
-  assert.doesNotMatch(preview, /useGame\(|useSolana\(|useWallet\(|sendTransaction\(|orders:|potatoBalance/)
-  assert.match(preview, /href=\{art\.href\}/)
+  for (const id of ['main', 'lab', 'colony', 'market', 'stats', 'profile', 'operation']) assert.ok(nav.includes(`id: '${id}'`))
+  // Каждая клавиша — настоящий webp-артикль секции, без инлайновых svg-заглушек.
+  for (const icon of ['sprout', 'gauge', 'gear', 'crate', 'clipboard', 'bunk', 'license']) {
+    assert.match(nav, new RegExp(`'\\/ares\\/icons\\/${icon}\\.webp'`))
+  }
 })
