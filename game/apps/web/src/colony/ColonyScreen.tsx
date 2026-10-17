@@ -186,7 +186,7 @@ function BedPanel({ mod, language, manualHarvest }: { mod: ColonyModule; languag
       {summary.beds.map((bed, index) => <li key={index} data-state={bed.state}>
         <span>{index + 1}</span><small>{label[bed.state]}</small>
         <div className="colony-meter"><span style={{ width: `${bed.progress * 100}%`, background: '#91cba2' }} /></div>
-        {manualHarvest && bed.state === 'ripe' && manualHarvest.canHarvest(index) && <button type="button" className="colony-button colony-bed-harvest" onClick={() => manualHarvest.onHarvest(index)}>{c.bedHarvest}</button>}
+        {manualHarvest && manualHarvest.canHarvest(index) && <button type="button" className="colony-button colony-bed-harvest" onClick={() => manualHarvest.onHarvest(index)}>{c.bedHarvest}</button>}
       </li>)}
     </ol>
     <p className="colony-fineprint">{manualHarvest ? c.bedsNoteManual : c.bedsNote}</p>

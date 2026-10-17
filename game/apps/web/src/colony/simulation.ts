@@ -7,6 +7,13 @@
 export type ModuleKind = 'solar' | 'greenhouse' | 'habitat' | 'recycler' | 'rover' | 'workshop' | 'battery'
 
 import { BEDS, PARAMETERS } from '../organism/parameters'
+import {
+  addPlot, advanceDay as unifiedAdvance, canHarvestBed as unifiedCanHarvest, exportKg, harvestBed as unifiedHarvest,
+  initialUnifiedBase, storedKg, type UnifiedBase,
+} from '../organism/unified'
+
+/** Storage limit of the base (kg of raw + processed food). Decision §32 / P1b: 120 kg. */
+export const COLONY_STORAGE_KG = 120
 export { PARAMETERS }
 
 export const CATALOG: Record<ModuleKind, { credits: number; wearDay: number; file: string; color: string }> = {
@@ -64,6 +71,8 @@ export interface ColonyState {
   foodShortfallKg: number
   deliveredKg: number
   lastDay: DayBudget | null
+  /** Single source of truth for food, beds and harvest (organism/unified.ts). The fields above are views of it. */
+  ledger: UnifiedBase
 }
 
 export interface DayBudget {
@@ -102,18 +111,38 @@ export function initialColony(): ColonyState {
     ['solar', 0], ['solar', 6], ['battery', 1], ['habitat', 4],
     ['greenhouse', 9], ['recycler', 15], ['workshop', 17], ['rover', 21],
   ]
-  return {
-    day: 0,
-    modules: starter.map(([kind, slot], i) => ({
-      id: `${kind}-${i + 1}`, kind, slot, condition: 100,
-      // Existing expedition crop. NEW greenhouses always start at zero.
-      growthDays: kind === 'greenhouse' ? 60 : 0,
-      beds: kind === 'greenhouse' ? greenhouseBeds(60) : undefined,
-    })),
-    crew: 4, credits: PARAMETERS.initialCredits, spentCredits: 0, earnedCredits: 0,
-    waterLitres: 800, nutrientsKg: 4, sparesKg: 8, foodKg: INITIAL_FOOD_KG, oxygenKg: PARAMETERS.oxygenStartKg, oxygenShortfallKg: 0,
+  const modules: ColonyModule[] = starter.map(([kind, slot], i) => ({
+    id: `${kind}-${i + 1}`, kind, slot, condition: 100,
+    // Existing expedition crop. NEW greenhouses always start at zero.
+    growthDays: kind === 'greenhouse' ? 60 : 0,
+    beds: kind === 'greenhouse' ? greenhouseBeds(60) : undefined,
+  }))
+  const ledger = initialUnifiedBase({
+    plots: modules.filter(m => m.kind === 'greenhouse').map(m => ({ id: m.id, tier: 0 as const, beds: [...(m.beds ?? [])] })),
+    crew: 4, storageCapKg: COLONY_STORAGE_KG, startKg: INITIAL_FOOD_KG,
+  })
+  return syncView({
+    day: 0, modules, crew: 4, credits: PARAMETERS.initialCredits, spentCredits: 0, earnedCredits: 0,
+    waterLitres: 800, nutrientsKg: 4, sparesKg: 8, foodKg: 0, oxygenKg: PARAMETERS.oxygenStartKg, oxygenShortfallKg: 0,
     batteryKwh: 80,
-    harvestedKg: 0, consumedFoodKg: 0, foodShortfallKg: 0, deliveredKg: 0, lastDay: null,
+    harvestedKg: 0, consumedFoodKg: 0, foodShortfallKg: 0, deliveredKg: 0, lastDay: null, ledger,
+  })
+}
+
+/** Recompute every view field from the ledger, so the UI and old tests read the same numbers as the ledger. */
+export function syncView(state: ColonyState): ColonyState {
+  const plotOf = new Map(state.ledger.plots.map(p => [p.id, p]))
+  const modules = state.modules.map(m => {
+    if (m.kind !== 'greenhouse') return m
+    const plot = plotOf.get(m.id)
+    if (!plot) return m
+    return { ...m, beds: [...plot.beds], growthDays: Math.max(0, plot.beds[0] ?? 0), bedsHarvestedKg: plot.harvestedKg }
+  })
+  const l = state.ledger
+  return {
+    ...state, modules,
+    foodKg: storedKg(l), harvestedKg: l.harvestedKg, consumedFoodKg: l.eatenKg,
+    foodShortfallKg: l.foodShortfallKg, deliveredKg: l.exportedKg,
   }
 }
 
@@ -177,35 +206,17 @@ export function bedSummary(m: ColonyModule): BedSummary {
 export const bedCycleKg = (): number => PARAMETERS.cropAreaM2 * PARAMETERS.cropKgM2Day * PARAMETERS.cropCycleDays / BEDS.perField
 
 /**
- * Manual harvest of one greenhouse bed (off-chain, behind VITE_COLONY_MANUAL_HARVEST; §31.12).
- * Allowed only inside the ripe window [80 %, 100 %) of the cycle. Yield = the bed's grown share of one bed cycle
- * (kg = bedCycleKg × progress), so collecting early gives less food than waiting for 100 %. The bed restarts
- * from 0 days. Pure: returns the same object when the action is not allowed.
+ * Manual harvest of one greenhouse bed (§31.12, flag VITE_COLONY_MANUAL_HARVEST). One rule for the whole base
+ * (organism/unified.ts): factor from harvestFactor (T2 30–80 %, window to 120 %), refused when storage is full.
  */
 export function canHarvestBed(state: ColonyState, moduleId: string, index: number): boolean {
-  const m = state.modules.find(x => x.id === moduleId)
-  if (!m || m.kind !== 'greenhouse' || !Number.isInteger(index) || index < 0 || index >= BEDS.perField) return false
-  const v = (m.beds ?? greenhouseBeds(m.growthDays))[index]
-  if (v === undefined || v < 0) return false
-  const progress = v / PARAMETERS.cropCycleDays
-  return progress >= BEDS.harvestWindowMinRatio && progress < 1
+  return unifiedCanHarvest(state.ledger, moduleId, index)
 }
 export function harvestBed(state: ColonyState, moduleId: string, index: number): ColonyState {
-  if (!canHarvestBed(state, moduleId, index)) return state
-  const m = state.modules.find(x => x.id === moduleId)!
-  const beds = [...(m.beds ?? greenhouseBeds(m.growthDays))]
-  const progress = beds[index] / PARAMETERS.cropCycleDays
-  const kg = bedCycleKg() * progress
-  beds[index] = 0
-  return {
-    ...state,
-    foodKg: state.foodKg + kg,
-    harvestedKg: state.harvestedKg + kg,
-    modules: state.modules.map(x => x.id === moduleId
-      ? { ...x, beds, growthDays: Math.max(0, beds[0]), bedsHarvestedKg: (x.bedsHarvestedKg ?? 0) + kg }
-      : x),
-  }
+  const ledger = unifiedHarvest(state.ledger, moduleId, index)
+  return ledger === state.ledger ? state : syncView({ ...state, ledger })
 }
+
 export const countModules = (s: ColonyState, kind: ModuleKind): number => s.modules.filter(m => m.kind === kind).length
 export const batteryCapacity = (s: ColonyState): number => countModules(s, 'battery') * PARAMETERS.batteryKwh
 export const foodDemand = (s: ColonyState): number => s.crew * PARAMETERS.freshFoodKgCrewDay
@@ -290,33 +301,20 @@ export function dailyBudget(state: ColonyState, scenario: Scenario = DEFAULT_SCE
 export function advanceDay(state: ColonyState, scenario: Scenario = DEFAULT_SCENARIO): ColonyState {
   const budget = dailyBudget(state, scenario)
   if (state.day >= PARAMETERS.maxDays) return state
-  let harvested = 0
-  const modules = state.modules.map(m => {
-    if (m.kind !== 'greenhouse') return { ...m, condition: Math.max(20, m.condition - CATALOG[m.kind].wearDay) }
-    // WP10: beds grow at the greenhouse rate; each completed bed is harvested (36 kg), staggered every 15 days.
-    const beds = m.beds ?? greenhouseBeds(m.growthDays)
-    const stepped = stepBeds(beds, budget.growthFraction * capacityFactor(m))
-    const kg = stepped.completed * bedCycleKg()
-    harvested += kg
-    return {
-      ...m, beds: stepped.beds, growthDays: Math.max(0, stepped.beds[0]),
-      bedsHarvestedKg: (m.bedsHarvestedKg ?? 0) + kg,
-      condition: Math.max(20, m.condition - CATALOG[m.kind].wearDay),
-    }
-  })
-  const availableFood = state.foodKg + harvested
-  const eaten = Math.min(availableFood, foodDemand(state))
-  return {
+  // Growth of each greenhouse = energy/water/light budget × its condition (the same limits as before).
+  const growthOf = (id: string): number => {
+    const m = state.modules.find(x => x.id === id)
+    return m ? budget.growthFraction * capacityFactor(m) : 0
+  }
+  const ledger = unifiedAdvance(state.ledger, growthOf)
+  const modules = state.modules.map(m => ({ ...m, condition: Math.max(20, m.condition - CATALOG[m.kind].wearDay) }))
+  return syncView({
     ...state, modules, day: state.day + 1, batteryKwh: budget.batteryEndKwh,
     oxygenKg: budget.oxygenEndKg, oxygenShortfallKg: state.oxygenShortfallKg + budget.oxygenShortfallKg,
     waterLitres: Math.max(0, state.waterLitres - budget.waterUsedLitres),
     nutrientsKg: Math.max(0, state.nutrientsKg - budget.nutrientsUsedKg),
-    foodKg: Math.max(0, availableFood - eaten),
-    harvestedKg: state.harvestedKg + harvested,
-    consumedFoodKg: state.consumedFoodKg + eaten,
-    foodShortfallKg: state.foodShortfallKg + foodDemand(state) - eaten,
-    lastDay: budget,
-  }
+    lastDay: budget, ledger,
+  })
 }
 
 export function advanceDays(state: ColonyState, days: number, scenario: Scenario = DEFAULT_SCENARIO): ColonyState {
@@ -335,11 +333,11 @@ export function buildModule(state: ColonyState, kind: ModuleKind): ColonyState {
   const used = new Set(state.modules.map(m => m.slot))
   const slot = SLOTS.findIndex((_, i) => !used.has(i))
   const cost = CATALOG[kind].credits
-  return { ...state, credits: state.credits - cost, spentCredits: state.spentCredits + cost,
-    sparesKg: state.sparesKg - 1,
-    modules: [...state.modules, { id: `${kind}-${state.modules.length + 1}`, kind, slot, condition: 100, growthDays: 0,
-      beds: kind === 'greenhouse' ? greenhouseBeds(0) : undefined }],
-  }
+  const id = `${kind}-${state.modules.length + 1}`
+  const module: ColonyModule = { id, kind, slot, condition: 100, growthDays: 0, beds: kind === 'greenhouse' ? greenhouseBeds(0) : undefined }
+  const ledger = kind === 'greenhouse' ? addPlot(state.ledger, { id, tier: 0, beds: greenhouseBeds(0), harvestedKg: 0 }) : state.ledger
+  return syncView({ ...state, credits: state.credits - cost, spentCredits: state.spentCredits + cost,
+    sparesKg: state.sparesKg - 1, modules: [...state.modules, module], ledger })
 }
 
 export function canRepair(state: ColonyState): boolean {
@@ -366,13 +364,12 @@ export function buySupplies(state: ColonyState): ColonyState {
 export function sellableKg(state: ColonyState): number {
   // A finite, pre-funded fictional buyer, not an oracle, emission or market forecast.
   if (countModules(state, 'rover') === 0) return 0
-  return Math.max(0, Math.min(10, state.foodKg - foodReserve(state), PARAMETERS.contractKg - state.deliveredKg))
+  return Math.max(0, Math.min(10, state.ledger.processedKg - foodReserve(state), PARAMETERS.contractKg - state.deliveredKg))
 }
 export function deliverFood(state: ColonyState): ColonyState {
   const amount = sellableKg(state)
   if (!amount) return state
   const revenue = amount * PARAMETERS.contractCreditsKg
-  return { ...state, foodKg: state.foodKg - amount, deliveredKg: state.deliveredKg + amount,
-    credits: state.credits + revenue, earnedCredits: state.earnedCredits + revenue,
-  }
+  return syncView({ ...state, ledger: exportKg(state.ledger, amount),
+    credits: state.credits + revenue, earnedCredits: state.earnedCredits + revenue })
 }

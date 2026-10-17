@@ -10,7 +10,7 @@ import { BEDS, PARAMETERS } from '../../apps/web/src/organism/parameters'
 const close = (actual: number, expected: number, tolerance = 1e-7): void =>
   assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`)
 const conserved = (b: UnifiedBase): void => close(unifiedBalance(b).residual, 0, 1e-6)
-const plot = (beds: number[], id = 'p1', tier: 0 | 1 | 2 = 0): UnifiedPlot => ({ id, tier, beds: [...beds] })
+const plot = (beds: number[], id = 'p1', tier: 0 | 1 | 2 = 0): UnifiedPlot => ({ id, tier, beds: [...beds], harvestedKg: 0 })
 const base = (over: Partial<Parameters<typeof initialUnifiedBase>[0]> = {}, beds = [60, 45, 30, 15, 0, -15]): UnifiedBase =>
   initialUnifiedBase({ plots: [plot(beds)], crew: 3, storageCapKg: 500, startKg: 20, ...over })
 

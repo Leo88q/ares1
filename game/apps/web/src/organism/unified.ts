@@ -33,6 +33,8 @@ export interface UnifiedPlot {
   tier: 0 | 1 | 2
   /** Days of growth per bed. Negative = not planted yet. Harvest resets a bed to 0. */
   beds: number[]
+  /** Cumulative kg harvested from this plot (both manual and automatic). */
+  harvestedKg: number
 }
 
 export interface UnifiedBase {
@@ -58,7 +60,7 @@ export interface UnifiedBase {
 }
 
 export interface UnifiedInit {
-  plots: UnifiedPlot[]
+  plots: Array<Omit<UnifiedPlot, 'harvestedKg'> & { harvestedKg?: number }>
   crew: number
   storageCapKg: number
   startKg: number
@@ -69,7 +71,7 @@ export function initialUnifiedBase(init: UnifiedInit): UnifiedBase {
   if (!(init.storageCapKg >= 0) || !(init.startKg >= 0) || !(init.crew >= 0)) throw new RangeError('invalid base parameters')
   return {
     day: 0,
-    plots: init.plots.map(p => ({ ...p, beds: [...p.beds] })),
+    plots: init.plots.map(p => ({ ...p, beds: [...p.beds], harvestedKg: p.harvestedKg ?? 0 })),
     crew: init.crew,
     storageCapKg: init.storageCapKg,
     rawKg: 0,
@@ -121,17 +123,22 @@ export function harvestBed(b: UnifiedBase, plotId: string, index: number): Unifi
   const kg = bedFullKg(plot.tier) * harvestFactor(plot.beds[index] / UNIFIED_CYCLE_DAYS)
   const beds = [...plot.beds]
   beds[index] = 0
-  const plots = b.plots.map((p, i) => (i === pi ? { ...p, beds } : p))
+  const plots = b.plots.map((p, i) => (i === pi ? { ...p, beds, harvestedKg: p.harvestedKg + kg } : p))
   return { ...b, plots, rawKg: b.rawKg + kg, harvestedKg: b.harvestedKg + kg }
 }
 
-/** Grow every planted bed by `growth` days. A bed at full cycle is harvested automatically if storage has room; otherwise it waits (no loss). */
-function growBeds(b: UnifiedBase, growth: number): UnifiedBase {
+/** Growth input per plot: a number for every plot, or a function of the plot id (energy and water limits). */
+export type GrowthInput = number | ((plotId: string) => number)
+
+/** Grow every planted bed by its plot's growth. A bed at full cycle is harvested automatically if storage has room; otherwise it waits (no loss). */
+function growBeds(b: UnifiedBase, growth: GrowthInput): UnifiedBase {
+  const growOf = (id: string): number => (typeof growth === 'number' ? growth : growth(id))
   let cur = b
-  cur = { ...cur, plots: cur.plots.map(p => ({ ...p, beds: p.beds.map(v => {
-    if (v < 0) return v + growth >= 0 ? 0 : v + growth
-    return v + growth
-  }) })) }
+  cur = { ...cur, plots: cur.plots.map(p => {
+    const g = growOf(p.id)
+    if (!(g >= 0)) throw new RangeError('growth must be ≥ 0')
+    return { ...p, beds: p.beds.map(v => (v < 0 ? (v + g >= 0 ? 0 : v + g) : v + g)) }
+  }) }
   // automatic harvest of ripe beds (value ≥ cycle), one bed at a time, while storage allows
   for (let pi = 0; pi < cur.plots.length; pi++) {
     for (let bi = 0; bi < BEDS.perField; bi++) {
@@ -144,7 +151,7 @@ function growBeds(b: UnifiedBase, growth: number): UnifiedBase {
       beds[bi] = v - UNIFIED_CYCLE_DAYS
       cur = {
         ...cur,
-        plots: cur.plots.map((p, i) => (i === pi ? { ...p, beds } : p)),
+        plots: cur.plots.map((p, i) => (i === pi ? { ...p, beds, harvestedKg: p.harvestedKg + kg } : p)),
         rawKg: cur.rawKg + kg,
         harvestedKg: cur.harvestedKg + kg,
       }
@@ -176,12 +183,17 @@ function feedCrew(b: UnifiedBase): UnifiedBase {
  * One day. `growth` is growth in days added to each planted bed (1 = a full day of growth).
  * Energy and water limits will set `growth` in P1b; P1 takes it as an input.
  */
-export function advanceDay(b: UnifiedBase, growth: number): UnifiedBase {
-  if (!(growth >= 0)) throw new RangeError('growth must be ≥ 0')
+export function advanceDay(b: UnifiedBase, growth: GrowthInput): UnifiedBase {
   let cur = growBeds({ ...b, day: b.day + 1 }, growth)
   cur = processDay(cur)
   cur = feedCrew(cur)
   return cur
+}
+
+/** Add a new plot (e.g. a newly built greenhouse). Its beds start as given; no kg are created. */
+export function addPlot(b: UnifiedBase, plot: UnifiedPlot): UnifiedBase {
+  if (b.plots.some(p => p.id === plot.id)) throw new RangeError(`duplicate plot ${plot.id}`)
+  return { ...b, plots: [...b.plots, { ...plot, beds: [...plot.beds], harvestedKg: plot.harvestedKg }] }
 }
 
 /** Export processed kg to a buyer. Only processed food leaves the base. */
