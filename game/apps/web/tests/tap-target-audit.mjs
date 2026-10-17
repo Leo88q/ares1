@@ -1,12 +1,17 @@
-// Phone touch-target audit (Solana Seeker class, 400×890 CSS px). Lists visible controls smaller than 44 px.
+// Phone touch-target audit (Solana Seeker class, 400×890 CSS px, DPR 3). Lists visible controls smaller than 44 px
+// and any horizontal overflow, per screen. §31 proposal item 7.
 // Usage: CHROMIUM_EXECUTABLE_PATH=/path/to/chrome ROUTES=/base,/market yarn workspace web exec node tests/tap-target-audit.mjs
-// Optional: AUDIT_BASE_URL (default http://127.0.0.1:4173), NO_WEBGL=1 (skip 3D routes such as /profile).
+// Optional: AUDIT_BASE_URL (default http://127.0.0.1:4173), NO_WEBGL=1 (no WebGL flags, 3D routes use their fallback),
+// SEEKER_DPR (default 3), SEEKER_SCREENSHOT_DIR (writes one PNG per route).
 // Requires a built and running preview (`yarn workspace web preview`). Never downloads a browser.
 import { chromium } from 'playwright-core'
 
 if (!process.env.CHROMIUM_EXECUTABLE_PATH) throw new Error('Set CHROMIUM_EXECUTABLE_PATH to an installed Chromium binary; this test never downloads a browser.')
 const base = (process.env.AUDIT_BASE_URL || 'http://127.0.0.1:4173').replace(/\/$/, '')
-const routes = (process.env.ROUTES || '/base,/market').split(',')
+const routes = (process.env.ROUTES || '/,/base,/market,/stats,/profile,/operation').split(',')
+const dpr = Number(process.env.SEEKER_DPR || 3)
+const shotDir = process.env.SEEKER_SCREENSHOT_DIR
+if (shotDir) (await import('node:fs')).mkdirSync(shotDir, { recursive: true })
 const noWebgl = process.env.NO_WEBGL === '1'
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
@@ -14,7 +19,7 @@ const browser = await chromium.launch({
     : ['--no-sandbox', ...(noWebgl ? ['--disable-webgl', '--disable-3d-apis'] : ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'])],
   headless: true,
 })
-const ctx = await browser.newContext({ viewport: { width: 400, height: 890 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+const ctx = await browser.newContext({ viewport: { width: 400, height: 890 }, deviceScaleFactor: dpr, isMobile: true, hasTouch: true })
 const page = await ctx.newPage()
 const errors = []
 page.on('pageerror', e => errors.push(String(e.message).slice(0, 160)))
@@ -50,11 +55,14 @@ for (const r of routes) {
     }
     return { total, small: [...new Set(small)] }
   })
-  console.log(r, JSON.stringify({ total: audit.total, small: audit.small.length }))
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)
+  console.log(r, JSON.stringify({ total: audit.total, small: audit.small.length, overflow }))
   for (const s of audit.small) console.log('   ', s)
-  failures += audit.small.length
+  if (overflow) console.log('    horizontal overflow')
+  if (shotDir) await page.screenshot({ path: `${shotDir}/${r.replace(/\//g, '_') || 'root'}.png` })
+  failures += audit.small.length + (overflow ? 1 : 0)
 }
 console.log('errors', JSON.stringify(errors))
 await browser.close()
 if (failures > 0 || errors.length > 0) { console.error(`FAIL: ${failures} small targets, ${errors.length} page errors`); process.exit(1) }
-console.log('PASS: every visible control is at least 44 px on the audited routes')
+console.log(`PASS: every visible control is at least 44 px and no horizontal overflow on ${routes.length} routes at ${dpr}x`)

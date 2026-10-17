@@ -98,6 +98,7 @@ export default function Phase1Notice() {
       )}
       <a
         href={`${LANDING_URL}/#presale`}
+        className="phase1-link"
         target="_blank"
         rel="noopener noreferrer"
         style={{ color: '#F5BE72', textDecoration: 'underline', alignSelf: 'flex-start' }}

@@ -253,13 +253,13 @@ export default function OperationScreen(): JSX.Element {
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-        <Link to="/" className="mk-key mk-key--paint" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11 }}>
+        <Link to="/" className="mk-key mk-key--paint op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11 }}>
           {t('В ТЕПЛИЦУ')} <ArrowRight size={14} aria-hidden="true" />
         </Link>
-        <Link to="/market" className="mk-key" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11 }}>
+        <Link to="/market" className="mk-key op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11 }}>
           {t('К РЫНКУ')} <ArrowRight size={14} aria-hidden="true" />
         </Link>
-        {!connected && <Link to="/demo" className="mk-key" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11 }}>{t('ОТКРЫТЬ ДЕМО')}</Link>}
+        {!connected && <Link to="/demo" className="mk-key op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11 }}>{t('ОТКРЫТЬ ДЕМО')}</Link>}
       </div>
 
       {!ready && <div style={{ marginTop: 12, color: 'var(--pf-text-muted)', fontSize: 11 }}>{t('Ожидаем ответ Solana RPC…')}</div>}
