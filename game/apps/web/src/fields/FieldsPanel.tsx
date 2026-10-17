@@ -10,10 +10,13 @@ import { engineeringCopy } from './engineering/copy'
 import { LAB, cropStage, engineeringAction, initialEngineering } from './engineering/engine'
 import type { EngineeringAction, EngineeringState } from './engineering/engine'
 import { engineeringPresentation } from './engineering/presentation'
+import { slotsReady } from '../slots/config'
 import './fields.css'
 import './art-direction.css'
 
 const FieldsViewport = lazy(() => import('./FieldsViewport'))
+// Слоты грядок (S7): грузятся только при полной конфигурации VITE_SLOTS_ENABLED (см. slots/config.ts).
+const SlotsPanel = lazy(() => import('../slots/SlotsPanel'))
 
 // A failed lazy scene chunk must not hide the account inspector/actions.
 class ViewportBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
@@ -133,6 +136,7 @@ export default function FieldsPanel({ fields, language, renderInspector, renderC
           <div className="mf-inspector" aria-label={c.selectedLabel} data-selected-id={selected.id}>
             {layer === 'engineering' && selectedLab ? <EngineeringConsole state={selectedLab} language={language} onAction={action => act(selected, action)} onReset={() => resetLab(selected)} /> : renderInspector(selected)}
           </div>
+          {!demo && layer === 'chain' && slotsReady() && <Suspense fallback={null}><SlotsPanel fieldId={selected.id} /></Suspense>}
         </div>
       </> : <p className="mf-empty">{c.noFields}</p>}
       <footer className="mf-footer"><p>{layer === 'engineering' && mode === '3d' ? ec.sourceNote : c.note}</p><span>{c.source}</span><a href="/models/fields/manifest.json" target="_blank" rel="noopener noreferrer">{c.credits} ↗</a></footer>

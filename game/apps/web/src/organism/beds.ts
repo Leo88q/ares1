@@ -53,7 +53,8 @@ export function bedCycleKg(fieldCycleKg: number, beds: number = BEDS.perField): 
 
 /**
  * Harvest factor by maturity ratio r = age / maturityAge.
- *  r < 0.8            → 0 (not allowed yet)
+ *  r < 0.3            → 0 (not allowed yet)
+ *  0.3 ≤ r < 0.8      → early harvest, 0.5 × r / 0.8 (T2, H: a small harvest for an early pick)
  *  0.8 ≤ r < 1.0      → ramp 0.5 → 1.0 (H)
  *  1.0 ≤ r ≤ 1.2      → ramp 1.0 → 0.5 (H, late harvest loses quality)
  *  r > 1.2            → 0 (window closed; spoiled)
@@ -61,7 +62,8 @@ export function bedCycleKg(fieldCycleKg: number, beds: number = BEDS.perField): 
 export function harvestFactor(ratio: number): number {
   if (!Number.isFinite(ratio) || ratio < 0) throw new RangeError('ratio must be a finite number ≥ 0')
   const lo = BEDS.harvestWindowMinRatio, hi = BEDS.harvestWindowMaxRatio
-  if (ratio < lo || ratio > hi) return 0
+  if (ratio > hi || ratio < BEDS.earlyHarvestMinRatio) return 0
+  if (ratio < lo) return BEDS.earlyHarvestFactorAt80 * ratio / lo
   if (ratio < 1) return 0.5 + 0.5 * ((ratio - lo) / (1 - lo))
   return 1 - 0.5 * ((ratio - 1) / (hi - 1))
 }

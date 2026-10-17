@@ -11,6 +11,8 @@ const origin = new URL(base).origin
 const csp = readFileSync(new URL('../public/_headers', import.meta.url), 'utf8').match(/^\s+Content-Security-Policy: (.+)$/m)?.[1]
 assert.ok(csp)
 const screenshots = process.env.ENGINEERING_SCREENSHOT_DIR
+// NO_WEBGL=1: every field view opens in its 2D fallback (sandboxes without WebGL). CI runs the full 3D suite.
+const noWebgl = process.env.NO_WEBGL === '1'
 if (screenshots) mkdirSync(screenshots, { recursive: true })
 const fixture = await mainFixture()
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH, args: process.env.CHROMIUM_ARGS_JSON ? JSON.parse(process.env.CHROMIUM_ARGS_JSON) : ['--no-sandbox'], headless: true })
@@ -40,7 +42,8 @@ async function open(width, { realMain = false, fallback = false, failModel = fal
   page.on('pageerror', error => errors.push(error.message))
   page.on('console', message => {
     if (message.type() !== 'error') return
-    if (fallback && /Error creating WebGL context/.test(message.text())) return
+    if (noWebgl && /WebGL/.test(message.text())) return // NO_WEBGL: the missing GPU context is the expected condition
+    if (fallback && /WebGL context could not be created|Error creating WebGL context/.test(message.text())) return
     if (failModel && /\/models\/fields\//.test(message.location().url)) return
     errors.push(message.text())
   })
@@ -65,7 +68,7 @@ async function open(width, { realMain = false, fallback = false, failModel = fal
   return { page, context }
 }
 try {
-  const { page, context } = await open(1440)
+  const { page, context } = await open(1440, { fallback: noWebgl })
   assert.equal(await time(page), 0)
   assert.equal(await page.locator('.mf-stage-art').evaluate(image => image.complete && image.naturalWidth > 1000), true)
   assert.ok(await page.locator('.mf-resource-icon').count() >= 8)
@@ -162,7 +165,7 @@ try {
   console.log('PASS engineering: crop/food/resource regressions plus thermal inertia, climate off/loss, target clamp/no instant heating, per-field priorities, Celsius chart, cold scenario')
 
   for (const width of [390, 320]) {
-    const { page, context } = await open(width)
+    const { page, context } = await open(width, { fallback: noWebgl })
     await page.locator('.mf-field-picker button').last().click()
     await actionButton(page, '+7 солов')
     await actionButton(page, 'Остекление')
@@ -185,7 +188,7 @@ try {
   }
   console.log('PASS 390/320px and no WebGL/model 503: resource controls and inventory remain usable')
 
-  const real = await open(390, { realMain: true })
+  const real = await open(390, { realMain: true, fallback: noWebgl })
   const keys = await real.page.evaluate(() => window.__fieldKeys)
   await real.page.locator('.mf-field-picker button').nth(1).click()
   assert.equal(await real.page.getByTestId('engineering-console').getAttribute('data-field-id'), keys[1])

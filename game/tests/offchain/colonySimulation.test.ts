@@ -1,12 +1,28 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, advanceDays, batteryCapacity, bedCycleKg, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, greenhouseBeds, INITIAL_FOOD_KG, initialColony, PARAMETERS as P, repairColony, sellableKg, SLOTS, stepBeds } from '../../apps/web/src/colony/simulation'
+import { harvestFactor } from '../../apps/web/src/organism/beds'
+import { advanceDay, advanceDays, batteryCapacity, bedCycleKg, canHarvestBed, harvestBed, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, greenhouseBeds, INITIAL_FOOD_KG, initialColony, PARAMETERS as P, repairColony, sellableKg, SLOTS, stepBeds, bedSummary } from '../../apps/web/src/colony/simulation'
 import type { ColonyState } from '../../apps/web/src/colony/simulation'
+import { syncView } from '../../apps/web/src/colony/simulation'
 
 const close = (actual: number, expected: number, tolerance = 1e-7): void => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`)
+/** Ledger identity (P1b): start + harvested = raw + processed + eaten + exported + crafted + processing loss. */
+/** Storage room for bed-logic tests: the starting 120 kg fills the 120 kg store, and a full store refuses harvest (P1 rule). */
+const withRoom = (s: ColonyState): ColonyState => syncView({ ...s, ledger: { ...s.ledger, storageCapKg: 1000 } })
+
+/** Puts bed timers into the ledger (the single source of truth), then re-derives the view. */
+const withBeds = (s: ColonyState, moduleId: string, beds: number[]): ColonyState => syncView({
+  ...s,
+  ledger: { ...s.ledger, plots: s.ledger.plots.map(p => p.id === moduleId ? { ...p, beds } : p) },
+})
+
 const checkAccounting = (s: ColonyState): void => {
   close(s.credits, P.initialCredits + s.earnedCredits - s.spentCredits)
-  close(s.foodKg, INITIAL_FOOD_KG + s.harvestedKg - s.consumedFoodKg - s.deliveredKg)
+  const l = s.ledger
+  close(s.foodKg, l.rawKg + l.processedKg)
+  close(l.startKg + l.harvestedKg, l.rawKg + l.processedKg + l.eatenKg + l.exportedKg + l.craftedKg + l.processingLossKg)
+  close(s.consumedFoodKg, l.eatenKg)
+  close(s.deliveredKg, l.exportedKg)
   assert.ok(s.deliveredKg <= P.contractKg)
   close(s.earnedCredits, s.deliveredKg * P.contractCreditsKg)
 }
@@ -55,13 +71,44 @@ test('colony: each greenhouse bed is harvested once per 90-day cycle, staggered 
   }
   assert.deepEqual(starterDays, [30, 45, 60, 75, 90, 105])
   // one day in the simulation: a bed completing at day 90 gives exactly one bed, not the whole greenhouse
-  const s = initialColony()
-  s.modules = s.modules.map(m => m.kind === 'greenhouse' ? { ...m, growthDays: 89, beds: [89, 74, 59, 44, 29, 14] } : m)
+  let s = initialColony()
+  s = withBeds(withRoom(s), s.modules.find(m => m.kind === 'greenhouse')!.id, [89, 74, 59, 44, 29, 14])
   const next = advanceDay(s)
   close(next.harvestedKg, 36)
-  close(next.foodKg, s.foodKg + 36 - foodDemand(s))
+  // food = start + harvest − eaten − processing loss of that day (P1b: 15 % loss on processing)
+  close(next.foodKg, s.foodKg + 36 - foodDemand(s) - (next.ledger.processingLossKg - s.ledger.processingLossKg))
   close(next.modules.find(m => m.kind === 'greenhouse')!.growthDays, 0)
   assert.deepEqual(next.modules.find(m => m.kind === 'greenhouse')!.beds!.map(v => Math.round(v)), [0, 75, 60, 45, 30, 15])
+  checkAccounting(next)
+})
+
+test('colony: bed summary counts planted, ripe (≥ 80 % of cycle) and collected kg per greenhouse (§31)', () => {
+  const starter = initialColony().modules.find(m => m.kind === 'greenhouse')!
+  // starter: beds at 60, 45, 30, 15, 0 days (planted) and −15 (waiting to plant); none ≥ 72 days yet
+  const a = bedSummary(starter)
+  assert.equal(a.planted, 5)
+  assert.equal(a.ripe, 0)
+  assert.equal(a.total, 6)
+  assert.deepEqual(a.beds.map(b => b.state), ['growing', 'growing', 'growing', 'growing', 'growing', 'waiting'])
+  close(a.collectedKg, 0)
+  // one bed in the ripe window (80 days ≥ 72), one planted early, four waiting
+  const b = bedSummary({ ...starter, beds: [80, 50, -5, -20, -30, -40] })
+  assert.equal(b.planted, 2)
+  assert.equal(b.ripe, 1)
+  assert.equal(b.beds[0].state, 'ripe')
+  close(b.beds[0].progress, 80 / 90)
+  // collected kg accumulate in the simulation: a bed completing at day 90 adds 36 kg to that greenhouse
+  let s = initialColony()
+  s = withBeds(withRoom(s), s.modules.find(m => m.kind === 'greenhouse')!.id, [89, 74, 59, 44, 29, 14])
+  const next = advanceDay(s)
+  const gh = next.modules.find(m => m.kind === 'greenhouse')!
+  close(gh.bedsHarvestedKg!, 36)
+  close(bedSummary(gh).collectedKg, 36)
+  close(bedSummary(gh).planted, 6)
+  // legacy save without beds: derived from growthDays (lead bed 60 → same as the starter)
+  const legacy = bedSummary({ ...starter, beds: undefined, growthDays: 60 })
+  assert.equal(legacy.planted, 5)
+  assert.equal(legacy.ripe, 0)
   checkAccounting(next)
 })
 
@@ -174,10 +221,10 @@ test('colony: servicing and resupply require real game budget and stock', () => 
 })
 
 test('colony: deliveries preserve reserve and exhaust a funded order, not unlimited demand', () => {
-  // day 60: the first 36 kg bed (day 30) and the second (day 45) are in; the surplus above reserve is what can be sold
+  // day 60: the first 36 kg bed (day 30) and the second (day 45) are in; only PROCESSED food above reserve can be sold
   let s = advanceDays(initialColony(), 60)
   assert.ok(s.harvestedKg > 0)
-  const surplus = s.foodKg - foodReserve(s)
+  const surplus = s.ledger.processedKg - foodReserve(s)
   assert.ok(surplus > 0)
   for (let i = 0; i < 20; i++) s = deliverFood(s)
   // sold = min(surplus, funded contract); a single delivery is capped at 10 kg, so 20 calls exhaust either limit
@@ -190,7 +237,8 @@ test('colony: deliveries preserve reserve and exhaust a funded order, not unlimi
   checkAccounting(s)
   const noRover = { ...initialColony(), modules: initialColony().modules.filter(m => m.kind !== 'rover') }
   assert.equal(sellableKg(noRover), 0)
-  const reserveOnly = { ...initialColony(), foodKg: foodReserve(initialColony()) }
+  const base0 = initialColony()
+  const reserveOnly = syncView({ ...base0, ledger: { ...base0.ledger, rawKg: 0, processedKg: foodReserve(base0) } })
   assert.equal(sellableKg(reserveOnly), 0)
 })
 
@@ -204,7 +252,7 @@ test('colony: 365-day sweeps stay finite, nonnegative, bounded and reconciled', 
       close(before.nutrientsKg - s.nutrientsKg, s.lastDay!.nutrientsUsedKg)
       close(s.consumedFoodKg + s.foodShortfallKg, s.day * foodDemand(s))
       for (const value of [s.credits, s.foodKg, s.waterLitres, s.nutrientsKg, s.batteryKwh, s.harvestedKg]) assert.ok(Number.isFinite(value) && value >= 0)
-      assert.ok(s.modules.every(m => m.condition >= 20 && m.condition <= 100 && m.growthDays >= 0 && m.growthDays < 90))
+      assert.ok(s.modules.every(m => m.condition >= 20 && m.condition <= 100 && m.growthDays >= 0 && m.growthDays <= 90))
       checkAccounting(s)
     }
     assert.equal(advanceDay(s), s)
@@ -217,3 +265,49 @@ test('colony: invalid scenarios and unbounded stepping fail closed', () => {
   for (const waterRecovery of [NaN, Infinity, -1, 0.99]) assert.throws(() => dailyBudget(s, { sunHours: 18, waterRecovery }), RangeError)
   for (const days of [NaN, Infinity, -1, 0.5, 366]) assert.throws(() => advanceDays(s, days), RangeError)
 })
+
+test('colony: manual harvest (§31.12, unified T2 rule) window 30–120 %, factor from harvestFactor, bed restarts at 0', () => {
+  const base = initialColony()
+  const gh = base.modules.find(m => m.kind === 'greenhouse')!
+  // beds: 80 days (ratio 0.89), 70 (early, reduced factor), 90 (100 %), 30 (33 %, floor), 15 (below 30 %, refused), -15 (waiting)
+  const s = withBeds(withRoom(base), gh.id, [80, 70, 90, 30, 15, -15])
+  assert.equal(canHarvestBed(s, gh.id, 0), true)
+  assert.equal(canHarvestBed(s, gh.id, 1), true)
+  assert.equal(canHarvestBed(s, gh.id, 2), true)
+  assert.equal(canHarvestBed(s, gh.id, 3), true)
+  assert.equal(canHarvestBed(s, gh.id, 4), false)
+  assert.equal(canHarvestBed(s, gh.id, 5), false)
+  assert.equal(canHarvestBed(s, gh.id, 6), false)
+  assert.equal(canHarvestBed(s, gh.id, -1), false)
+  assert.equal(canHarvestBed(s, 'missing', 0), false)
+  // refused action returns the same object (no silent change)
+  assert.equal(harvestBed(s, gh.id, 4), s)
+  const after = harvestBed(s, gh.id, 0)
+  const kg = bedCycleKg() * harvestFactor(80 / 90)
+  const m2 = after.modules.find(m => m.id === gh.id)!
+  assert.deepEqual(m2.beds, [0, 70, 90, 30, 15, -15])
+  close(after.foodKg - s.foodKg, kg)
+  close(after.harvestedKg - s.harvestedKg, kg)
+  close(m2.bedsHarvestedKg! - (gh.bedsHarvestedKg ?? 0), kg)
+  // an early harvest yields less than a full cycle (the trade-off is explicit)
+  assert.ok(kg < bedCycleKg())
+  checkAccounting(after)
+  // the harvested bed is growing again and is not harvested twice
+  assert.equal(canHarvestBed(after, gh.id, 0), false)
+  const next = advanceDay(after)
+  const bedsNext = next.modules.find(m => m.id === gh.id)!.beds!
+  assert.ok(bedsNext[0] > 0 && bedsNext[0] < 2, `bed restarted from 0, got ${bedsNext[0]}`)
+  checkAccounting(next)
+})
+
+test('colony: manual harvest refuses non-greenhouse modules and beds past the 120 % window', () => {
+  const base = initialColony()
+  const rover = base.modules.find(m => m.kind !== 'greenhouse')
+  if (rover) assert.equal(canHarvestBed(base, rover.id, 0), false)
+  const gh = base.modules.find(m => m.kind === 'greenhouse')!
+  const late = withBeds(withRoom(base), gh.id, [109, 108, 0, 0, 0, -15])
+  assert.equal(canHarvestBed(late, gh.id, 0), false)
+  assert.equal(canHarvestBed(late, gh.id, 1), true)
+  assert.equal(harvestBed(late, gh.id, 0), late)
+})
+

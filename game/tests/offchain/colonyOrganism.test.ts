@@ -1,6 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, DEFAULT_SCENARIO, initialColony } from '../../apps/web/src/colony/simulation'
+import { advanceDay, DEFAULT_SCENARIO, initialColony, syncView } from '../../apps/web/src/colony/simulation'
+
+/** Food is set in the ledger (single source of truth), then the view is re-derived. */
+const withFood = (s: ColonyState, kg: number): ColonyState => syncView({ ...s, ledger: { ...s.ledger, rawKg: 0, processedKg: kg } })
 import type { ColonyState } from '../../apps/web/src/colony/simulation'
 import { LOW_BATTERY, powerVisualState } from '../../apps/web/src/colony/organism'
 
@@ -95,7 +98,7 @@ test('colony organism: oxygen shortfall turns habitat and recycler red, others f
 
 test('colony organism: cargo stage follows food and spares fill', () => {
   const base = advanceDay(initialColony(), DEFAULT_SCENARIO)
-  const empty = colonyVisualState({ ...base, foodKg: 0, sparesKg: 0 }, DEFAULT_SCENARIO.sunHours)
+  const empty = colonyVisualState({ ...withFood(base, 0), sparesKg: 0 }, DEFAULT_SCENARIO.sunHours)
   const half = colonyVisualState({ ...base, foodKg: CARGO_CAPACITY_KG / 2, sparesKg: 0 }, DEFAULT_SCENARIO.sunHours)
   const full = colonyVisualState({ ...base, foodKg: CARGO_CAPACITY_KG * 2, sparesKg: 0 }, DEFAULT_SCENARIO.sunHours)
   assert.equal(empty.cargoStage, 0)
@@ -122,7 +125,7 @@ test('colony organism: crew and rover flags follow the snapshot', () => {
 test('colony organism: truck runs only with a rover and food available under the contract', () => {
   const base = advanceDay(initialColony(), DEFAULT_SCENARIO)
   assert.equal(colonyVisualState(base, DEFAULT_SCENARIO.sunHours).truckActive, true)
-  assert.equal(colonyVisualState({ ...base, foodKg: 0 }, DEFAULT_SCENARIO.sunHours).truckActive, false)
+  assert.equal(colonyVisualState(withFood(base, 0), DEFAULT_SCENARIO.sunHours).truckActive, false)
   const noRover = { ...base, modules: base.modules.filter(m => m.kind !== 'rover') }
   assert.equal(colonyVisualState(noRover, DEFAULT_SCENARIO.sunHours).truckActive, false)
   const done = { ...base, deliveredKg: 60 }

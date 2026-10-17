@@ -116,4 +116,16 @@ export const BEDS = Object.freeze({
   perField: 6,                            // M1: K = 6 beds, staggered
   harvestWindowMinRatio: 0.8,             // M2: 80 %…
   harvestWindowMaxRatio: 1.2,             // …120 % of maturity age
+  earlyHarvestMinRatio: 0.3,              // T2 (approved, H): early harvest from 30 % maturity…
+  earlyHarvestFactorAt80: 0.5,            // …with factor 0.5 × r / 0.8, i.e. 0.5 at the 80 % window start
+})
+
+// --- Market as entry and whale growth (docs/ORGANISM_INTEGRATION.md §14.6, §15 M3–M4, WP13/WP14) ---
+// Approved by the owner: E-A (market only) + E-C (micro-field), K-A (growing N-th field price) + K-C (colony pads).
+// Numbers are hypotheses (H) from §14.6: they are checked by tests/offchain/marketEntry.test.ts, not validated.
+export const MARKET = Object.freeze({
+  microFieldPriceMicro: 25_000_000,       // E-C: micro-field costs 25 POTATO (H)
+  microFieldScale: 0.25,                  // E-C: micro-field yield and tax scale with price (25 / 100), so payback matches Common (H)
+  priceGrowthPerField: 0.05,              // K-A: field N costs base × (1 + α·N), N = fields the wallet already owns (α = 0.05, H)
+  colonyLinkedFieldCap: 24,               // K-C: colony-linked fields ≤ colony pads (SLOTS.length in colony/simulation.ts)
 })

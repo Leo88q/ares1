@@ -1,0 +1,11 @@
+.sl-panel { margin-top: 12px; padding: 12px; border: 1px solid currentColor; border-radius: 6px; font-size: 13px; }
+.sl-title { margin: 0 0 6px; font-size: 14px; }
+.sl-note { margin: 4px 0; opacity: 0.85; }
+.sl-grid { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.sl-item { display: grid; gap: 4px; padding: 8px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 4px; }
+.sl-slot { font-weight: 600; }
+.sl-price, .sl-own { font-size: 12px; opacity: 0.85; }
+.sl-btn { min-height: 44px; padding: 8px 10px; cursor: pointer; }
+.sl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.sl-ok { color: #9be39b; }
+.sl-error { color: #F5A190; }

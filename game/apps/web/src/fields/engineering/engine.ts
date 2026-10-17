@@ -240,7 +240,7 @@ function tick(state: EngineeringState, dt: number): void {
   else if (living && temperatureFactor < 0.75) bottleneck = 'temperature'
   else if (scheduled && lightFraction < 0.5) bottleneck = 'power'
   else if (nutrientFraction < 0.5) bottleneck = 'nutrients'
-  else if (maturityRatio(state) >= BEDS.harvestWindowMinRatio && !canHarvest(state)) bottleneck = 'storage'
+  else if (maturityRatio(state) >= BEDS.earlyHarvestMinRatio && !canHarvest(state)) bottleneck = 'storage'
   state.last = { hour: state.hour, battery: clamp(state.batteryKwh / (LAB.batteryCapacityKwh * scale)), water: clamp(state.tankL / (LAB.tankCapacityL * scale)), growth: state.crop.progress, health: state.crop.health, solarKw: solar / dt, servedKw: served / dt, light: lightFraction, irrigation, cold: coldFraction, temperatureC: state.temperatureC, outsideC, targetC: state.controls.targetC, temperatureFactor, climateMode, climateKw: climateKw * climateFraction, climateFraction, bottleneck }
 }
 
