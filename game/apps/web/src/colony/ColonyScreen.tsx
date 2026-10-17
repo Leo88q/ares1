@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight, BatteryMedium, Box, Check, ChevronRight, CircleH
 import { useI18n } from '../i18n'
 import { colonyCopy, moduleCopy } from './copy'
 import { COLONY_MANUAL_HARVEST_ENABLED } from '../utils/colonyFeature'
-import { advanceDays, batteryCapacity, bedSummary, canHarvestBed, harvestBed, buildModule, buySupplies, CATALOG, canBuild, canRepair, countModules, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, initialColony, MODULE_KINDS, PARAMETERS, repairColony, sellableKg, SLOTS } from './simulation'
+import { advanceDays, batteryCapacity, bedCycleKg, bedSummary, canHarvestBed, harvestBed, buildModule, buySupplies, CATALOG, canBuild, canRepair, countModules, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, initialColony, MODULE_KINDS, PARAMETERS, repairColony, sellableKg, SLOTS } from './simulation'
 import type { BedState, ColonyModule, ColonyState, DayBudget, ModuleKind, Scenario } from './simulation'
 import provenance from '../../public/models/colony/manifest.json'
 import ResourceIcon from '../fields/ResourceIcon'
@@ -145,7 +145,7 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
                   {selected.kind === 'greenhouse' && <>
                     <div className="colony-inspector-metric"><span>{c.growth}</span><b data-testid="crop-days">{number(selected.growthDays, 1)} / 90</b></div>
                     <div className="colony-meter"><span style={{ width: `${selected.growthDays / 90 * 100}%`, background: '#91cba2' }} /></div>
-                    <BedPanel mod={selected} language={lang} manualHarvest={COLONY_MANUAL_HARVEST_ENABLED && selected ? {
+                    <BedPanel mod={selected} language={lang} storageFull={state.ledger.storageCapKg - state.ledger.rawKg - state.ledger.processedKg < bedCycleKg()} manualHarvest={COLONY_MANUAL_HARVEST_ENABLED && selected ? {
                       canHarvest: i => canHarvestBed(state, selected.id, i),
                       onHarvest: i => setState(s => harvestBed(s, selected.id, i)),
                     } : undefined} />
@@ -171,7 +171,7 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
   )
 }
 
-function BedPanel({ mod, language, manualHarvest }: { mod: ColonyModule; language: string; manualHarvest?: { canHarvest: (index: number) => boolean; onHarvest: (index: number) => void } }): JSX.Element {
+function BedPanel({ mod, language, storageFull, manualHarvest }: { mod: ColonyModule; language: string; storageFull: boolean; manualHarvest?: { canHarvest: (index: number) => boolean; onHarvest: (index: number) => void } }): JSX.Element {
   const c = colonyCopy(language)
   const summary = bedSummary(mod)
   const label: Record<BedState, string> = { waiting: c.bedWaiting, growing: c.bedGrowing, ripe: manualHarvest ? c.bedRipeManual : c.bedRipe }
@@ -189,6 +189,7 @@ function BedPanel({ mod, language, manualHarvest }: { mod: ColonyModule; languag
         {manualHarvest && manualHarvest.canHarvest(index) && <button type="button" className="colony-button colony-bed-harvest" onClick={() => manualHarvest.onHarvest(index)}>{c.bedHarvest}</button>}
       </li>)}
     </ol>
+    {storageFull && summary.ripe > 0 && <p className="colony-fineprint" data-testid="bed-storage-full">{c.bedStorageFull}</p>}
     <p className="colony-fineprint">{manualHarvest ? c.bedsNoteManual : c.bedsNote}</p>
   </section>
 }
