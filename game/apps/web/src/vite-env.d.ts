@@ -7,6 +7,7 @@ interface ImportMetaEnv {
  readonly VITE_BACKEND_URL?: string
  /** Must remain false until the V2 program is deployed to the configured cluster and tier limits are approved. */
  readonly VITE_MARKET_V2_ENABLED?: 'true' | 'false'
+ readonly VITE_COLONY_MANUAL_HARVEST?: 'true' | 'false'
 }
 
 interface ImportMeta {

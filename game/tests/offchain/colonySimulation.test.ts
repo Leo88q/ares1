@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, advanceDays, batteryCapacity, bedCycleKg, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, greenhouseBeds, INITIAL_FOOD_KG, initialColony, PARAMETERS as P, repairColony, sellableKg, SLOTS, stepBeds, bedSummary } from '../../apps/web/src/colony/simulation'
+import { advanceDay, advanceDays, batteryCapacity, bedCycleKg, canHarvestBed, harvestBed, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, greenhouseBeds, INITIAL_FOOD_KG, initialColony, PARAMETERS as P, repairColony, sellableKg, SLOTS, stepBeds, bedSummary } from '../../apps/web/src/colony/simulation'
 import type { ColonyState } from '../../apps/web/src/colony/simulation'
 
 const close = (actual: number, expected: number, tolerance = 1e-7): void => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`)
@@ -247,3 +247,49 @@ test('colony: invalid scenarios and unbounded stepping fail closed', () => {
   for (const waterRecovery of [NaN, Infinity, -1, 0.99]) assert.throws(() => dailyBudget(s, { sunHours: 18, waterRecovery }), RangeError)
   for (const days of [NaN, Infinity, -1, 0.5, 366]) assert.throws(() => advanceDays(s, days), RangeError)
 })
+
+test('colony: manual harvest (§31.12) only in the ripe window 80–100 %, yield = grown share, bed restarts at 0', () => {
+  const base = initialColony()
+  const gh = base.modules.find(m => m.kind === 'greenhouse')!
+  // bed 0 at 80 days (ripe), bed 1 at 70 (growing), bed 5 waiting, bed 2 at 90 (100 %: automatic only)
+  const s: ColonyState = { ...base, modules: base.modules.map(m => m.id === gh.id ? { ...m, growthDays: 80, beds: [80, 70, 90, 30, 15, -15] } : m) }
+  assert.equal(canHarvestBed(s, gh.id, 0), true)
+  assert.equal(canHarvestBed(s, gh.id, 1), false)
+  assert.equal(canHarvestBed(s, gh.id, 2), false)
+  assert.equal(canHarvestBed(s, gh.id, 5), false)
+  assert.equal(canHarvestBed(s, gh.id, 6), false)
+  assert.equal(canHarvestBed(s, gh.id, -1), false)
+  assert.equal(canHarvestBed(s, 'missing', 0), false)
+  // refused action returns the same object (no silent change)
+  assert.equal(harvestBed(s, gh.id, 1), s)
+  const after = harvestBed(s, gh.id, 0)
+  const kg = bedCycleKg() * 80 / 90
+  const m2 = after.modules.find(m => m.id === gh.id)!
+  assert.deepEqual(m2.beds, [0, 70, 90, 30, 15, -15])
+  close(after.foodKg - s.foodKg, kg)
+  close(after.harvestedKg - s.harvestedKg, kg)
+  close(m2.bedsHarvestedKg! - (gh.bedsHarvestedKg ?? 0), kg)
+  assert.equal(m2.growthDays, 0)
+  // an early harvest yields less than a full cycle (the trade-off is explicit)
+  assert.ok(kg < bedCycleKg())
+  checkAccounting(after)
+  // the harvested bed is growing again and is not harvested twice
+  assert.equal(canHarvestBed(after, gh.id, 0), false)
+  const next = advanceDay(after)
+  const bedsNext = next.modules.find(m => m.id === gh.id)!.beds!
+  assert.ok(bedsNext[0] > 0 && bedsNext[0] < 2, `bed restarted from 0, got ${bedsNext[0]}`)
+  checkAccounting(next)
+})
+
+test('colony: manual harvest refuses non-greenhouse modules and bed 100 % (automatic harvest owns it)', () => {
+  const base = initialColony()
+  const rover = base.modules.find(m => m.kind !== 'greenhouse')
+  if (rover) assert.equal(canHarvestBed(base, rover.id, 0), false)
+  const gh = base.modules.find(m => m.kind === 'greenhouse')!
+  const full: ColonyState = { ...base, modules: base.modules.map(m => m.id === gh.id ? { ...m, beds: [89.99, 0, 0, 0, 0, -15] } : m) }
+  assert.equal(canHarvestBed(full, gh.id, 0), true)
+  const stepped = advanceDay(full)
+  const m = stepped.modules.find(x => x.id === gh.id)!
+  close(m.bedsHarvestedKg!, bedCycleKg())
+})
+

@@ -175,6 +175,37 @@ export function bedSummary(m: ColonyModule): BedSummary {
 
 /** kg of one bed at full cycle: area × yield × cycle ÷ K (216 kg / 6 = 36 kg for the default greenhouse). */
 export const bedCycleKg = (): number => PARAMETERS.cropAreaM2 * PARAMETERS.cropKgM2Day * PARAMETERS.cropCycleDays / BEDS.perField
+
+/**
+ * Manual harvest of one greenhouse bed (off-chain, behind VITE_COLONY_MANUAL_HARVEST; §31.12).
+ * Allowed only inside the ripe window [80 %, 100 %) of the cycle. Yield = the bed's grown share of one bed cycle
+ * (kg = bedCycleKg × progress), so collecting early gives less food than waiting for 100 %. The bed restarts
+ * from 0 days. Pure: returns the same object when the action is not allowed.
+ */
+export function canHarvestBed(state: ColonyState, moduleId: string, index: number): boolean {
+  const m = state.modules.find(x => x.id === moduleId)
+  if (!m || m.kind !== 'greenhouse' || !Number.isInteger(index) || index < 0 || index >= BEDS.perField) return false
+  const v = (m.beds ?? greenhouseBeds(m.growthDays))[index]
+  if (v === undefined || v < 0) return false
+  const progress = v / PARAMETERS.cropCycleDays
+  return progress >= BEDS.harvestWindowMinRatio && progress < 1
+}
+export function harvestBed(state: ColonyState, moduleId: string, index: number): ColonyState {
+  if (!canHarvestBed(state, moduleId, index)) return state
+  const m = state.modules.find(x => x.id === moduleId)!
+  const beds = [...(m.beds ?? greenhouseBeds(m.growthDays))]
+  const progress = beds[index] / PARAMETERS.cropCycleDays
+  const kg = bedCycleKg() * progress
+  beds[index] = 0
+  return {
+    ...state,
+    foodKg: state.foodKg + kg,
+    harvestedKg: state.harvestedKg + kg,
+    modules: state.modules.map(x => x.id === moduleId
+      ? { ...x, beds, growthDays: Math.max(0, beds[0]), bedsHarvestedKg: (x.bedsHarvestedKg ?? 0) + kg }
+      : x),
+  }
+}
 export const countModules = (s: ColonyState, kind: ModuleKind): number => s.modules.filter(m => m.kind === kind).length
 export const batteryCapacity = (s: ColonyState): number => countModules(s, 'battery') * PARAMETERS.batteryKwh
 export const foodDemand = (s: ColonyState): number => s.crew * PARAMETERS.freshFoodKgCrewDay

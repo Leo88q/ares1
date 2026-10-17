@@ -4,7 +4,8 @@ import type { LucideIcon } from 'lucide-react'
 import { ArrowLeft, ArrowRight, BatteryMedium, Box, Check, ChevronRight, CircleHelp, Droplets, ExternalLink, FlaskConical, Hammer, House, Leaf, Orbit, Package, Pause, Play, Plus, RotateCcw, Sun, Truck, Wrench } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { colonyCopy, moduleCopy } from './copy'
-import { advanceDays, batteryCapacity, bedSummary, buildModule, buySupplies, CATALOG, canBuild, canRepair, countModules, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, initialColony, MODULE_KINDS, PARAMETERS, repairColony, sellableKg, SLOTS } from './simulation'
+import { COLONY_MANUAL_HARVEST_ENABLED } from '../utils/colonyFeature'
+import { advanceDays, batteryCapacity, bedSummary, canHarvestBed, harvestBed, buildModule, buySupplies, CATALOG, canBuild, canRepair, countModules, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, initialColony, MODULE_KINDS, PARAMETERS, repairColony, sellableKg, SLOTS } from './simulation'
 import type { BedState, ColonyModule, ColonyState, DayBudget, ModuleKind, Scenario } from './simulation'
 import provenance from '../../public/models/colony/manifest.json'
 import ResourceIcon from '../fields/ResourceIcon'
@@ -144,7 +145,10 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
                   {selected.kind === 'greenhouse' && <>
                     <div className="colony-inspector-metric"><span>{c.growth}</span><b data-testid="crop-days">{number(selected.growthDays, 1)} / 90</b></div>
                     <div className="colony-meter"><span style={{ width: `${selected.growthDays / 90 * 100}%`, background: '#91cba2' }} /></div>
-                    <BedPanel mod={selected} language={lang} />
+                    <BedPanel mod={selected} language={lang} manualHarvest={COLONY_MANUAL_HARVEST_ENABLED && selected ? {
+                      canHarvest: i => canHarvestBed(state, selected.id, i),
+                      onHarvest: i => setState(s => harvestBed(s, selected.id, i)),
+                    } : undefined} />
                   </>}
                 </> : <p>{c.select}</p>}
               </div>
@@ -167,10 +171,10 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
   )
 }
 
-function BedPanel({ mod, language }: { mod: ColonyModule; language: string }): JSX.Element {
+function BedPanel({ mod, language, manualHarvest }: { mod: ColonyModule; language: string; manualHarvest?: { canHarvest: (index: number) => boolean; onHarvest: (index: number) => void } }): JSX.Element {
   const c = colonyCopy(language)
   const summary = bedSummary(mod)
-  const label: Record<BedState, string> = { waiting: c.bedWaiting, growing: c.bedGrowing, ripe: c.bedRipe }
+  const label: Record<BedState, string> = { waiting: c.bedWaiting, growing: c.bedGrowing, ripe: manualHarvest ? c.bedRipeManual : c.bedRipe }
   return <section className="colony-beds" aria-label={c.bedsTitle} data-testid="bed-summary">
     <p className="colony-eyebrow">{c.bedsTitle}</p>
     <dl className="colony-bed-totals">
@@ -182,9 +186,10 @@ function BedPanel({ mod, language }: { mod: ColonyModule; language: string }): J
       {summary.beds.map((bed, index) => <li key={index} data-state={bed.state}>
         <span>{index + 1}</span><small>{label[bed.state]}</small>
         <div className="colony-meter"><span style={{ width: `${bed.progress * 100}%`, background: '#91cba2' }} /></div>
+        {manualHarvest && bed.state === 'ripe' && manualHarvest.canHarvest(index) && <button type="button" className="colony-button colony-bed-harvest" onClick={() => manualHarvest.onHarvest(index)}>{c.bedHarvest}</button>}
       </li>)}
     </ol>
-    <p className="colony-fineprint">{c.bedsNote}</p>
+    <p className="colony-fineprint">{manualHarvest ? c.bedsNoteManual : c.bedsNote}</p>
   </section>
 }
 
