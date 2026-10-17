@@ -20,6 +20,10 @@ export const LAB = Object.freeze({
   nominalCycleHours: 148,
   nutrientsInitialKg: 0.65, nutrientsPerCycleKg: 0.16,
   seedsInitial: 3, sparesInitial: 3, harvestKg: 18, storageCapacityKg: 45,
+  // Colony link (FIELD LAB product, 2026-10-17): ceilings for what the base may
+  // hand to one greenhouse bench. They bound the transfers; nothing here creates
+  // mass on its own — every litre/kg/part is deducted from the colony stock.
+  supplyCapacityL: 480, nutrientCapacityKg: 2, sparesCapacity: 9,
   rawShelfHours: 72, processedShelfHours: 336, coldAgeFactor: 0.12,
   // T1/T3 (approved to proceed, H): heat stress above 22 °C and slower stress from pump/water loss
   heatStressAboveC: 22, heatStressPerCHour: 0.0004,

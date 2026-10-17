@@ -5,7 +5,8 @@ import { ArrowLeft, ArrowRight, BatteryMedium, Box, Check, ChevronRight, CircleH
 import { useI18n } from '../i18n'
 import { colonyCopy, moduleCopy } from './copy'
 import { COLONY_MANUAL_HARVEST_ENABLED } from '../utils/colonyFeature'
-import { advanceDays, batteryCapacity, bedCycleKg, bedSummary, canHarvestBed, harvestBed, buildModule, buySupplies, CATALOG, canBuild, canRepair, countModules, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, initialColony, MODULE_KINDS, PARAMETERS, repairColony, sellableKg, SLOTS } from './simulation'
+import { useColony } from './ColonyContext'
+import { batteryCapacity, bedCycleKg, bedSummary, canHarvestBed, harvestBed, buildModule, buySupplies, CATALOG, canBuild, canRepair, countModules, dailyBudget, deliverFood, foodDemand, MODULE_KINDS, PARAMETERS, repairColony, sellableKg, SLOTS } from './simulation'
 import type { BedState, ColonyModule, ColonyState, DayBudget, ModuleKind, Scenario } from './simulation'
 import provenance from '../../public/models/colony/manifest.json'
 import ResourceIcon from '../fields/ResourceIcon'
@@ -24,16 +25,16 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
   const { lang, setLang } = useI18n()
   const c = colonyCopy(lang)
   const descriptions = moduleCopy(lang)
-  const [state, setState] = useState(initialColony)
-  const [scenario, setScenario] = useState<Scenario>({ ...DEFAULT_SCENARIO })
+  // Общая экспедиция сессии: в игровом shell её же читает полевая лаборатория (/lab),
+  // в отдельной песочнице /colony провайдер отсутствует и стор остаётся локальным.
+  const colony = useColony()
+  const { state, setState, scenario, setScenario, running, setRunning, ended: end } = colony
   const [view, setView] = useState<View>('base')
   const [panel, setPanel] = useState<'build' | 'logistics'>('build')
   const [selectedId, setSelectedId] = useState<string | null>('greenhouse-5')
-  const [running, setRunning] = useState(false)
   const [message, setMessage] = useState('')
   const budget = useMemo(() => dailyBudget(state, scenario), [state, scenario])
   const selected = state.modules.find(m => m.id === selectedId)
-  const end = state.day >= PARAMETERS.maxDays
 
   useEffect(() => {
     if (embedded) return undefined
@@ -41,18 +42,10 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
     document.title = `ARES-1 / ${c.base}`
     return () => { document.title = previous }
   }, [c.base, embedded])
-  useEffect(() => {
-    if (!running || end) return
-    const timer = window.setInterval(() => setState(s => advanceDays(s, 1, scenario)), 1200)
-    const pauseHidden = (): void => { if (document.hidden) setRunning(false) }
-    document.addEventListener('visibilitychange', pauseHidden)
-    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', pauseHidden) }
-  }, [running, scenario, end])
-  useEffect(() => { if (end) setRunning(false) }, [end])
-  useEffect(() => { if (view !== 'base') setRunning(false) }, [view])
+  useEffect(() => { if (view !== 'base') setRunning(false) }, [view, setRunning])
 
   const reset = (): void => {
-    setRunning(false); setState(initialColony()); setScenario({ ...DEFAULT_SCENARIO })
+    colony.reset()
     setSelectedId('greenhouse-5'); setMessage('')
   }
   const build = (kind: ModuleKind): void => {
@@ -102,8 +95,8 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
             <label className="colony-sun-control"><Sun size={16} /><span>{c.sun} <b>{scenario.sunHours} h</b></span><input type="range" aria-label={c.sun} min={0} max={24} step={1} value={scenario.sunHours} onChange={event => setScenario(s => ({ ...s, sunHours: Number(event.target.value) }))} /></label>
             <div className="colony-time-buttons">
               <button className="colony-button colony-button--primary" type="button" disabled={end} onClick={() => setRunning(value => !value)}>{running ? <Pause size={14} /> : <Play size={14} />}{running ? c.pause : c.play}</button>
-              <button className="colony-button" type="button" disabled={running || end} onClick={() => setState(s => advanceDays(s, 1, scenario))}>{c.next}</button>
-              <button className="colony-button" type="button" disabled={running || end} onClick={() => setState(s => advanceDays(s, 7, scenario))}>{c.week}<ChevronRight size={13} /></button>
+              <button className="colony-button" type="button" disabled={running || end} onClick={() => colony.advance(1)}>{c.next}</button>
+              <button className="colony-button" type="button" disabled={running || end} onClick={() => colony.advance(7)}>{c.week}<ChevronRight size={13} /></button>
             </div>
           </div>
 

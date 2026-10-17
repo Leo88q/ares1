@@ -41,7 +41,7 @@ export default function MainScreen() {
     <div style={{ position: 'relative' }}>
      <Header stats={stats} />
     </div>
-    <a href="/demo" className="mk-key" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, textDecoration: 'none', padding: '14px 16px', marginBottom: 16, fontSize: 12 }}>
+    <a href="/lab" className="mk-key" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, textDecoration: 'none', padding: '14px 16px', marginBottom: 16, fontSize: 12 }}>
      <span>{fieldText.preview} →</span>
      <small style={{ color: '#C9A176', fontSize: 8 }}>3D · CC0</small>
     </a>
@@ -245,8 +245,8 @@ function ConnectHint() {
     </motion.button>
 
     <div style={{ marginTop: 10 }}>
-     <a href="/demo" className="mk-key" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', color: '#FFC94A', textDecoration: 'none', fontSize: 10 }}>
-      {t('Сначала попробовать демо →')}
+     <a href="/lab" className="mk-key" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 12px', color: '#FFC94A', textDecoration: 'none', fontSize: 10 }}>
+      {t('Сначала попробовать в лаборатории →')}
      </a>
     </div>
 

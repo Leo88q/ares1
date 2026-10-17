@@ -18,7 +18,7 @@ export default function EngineeringConsole({ state, language, onAction, onReset 
     none: c.stable, pump: c.pumpAlert, water: c.waterAlert, power: c.powerAlert,
     nutrients: c.nutrientAlert, storage: c.storageAlert, temperature: c.temperatureAlert, dead: c.deadAlert,
   }[state.last.bottleneck]
-  const eventNames: Record<LabEventCode, string> = { seed: c.eventSeed, harvest: c.eventHarvest, refill: c.eventRefill, fault: c.eventFault, repair: c.eventRepair, dust: c.eventDust, process: c.eventProcess, processed: c.eventProcessed, spoiled: c.eventSpoiled, dead: c.eventDead, cold: c.eventCold }
+  const eventNames: Record<LabEventCode, string> = { seed: c.eventSeed, harvest: c.eventHarvest, refill: c.eventRefill, fault: c.eventFault, repair: c.eventRepair, dust: c.eventDust, process: c.eventProcess, processed: c.eventProcessed, spoiled: c.eventSpoiled, dead: c.eventDead, cold: c.eventCold, supply: c.eventSupply, ship: c.eventShip }
   const metrics = [
     { label: c.energy, value: fmt(state.batteryKwh), limit: fmt(LAB.batteryCapacityKwh * scale), unit: 'kWh', fraction: state.batteryKwh / (LAB.batteryCapacityKwh * scale), kind: 'battery' as const },
     { label: c.water, value: fmt(state.tankL), limit: fmt(LAB.tankCapacityL * scale), unit: 'L', fraction: state.tankL / (LAB.tankCapacityL * scale), kind: 'water' as const },
@@ -152,7 +152,7 @@ export function EngineeringTelemetry({ state, language, onAction, view = 'teleme
     </div>
     <div className="eg-deck-pane eg-deck-log" hidden={view !== 'log'}>
       <h3>{c.events}</h3>
-      <ol>{state.events.slice(-12).reverse().map((event, index) => <li key={`${event.hour}:${index}`}><time>{event.hour.toFixed(1)} {c.hour}</time><span>{({ seed: c.eventSeed, harvest: c.eventHarvest, refill: c.eventRefill, fault: c.eventFault, repair: c.eventRepair, dust: c.eventDust, process: c.eventProcess, processed: c.eventProcessed, spoiled: c.eventSpoiled, dead: c.eventDead, cold: c.eventCold })[event.code]}</span>{event.amount > 0 && <b>{event.amount.toFixed(1)}</b>}</li>)}</ol>
+      <ol>{state.events.slice(-12).reverse().map((event, index) => <li key={`${event.hour}:${index}`}><time>{event.hour.toFixed(1)} {c.hour}</time><span>{({ seed: c.eventSeed, harvest: c.eventHarvest, refill: c.eventRefill, fault: c.eventFault, repair: c.eventRepair, dust: c.eventDust, process: c.eventProcess, processed: c.eventProcessed, spoiled: c.eventSpoiled, dead: c.eventDead, cold: c.eventCold, supply: c.eventSupply, ship: c.eventShip })[event.code]}</span>{event.amount > 0 && <b>{event.amount.toFixed(1)}</b>}</li>)}</ol>
     </div>
     <p className="eg-source-note">{c.sourceNote}</p>
   </div>

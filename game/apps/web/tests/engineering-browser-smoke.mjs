@@ -1,9 +1,12 @@
 // Shared field engineering UI with production CSP, no wallets/RPC/transactions.
+// Песочницы /demo больше нет: учебный слой живёт в продуктовой лаборатории /lab,
+// поэтому смок поднимает её фикстуру (стенды без кошелька) и прежний MainScreen.
 import assert from 'node:assert/strict'
 import { readFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright-core'
 import { mainFixture } from './fields-main-fixture.mjs'
+import { labFixture } from './lab-fixture.mjs'
 
 if (!process.env.CHROMIUM_EXECUTABLE_PATH) throw new Error('Set CHROMIUM_EXECUTABLE_PATH; this test never downloads a browser')
 const base = (process.env.ENGINEERING_BASE_URL || 'http://127.0.0.1:4173').replace(/\/$/, '')
@@ -14,7 +17,10 @@ const screenshots = process.env.ENGINEERING_SCREENSHOT_DIR
 // NO_WEBGL=1: every field view opens in its 2D fallback (sandboxes without WebGL). CI runs the full 3D suite.
 const noWebgl = process.env.NO_WEBGL === '1'
 if (screenshots) mkdirSync(screenshots, { recursive: true })
-const fixture = await mainFixture()
+const fixture = await labFixture({ slug: 'lab-bench' })
+const mainFixtureAssets = await mainFixture()
+const assets = new Map([...fixture.assets, ...mainFixtureAssets.assets])
+const htmlPaths = new Set(['/__lab-bench/main', '/__fields/main'])
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH, args: process.env.CHROMIUM_ARGS_JSON ? JSON.parse(process.env.CHROMIUM_ARGS_JSON) : ['--no-sandbox'], headless: true })
 const errors = [], outside = []
 const noOverflow = async page => assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
@@ -50,8 +56,8 @@ async function open(width, { realMain = false, fallback = false, failModel = fal
   await page.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url())
     if (url.origin !== origin && !/^(data|blob):/.test(request.url())) { outside.push(request.url()); return route.abort() }
-    const mocked = fixture.assets.get(url.pathname)
-    if (realMain && mocked) return route.fulfill({ status: 200, contentType: mocked.type, body: mocked.bytes, headers: url.pathname === '/__fields/main' ? { 'content-security-policy': csp } : {} })
+    const mocked = assets.get(url.pathname)
+    if (mocked) return route.fulfill({ status: 200, contentType: mocked.type, body: mocked.bytes, headers: htmlPaths.has(url.pathname) ? { 'content-security-policy': csp } : {} })
     if (failModel && url.pathname === '/models/fields/canopy.glb') return route.fulfill({ status: 503, body: 'Unavailable' })
     if (!request.isNavigationRequest()) return route.continue()
     const response = await route.fetch()
@@ -61,9 +67,10 @@ async function open(width, { realMain = false, fallback = false, failModel = fal
     const original = HTMLCanvasElement.prototype.getContext
     HTMLCanvasElement.prototype.getContext = function (type, ...args) { return /webgl/.test(type) ? null : original.call(this, type, ...args) }
   })
-  await page.goto(`${base}${realMain ? '/__fields/main' : '/demo'}`, { waitUntil: 'networkidle' })
+  await page.goto(`${base}${realMain ? '/__fields/main' : '/__lab-bench/main'}`, { waitUntil: 'networkidle' })
   await page.locator(fallback || failModel ? '[data-testid="fields-fallback"]' : '[data-testid="fields-viewport"][data-ready="true"]').waitFor()
-  if (realMain) await page.getByRole('button', { name: 'Инженерный режим · SIM', exact: true }).click()
+  // Лаборатория открывается на настоящем слое поля: SIM-консоль включается клавишей.
+  await page.getByRole('button', { name: 'Инженерный режим · SIM', exact: true }).click()
   await page.getByTestId('engineering-console').waitFor(); await noOverflow(page)
   return { page, context }
 }
@@ -100,10 +107,10 @@ try {
   await actionButton(page, '+1 ч')
   await page.locator('.mf-field-picker button').first().click()
   assert.equal(await time(page), firstHour)
-  await actionButton(page, 'EN')
+  await page.evaluate(() => window.__setLang('en'))
   assert.equal(await time(page), firstHour)
   assert.match(await page.getByTestId('lab-mass-ledger').innerText(), /0\.75 kg/)
-  await actionButton(page, 'RU')
+  await page.evaluate(() => window.__setLang('ru'))
   await actionButton(page, 'Учебный урок')
   assert.equal(await page.getByTestId('engineering-console').count(), 0)
   await actionButton(page, 'Инженерный режим · SIM')
@@ -176,7 +183,7 @@ try {
   for (const flags of [{ fallback: true }, { failModel: true }]) {
     const { page, context } = await open(390, flags)
     await page.locator('.mf-field-picker button').last().press('Enter')
-    assert.equal(await page.getByTestId('engineering-console').getAttribute('data-field-id'), 'demo-2')
+    assert.equal(await page.getByTestId('engineering-console').getAttribute('data-field-id'), 'lab-bench-2')
     await actionButton(page, '+7 солов')
     await actionButton(page, 'Собрать еду SIM')
     // WP11: tier 2 base 30.60 kg × overripe factor at +24.6 h (0.743) = 22.75 kg; T4 delay 0.834 → 18.97 kg
@@ -213,4 +220,4 @@ try {
   console.log('PASS actual MainScreen (mock providers): SIM keyed by public key, no financial callbacks, unchanged POTATO amount/action, deletion/reorder safe')
   assert.deepEqual(outside, []); assert.deepEqual(errors, [])
   console.log('PASS shipped CSP, no external requests, no unexpected console/page errors')
-} finally { await browser.close(); fixture.dispose() }
+} finally { await browser.close(); fixture.dispose(); mainFixtureAssets.dispose() }

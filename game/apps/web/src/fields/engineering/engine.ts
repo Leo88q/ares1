@@ -25,7 +25,7 @@ export interface LabSample {
   temperatureC: number; outsideC: number; targetC: number; temperatureFactor: number
   climateMode: 'idle' | 'heating' | 'cooling'; climateKw: number; climateFraction: number
 }
-export type LabEventCode = 'seed' | 'harvest' | 'refill' | 'fault' | 'repair' | 'dust' | 'process' | 'processed' | 'spoiled' | 'dead' | 'cold'
+export type LabEventCode = 'seed' | 'harvest' | 'refill' | 'fault' | 'repair' | 'dust' | 'process' | 'processed' | 'spoiled' | 'dead' | 'cold' | 'supply' | 'ship'
 export interface LabEvent { hour: number; code: LabEventCode; amount: number }
 export interface EngineeringState {
   profileVersion: string
@@ -57,6 +57,13 @@ export interface EngineeringState {
     harvestedKg: number; spoiledKg: number; processingLossKg: number
     heaterHeatKwh: number; lampHeatKwh: number; passiveHeatKwh: number
     climateRemovedKwh: number; evaporationKwh: number
+    /**
+     * Colony link (FIELD LAB product, 2026-10-17): mass handed to this bench by the
+     * base and mass shipped back into base storage. Each side keeps its own ledger,
+     * so conservation reads `initial + inflow = stock + consumed` for water and
+     * nutrients, and `harvested = stock + spoiled + processing loss + shipped` for food.
+     */
+    inflowLitres: number; inflowNutrientsKg: number; inflowSpares: number; shippedKg: number
   }
 }
 export type EngineeringAction =
@@ -66,6 +73,10 @@ export type EngineeringAction =
   | { type: 'process'; lotId: number }
   | { type: 'setpoint'; value: number }
   | { type: 'priority'; value: 'crop' | 'food' }
+  /** Delivery from the shared colony stock; the caller deducts the same amount there. */
+  | { type: 'supply'; resource: 'water' | 'nutrients' | 'spares'; amount: number }
+  /** A batch leaves the bench for base storage; the caller credits the same kg there. */
+  | { type: 'ship'; lotId: number; kg: number }
 
 const EPS = 1e-9
 const clamp = (n: number, min = 0, max = 1): number => Math.max(min, Math.min(max, n))
@@ -103,6 +114,18 @@ export const lightsScheduled = (hour: number): boolean => {
   return phase >= 4 && phase < 4 + LAB.lightHoursPerSol
 }
 
+/**
+ * Free room on the bench for one colony delivery: the reserve tank, the nutrient
+ * rack or the spare-parts shelf. The base deducts exactly what this allows, so a
+ * transfer never creates mass on either side.
+ */
+export const supplyRoom = (state: EngineeringState, resource: 'water' | 'nutrients' | 'spares'): number => {
+  const scale = labScale(state.tier)
+  return resource === 'water' ? Math.max(0, LAB.supplyCapacityL * scale - state.supplyL)
+    : resource === 'nutrients' ? Math.max(0, LAB.nutrientCapacityKg * scale - state.nutrientsKg)
+      : Math.max(0, LAB.sparesCapacity - state.spares)
+}
+
 /** Versioned game response curve; not a measured cultivar-specific model. */
 // T6b (approved, H): the cold branch below 16 °C is squared, so cold costs more growth than before
 // (0.67 → 0.44 at 12 °C). Continuous at 16 °C (value 1) and at 4 °C (value 0).
@@ -126,7 +149,7 @@ export function initialEngineering(fieldId: string, tier: 0 | 1 | 2): Engineerin
     controls: { lights: true, pump: true, battery: true, cooling: true, pumpFault: false, climate: true, targetC: LAB.targetTemperatureC, priority: 'crop' },
     dustUntil: 0, coldUntil: 0, lots: [], processing: null, nextLotId: 1, history: [sample], events: [{ hour: 0, code: 'seed', amount: 1 }],
     last: { ...sample, bottleneck: 'none' },
-    totals: { solarKwh: 0, servedKwh: 0, unservedKwh: 0, curtailedKwh: 0, chargeInputKwh: 0, dischargeOutputKwh: 0, waterConsumedL: 0, nutrientsConsumedKg: 0, harvestedKg: 0, spoiledKg: 0, processingLossKg: 0, heaterHeatKwh: 0, lampHeatKwh: 0, passiveHeatKwh: 0, climateRemovedKwh: 0, evaporationKwh: 0 },
+    totals: { solarKwh: 0, servedKwh: 0, unservedKwh: 0, curtailedKwh: 0, chargeInputKwh: 0, dischargeOutputKwh: 0, waterConsumedL: 0, nutrientsConsumedKg: 0, harvestedKg: 0, spoiledKg: 0, processingLossKg: 0, heaterHeatKwh: 0, lampHeatKwh: 0, passiveHeatKwh: 0, climateRemovedKwh: 0, evaporationKwh: 0, inflowLitres: 0, inflowNutrientsKg: 0, inflowSpares: 0, shippedKg: 0 },
   }
 }
 function clone(state: EngineeringState): EngineeringState {
@@ -304,6 +327,32 @@ export function engineeringAction(input: EngineeringState, action: EngineeringAc
       state.lots.push({ id, kind: 'processed', kg: 0, bornHour: state.hour, ageHours: 0, baseQuality: lotQuality(lot) })
       state.lots = state.lots.filter(item => item.kg > EPS || item.id === id)
       event(state, 'process', kg); return state
+    }
+    case 'supply': {
+      // The colony store deducts the same amount; this side only accepts it and
+      // records the inflow so mass accounting stays closed.
+      if (!Number.isFinite(action.amount) || action.amount <= 0) return input
+      const room = supplyRoom(state, action.resource)
+      if (room <= EPS) return input
+      if (action.resource === 'spares') {
+        const parts = Math.min(Math.floor(action.amount), Math.floor(room))
+        if (parts < 1) return input
+        state.spares += parts; state.totals.inflowSpares += parts; event(state, 'supply', parts); return state
+      }
+      const granted = Math.min(action.amount, room)
+      if (action.resource === 'water') { state.supplyL += granted; state.totals.inflowLitres += granted }
+      else { state.nutrientsKg += granted; state.totals.inflowNutrientsKg += granted }
+      event(state, 'supply', granted); return state
+    }
+    case 'ship': {
+      const lot = state.lots.find(item => item.id === action.lotId)
+      if (!lot || !Number.isFinite(action.kg) || action.kg <= 0) return input
+      const kg = Math.min(lot.kg, action.kg)
+      if (kg <= EPS) return input
+      lot.kg -= kg
+      state.totals.shippedKg += kg
+      state.lots = state.lots.filter(item => item.kg > EPS || state.processing?.outputId === item.id)
+      event(state, 'ship', kg); return state
     }
   }
 }

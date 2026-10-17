@@ -91,8 +91,8 @@ Software Chromium — не физический телефон/FPS-бенчма�
 
 - `src/fields/scene.ts` — композиция готовых префабов и освобождение GPU.
 - `src/fields/visualAssets.ts`, `ResourceIcon.tsx`, `art-direction.css` — asset inventory и готовые поверхности/иконки.
-- `FieldsPanel.tsx`, `FieldsViewport.tsx`, `DemoScreen.tsx` — композиция/фон и UI-навигация.
+- `FieldsPanel.tsx`, `FieldsViewport.tsx`, `lab/FieldLabScreen.tsx` — композиция/фон и UI-навигация (прежний `DemoScreen.tsx` удалён вместе с песочницей `/demo`).
 - `engineering/EngineeringConsole.tsx` / `copy.ts` — presentation-only tabs и ресурсы.
 - `tests/field-art.test.mjs`, обновлённые browser tests.
 
-Смотреть **`/demo`** после `cd game && yarn dev:web`. Исходный [инженерный профиль](FIELD_CLIMATE.md) остаётся прежним. Рабочая ветка сохранена; commit/push/deploy, покупок ассетов или транзакций не было.
+Смотреть **`/lab`** после `cd game && yarn dev:web` — это продуктовая секция поля, открываемая седьмой клавишей пульта (прежний `/demo` редиректит туда же). Исходный [инженерный профиль](FIELD_CLIMATE.md) остаётся прежним. Рабочая ветка сохранена; commit/push/deploy, покупок ассетов или транзакций не было.

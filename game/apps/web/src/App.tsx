@@ -1,6 +1,6 @@
 import { getItem, setItem } from './utils/consent'
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import InteractiveTutorial from './components/InteractiveTutorial'
 import BackgroundScene from './components/BackgroundScene'
 import GrainOverlay, { MkRoughFilters } from './components/GrainOverlay'
@@ -14,6 +14,7 @@ import { ambientMusic } from './utils/ambientMusic'
 
 import { useReferralRegistration } from './hooks/useReferralRegistration'
 import { AresBottomNav } from './components/ares/AresBottomNav'
+import { ColonyProvider } from './colony/ColonyContext'
 import { SectionFrame } from './components/ares/SectionFrame'
 import type { AresTab } from './components/ares/AresBottomNav'
 import { LandingSequence } from './components/ares/loading'
@@ -24,15 +25,17 @@ import { HullSkinMounter } from './ui/HullSkinMounter'
 import { CookieConsent } from './components/CookieConsent'
 
 // Route-level code splitting: each screen is its own chunk.
+const MainScreen = lazy(() => import('./components/MainScreen'))
 const MarketScreen = lazy(() => import('./components/MarketScreen'))
 const StatsScreen = lazy(() => import('./components/StatsScreen'))
 const ProfileScreen = lazy(() => import('./components/ProfileScreen'))
 const OperationScreen = lazy(() => import('./components/OperationScreen'))
-// АГРО tab: real fields + field lab. КОЛОНИЯ tab: the 3D base, embedded (no own header).
-const FarmTab = lazy(() => import('./components/ares/FarmTab'))
+// АГРО: настоящие поля. ЛАБ: продуктовая полевая лаборатория. КОЛОНИЯ: 3D-база.
+// Все три читают один стор колонии (ColonyProvider), поэтому ресурсы секций не расходятся.
+const FieldLabScreen = lazy(() => import('./lab/FieldLabScreen'))
 const ColonyScreen = lazy(() => import('./colony/ColonyScreen'))
 
-type Screen = 'farm' | 'colony' | 'market' | 'stats' | 'profile' | 'operation'
+type Screen = 'farm' | 'lab' | 'colony' | 'market' | 'stats' | 'profile' | 'operation'
 
 export default function App() {
  const { lang } = useI18n()
@@ -72,7 +75,9 @@ export default function App() {
        <GameProvider>
         {showTutorial && <InteractiveTutorial onComplete={() => setShowTutorial(false)} />}
         {booted ? (
-         <AppRoutes />
+         <ColonyProvider>
+          <AppRoutes />
+         </ColonyProvider>
         ) : (
          <div style={{ minHeight: '100vh' }}>
           <LandingSequence
@@ -102,17 +107,13 @@ function ScreenFallback() {
  )
 }
 
-function StandaloneDemoRedirect() {
- useEffect(() => { window.location.replace('/demo') }, [])
- return <ScreenFallback />
-}
-
 function AppRoutes() {
  const navigate = useNavigate()
  const location = useLocation()
 
  const currentScreen: Screen =
-  location.pathname === '/market' ? 'market'
+  location.pathname === '/lab' ? 'lab'
+  : location.pathname === '/market' ? 'market'
   : location.pathname === '/stats' ? 'stats'
   : location.pathname === '/profile' ? 'profile'
   : location.pathname === '/operation' ? 'operation'
@@ -127,14 +128,16 @@ function AppRoutes() {
     <PageTransition>
      <Suspense fallback={<ScreenFallback />}>
       <Routes location={location}>
-       <Route path="/" element={<FarmTab />} />
+       <Route path="/" element={<MainScreen />} />
+       <Route path="/lab" element={<FieldLabScreen />} />
        <Route path="/base" element={<ColonyScreen embedded />} />
        <Route path="/market" element={<MarketScreen />} />
        <Route path="/stats" element={<StatsScreen />} />
        <Route path="/profile" element={<ProfileScreen />} />
        <Route path="/operation" element={<SectionFrame section="journal" label={t('ОПЕРАЦИЯ: ПЕРВАЯ ТЕПЛИЦА')}><OperationScreen /></SectionFrame>} />
-       <Route path="/demo" element={<StandaloneDemoRedirect />} />
-       <Route path="*" element={<FarmTab />} />
+       {/* Песочница /demo заменена продуктовой лабораторией: старые ссылки ведут туда же. */}
+       <Route path="/demo" element={<Navigate to="/lab" replace />} />
+       <Route path="*" element={<MainScreen />} />
       </Routes>
      </Suspense>
     </PageTransition>
