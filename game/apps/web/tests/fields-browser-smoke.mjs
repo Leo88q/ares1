@@ -88,6 +88,8 @@ try {
     await page.getByRole('button', { name: 'Выбранное поле', exact: true }).click()
     await page.getByRole('button', { name: 'Приблизить', exact: true }).click()
     await page.getByRole('button', { name: 'Вернуть камеру', exact: true }).click()
+    // Возвращаем выбор на стенд тира: геометрия выше выбирала bench-0.
+    await page.getByRole('button', { name: /Поле 03 EPIC/ }).click()
     // Стенд тира помечен как учебный: без кошелька, без POTATO, без блокчейна.
     assert.equal(await page.getByTestId('lab-bench').getAttribute('data-tier'), '2')
     assert.match(await page.getByTestId('lab-bench').innerText(), /УЧЕБНЫЙ СТЕНД · НЕ АККАУНТ КОШЕЛЬКА/)

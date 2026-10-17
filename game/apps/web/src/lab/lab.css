@@ -102,7 +102,15 @@
 .lab-footer-mark { color: #a4895f; font: 8px/1.6 var(--ares-font-mono, monospace); letter-spacing: .16em; }
 .lab-footer p { margin: 0; color: #9c8b70; font-size: 9px; line-height: 1.7; }
 
-/* ── Планшет и десктоп ── */
+/* ── Планшет и десктоп ──
+   ВАЖНО: игра на любом экране живёт внутри «телефонного» шасси
+   .pf-phone-chassis (max-width 480 px, см. styles/global.css). Поэтому раскладка
+   лаборатории не может зависеть от min-width вьюпорта: на десктопе вьюпорт
+   широкий, а места всё равно 480 px, и двухколоночные схемы сжимали бы панель
+   полей до десятков пикселей. Широкие схемы включаются контейнерным запросом
+   по фактической ширине секции — внутри шасси он не сработает никогда, а вне
+   шасси (если секцию когда-нибудь вынесут на полный экран) раскладка оживёт. */
+.lab-app { container-type: inline-size; container-name: lab; }
 @media (min-width: 700px) {
   .lab-main { padding: 16px 16px 128px; gap: 16px; }
   .lab-hero { min-height: 200px; }
@@ -111,18 +119,15 @@
   .lab-hero-chip { margin: 0 24px 20px; }
   .lab-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (min-width: 1000px) {
+@container lab (min-width: 900px) {
   .lab-main { max-width: 1420px; width: 100%; margin: 0 auto; padding: 20px 20px 132px; }
   .lab-workspace { grid-template-columns: minmax(0, 1fr) 348px; gap: 16px; }
-  .lab-fields .mf-workspace { grid-template-columns: minmax(0, 1fr); }
-  .lab-fields .mf-viewport { height: 470px; }
   .lab-hero { min-height: 220px; }
+  .lab-fields .mf-viewport { height: 470px; }
 }
-@media (min-width: 1500px) {
-  .lab-fields .mf-viewport { height: 550px; }
-}
-@media (min-width: 1250px) {
-  /* На широком экране инспектор поля и SIM-консоль встают рядом с 3D-сценой. */
+@container lab (min-width: 1150px) {
+  /* Инспектор поля и SIM-консоль встают рядом с 3D-сценой только там, где для
+     этого реально есть место. */
   .lab-fields .mf-workspace { grid-template-columns: minmax(0, 1fr) 340px; }
   .lab-fields .mf-inspector { border-left: 1px solid #654a3166; border-top: 0; }
   .lab-fields .mf-viewport { height: 510px; }
