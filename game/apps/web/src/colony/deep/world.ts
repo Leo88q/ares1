@@ -640,6 +640,9 @@ function planTasks(world: ColonyWorld): void {
 
 // --- Выполнение работ ------------------------------------------------------
 
+/** Через сколько солов незавершённый рейс отменяется (машина не должна вечно висеть с грузом). */
+const HAUL_ABANDON_SOLS = 12
+
 function progressTasks(world: ColonyWorld, hours: number, step: SolStep): void {
   if (world.config.autoTasks) autoAssign(world.crew, world.tasks)
   for (const task of [...world.tasks].sort(compareTasks)) {
@@ -677,6 +680,26 @@ function progressTasks(world: ColonyWorld, hours: number, step: SolStep): void {
     if (task.kind === 'extract') mineWithTask(world, task, applied)
     if (task.kind === 'haul') advanceHaulWithTask(world, task, applied)
     if (task.kind === 'plant') consumeMaterials(world.stock, task, clamp01(task.doneHours / task.requiredHours))
+    // Рейс — это не «часы работы», а законченный цикл: погрузка → путь →
+    // разгрузка → возврат. Если закрывать задачу по часам, машина замирает в
+    // разгрузке с грузом в кузове, задание висит вечно и ровер больше никогда
+    // не выходит на маршрут (груз не теряется и не раздваивается).
+    if (task.kind === 'haul' && taskRemaining(task) <= 1e-9) {
+      const job = world.haulJobs.find(j => j.id === task.targetId)
+      if (job && job.phase !== 'done') {
+        if (world.sol - job.createdSol > HAUL_ABANDON_SOLS) {
+          const vehicle = world.vehicles.find(v => v.id === job.vehicleId)
+          if (vehicle) { vehicle.jobId = null; vehicle.destination = null; vehicle.idleReason = 'haul-abandoned' }
+          world.haulJobs = world.haulJobs.filter(j => j.id !== job.id)
+          pushEvent(world, 'haul-abandoned', 'warn',
+            `Рейс ${job.id} отменён: не завершён за ${HAUL_ABANDON_SOLS} солов`,
+            `Haul ${job.id} abandoned: not finished in ${HAUL_ABANDON_SOLS} sols`, job.id)
+        } else {
+          task.requiredHours = task.doneHours + 1
+        }
+        continue
+      }
+    }
     if (taskRemaining(task) <= 1e-9) completeTask(world, task)
   }
 }
@@ -1139,13 +1162,18 @@ function computeDuty(world: ColonyWorld, solHour: number): void {
   const co2High = world.sections.some(s => co2PartialKpa(s) > DEEP_P.targetCo2PartialKpa * 1.15)
   const labBusy = world.analyses.some(a => a.status === 'running') || world.experiments.some(e => e.status === 'running')
   const shopBusy = world.devices.some(d => d.fault !== null) || world.vehicles.some(v => v.fault !== null)
-  const hasOre = stock.amount.ice_ore > 1 || world.deposits.some(d => (d.stockpileKg ?? 0) > 1)
+  const oreRoom = stock.cap.ice_ore - stock.amount.ice_ore
   for (const device of world.devices) {
     switch (device.kind) {
       case 'greenhouse': device.duty = lampsOn ? 1 : idleGreenhouse; break
       case 'purifier': device.duty = stock.amount.water_raw > 1 && cleanRoom > 1 ? 1 : 0; break
       case 'recycler': device.duty = stock.amount.water_grey > 1 && cleanRoom > 1 ? 1 : 0; break
-      case 'extractor': device.duty = hasOre ? 1 : 0; break
+      case 'extractor':
+        // Установка берёт мощность, только когда реально работает месторождение
+        // и на базе есть куда складывать породу. Раньше здесь стояло «есть руда»,
+        // и цепочка висела: руды нет → мощности нет → добыча заблокирована.
+        device.duty = world.deposits.some(d => d.rigId === device.id && depositWorkable(d)) && oreRoom > 1 ? 1 : 0
+        break
       case 'pump': device.duty = stock.amount.water_raw > 1 || stock.amount.water_grey > 1 ? 1 : 0.2; break
       case 'o2_gen': device.duty = o2Needed ? 1 : 0.1; break
       case 'scrubber': device.duty = co2High ? 1 : 0.1; break
@@ -1321,7 +1349,15 @@ function stepCrew(world: ColonyWorld, hours: number, step: SolStep, foodFraction
       member, shareOfSol, metabolism.fedFraction,
       section ? o2PartialKpa(section) : 0, section ? co2PartialKpa(section) : 0,
     )
-    if (member.taskId === null) restCrew(member, hours * 0.35)
+    // Сон есть у всех, а не только у свободных: иначе прикреплённый к задаче
+    // человек не восстанавливается никогда. Выгоревших снимаем с работы, чтобы
+    // очередь из десятков работ не замирала на четырёх занятых бойцах.
+    if (member.fatigue > DEEP_P.crewExhaustedFatigue && member.taskId !== null) {
+      const task = world.tasks.find(t => t.id === member.taskId)
+      if (task) task.assignees = task.assignees.filter(id => id !== member.id)
+      member.taskId = null
+    }
+    restCrew(member, hours * (member.taskId === null ? 0.4 : 0.25))
   }
 }
 

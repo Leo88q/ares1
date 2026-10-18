@@ -14,8 +14,10 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  advanceDay, initialColony, type ColonyState, type Scenario,
+  advanceDay, buildModule, initialColony, type ColonyModule, type ColonyState, type ModuleKind,
+  type Scenario,
 } from '../apps/web/src/colony/simulation'
+import { addNetwork, planNetwork } from '../apps/web/src/colony/networks'
 import type { ColonyWorld, DeepScenario, DeviceKind } from '../apps/web/src/colony/deep/world'
 import type { DailyRow, ScenarioReport } from './deepScenario.types'
 
@@ -97,9 +99,52 @@ function row(state: ColonyState, world: ColonyWorld, bottleneck: string): DailyR
   }
 }
 
-export function runScenario(spec: ScenarioSpec, sols = SOLS): ScenarioReport {
+/**
+ * Starting base for the experiment, exactly as the brief describes it:
+ * 4 settlers, 2 greenhouses, solar + batteries, extraction, purification with
+ * regeneration, storage, workshop, cargo rover and a small lab. Everything is
+ * bought with the ordinary in-game credits through `buildModule`, so the start
+ * is reproducible and auditable — no free modules.
+ */
+const START_KIT: ModuleKind[] = ['greenhouse', 'solar', 'solar', 'battery', 'battery']
+
+/** Какие сети нужны модулю, чтобы он вообще работал (как в игре). */
+const NETS_FOR: Record<ModuleKind, ReadonlyArray<'power' | 'water' | 'return' | 'access'>> = {
+  solar: ['power'],
+  greenhouse: ['power', 'water', 'return', 'access'],
+  habitat: ['power', 'water', 'return', 'access'],
+  recycler: ['power', 'water', 'return', 'access'],
+  rover: ['power', 'access'],
+  workshop: ['power', 'access'],
+  battery: ['power'],
+}
+
+export function buildStartColony(): ColonyState {
   let state = initialColony()
+  for (const kind of START_KIT) {
+    const built = buildModule(state, kind)
+    if (built === state) continue
+    state = built
+    // Постройка без коммуникаций — это корпус, а не мощность: подключаем к хабу
+    // теми же функциями, что использует игра.
+    const id = state.modules.at(-1)!.id
+    const hub = state.modules.find(m => m.kind === 'habitat') ?? state.modules[0]
+    for (const net of NETS_FOR[kind]) {
+      const path = planNetwork(state, net, hub.id, id)
+      if (path) state = addNetwork(state, net, path)
+    }
+  }
+  return state
+}
+
+export function runScenario(spec: ScenarioSpec, sols = SOLS): ScenarioReport {
+  let state = buildStartColony()
   const start = {
+    modules: state.modules.reduce<Record<string, number>>((acc, m: ColonyModule) => {
+      acc[m.kind] = (acc[m.kind] ?? 0) + 1
+      return acc
+    }, {}),
+    credits: state.credits,
     crew: state.crew,
     waterLitres: state.waterLitres,
     foodKg: state.foodKg,

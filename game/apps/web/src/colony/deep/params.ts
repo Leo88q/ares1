@@ -36,6 +36,9 @@ const LIST: ParamSpec[] = [
   spec('crewWorkHoursPerSol', 8, 'h/чел/сол', 0, 16, 'assumption', 'crew',
     'Номинальная трудовая смена. Остаток суток — сон, еда, гигиена.'),
   spec('crewSleepHoursPerSol', 8, 'h/чел/сол', 0, 16, 'assumption', 'crew', 'Сон восстанавливает силы.'),
+  spec('crewExhaustedFatigue', 0.9, '1', 0.5, 1, 'balance', 'crew',
+    'Порог, после которого человек снимается с работы: иначе он висит на задаче, '
+    + 'не восстанавливается, и остальная очередь не двигается.'),
   spec('crewFatiguePerWorkHour', 0.055, '1/h', 0, 0.5, 'balance', 'crew', 'Рост усталости за час работы.'),
   spec('crewRecoveryPerRestHour', 0.075, '1/h', 0, 1, 'balance', 'crew', 'Снижение усталости за час отдыха.'),
   spec('crewO2KgPerSol', 0.84, 'kg/чел/сол', 0.3, 1.5, 'balance', 'crew',
