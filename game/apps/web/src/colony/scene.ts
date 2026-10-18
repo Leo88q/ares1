@@ -1,8 +1,15 @@
 import * as THREE from 'three'
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { createCameraRig } from '../three/cameraRig'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { CATALOG, PARAMETERS, SLOTS } from './simulation'
+import { CATALOG, PARAMETERS } from './simulation'
 import type { ColonyModule, ColonyState } from './simulation'
+import { COLONY_CELL_METRES, COLONY_GRID_SIZE, footprint, modulePlacement, placementWorld, placementError, worldCell } from './layout'
+import type { ConstructionDraft } from './ConstructionPlan'
+import { createModuleBatcher } from './moduleBatcher'
+import { createOverviewTemplates } from './moduleOverview'
+import { disposeSceneTrees as disposeTrees } from './sceneResources'
+import { createNetworkScene } from './networkScene'
+import { placementHitsNetwork, networksOf, createNetworkServiceReader, type ColonyNetwork } from './networks'
 import { colonyVisualState, type ModuleVisual } from './organism'
 
 // Entries with a '/' live in another same-origin model folder (KayKit Space Base Bits, CC0).
@@ -31,9 +38,20 @@ function modelLocation(file: string): { url: string; base: string } {
   return { url: `/models/${file}`, base: `/models/${dir}/` }
 }
 
+export interface ColonySceneStats {
+  contextLost: boolean
+  drawCalls: number; triangles: number; geometries: number; textures: number; programs: number
+  modules: number; updates: number; patches: number; writtenInstances: number; batches: number; instances: number; capacity: number
+  culledModules: number; lowDetail: boolean; serviceRebuilds: number
+  updateMs: number; renderCpuMs: number
+}
 export interface ColonyScene {
+  diagnostics: () => ColonySceneStats
   update: (state: ColonyState, selectedId: string | null, sunHours: number) => void
+  setDraft: (draft: ConstructionDraft | null) => void
+  setNetworkPreview: (network: ColonyNetwork | null) => void
   zoom: (factor: number) => void
+  rotate: (direction: 1 | -1) => void
   resetCamera: () => void
   dispose: () => void
 }
@@ -41,10 +59,11 @@ export interface ColonyScene {
 /** Demand-rendered, bounded-pixel-ratio scene; all model requests are same-origin. */
 export function createColonyScene(host: HTMLElement, callbacks: {
   onSelect: (id: string) => void
+  onSite: (at: { x: number; z: number }) => void
   onReady: () => void
   onModelError: () => void
   onContextLost: () => void
-}): ColonyScene {
+}, options: { batching?: boolean; incremental?: boolean } = {}): ColonyScene {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
   renderer.setClearColor(0x000000, 0)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75))
@@ -57,33 +76,30 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   host.appendChild(renderer.domElement)
 
   const scene = new THREE.Scene()
-  // Transparent WebGL over the v2 Mars sector artwork (CSS backdrop), warm dust haze instead of space black.
-  scene.background = null
+  // Terrain and modules share one perspective. No illustrated horizon underneath.
+  scene.background = new THREE.Color('#8a654c')
+  const utilities = createNetworkScene(); scene.add(utilities.root)
+  let networkPreview: ColonyNetwork | null = null
   scene.fog = new THREE.Fog('#b7855a', 65, 170)
   const camera = new THREE.OrthographicCamera(-22, 22, 17, -17, 0.1, 250)
-  const controls = new OrbitControls(camera, renderer.domElement)
-  controls.enableDamping = false
-  controls.minZoom = 0.65
-  controls.maxZoom = 3
-  controls.minPolarAngle = 0.3
-  controls.maxPolarAngle = Math.PI / 2.15
-  controls.enablePan = false
-  const resetCamera = (): void => {
-    camera.position.set(29, 32, 37)
-    camera.zoom = 1.15
-    camera.updateProjectionMatrix()
-    controls.target.set(0, 0, 0)
-    controls.update()
-    requestRender()
-  }
+  const rig = createCameraRig({
+    camera, dom: renderer.domElement, reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches, offset: [29, 32, 37],
+    bounds: { x: 58, z: 58 }, minZoom: 0.3, maxZoom: 4,
+    initialZoom: 1.15, onRender: requestRender,
+  })
+  const resetCamera = (): void => rig.reset()
 
   let disposed = false
   let frame = 0
+  let lastUpdateMs = 0, lastRenderCpuMs = 0
   function requestRender(): void {
     if (disposed || frame) return
     frame = requestAnimationFrame(() => {
       frame = 0
-      if (!disposed) renderer.render(scene, camera)
+      if (!disposed) {
+        updateModuleBatches()
+        const started = performance.now(); renderer.render(scene, camera); lastRenderCpuMs = performance.now() - started
+      }
     })
   }
   const sky = new THREE.HemisphereLight('#ffe0b5', '#4a2c1c', 2.1)
@@ -112,7 +128,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
       const d = Math.hypot(x - cx, z - cz) / radius
       height += -2.4 * Math.exp(-d * d * 3) + 0.65 * Math.exp(-Math.pow((d - 1) * 4, 2))
     }
-    if (Math.abs(x) < 17 && Math.abs(z) < 12) height = -0.18
+    if (Math.abs(x) < 60 && Math.abs(z) < 60) height = -0.18
     positions.setY(i, height)
     tone.set('#8a5a3e').multiplyScalar(0.64 + rand(i + 7) * 0.08)
     colors.push(tone.r, tone.g, tone.b)
@@ -124,16 +140,39 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   scene.add(ground)
 
   const gridPoints: number[] = []
-  for (let i = 0; i <= 6; i++) gridPoints.push((i - 3) * 4.8, -0.13, -9.6, (i - 3) * 4.8, -0.13, 9.6)
-  for (let i = 0; i <= 4; i++) gridPoints.push(-14.4, -0.13, (i - 2) * 4.8, 14.4, -0.13, (i - 2) * 4.8)
+  const mapHalf = COLONY_GRID_SIZE * COLONY_CELL_METRES / 2
+  for (let i = 0; i <= COLONY_GRID_SIZE; i++) {
+    const v = -mapHalf + i * COLONY_CELL_METRES
+    gridPoints.push(v, -0.13, -mapHalf, v, -0.13, mapHalf, -mapHalf, -0.13, v, mapHalf, -0.13, v)
+  }
   scene.add(new THREE.LineSegments(
     new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(gridPoints, 3)),
-    new THREE.LineBasicMaterial({ color: '#d9a46a', transparent: true, opacity: 0.18 }),
+    new THREE.LineBasicMaterial({ color: '#d9a46a', transparent: true, opacity: 0.13 }),
   ))
+  let draft: ConstructionDraft | null = null
+  const ghostMaterial = new THREE.MeshBasicMaterial({ color: '#b9e48a', transparent: true, opacity: 0.36, depthWrite: false })
+  const ghost = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), ghostMaterial)
+  ghost.visible = false; scene.add(ghost)
+  function setDraft(next: ConstructionDraft | null): void {
+    draft = next
+    ghost.visible = !!next
+    if (next) {
+      const p = placementWorld(next.kind, next.at)
+      ghost.position.set(p.x, 0.8, p.z); ghost.scale.set(p.width - 0.1, 1.6, p.depth - 0.1)
+      ghostMaterial.color.set(latest && (placementError(latest.state.modules, next.kind, next.at, next.moveId) || placementHitsNetwork(latest.state, next.kind, next.at, next.moveId)) ? '#ee805e' : '#b9e48a')
+    }
+    requestRender()
+  }
 
+  const overviewTemplates = createOverviewTemplates()
+  const moduleBatches = createModuleBatcher(); scene.add(moduleBatches.root)
+  const detailRoot = new THREE.Group(); scene.add(detailRoot)
   const moduleRoot = new THREE.Group()
+  moduleRoot.visible = false // retained exact geometry for raycasting, not drawn twice
   const propsRoot = new THREE.Group()
-  scene.add(moduleRoot, propsRoot)
+  // Off-render sources must not participate in scene.updateMatrixWorld, which
+  // otherwise traverses even invisible descendants on every render.
+  scene.add(propsRoot)
   const selection = new THREE.Mesh(new THREE.RingGeometry(2.48, 2.55, 64), new THREE.MeshBasicMaterial({ color: '#f0cf8a', side: THREE.DoubleSide, transparent: true, opacity: 0.9 }))
   selection.rotation.x = -Math.PI / 2
   selection.visible = false
@@ -141,18 +180,59 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   scene.add(selection)
 
   const templates = new Map<string, THREE.Group>()
+  const serviceReader = createNetworkServiceReader()
   const moduleObjects = new Map<string, THREE.Group>()
-  // Removed objects can share geometry/materials with live clones; defer their
-  // deduplicated GPU disposal until teardown rather than invalidating live meshes.
-  const retired: THREE.Object3D[] = []
+  let poseVersion = 0, visualVersion = 0, materialVersion = 0, batchStamp = ''
+  const dirtyBranches = new Set<THREE.Object3D>()
+  const frustum = new THREE.Frustum(), projection = new THREE.Matrix4(), bounds = new THREE.Box3()
+  let culledModules = 0, lowDetail = false
+  function updateModuleBatches(): void {
+    if (!latest || options.batching === false) { dirtyBranches.clear(); return }
+    camera.updateMatrixWorld(true)
+    frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse))
+    lowDetail = 4 * host.clientWidth * camera.zoom / (camera.right - camera.left) < 32
+    const sources: THREE.Object3D[] = [], visible: string[] = []
+    culledModules = 0
+    for (const m of latest.state.modules) {
+      const object = moduleObjects.get(m.id)
+      if (!object) continue
+      const detailed = m.id === latest.selectedId || !lowDetail
+      for (const child of object.children) {
+        if (child.userData.overviewProxy) { child.visible = !detailed; continue }
+        if (child.userData.overviewKeep) continue
+        const sourceVisible = child.name === 'lamp' ? !!child.userData.signalVisible : child.userData.overviewSourceVisible ?? child.visible
+        child.userData.overviewSourceVisible = sourceVisible
+        child.userData.overviewHidden = sourceVisible && !detailed
+        child.visible = sourceVisible && detailed
+      }
+      if (m.id === latest.selectedId) continue
+      const p = placementWorld(m.kind, modulePlacement(m))
+      // Conservative module + shadow reach. Never cull by its centre alone.
+      bounds.min.set(p.x - p.width / 2 - 6, -0.3, p.z - p.depth / 2 - 6)
+      bounds.max.set(p.x + p.width / 2 + 6, 6, p.z + p.depth / 2 + 6)
+      if (!frustum.intersectsBox(bounds)) { culledModules++; continue }
+      sources.push(object); visible.push(m.id)
+    }
+    const stamp = `${poseVersion}:${lowDetail ? 0 : options.incremental === false ? visualVersion : materialVersion}:${lowDetail}:${visible.join(',')}`
+    if (stamp !== batchStamp) { batchStamp = stamp; moduleBatches.update(sources) }
+    else if (!lowDetail && dirtyBranches.size) moduleBatches.refresh([...dirtyBranches])
+    dirtyBranches.clear()
+  }
+
+  const padGeometries = new Map<string, THREE.BoxGeometry>()
+  const padMaterial = new THREE.MeshStandardMaterial({ color: '#4a3a2e', roughness: 0.95, metalness: 0.15 })
+  const bedGeometry = new THREE.BoxGeometry(0.7, 0.22, 2.05)
+  const bedMaterial = new THREE.MeshStandardMaterial({ color: '#38453b', roughness: 0.9 })
+  const glassMaterial = new THREE.MeshStandardMaterial({ color: '#99dce1', roughness: 0.28, metalness: 0.15, transparent: true, opacity: 0.23, depthWrite: false, side: THREE.DoubleSide })
+  const lampMaterials = new Map<string, THREE.MeshStandardMaterial>()
+
+  const pooledResources = () => [...padGeometries.values(), padMaterial, bedGeometry, bedMaterial, glassMaterial, ...lampMaterials.values()]
+  let modelsSettled = false
   let latest: { state: ColonyState; selectedId: string | null; sunHours: number } | null = null
 
   // ---- Whole-base organism: KayKit parts driven by colonyVisualState (visual only) ----
   let lander: THREE.Object3D | null = null
   const crateStages: THREE.Object3D[] = []
-  const linkRoot = new THREE.Group()
-  scene.add(linkRoot)
-  let linkKey = ''
   const LIGHT_COLORS: Record<'green' | 'amber' | 'red', string> = { green: '#7fe0a0', amber: '#ffb347', red: '#ff4d4d' }
   const spinners: Array<{ pivot: THREE.Object3D; axis: 'x' | 'y' | 'z'; speed: number; group: 'wind' | 'drill' | 'truck' }> = []
   let spinFrame = 0
@@ -220,12 +300,19 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   function applyModuleVisual(object: THREE.Group, mv: ModuleVisual, solarTilt: number): void {
     const lamp = ensureLamp(object)
     if (lamp) {
+      if (lamp.userData.signalVisible !== (mv.lights !== 'off')) materialVersion++
       lamp.visible = mv.lights !== 'off'
+      lamp.userData.signalVisible = lamp.visible
       if (mv.lights !== 'off' && lamp.userData.color !== LIGHT_COLORS[mv.lights]) {
+        materialVersion++
         const color = LIGHT_COLORS[mv.lights]
         lamp.userData.color = color
         lamp.traverse(child => {
-          if (child instanceof THREE.Mesh) child.material = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.4 })
+          if (child instanceof THREE.Mesh) {
+            let material = lampMaterials.get(color)
+            if (!material) { material = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.4 }); lampMaterials.set(color, material) }
+            child.material = material
+          }
         })
       }
     }
@@ -236,28 +323,10 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     }
     if (mv.kind === 'solar') {
       const body = object.getObjectByName('body')
-      if (body) body.rotation.x = -0.35 + 0.45 * solarTilt
+      const angle = -0.35 + 0.45 * solarTilt
+      if (body && body.rotation.x !== angle) { body.rotation.x = angle; dirtyBranches.add(body) }
     }
   }
-  function rebuildLinks(links: Array<[number, number]>): void {
-    const key = links.map(link => link.join('-')).join(',')
-    if (key === linkKey) return
-    const template = templates.get(K.tunnel)
-    if (!template) return
-    linkKey = key
-    for (const child of [...linkRoot.children]) { linkRoot.remove(child); retired.push(child) }
-    const size = new THREE.Box3().setFromObject(template).getSize(new THREE.Vector3())
-    const alongX = size.x >= size.z
-    for (const [a, b] of links) {
-      const pa = SLOTS[a], pb = SLOTS[b]
-      const horizontal = pa.z === pb.z
-      const tunnel = model(K.tunnel, 2.6, false)
-      tunnel.position.set((pa.x + pb.x) / 2, 0.3, (pa.z + pb.z) / 2)
-      tunnel.rotation.y = horizontal === alongX ? 0 : Math.PI / 2
-      linkRoot.add(tunnel)
-    }
-  }
-
   function model(file: string, width: number, glass = false): THREE.Group {
     const group = new THREE.Group()
     const template = templates.get(file)
@@ -280,7 +349,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
       object.receiveShadow = true
       if (file === 'rock.glb') object.material = new THREE.MeshStandardMaterial({ color: '#787c81', roughness: 1 })
       if (glass) {
-        object.material = new THREE.MeshStandardMaterial({ color: '#99dce1', roughness: 0.28, metalness: 0.15, transparent: true, opacity: 0.23, depthWrite: false, side: THREE.DoubleSide })
+        object.material = glassMaterial
         object.add(new THREE.LineSegments(new THREE.EdgesGeometry(object.geometry, 24), new THREE.LineBasicMaterial({ color: '#d3eff1', transparent: true, opacity: 0.56 })))
       }
     })
@@ -306,9 +375,15 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   function createModule(m: ColonyModule, index: number): THREE.Group {
     const root = new THREE.Group()
     root.userData.moduleId = m.id
-    const { x, z } = SLOTS[m.slot]
+    const at = modulePlacement(m), { x, z } = placementWorld(m.kind, at)
     root.position.set(x, 0, z)
-    const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.32, 2.4, 0.12, 6), new THREE.MeshStandardMaterial({ color: '#4a3a2e', roughness: 0.95, metalness: 0.15 }))
+    root.rotation.y = -at.rotation * Math.PI / 2
+    const [fw, fd] = footprint(m.kind, 0)
+    const padKey = `${fw}:${fd}`
+    let padGeometry = padGeometries.get(padKey)
+    if (!padGeometry) { padGeometry = new THREE.BoxGeometry(fw * COLONY_CELL_METRES - 0.16, 0.12, fd * COLONY_CELL_METRES - 0.16); padGeometries.set(padKey, padGeometry) }
+    const pad = new THREE.Mesh(padGeometry, padMaterial)
+    pad.userData.overviewKeep = true
     pad.position.y = 0.02; pad.receiveShadow = true; root.add(pad)
     const edge = new THREE.LineSegments(new THREE.EdgesGeometry(pad.geometry), new THREE.LineBasicMaterial({ color: CATALOG[m.kind].color, transparent: true, opacity: 0.45 }))
     edge.position.copy(pad.position); root.add(edge); root.userData.edge = edge
@@ -316,14 +391,17 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     const body = model(CATALOG[m.kind].file, width, m.kind === 'greenhouse')
     body.position.y = 0.1
     body.name = 'body'
-    if (m.kind === 'solar') body.rotation.y = Math.PI / 5
     if (m.kind === 'habitat' || m.kind === 'workshop') body.rotation.y = Math.PI / 2
+    body.updateMatrixWorld(true)
+    const bounds = new THREE.Box3().setFromObject(body).getSize(new THREE.Vector3())
+    const fit = Math.min(1, (fw * COLONY_CELL_METRES - 0.5) / bounds.x, (fd * COLONY_CELL_METRES - 0.5) / bounds.z)
+    body.scale.multiplyScalar(fit)
     root.add(body)
     if (m.kind === 'greenhouse') {
       const crops = new THREE.Group()
       crops.name = 'crops'
       for (let row = 0; row < 3; row++) {
-        const bed = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.22, 2.05), new THREE.MeshStandardMaterial({ color: '#38453b', roughness: 0.9 }))
+        const bed = new THREE.Mesh(bedGeometry, bedMaterial)
         bed.position.set((row - 1) * 0.85, 0.3, 0); root.add(bed)
         for (let j = 0; j < 4; j++) {
           const plant = model('plant.glb', 0.43)
@@ -339,6 +417,8 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     }
     const caption = label(`${m.kind.toUpperCase().slice(0, 3)} / ${String(index + 1).padStart(2, '0')}`, CATALOG[m.kind].color)
     if (caption) { caption.position.set(0, 0.32, 2); root.add(caption) }
+    const overview = overviewTemplates.get(m.kind)!.clone(true)
+    overview.userData.overviewProxy = true; overview.visible = false; root.add(overview)
     return root
   }
 
@@ -401,43 +481,66 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   }
 
   function update(state: ColonyState, selectedId: string | null, sunHours: number): void {
+    if (disposed) return
+    const started = performance.now()
+    if (latest?.selectedId !== selectedId) poseVersion++
     latest = { state, selectedId, sunHours }
+    if (!modelsSettled) return
+    // New colonies contain only player-owned modules inside the buildable area.
+    // Legacy-only decorative rigs stay available for old visual fixtures.
+    propsRoot.visible = state.modules.some(m => !m.placement)
     const activeIds = new Set(state.modules.map(m => m.id))
     for (const [id, object] of moduleObjects) {
-      if (!activeIds.has(id)) { moduleRoot.remove(object); retired.push(object); moduleObjects.delete(id) }
+      if (!activeIds.has(id)) {
+        object.removeFromParent(); object.traverse(child => dirtyBranches.delete(child)); moduleObjects.delete(id); poseVersion++
+        disposeTrees([object], [], [scene, moduleRoot, ...templates.values(), ...overviewTemplates.values()], pooledResources())
+      }
     }
     state.modules.forEach((m, index) => {
       let object = moduleObjects.get(m.id)
-      if (!object) { object = createModule(m, index); moduleObjects.set(m.id, object); moduleRoot.add(object) }
+      if (!object) { object = createModule(m, index); moduleObjects.set(m.id, object); moduleRoot.add(object); poseVersion++ }
+      const at = modulePlacement(m), p = placementWorld(m.kind, at)
+      const angle = -at.rotation * Math.PI / 2
+      if (object.position.x !== p.x || object.position.z !== p.z || object.rotation.y !== angle) poseVersion++
+      object.position.set(p.x, 0, p.z); object.rotation.y = angle
       const crops = object.getObjectByName('crops')
       if (crops) {
         const growth = 0.3 + m.growthDays / PARAMETERS.cropCycleDays * 0.7
-        crops.scale.y = growth
+        if (crops.scale.y !== growth) { crops.scale.y = growth; dirtyBranches.add(crops) }
       }
     })
     const selected = state.modules.find(m => m.id === selectedId)
     selection.visible = !!selected
     if (selected) {
-      const { x, z } = SLOTS[selected.slot]; selection.position.set(x, 0.19, z)
+      const { x, z } = placementWorld(selected.kind, modulePlacement(selected)); selection.position.set(x, 0.19, z)
     }
-    const visual = colonyVisualState(state, sunHours)
+    const services = serviceReader.read(state)
+    const visual = colonyVisualState(state, sunHours, services)
     const byId = new Map(visual.modules.map(mv => [mv.id, mv] as const))
     for (const m of state.modules) {
       const object = moduleObjects.get(m.id), mv = byId.get(m.id)
-      if (object && mv) applyModuleVisual(object, mv, visual.power.solarCoverage)
+      if (object && mv) applyModuleVisual(object, services.get(m.id)?.power ? mv : { ...mv, lights: 'red' }, visual.power.solarCoverage)
     }
-    rebuildLinks(visual.links)
+    for (const [id, object] of moduleObjects) {
+      const parent = options.batching === false || id === selectedId ? detailRoot : moduleRoot
+      if (object.parent !== parent) parent.add(object)
+    }
+    visualVersion++; updateModuleBatches()
+    utilities.update(state.modules, networksOf(state), networkPreview)
+    // Connectivity is explicit state, never inferred from visual crossings.
+    setDraft(draft)
     crateStages.forEach((crate, index) => { crate.visible = index === visual.cargoStage })
     if (lander) lander.visible = visual.crewLanded
     const wind = visual.power.blackout ? 0 : 2.5 * visual.power.turbineSpin
     const drillSpeed = visual.power.blackout ? 0 : 0.8
     const truckSpeed = visual.truckActive ? 4 : 0
     for (const spinner of spinners) {
-      spinner.speed = spinner.group === 'wind' ? wind : spinner.group === 'drill' ? drillSpeed : truckSpeed
+      spinner.speed = !propsRoot.visible ? 0 : spinner.group === 'wind' ? wind : spinner.group === 'drill' ? drillSpeed : truckSpeed
     }
     ensureSpin()
     sun.intensity = sunHours > 0 ? 3.5 : 0.08
     sky.intensity = sunHours > 0 ? 2.1 : 0.55
+    lastUpdateMs = performance.now() - started
     requestRender()
   }
 
@@ -456,19 +559,6 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     return { name: 'ARES_csp_image_loader' }
   })
   let modelFailed = false
-  const disposeTrees = (roots: THREE.Object3D[]): void => {
-    const resources = new Set<{ dispose: () => void }>()
-    roots.forEach(root => root.traverse(object => {
-      const renderable = object as THREE.Mesh
-      if (renderable.geometry) resources.add(renderable.geometry)
-      const materials = Array.isArray(renderable.material) ? renderable.material : renderable.material ? [renderable.material] : []
-      for (const material of materials) {
-        resources.add(material)
-        Object.values(material).forEach(value => { if (value instanceof THREE.Texture) resources.add(value) })
-      }
-    }))
-    resources.forEach(resource => resource.dispose())
-  }
   void Promise.all(FILES.map(async file => {
     try {
       const { url, base } = modelLocation(file)
@@ -484,7 +574,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     }
   })).then(() => {
     if (disposed) return
-    retired.push(...moduleObjects.values()); moduleObjects.clear(); moduleRoot.clear()
+    modelsSettled = true
     decorate()
     if (latest) update(latest.state, latest.selectedId, latest.sunHours)
     if (modelFailed) callbacks.onModelError()
@@ -493,15 +583,26 @@ export function createColonyScene(host: HTMLElement, callbacks: {
 
   const raycaster = new THREE.Raycaster()
   let down: { x: number; y: number } | null = null
-  const onDown = (event: PointerEvent): void => { down = { x: event.clientX, y: event.clientY } }
+  const onDown = (event: PointerEvent): void => { down = event.isPrimary ? { x: event.clientX, y: event.clientY } : null }
   const onUp = (event: PointerEvent): void => {
     if (!down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 7) { down = null; return }
     down = null
     const rect = renderer.domElement.getBoundingClientRect()
     raycaster.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1), camera)
-    for (const hit of raycaster.intersectObjects(moduleRoot.children, true)) {
+    if (draft) {
+      const point = new THREE.Vector3()
+      if (raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), point)) callbacks.onSite(worldCell(point.x, point.z))
+      return
+    }
+    // Full sources may have stayed dormant through many overview updates.
+    // Refresh exact transforms once on interaction, including hidden LOD branches.
+    for (const object of moduleObjects.values()) object.updateWorldMatrix(true, true)
+    for (const hit of raycaster.intersectObjects([...moduleObjects.values()], true)) {
+      if (!(hit.object instanceof THREE.Mesh)) continue
       let object: THREE.Object3D | null = hit.object
-      while (object && !object.userData.moduleId) object = object.parent
+      let hidden = false
+      while (object && !object.userData.moduleId) { if (object.userData.overviewProxy || (!object.visible && !object.userData.overviewHidden)) hidden = true; object = object.parent }
+      if (hidden) continue
       if (object?.userData.moduleId) { callbacks.onSelect(object.userData.moduleId as string); break }
     }
   }
@@ -510,30 +611,39 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     const width = host.clientWidth, height = host.clientHeight
     if (!width || !height) return
     const aspect = width / height
-    const halfWidth = aspect < 1.25 ? 22 : 18.5 * aspect
+    // Keep all starter pads inside a narrow mobile frame; users may then pan/zoom.
+    const halfWidth = Math.max(28, 18.5 * aspect)
     const halfHeight = halfWidth / aspect
     camera.left = -halfWidth; camera.right = halfWidth; camera.top = halfHeight; camera.bottom = -halfHeight
     camera.updateProjectionMatrix(); renderer.setSize(width, height); requestRender()
   }
   const observer = new ResizeObserver(resize)
   observer.observe(host)
-  controls.addEventListener('change', requestRender)
   renderer.domElement.addEventListener('pointerdown', onDown)
   renderer.domElement.addEventListener('pointerup', onUp)
   renderer.domElement.addEventListener('webglcontextlost', onContextLost)
   resetCamera(); resize()
 
   return {
-    update,
+    diagnostics: () => ({ contextLost: renderer.getContext().isContextLost(), drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles,
+      geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programs: renderer.info.programs?.length ?? 0,
+      modules: moduleObjects.size, ...moduleBatches.stats(), culledModules, lowDetail, serviceRebuilds: serviceReader.rebuilds(), updateMs: lastUpdateMs, renderCpuMs: lastRenderCpuMs }),
+    update, setDraft,
+    setNetworkPreview: n => { networkPreview = n; if (latest) utilities.update(latest.state.modules, networksOf(latest.state), n); requestRender() },
     resetCamera,
-    zoom: factor => { camera.zoom = THREE.MathUtils.clamp(camera.zoom * factor, controls.minZoom, controls.maxZoom); camera.updateProjectionMatrix(); requestRender() },
+    zoom: factor => rig.zoomBy(factor),
+    rotate: direction => rig.rotateStep(direction),
     dispose: () => {
       disposed = true; abort.abort(); cancelAnimationFrame(frame); cancelAnimationFrame(spinFrame); observer.disconnect()
-      controls.removeEventListener('change', requestRender); controls.dispose()
+      rig.dispose()
       renderer.domElement.removeEventListener('pointerdown', onDown)
       renderer.domElement.removeEventListener('pointerup', onUp)
       renderer.domElement.removeEventListener('webglcontextlost', onContextLost)
-      disposeTrees([scene, ...templates.values(), ...retired])
+      moduleBatches.dispose()
+      utilities.dispose()
+      disposeTrees([scene, moduleRoot, ...templates.values(), ...overviewTemplates.values()], pooledResources())
+      serviceReader.clear(); dirtyBranches.clear(); scene.clear(); moduleRoot.clear(); moduleObjects.clear(); templates.clear(); overviewTemplates.clear(); padGeometries.clear(); lampMaterials.clear()
+      spinners.length = 0; crateStages.length = 0; latest = null; draft = null; networkPreview = null
       sun.shadow.dispose(); renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove()
     },
   }

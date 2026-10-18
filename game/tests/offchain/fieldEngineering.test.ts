@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceEngineering, canHarvest, cropStage, engineeringAction, harvestMass, initialEngineering, LAB, labScale, lotQuality, storageKg, temperatureGrowthFactor, outsideTemperature } from '../../apps/web/src/fields/engineering/engine'
+import { advanceEngineering, canHarvest, cropStage, engineeringAction, harvestMass, initialEngineering, LAB, labScale, lotQuality, storageKg, supplyRoom, temperatureGrowthFactor, outsideTemperature } from '../../apps/web/src/fields/engineering/engine'
 import type { EngineeringState } from '../../apps/web/src/fields/engineering/engine'
 import { engineeringPresentation } from '../../apps/web/src/fields/engineering/presentation'
 import type { FieldVisual } from '../../apps/web/src/fields/model'
@@ -13,13 +13,20 @@ function accounting(s: EngineeringState): void {
   const scale = labScale(s.tier)
   close(s.batteryKwh, LAB.batteryInitialKwh * scale + s.totals.chargeInputKwh * LAB.chargeEfficiency - s.totals.dischargeOutputKwh / LAB.dischargeEfficiency)
   close(s.totals.solarKwh + s.totals.dischargeOutputKwh, s.totals.servedKwh + s.totals.chargeInputKwh + s.totals.curtailedKwh)
-  close(s.tankL + s.supplyL + s.lineL + s.totals.waterConsumedL, (LAB.tankInitialL + LAB.supplyInitialL + LAB.lineInitialL) * scale)
-  close(s.nutrientsKg + s.totals.nutrientsConsumedKg, LAB.nutrientsInitialKg * scale)
-  close(storageKg(s) + s.totals.spoiledKg + s.totals.processingLossKg, s.totals.harvestedKg)
+  // Колония может довезти воду, питание и запчасти: приток входит в баланс массы,
+  // поэтому «сколько przyjęл стенд» всегда равно «сколько списано у базы».
+  close(s.tankL + s.supplyL + s.lineL + s.totals.waterConsumedL, (LAB.tankInitialL + LAB.supplyInitialL + LAB.lineInitialL) * scale + s.totals.inflowLitres)
+  close(s.nutrientsKg + s.totals.nutrientsConsumedKg, LAB.nutrientsInitialKg * scale + s.totals.inflowNutrientsKg)
+  // Отправленная на базу партия покидает стенд, но остаётся в учёте массы еды.
+  close(storageKg(s) + s.totals.spoiledKg + s.totals.processingLossKg + s.totals.shippedKg, s.totals.harvestedKg)
   close(s.temperatureC, LAB.initialTemperatureC + (s.totals.heaterHeatKwh + s.totals.lampHeatKwh + s.totals.passiveHeatKwh - s.totals.climateRemovedKwh - s.totals.evaporationKwh) / (LAB.thermalCapacityKwhPerC * scale))
   assert.ok(s.batteryKwh >= 0 && s.batteryKwh <= LAB.batteryCapacityKwh * scale + 1e-7)
   assert.ok(s.tankL >= 0 && s.tankL <= LAB.tankCapacityL * scale + 1e-7)
+  assert.ok(s.supplyL >= 0 && s.supplyL <= LAB.supplyCapacityL * scale + 1e-7)
   assert.ok(s.lineL >= 0 && s.lineL <= LAB.lineCapacityL * scale + 1e-7)
+  assert.ok(s.nutrientsKg >= 0 && s.nutrientsKg <= LAB.nutrientCapacityKg * scale + 1e-7)
+  // Запчасти — целые детали на общей полке стенда (без масштабирования тира).
+  assert.ok(Number.isInteger(s.spares) && s.spares >= 0 && s.spares <= LAB.sparesCapacity)
   assert.ok(storageKg(s) <= LAB.storageCapacityKg * scale + 1e-7)
   assert.ok(s.history.length <= LAB.maxHistory && s.events.length <= LAB.maxEvents)
 }
@@ -98,6 +105,85 @@ test('refill transfers finite reserve water, never creates water', () => {
   const exhausted = { ...s, supplyL: 0, tankL: 0 }
   assert.equal(engineeringAction(exhausted, { type: 'refill' }), exhausted)
   accounting(s)
+})
+test('supply accepts a colony delivery into the finite bench room and records the inflow', () => {
+  // Стенд не умеет создавать массу: он лишь принимает то, что списала колония.
+  let s = initial()
+  const before = { litres: s.supplyL, nutrients: s.nutrientsKg, spares: s.spares }
+  s = engineeringAction(s, { type: 'supply', resource: 'water', amount: 40 })
+  close(s.supplyL, before.litres + 40); close(s.totals.inflowLitres, 40)
+  close(s.totals.inflowNutrientsKg, 0); close(s.totals.inflowSpares, 0)
+  s = engineeringAction(s, { type: 'supply', resource: 'nutrients', amount: 0.2 })
+  close(s.nutrientsKg, before.nutrients + 0.2); close(s.totals.inflowNutrientsKg, 0.2)
+  s = engineeringAction(s, { type: 'supply', resource: 'spares', amount: 1 })
+  assert.equal(s.spares, before.spares + 1); close(s.totals.inflowSpares, 1)
+  accounting(s)
+
+  // Мусор на входе и дробные запчасти игнорируются: возвращается тот же объект.
+  assert.equal(engineeringAction(s, { type: 'supply', resource: 'spares', amount: 0.5 }), s)
+  for (const bad of [0, -12, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.equal(engineeringAction(s, { type: 'supply', resource: 'water', amount: bad }), s)
+  }
+
+  // Полка запчастей заполняется целыми деталями до LAB.sparesCapacity и встаёт.
+  let shelf = s
+  while (supplyRoom(shelf, 'spares') >= 1) shelf = engineeringAction(shelf, { type: 'supply', resource: 'spares', amount: 1 })
+  assert.equal(shelf.spares, LAB.sparesCapacity); close(shelf.totals.inflowSpares, LAB.sparesCapacity - before.spares)
+  assert.equal(engineeringAction(shelf, { type: 'supply', resource: 'spares', amount: 3 }), shelf)
+  accounting(shelf)
+
+  // Резерв воды заполняется шагом 40 л, последний заезд урезается до свободного места.
+  let tank = s
+  while (supplyRoom(tank, 'water') >= 40) tank = engineeringAction(tank, { type: 'supply', resource: 'water', amount: 40 })
+  const roomLeft = supplyRoom(tank, 'water')
+  assert.ok(roomLeft >= 0 && roomLeft < 40)
+  const partial = engineeringAction(tank, { type: 'supply', resource: 'water', amount: 40 })
+  close(partial.supplyL, LAB.supplyCapacityL * labScale(tank.tier))
+  close(partial.totals.inflowLitres, tank.totals.inflowLitres + roomLeft)
+  assert.equal(engineeringAction(partial, { type: 'supply', resource: 'water', amount: 40 }), partial)
+  accounting(tank); accounting(partial)
+})
+test('supply scales with the tier room and keeps every tier profile closed', () => {
+  for (const tier of [0, 1, 2] as const) {
+    let s = initialEngineering(`bench-${tier}`, tier)
+    const roomLitres = supplyRoom(s, 'water')
+    const roomNutrients = supplyRoom(s, 'nutrients')
+    close(roomLitres, LAB.supplyCapacityL * labScale(tier) - LAB.supplyInitialL * labScale(tier))
+    close(roomNutrients, LAB.nutrientCapacityKg * labScale(tier) - LAB.nutrientsInitialKg * labScale(tier))
+    s = engineeringAction(s, { type: 'supply', resource: 'water', amount: roomLitres })
+    close(s.supplyL, LAB.supplyCapacityL * labScale(tier))
+    s = engineeringAction(s, { type: 'supply', resource: 'nutrients', amount: roomNutrients })
+    close(s.nutrientsKg, LAB.nutrientCapacityKg * labScale(tier))
+    assert.equal(engineeringAction(s, { type: 'supply', resource: 'water', amount: 1 }), s)
+    assert.equal(engineeringAction(s, { type: 'supply', resource: 'nutrients', amount: 1 }), s)
+    accounting(s)
+  }
+})
+test('ship moves a SIM food lot off the bench without creating or losing the rest', () => {
+  let s = harvested()
+  const lotId = s.lots[0].id, mass = s.lots[0].kg
+  // Частичная отгрузка: масса уходит из партии и попадает в счётчик отгруженного.
+  s = engineeringAction(s, { type: 'ship', lotId, kg: mass / 2 })
+  close(s.lots[0].kg, mass / 2); close(s.totals.shippedKg, mass / 2)
+  close(storageKg(s) + s.totals.shippedKg, s.totals.harvestedKg)
+  // Отгрузка больше остатка партии невозможна: урезается до фактических кг.
+  s = engineeringAction(s, { type: 'ship', lotId, kg: mass })
+  close(s.totals.shippedKg, mass); assert.equal(s.lots.length, 0)
+  close(s.totals.shippedKg, s.totals.harvestedKg)
+  // Пустая партия, чужой id и мусор на входе — отказ без изменений состояния.
+  assert.equal(engineeringAction(s, { type: 'ship', lotId, kg: 5 }), s)
+  assert.equal(engineeringAction(s, { type: 'ship', lotId: 999, kg: 5 }), s)
+  const fresh = harvested()
+  for (const bad of [0, -3, Number.NaN]) assert.equal(engineeringAction(fresh, { type: 'ship', lotId, kg: bad }), fresh)
+  accounting(s)
+})
+test('ship keeps the rest of the bench untouched and never invents token state', () => {
+  const s = harvested()
+  const snapshot = { seeds: s.seeds, spares: s.spares, crop: s.crop, water: s.tankL + s.supplyL + s.lineL, nutrients: s.nutrientsKg }
+  const shipped = engineeringAction(s, { type: 'ship', lotId: s.lots[0].id, kg: s.lots[0].kg })
+  assert.deepEqual({ seeds: shipped.seeds, spares: shipped.spares, crop: shipped.crop, water: shipped.tankL + shipped.supplyL + shipped.lineL, nutrients: shipped.nutrientsKg }, snapshot)
+  assert.ok(!('credits' in shipped) && !('potatoBalance' in shipped))
+  accounting(shipped)
 })
 test('dust attenuates solar generation and expires at simulated time', () => {
   const normal = advanceEngineering(initial(), 2 * LAB.solHours)

@@ -31,31 +31,42 @@ This checkout contains ARES-1 only. It does not contain the other two game repos
 
 ## Current visual direction: warm industrial Mars
 
-The first finished art pass combines ready-made CC0 prefab equipment with individually generated local background/medallion/button artwork and the existing painted bronze UI kit. Procedural field terrain/noise and custom visible hardware primitives are removed; live text, actions, physics and market behavior are preserved. `/demo` has an illustrated scene, image resource icons and compact control/climate/service plus telemetry/batch/log tabs.
+The first finished art pass combines ready-made CC0 prefab equipment with individually generated local background/medallion/button artwork and the existing painted bronze UI kit. Procedural field terrain/noise and custom visible hardware primitives are removed; live text, actions, physics and market behavior are preserved. `/lab` (the product field lab) has an illustrated scene, image resource icons and compact control/climate/service plus telemetry/batch/log tabs.
 
 See [art sources, implementation and verification](docs/WARM_MARS_ART_PASS.md). The field kit now contains 18 local GLBs + 4 original notices (338,808 B); The original six field-art files add 150,248 B; three section backgrounds bring the current nine-file art inventory to 376,092 B. No external image/model service is called by the app.
 
 ## Illustrated ship sections
 
-Supply/market, mission journal/stats and crew cabin/profile now have distinct local illustrated headers and the same bronze asset surfaces. Five image-based navigation keys preserve the original route callbacks. The actual market/stat/profile/operation screen source and financial logic remain unchanged.
+Supply/market, mission journal/stats and crew cabin/profile now have distinct local illustrated headers and the same bronze asset surfaces. Seven image-based navigation keys (АГРО · ЛАБ · КОЛОНИЯ · СНАБ · ЖУРНАЛ · КАЮТА · ОПЕРАЦИЯ) preserve the original route callbacks. The actual market/stat/profile/operation screen source and financial logic remain unchanged.
 
-`/demo` lets you review the section art via the bottom dock without fake orders, balances or rewards. Direct art states: `/demo?section=market`, `?section=stats`, `?section=profile`. Real actions still live at `/market`, `/stats`, `/profile`, `/operation`. See [section art, unchanged logic and browser proof](docs/WARM_MARS_SECTIONS.md).
+The wallet-free art-review page (`/demo`) was retired on 2026-10-17 together with the demo sandbox: section art is now reviewed on the real routes, and the console itself is covered by `yarn workspace web test:sections-browser` (art, seven keys, RU/EN labels, 400/390/360/320 px) and `test:tap-audit`. See [section art, unchanged logic and browser proof](docs/WARM_MARS_SECTIONS.md).
+
+## Field Lab: a product section (`/lab`)
+
+The wallet-free field demo became a product feature on 2026-10-17. **ЛАБ** is the seventh key of the bottom console (K2) and opens `/lab` inside the game shell — no separate page, no second section bar.
+
+- **Real game data.** Wallet `Field[]` accounts and the five original actions (harvest, upgrade, repair, tax, fertilizer), POTATO/SKR balances, pending harvest, batch limit and license from `GameContext`; per-field daily yield from the live on-chain config and epoch; tier prices, tax, payback and the micro-field entry from the program mirror; the POTATO/SOL order book from `useMarketplace` (mounted only with a wallet).
+- **One colony stock per session.** `ColonyProvider` owns a single expedition for the whole shell, so `/lab` and `/base` show the same litres, kWh, nutrients, spare parts, pads and food. The bench draws water/nutrients/spares from that stock and ships SIM food batches back into base storage; both ledgers are written in the same click, and transfers pause while the colony clock runs.
+- **Training layer stays training.** The engineering SIM (ARES-LAB/2) and the colony sandbox remain local bookkeeping: no POTATO is minted, no transaction is signed, nothing is persisted. Without a wallet the lab shows three labelled benches instead of invented accounts.
+- **Mobile first.** One phone column, 44 px controls (including the fields panel and SIM console at ≤480 px), a seven-key console that stays ≥44 px wide at 320 px, and 124 px clearance above the fixed dock.
+
+See [the field lab product note](docs/FIELD_LAB_PRODUCT.md). Run `cd game && yarn workspace web test:lab-browser` (real fields, shared stock, food shipment) and `yarn test:offchain` (bridge conservation in `tests/offchain/labColonyBridge.test.ts`).
 
 ## 3D Martian fields
 
 Existing wallet fields now have a shared **3D/card view**: planting rows, plants, industrial supports, pipes, cutaway/glazing and a warm Martian palette. The inspector still uses the original field public key and all existing actions; market/program/yield/cost logic is unchanged. The expanded ready-made CC0 model kit and original notices are bundled locally; see the current art-pass inventory above.
 
-Open **`/demo`** for the wallet/RPC-free preview of Common/Rare/Epic using the same renderer and the existing local lesson. Its examples are not owned accounts, tokens or a separate economy. See [implementation and verification](docs/MARTIAN_FIELDS_IMPLEMENTATION.md). `cd game && yarn check:field-assets` verifies provenance offline.
+Open **`/lab`** without a wallet for the training benches of Common/Rare/Epic: the same renderer, three explicitly labelled benches that are not owned accounts, tokens or a separate economy. With a wallet the same panel shows the real `Field[]` accounts and the five original actions. See [implementation and verification](docs/MARTIAN_FIELDS_IMPLEMENTATION.md) and [the product field lab](docs/FIELD_LAB_PRODUCT.md). `cd game && yarn check:field-assets` verifies provenance offline.
 
 ## Field engineering mode
 
-The same field sector now includes **Engineering · SIM (ARES-LAB/2)**: finite battery/water/nutrients, pump and lighting control, a temperature/thermostat heat ledger, selectable crop-vs-food power priority, staged crops, storage/spoilage, and time/power-limited processing. Sessions are keyed by the existing field ID. Main farm defaults to **POTATO · on-chain**; `/demo` opens SIM, with the original local lesson still available. No simulation result changes tokens or calls financial actions. Reload/new scenario resets the local session.
+The same field sector now includes **Engineering · SIM (ARES-LAB/2)**: finite battery/water/nutrients, pump and lighting control, a temperature/thermostat heat ledger, selectable crop-vs-food power priority, staged crops, storage/spoilage, and time/power-limited processing. Sessions are keyed by the existing field ID. Both the farm and `/lab` default to **POTATO · on-chain** and switch to SIM with one key; on the wallet-free benches the same key reads **Учебный урок**. No simulation result changes tokens or calls financial actions. Reload/new scenario resets the local session.
 
 See [current climate profile and verification](docs/FIELD_CLIMATE.md), [ten LAB/2 scenarios](game/economy/engineering-climate-report-2026-10-15.md), and [historical first-slice notes](docs/FIELD_ENGINEERING.md). Run `cd game && yarn simulate:engineering`.
 
 ## Earlier local 3D colony sandbox
 
-The earlier wallet-free design prototype remains available at **`/colony`** on the game client (linked from the farm and `/demo`). It includes 14 locally bundled CC0 models, construction, power/storage, water recycling, batch crops, maintenance and a finite fictional food order. It is a separate lunar design study, not a mainnet launch, a change to on-chain yields, or a token-to-food conversion. Browser progress resets on reload.
+The earlier wallet-free design prototype remains available at **`/colony`** on the game client (linked from the colony tab and the field lab). It includes 14 locally bundled CC0 models, construction, power/storage, water recycling, batch crops, maintenance and a finite fictional food order. It is a separate lunar design study, not a mainnet launch, a change to on-chain yields, or a token-to-food conversion. Browser progress resets on reload.
 
 See [the asset research, resource assumptions and integration plan](docs/LUNAR_FARM_PLAN.md) and the [reproducible 180-day study](game/economy/colony-report-2026-10-14.md). Run with `cd game && yarn dev:web`, then open `/colony`; `yarn simulate:colony` runs the same resource engine without a browser.
 

@@ -6,6 +6,8 @@
  */
 export type ModuleKind = 'solar' | 'greenhouse' | 'habitat' | 'recycler' | 'rover' | 'workshop' | 'battery'
 
+import { networkServices, starterNetworks, placementHitsNetwork, type ColonyNetwork, type ModuleServices } from './networks'
+import { COLONY_MODULE_LIMIT, findPlacement, placementError, type Placement } from './layout'
 import { BEDS, PARAMETERS } from '../organism/parameters'
 import {
   addPlot, advanceDay as unifiedAdvance, canHarvestBed as unifiedCanHarvest, exportKg, harvestBed as unifiedHarvest,
@@ -35,6 +37,7 @@ export interface ColonyModule {
   id: string
   kind: ModuleKind
   slot: number
+  placement?: Placement
   condition: number
   growthDays: number
   /**
@@ -54,6 +57,8 @@ export const DEFAULT_SCENARIO: Scenario = { sunHours: 18, waterRecovery: 0.94 }
 
 export interface ColonyState {
   day: number
+  networks?: ColonyNetwork[]
+  batteryCharge?: Record<string, number>
   modules: ColonyModule[]
   crew: number
   credits: number
@@ -76,6 +81,8 @@ export interface ColonyState {
 }
 
 export interface DayBudget {
+  growthByModule?: Record<string, number>
+  batteryByModule?: Record<string, number>
   generationKwh: number
   demandKwh: number
   servedKwh: number
@@ -111,8 +118,14 @@ export function initialColony(): ColonyState {
     ['solar', 0], ['solar', 6], ['battery', 1], ['habitat', 4],
     ['greenhouse', 9], ['recycler', 15], ['workshop', 17], ['rover', 21],
   ]
+  const starterLayout: Placement[] = [
+    { x: 15, z: 18, rotation: 0 }, { x: 15, z: 23, rotation: 0 },
+    { x: 19, z: 19, rotation: 0 }, { x: 23, z: 18, rotation: 0 },
+    { x: 23, z: 23, rotation: 0 }, { x: 19, z: 24, rotation: 0 },
+    { x: 28, z: 18, rotation: 0 }, { x: 28, z: 24, rotation: 0 },
+  ]
   const modules: ColonyModule[] = starter.map(([kind, slot], i) => ({
-    id: `${kind}-${i + 1}`, kind, slot, condition: 100,
+    id: `${kind}-${i + 1}`, kind, slot, placement: starterLayout[i], condition: 100,
     // Existing expedition crop. NEW greenhouses always start at zero.
     growthDays: kind === 'greenhouse' ? 60 : 0,
     beds: kind === 'greenhouse' ? greenhouseBeds(60) : undefined,
@@ -122,7 +135,7 @@ export function initialColony(): ColonyState {
     crew: 4, storageCapKg: COLONY_STORAGE_KG, startKg: INITIAL_FOOD_KG,
   })
   return syncView({
-    day: 0, modules, crew: 4, credits: PARAMETERS.initialCredits, spentCredits: 0, earnedCredits: 0,
+    day: 0, modules, networks: starterNetworks(modules), crew: 4, credits: PARAMETERS.initialCredits, spentCredits: 0, earnedCredits: 0,
     waterLitres: 800, nutrientsKg: 4, sparesKg: 8, foodKg: 0, oxygenKg: PARAMETERS.oxygenStartKg, oxygenShortfallKg: 0,
     batteryKwh: 80,
     harvestedKg: 0, consumedFoodKg: 0, foodShortfallKg: 0, deliveredKg: 0, lastDay: null, ledger,
@@ -222,22 +235,36 @@ export const batteryCapacity = (s: ColonyState): number => countModules(s, 'batt
 export const foodDemand = (s: ColonyState): number => s.crew * PARAMETERS.freshFoodKgCrewDay
 export const foodReserve = (s: ColonyState): number => foodDemand(s) * PARAMETERS.reserveDays
 
+export function batteryStocks(state: ColonyState): Record<string, number> {
+  const batteries = state.modules.filter(m => m.kind === 'battery')
+  const total = batteries.reduce((sum, m) => sum + (state.batteryCharge?.[m.id] ?? 0), 0)
+  const valid = state.batteryCharge && Math.abs(total - state.batteryKwh) < 1e-7
+  return Object.fromEntries(batteries.map(m => [m.id, Math.max(0, Math.min(PARAMETERS.batteryKwh,
+    valid ? state.batteryCharge![m.id] ?? 0 : state.batteryKwh / Math.max(1, batteries.length)))]))
+}
+
 /** Daily aggregate energy dispatch. It does NOT resolve within-day blackouts. */
 export function dailyBudget(state: ColonyState, scenario: Scenario = DEFAULT_SCENARIO): DayBudget {
   validateScenario(scenario)
   const p = PARAMETERS
+  const services = networkServices(state)
+  const powered = (m: ColonyModule): boolean => !!services.get(m.id)?.power
+  const connectedCount = (kind: ModuleKind): number => state.modules.filter(m => m.kind === kind && powered(m)).length
   const greenhouse = state.modules.filter(m => m.kind === 'greenhouse')
+  const watered = greenhouse.filter(m => powered(m) && services.get(m.id)?.water && services.get(m.id)?.access)
+  const poweredCropKwh = greenhouse.filter(powered).length * p.cropAreaM2 * (p.ledKwM2 * p.photoperiodHours + p.cropUtilitiesKwM2 * 24)
   const cropAreaM2 = greenhouse.length * p.cropAreaM2
-  const healthyCropArea = greenhouse.reduce((sum, m) => sum + capacityFactor(m) * p.cropAreaM2, 0)
-  const generationKwh = state.modules.filter(m => m.kind === 'solar')
+  const totalHealthyCropArea = greenhouse.reduce((sum, m) => sum + capacityFactor(m) * p.cropAreaM2, 0)
+  const healthyCropArea = watered.reduce((sum, m) => sum + capacityFactor(m) * p.cropAreaM2, 0)
+  const generationKwh = state.modules.filter(m => m.kind === 'solar' && powered(m))
     .reduce((sum, m) => sum + p.solarFluxKwM2 * p.panelAreaM2 * p.panelEfficiency * p.panelDerating * scenario.sunHours * capacityFactor(m), 0)
   const crewWater = state.crew * p.crewWaterLitresDay
   const evaporation = healthyCropArea * p.cropEvapLitresM2Day
   const grossLoopWater = crewWater + evaporation
-  const recyclerCapacity = state.modules.filter(m => m.kind === 'recycler')
+  const recyclerCapacity = state.modules.filter(m => m.kind === 'recycler' && powered(m))
     .reduce((sum, m) => sum + p.recyclerLitresDay * capacityFactor(m), 0)
   const recyclerKwh = Math.min(grossLoopWater, recyclerCapacity) * p.recyclerKwhLitre
-  const recyclerO2CapacityKg = state.modules.filter(m => m.kind === 'recycler')
+  const recyclerO2CapacityKg = state.modules.filter(m => m.kind === 'recycler' && powered(m))
     .reduce((sum, m) => sum + p.recyclerO2KgDay * capacityFactor(m), 0)
   const electrolysisKwh = recyclerO2CapacityKg * p.electrolysisKwhKgO2
   const essentialKwh = countModules(state, 'habitat') * p.habitatKwhDay
@@ -245,51 +272,69 @@ export function dailyBudget(state: ColonyState, scenario: Scenario = DEFAULT_SCE
     + countModules(state, 'workshop') * p.workshopKwhDay + recyclerKwh + electrolysisKwh
   const cropKwh = cropAreaM2 * (p.ledKwM2 * p.photoperiodHours + p.cropUtilitiesKwM2 * 24)
   const demandKwh = essentialKwh + cropKwh
-  const shortage = Math.max(0, demandKwh - generationKwh)
-  const batteryDischargeOutputKwh = Math.min(shortage, state.batteryKwh * p.batteryDischargeEfficiency)
-  const servedKwh = Math.min(demandKwh, generationKwh + batteryDischargeOutputKwh)
-  const essentialPowerFraction = fraction(servedKwh, essentialKwh)
-  const cropPowerFraction = fraction(Math.max(0, servedKwh - essentialKwh), cropKwh)
-  const surplus = Math.max(0, generationKwh - demandKwh)
-  const batteryChargeInputKwh = Math.min(surplus, Math.max(0, batteryCapacity(state) - state.batteryKwh) / p.batteryChargeEfficiency)
-  const batteryEndKwh = Math.max(0, Math.min(batteryCapacity(state), state.batteryKwh
-    - batteryDischargeOutputKwh / p.batteryDischargeEfficiency
-    + batteryChargeInputKwh * p.batteryChargeEfficiency))
+  const connectedEssentialKwh = connectedCount('habitat') * p.habitatKwhDay + connectedCount('rover') * p.roverKwhDay
+    + connectedCount('workshop') * p.workshopKwhDay + recyclerKwh + electrolysisKwh
+  const connectedDemand = connectedEssentialKwh + poweredCropKwh
+  const stocks = batteryStocks(state)
+  const batteries = state.modules.filter(m => m.kind === 'battery' && powered(m))
+  const activeStock = batteries.reduce((sum, m) => sum + stocks[m.id], 0)
+  const activeRoom = batteries.length * p.batteryKwh - activeStock
+  const shortage = Math.max(0, connectedDemand - generationKwh)
+  const batteryDischargeOutputKwh = Math.min(shortage, activeStock * p.batteryDischargeEfficiency)
+  const servedKwh = Math.min(connectedDemand, generationKwh + batteryDischargeOutputKwh)
+  const activeEssentialFraction = fraction(servedKwh, connectedEssentialKwh)
+  const essentialPowerFraction = fraction(Math.min(servedKwh, connectedEssentialKwh), essentialKwh)
+  const activeCropFraction = fraction(Math.max(0, servedKwh - connectedEssentialKwh), poweredCropKwh)
+  const cropPowerFraction = activeCropFraction * fraction(poweredCropKwh, cropKwh)
+  const surplus = Math.max(0, generationKwh - connectedDemand)
+  const batteryChargeInputKwh = Math.min(surplus, activeRoom / p.batteryChargeEfficiency)
+  for (const m of batteries) {
+    stocks[m.id] = Math.max(0, Math.min(p.batteryKwh, stocks[m.id]
+      - (activeStock ? stocks[m.id] / activeStock * batteryDischargeOutputKwh / p.batteryDischargeEfficiency : 0)
+      + (activeRoom ? (p.batteryKwh - stocks[m.id]) / activeRoom * batteryChargeInputKwh * p.batteryChargeEfficiency : 0)))
+  }
+  const batteryEndKwh = Object.values(stocks).reduce((sum, n) => sum + n, 0)
 
   // Treat operating all essential systems at the served fraction. No recycling
   // credit is given to unpowered hardware. Capacity is deliberately finite.
-  const recovery = scenario.waterRecovery * fraction(recyclerCapacity, grossLoopWater) * essentialPowerFraction
+  const habitat = state.modules.find(m => m.kind === 'habitat')
+  const crewReturn = habitat && services.get(habitat.id)?.water && services.get(habitat.id)?.return ? crewWater : 0
+  const cropReturn = watered.filter(m => services.get(m.id)?.return).reduce((sum, m) => sum + capacityFactor(m) * p.cropAreaM2 * p.cropEvapLitresM2Day, 0)
+  const recovery = scenario.waterRecovery * fraction(Math.min(recyclerCapacity, crewReturn + cropReturn), grossLoopWater) * activeEssentialFraction
   // Electrolysis water circulates in the same recycler loop as crew water; only the unrecovered share is makeup.
   // Electrolysis cannot run without makeup water in the tank: cap output by the water it can draw.
   const o2WaterCapKg = state.waterLitres / (p.electrolysisWaterKgPerKgO2 * (1 - recovery))
-  const electrolysisO2Kg = Math.min(recyclerO2CapacityKg * essentialPowerFraction, o2WaterCapKg)
+  const electrolysisO2Kg = Math.min(recyclerO2CapacityKg * activeEssentialFraction, o2WaterCapKg)
   const o2WaterLitres = electrolysisO2Kg * p.electrolysisWaterKgPerKgO2 * (1 - recovery)
   const crewMakeup = crewWater * (1 - recovery) + p.leakLitresDay + o2WaterLitres
   const cropMakeup = evaporation * (1 - recovery) + healthyCropArea * p.cropKgM2Day * p.cropWaterBoundLitresKg
   const workHours = healthyCropArea * p.cropWorkHoursM2Day
     + countModules(state, 'solar') * 0.2 + countModules(state, 'recycler') * 0.5
     + countModules(state, 'rover') * 0.8 + countModules(state, 'workshop') * 0.75
-  const supportedCrew = Math.min(state.crew, countModules(state, 'habitat') * p.crewPerHabitat)
+  const supportedCrew = Math.min(state.crew, state.modules.filter(m => m.kind === 'habitat' && powered(m) && services.get(m.id)?.access).length * p.crewPerHabitat)
   const availableWorkHours = supportedCrew * p.workHoursCrewDay
   const workFraction = fraction(availableWorkHours, workHours)
   const nutrientsNeeded = healthyCropArea * p.cropKgM2Day * p.cropNutrientKgPerKg
-  const growthFraction = Math.min(cropPowerFraction, workFraction,
+  const activeGrowth = Math.min(activeCropFraction, workFraction,
     fraction(Math.max(0, state.waterLitres - crewMakeup), cropMakeup),
-    fraction(state.nutrientsKg, nutrientsNeeded)) * essentialPowerFraction
-  const waterNeededLitres = crewMakeup + cropMakeup * Math.min(cropPowerFraction, workFraction) * essentialPowerFraction
-  const waterUsedLitres = Math.min(state.waterLitres, crewMakeup + cropMakeup * growthFraction)
+    fraction(state.nutrientsKg, nutrientsNeeded)) * activeEssentialFraction
+  const growthFraction = activeGrowth * (totalHealthyCropArea ? healthyCropArea / totalHealthyCropArea : 0)
+  const waterNeededLitres = crewMakeup + cropMakeup * Math.min(activeCropFraction, workFraction) * activeEssentialFraction
+  const waterUsedLitres = Math.min(state.waterLitres, crewMakeup + cropMakeup * activeGrowth)
   // Oxygen: electrolysis (powered recyclers) plus photosynthesis (actual biomass growth).
-  const oxygenProducedKg = electrolysisO2Kg + healthyCropArea * p.cropKgM2Day * growthFraction * p.cropO2KgPerKgFresh
+  const oxygenProducedKg = electrolysisO2Kg + healthyCropArea * p.cropKgM2Day * activeGrowth * p.cropO2KgPerKgFresh
   const oxygenDemandKg = state.crew * p.crewO2KgDay
   const oxygenAvailableKg = state.oxygenKg + oxygenProducedKg
   return {
+    growthByModule: Object.fromEntries(greenhouse.map(m => [m.id, powered(m) && services.get(m.id)?.water && services.get(m.id)?.access ? activeGrowth : 0])),
+    batteryByModule: stocks,
     generationKwh, demandKwh, servedKwh, unmetKwh: Math.max(0, demandKwh - servedKwh),
     curtailedKwh: surplus - batteryChargeInputKwh,
     batteryChargeInputKwh, batteryDischargeOutputKwh, batteryEndKwh,
     essentialPowerFraction, cropPowerFraction, cropAreaM2, recovery,
     waterUsedLitres, waterNeededLitres,
     waterShortfallLitres: Math.max(0, waterNeededLitres - state.waterLitres),
-    nutrientsUsedKg: Math.min(state.nutrientsKg, nutrientsNeeded * growthFraction),
+    nutrientsUsedKg: Math.min(state.nutrientsKg, nutrientsNeeded * activeGrowth),
     growthFraction, workHours, availableWorkHours,
     oxygenProducedKg, oxygenDemandKg,
     oxygenShortfallKg: Math.max(0, oxygenDemandKg - oxygenAvailableKg),
@@ -304,12 +349,12 @@ export function advanceDay(state: ColonyState, scenario: Scenario = DEFAULT_SCEN
   // Growth of each greenhouse = energy/water/light budget × its condition (the same limits as before).
   const growthOf = (id: string): number => {
     const m = state.modules.find(x => x.id === id)
-    return m ? budget.growthFraction * capacityFactor(m) : 0
+    return m ? (budget.growthByModule?.[id] ?? budget.growthFraction) * capacityFactor(m) : 0
   }
   const ledger = unifiedAdvance(state.ledger, growthOf)
   const modules = state.modules.map(m => ({ ...m, condition: Math.max(20, m.condition - CATALOG[m.kind].wearDay) }))
   return syncView({
-    ...state, modules, day: state.day + 1, batteryKwh: budget.batteryEndKwh,
+    ...state, modules, day: state.day + 1, batteryKwh: budget.batteryEndKwh, batteryCharge: budget.batteryByModule,
     oxygenKg: budget.oxygenEndKg, oxygenShortfallKg: state.oxygenShortfallKg + budget.oxygenShortfallKg,
     waterLitres: Math.max(0, state.waterLitres - budget.waterUsedLitres),
     nutrientsKg: Math.max(0, state.nutrientsKg - budget.nutrientsUsedKg),
@@ -326,22 +371,45 @@ export function advanceDays(state: ColonyState, days: number, scenario: Scenario
 }
 
 export function canBuild(state: ColonyState, kind: ModuleKind): boolean {
-  return state.modules.length < SLOTS.length && state.credits >= CATALOG[kind].credits && state.sparesKg >= 1
+  return state.modules.length < COLONY_MODULE_LIMIT && state.credits >= CATALOG[kind].credits && state.sparesKg >= 1
+    && findPlacement(state.modules, kind, at => placementHitsNetwork(state, kind, at)) !== null
+}
+/** Atomic: invalid geometry or insufficient resources returns the SAME state.
+ * No preview spends resources; confirm validates the newest session snapshot.
+ */
+export function buildModuleAt(state: ColonyState, kind: ModuleKind, at: Placement): ColonyState {
+  if (state.modules.length >= COLONY_MODULE_LIMIT || state.credits < CATALOG[kind].credits || state.sparesKg < 1
+    || placementError(state.modules, kind, at) || placementHitsNetwork(state, kind, at)) return state
+  const slot = Math.max(-1, ...state.modules.map(m => m.slot)) + 1
+  let suffix = state.modules.length + 1
+  while (state.modules.some(m => m.id === `${kind}-${suffix}`)) suffix++
+  const id = `${kind}-${suffix}`, cost = CATALOG[kind].credits
+  const module: ColonyModule = { id, kind, slot, placement: { ...at }, condition: 100, growthDays: 0,
+    beds: kind === 'greenhouse' ? greenhouseBeds(0) : undefined }
+  const ledger = kind === 'greenhouse' ? addPlot(state.ledger, { id, tier: 0, beds: greenhouseBeds(0), harvestedKg: 0 }) : state.ledger
+  return syncView({ ...state, credits: state.credits - cost, spentCredits: state.spentCredits + cost,
+    sparesKg: state.sparesKg - 1, modules: [...state.modules, module], ledger,
+    networks: state.networks ?? starterNetworks(state.modules),
+    batteryCharge: kind === 'battery' ? { ...batteryStocks(state), [id]: 0 } : state.batteryCharge })
 }
 export function buildModule(state: ColonyState, kind: ModuleKind): ColonyState {
   if (!canBuild(state, kind)) return state
-  const used = new Set(state.modules.map(m => m.slot))
-  const slot = SLOTS.findIndex((_, i) => !used.has(i))
-  const cost = CATALOG[kind].credits
-  const id = `${kind}-${state.modules.length + 1}`
-  const module: ColonyModule = { id, kind, slot, condition: 100, growthDays: 0, beds: kind === 'greenhouse' ? greenhouseBeds(0) : undefined }
-  const ledger = kind === 'greenhouse' ? addPlot(state.ledger, { id, tier: 0, beds: greenhouseBeds(0), harvestedKg: 0 }) : state.ledger
-  return syncView({ ...state, credits: state.credits - cost, spentCredits: state.spentCredits + cost,
-    sparesKg: state.sparesKg - 1, modules: [...state.modules, module], ledger })
+  const at = findPlacement(state.modules, kind, at => placementHitsNetwork(state, kind, at))
+  return at ? buildModuleAt(state, kind, at) : state
+}
+/** Repositioning doesn't mint credits, reset wear, replant beds or alter the ledger. */
+export function moveModule(state: ColonyState, id: string, at: Placement): ColonyState {
+  const module = state.modules.find(m => m.id === id)
+  if (!module || placementError(state.modules, module.kind, at, id) || placementHitsNetwork(state, module.kind, at, id)) return state
+  const old = module.placement
+  if (old && old.x === at.x && old.z === at.z && old.rotation === at.rotation) return state
+  return { ...state, networks: (state.networks ?? starterNetworks(state.modules)).filter(n => n.from !== id && n.to !== id),
+    modules: state.modules.map(m => m.id === id ? { ...m, placement: { ...at } } : m) }
 }
 
 export function canRepair(state: ColonyState): boolean {
-  return countModules(state, 'workshop') > 0 && state.credits >= PARAMETERS.repairCredits
+  const services = networkServices(state)
+  return state.modules.some(m => m.kind === 'workshop' && services.get(m.id)?.power && services.get(m.id)?.access) && state.credits >= PARAMETERS.repairCredits
     && state.sparesKg >= PARAMETERS.repairSparesKg && state.modules.some(m => m.condition < 100)
 }
 export function repairColony(state: ColonyState): ColonyState {
@@ -361,9 +429,9 @@ export function buySupplies(state: ColonyState): ColonyState {
   }
 }
 
-export function sellableKg(state: ColonyState): number {
+export function sellableKg(state: ColonyState, services: ReadonlyMap<string, ModuleServices> = networkServices(state)): number {
   // A finite, pre-funded fictional buyer, not an oracle, emission or market forecast.
-  if (countModules(state, 'rover') === 0) return 0
+  if (!state.modules.some(m => m.kind === 'rover' && services.get(m.id)?.power)) return 0
   return Math.max(0, Math.min(10, state.ledger.processedKg - foodReserve(state), PARAMETERS.contractKg - state.deliveredKg))
 }
 export function deliverFood(state: ColonyState): ColonyState {

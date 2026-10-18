@@ -5,11 +5,16 @@ import { ArrowLeft, ArrowRight, BatteryMedium, Box, Check, ChevronRight, CircleH
 import { useI18n } from '../i18n'
 import { colonyCopy, moduleCopy } from './copy'
 import { COLONY_MANUAL_HARVEST_ENABLED } from '../utils/colonyFeature'
-import { advanceDays, batteryCapacity, bedCycleKg, bedSummary, canHarvestBed, harvestBed, buildModule, buySupplies, CATALOG, canBuild, canRepair, countModules, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, initialColony, MODULE_KINDS, PARAMETERS, repairColony, sellableKg, SLOTS } from './simulation'
+import { useColony } from './ColonyContext'
+import { batteryCapacity, bedCycleKg, bedSummary, canHarvestBed, harvestBed, buildModuleAt, moveModule, buySupplies, CATALOG, canBuild, canRepair, countModules, dailyBudget, deliverFood, foodDemand, MODULE_KINDS, PARAMETERS, repairColony, sellableKg } from './simulation'
 import type { BedState, ColonyModule, ColonyState, DayBudget, ModuleKind, Scenario } from './simulation'
 import provenance from '../../public/models/colony/manifest.json'
 import ResourceIcon from '../fields/ResourceIcon'
 import type { ResourceArt } from '../fields/visualAssets'
+import ConstructionPlan, { type ConstructionDraft } from './ConstructionPlan'
+import { COLONY_MODULE_LIMIT, findPlacement, modulePlacement } from './layout'
+import { placementHitsNetwork, networkServices, supportsNetwork, type ColonyNetwork } from './networks'
+import NetworkPanel, { networkName } from './NetworkPanel'
 import './colony.css'
 
 const ColonyViewport = lazy(() => import('./ColonyViewport'))
@@ -24,16 +29,19 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
   const { lang, setLang } = useI18n()
   const c = colonyCopy(lang)
   const descriptions = moduleCopy(lang)
-  const [state, setState] = useState(initialColony)
-  const [scenario, setScenario] = useState<Scenario>({ ...DEFAULT_SCENARIO })
+  // Общая экспедиция сессии: в игровом shell её же читает полевая лаборатория (/lab),
+  // в отдельной песочнице /colony провайдер отсутствует и стор остаётся локальным.
+  const colony = useColony()
+  const { state, setState, scenario, setScenario, running, setRunning, ended: end } = colony
   const [view, setView] = useState<View>('base')
-  const [panel, setPanel] = useState<'build' | 'logistics'>('build')
+  const [panel, setPanel] = useState<'build' | 'logistics' | 'networks'>('build')
   const [selectedId, setSelectedId] = useState<string | null>('greenhouse-5')
-  const [running, setRunning] = useState(false)
   const [message, setMessage] = useState('')
+  const [draft, setDraft] = useState<ConstructionDraft | null>(null)
+  const [networkPreview, setNetworkPreview] = useState<ColonyNetwork | null>(null)
+  const services = useMemo(() => networkServices(state), [state])
   const budget = useMemo(() => dailyBudget(state, scenario), [state, scenario])
   const selected = state.modules.find(m => m.id === selectedId)
-  const end = state.day >= PARAMETERS.maxDays
 
   useEffect(() => {
     if (embedded) return undefined
@@ -41,25 +49,28 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
     document.title = `ARES-1 / ${c.base}`
     return () => { document.title = previous }
   }, [c.base, embedded])
-  useEffect(() => {
-    if (!running || end) return
-    const timer = window.setInterval(() => setState(s => advanceDays(s, 1, scenario)), 1200)
-    const pauseHidden = (): void => { if (document.hidden) setRunning(false) }
-    document.addEventListener('visibilitychange', pauseHidden)
-    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', pauseHidden) }
-  }, [running, scenario, end])
-  useEffect(() => { if (end) setRunning(false) }, [end])
-  useEffect(() => { if (view !== 'base') setRunning(false) }, [view])
+  useEffect(() => { if (view !== 'base') setRunning(false) }, [view, setRunning])
 
   const reset = (): void => {
-    setRunning(false); setState(initialColony()); setScenario({ ...DEFAULT_SCENARIO })
-    setSelectedId('greenhouse-5'); setMessage('')
+    colony.reset()
+    setSelectedId('greenhouse-5'); setMessage(''); setDraft(null); setNetworkPreview(null)
   }
   const build = (kind: ModuleKind): void => {
     if (!canBuild(state, kind)) return
-    setState(current => buildModule(current, kind))
-    setSelectedId(`${kind}-${state.modules.length + 1}`)
-    setMessage(`${descriptions[kind].name} · −${CATALOG[kind].credits} CR`)
+    const at = findPlacement(state.modules, kind, at => placementHitsNetwork(state, kind, at))
+    if (!at) return
+    setRunning(false)
+    setDraft({ kind, at }); setMessage('')
+  }
+  const confirmPlacement = (): void => {
+    if (!draft) return
+    const next = draft.moveId ? moveModule(state, draft.moveId, draft.at) : buildModuleAt(state, draft.kind, draft.at)
+    if (next === state) return
+    // Revalidate inside the updater: no captured snapshot can overwrite a clock tick.
+    setState(current => draft.moveId ? moveModule(current, draft.moveId, draft.at) : buildModuleAt(current, draft.kind, draft.at))
+    setSelectedId(draft.moveId ?? next.modules[next.modules.length - 1].id)
+    setMessage(`${descriptions[draft.kind].name} · X ${draft.at.x} / Z ${draft.at.z}`)
+    setDraft(null)
   }
   const warning = end ? c.dayLimit : state.foodKg < foodDemand(state) ? c.foodWarning
     : budget.oxygenShortfallKg > 0.001 || budget.oxygenEndKg < budget.oxygenDemandKg * 3 ? c.oxygenWarning
@@ -101,18 +112,19 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
             <div className="colony-day"><span>{c.day}</span><b data-testid="colony-day">{String(state.day).padStart(3, '0')}</b><small>/ 365</small></div>
             <label className="colony-sun-control"><Sun size={16} /><span>{c.sun} <b>{scenario.sunHours} h</b></span><input type="range" aria-label={c.sun} min={0} max={24} step={1} value={scenario.sunHours} onChange={event => setScenario(s => ({ ...s, sunHours: Number(event.target.value) }))} /></label>
             <div className="colony-time-buttons">
-              <button className="colony-button colony-button--primary" type="button" disabled={end} onClick={() => setRunning(value => !value)}>{running ? <Pause size={14} /> : <Play size={14} />}{running ? c.pause : c.play}</button>
-              <button className="colony-button" type="button" disabled={running || end} onClick={() => setState(s => advanceDays(s, 1, scenario))}>{c.next}</button>
-              <button className="colony-button" type="button" disabled={running || end} onClick={() => setState(s => advanceDays(s, 7, scenario))}>{c.week}<ChevronRight size={13} /></button>
+              <button className="colony-button colony-button--primary" type="button" disabled={end || !!draft} onClick={() => setRunning(value => !value)}>{running ? <Pause size={14} /> : <Play size={14} />}{running ? c.pause : c.play}</button>
+              <button className="colony-button" type="button" disabled={running || end || !!draft} onClick={() => colony.advance(1)}>{c.next}</button>
+              <button className="colony-button" type="button" disabled={running || end || !!draft} onClick={() => colony.advance(7)}>{c.week}<ChevronRight size={13} /></button>
             </div>
           </div>
 
           <div className="colony-workspace">
             <section className="colony-world" aria-label={c.site}>
               <Suspense fallback={<div className="colony-viewport colony-viewport-placeholder" role="status">{c.loading}</div>}>
-                <ColonyViewport state={state} selectedId={selectedId} sunHours={scenario.sunHours} language={lang} onSelect={setSelectedId} />
+                <ColonyViewport state={state} selectedId={selectedId} sunHours={scenario.sunHours} language={lang} onSelect={setSelectedId} networkPreview={networkPreview} draft={draft} onSite={at => setDraft(current => current ? { ...current, at: { ...current.at, ...at } } : null)} />
               </Suspense>
-              <div className="colony-world-footer"><span><Box size={13} />{state.modules.length}/{SLOTS.length} {c.pads}</span><span><Leaf size={13} />{c.harvest}: <b>{number(state.harvestedKg)} {c.kg}</b></span><button type="button" onClick={reset}><RotateCcw size={12} />{c.reset}</button></div>
+              {draft && <ConstructionPlan state={state} draft={draft} language={lang} onDraft={setDraft} onConfirm={confirmPlacement} onCancel={() => setDraft(null)} />}
+              <div className="colony-world-footer"><span><Box size={13} />{state.modules.length}/{COLONY_MODULE_LIMIT} {c.pads}</span><span><Leaf size={13} />{c.harvest}: <b>{number(state.harvestedKg)} {c.kg}</b></span><button type="button" onClick={reset}><RotateCcw size={12} />{c.reset}</button></div>
               <div className={`colony-status ${constrained ? 'colony-status--warning' : ''}`} role="status">{constrained ? <CircleHelp size={16} /> : <Check size={16} />}<span>{warning}</span></div>
               <div className="colony-module-selector" aria-label={c.moduleList}>
                 {state.modules.map((m, index) => {
@@ -123,7 +135,7 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
             </section>
 
             <aside className="colony-sidebar">
-              <div className="colony-panel-tabs"><button type="button" onClick={() => setPanel('build')} aria-pressed={panel === 'build'}><Plus size={14} />{c.build}</button><button type="button" onClick={() => setPanel('logistics')} aria-pressed={panel === 'logistics'}><Truck size={14} />{c.logistics}</button></div>
+              <div className="colony-panel-tabs"><button type="button" onClick={() => setPanel('build')} aria-pressed={panel === 'build'}><Plus size={14} />{c.build}</button><button type="button" onClick={() => setPanel('logistics')} aria-pressed={panel === 'logistics'}><Truck size={14} />{c.logistics}</button><button type="button" aria-pressed={panel === 'networks'} onClick={() => { setPanel('networks'); setDraft(null); setRunning(false) }}>{lang === 'ru' ? 'Сети' : 'Networks'}</button></div>
               {panel === 'build' ? <>
                 <div className="colony-build-list">{MODULE_KINDS.map(kind => {
                   const Icon = ICONS[kind]
@@ -134,12 +146,17 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
                   </div>
                 })}</div>
                 <p className="colony-fineprint colony-build-note">{c.constructionNote}</p>
-              </> : <Logistics state={state} onChange={setState} language={lang} />}
+              </> : panel === 'networks' ? <NetworkPanel state={state} language={lang} selectedId={selectedId} onChange={setState} onPreview={setNetworkPreview} /> : <Logistics state={state} onChange={setState} language={lang} />}
               <div className="colony-inspector">
                 <p className="colony-eyebrow">{c.selected}</p>
                 {selected ? <>
-                  <h2 style={{ color: CATALOG[selected.kind].color }}>{descriptions[selected.kind].name}<span>{selected.slot + 1 < 10 ? '0' : ''}{selected.slot + 1}</span></h2>
+                  <h2 style={{ color: CATALOG[selected.kind].color }}>{descriptions[selected.kind].name}<span>X{modulePlacement(selected).x} Z{modulePlacement(selected).z}</span></h2>
                   <p>{descriptions[selected.kind].description}</p>
+                  <button className="colony-button colony-relocate" type="button" onClick={() => { setRunning(false); setPanel('build'); setDraft({ kind: selected.kind, at: { ...modulePlacement(selected) }, moveId: selected.id }) }}>{lang === 'ru' ? 'Переместить модуль' : 'Relocate module'}</button>
+                  <div className="colony-service-status" data-testid="module-service-status">{(['power', 'water', 'return', 'tunnel'] as const).filter(t => supportsNetwork(selected.kind, t)).map(t => {
+                    const connected = services.get(selected.id)?.[t === 'tunnel' ? 'access' : t]
+                    return <span key={t} className={connected ? 'is-valid' : 'is-invalid'}>{connected ? '✓' : '—'} {networkName(t, lang === 'ru')}</span>
+                  })}</div>
                   <div className="colony-inspector-metric"><span>{c.condition}</span><b>{number(selected.condition)}%</b></div>
                   <div className="colony-meter"><span style={{ width: `${selected.condition}%`, background: CATALOG[selected.kind].color }} /></div>
                   {selected.kind === 'greenhouse' && <>

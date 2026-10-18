@@ -1,19 +1,23 @@
 import * as THREE from 'three'
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { createCameraRig } from '../three/cameraRig'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { FIELD_PROFILES } from './model'
 import { FIELD_MODEL_FILES } from './visualAssets'
+import { createGreenhouseInterior, type GreenhouseInterior } from './greenhouse'
+import { createPotatoGeometry } from './cropGeometry'
 import type { FieldVisual } from './model'
 
 export interface FieldScene {
   update(fields: readonly FieldVisual[], selectedId: string | null, overview: boolean, roof: boolean): void
   zoom(factor: number): void
+  rotate(direction: 1 | -1): void
   resetCamera(): void
   dispose(): void
 }
 interface FarmObject {
   root: THREE.Group
+  interior: GreenhouseInterior
   sprouts: THREE.InstancedMesh
   plants: THREE.InstancedMesh
   foliage: THREE.MeshStandardMaterial
@@ -28,9 +32,8 @@ interface FarmObject {
   lab: boolean
 }
 
-/** Asset-driven art: original GLB prefabs over an illustrated environment plate.
- * No generated terrain, noise textures or bespoke hardware meshes. The only
- * primitive is an invisible shadow catcher, not a visual game object.
+/** World-space greenhouse interiors. Architecture, plants and equipment share
+ * one projection and lighting environment; no illustrated perspective underneath.
  */
 export function createFieldScene(host: HTMLElement, callbacks: {
   onSelect(id: string): void; onReady(): void; onFailure(reason: 'models' | 'context'): void
@@ -42,11 +45,14 @@ export function createFieldScene(host: HTMLElement, callbacks: {
   renderer.toneMappingExposure = 1.18; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap
   renderer.domElement.setAttribute('aria-hidden', 'true'); host.appendChild(renderer.domElement)
   const scene = new THREE.Scene()
+  scene.background = new THREE.Color('#252e2b')
   const camera = new THREE.OrthographicCamera(-13, 13, 10, -10, 0.1, 180)
-  const controls = new OrbitControls(camera, renderer.domElement)
-  controls.enableDamping = false; controls.enablePan = false
-  controls.minZoom = 0.75; controls.maxZoom = 2.6
-  controls.minPolarAngle = 0.45; controls.maxPolarAngle = Math.PI / 2.6
+  // Изо-камера с панорамой и поворотом шагами 90°: перетаскивание возит камеру
+  // по карте, а не вращает «стол» с грядками (решение пользователя 2026-10-18).
+  const rig = createCameraRig({
+    camera, dom: renderer.domElement, reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches, offset: [14, 16, 18], bounds: { x: 12, z: 12 },
+    minZoom: 0.75, maxZoom: 2.6, target: [0, 0.6, 0], onRender: requestRender,
+  })
   let disposed = false, loaded = false, frame = 0, cameraKey = ''
   let latest: { fields: readonly FieldVisual[]; selectedId: string | null; overview: boolean; roof: boolean } | null = null
   const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>()
@@ -54,8 +60,8 @@ export function createFieldScene(host: HTMLElement, callbacks: {
   const leafGeometries = new Map<string, THREE.BufferGeometry>()
   const ownMaterial = <T extends THREE.Material>(m: T): T => { materials.add(m); return m }
   const plotRoot = new THREE.Group(); scene.add(plotRoot)
-  const hemisphere = new THREE.HemisphereLight('#ffe4b7', '#5b422f', 2.6); scene.add(hemisphere)
-  const sun = new THREE.DirectionalLight('#ffe2b5', 3.5); sun.position.set(-14, 25, -10); sun.castShadow = true
+  const hemisphere = new THREE.HemisphereLight('#ebf2e2', '#454a40', 2.1); scene.add(hemisphere)
+  const sun = new THREE.DirectionalLight('#fff0d3', 2.4); sun.position.set(-14, 25, -10); sun.castShadow = true
   sun.shadow.mapSize.set(1024, 1024); sun.shadow.normalBias = 0.045
   Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 25, bottom: -25, near: 1, far: 90 }); scene.add(sun)
   const fill = new THREE.DirectionalLight('#c2c5b1', 1.1); fill.position.set(12, 9, 14); scene.add(fill)
@@ -66,7 +72,13 @@ export function createFieldScene(host: HTMLElement, callbacks: {
 
   function requestRender(): void {
     if (disposed || frame || document.hidden) return
-    frame = requestAnimationFrame(() => { frame = 0; if (!disposed) renderer.render(scene, camera) })
+    frame = requestAnimationFrame(() => {
+      frame = 0
+      if (disposed) return
+      scene.updateMatrixWorld(true)
+      farms.forEach(farm => farm.interior.cutaway(camera))
+      renderer.render(scene, camera)
+    })
   }
   function recolorTemplate(root: THREE.Group, file: string): void {
     root.traverse(object => {
@@ -131,36 +143,26 @@ export function createFieldScene(host: HTMLElement, callbacks: {
   }
   function buildFarm(field: FieldVisual): FarmObject {
     const profile = FIELD_PROFILES[field.tier], root = new THREE.Group(); root.userData.fieldId = field.id
-    const foliage = ownMaterial(new THREE.MeshStandardMaterial({ color: '#668842', metalness: 0, roughness: 0.9 }))
+    const foliage = ownMaterial(new THREE.MeshStandardMaterial({ color: '#476d32', metalness: 0, roughness: 0.9, side: THREE.DoubleSide }))
     const owned: THREE.Material[] = [foliage]
-    model('platform.glb', [10.7, 0.22, profile.length + 1.3], root, [0, -0.08, 0])
-    const canopy = model('canopy.glb', [profile.width, 3.75, profile.length], root, [0, 0.11, 0])
-    const glass: THREE.Object3D[] = []
-    canopy.traverse(object => { if (object.userData.glazing) glass.push(object) })
-    for (let row = 0; row < profile.rows; row++) {
-      const z = (row - (profile.rows - 1) / 2) * 1.45
-      model(field.tier === 0 ? 'row.glb' : 'double-row.glb', [6.35, 0.14, 1.05], root, [0, 0.59, z])
-      const pipe = model('pipe.glb', [0.09, 0.1, 6.6], root, [0, 0.77, z + 0.44]); pipe.rotation.y = Math.PI / 2
-    }
+    const interior = createGreenhouseInterior(profile.rows, profile.length)
+    root.add(interior.root)
+    const glass: THREE.Object3D[] = [interior.glazing]
     const count = profile.rows * 12
     const sprouts = new THREE.InstancedMesh(foliageGeometry('sprout.glb', 0.6), foliage, count)
-    const plants = new THREE.InstancedMesh(foliageGeometry('plant.glb', 1.06), foliage, count)
+    let potato = leafGeometries.get('potato-interior')
+    if (!potato) { potato = createPotatoGeometry(); leafGeometries.set('potato-interior', potato); geometries.add(potato) }
+    const plants = new THREE.InstancedMesh(potato, foliage, count)
     const pose = new THREE.Object3D()
     for (let row = 0; row < profile.rows; row++) for (let column = 0; column < 12; column++) {
       const index = row * 12 + column
-      pose.position.set((column - 5.5) * 0.49, 0, (row - (profile.rows - 1) / 2) * 1.45 + (column % 2 ? 0.18 : -0.18))
+      pose.position.set((column < 6 ? -2.22 : 2.22) + (column % 6 - 2.5) * 0.43, 0, (row - (profile.rows - 1) / 2) * 1.45 + (column % 2 ? 0.18 : -0.18))
       pose.rotation.y = index * 2.4; pose.scale.setScalar(0.88 + (index % 3) * 0.05); pose.updateMatrix()
       sprouts.setMatrixAt(index, pose.matrix); plants.setMatrixAt(index, pose.matrix)
     }
     for (const mesh of [sprouts, plants]) { mesh.position.y = 0.74; mesh.castShadow = true; mesh.receiveShadow = true; root.add(mesh) }
-    for (const side of [-1, 1]) {
-      model('support.glb', [0.19, 2.6, profile.length * 0.91], root, [side * 3.78, 0.12, 0])
-      model('rail.glb', [0.12, 0.42, profile.length], root, [side * 4.48, 0.18, 0])
-      model('soil.glb', [0.6, 0.12, 0.6], root, [side * 3.55, 0.66, profile.length / 2 - 0.55])
-    }
     const energy: THREE.MeshStandardMaterial[] = [], water: THREE.MeshStandardMaterial[] = [], pump: THREE.MeshStandardMaterial[] = [], climate: THREE.MeshStandardMaterial[] = []
     if (field.engineering) {
-      model('platform.glb', [2.2, 0.2, 4.5], root, [5.65, -0.02, profile.length / 2 - 1.8])
       water.push(...feedback(model('reservoir.glb', [1.3, 1.9, 1.3], root, [5.6, 0.12, profile.length / 2 - 0.45]), owned))
       energy.push(...feedback(model('battery.glb', [1.25, 1.35, 1.1], root, [5.6, 0.12, profile.length / 2 - 2.0]), owned))
       pump.push(...feedback(model('pump.glb', [0.95, 0.9, 0.95], root, [4.95, 0.13, -profile.length / 2 + 0.7]), owned))
@@ -170,19 +172,20 @@ export function createFieldScene(host: HTMLElement, callbacks: {
     } else {
       model('reservoir.glb', [0.7, 1.0, 0.7], root, [4.65, 0.12, 0])
     }
-    if (profile.solar || field.engineering) model('solar.glb', [2.5, 1.15, 1.9], root, [-4.1, 0.17, -profile.length / 2 - 1.9])
+    // External solar arrays belong to the colony, not inside the growing room.
     plotRoot.add(root)
-    return { root, sprouts, plants, foliage, glass, materials: owned, energy, water, pump, climate, stamp: '', tier: field.tier, lab: !!field.engineering }
+    return { root, interior, sprouts, plants, foliage, glass, materials: owned, energy, water, pump, climate, stamp: '', tier: field.tier, lab: !!field.engineering }
   }
   function removeFarm(id: string): void {
     const farm = farms.get(id); if (!farm) return
-    plotRoot.remove(farm.root); farm.sprouts.dispose(); farm.plants.dispose()
+    plotRoot.remove(farm.root); farm.interior.dispose(); farm.sprouts.dispose(); farm.plants.dispose()
     farm.materials.forEach(material => { material.dispose(); materials.delete(material) }); farms.delete(id)
   }
   function resetCamera(): void {
     const overview = latest?.overview ?? false
-    camera.position.set(overview ? 30 : 14, overview ? 30 : 16, overview ? 34 : 18); controls.target.set(0, 0.6, 0)
-    camera.zoom = 1; controls.update(); camera.updateMatrixWorld(true)
+    rig.setOffset(overview ? [30, 30, 34] : [14, 16, 18])
+    rig.setBounds(overview ? { x: 30, z: 34 } : { x: 5, z: 6 })
+    rig.reset()
     const aspect = Math.max(0.4, host.clientWidth / Math.max(host.clientHeight, 1))
     const bounds = new THREE.Box3().setFromObject(plotRoot)
     let span = overview ? 25 : 7.3
@@ -206,13 +209,14 @@ export function createFieldScene(host: HTMLElement, callbacks: {
       if (stamp === farm.stamp) return
       farm.stamp = stamp; changed = true
       const columns = displayed.length <= 2 ? displayed.length : 3, rows = Math.ceil(displayed.length / Math.max(columns, 1))
-      farm.root.position.set(overview ? (index % columns - (columns - 1) / 2) * 13 : 0, 0, overview ? (Math.floor(index / columns) - (rows - 1) / 2) * 17 : 0)
+      farm.root.position.set(overview ? (index % columns - (columns - 1) / 2) * 16 : 0, 0, overview ? (Math.floor(index / columns) - (rows - 1) / 2) * 19 : 0)
       farm.plants.visible = field.active && field.growth >= 0.75; farm.sprouts.visible = field.active && field.growth > 0 && field.growth < 0.75
       farm.sprouts.scale.y = farm.plants.scale.y = 0.55 + field.growth * 0.45
-      farm.foliage.color.set(field.fertilized ? '#7b9845' : '#688f40').lerp(new THREE.Color('#997446'), (1 - field.condition) * 0.65)
+      farm.foliage.color.set(field.fertilized ? '#5e8037' : '#476d32').lerp(new THREE.Color('#997446'), (1 - field.condition) * 0.65)
       if (field.mutation === 1) farm.foliage.color.lerp(new THREE.Color('#c8a24f'), 0.25)
       farm.glass.forEach(object => { object.visible = roof })
       const status = field.engineering
+      farm.interior.setState(status?.light ?? 0.8, status?.flow ?? (field.active ? 1 : 0), status?.pumpFault ?? false)
       if (status) {
         for (const material of farm.energy) { material.color.set('#b19b6a'); material.emissive.set('#624b28'); material.emissiveIntensity = 0.05 + status.battery * 0.1 }
         for (const material of farm.water) material.color.set('#8bafa0').lerp(new THREE.Color('#ac8358'), 1 - status.water)
@@ -221,7 +225,7 @@ export function createFieldScene(host: HTMLElement, callbacks: {
       }
     })
     const input = fields.find(field => field.id === selectedId)?.engineering
-    sun.intensity = input ? 1.0 + input.solar * 2.5 : 3.5; hemisphere.intensity = input ? 1.6 + input.solar : 2.6
+    sun.intensity = input ? 1.0 + input.solar * 1.4 : 2.4; hemisphere.intensity = input ? 1.5 + input.light * 0.7 : 2.1
     const nextKey = `${overview}:${!!input}:${overview ? fields.map(f => f.id).join(',') : selectedId}`
     if (nextKey !== cameraKey) { cameraKey = nextKey; resetCamera(); changed = true }
     if (changed) requestRender()
@@ -251,7 +255,7 @@ export function createFieldScene(host: HTMLElement, callbacks: {
   })).then(() => { if (!disposed) { loaded = true; if (latest) update(latest.fields, latest.selectedId, latest.overview, latest.roof); callbacks.onReady(); requestRender() } }).catch(() => { if (!disposed) callbacks.onFailure('models') })
   const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2()
   let pointerStart: { x: number; y: number } | null = null
-  const pointerDown = (event: PointerEvent): void => { pointerStart = { x: event.clientX, y: event.clientY } }
+  const pointerDown = (event: PointerEvent): void => { pointerStart = event.isPrimary ? { x: event.clientX, y: event.clientY } : null }
   const pointerUp = (event: PointerEvent): void => {
     if (!pointerStart || Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 7) { pointerStart = null; return }
     pointerStart = null; if (!latest?.overview) return
@@ -264,14 +268,15 @@ export function createFieldScene(host: HTMLElement, callbacks: {
   const visible = (): void => { if (!document.hidden) requestRender() }
   const contextLost = (event: Event): void => { event.preventDefault(); if (!disposed) callbacks.onFailure('context') }
   renderer.domElement.addEventListener('pointerdown', pointerDown); renderer.domElement.addEventListener('pointerup', pointerUp); renderer.domElement.addEventListener('webglcontextlost', contextLost)
-  document.addEventListener('visibilitychange', visible); controls.addEventListener('change', requestRender); resize()
+  document.addEventListener('visibilitychange', visible); resize()
   return {
     update, resetCamera,
-    zoom: factor => { camera.zoom = THREE.MathUtils.clamp(camera.zoom * factor, controls.minZoom, controls.maxZoom); camera.updateProjectionMatrix(); requestRender() },
+    rotate: (direction: 1 | -1) => rig.rotateStep(direction),
+    zoom: factor => rig.zoomBy(factor),
     dispose: () => {
       disposed = true; abort.abort(); observer.disconnect(); cancelAnimationFrame(frame)
       document.removeEventListener('visibilitychange', visible); renderer.domElement.removeEventListener('pointerdown', pointerDown); renderer.domElement.removeEventListener('pointerup', pointerUp); renderer.domElement.removeEventListener('webglcontextlost', contextLost)
-      controls.removeEventListener('change', requestRender); controls.dispose(); for (const id of farms.keys()) removeFarm(id)
+      rig.dispose(); for (const id of farms.keys()) removeFarm(id)
       geometries.forEach(geometry => geometry.dispose()); materials.forEach(material => material.dispose()); textures.forEach(texture => texture.dispose())
       renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove(); templates.clear(); scene.clear()
     },

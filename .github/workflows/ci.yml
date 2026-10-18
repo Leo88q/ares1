@@ -363,7 +363,7 @@ jobs:
   # Chromium ставит playwright-core (версия из lockfile), WebGL через SwiftShader. Smoke-тесты
   # запускаются на production-сборке, так что CSP и _headers проверяются так же, как в проде.
   browser:
-    name: Browser smoke (colony, engineering, fields, sections, tap audit)
+    name: Browser smoke (colony, engineering, fields, lab, sections, tap audit)
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -394,10 +394,27 @@ jobs:
           export CHROMIUM_EXECUTABLE_PATH="$(node -e "console.log(require('playwright-core').chromium.executablePath())")"
           export CHROMIUM_ARGS_JSON='["--no-sandbox","--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist"]'
           yarn workspace web test:colony-browser
+          yarn workspace web test:networks-browser
+          yarn workspace web test:colony-performance
           yarn workspace web test:engineering-browser
           yarn workspace web test:fields-browser
+          yarn workspace web test:lab-browser
           yarn workspace web test:sections-browser
           yarn workspace web test:tap-audit
+      - name: Extended colony memory soak (manual CI only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          export CHROMIUM_EXECUTABLE_PATH="$(node -e "console.log(require('playwright-core').chromium.executablePath())")"
+          export CHROMIUM_ARGS_JSON='["--no-sandbox","--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist"]'
+          export COLONY_SOAK_DIR="$GITHUB_WORKSPACE/colony-memory-results"
+          yarn workspace web test:colony-memory
+      - name: Upload colony memory checkpoints
+        if: always() && github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: colony-memory-checkpoints
+          path: colony-memory-results/memory.json
+          if-no-files-found: warn
       - name: Preview log on failure
         if: failure()
         run: cat /tmp/preview.log || true

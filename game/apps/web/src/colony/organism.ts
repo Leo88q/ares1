@@ -3,6 +3,7 @@
 // no effect on credits, rewards, tokens or any on-chain value.
 import { batteryCapacity, PARAMETERS, sellableKg } from './simulation'
 import type { ColonyState } from './simulation'
+import type { ModuleServices } from './networks'
 
 export interface PowerVisual {
   /** Share of the last day's demand covered by solar generation, 0–1. 0 when there was no data. */
@@ -82,7 +83,7 @@ export interface ColonyVisual {
   cargoFill: number
   /** Crate stage: 0 empty, 1 packed, 2 stacked. */
   cargoStage: 0 | 1 | 2
-  /** Pairs of occupied neighbouring slots that get a tunnel. */
+  /** Legacy slot adjacency for old read-model consumers; not a routed or operational network. */
   links: Array<[number, number]>
   /** A rover is docked, so the truck and garage show activity. */
   roverDeployed: boolean
@@ -97,7 +98,7 @@ export interface ColonyVisual {
 
 const OXYGEN_KINDS = new Set(['habitat', 'recycler'])
 
-export function colonyVisualState(state: ColonyState, sunHours: number): ColonyVisual {
+export function colonyVisualState(state: ColonyState, sunHours: number, services?: ReadonlyMap<string, ModuleServices>): ColonyVisual {
   const power = powerVisualState(state, sunHours)
   const oxygenAlarm = (state.lastDay?.oxygenShortfallKg ?? 0) > 0.01
   const cargoFill = Math.min(1, Math.max(0, (state.foodKg + state.sparesKg) / CARGO_CAPACITY_KG))
@@ -128,7 +129,7 @@ export function colonyVisualState(state: ColonyState, sunHours: number): ColonyV
     links,
     roverDeployed: state.modules.some(m => m.kind === 'rover' && m.condition >= DAMAGED_CONDITION),
     crewLanded: state.crew > 0,
-    truckActive: sellableKg(state) > 0,
+    truckActive: sellableKg(state, services) > 0,
     contractProgress: Math.min(1, Math.max(0, state.deliveredKg / PARAMETERS.contractKg)),
     modules,
   }

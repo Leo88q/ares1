@@ -8,12 +8,16 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test tests/*.test.mjs",
+    "test:networks-browser": "node tests/networks-browser-smoke.mjs",
     "test:colony-browser": "node tests/colony-browser-smoke.mjs",
     "test:fields-browser": "node tests/fields-browser-smoke.mjs",
+    "test:lab-browser": "node tests/lab-browser-smoke.mjs",
     "test:engineering-browser": "node tests/engineering-browser-smoke.mjs",
     "test:sections-browser": "node tests/sections-browser-smoke.mjs",
     "test:tap-audit": "node tests/tap-target-audit.mjs",
-    "test:browser-no-webgl": "NO_WEBGL=1 node tests/colony-browser-smoke.mjs && NO_WEBGL=1 node tests/engineering-browser-smoke.mjs && NO_WEBGL=1 node tests/fields-browser-smoke.mjs"
+    "test:browser-no-webgl": "NO_WEBGL=1 node tests/colony-browser-smoke.mjs && NO_WEBGL=1 node tests/engineering-browser-smoke.mjs && NO_WEBGL=1 node tests/fields-browser-smoke.mjs && NO_WEBGL=1 node tests/lab-browser-smoke.mjs && NO_WEBGL=1 node tests/networks-browser-smoke.mjs",
+    "test:colony-performance": "node tests/colony-performance-smoke.mjs",
+    "test:colony-memory": "node tests/colony-memory-soak.mjs"
   },
   "dependencies": {
     "@solana-mobile/wallet-adapter-mobile": "2.1.5",

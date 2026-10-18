@@ -385,7 +385,7 @@
 .colony-world-footer b { color: #efcc8e; }
 
 /* 3D stage: the v2 Mars sector painting is the backdrop; the WebGL canvas is transparent over it. */
-.colony-viewport { background: #1a120b url('/ares/art/mars-sector.webp') center 62%/cover no-repeat; border-color: #6e5532; }
+.colony-viewport { background: #8a654c; border-color: #6e5532; }
 .colony-canvas-host canvas { background: transparent; }
 .colony-scene-tag { color: #efdebc; }
 .colony-scene-coordinates, .colony-scene-instructions { color: #e0c397; }

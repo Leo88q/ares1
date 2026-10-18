@@ -1,6 +1,6 @@
 // Phone touch-target audit (Solana Seeker class, 400×890 CSS px, DPR 3). Lists visible controls smaller than 44 px
 // and any horizontal overflow, per screen. §31 proposal item 7.
-// Usage: CHROMIUM_EXECUTABLE_PATH=/path/to/chrome ROUTES=/base,/market yarn workspace web exec node tests/tap-target-audit.mjs
+// Usage: CHROMIUM_EXECUTABLE_PATH=/path/to/chrome ROUTES=/lab,/base,/market yarn workspace web exec node tests/tap-target-audit.mjs
 // Optional: AUDIT_BASE_URL (default http://127.0.0.1:4173), NO_WEBGL=1 (no WebGL flags, 3D routes use their fallback),
 // SEEKER_DPR (default 3), SEEKER_SCREENSHOT_DIR (writes one PNG per route).
 // Requires a built and running preview (`yarn workspace web preview`). Never downloads a browser.
@@ -8,7 +8,7 @@ import { chromium } from 'playwright-core'
 
 if (!process.env.CHROMIUM_EXECUTABLE_PATH) throw new Error('Set CHROMIUM_EXECUTABLE_PATH to an installed Chromium binary; this test never downloads a browser.')
 const base = (process.env.AUDIT_BASE_URL || 'http://127.0.0.1:4173').replace(/\/$/, '')
-const routes = (process.env.ROUTES || '/,/base,/market,/stats,/profile,/operation').split(',')
+const routes = (process.env.ROUTES || '/,/lab,/base,/market,/stats,/profile,/operation').split(',')
 const dpr = Number(process.env.SEEKER_DPR || 3)
 const shotDir = process.env.SEEKER_SCREENSHOT_DIR
 if (shotDir) (await import('node:fs')).mkdirSync(shotDir, { recursive: true })

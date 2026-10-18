@@ -33,6 +33,7 @@ const en = {
   chartBattery: 'Battery %', chartWater: 'Water %', chartCrop: 'Development %',
   events: 'SIM event log', eventSeed: 'Seed packet planted', eventHarvest: 'Food batch harvested', eventRefill: 'Reserve transferred',
   eventFault: 'Pump fault', eventRepair: 'Pump repaired', eventDust: 'Dust scenario started', eventProcess: 'Processing started', eventProcessed: 'Processing completed', eventSpoiled: 'Batch spoiled', eventDead: 'Crop lost',
+  eventSupply: 'Colony delivery received', eventShip: 'Batch shipped to base storage',
   line: 'Line buffer', delivered: 'Pump flow', visibleBoundary: 'ENGINEERING SIM · NOT THE TOKEN LEDGER',
 } as const
 const ru: { [K in keyof typeof en]: string } = {
@@ -70,6 +71,7 @@ const ru: { [K in keyof typeof en]: string } = {
   chartBattery: 'Батарея %', chartWater: 'Вода %', chartCrop: 'Развитие %',
   events: 'Журнал SIM', eventSeed: 'Посадочный пакет использован', eventHarvest: 'Собрана партия еды', eventRefill: 'Запас перелит',
   eventFault: 'Поломка насоса', eventRepair: 'Насос восстановлен', eventDust: 'Запущен пылевой сценарий', eventProcess: 'Переработка начата', eventProcessed: 'Переработка завершена', eventSpoiled: 'Партия испортилась', eventDead: 'Посадка погибла',
+  eventSupply: 'Получено снабжение колонии', eventShip: 'Партия отправлена в хранилище базы',
   line: 'Буфер полива', delivered: 'Подача насоса', visibleBoundary: 'ИНЖЕНЕРНАЯ SIM · НЕ ТОКЕНОВЫЙ БАЛАНС',
 }
 export const engineeringCopy = (language: string): { [K in keyof typeof en]: string } => language === 'ru' ? ru : en

@@ -1,22 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
-import { Focus, Minus, Plus } from 'lucide-react'
+import { Focus, Minus, Plus, RotateCcw, RotateCw } from 'lucide-react'
 import { colonyCopy, moduleCopy } from './copy'
 import type { ColonyState } from './simulation'
-import { CATALOG, SLOTS } from './simulation'
+import { CATALOG } from './simulation'
 import { createColonyScene } from './scene'
 import type { ColonyScene } from './scene'
+import type { ColonyNetwork } from './networks'
+import type { ConstructionDraft } from './ConstructionPlan'
 
-export default function ColonyViewport({ state, selectedId, sunHours, language, onSelect }: {
+export default function ColonyViewport({ state, selectedId, sunHours, language, onSelect, draft, onSite, networkPreview }: {
   state: ColonyState
   selectedId: string | null
   sunHours: number
   language: string
+  networkPreview: ColonyNetwork | null
+  draft: ConstructionDraft | null
+  onSite: (at: { x: number; z: number }) => void
   onSelect: (id: string) => void
 }): JSX.Element {
   const host = useRef<HTMLDivElement>(null)
   const instance = useRef<ColonyScene | null>(null)
   const select = useRef(onSelect)
   select.current = onSelect
+  const site = useRef(onSite); site.current = onSite
   const [failed, setFailed] = useState(false)
   const [ready, setReady] = useState(false)
   const [modelError, setModelError] = useState(false)
@@ -28,6 +34,7 @@ export default function ColonyViewport({ state, selectedId, sunHours, language, 
     try {
       instance.current = createColonyScene(host.current, {
         onSelect: id => select.current(id),
+        onSite: at => site.current(at),
         onReady: () => setReady(true),
         onModelError: () => setModelError(true),
         onContextLost: () => setFailed(true),
@@ -40,19 +47,20 @@ export default function ColonyViewport({ state, selectedId, sunHours, language, 
 
   useEffect(() => { instance.current?.update(state, selectedId, sunHours) }, [state, selectedId, sunHours, failed])
 
+  useEffect(() => { instance.current?.setDraft(draft) }, [draft, failed])
+
+  useEffect(() => { instance.current?.setNetworkPreview(networkPreview) }, [networkPreview, failed])
+
   return (
     <div className="colony-viewport" data-testid="colony-viewport" data-ready={ready}>
       {failed ? (
         <div className="colony-plan-fallback">
           <p role="status">{c.noWebgl}</p>
           <div className="colony-plan-grid">
-            {SLOTS.map((_, slot) => {
-              const m = state.modules.find(item => item.slot === slot)
-              return m ? <button key={slot} type="button" className={selectedId === m.id ? 'is-active' : ''}
-                style={{ borderColor: CATALOG[m.kind].color }} onClick={() => onSelect(m.id)}>
-                <b>{modules[m.kind].code}</b><small>{modules[m.kind].name}</small>
-              </button> : <span key={slot} />
-            })}
+            {state.modules.map(m => <button key={m.id} type="button" className={selectedId === m.id ? 'is-active' : ''}
+              style={{ borderColor: CATALOG[m.kind].color }} onClick={() => onSelect(m.id)}>
+              <b>{modules[m.kind].code}</b><small>{modules[m.kind].name}</small>
+            </button>)}
           </div>
         </div>
       ) : <div ref={host} className="colony-canvas-host" />}
@@ -64,6 +72,8 @@ export default function ColonyViewport({ state, selectedId, sunHours, language, 
       {modelError && !failed && <p className="colony-model-error" role="status">{c.modelError}</p>}
       {!failed && <>
         <div className="colony-camera-controls">
+        <button type="button" aria-label={c.rotateLeft} title={c.rotateLeft} onClick={() => instance.current?.rotate(-1)}><RotateCcw size={16} /></button>
+        <button type="button" aria-label={c.rotateRight} title={c.rotateRight} onClick={() => instance.current?.rotate(1)}><RotateCw size={16} /></button>
           <button type="button" onClick={() => instance.current?.zoom(1.2)} aria-label={c.zoomIn} title={c.zoomIn}><Plus size={17} /></button>
           <button type="button" onClick={() => instance.current?.zoom(1 / 1.2)} aria-label={c.zoomOut} title={c.zoomOut}><Minus size={17} /></button>
           <button type="button" onClick={() => instance.current?.resetCamera()} aria-label={c.center} title={c.center}><Focus size={17} /></button>

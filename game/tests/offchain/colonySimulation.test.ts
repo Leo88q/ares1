@@ -1,7 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { harvestFactor } from '../../apps/web/src/organism/beds'
-import { advanceDay, advanceDays, batteryCapacity, bedCycleKg, canHarvestBed, harvestBed, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, greenhouseBeds, INITIAL_FOOD_KG, initialColony, PARAMETERS as P, repairColony, sellableKg, SLOTS, stepBeds, bedSummary } from '../../apps/web/src/colony/simulation'
+import { advanceDay, advanceDays, batteryCapacity, bedCycleKg, canHarvestBed, harvestBed, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, greenhouseBeds, INITIAL_FOOD_KG, initialColony, PARAMETERS as P, repairColony, sellableKg, stepBeds, bedSummary } from '../../apps/web/src/colony/simulation'
+import { starterNetworks } from '../../apps/web/src/colony/networks'
+import { COLONY_MODULE_LIMIT } from '../../apps/web/src/colony/layout'
 import type { ColonyState } from '../../apps/web/src/colony/simulation'
 import { syncView } from '../../apps/web/src/colony/simulation'
 
@@ -155,7 +157,8 @@ test('colony: electricity, water, nutrients and habitat capacity independently c
 test('colony: oxygen comes only from powered recyclers and growing crop, and reconciles', () => {
   const base = initialColony()
   const noRecycler = { ...base, modules: base.modules.filter(m => m.kind !== 'recycler') }
-  close(dailyBudget(noRecycler).oxygenProducedKg, 20 * 0.12 * 0.25)
+  // Removing the water source stops crop growth as well as electrolysis.
+  close(dailyBudget(noRecycler).oxygenProducedKg, 0)
   assert.equal(dailyBudget(noRecycler).oxygenShortfallKg, 0)
   assert.ok(dailyBudget({ ...noRecycler, oxygenKg: 0 }).oxygenShortfallKg > 0)
   const unpowered = { ...base, batteryKwh: 0, modules: base.modules.filter(m => m.kind !== 'solar') }
@@ -177,9 +180,10 @@ test('colony: finite recycling capacity, no unpowered or missing recycler credit
   const base = initialColony()
   const noRecycler = { ...base, modules: base.modules.filter(m => m.kind !== 'recycler') }
   close(dailyBudget(noRecycler).recovery, 0)
-  assert.ok(dailyBudget(noRecycler).waterUsedLitres > dailyBudget(base).waterUsedLitres * 10)
+  close(dailyBudget(noRecycler).waterUsedLitres, base.crew * P.crewWaterLitresDay + P.leakLitresDay)
+  assert.equal(dailyBudget(noRecycler).growthFraction, 0)
   const enlarged = buildModule(buildModule(base, 'greenhouse'), 'greenhouse')
-  assert.ok(dailyBudget(enlarged).recovery < dailyBudget(base).recovery)
+  assert.ok(dailyBudget({ ...enlarged, networks: starterNetworks(enlarged.modules) }).recovery < dailyBudget(base).recovery)
   const unpowered = { ...base, batteryKwh: 0, modules: base.modules.filter(m => m.kind !== 'solar') }
   assert.equal(dailyBudget(unpowered).recovery, 0)
   assert.ok(dailyBudget(base, { ...DEFAULT_SCENARIO, waterRecovery: 0.98 }).waterUsedLitres < dailyBudget(base).waterUsedLitres)
@@ -196,10 +200,10 @@ test('colony: construction charges exactly once, unique pads, new crop starts at
     assert.equal(canBuild(blocked, 'solar'), false)
     assert.equal(buildModule(blocked, 'solar'), blocked)
   }
-  let full = { ...s, credits: 1_000_000, sparesKg: 100 }
-  while (full.modules.length < SLOTS.length) full = buildModule(full, 'solar')
+  let full = { ...s, credits: 1_000_000, sparesKg: 1000 }
+  while (full.modules.length < COLONY_MODULE_LIMIT) full = buildModule(full, 'solar')
   assert.equal(buildModule(full, 'solar'), full)
-  assert.equal(new Set(full.modules.map(m => m.slot)).size, SLOTS.length)
+  assert.equal(new Set(full.modules.map(m => m.slot)).size, COLONY_MODULE_LIMIT)
 })
 
 test('colony: servicing and resupply require real game budget and stock', () => {
