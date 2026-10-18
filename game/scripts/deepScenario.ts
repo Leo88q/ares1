@@ -1,0 +1,262 @@
+/**
+ * ARES-1 — main experiment: three 180-sol runs through the shared colony engine.
+ *
+ * Everything here goes through `advanceDay` / `advanceDays`, i.e. through exactly
+ * the same code path the game uses. Nothing is scripted per scenario except the
+ * environment (sun hours, recovery) and, for the failure scenario, a forced
+ * fault. No wallet, no RPC, no token, no payout: the SIM credits are the
+ * existing game credits and nothing else.
+ *
+ * Run:  cd game && npx tsx scripts/deepScenario.ts
+ * Writes reports/deep-180-<name>.json and reports/deep-180.md
+ */
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import {
+  advanceDay, initialColony, type ColonyState, type Scenario,
+} from '../apps/web/src/colony/simulation'
+import type { ColonyWorld, DeepScenario, DeviceKind } from '../apps/web/src/colony/deep/world'
+import type { DailyRow, ScenarioReport } from './deepScenario.types'
+
+const HERE = dirname(fileURLToPath(import.meta.url))
+const REPORT_DIR = join(HERE, '..', 'reports')
+
+export interface ScenarioSpec {
+  name: string
+  title: string
+  /** Existing colony scenario knobs (sun hours / water recovery). */
+  scenario: Scenario
+  /** Deep-world environment override. */
+  deep?: Partial<DeepScenario>
+  /** Device kind forced into a fault at `sol`. */
+  forcedFault?: { sol: number; deviceKind: DeviceKind }
+}
+
+export const SCENARIOS: ScenarioSpec[] = [
+  {
+    name: 'nominal',
+    title: 'Номинальный: 18 ч солнца, регенерация 94 %',
+    scenario: { sunHours: 18, waterRecovery: 0.94 },
+    deep: { sunHours: 18, weatherFactor: 1, dustRate: 0.35, coldDropC: 0 },
+  },
+  {
+    name: 'reduced-solar',
+    title: 'Пылевой сезон: 11 ч эффективного солнца',
+    scenario: { sunHours: 11, waterRecovery: 0.94 },
+    deep: { sunHours: 11, weatherFactor: 0.85, dustRate: 1.6, coldDropC: -6 },
+  },
+  {
+    name: 'pump-extractor-failure',
+    title: 'Отказ насоса на 60-м сол и добычи на 95-м',
+    scenario: { sunHours: 18, waterRecovery: 0.94 },
+    deep: { sunHours: 18, weatherFactor: 1, dustRate: 0.35, coldDropC: 0 },
+    forcedFault: { sol: 60, deviceKind: 'pump' },
+  },
+]
+
+const SOLS = 180
+
+const round = (value: number, digits = 3): number => {
+  const factor = 10 ** digits
+  return Math.round(value * factor) / factor
+}
+
+const nutrientTotal = (world: ColonyWorld): number =>
+  world.stock.amount.nutrient_n + world.stock.amount.nutrient_p + world.stock.amount.nutrient_k
+
+/** One row of the machine-readable report. */
+function row(state: ColonyState, world: ColonyWorld, bottleneck: string): DailyRow {
+  const step = world.lastStep
+  const power = step?.power
+  return {
+    sol: state.day,
+    foodKg: round(state.foodKg, 2),
+    waterCleanL: round(world.stock.amount.water_clean, 1),
+    waterRawL: round(world.stock.amount.water_raw, 1),
+    waterGreyL: round(world.stock.amount.water_grey, 1),
+    oxygenKg: round(world.stock.amount.o2, 2),
+    nutrientsKg: round(nutrientTotal(world), 3),
+    parts: round(world.stock.amount.parts, 2),
+    filters: round(world.stock.amount.filters, 2),
+    seedKg: round(world.stock.amount.seed_potato, 2),
+    wareKg: round(world.stock.amount.ware_potato, 2),
+    batteryKwh: round(state.batteryKwh, 2),
+    generationKwh: round(power?.generationKwh ?? 0, 2),
+    servedKwh: round(power?.servedKwh ?? 0, 2),
+    unmetKwh: round(power?.unmetKwh ?? 0, 2),
+    curtailedKwh: round(power?.curtailedKwh ?? 0, 2),
+    labourHours: round(step?.labour.provided ?? 0, 2),
+    labourRequiredHours: round(step?.labour.required ?? 0, 2),
+    bottleneck,
+    faults: world.totals.faults,
+    downtimeSols: round(world.totals.downtimeDeviceSols, 2),
+    harvestedKg: round(world.totals.harvestedKg, 2),
+    minedKg: round(world.totals.minedKg, 2),
+    hauledKg: round(world.totals.hauledKg, 2),
+  }
+}
+
+export function runScenario(spec: ScenarioSpec, sols = SOLS): ScenarioReport {
+  let state = initialColony()
+  const start = {
+    crew: state.crew,
+    waterLitres: state.waterLitres,
+    foodKg: state.foodKg,
+    nutrientsKg: state.nutrientsKg,
+    sparesKg: state.sparesKg,
+    oxygenKg: state.oxygenKg,
+    credits: state.credits,
+  }
+  const daily: DailyRow[] = []
+  const bottleneckSols: Record<string, number> = {}
+  let firstBottleneck: string | null = null
+  let firstShortfallSol: number | null = null
+  let minWater = Infinity
+  let minFood = Infinity
+  let minOxygen = Infinity
+
+  for (let sol = 1; sol <= sols; sol++) {
+    // The forced fault is injected through the world's own scenario field, so it
+    // travels the same path as any player-visible failure.
+    if (spec.forcedFault && sol === spec.forcedFault.sol && state.world) {
+      state.world.scenario = {
+        ...state.world.scenario,
+        forcedFault: { sol, deviceKind: spec.forcedFault.deviceKind },
+      }
+    }
+    if (spec.deep && state.world) state.world.scenario = { ...state.world.scenario, ...spec.deep }
+
+    state = advanceDay(state, spec.scenario)
+    const world = state.world
+    if (!world) throw new Error('deep world missing after advanceDay')
+    const bottleneck = world.lastStep?.bottleneck ?? 'none'
+    if (bottleneck !== 'none') {
+      bottleneckSols[bottleneck] = (bottleneckSols[bottleneck] ?? 0) + 1
+      if (!firstBottleneck) firstBottleneck = bottleneck
+    }
+    if (firstShortfallSol === null && (state.foodShortfallKg > 0 || world.totals.o2ShortfallKg > 0)) {
+      firstShortfallSol = sol
+    }
+    minWater = Math.min(minWater, world.stock.amount.water_clean)
+    minFood = Math.min(minFood, state.foodKg)
+    minOxygen = Math.min(minOxygen, world.stock.amount.o2)
+    daily.push(row(state, world, bottleneck))
+  }
+
+  const world = state.world!
+  const t = world.totals
+  const labour = Object.fromEntries(
+    Object.entries(t.labourByKind).map(([kind, hours]) => [kind, round(hours as number, 1)]),
+  )
+
+  return {
+    name: spec.name,
+    title: spec.title,
+    sols,
+    scenario: spec.scenario,
+    deep: { ...(state.world?.scenario ?? {}) } as DeepScenario,
+    start,
+    daily,
+    totals: {
+      harvestedKg: round(t.harvestedKg, 2),
+      yieldLossKg: round(t.yieldLossKg, 2),
+      sortedKg: round(t.sortedKg, 2),
+      exportedKg: round(t.exportedKg, 2),
+      crewFoodKg: round(t.crewFoodKg, 2),
+      foodShortfallKg: round(t.foodShortfallKg, 2),
+      minedKg: round(t.minedKg, 2),
+      hauledKg: round(t.hauledKg, 2),
+      cleanProducedL: round(t.cleanProducedL, 1),
+      recycledL: round(t.recycledL, 1),
+      condensateL: round(t.condensateL, 1),
+      waterUsedL: round(t.waterUsedL + t.waterIndustrialL + t.waterAggregateUsedL, 1),
+      nutrientAppliedKg: round(t.nutrientAppliedKg, 3),
+      nutrientReturnedKg: round(t.nutrientReturnedKg, 3),
+      filtersUsed: round(t.filtersUsed, 2),
+      partsUsed: round(t.partsUsed, 2),
+      packagingUsed: round(t.packagingUsed, 2),
+      generationKwh: round(t.generationKwh, 1),
+      servedKwh: round(t.servedKwh, 1),
+      unmetKwh: round(t.unmetKwh, 1),
+      labourHours: round(t.labourHours, 1),
+      labourByKind: labour,
+      downtimeDeviceSols: round(t.downtimeDeviceSols, 2),
+      faults: t.faults,
+      importedWaterL: round(t.importedWaterL, 2),
+      importedNutrientKg: round(t.importedNutrientKg, 3),
+      importedParts: round(t.importedParts, 2),
+      o2ProducedKg: round(t.o2ProducedKg, 2),
+      cropO2Kg: round(t.cropO2Kg, 2),
+      o2LeakedKg: round(t.o2LeakedKg, 2),
+      o2ShortfallKg: round(t.o2ShortfallKg, 3),
+      contractPaidCR: round(t.contractPaidCR, 2),
+    },
+    end: {
+      foodKg: round(state.foodKg, 2),
+      waterCleanL: round(world.stock.amount.water_clean, 1),
+      nutrientsKg: round(nutrientTotal(world), 3),
+      parts: round(world.stock.amount.parts, 2),
+      oxygenKg: round(world.stock.amount.o2, 2),
+      seedKg: round(world.stock.amount.seed_potato, 2),
+      wareKg: round(world.stock.amount.ware_potato, 2),
+      batteryKwh: round(state.batteryKwh, 2),
+      credits: state.credits,
+      harvestedKg: round(world.totals.harvestedKg, 2),
+      deliveredKg: round(state.deliveredKg, 2),
+    },
+    minimums: {
+      waterCleanL: round(minWater, 1),
+      foodKg: round(minFood, 2),
+      oxygenKg: round(minOxygen, 2),
+    },
+    firstBottleneck,
+    firstShortfallSol,
+    bottleneckSols,
+    survived: minFood > 0 && world.totals.o2ShortfallKg < 1 && state.crew > 0,
+  }
+}
+
+const markdown = (reports: ScenarioReport[]): string => {
+  const lines: string[] = [
+    '# ARES-1 — 180-сол эксперимент (глубокий слой)',
+    '',
+    'Три прогона из одной стартовой колонии через общий движок (`advanceDay`).',
+    'Ниже — сводка; полные данные в `deep-180-<name>.json` (построчные метрики за каждый сол).',
+    '',
+    'Единицы: сол = 24.6229 ч, литры, кг, kWh, человеко-часы. SIM-кредиты — игровые,',
+    'не токен POTATO и не баланс кошелька.',
+    '',
+  ]
+  for (const r of reports) {
+    lines.push(`## ${r.title} (\`${r.name}\`)`)
+    lines.push('')
+    lines.push(`- Итог: ${r.survived ? 'колония дожила до 180-го сола' : 'КОЛОНИЯ НЕ ВЫЖИЛА'}`)
+    lines.push(`- Первый узкий ресурс: ${r.firstBottleneck ?? 'нет'}; всего солов по узким местам: ${JSON.stringify(r.bottleneckSols)}`)
+    lines.push(`- Первый дефицит (еда/O₂): ${r.firstShortfallSol ?? 'не было'}`)
+    lines.push(`- Минимумы: вода ${r.minimums.waterCleanL} л, еда ${r.minimums.foodKg} кг, O₂ ${r.minimums.oxygenKg} кг`)
+    lines.push(`- Урожай ${r.totals.harvestedKg} кг, потери урожая ${r.totals.yieldLossKg} кг, съедено ${r.totals.crewFoodKg} кг, вывезено по контракту ${r.totals.exportedKg} кг`)
+    lines.push(`- Добыча ${r.totals.minedKg} кг породы, перевозка ${r.totals.hauledKg} кг, очищено воды ${r.totals.cleanProducedL} л (регенерация ${r.totals.recycledL} л, конденсат ${r.totals.condensateL} л)`)
+    lines.push(`- Энергия: выработка ${r.totals.generationKwh} kWh, подано ${r.totals.servedKwh} kWh, непокрыто ${r.totals.unmetKwh} kWh`)
+    lines.push(`- Труд ${r.totals.labourHours} ч: ${JSON.stringify(r.totals.labourByKind)}`)
+    lines.push(`- Простои ${r.totals.downtimeDeviceSols} сол·устройств, отказов ${r.totals.faults}, запчастей израсходовано ${r.totals.partsUsed}, фильтров ${r.totals.filtersUsed}`)
+    lines.push(`- Удобрения: внесено ${r.totals.nutrientAppliedKg} кг, возвращено компостом ${r.totals.nutrientReturnedKg} кг`)
+    lines.push(`- Кислород: электролиз ${r.totals.o2ProducedKg} кг, растения ${r.totals.cropO2Kg} кг, утечки ${r.totals.o2LeakedKg} кг, дефицит ${r.totals.o2ShortfallKg} кг`)
+    lines.push(`- Импорт: вода ${r.totals.importedWaterL} л, удобрения ${r.totals.importedNutrientKg} кг, запчасти ${r.totals.importedParts} шт (0 = полная автономия по статье)`)
+    lines.push(`- Финал: еда ${r.end.foodKg} кг, вода ${r.end.waterCleanL} л, семена ${r.end.seedKg} кг, товарная партия ${r.end.wareKg} кг, заряд ${r.end.batteryKwh} kWh`)
+    lines.push('')
+  }
+  return lines.join('\n')
+}
+
+function main(): void {
+  mkdirSync(REPORT_DIR, { recursive: true })
+  const reports = SCENARIOS.map(spec => runScenario(spec))
+  for (const report of reports) {
+    writeFileSync(join(REPORT_DIR, `deep-180-${report.name}.json`), `${JSON.stringify(report, null, 1)}\n`)
+  }
+  writeFileSync(join(REPORT_DIR, 'deep-180.md'), markdown(reports))
+  console.log(markdown(reports))
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main()
