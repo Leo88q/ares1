@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState, type KeyboardEvent } from 'react'
 import { deepCopy } from './deepCopy'
 import type { ColonyWorld } from './deep/world'
 import { RESOURCES, RESOURCE_IDS } from './deep/resources'
@@ -15,6 +15,24 @@ import type { Device } from './deep/devices'
 export const DEEP_TABS = ['crew', 'tasks', 'stores', 'extraction', 'life', 'greenhouse', 'lab', 'repair', 'contracts', 'journal'] as const
 export type DeepTab = typeof DEEP_TABS[number]
 
+/**
+ * Следующая вкладка по нажатию. Вынесено отдельно от компонента, потому что
+ * jsdom в проекте нет, а правило «стрелка вправо с последней — на первую»
+ * обязано проверяться тестом, а не надписью «должно работать».
+ * Возвращает null, если клавиша не про вкладки.
+ */
+export function nextTab(current: DeepTab, key: string): DeepTab | null {
+  const index = DEEP_TABS.indexOf(current)
+  const last = DEEP_TABS.length - 1
+  switch (key) {
+    case 'ArrowRight': return DEEP_TABS[index === last ? 0 : index + 1]
+    case 'ArrowLeft': return DEEP_TABS[index === 0 ? last : index - 1]
+    case 'Home': return DEEP_TABS[0]
+    case 'End': return DEEP_TABS[last]
+    default: return null
+  }
+}
+
 const pct = (value: number): string => `${Math.round(Math.max(0, Math.min(1, value)) * 100)} %`
 const num = (value: number, digits = 1): string =>
   Number.isFinite(value) ? value.toFixed(digits).replace(/\.0$/, '') : '—'
@@ -30,20 +48,36 @@ export function DeepPanels({ world, language, onChange, initialTab = 'crew' }: {
 }) {
   const [tab, setTab] = useState<DeepTab>(initialTab)
   const c = deepCopy(language)
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+
+  // Вкладки — это ARIA-табы, а не просто ряд кнопок: со клавиатуры они
+  // переключаются стрелками, Home/End идут по краям, а фокус следует за
+  // выбором. Иначе Tab приходится перебирать все десять подряд.
+  const onTabKey = (event: KeyboardEvent<HTMLDivElement>): void => {
+    const target = nextTab(tab, event.key)
+    if (!target) return
+    event.preventDefault()
+    setTab(target)
+    tabRefs.current[DEEP_TABS.indexOf(target)]?.focus()
+  }
 
   return (
     <div className="colony-deep" data-testid="deep-panels">
-      <div className="colony-deep-tabs" role="tablist" aria-label={c.systems}>
-        {DEEP_TABS.map(key => (
-          <button type="button" key={key} role="tab" aria-selected={tab === key}
+      <div className="colony-deep-tabs" role="tablist" aria-label={c.systems} onKeyDown={onTabKey}>
+        {DEEP_TABS.map((key, index) => (
+          <button type="button" key={key} role="tab" id={`deep-tab-${key}`}
+            aria-controls="deep-panel" aria-selected={tab === key}
+            tabIndex={tab === key ? 0 : -1}
             data-testid={`deep-tab-${key}`}
+            ref={element => { tabRefs.current[index] = element }}
             onClick={() => setTab(key)}>{c[key]}</button>
         ))}
       </div>
 
       {!world
         ? <p className="colony-fineprint" data-testid="deep-empty">{c.noWorld}</p>
-        : <div className="colony-deep-body" role="tabpanel">
+        : <div className="colony-deep-body" role="tabpanel" id="deep-panel"
+          aria-labelledby={`deep-tab-${tab}`} tabIndex={0}>
           {tab === 'crew' && <CrewPanel world={world} language={language} />}
           {tab === 'tasks' && <TaskPanel world={world} language={language} onChange={onChange} />}
           {tab === 'stores' && <StorePanel world={world} language={language} />}

@@ -9,7 +9,7 @@ import * as ReactNS from 'react'
 // править из-за теста не надо — достаточно дать ему `React` в области видимости.
 ;(globalThis as unknown as { React: unknown }).React = ReactNS
 
-import { DeepPanels, DEEP_TABS, type DeepTab } from '../../apps/web/src/colony/DeepPanels'
+import { DeepPanels, DEEP_TABS, nextTab, type DeepTab } from '../../apps/web/src/colony/DeepPanels'
 import { createWorldForColony } from '../../apps/web/src/colony/deep/bridge'
 import { advanceDay, initialColony } from '../../apps/web/src/colony/simulation'
 
@@ -82,4 +82,48 @@ test('no row renders undefined or NaN', () => {
   const html = markup(worldAfterOneSol(), 'en')
   assert.ok(!html.includes('undefined'), 'markup contains "undefined"')
   assert.ok(!html.includes('NaN'), 'markup contains "NaN"')
+})
+
+test('arrow keys walk the tabs and wrap at both ends', () => {
+  // Правило ARIA: стрелка с последней вкладки — на первую и наоборот.
+  assert.equal(nextTab('crew', 'ArrowRight'), 'tasks')
+  assert.equal(nextTab('crew', 'ArrowLeft'), 'journal', 'left from the first wraps to the last')
+  assert.equal(nextTab('journal', 'ArrowRight'), 'crew', 'right from the last wraps to the first')
+  assert.equal(nextTab('tasks', 'ArrowLeft'), 'crew')
+  assert.equal(nextTab('greenhouse', 'Home'), 'crew')
+  assert.equal(nextTab('crew', 'End'), 'journal')
+  assert.equal(nextTab('crew', 'Enter'), null, 'unrelated keys are left alone')
+  assert.equal(nextTab('crew', 'ArrowDown'), null)
+})
+
+test('a full cycle of ArrowRight visits every tab and returns', () => {
+  let tab: DeepTab = 'crew'
+  const seen: DeepTab[] = []
+  for (let step = 0; step < DEEP_TABS.length; step++) {
+    tab = nextTab(tab, 'ArrowRight')!
+    seen.push(tab)
+  }
+  assert.equal(tab, 'crew', 'a full cycle must return to the start')
+  assert.equal(new Set(seen).size, DEEP_TABS.length, 'the cycle must visit every tab exactly once')
+})
+
+test('the tabs are wired as ARIA tabs, not just a row of buttons', () => {
+  const html = markup(worldAfterOneSol(), 'en', 'stores')
+  assert.match(html, /role="tablist"/, 'the tab list has no role')
+  assert.match(html, /role="tabpanel"/, 'the panel has no role')
+  assert.match(html, /aria-labelledby="deep-tab-stores"/, 'the panel is not labelled by the open tab')
+
+  const selected = [...html.matchAll(/aria-selected="true"/g)]
+  assert.equal(selected.length, 1, `exactly one tab must be selected, found ${selected.length}`)
+
+  // В roving tabindex фокус держит только выбранная вкладка: иначе Tab
+  // заставляет перебирать все десять подряд. Сама панель тоже фокусируема —
+  // по ARIA это верно, поэтому считаем именно кнопки.
+  const focusable = [...html.matchAll(/<button[^>]*tabindex="0"/g)]
+  assert.equal(focusable.length, 1, 'exactly one tab must be in the tab order')
+  for (const tab of DEEP_TABS) {
+    assert.ok(html.includes(`id="deep-tab-${tab}"`), `tab ${tab} has no id`)
+  }
+  const controls = [...html.matchAll(/aria-controls="deep-panel"/g)]
+  assert.equal(controls.length, DEEP_TABS.length, 'every tab must point at the panel')
 })
