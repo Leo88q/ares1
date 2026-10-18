@@ -4,8 +4,12 @@ import type { ColonyWorld } from './deep/world'
 import { RESOURCES, RESOURCE_IDS } from './deep/resources'
 import { SPECIALTY_LABEL } from './deep/crew'
 import { TASK_META } from './deep/tasks'
-import { ANALYSIS_META } from './deep/lab'
-import { setTaskPaused, setTaskPriority } from './deep/world'
+import { ANALYSIS_KINDS, ANALYSIS_META } from './deep/lab'
+import {
+  applyRecipe, requestAnalysis, saveRecipe, setTaskPaused, setTaskPriority,
+  startExperiment, takeSample,
+} from './deep/world'
+import { finishExperiment } from './deep/lab'
 import { batchStage, batchSummary, projectedYieldKg, STAGE_LABEL, FACTOR_LABEL } from './deep/growth'
 import { totalPressureKpa, o2PartialKpa, co2PartialKpa } from './deep/sections'
 import { attentionList } from './deep/reliability'
@@ -84,7 +88,7 @@ export function DeepPanels({ world, language, onChange, initialTab = 'crew' }: {
           {tab === 'extraction' && <ExtractionPanel world={world} language={language} />}
           {tab === 'life' && <LifePanel world={world} language={language} />}
           {tab === 'greenhouse' && <GreenhousePanel world={world} language={language} />}
-          {tab === 'lab' && <LabPanel world={world} language={language} />}
+          {tab === 'lab' && <LabPanel world={world} language={language} onChange={onChange} />}
           {tab === 'repair' && <RepairPanel world={world} language={language} />}
           {tab === 'contracts' && <ContractPanel world={world} language={language} />}
           {tab === 'journal' && <JournalPanel world={world} language={language} />}
@@ -259,22 +263,129 @@ function GreenhousePanel({ world, language }: { world: ColonyWorld; language: st
   </section>
 }
 
-function LabPanel({ world, language }: { world: ColonyWorld; language: string }) {
+/** Режимы для A/B: то, что игрок реально может крутить в теплице. */
+const REGIME_PRESETS = [
+  { key: 'base', regime: { targetC: 20, feedRate: 1, light: 1, irrigation: 1 } },
+  { key: 'warm', regime: { targetC: 23, feedRate: 1, light: 1, irrigation: 1 } },
+  { key: 'bright', regime: { targetC: 20, feedRate: 1, light: 1.25, irrigation: 1.1 } },
+  { key: 'frugal', regime: { targetC: 20, feedRate: 0.9, light: 1, irrigation: 0.7 } },
+  { key: 'rich', regime: { targetC: 20, feedRate: 1.35, light: 1, irrigation: 1.1 } },
+] as const
+
+function LabPanel({ world, language, onChange }: {
+  world: ColonyWorld; language: string; onChange: () => void
+}) {
   const c = deepCopy(language)
   const lang = language === 'ru' ? 'ru' : 'en'
-  return <section className="colony-study-card">
-    <p className="colony-eyebrow">{c.labTitle}</p>
-    <div className="colony-table-scroll"><table>
-      <thead><tr><th>{c.sample}</th><th>{c.result}</th><th>{c.precision}</th></tr></thead>
-      <tbody>{world.analyses.map(a => <tr key={a.id} data-testid={`deep-analysis-${a.id}`}>
-        <td>{ANALYSIS_META[a.kind][lang]}</td>
-        <td>{a.result ? `${num(a.result.value, 3)} (${a.result.band})` : a.status}</td>
-        <td>{a.result ? `± ${num(a.result.ci, 3)}` : '—'}</td>
-      </tr>)}</tbody>
-    </table></div>
-    {world.analyses.length === 0 && <p className="colony-fineprint">{c.noAnalyses}</p>}
-    <p className="colony-fineprint">{c.recipes}: {world.recipes.length} · {c.experiments}: {world.experiments.length}</p>
-  </section>
+  const [armA, setArmA] = useState('base')
+  const [armB, setArmB] = useState('rich')
+  const [sols, setSols] = useState(20)
+  const [assayKind, setAssayKind] = useState(ANALYSIS_KINDS[0])
+  const [assayTarget, setAssayTarget] = useState('')
+
+  // Теплицы берём из партий: `applyRecipe` сопоставляет именно по этому id.
+  const greenhouses = [...new Set(world.batches.map(b => b.greenhouseId))]
+  const target = assayTarget || greenhouses[0] || ''
+  // Цепочка честная: сначала проба (тратит воду), потом анализ (тратит реагенты).
+  const requestAssay = () => {
+    if (!target) return
+    takeSample(world, ANALYSIS_META[assayKind].sample, target)
+    if (requestAnalysis(world, assayKind, target)) onChange()
+  }
+  const regimeOf = (key: string) =>
+    (REGIME_PRESETS.find(p => p.key === key) ?? REGIME_PRESETS[0]).regime
+
+  const start = () => {
+    const label = (key: string) => c[`regime${key[0].toUpperCase()}${key.slice(1)}` as keyof typeof c] ?? key
+    const experiment = startExperiment(world, `${label(armA)} / ${label(armB)}`,
+      sols, regimeOf(armA), regimeOf(armB))
+    if (experiment) onChange()
+  }
+
+  return <>
+    <section className="colony-study-card">
+      <p className="colony-eyebrow">{c.labTitle}</p>
+      <p className="colony-fineprint">{c.labNote}</p>
+      <div className="colony-deep-form">
+        <label>{c.sample}
+          <select value={assayKind} data-testid="deep-lab-assay-kind"
+            onChange={e => setAssayKind(e.target.value as typeof assayKind)}>
+            {ANALYSIS_KINDS.map(kind => <option key={kind} value={kind}>{ANALYSIS_META[kind][lang]}</option>)}
+          </select></label>
+        <label>{c.target}
+          <select value={target} data-testid="deep-lab-assay-target"
+            onChange={e => setAssayTarget(e.target.value)}>
+            {greenhouses.map(id => <option key={id} value={id}>{id}</option>)}
+          </select></label>
+        <button type="button" className="colony-button" data-testid="deep-lab-assay" onClick={requestAssay}>{c.labRequest}</button>
+      </div>
+      <div className="colony-table-scroll"><table>
+        <thead><tr><th>{c.sample}</th><th>{c.result}</th><th>{c.precision}</th></tr></thead>
+        <tbody>{world.analyses.map(a => <tr key={a.id} data-testid={`deep-analysis-${a.id}`}>
+          <td>{ANALYSIS_META[a.kind][lang]}</td>
+          <td>{a.result ? `${num(a.result.value, 3)} (${a.result.band})` : a.status}</td>
+          <td>{a.result ? `± ${num(a.result.ci, 3)}` : '—'}</td>
+        </tr>)}</tbody>
+      </table></div>
+      {world.analyses.length === 0 && <p className="colony-fineprint">{c.noAnalyses}</p>}
+      <p className="colony-fineprint">{c.labReagents}: {num(world.stock.amount.reagents, 0)} · {c.experiments}: {world.experiments.length}</p>
+    </section>
+
+    <section className="colony-study-card">
+      <p className="colony-eyebrow">{c.labExperimentTitle}</p>
+      <div className="colony-deep-form">
+        <label>{c.labArmA}
+          <select value={armA} data-testid="deep-lab-arm-a" onChange={e => setArmA(e.target.value)}>
+            {REGIME_PRESETS.map(p => <option key={p.key} value={p.key}>{c[`regime${p.key[0].toUpperCase()}${p.key.slice(1)}` as keyof typeof c]}</option>)}
+          </select></label>
+        <label>{c.labArmB}
+          <select value={armB} data-testid="deep-lab-arm-b" onChange={e => setArmB(e.target.value)}>
+            {REGIME_PRESETS.map(p => <option key={p.key} value={p.key}>{c[`regime${p.key[0].toUpperCase()}${p.key.slice(1)}` as keyof typeof c]}</option>)}
+          </select></label>
+        <label>{c.labSolsRun}
+          <input type="number" min={1} max={90} value={sols} data-testid="deep-lab-sols"
+            onChange={e => setSols(Math.max(1, Math.min(90, Number(e.target.value) || 1)))} /></label>
+        <button type="button" className="colony-button" data-testid="deep-lab-start" onClick={start}>{c.labStart}</button>
+      </div>
+      <div className="colony-table-scroll"><table>
+        <thead><tr><th>{c.experiments}</th><th>{c.status}</th><th>{c.labYield}</th><th>{c.labQuality}</th><th>{c.labWater}</th><th>{c.labEnergy}</th><th>{c.labWinner}</th><th /></tr></thead>
+        <tbody>{world.experiments.map(e => {
+          const result = e.status === 'done' ? finishExperiment(e) : null
+          return <tr key={e.id} data-testid={`deep-experiment-${e.id}`}>
+            <td>{e.name}</td>
+            <td>{e.status === 'running' ? `${c.labRunning} ${world.sol - e.startSol}/${e.sols}` : e.status}</td>
+            <td>{num(e.a.yieldKg)} / {num(e.b.yieldKg)} kg</td>
+            <td>{pct(e.a.quality)} / {pct(e.b.quality)}</td>
+            <td>{num(e.a.waterL, 0)} / {num(e.b.waterL, 0)} L</td>
+            <td>{num(e.a.energyKwh, 0)} / {num(e.b.energyKwh, 0)} kWh</td>
+            <td>{result ? (result.winner === 'tie' ? c.labTie : result.winner.toUpperCase()) : '—'}</td>
+            <td>{e.status === 'done' && !e.savedRecipeId
+              ? <button type="button" onClick={() => { if (saveRecipe(world, e.id)) onChange() }}>{c.labSaveRecipe}</button>
+              : e.savedRecipeId ? c.labSaved : null}</td>
+          </tr>
+        })}</tbody>
+      </table></div>
+      {world.experiments.length === 0 && <p className="colony-fineprint">{c.labNoExperiments}</p>}
+    </section>
+
+    <section className="colony-study-card">
+      <p className="colony-eyebrow">{c.recipes}</p>
+      <div className="colony-table-scroll"><table>
+        <thead><tr><th>{c.recipes}</th><th>{c.temp}</th><th>{c.labEvidence}</th><th /></tr></thead>
+        <tbody>{world.recipes.map(r => <tr key={r.id} data-testid={`deep-recipe-${r.id}`}>
+          <td>{r.name} <small>{c.labFromExperiment} {r.sourceExperimentId}</small></td>
+          <td>{num(r.regime.targetC)} {c.celsius}</td>
+          <td>{r.evidence ? `${num(r.evidence.yieldKg)} kg · ${pct(r.evidence.quality)} · ${num(r.evidence.waterL, 0)} L` : '—'}</td>
+          <td><select data-testid={`deep-recipe-target-${r.id}`} className="colony-deep-target"
+            onChange={e => { if (e.target.value && applyRecipe(world, r.id, e.target.value)) onChange() }} defaultValue="">
+            <option value="">{c.labApplyTo}</option>
+            {greenhouses.map(id => <option key={id} value={id}>{id}</option>)}
+          </select></td>
+        </tr>)}</tbody>
+      </table></div>
+      {world.recipes.length === 0 && <p className="colony-fineprint">{c.labNoRecipes}</p>}
+    </section>
+  </>
 }
 
 function RepairPanel({ world, language }: { world: ColonyWorld; language: string }) {

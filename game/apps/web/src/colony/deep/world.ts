@@ -1739,6 +1739,10 @@ export function saveRecipe(world: ColonyWorld, experimentId: string): Recipe | n
   if (!experiment || experiment.status !== 'done') return null
   const recipe = recipeFromExperiment(experiment, `R-${nextId(world, 'recipe')}`, world.sol)
   world.recipes.push(recipe)
+  // Без этой записи опыт остаётся «несохранённым» навсегда: интерфейс смотрит
+  // именно на `savedRecipeId`, решая, показывать ли кнопку, и игрок нажимал бы
+  // её сколько угодно раз, плодя одинаковые режимы.
+  experiment.savedRecipeId = recipe.id
   return recipe
 }
 
