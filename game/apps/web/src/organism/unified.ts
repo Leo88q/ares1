@@ -8,6 +8,14 @@
  *
  * Conservation (checked by tests and by `unifiedBalance`):
  *   startKg + harvestedKg = rawKg + processedKg + eatenKg + exportedKg + craftedKg + processingLossKg
+ *
+ * Глубокая симуляция колонии (colony/deep) — НЕ вторая экономика еды: она
+ * считает, СКОЛЬКО развития получает грядка и какую долю урожая потеряла,
+ * а масса по-прежнему проходит через этот реестр. Расширения backward compatible:
+ *  - `GrowthInput` может быть функцией (plotId, bedIndex) → прирост в днях;
+ *  - `UnifiedPlot.planted` — физическая посадка (семенной картофель ограничен);
+ *  - `advanceDay(b, growth, { yieldFactor, autoReplant })` — доля урожая при уборке
+ *    и запрет автоматического пересева (решает слой симуляции).
  */
 import { BEDS, LAB, PARAMETERS } from './parameters'
 import { bedCycleKg, harvestFactor } from './beds'
@@ -33,8 +41,20 @@ export interface UnifiedPlot {
   tier: 0 | 1 | 2
   /** Days of growth per bed. Negative = not planted yet. Harvest resets a bed to 0. */
   beds: number[]
+  /**
+   * Физически засажена ли грядка. `undefined` (старые сохранения) = засажена.
+   * Снимается уборкой; ставится `plantBed`, когда есть семенной картофель и труд.
+   */
+  planted?: boolean[]
   /** Cumulative kg harvested from this plot (both manual and automatic). */
   harvestedKg: number
+}
+
+/** Грядка засажена (старые состояния без `planted` считаются засаженными). */
+export function isPlanted(b: UnifiedBase, plotId: string, index: number): boolean {
+  const plot = b.plots.find(p => p.id === plotId)
+  if (!plot || !Number.isInteger(index) || index < 0) return false
+  return plot.planted?.[index] ?? true
 }
 
 export interface UnifiedBase {
@@ -53,6 +73,9 @@ export interface UnifiedBase {
   craftedKg: number
   processingLossKg: number
   foodShortfallKg: number
+  /** Учётные счётчики глубокого слоя. По умолчанию 0: старые балансы не меняются. */
+  sortedKg?: number
+  spoiledKg?: number
   /** POTATO earned from crafting, off-chain ledger only. Never minted by this module. */
   potatoLedger: number
   /** POTATO per crafted kg. `null` = not calibrated, crafting refused. */
@@ -65,6 +88,14 @@ export interface UnifiedInit {
   storageCapKg: number
   startKg: number
   potatoPerKg?: number | null
+}
+
+/** Дополнительные учётные счётчики глубокого слоя (по умолчанию 0 → совместимость). */
+export interface UnifiedDeepCounters {
+  /** Кг немытого картофеля, ушедшего на сортировку (товарная/семена/некондиция/остатки). */
+  sortedKg?: number
+  /** Кг, потерянные при хранении (порча). */
+  spoiledKg?: number
 }
 
 export function initialUnifiedBase(init: UnifiedInit): UnifiedBase {
@@ -83,6 +114,7 @@ export function initialUnifiedBase(init: UnifiedInit): UnifiedBase {
     craftedKg: 0,
     processingLossKg: 0,
     foodShortfallKg: 0,
+    sortedKg: 0, spoiledKg: 0,
     potatoLedger: 0,
     potatoPerKg: init.potatoPerKg ?? null,
   }
@@ -96,7 +128,7 @@ const freeKg = (b: UnifiedBase): number => Math.max(0, b.storageCapKg - storedKg
 export function unifiedBalance(b: UnifiedBase): { inflow: number; stock: number; outflow: number; residual: number } {
   const inflow = b.startKg + b.harvestedKg
   const stock = b.rawKg + b.processedKg
-  const outflow = b.eatenKg + b.exportedKg + b.craftedKg + b.processingLossKg
+  const outflow = b.eatenKg + b.exportedKg + b.craftedKg + b.processingLossKg + (b.sortedKg ?? 0) + (b.spoiledKg ?? 0)
   return { inflow, stock, outflow, residual: inflow - stock - outflow }
 }
 
@@ -111,33 +143,71 @@ export function canHarvestBed(b: UnifiedBase, plotId: string, index: number): bo
   const plot = b.plots[pi]
   const v = plot.beds[index]
   if (v === undefined || v < 0) return false
+  if (!isPlanted(b, plotId, index)) return false
   const kg = bedFullKg(plot.tier) * harvestFactor(v / UNIFIED_CYCLE_DAYS)
   return kg > 0 && kg <= freeKg(b) + 1e-9
 }
 
-/** Manual harvest. Refused (same object returned) when the factor is zero or storage is full. */
-export function harvestBed(b: UnifiedBase, plotId: string, index: number): UnifiedBase {
+/**
+ * Manual harvest. Refused (same object returned) when the factor is zero or storage is full.
+ * `opts.autoReplant === false` помечает грядку пустой: пересев решает слой
+ * симуляции (нужны семенной картофель и труд), а не «бесконечная кнопка».
+ */
+export function harvestBed(b: UnifiedBase, plotId: string, index: number, opts: AdvanceOptions = {}): UnifiedBase {
   if (!canHarvestBed(b, plotId, index)) return b
   const pi = findPlot(b, plotId)
   const plot = b.plots[pi]
   const kg = bedFullKg(plot.tier) * harvestFactor(plot.beds[index] / UNIFIED_CYCLE_DAYS)
   const beds = [...plot.beds]
   beds[index] = 0
-  const plots = b.plots.map((p, i) => (i === pi ? { ...p, beds, harvestedKg: p.harvestedKg + kg } : p))
+  const planted = plot.planted ? [...plot.planted] : beds.map(() => true)
+  if (opts.autoReplant === false) planted[index] = false
+  const plots = b.plots.map((p, i) => (i === pi ? { ...p, beds, planted, harvestedKg: p.harvestedKg + kg } : p))
   return { ...b, plots, rawKg: b.rawKg + kg, harvestedKg: b.harvestedKg + kg }
 }
 
+/** Посадить грядку заново. Семенной материал списывает вызывающий слой (colony/deep). */
+export function plantBed(b: UnifiedBase, plotId: string, index: number): UnifiedBase {
+  const pi = findPlot(b, plotId)
+  if (pi < 0 || !Number.isInteger(index) || index < 0 || index >= BEDS.perField) return b
+  const plot = b.plots[pi]
+  const planted = [...(plot.planted ?? plot.beds.map(() => true))]
+  while (planted.length < plot.beds.length) planted.push(true)
+  if (planted[index]) return b
+  planted[index] = true
+  const beds = [...plot.beds]
+  beds[index] = 0
+  const plots = b.plots.map((p, i) => (i === pi ? { ...p, beds, planted } : p))
+  return { ...b, plots }
+}
+
+/** Снять урожайный выход в долях: стресс и плотность посадки (слой colony/deep). */
+export interface AdvanceOptions {
+  /** Доля от полного выхода грядки на момент уборки (0…1). */
+  yieldFactor?: (plotId: string, bedIndex: number) => number
+  /** false — после уборки грядка пуста и требует посадки (по умолчанию true). */
+  autoReplant?: boolean
+}
+
 /** Growth input per plot: a number for every plot, or a function of the plot id (energy and water limits). */
-export type GrowthInput = number | ((plotId: string) => number)
+/**
+ * Прирост развития: одно число на все грядки, либо функция (plotId, bedIndex) → дни.
+ * Функция от одного аргумента остаётся корректной (второй игнорируется).
+ */
+export type GrowthInput = number | ((plotId: string, bedIndex: number) => number)
 
 /** Grow every planted bed by its plot's growth. A bed at full cycle is harvested automatically if storage has room; otherwise it waits (no loss). */
-function growBeds(b: UnifiedBase, growth: GrowthInput): UnifiedBase {
-  const growOf = (id: string): number => (typeof growth === 'number' ? growth : growth(id))
+function growBeds(b: UnifiedBase, growth: GrowthInput, opts: AdvanceOptions = {}): UnifiedBase {
+  const growOf = (id: string, index: number): number => (typeof growth === 'number' ? growth : growth(id, index))
+  const yieldOf = opts.yieldFactor ?? ((): number => 1)
   let cur = b
   cur = { ...cur, plots: cur.plots.map(p => {
-    const g = growOf(p.id)
-    if (!(g >= 0)) throw new RangeError('growth must be ≥ 0')
-    return { ...p, beds: p.beds.map(v => (v < 0 ? (v + g >= 0 ? 0 : v + g) : v + g)) }
+    return { ...p, beds: p.beds.map((v, bi) => {
+      if (p.planted && p.planted[bi] === false) return v
+      const g = growOf(p.id, bi)
+      if (!(g >= 0)) throw new RangeError('growth must be ≥ 0')
+      return v < 0 ? (v + g >= 0 ? 0 : v + g) : v + g
+    }) }
   }) }
   // automatic harvest of ripe beds (value ≥ cycle), one bed at a time, while storage allows
   for (let pi = 0; pi < cur.plots.length; pi++) {
@@ -145,13 +215,16 @@ function growBeds(b: UnifiedBase, growth: GrowthInput): UnifiedBase {
       const plot = cur.plots[pi]
       const v = plot.beds[bi]
       if (v < UNIFIED_CYCLE_DAYS - 1e-9) continue
-      const kg = bedFullKg(plot.tier)
+      if (plot.planted && plot.planted[bi] === false) continue
+      const kg = bedFullKg(plot.tier) * Math.max(0, Math.min(1, yieldOf(plot.id, bi)))
       if (kg > freeKg(cur) + 1e-9) continue // waits at full cycle; retried next day
       const beds = [...plot.beds]
       beds[bi] = v - UNIFIED_CYCLE_DAYS
+      const planted = [...(plot.planted ?? plot.beds.map(() => true))]
+      if (opts.autoReplant === false) { planted[bi] = false; beds[bi] = 0 }
       cur = {
         ...cur,
-        plots: cur.plots.map((p, i) => (i === pi ? { ...p, beds, harvestedKg: p.harvestedKg + kg } : p)),
+        plots: cur.plots.map((p, i) => (i === pi ? { ...p, beds, planted, harvestedKg: p.harvestedKg + kg } : p)),
         rawKg: cur.rawKg + kg,
         harvestedKg: cur.harvestedKg + kg,
       }
@@ -181,10 +254,11 @@ function feedCrew(b: UnifiedBase): UnifiedBase {
 
 /**
  * One day. `growth` is growth in days added to each planted bed (1 = a full day of growth).
- * Energy and water limits will set `growth` in P1b; P1 takes it as an input.
+ * `opts.yieldFactor` — доля полного выхода при уборке (стресс/плотность из colony/deep);
+ * `opts.autoReplant === false` — грядка после уборки пуста и требует посадки.
  */
-export function advanceDay(b: UnifiedBase, growth: GrowthInput): UnifiedBase {
-  let cur = growBeds({ ...b, day: b.day + 1 }, growth)
+export function advanceDay(b: UnifiedBase, growth: GrowthInput, opts: AdvanceOptions = {}): UnifiedBase {
+  let cur = growBeds({ ...b, day: b.day + 1 }, growth, opts)
   cur = processDay(cur)
   cur = feedCrew(cur)
   return cur
