@@ -14,11 +14,12 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  advanceDay, buildModule, buySupplies, initialColony, type ColonyModule, type ColonyState,
-  type ModuleKind, type Scenario,
+  advanceDay, buildModule, buySupplies, deliverFood, foodReserve, initialColony,
+  type ColonyModule, type ColonyState, type ModuleKind, type Scenario,
 } from '../apps/web/src/colony/simulation'
 import type { ColonyWorld, DeepScenario, DeviceKind } from '../apps/web/src/colony/deep/world'
 import type { DailyRow, ScenarioReport } from './deepScenario.types'
+import { PARAMETERS } from '../apps/web/src/organism/parameters'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPORT_DIR = join(HERE, '..', 'reports')
@@ -105,6 +106,10 @@ function row(state: ColonyState, world: ColonyWorld, bottleneck: string): DailyR
  * bought with the ordinary in-game credits through `buildModule`, so the start
  * is reproducible and auditable — no free modules.
  */
+// Третью теплицу пробовали: она не помогает, а вредит. Удобрения импортные,
+// а компост возвращает 0.07 кг с 8 кг внесённых, поэтому лишние 20 m² просто
+// размазывают тот же N/P/K по 18 грядкам — ни одна не получает нормы, и урожай
+// падает с 360 до 216 кг. Площадь здесь не предел, предел — ввоз удобрений.
 const START_KIT: ModuleKind[] = ['greenhouse', 'solar', 'solar', 'battery', 'battery']
 
 /** Какие сети нужны модулю, чтобы он вообще работал (как в игре). */
@@ -135,7 +140,12 @@ export function buildStartColony(): ColonyState {
   // Удобрения в этой модели — привозные: вторая теплица удваивает их расход, и
   // без закупки база упирается в N/P/K на ~83-м солу. Закупка идёт обычной
   // игровой кнопкой за обычные кредиты и видна в отчёте как импортозависимость.
-  while (state.credits >= 80 * 6) state = buySupplies(state)
+  // Порог отсечки — ремонтный резерв, а не произвольное число: 240 кредитов
+  // хватает на три пакета supplies или на несколько ремонтов. Прежний порог
+  // 480 кредитов оставлял 410 незадействованными — пять пакетов удобрений и
+  // запчастей лежали мёртвым грузом, пока грядки упирались в N/P/K.
+  const reserveCredits = PARAMETERS.supplyCredits * 3
+  while (state.credits >= PARAMETERS.supplyCredits + reserveCredits) state = buySupplies(state)
   return state
 }
 
@@ -175,6 +185,15 @@ export function runScenario(spec: ScenarioSpec, sols = SOLS): ScenarioReport {
     if (spec.deep && state.world) state.world.scenario = { ...state.world.scenario, ...spec.deep }
 
     state = advanceDay(state, spec.scenario)
+    // Решение игрока, а не бонус симуляции: везём только настоящий излишек.
+    // `sellableKg` держит 14-дневный резерв, но цикл картофеля — 90 солов, и
+    // продажа под этот резерв перед разрывом в урожаях означает голод: между
+    // сборами проходит больше двух недель. Политика эксперимента — держать
+    // четырёхкратный резерв (≈56 солов еды) и везти лишь то, что выше него:
+    // продажа раньше съедает стартовый запас до первого урожая, и колония
+    // голодает на 31-м солу, формально выполнив контракт.
+    const reserve = foodReserve(state)
+    if (state.ledger.processedKg >= reserve * 4) state = deliverFood(state)
     const world = state.world
     if (!world) throw new Error('deep world missing after advanceDay')
     const bottleneck = world.lastStep?.bottleneck ?? 'none'
@@ -209,7 +228,7 @@ export function runScenario(spec: ScenarioSpec, sols = SOLS): ScenarioReport {
       harvestedKg: round(t.harvestedKg, 2),
       yieldLossKg: round(t.yieldLossKg, 2),
       sortedKg: round(t.sortedKg, 2),
-      exportedKg: round(t.exportedKg, 2),
+      exportedKg: round(state.ledger.exportedKg, 2),
       crewFoodKg: round(t.crewFoodKg, 2),
       foodShortfallKg: round(t.foodShortfallKg, 2),
       minedKg: round(t.minedKg, 2),

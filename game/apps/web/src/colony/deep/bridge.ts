@@ -439,7 +439,13 @@ export function advanceColonyDay(state: ColonyState, scenario: Scenario, budget:
     for (let index = 0; index < plot.beds.length; index++) {
       const was = before.beds[index] ?? 0
       const now = plot.beds[index] ?? 0
-      if (!(was >= PARAMETERS.cropCycleDays - 1e-9) || now >= was) continue
+      // Собранную грядку выдаёт падение её накопленного роста: после уборки
+      // реестр сбрасывает её в ноль (autoReplant = false). Прежний признак —
+      // «значение на начало суток уже >= cropCycleDays» — почти никогда не
+      // срабатывал: грядка доходила до 90 внутри суток, а `was` было 89.x.
+      // Партия тогда не очищалась, оставалась «засаженной» навсегда, и грядка
+      // выпадала из оборота после первого же цикла.
+      if (now >= was) continue
       const batch = stepped.batches.find(b => b.greenhouseId === plot.id && b.bedIndex === index)
       if (!batch) continue
       stepped.totals.yieldLossKg += Math.max(0, BED_FULL_KG - delta)

@@ -191,6 +191,9 @@ const capacityFactor = (m: ColonyModule): number => Math.max(0.2, m.condition / 
 /** WP10: bed i is planted (cycle / K) days after bed i − 1. `leadDays` = growth of bed 0. */
 export const bedStepDays = (): number => PARAMETERS.cropCycleDays / BEDS.perField
 export function greenhouseBeds(leadDays: number): number[] {
+  // Отрицательные значения здесь не ошибка, а сдвиг первой уборки: грядка
+  // «ещё не посажена» на столько-то дней, поэтому свежая теплица отдаёт
+  // урожаи ступенями — 90, 105, 120, 135, 150, 165 — а не всё разом.
   return Array.from({ length: BEDS.perField }, (_, i) => leadDays - i * bedStepDays())
 }
 /** Grow every bed by `growth` days; a bed that completes one cycle is harvested and restarts from the excess. */

@@ -849,7 +849,12 @@ function completeTask(world: ColonyWorld, task: Task): void {
     }
     default: break
   }
-  if (task.recurring && ['extract', 'tend', 'maintain', 'clean_panels'].includes(task.kind)) {
+  // `tend` здесь нет: уход за грядкой планируется `planTasks` по интервалу
+  // (`tendIntervalSols`), а безусловное пересоздание этот интервал обходило.
+  // Грядка получала задачу в тот же сол, когда её закончили, и 12 грядок
+  // крутили бесконечную ленту, съедая 70 % рабочего времени экипажа на условия,
+  // которые и так были идеальными, — а на посадку времени не оставалось вовсе.
+  if (task.recurring && ['extract', 'maintain', 'clean_panels'].includes(task.kind)) {
     const again = addTask(world, {
       kind: task.kind, targetId: task.targetId, requiredHours: task.requiredHours, sol: world.sol,
       priority: task.basePriority, recurring: true,
