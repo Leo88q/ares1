@@ -25,7 +25,7 @@ class ViewportBoundary extends Component<{ children: ReactNode; fallback: ReactN
   render(): ReactNode { return this.state.failed ? this.props.fallback : this.props.children }
 }
 
-export default function FieldsPanel({ fields, language, renderInspector, renderCards, demo = false, onSelection, initialLayer = 'chain' }: {
+export default function FieldsPanel({ fields, language, renderInspector, renderCards, demo = false, onSelection, initialLayer = 'chain', renderLabSupply }: {
   fields: readonly FieldVisual[]
   language: string
   renderInspector(field: FieldVisual): ReactNode
@@ -33,6 +33,13 @@ export default function FieldsPanel({ fields, language, renderInspector, renderC
   demo?: boolean
   onSelection?(field: FieldVisual): void
   initialLayer?: 'chain' | 'engineering'
+  /**
+   * Продакт-лаборатория (/lab): дополнительные органы управления под SIM-консолью
+   * выбранного поля. Получает тот же сценарий и тот же диспетчер действий, что и
+   * консоль, поэтому снабжение из колонии меняет ровно то поле, которое открыто.
+   * Основной ферме и песочницам проп не передаётся — ничего не рендерится.
+   */
+  renderLabSupply?(field: FieldVisual, state: EngineeringState, dispatch: (action: EngineeringAction) => void): ReactNode
 }): JSX.Element {
   const c = fieldCopy(language), ec = engineeringCopy(language)
   const [deck, setDeck] = useState<EngineeringView>('telemetry')
@@ -134,7 +141,10 @@ export default function FieldsPanel({ fields, language, renderInspector, renderC
             </div>}
           </div>
           <div className="mf-inspector" aria-label={c.selectedLabel} data-selected-id={selected.id}>
-            {layer === 'engineering' && selectedLab ? <EngineeringConsole state={selectedLab} language={language} onAction={action => act(selected, action)} onReset={() => resetLab(selected)} /> : renderInspector(selected)}
+            {layer === 'engineering' && selectedLab ? <>
+              <EngineeringConsole state={selectedLab} language={language} onAction={action => act(selected, action)} onReset={() => resetLab(selected)} />
+              {renderLabSupply?.(selected, selectedLab, action => act(selected, action))}
+            </> : renderInspector(selected)}
           </div>
           {!demo && layer === 'chain' && slotsReady() && <Suspense fallback={null}><SlotsPanel fieldId={selected.id} /></Suspense>}
         </div>

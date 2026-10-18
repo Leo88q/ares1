@@ -54,15 +54,20 @@ test('real fields use current public-key accounts and existing action callbacks,
   assert.doesNotMatch(scene, /useGame\(|useSolana\(|useWallet\(|sendTransaction\(|https?:\/\//)
   assert.match(scene, /new THREE\.InstancedMesh/)
   assert.match(scene, /parser\.textureLoader = new THREE\.TextureLoader/)
-  for (const cleanup of [/abort\.abort\(\)/, /observer\.disconnect\(\)/, /controls\.dispose\(\)/, /renderer\.dispose\(\)/, /renderer\.forceContextLoss\(\)/, /geometries\.forEach/, /materials\.forEach/, /textures\.forEach/]) assert.match(scene, cleanup)
+  for (const cleanup of [/abort\.abort\(\)/, /observer\.disconnect\(\)/, /rig\.dispose\(\)/, /renderer\.dispose\(\)/, /renderer\.forceContextLoss\(\)/, /geometries\.forEach/, /materials\.forEach/, /textures\.forEach/]) assert.match(scene, cleanup)
 })
-test('demo branches before blockchain/wallet providers and never invents Field accounts', () => {
+test('the field lab is a product section: real contexts only, never invents Field accounts', () => {
   const main = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8')
-  assert.ok(main.indexOf("=== '/demo'") < main.indexOf("import('./contexts/SolanaContext')"))
-  const demo = readFileSync(new URL('../src/components/DemoScreen.tsx', import.meta.url), 'utf8')
-  assert.match(demo, /FieldVisual\[\]/)
-  assert.doesNotMatch(demo, /new PublicKey|new Keypair|useGame\(|useSolana\(|useWallet\(|sendTransaction\(|localStorage\.|sessionStorage\./)
-  assert.match(demo, /href="\/market"/)
+  // Песочница /demo удалена вместе со своим bootstrap без провайдеров.
+  assert.doesNotMatch(main, /=== '\/demo'/)
+  assert.ok(main.indexOf("=== '/colony'") < main.indexOf("import('./contexts/SolanaContext')"))
+  const lab = readFileSync(new URL('../src/lab/FieldLabScreen.tsx', import.meta.url), 'utf8')
+  assert.match(lab, /useGame\(\)/)
+  assert.match(lab, /useSolana\(\)/)
+  assert.match(lab, /FieldVisual\[\]/)
+  // Учебные стенды — локальные визуалы: ни ключей, ни аккаунтов, ни хранилищ.
+  assert.doesNotMatch(lab, /new PublicKey|new Keypair|useWallet\(|sendTransaction\(|localStorage\.|sessionStorage\./)
+  assert.match(lab, /href="\/market"/)
   const csp = readFileSync(new URL('../public/_headers', import.meta.url), 'utf8')
   assert.doesNotMatch(csp.match(/connect-src [^;]+/)?.[0] ?? '', /blob:/)
 })

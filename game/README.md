@@ -36,7 +36,7 @@ The field screen now uses an illustrated Mars backdrop, ready CC0 equipment pref
 
 ## Distinct section artwork
 
-The real SupplyBay/StatsBay/CabinBay now use local illustrated headers instead of the same procedural dome. MarketScreen, StatsScreen, ProfileScreen and OperationScreen stay byte-for-byte unchanged. Image navigation has the same five route callbacks and reactive translations. `/demo` previews art only, with links to the real sections and no mock balances/orders in the shipped app.
+The real SupplyBay/StatsBay/CabinBay now use local illustrated headers instead of the same procedural dome. MarketScreen, StatsScreen, ProfileScreen and OperationScreen stay byte-for-byte unchanged. Image navigation now has seven route callbacks (АГРО · ЛАБ · КОЛОНИЯ · СНАБ · ЖУРНАЛ · КАЮТА · ОПЕРАЦИЯ) and reactive translations. The `/demo` art-preview page was retired together with the demo sandbox on 2026-10-17: section art is reviewed on the real routes and in the console fixture of `test:sections-browser`.
 
 ```sh
 CHROMIUM_EXECUTABLE_PATH=/path/to/chrome yarn workspace web test:sections-browser
@@ -46,7 +46,7 @@ The actual V1 market/create-modal fixture only replaces providers with local cal
 
 ## Martian fields in 3D
 
-The main farm renders the same `Field[]` from `GameContext`, selects by public key and reuses all five original field actions. The cards remain available, and V1 POTATO/SOL is unchanged. `/demo` mounts the same renderer with explicitly local examples **before wallet/RPC providers**; full-page links enter/leave it.
+The main farm renders the same `Field[]` from `GameContext`, selects by public key and reuses all five original field actions. The cards remain available, and V1 POTATO/SOL is unchanged. `/lab` mounts the same renderer inside the game shell: real wallet fields when connected, three explicitly local training benches when not.
 
 ```sh
 yarn check:field-assets
@@ -56,9 +56,20 @@ CHROMIUM_EXECUTABLE_PATH=/path/to/chrome yarn workspace web test:fields-browser
 
 The test includes the actual `MainScreen` with mocked providers to verify account identity/action forwarding, not signed on-chain transactions. See [implementation, model provenance and limits](../docs/MARTIAN_FIELDS_IMPLEMENTATION.md).
 
+## Field lab: product section (`/lab`)
+
+`/lab` is the product version of the former field demo: the seventh console key (ЛАБ, K2) opens it inside the shell with the real `GameContext`/`SolanaContext` data, the live POTATO/SOL order book and **one shared colony store** (`ColonyProvider`) with `/base`. The bench draws water/nutrients/spares from the colony stock and ships SIM food batches back into base storage; both ledgers move in the same click and transfers pause while the colony clock runs. The SIM layer stays local bookkeeping: no minting, no signing, no persistence.
+
+```sh
+yarn workspace web test:lab-browser        # real fields, shared stock, shipped food (installed browser only)
+yarn test:offchain                         # bridge conservation: tests/offchain/labColonyBridge.test.ts
+```
+
+See [the field lab product note](../docs/FIELD_LAB_PRODUCT.md).
+
 ## Field engineering (local SIM)
 
-`/demo` now starts the engineering layer, with battery, pump/reservoir, lights, crop stages and food lots. On the main farm it is an opt-in layer for the **same account public key**; all original POTATO actions remain in the on-chain tab. No financial callbacks, rewards, persistent storage or new accounts are added.
+The field lab (`/lab`) starts on the field-state layer and switches to the engineering SIM with one key: battery, pump/reservoir, lights, crop stages and food lots. On the farm it is an opt-in layer for the **same account public key**; all original POTATO actions remain in the on-chain tab. No financial callbacks, rewards, persistent storage or new accounts are added.
 
 ```sh
 yarn simulate:engineering

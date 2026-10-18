@@ -170,15 +170,9 @@ async function bootstrap(): Promise<void> {
       return
     }
 
-    // The existing demo now shares the actual field renderer, but still must
-    // mount no wallet auto-connect, RPC polling, presale or on-chain providers.
-    if (window.location.pathname.replace(/\/+$/, '') === '/demo') {
-      const { default: DemoScreen } = await import('./components/DemoScreen')
-      ReactDOM.createRoot(document.getElementById('root')!).render(
-        <React.StrictMode><ErrorBoundary><DemoScreen /></ErrorBoundary></React.StrictMode>,
-      )
-      return
-    }
+    // Песочница /demo удалена: полевая лаборатория стала продуктовой секцией
+    // /lab внутри общего приложения (с кошельком, рынком и колонией), поэтому
+    // отдельный bootstrap без провайдеров ей больше не нужен.
 
     // Только прикладные модули — динамически (в них живут fail-fast
     // проверки конфигурации на уровне модуля). Вендор — статически,

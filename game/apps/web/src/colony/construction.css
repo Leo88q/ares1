@@ -1,0 +1,28 @@
+.colony-construction { padding: 14px; background: #211e17; border: 1px solid #7f6943; color: #deceb0; min-width: 0; }
+.colony-construction header { display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
+.colony-construction header span, .colony-construction small { font-size: 10px; color: #bbae91; }
+.colony-construction p { font-size: 12px; line-height: 1.5; margin: 10px 0; }
+.colony-construction-map { display: block; width: 100%; aspect-ratio: 1; background: #292c25; border: 1px solid #6a5c41; cursor: crosshair; touch-action: manipulation; }
+.colony-plan-navigation { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 3px; margin-top: 7px; }
+.colony-plan-navigation button, .colony-plan-coordinates button { min-width: 44px; min-height: 44px; padding: 4px; border: 1px solid #7f6943; background: #393025; color: #ead7ac; border-radius: 4px; cursor: pointer; }
+.colony-plan-coordinates { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,2fr); gap: 6px; margin-top: 10px; align-items: end; }
+.colony-plan-coordinates label { font: 11px monospace; display: grid; gap: 4px; min-width: 0; }
+.colony-plan-coordinates input { width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; border: 1px solid #7f6943; background: #151a16; color: #ead7ac; padding: 6px; }
+.colony-construction .is-invalid { color: #ffb39b; }
+.colony-construction .is-valid { color: #b0d39b; }
+.colony-plan-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; margin-top: 12px; }
+.colony-plan-actions button { min-height: 44px; white-space: normal; padding: 8px; }
+.colony-construction button:disabled { opacity: .4; cursor: not-allowed; }
+.colony-construction button:focus-visible, .colony-construction input:focus-visible, .colony-relocate:focus-visible { outline: 2px solid #f7d792; outline-offset: 2px; }
+.colony-relocate { min-height: 44px; width: 100%; margin-top: 12px; }
+@media(max-width:360px) { .colony-construction { padding: 8px; } .colony-plan-navigation { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+.colony-network-panel > label { display: grid; gap: 5px; margin: 10px 0; font-size: 12px; }
+.colony-network-panel select { width: 100%; min-width: 0; min-height: 44px; color: #ead7ac; background: #191f19; border: 1px solid #7f6943; padding: 7px; }
+.colony-network-panel .colony-construction-map { margin-top: 12px; }
+.colony-network-panel select:focus-visible { outline: 2px solid #f7d792; outline-offset: 2px; }
+.colony-service-status { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 0; font-size: 11px; }
+.colony-service-status .is-valid { color: #b0d39b; }
+.colony-service-status .is-invalid { color: #ffb39b; }
+/* Override the legacy compact colony-button rules even inside the game shell. */
+.colony-app .colony-construction :is(button, input, select) { min-height: 44px; box-sizing: border-box; }
+.colony-app .colony-construction button { white-space: normal; }

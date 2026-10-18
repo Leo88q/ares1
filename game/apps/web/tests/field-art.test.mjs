@@ -19,7 +19,7 @@ test('warm-industrial artwork is small, local, individually generated and finger
   assert.ok(total < 400_000, `Art payload ${total} bytes`)
   assert.match(manifest.notes, /not NASA imagery/)
 })
-test('field view composes actual art/prefabs, not procedural terrain, noise or custom hardware geometry', () => {
+test('field view uses a coherent 3D interior rather than an illustrated landscape', () => {
   const scene = readFileSync(new URL('../src/fields/scene.ts', import.meta.url), 'utf8')
   assert.doesNotMatch(scene, /new THREE\.(BoxGeometry|CylinderGeometry|SphereGeometry)|Math\.random|createImageData|createLinearGradient|terrain\.setAttribute|positions\.setY/)
   assert.match(scene, /new THREE\.ShadowMaterial/)
@@ -28,8 +28,10 @@ test('field view composes actual art/prefabs, not procedural terrain, noise or c
   assert.match(scene, /model\('pump\.glb'/)
   assert.match(scene, /model\('climate-unit\.glb'/)
   const viewport = readFileSync(new URL('../src/fields/FieldsViewport.tsx', import.meta.url), 'utf8')
-  assert.match(viewport, /className="mf-stage-art"/)
-  assert.match(viewport, /FIELD_ART\.background/)
+  assert.doesNotMatch(viewport, /mf-stage-art|FIELD_ART\.background/)
+  assert.match(viewport, /data-scene="greenhouse-interior"/)
+  assert.match(scene, /createGreenhouseInterior\(profile.rows, profile.length\)/)
+  assert.match(scene, /farm\.interior\.dispose\(\)/)
   const css = readFileSync(new URL('../src/fields/art-direction.css', import.meta.url), 'utf8')
   assert.match(css, /panel-bronze\.webp/)
   assert.match(css, /button-bronze\.webp/)
