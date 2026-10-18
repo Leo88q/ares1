@@ -99,18 +99,27 @@ test('planting really consumes seed potato, and only what it records', () => {
 })
 
 test('lost yield is never given back', () => {
+  // Штраф проверяется ВНУТРИ непрерывного цикла посадки, а не вообще по id
+  // грядки: после сбора партия очищается (plantedSol → null, штраф → 0), и
+  // это законный сброс, а не «урожай вернули». Прежняя формулировка принимала
+  // за нарушение сам факт уборки и потому была слишком слабой, чтобы что-то
+  // доказать: замер показал 6 сбросов штрафа — все шесть оказались урожаем,
+  // и ни одного падения внутри цикла. Гарантия от этого только строже.
   const { worlds } = run(120)
-  const worst = new Map<string, number>()
+  const seen = new Map<string, { penalty: number; plantedSol: number | null }>()
+  let checks = 0
   for (const world of worlds) {
     for (const batch of world.batches) {
-      const previous = worst.get(batch.id) ?? 0
-      // Грядку могли пересеять — тогда штраф обнуляется вместе с партией.
-      const replanted = batch.plantedSol !== null && previous > batch.yieldPenalty + 1e-9 && batch.development < 0.05
-      assert.ok(batch.yieldPenalty >= previous - 1e-9 || replanted,
-        `${batch.id}: penalty fell from ${previous} to ${batch.yieldPenalty} without replanting`)
-      worst.set(batch.id, Math.max(previous, batch.yieldPenalty))
+      const previous = seen.get(batch.id)
+      if (previous && previous.plantedSol !== null && batch.plantedSol === previous.plantedSol) {
+        assert.ok(batch.yieldPenalty >= previous.penalty - 1e-9,
+          `${batch.id}: penalty fell from ${previous.penalty} to ${batch.yieldPenalty} mid-cycle (planted sol ${batch.plantedSol})`)
+        checks++
+      }
+      seen.set(batch.id, { penalty: batch.yieldPenalty, plantedSol: batch.plantedSol })
     }
   }
+  assert.ok(checks > 0, 'no batch was ever observed mid-cycle, so the test proves nothing')
 })
 
 test('the same seed reproduces the same run', () => {
