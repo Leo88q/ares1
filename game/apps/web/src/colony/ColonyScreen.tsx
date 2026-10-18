@@ -14,6 +14,7 @@ import type { ResourceArt } from '../fields/visualAssets'
 import ConstructionPlan, { type ConstructionDraft } from './ConstructionPlan'
 import { COLONY_MODULE_LIMIT, findPlacement, modulePlacement } from './layout'
 import { placementHitsNetwork, networkServices, supportsNetwork, type ColonyNetwork } from './networks'
+import { DeepPanels } from './DeepPanels'
 import NetworkPanel, { networkName } from './NetworkPanel'
 import './colony.css'
 
@@ -34,7 +35,7 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
   const colony = useColony()
   const { state, setState, scenario, setScenario, running, setRunning, ended: end } = colony
   const [view, setView] = useState<View>('base')
-  const [panel, setPanel] = useState<'build' | 'logistics' | 'networks'>('build')
+  const [panel, setPanel] = useState<'build' | 'logistics' | 'networks' | 'deep'>('build')
   const [selectedId, setSelectedId] = useState<string | null>('greenhouse-5')
   const [message, setMessage] = useState('')
   const [draft, setDraft] = useState<ConstructionDraft | null>(null)
@@ -135,7 +136,7 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
             </section>
 
             <aside className="colony-sidebar">
-              <div className="colony-panel-tabs"><button type="button" onClick={() => setPanel('build')} aria-pressed={panel === 'build'}><Plus size={14} />{c.build}</button><button type="button" onClick={() => setPanel('logistics')} aria-pressed={panel === 'logistics'}><Truck size={14} />{c.logistics}</button><button type="button" aria-pressed={panel === 'networks'} onClick={() => { setPanel('networks'); setDraft(null); setRunning(false) }}>{lang === 'ru' ? 'Сети' : 'Networks'}</button></div>
+              <div className="colony-panel-tabs"><button type="button" onClick={() => setPanel('build')} aria-pressed={panel === 'build'}><Plus size={14} />{c.build}</button><button type="button" onClick={() => setPanel('logistics')} aria-pressed={panel === 'logistics'}><Truck size={14} />{c.logistics}</button><button type="button" aria-pressed={panel === 'networks'} onClick={() => { setPanel('networks'); setDraft(null); setRunning(false) }}>{lang === 'ru' ? 'Сети' : 'Networks'}</button><button type="button" data-testid="colony-tab-deep" aria-pressed={panel === 'deep'} onClick={() => { setPanel('deep'); setDraft(null) }}>{lang === 'ru' ? 'Системы' : 'Systems'}</button></div>
               {panel === 'build' ? <>
                 <div className="colony-build-list">{MODULE_KINDS.map(kind => {
                   const Icon = ICONS[kind]
@@ -146,7 +147,7 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
                   </div>
                 })}</div>
                 <p className="colony-fineprint colony-build-note">{c.constructionNote}</p>
-              </> : panel === 'networks' ? <NetworkPanel state={state} language={lang} selectedId={selectedId} onChange={setState} onPreview={setNetworkPreview} /> : <Logistics state={state} onChange={setState} language={lang} />}
+              </> : panel === 'networks' ? <NetworkPanel state={state} language={lang} selectedId={selectedId} onChange={setState} onPreview={setNetworkPreview} /> : panel === 'deep' ? <DeepPanels world={state.world ?? null} language={lang} onChange={() => setState(prev => ({ ...prev }))} /> : <Logistics state={state} onChange={setState} language={lang} />}
               <div className="colony-inspector">
                 <p className="colony-eyebrow">{c.selected}</p>
                 {selected ? <>
