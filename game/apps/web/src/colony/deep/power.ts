@@ -151,12 +151,28 @@ export function dispatchPower(input: DispatchInput): PowerResult {
     }
   }
   const batteryEndKwh = Math.max(0, soc + storedKwh)
-  const scale = batteryStartKwh > 0 ? batteryEndKwh / batteryStartKwh : 0
+  // Раздача заряда по свободному месту, а не пропорционально текущему заряду:
+  // при пропорциональной раздаче аккумулятор, севший в ноль, больше никогда не
+  // заряжается (0 × scale = 0), и база навсегда теряет его ёмкость — именно так
+  // две из трёх батарей эксперимента простояли 180 солов пустыми.
+  const rooms = batteries.map(b => (deviceUsable(b) ? Math.max(0, chargeRoomKwh(b)) : 0))
+  const totalRoom = rooms.reduce((sum, room) => sum + room, 0)
+  for (const battery of batteries) battery.storedKwh = 0
+  let toPlace = batteryEndKwh
+  // Первый проход — пропорционально свободному месту, второй — добор остатка
+  // в любое оставшееся место. Без добора хвост упирался в ёмкость последней
+  // батареи и пропадал: банка теряла энергию, которой было достаточно.
+  for (let pass = 0; pass < 2 && toPlace > 1e-9; pass++) {
+    for (let i = 0; i < batteries.length; i++) {
+      const room = Math.max(0, chargeRoomKwh(batteries[i]))
+      if (room <= 1e-9) continue
+      const want = pass === 0 && totalRoom > 0 ? batteryEndKwh * (rooms[i] / totalRoom) : toPlace
+      const put = Math.min(want, room, toPlace)
+      batteries[i].storedKwh = Math.min(batteries[i].capacityKwh, batteries[i].storedKwh + put)
+      toPlace -= put
+    }
+  }
   for (const battery of batteries) {
-    battery.storedKwh = batteries.length === 1
-      ? batteryEndKwh
-      : (batteryStartKwh > 0 ? battery.storedKwh * scale : batteryEndKwh / batteries.length)
-    battery.storedKwh = Math.min(battery.storedKwh, battery.capacityKwh)
     const throughput = batteryDischargeKwh + wantedChargeKwh
     battery.throughputKwh += throughput
     if (throughput > 0) {
