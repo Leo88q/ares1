@@ -17,7 +17,6 @@ import {
   advanceDay, buildModule, initialColony, type ColonyModule, type ColonyState, type ModuleKind,
   type Scenario,
 } from '../apps/web/src/colony/simulation'
-import { addNetwork, planNetwork } from '../apps/web/src/colony/networks'
 import type { ColonyWorld, DeepScenario, DeviceKind } from '../apps/web/src/colony/deep/world'
 import type { DailyRow, ScenarioReport } from './deepScenario.types'
 
@@ -109,13 +108,13 @@ function row(state: ColonyState, world: ColonyWorld, bottleneck: string): DailyR
 const START_KIT: ModuleKind[] = ['greenhouse', 'solar', 'solar', 'battery', 'battery']
 
 /** Какие сети нужны модулю, чтобы он вообще работал (как в игре). */
-const NETS_FOR: Record<ModuleKind, ReadonlyArray<'power' | 'water' | 'return' | 'access'>> = {
+const NETS_FOR: Record<ModuleKind, ReadonlyArray<'power' | 'water' | 'return' | 'tunnel'>> = {
   solar: ['power'],
-  greenhouse: ['power', 'water', 'return', 'access'],
-  habitat: ['power', 'water', 'return', 'access'],
-  recycler: ['power', 'water', 'return', 'access'],
-  rover: ['power', 'access'],
-  workshop: ['power', 'access'],
+  greenhouse: ['power', 'water', 'return', 'tunnel'],
+  habitat: ['power', 'water', 'return', 'tunnel'],
+  recycler: ['power', 'water', 'return', 'tunnel'],
+  rover: ['power', 'tunnel'],
+  workshop: ['power', 'tunnel'],
   battery: ['power'],
 }
 
@@ -127,12 +126,11 @@ export function buildStartColony(): ColonyState {
     state = built
     // Постройка без коммуникаций — это корпус, а не мощность: подключаем к хабу
     // теми же функциями, что использует игра.
-    const id = state.modules.at(-1)!.id
-    const hub = state.modules.find(m => m.kind === 'habitat') ?? state.modules[0]
-    for (const net of NETS_FOR[kind]) {
-      const path = planNetwork(state, net, hub.id, id)
-      if (path) state = addNetwork(state, net, path)
-    }
+    // Коммуникации строятся заново по итоговому составу модулей: это тот же
+    // путь, которым игра поднимает сети для сохранений без явного `networks`.
+    // Поштучный `addNetwork` здесь не подходит — он отвергает пары, которые уже
+    // есть в стартовом наборе, и новые модули остаются без питания.
+    state = { ...state, networks: undefined }
   }
   return state
 }
