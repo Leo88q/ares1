@@ -212,10 +212,17 @@ export function atmosphereQuality(s: Section): number {
   return clamp01(Math.min(o2, co2, pressure))
 }
 
-/** Наружная температура: детерминированная суточная кривая (LAB/2) + пылевое похолодание. */
-export function outsideTemperatureC(solHour: number, dustDropC: number): number {
+/**
+ * Наружная температура: детерминированная суточная кривая + сдвиг сценария.
+ *
+ * `coldDropC` — знаковый сдвиг в °C: отрицательное значение делает снаружу
+ * холоднее. Раньше он вычитался, поэтому сценарий «пылевой сезон» со
+ * значением −6 получался на 6 °C ТЕПЛЕЕ номинала и не проверял то, что
+ * обещал: пылевое событие должно охлаждать.
+ */
+export function outsideTemperatureC(solHour: number, coldDropC: number): number {
   const phase = Math.sin(Math.PI * ((solHour / 24.6229) * 2 - 0.5))
-  return DEEP_P.outsideMinC + DEEP_P.outsideDayAmplitudeC * Math.max(0, phase) - dustDropC
+  return DEEP_P.outsideMinC + DEEP_P.outsideDayAmplitudeC * Math.max(0, phase) + coldDropC
 }
 
 export type PressureBand = 'nominal' | 'low' | 'critical'

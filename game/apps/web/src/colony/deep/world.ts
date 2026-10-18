@@ -79,7 +79,7 @@ export interface DeepScenario {
   weatherFactor: number
   /** Множитель скорости накопления пыли. */
   dustRate: number
-  /** Дополнительное похолодание снаружи, °C. */
+  /** Знаковый сдвиг наружной температуры, °C: отрицательный — холоднее. */
   coldDropC: number
   /** Принудительный отказ: устройство выходит из строя на заданном солу. */
   forcedFault?: { sol: number; deviceKind: Device['kind'] } | null

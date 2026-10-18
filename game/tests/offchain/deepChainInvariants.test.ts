@@ -4,6 +4,7 @@ import { advanceDay, initialColony, type ColonyState } from '../../apps/web/src/
 import { RESOURCE_IDS } from '../../apps/web/src/colony/deep/resources'
 import type { ColonyWorld } from '../../apps/web/src/colony/deep/world'
 import { buildStartColony, SCENARIOS } from '../../scripts/deepScenario'
+import { outsideTemperatureC } from '../../apps/web/src/colony/deep/sections'
 
 /**
  * Инварианты цепочек. Это не проверки конкретных чисел, а проверки того, что
@@ -172,4 +173,19 @@ test('a contract cannot be filled twice or paid beyond its pool', () => {
   assert.ok(ledger.exportedKg <= 60 + 1e-6, `exported ${ledger.exportedKg} kg past the 60 kg bound`)
   assert.ok(Math.abs(state.earnedCredits - ledger.exportedKg * 4) < 1e-6,
     'receipts must match the exported mass times the agreed rate')
+})
+
+test('a cold scenario makes the outside colder, not warmer', () => {
+  // Знак сдвига однажды был инвертирован, и «пылевой сезон» с coldDropC = −6
+  // получался теплее номинала: сценарий не проверял то, что обещал.
+  const nominal = outsideTemperatureC(6, 0)
+  const dusty = outsideTemperatureC(6, -6)
+  assert.ok(dusty < nominal - 5.9,
+    `a −6 °C drop must cool the outside by 6 °C, got ${nominal} → ${dusty}`)
+  assert.ok(outsideTemperatureC(6, 4) > nominal + 3.9, 'a positive shift must warm it')
+  // Суточная кривая остаётся в марсианских пределах.
+  for (let hour = 0; hour < 24.6229; hour += 1) {
+    const t = outsideTemperatureC(hour, 0)
+    assert.ok(t >= -60 && t <= -20, `outside ${t} °C at hour ${hour} is not Mars-like`)
+  }
 })
