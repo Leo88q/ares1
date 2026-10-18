@@ -28,7 +28,10 @@ import { createVehicle, type VehicleClass } from './machines'
 import { greenhouseRatedKw } from './world'
 import { createBatch, type CropBatch } from './growth'
 import type { ColonyWorld, WorldConfig } from './world'
-import { applySort, createWorld, setSortableRawKg, splitNutrients, startCompost, stepSol, type SolStep } from './world'
+import {
+  applySort, createWorld, pushEvent, setSortableRawKg, splitNutrients, startCompost, stepSol,
+  WORLD_VERSION, type SolStep, type Totals,
+} from './world'
 import { advanceDay as advanceUnified, plantBed, type UnifiedBase } from '../../organism/unified'
 import { bedCycleKg } from '../../organism/beds'
 import { BEDS } from '../../organism/parameters'
@@ -509,7 +512,42 @@ function clearDeepBatch(batch: CropBatch): void {
  * первом шаге, а не ломаются.
  */
 export function ensureWorld(state: ColonyState & { world?: ColonyWorld }): ColonyWorld {
-  return state.world ?? createWorldForColony(state)
+  const existing = state.world
+  if (!existing) return createWorldForColony(state)
+  if (existing.version === WORLD_VERSION) return existing
+  return migrateWorld(state, existing)
+}
+
+/**
+ * Мир другой версии не догоняется по частям. Состояние колонии владеет
+ * модулями и физическими запасами, поэтому мир собирается заново, а
+ * `syncWorldFromState` возвращает в него воду, кислород, N/P/K и запчасти —
+ * ровно то, что игрок накопил. Глубоко-внутренний учёт (очередь работ,
+ * рейсы, пробы) честно сбрасывается: у старой версии этих полей может не
+ * быть вовсе, и шагать по ним означает молча получить NaN в отчёте.
+ *
+ * Накопленные итоги переносятся, но только те поля, которые есть в новой
+ * версии и оказались конечными числами: неизвестные старые ключи
+ * игнорируются, отсутствующие новые остаются в нуле.
+ */
+function migrateWorld(state: ColonyState, stale: ColonyWorld): ColonyWorld {
+  const rebuilt = createWorldForColony(state)
+  rebuilt.sol = Number.isFinite(stale.sol) ? stale.sol : rebuilt.sol
+  for (const key of Object.keys(rebuilt.totals) as Array<keyof Totals>) {
+    const carried = stale.totals?.[key] as unknown
+    const fresh = rebuilt.totals[key] as unknown
+    if (typeof fresh === 'number' && typeof carried === 'number' && Number.isFinite(carried)) {
+      ;(rebuilt.totals[key] as unknown as number) = carried
+    } else if (fresh && typeof fresh === 'object' && carried && typeof carried === 'object') {
+      // Например `labourByKind`: часы по видам работ должны дожить до новой версии.
+      Object.assign(fresh as object, carried as object)
+    }
+  }
+  pushEvent(rebuilt, 'world-migrated', 'warn',
+    `Мир обновлён с версии ${stale.version} до ${WORLD_VERSION}: запасы и модули перенесены, очередь работ и рейсы сброшены`,
+    `World rebuilt from version ${stale.version} to ${WORLD_VERSION}: stocks and modules carried over, task queue and haulage reset`,
+    null)
+  return rebuilt
 }
 
 /** Сводка дня с полями глубокого слоя. */
