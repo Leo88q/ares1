@@ -28,7 +28,7 @@ import { createVehicle, type VehicleClass } from './machines'
 import { greenhouseRatedKw } from './world'
 import { createBatch, type CropBatch } from './growth'
 import type { ColonyWorld, WorldConfig } from './world'
-import { applySort, createWorld, setSortableRawKg, stepSol, type SolStep } from './world'
+import { applySort, createWorld, setSortableRawKg, startCompost, stepSol, type SolStep } from './world'
 import { advanceDay as advanceUnified, plantBed, type UnifiedBase } from '../../organism/unified'
 import { bedCycleKg } from '../../organism/beds'
 import { BEDS } from '../../organism/parameters'
@@ -444,6 +444,9 @@ export function advanceColonyDay(state: ColonyState, scenario: Scenario, budget:
     const taken = stockTake(stepped.stock, 'water_clean', boundL)
     if (stepped.lastStep) stepped.lastStep.waterIndustrialL += taken.taken
     stepped.totals.waterIndustrialL += taken.taken
+    // Ботва и корневые остатки — тоже масса: она не исчезает, а становится
+    // растительным остатком, из которого компост возвращает часть N/P/K.
+    startCompost(stepped, harvestedKg * 0.3)
   }
 
   // 3. Сортировка: только то, что игрок (или политика) отправил на сортировку.

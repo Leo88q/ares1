@@ -1252,6 +1252,11 @@ function hiddenValueOf(world: ColonyWorld, analysis: Analysis): number {
 }
 
 function stepWaste(world: ColonyWorld, hours: number, step: SolStep): void {
+  // Остатки не компостируются сами: база запускает партию, когда есть из чего.
+  if (world.compost.length === 0
+    && world.stock.amount.biomass + world.stock.amount.food_waste > 5) {
+    startCompost(world, 60)
+  }
   const result = stepComposting(world.compost, hours / SOL_HOURS, {
     energyFraction: world.devices.some(d => d.kind === 'workshop' && d.powerFraction > 0.2) ? 1 : 0,
     labourFraction: world.crew.some(c => c.taskId === null) ? 1 : 0,

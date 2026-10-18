@@ -14,8 +14,8 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  advanceDay, buildModule, initialColony, type ColonyModule, type ColonyState, type ModuleKind,
-  type Scenario,
+  advanceDay, buildModule, buySupplies, initialColony, type ColonyModule, type ColonyState,
+  type ModuleKind, type Scenario,
 } from '../apps/web/src/colony/simulation'
 import type { ColonyWorld, DeepScenario, DeviceKind } from '../apps/web/src/colony/deep/world'
 import type { DailyRow, ScenarioReport } from './deepScenario.types'
@@ -132,6 +132,10 @@ export function buildStartColony(): ColonyState {
     // есть в стартовом наборе, и новые модули остаются без питания.
     state = { ...state, networks: undefined }
   }
+  // Удобрения в этой модели — привозные: вторая теплица удваивает их расход, и
+  // без закупки база упирается в N/P/K на ~83-м солу. Закупка идёт обычной
+  // игровой кнопкой за обычные кредиты и видна в отчёте как импортозависимость.
+  while (state.credits >= 80 * 6) state = buySupplies(state)
   return state
 }
 
