@@ -28,7 +28,7 @@ import { createVehicle, type VehicleClass } from './machines'
 import { greenhouseRatedKw } from './world'
 import { createBatch, type CropBatch } from './growth'
 import type { ColonyWorld, WorldConfig } from './world'
-import { applySort, createWorld, setSortableRawKg, startCompost, stepSol, type SolStep } from './world'
+import { applySort, createWorld, setSortableRawKg, splitNutrients, startCompost, stepSol, type SolStep } from './world'
 import { advanceDay as advanceUnified, plantBed, type UnifiedBase } from '../../organism/unified'
 import { bedCycleKg } from '../../organism/beds'
 import { BEDS } from '../../organism/parameters'
@@ -111,6 +111,10 @@ export function deviceIdsOf(state: ColonyState): Partial<Record<DeviceKind, stri
   return out
 }
 
+/** Запас N/P/K в мире, собранный из одного числа состояния колонии. */
+const nutrientStockOf = (kg: number) =>
+  Object.fromEntries(splitNutrients(Math.max(0, kg))) as Record<'nutrient_n' | 'nutrient_p' | 'nutrient_k', number>
+
 export function colonyWorldConfig(state: ColonyState, seed = 0x5eed_1a1a): WorldConfig {
   const o2Generators = Math.max(1, state.modules.filter(m => m.kind === 'recycler').length)
   // Электролиз закрывает дыхательный бюджет экипажа: растения его дополняют,
@@ -143,9 +147,7 @@ export function colonyWorldConfig(state: ColonyState, seed = 0x5eed_1a1a): World
     deposits: COLONY_DEPOSITS,
     startingStock: {
       water_clean: state.waterLitres,
-      nutrient_n: state.nutrientsKg * 0.45,
-      nutrient_p: state.nutrientsKg * 0.2,
-      nutrient_k: state.nutrientsKg * 0.35,
+      ...nutrientStockOf(state.nutrientsKg),
       parts: state.sparesKg,
       o2: state.oxygenKg,
       seed_potato: 40,
@@ -242,6 +244,14 @@ export function syncWorldFromState(world: ColonyWorld, state: ColonyState): void
   world.credits = state.credits
   world.stock.amount.parts = Math.max(0, state.sparesKg)
   world.stock.amount.o2 = Math.max(0, state.oxygenKg)
+  // Удобрения ведёт состояние колонии: игрок покупает их обычной кнопкой
+  // «закупка», и мир обязан это видеть. Раньше они задавались только при
+  // создании мира, поэтому любая закупка после его появления жила лишь в
+  // `state`, а первый же `syncStateFromWorld` записывал обратно свой меньший
+  // запас — купленные килограммы бесследно исчезали. Возврат компоста от этого
+  // не теряется: он начисляется внутри шага, уже после синхронизации, и уходит
+  // обратно в состояние в конце того же солa.
+  Object.assign(world.stock.amount, nutrientStockOf(state.nutrientsKg))
   setSortableRawKg(world, state.ledger.rawKg)
   const services = state.networks ? networkServices(state) : null
   for (const device of world.devices) {

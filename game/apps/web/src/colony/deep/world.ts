@@ -561,7 +561,12 @@ function homeSection(world: ColonyWorld): Section | undefined {
 const availableOf = (world: ColonyWorld, id: ResourceId): number =>
   Math.max(0, world.stock.amount[id] - world.stock.reserved[id])
 
-const splitNutrients = (kg: number): Array<[ResourceId, number]> => [
+/**
+ * Состав смеси N/P/K — единственный источник правды для обеих сторон моста:
+ * и стартового запаса, и ежесуточной синхронизации, и расхода грядок.
+ * Если доли здесь и при закупке разойдутся, смесь перестанет сходиться.
+ */
+export const splitNutrients = (kg: number): Array<[ResourceId, number]> => [
   ['nutrient_n', kg * 0.45], ['nutrient_p', kg * 0.2], ['nutrient_k', kg * 0.35],
 ]
 
