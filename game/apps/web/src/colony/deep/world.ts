@@ -14,12 +14,12 @@ import { SOL_HOURS, SUBSTEPS_PER_SOL, SUBSTEP_HOURS, clamp, clamp01, fraction, r
 import { DEEP_P } from './params'
 import { createRng, rngFromState, type Rng } from './rng'
 import {
-  RESOURCE_IDS, emptyStock, nutrientTotal, stockAdd, stockTake,
+  RESOURCE_IDS, emptyStock, nutrientTotal, setCapacity, stockAdd, stockTake,
   type ResourceId, type Stock,
 } from './resources'
 import {
   applyLifeSupportConsequences, beginSolForCrew, createCrew, crewSummary, metabolise,
-  restCrew, workHours, type CrewMember, type Specialty,
+  remainingHours, restCrew, workHours, type CrewMember, type Specialty,
 } from './crew'
 import {
   BLOCK_CODES, TASK_META, autoAssign, compareTasks, consumeMaterials, createTask,
@@ -31,7 +31,7 @@ import {
   type Device,
 } from './devices'
 import {
-  createSection, drainCondensate, injectO2, leakSection, outsideTemperatureC, scrubCo2,
+  airlockLoss, createSection, drainCondensate, injectO2, leakSection, outsideTemperatureC, scrubCo2,
   stepSectionCirculation, stepSectionHumidity, stepSectionThermal, atmosphereQuality, co2PartialKpa, o2PartialKpa,
   totalPressureKpa, KELVIN, R_GAS, MOLAR_O2, type Section,
 } from './sections'
@@ -189,6 +189,10 @@ export interface Totals {
   packagingUsed: number
   labourHours: number
   labourByKind: Record<string, number>
+  /** Часы, потраченные на подготовку к выходам наружу (костюм, шлюз, проверки). */
+  evaPrepHours: number
+  /** Кислород, стравленный шлюзами при выходах, кг. */
+  evaO2Kg: number
   downtimeDeviceSols: number
   faults: number
   importedWaterL: number
@@ -272,12 +276,51 @@ export interface WorldConfig {
   powerCapacityByDevice?: Record<string, number>
 }
 
-const BASE_CAPS: Partial<Record<ResourceId, number>> = {
+/**
+ * Базовые ёмкости сухих и газовых складов. Вода считается отдельно: её
+ * резервуар растёт со складами (`applyStorageCapacity`).
+ */
+const BASE_SOLID_CAPS: Partial<Record<ResourceId, number>> = {
   o2: 60, co2: 40, ice_ore: 6000, tailings: 30_000, sludge: 2000,
   biomass: 800, food_waste: 400, compost: 800,
   nutrient_n: 40, nutrient_p: 40, nutrient_k: 40,
   filters: 60, parts: 120, packaging: 400, reagents: 120,
   seed_potato: 300, ware_potato: 600, cull_potato: 400,
+}
+
+/**
+ * Пересчитать ёмкости хранилища по фактическому составу складов.
+ *
+ * Раньше ёмкости задавались один раз при создании мира, поэтому построенный
+ * игроком склад был чистым расходом: он потреблял мощность, изнашивался, мог
+ * отказать — и не увеличивал ни одного резервуара. Теперь ёмкость следует за
+ * устройствами, а не за конфигурацией, замороженной в момент старта.
+ *
+ * Ёмкость только растёт: если склад снесён, уже принятый груз остаётся на
+ * площадке и перестаёт пополняться, но не исчезает. Молча удалять массу ради
+ * соблюдения предела — именно тот дефект, который здесь систематически ловят.
+ */
+export function applyStorageCapacity(world: ColonyWorld): void {
+  const cfg = world.config
+  const depots = world.devices.filter(d => d.kind === 'depot').length
+  const tanks = cfg.baseTankLitres + depots * cfg.tankLitresPerDepot
+  // Стартовый набор уже учтён в `cfg.depots`; расширяют хранилище только
+  // склады, построенные сверх него.
+  const extraDepots = Math.max(0, depots - cfg.depots)
+  const solidGain = 1 + extraDepots * DEEP_P.depotSolidGain
+  const caps: Partial<Record<ResourceId, number>> = {
+    water_clean: tanks,
+    water_raw: Math.max(200, tanks * 0.7),
+    water_grey: Math.max(150, tanks * 0.4),
+    brine: Math.max(120, tanks * 0.3),
+    solution: Math.max(60, tanks * 0.2),
+  }
+  for (const [id, base] of Object.entries(BASE_SOLID_CAPS) as Array<[ResourceId, number]>) {
+    caps[id] = base * solidGain
+  }
+  for (const [id, cap] of Object.entries(caps) as Array<[ResourceId, number]>) {
+    setCapacity(world.stock, id, cap)
+  }
 }
 
 // --- Мир -------------------------------------------------------------------
@@ -370,7 +413,8 @@ const emptyTotals = (): Totals => ({
   condensateL: 0, coolingKwh: 0,
   harvestedKg: 0, yieldLossKg: 0, sortedKg: 0, exportedKg: 0, nutrientAppliedKg: 0,
   nutrientReturnedKg: 0, filtersUsed: 0, partsUsed: 0, packagingUsed: 0, labourHours: 0,
-  labourByKind: {}, downtimeDeviceSols: 0, faults: 0, importedWaterL: 0, importedNutrientKg: 0,
+  labourByKind: {}, evaPrepHours: 0, evaO2Kg: 0,
+  downtimeDeviceSols: 0, faults: 0, importedWaterL: 0, importedNutrientKg: 0,
   importedParts: 0, importedFilters: 0, crewFoodKg: 0, crewWaterL: 0, crewO2Kg: 0,
   foodShortfallKg: 0, o2ShortfallKg: 0, o2ProducedKg: 0, cropO2Kg: 0, o2VentedKg: 0, o2LeakedKg: 0,
   contractPaidCR: 0,
@@ -460,10 +504,11 @@ function buildSections(devices: Device[], config: WorldConfig): Section[] {
   return sections
 }
 
+/** Стартовые ёмкости: то же, что получилось бы из `applyStorageCapacity`. */
 function buildCaps(config: WorldConfig): Partial<Record<ResourceId, number>> {
   const tanks = config.baseTankLitres + config.depots * config.tankLitresPerDepot
   return {
-    ...BASE_CAPS,
+    ...BASE_SOLID_CAPS,
     water_clean: tanks,
     water_raw: Math.max(200, tanks * 0.7),
     water_grey: Math.max(150, tanks * 0.4),
@@ -528,6 +573,9 @@ export function createWorld(config: WorldConfig): ColonyWorld {
     lastStep: null,
     sortableRawKg: 0,
   }
+  // Ёмкости пересчитываются из устройств, а не берутся из конфигурации: на
+  // старте это то же самое число, но дальше хранилище следует за складами.
+  applyStorageCapacity(world)
   pushEvent(world, 'world-created', 'info', 'Мир колонии создан', 'Colony world created', null)
   return world
 }
@@ -713,6 +761,70 @@ function planTasks(world: ColonyWorld): void {
 /** Через сколько солов незавершённый рейс отменяется (машина не должна вечно висеть с грузом). */
 const HAUL_ABANDON_SOLS = 12
 
+/**
+ * Кислород, стравливаемый шлюзом за один цикл, кг.
+ *
+ * Шлюз — это МАЛЫЙ гермообъём, а не вся секция: он стравливается наружу и
+ * снова заполняется. Терять долю атмосферы секции за каждый выход значило бы
+ * терять проценты воздуха базы ежедневно — база осталась бы без атмосферы за
+ * считанные соли. Поэтому доля берётся от воздуха шлюза при той же плотности
+ * кислорода, что в секции, и восполняется из общего запаса O2.
+ */
+export function airlockCycleO2Kg(world: ColonyWorld, member: CrewMember): number {
+  const section = world.sections.find(s => s.deviceId === member.location)
+    ?? world.sections.find(s => s.kind === 'habitat')
+  if (!section || section.volumeM3 <= 0) return 0
+  return airlockLoss(section, DEEP_P.airlockVolumeM3).o2Kg
+}
+
+/**
+ * Подготовка к выходу наружу. Возвращает часы, реально потраченные на неё.
+ *
+ * Выход — это не «начал копать». Сначала костюм, шлюз и проверки
+ * (`evaPrepHours`), вода на сублиматор (`evaWaterLitres`, она становится
+ * стоками, а не исчезает) и два цикла шлюза — на выход и на возврат
+ * (`airlockLossFraction`). Человек выходит один раз в сол: подготовка
+ * накапливается и сохраняется до конца суток, поэтому каждый выход наружу не
+ * стоит новых полутора часов.
+ */
+export function prepareEva(world: ColonyWorld, member: CrewMember, hours: number, step: SolStep): number {
+  const need = DEEP_P.evaPrepHours - member.evaPrepHours
+  const spend = Math.min(hours, Math.max(0, need), remainingHours(member))
+  if (spend <= 0) return 0
+  member.hoursToday += spend
+  member.fatigue = clamp01(member.fatigue + DEEP_P.crewFatiguePerWorkHour * spend)
+  member.evaPrepHours += spend
+  if (member.evaPrepHours + 1e-9 < DEEP_P.evaPrepHours) return spend
+
+  member.suited = true
+  member.location = 'eva'
+  const water = stockTake(world.stock, 'water_clean', DEEP_P.evaWaterLitres)
+  if (water.taken > 0) {
+    // Сублиматор возгоняет воду наружу: она физически покидает колонию и
+    // стоками НЕ возвращается. Забирать её в `water_grey` значило бы
+    // притворяться, что замкнутый контур воды бесплатный.
+    step.waterIndustrialL += water.taken
+    world.totals.waterIndustrialL += water.taken
+  }
+  const perCycle = airlockCycleO2Kg(world, member)
+  const lost = perCycle * 2
+  if (lost > 0) {
+    const taken = stockTake(world.stock, 'o2', lost)
+    // Бак — якорь кислородного учёта: воздух шлюза уходит наружу и
+    // восполняется из бака, поэтому это такой же расход бака, как подпитка
+    // атмосферы. Без этого тождество «было + выработка − расход = стало»
+    // расходилось бы ровно на объём стравленного воздуха.
+    step.o2DemandKg += taken.taken
+    step.o2LeakedKg += taken.taken
+    world.totals.o2LeakedKg += taken.taken
+    world.totals.evaO2Kg += taken.taken
+  }
+  pushEvent(world, 'eva-begins', 'info',
+    `${member.name} выходит наружу: шлюз, ${round(water.taken, 1)} л на сублиматор`,
+    `${member.name} steps outside: airlock, ${round(water.taken, 1)} L for the sublimator`, member.id)
+  return spend
+}
+
 function progressTasks(world: ColonyWorld, hours: number, step: SolStep): void {
   if (world.config.autoTasks) autoAssign(world.crew, world.tasks)
   for (const task of [...world.tasks].sort(compareTasks)) {
@@ -747,10 +859,19 @@ function progressTasks(world: ColonyWorld, hours: number, step: SolStep): void {
     if (!task.assignees.length) { task.status = 'queued'; continue }
     task.status = 'active'
     let applied = 0
+    let prep = 0
     for (const crewId of [...task.assignees]) {
       const member = world.crew.find(c => c.id === crewId)
       if (!member || member.taskId !== task.id) { task.assignees = task.assignees.filter(id => id !== crewId); continue }
+      // Наружная работа требует подготовки; пока человек её не прошёл, он
+      // тратит смену на костюм и шлюз, а не на саму работу.
+      if (task.eva && !member.suited) { prep += prepareEva(world, member, hours, step); continue }
       applied += workHours(member, task.kind, hours)
+    }
+    if (prep > 1e-9) {
+      step.labour.provided += prep
+      world.totals.labourHours += prep
+      world.totals.evaPrepHours += prep
     }
     if (applied <= 1e-9) continue
     task.doneHours += applied

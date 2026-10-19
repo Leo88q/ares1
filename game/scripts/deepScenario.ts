@@ -247,6 +247,8 @@ export function runScenario(spec: ScenarioSpec, sols = SOLS): ScenarioReport {
       unmetKwh: round(t.unmetKwh, 1),
       labourHours: round(t.labourHours, 1),
       labourByKind: labour,
+      evaPrepHours: round(t.evaPrepHours, 1),
+      evaO2Kg: round(t.evaO2Kg, 2),
       downtimeDeviceSols: round(t.downtimeDeviceSols, 2),
       faults: t.faults,
       importedWaterL: round(t.importedWaterL, 2),
@@ -305,6 +307,7 @@ const markdown = (reports: ScenarioReport[]): string => {
     lines.push(`- Добыча ${r.totals.minedKg} кг породы, перевозка ${r.totals.hauledKg} кг, очищено воды ${r.totals.cleanProducedL} л (регенерация ${r.totals.recycledL} л, конденсат ${r.totals.condensateL} л)`)
     lines.push(`- Энергия: выработка ${r.totals.generationKwh} kWh, подано ${r.totals.servedKwh} kWh, непокрыто ${r.totals.unmetKwh} kWh`)
     lines.push(`- Труд ${r.totals.labourHours} ч: ${JSON.stringify(r.totals.labourByKind)}`)
+    lines.push(`- Выходы наружу: подготовка ${r.totals.evaPrepHours} ч, стравлено шлюзами ${r.totals.evaO2Kg} кг O₂`)
     lines.push(`- Простои ${r.totals.downtimeDeviceSols} сол·устройств, отказов ${r.totals.faults}, запчастей израсходовано ${r.totals.partsUsed}, фильтров ${r.totals.filtersUsed}`)
     lines.push(`- Удобрения: внесено ${r.totals.nutrientAppliedKg} кг, возвращено компостом ${r.totals.nutrientReturnedKg} кг`)
     lines.push(`- Кислород: электролиз ${r.totals.o2ProducedKg} кг, растения ${r.totals.cropO2Kg} кг, утечки ${r.totals.o2LeakedKg} кг, дефицит ${r.totals.o2ShortfallKg} кг`)

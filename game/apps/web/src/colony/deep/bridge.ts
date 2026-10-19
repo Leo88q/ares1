@@ -29,7 +29,7 @@ import { greenhouseRatedKw } from './world'
 import { createBatch, type CropBatch } from './growth'
 import type { ColonyWorld, WorldConfig } from './world'
 import {
-  applySort, createWorld, pushEvent, setSortableRawKg, splitNutrients, startCompost, stepSol,
+  applySort, applyStorageCapacity, createWorld, pushEvent, setSortableRawKg, splitNutrients, startCompost, stepSol,
   WORLD_VERSION, type SolStep, type Totals,
 } from './world'
 import { advanceDay as advanceUnified, plantBed, type UnifiedBase } from '../../organism/unified'
@@ -296,6 +296,10 @@ export function syncWorldFromState(world: ColonyWorld, state: ColonyState): void
   const capacity: Record<string, number> = {}
   for (const [moduleId, kw] of powerCapacity) capacity[moduleId] = kw
   world.config.powerCapacityByDevice = capacity
+  // Хранилище следует за построенными складами. Ёмкости считаются здесь, а не
+  // один раз при создании мира: иначе склад, поставленный игроком, потреблял
+  // мощность и изнашивался, не увеличивая ни одного резервуара.
+  applyStorageCapacity(world)
   for (const device of world.devices) {
     if (!device.legacyModuleId) {
       // Базовая инфраструктура глубокого слоя всегда подключена.

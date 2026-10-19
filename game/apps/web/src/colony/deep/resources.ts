@@ -180,8 +180,14 @@ export const nutrientTotal = (s: Stock): number =>
 export const potatoTotal = (s: Stock): number =>
   stockOf(s, 'seed_potato') + stockOf(s, 'ware_potato') + stockOf(s, 'cull_potato')
 
-/** Установить новую ёмкость; излишек не удаляется, но перестаёт пополняться. */
+/**
+ * Установить новую ёмкость.
+ *
+ * Запас, уже принятый на склад, НЕ обрезается: если ёмкость упала (склад снесён
+ * или повреждён), лишнее физически лежит на площадке — оно перестаёт
+ * пополняться (`roomOf` даёт ноль), но не исчезает. Молча удалять массу ради
+ * соблюдения предела — это подмена учёта: реестр уже оприходовал этот груз.
+ */
 export function setCapacity(s: Stock, id: ResourceId, cap: number): void {
   s.cap[id] = Math.max(0, Number.isFinite(cap) ? cap : 0)
-  s.amount[id] = Math.min(stockOf(s, id), s.cap[id])
 }

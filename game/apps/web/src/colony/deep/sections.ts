@@ -131,14 +131,32 @@ export function leakSection(s: Section, shareOfSol: number): number {
   return lost
 }
 
-/** Потеря атмосферы на один выход через шлюз: гермопереход ≠ выход наружу. */
-export function airlockLoss(s: Section): number {
-  const before = airMassKg(s)
-  const keep = 1 - clamp01(DEEP_P.airlockLossFraction)
-  s.o2Kg *= keep; s.co2Kg *= keep; s.n2Kg *= keep
-  const lost = before - airMassKg(s)
-  s.lostKg += lost
-  return lost
+/** Потеря атмосферы на один цикл шлюза, кг по газам. */
+export interface AirlockLoss {
+  o2Kg: number
+  co2Kg: number
+  n2Kg: number
+  totalKg: number
+}
+
+/**
+ * Потеря атмосферы на один цикл шлюза: гермопереход ≠ выход наружу.
+ *
+ * Шлюз — это МАЛЫЙ гермообъём, а не вся секция: стравливается его воздух, а
+ * не весь объём помещения. Доля берётся от объёма шлюза, поэтому она мала
+ * (доли процента), а не составляет проценты атмосферы базы за каждый выход.
+ *
+ * Функция ничего не списывает: решение, откуда восполнять потерю (запас O2,
+ * буферный азот), принимает вызывающий слой, потому что только он знает
+ * склад. Азот и CO2 в этой модели не имеют склада — они буферные газы.
+ */
+export function airlockLoss(s: Section, lockVolumeM3: number = s.volumeM3): AirlockLoss {
+  const share = clamp01(DEEP_P.airlockLossFraction)
+    * clamp01(lockVolumeM3 / Math.max(1e-9, s.volumeM3))
+  const o2Kg = s.o2Kg * share
+  const co2Kg = s.co2Kg * share
+  const n2Kg = s.n2Kg * share
+  return { o2Kg, co2Kg, n2Kg, totalKg: o2Kg + co2Kg + n2Kg }
 }
 
 /**

@@ -185,6 +185,7 @@ syncWorldFromState  →  stepSol  →  syncStateFromWorld
 | `leakFractionPerSol` | 0.0025 | 1/сол | 0 | 0.05 | допущение | sections |
 | `leakConditionExponent` | 2 | 1 | 0.5 | 5 | допущение | sections |
 | `airlockLossFraction` | 0.03 | 1/цикл | 0 | 0.5 | допущение | sections |
+| `airlockVolumeM3` | 3 | m³ | 0.5 | 30 | допущение | sections |
 | `evaPrepHours` | 1.5 | h | 0.25 | 6 | допущение | sections |
 | `evaWaterLitres` | 4.5 | L/выход | 0 | 20 | допущение | sections |
 | `thermalCapacityKwhPerC` | 0.9 | kWh/°C | 0.05 | 20 | баланс | sections |
@@ -267,6 +268,7 @@ syncWorldFromState  →  stepSol  →  syncStateFromWorld
 | `wareShelfSols` | 45 | сол | 1 | 400 | допущение | storage |
 | `seedShelfSols` | 240 | сол | 10 | 900 | допущение | storage |
 | `storageTempOptimumC` | 4 | °C | 0 | 20 | допущение | storage |
+| `depotSolidGain` | 0.5 | 1/склад | 0 | 3 | баланс | storage |
 | `compostSols` | 12 | сол | 1 | 90 | допущение | waste |
 | `compostKgPerKg` | 0.35 | kg/kg | 0.05 | 0.9 | допущение | waste |
 | `compostNutrientKgPerKg` | 0.012 | kg NPK/kg | 0 | 0.1 | допущение | waste |
