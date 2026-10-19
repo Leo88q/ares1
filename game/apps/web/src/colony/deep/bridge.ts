@@ -548,6 +548,11 @@ export function advanceColonyDay(state: ColonyState, scenario: Scenario, budget:
     if (split.seed > 1e-9) {
       ledger = { ...ledger, seedReturnedKg: (ledger.seedReturnedKg ?? 0) + split.seed }
     }
+    // Что не влезло в баки, физически потеряно — ссыпать некуда. Списываем как
+    // потери переработки, иначе масса пропадает и тождество расходится.
+    if (split.overflowKg > 1e-9) {
+      ledger = { ...ledger, processingLossKg: (ledger.processingLossKg ?? 0) + split.overflowKg }
+    }
     sortedKg += kg
   }
 

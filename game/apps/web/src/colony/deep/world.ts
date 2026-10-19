@@ -1798,19 +1798,28 @@ export function stepSol(world: ColonyWorld, inputs: SolInputs): ColonyWorld {
  * некондицию дважды, превращая 100 кг в 137. Остатки ботвы и корней —
  * отдельная масса, она учитывается при уборке (`startCompost`), а не здесь.
  */
-export function applySort(world: ColonyWorld, rawKg: number): { ware: number; seed: number; cull: number; biomass: number; used: number } {
+export function applySort(world: ColonyWorld, rawKg: number): {
+  ware: number; seed: number; cull: number; biomass: number; used: number; overflowKg: number
+} {
   const kg = Math.max(0, rawKg)
-  if (kg <= 1e-9) return { ware: 0, seed: 0, cull: 0, biomass: 0, used: 0 }
+  if (kg <= 1e-9) return { ware: 0, seed: 0, cull: 0, biomass: 0, used: 0, overflowKg: 0 }
   const seed = kg * clamp01(world.config.seedSplitShare)
   const cull = kg * clamp01(world.config.cullShare)
   const ware = kg - seed - cull
   const biomass = 0
-  stockAdd(world.stock, 'seed_potato', seed)
-  stockAdd(world.stock, 'ware_potato', ware)
-  stockAdd(world.stock, 'cull_potato', cull)
-  stockAdd(world.stock, 'biomass', biomass)
+  // Учитывается ФАКТИЧЕСКИ принятое, а не запрошенное: у бака есть ёмкость, и
+  // если он полон, `stockAdd` положит меньше. Раньше разница молча исчезала,
+  // хотя реестр сырьё уже списал, — и тождество переставало сходиться.
+  const gotSeed = stockAdd(world.stock, 'seed_potato', seed).added
+  const gotWare = stockAdd(world.stock, 'ware_potato', ware).added
+  const gotCull = stockAdd(world.stock, 'cull_potato', cull).added
+  const stored = gotSeed + gotWare + gotCull
   world.totals.sortedKg += kg
-  return { ware, seed, cull, biomass, used: kg }
+  return {
+    ware: gotWare, seed: gotSeed, cull: gotCull, biomass, used: kg,
+    /** Не влезло в баки, кг. Реестр обязан это списать, иначе масса пропадает. */
+    overflowKg: Math.max(0, kg - stored),
+  }
 }
 
 /** Отправить остатки и испорченную еду в компост: время, энергия и труд. */

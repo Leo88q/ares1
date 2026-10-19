@@ -114,6 +114,23 @@ test('the gate is optional: the base colony harvests as before', () => {
     `without the predicate a ripe bed must still be harvested: ${before} → ${ledger.harvestedKg}`)
 })
 
+test('a full bin does not make mass vanish', () => {
+  // Бак семян почти полон: `stockAdd` положит меньше, чем просят. Разница не
+  // должна молча исчезать — реестр сырьё уже списал, и тождество обязано
+  // сойтись. Не влезшее списывается как потери: ссыпать некуда.
+  const world = createWorld(colonyWorldConfig(buildStartColony()))
+  const cap = world.stock.cap.seed_potato
+  assert.ok(cap > 0, 'the seed bin must have a capacity')
+  world.stock.amount.seed_potato = cap - 1 // влезет только 1 кг
+  const result = applySort(world, 100)
+  assert.ok(result.seed <= 1 + 1e-9, `only the free room may be taken, got ${result.seed}`)
+  assert.ok(result.overflowKg > 1e-9, 'the overflow must be reported, not silently dropped')
+  // Сумма того, что реально влезло, и переполнения равна входу.
+  const stored = result.seed + result.ware + result.cull
+  assert.ok(Math.abs(stored + result.overflowKg - 100) < 1e-9,
+    `stored + overflow must equal the input: ${stored} + ${result.overflowKg}`)
+})
+
 test('the unstaffed fallback keeps processing alive', () => {
   // Резервный путь: без людей разделка идёт, но медленнее. Проверяем, что
   // предел задан осмысленно — меньше штатной скорости переработчика.

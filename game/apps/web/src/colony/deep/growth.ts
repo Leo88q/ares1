@@ -311,33 +311,7 @@ export function projectedYieldKg(batch: CropBatch): number {
 /** Фактор окна уборки: перестой и ранняя уборка снижают выход (правило T2). */
 export const windowFactor = (ratio: number): number => harvestFactor(ratio)
 
-export interface HarvestSplit {
-  /** Доля урожая в семенной фонд. */
-  seedShare: number
-  /** Доля в товарную партию. */
-  wareShare: number
-}
 
-/**
- * Уборка: разделение на пищевую продукцию, семенной материал, некондицию
- * и растительные остатки. Масса сохраняется: сумма долей = 1.
- */
-export function harvestBatch(batch: CropBatch, kg: number, quality: number, split: HarvestSplit): {
-  wareKg: number
-  seedKg: number
-  cullKg: number
-  biomassKg: number
-} {
-  const total = Math.max(0, kg)
-  const good = total * clamp01(quality)
-  const cullKg = total - good
-  // Некондиция и ботва — растительные остатки (не еда, но и не мусор: компост).
-  const biomassKg = cullKg + total * 0.35
-  const seedKg = good * clamp01(split.seedShare)
-  const wareKg = good - seedKg
-  batch.harvestedKg += total
-  return { wareKg, seedKg, cullKg, biomassKg: biomassKg - cullKg }
-}
 
 /** Сброс грядки после уборки: развитие обнуляется, требуется посадка заново. */
 export function clearBatch(batch: CropBatch): void {

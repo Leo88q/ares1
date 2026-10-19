@@ -59,8 +59,8 @@ export const RESOURCES: Record<ResourceId, ResourceSpec> = {
   packaging: { id: 'packaging', unit: 'pcs', group: 'consumable', storage: 'shelf', discrete: true, ru: 'Упаковка', en: 'Packaging', note: 'Нужна для сдачи контракта.' },
   reagents: { id: 'reagents', unit: 'pcs', group: 'consumable', storage: 'shelf', discrete: true, ru: 'Реагенты', en: 'Reagents', note: 'Расходник лабораторных анализов.' },
   seed_potato: { id: 'seed_potato', unit: 'kg', group: 'crop', storage: 'bin', cold: true, ru: 'Семенной картофель', en: 'Seed potato', note: 'Физический ограниченный ресурс посадки.' },
-  ware_potato: { id: 'ware_potato', unit: 'kg', group: 'crop', storage: 'bin', cold: true, ru: 'Товарная партия', en: 'Ware potato', note: 'Отсортировано и готово к контракту.' },
-  cull_potato: { id: 'cull_potato', unit: 'kg', group: 'crop', storage: 'bin', ru: 'Некондиция', en: 'Cull potato', note: 'Не подходит в еду и в семена.' },
+  ware_potato: { id: 'ware_potato', unit: 'kg', group: 'crop', storage: 'bin', cold: true, ru: 'Товарная партия', en: 'Ware potato', note: 'Основная съедобная доля урожая: идёт в еду, излишек — в контракт.' },
+  cull_potato: { id: 'cull_potato', unit: 'kg', group: 'crop', storage: 'bin', ru: 'Некондиция', en: 'Cull potato', note: 'Мелкие и битые клубни: в семена не годятся, но в еду идут вместе с товарной долей.' },
 }
 
 export const RESOURCE_IDS = Object.keys(RESOURCES) as ResourceId[]
