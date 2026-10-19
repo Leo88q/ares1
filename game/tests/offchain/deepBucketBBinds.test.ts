@@ -30,12 +30,13 @@ import type { ColonyWorld } from '../../apps/web/src/colony/deep/world'
 const NOMINAL = { sunHours: 12, waterRecovery: 0.85 }
 const DIM = { sunHours: 4.5, waterRecovery: 0.85 }
 
-interface Trace { min: number; max: number; n: number }
-const empty = (): Trace => ({ min: Infinity, max: -Infinity, n: 0 })
+interface Trace { min: number; max: number; n: number; last: number; sum: number }
+const empty = (): Trace => ({ min: Infinity, max: -Infinity, n: 0, last: 0, sum: 0 })
 const push = (t: Trace, v: number): void => {
   if (!Number.isFinite(v)) return
-  t.min = Math.min(t.min, v); t.max = Math.max(t.max, v); t.n++
+  t.min = Math.min(t.min, v); t.max = Math.max(t.max, v); t.n++; t.last = v; t.sum += v
 }
+const meanOf = (t: Trace): number => (t.n === 0 ? 0 : t.sum / t.n)
 const spread = (t: Trace): number => (t.n === 0 ? 0 : t.max - t.min)
 
 interface Gauges {
@@ -75,14 +76,65 @@ const run = (scenario: typeof NOMINAL, sols = 180): Gauges => {
 const NOM = run(NOMINAL)
 const DIMG = run(DIM)
 
-test('B2: the root zone really departs from the air temperature', () => {
-  // Регрессия на главный дефект блока B. Пока irrigationRatio всегда был
-  // единицей, размах здесь составлял 0.022 °C — то есть механизм не работал.
-  assert.ok(Math.max(spread(NOM.rootVsAir), spread(DIMG.rootVsAir)) > 0.5,
-    `root zone must move: nominal ${spread(NOM.rootVsAir).toFixed(4)} °C, dim ${spread(DIMG.rootVsAir).toFixed(4)} °C`)
-  // И знак осмыслен: корни не равны воздуху и не просто сдвинуты на константу.
-  assert.ok(DIMG.rootVsAir.min < -1.0 && DIMG.rootVsAir.max > -1.2,
-    `the offset must vary, not sit at one value: ${DIMG.rootVsAir.min.toFixed(3)} … ${DIMG.rootVsAir.max.toFixed(3)}`)
+/**
+ * Корневая зона против воздуха при живом и при сломанном контуре воды.
+ *
+ * Измерять «корни минус воздух» в обычном прогоне нельзя — это ловушка, в
+ * которую я уже попадал. При быстрой смене температуры воздуха корни отстают
+ * от неё просто по инерции, и размах получается больше градуса. Цифра при
+ * этом говорит об инерции субстрата, а не о поливе: в номинальном и пылевом
+ * сценариях `waterFraction` держится ровно 1.0, то есть полив идёт без
+ * дефицита и затвору нечего закрывать.
+ *
+ * Поэтому здесь сравниваются два прогона с одинаковой погодой, и разница
+ * между ними — только в контуре воды.
+ */
+const rootOffset = (waterLitres: number, breakChain: boolean, sols: number): Trace => {
+  const t = empty()
+  let state: ColonyState = advanceDay(initialColony(), NOMINAL)
+  if (breakChain) {
+    const world = state.world!
+    world.stock.amount.water_clean = waterLitres
+    world.stock.amount.water_raw = 0
+    world.stock.amount.water_grey = 0
+    for (const d of world.devices) {
+      if (['extractor', 'recycler', 'purifier'].includes(d.kind)) { d.condition = 0; d.wear = 1 }
+    }
+  }
+  for (let sol = 0; sol < sols; sol++) {
+    state = advanceDay(state, NOMINAL)
+    const w = state.world!
+    for (const b of w.batches) {
+      if (b.plantedSol === null) continue
+      const dev = w.devices.find(d => d.id === b.greenhouseId)
+      const sec = w.sections.find(s => s.id === dev?.sectionId)
+      push(t, b.rootTemperatureC - (sec?.temperatureC ?? 20))
+    }
+  }
+  return t
+}
+
+test('B2: irrigation really sets the root temperature, and only water differs', () => {
+  // Регрессия на главный дефект блока B: пока irrigationRatio всегда равнялся
+  // единице, корни получали ровно −2.5 °C при ЛЮБОМ поливе, и оба прогона
+  // совпадали бы до третьего знака.
+  const watered = rootOffset(4000, false, 6)
+  const starved = rootOffset(3, true, 6)
+  assert.ok(watered.n > 0 && starved.n > 0, 'both runs must have planted beds')
+  assert.ok(Math.abs(meanOf(watered) - meanOf(starved)) > 0.5,
+    `root temperature must follow irrigation: watered ${meanOf(watered).toFixed(3)} °C ` +
+    `vs starved ${meanOf(starved).toFixed(3)} °C`)
+  // Знак имеет значение: поливной воды нет — корням ТЕПЛЕЕ, не холоднее.
+  assert.ok(meanOf(starved) > meanOf(watered),
+    `starved irrigation must leave roots warmer: ${meanOf(starved).toFixed(3)} vs ${meanOf(watered).toFixed(3)}`)
+})
+
+test('B2: the nominal colony has no water deficit, so the gate honestly stays open', () => {
+  // Обратная сторона того же правила, зафиксированная чтобы её не «исправили»:
+  // дефицита нет → затвор не срабатывает → размах мал. Если кто-то урежет
+  // контур воды, этот тест покажет, что режим изменился.
+  assert.ok(spread(NOM.rootVsAir) < 0.5,
+    `with no deficit the root offset should barely move, got ${spread(NOM.rootVsAir).toFixed(4)}`)
 })
 
 test('B6: circulation really stops when power fails', () => {
@@ -143,7 +195,10 @@ test('no mechanism is left inert across all three brief scenarios', () => {
   // Итог блока B. Каждый механизм должен сработать хотя бы в одном сценарии.
   // Если кто-то перестанет срабатывать — здесь будет падение, а не тишина.
   const checks: Array<[string, number, number]> = [
-    ['B2 корневая зона', Math.max(spread(NOM.rootVsAir), spread(DIMG.rootVsAir)), 0.5],
+    // B2 проверяется отдельным сравнением с сломанным контуром воды: в
+    // номинале и в пылевом сценарии дефицита воды нет и затвору нечего
+    // закрывать, поэтому размах здесь ничего не доказывает.
+    ['B2 корневая зона', Math.abs(meanOf(rootOffset(4000, false, 6)) - meanOf(rootOffset(3, true, 6))), 0.5],
     ['B6 циркуляция', Math.max(spread(NOM.circulation), spread(DIMG.circulation)), 0.1],
     ['8 тепловые цепочки', Math.max(spread(NOM.temp), spread(DIMG.temp)), 5],
     ['B4 компост', Math.max(spread(NOM.nutrientReturned), spread(DIMG.nutrientReturned)), 1e-6],

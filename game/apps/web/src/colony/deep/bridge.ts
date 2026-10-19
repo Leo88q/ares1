@@ -513,7 +513,7 @@ export function advanceColonyDay(state: ColonyState, scenario: Scenario, budget:
 export function emptyStepOf(sol: number): SolStep {
   return {
     sol, growthByBed: {}, yieldFactor: {}, waterAggregateUsedL: 0, waterIndustrialL: 0,
-    condensateL: 0, waterProducedL: 0, waterShortfallL: 0, nutrientUsedKg: 0, nutrientProducedKg: 0,
+    waterSampleL: 0, condensateL: 0, waterProducedL: 0, waterShortfallL: 0, nutrientUsedKg: 0, nutrientProducedKg: 0,
     o2ProducedKg: 0, cropO2Kg: 0, o2DemandKg: 0, o2LeakedKg: 0, o2ShortfallKg: 0, o2VentedKg: 0, foodShortfallKg: 0,
     power: { generationKwh: 0, demandKwh: 0, servedKwh: 0, unmetKwh: 0, curtailedKwh: 0, shed: [] },
     labour: { required: 0, provided: 0, byKind: {} },
@@ -584,7 +584,10 @@ export function withDeepExtras(
 ): DeepDayBudget {
   // Чистый расход бака: что ушло минус что вернулось (регенерация, очистка,
   // добыча). Так `было − стало = потрачено` сходится при любой замкнутости цикла.
-  const used = step.waterAggregateUsedL + step.waterIndustrialL - step.waterProducedL - step.condensateL
+  // Вода на пробы входит в расход: иначе запас убывает, а суточный отчёт
+  // этого не показывает и сверка «было − стало = списано» расходится.
+  const used = step.waterAggregateUsedL + step.waterIndustrialL + step.waterSampleL
+    - step.waterProducedL - step.condensateL
   return {
     ...budget,
     waterUsedLitres: used,

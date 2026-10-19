@@ -280,6 +280,8 @@ syncWorldFromState  →  stepSol  →  syncStateFromWorld
 | `repairPartsBase` | 1 | шт | 0 | 20 | допущение | reliability |
 | `repairRestoresCondition` | 0.75 | 1 | 0 | 1 | баланс | reliability |
 | `sampleHours` | 0.5 | h | 0.1 | 6 | допущение | lab |
+| `sampleIntervalSols` | 18 | сол | 1 | 120 | допущение | lab |
+| `nutrientSolutionKgPerL` | 0.00028 | kg/L | 0.00002 | 0.005 | расчётный | growth |
 | `sampleLitres` | 0.25 | L | 0.01 | 5 | допущение | lab |
 | `analysisReagents` | 1 | шт | 1 | 20 | допущение | lab |
 | `analysisHours` | 2.5 | h | 0.2 | 24 | допущение | lab |

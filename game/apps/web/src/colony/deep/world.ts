@@ -39,7 +39,7 @@ import { accumulateDust, dispatchPower, reserveSols, solarDailyKwh } from './pow
 import { attentionList, diagnoseFault, repairDevice, serviceDevice, stepDeviceReliability, stepVehicleReliability } from './reliability'
 import {
   createDeposit, depositBlockReason, depositWorkable, extractionCapacity,
-  loadStockpile, mineDeposit, purifyWater, recycleGreyWater, sublimateOre, surveyDeposit,
+  loadStockpile, mineDeposit, prepareSolution, purifyWater, recycleGreyWater, sublimateOre, surveyDeposit,
   type Deposit, type DepositSeed,
 } from './extraction'
 import {
@@ -53,7 +53,7 @@ import {
   type CropBatch, type GrowthEnvironment,
 } from './growth'
 import {
-  ANALYSIS_META, createAnalysis, createExperiment, finishAnalysis, finishExperiment,
+  ANALYSIS_KINDS, ANALYSIS_META, createAnalysis, createExperiment, finishAnalysis, finishExperiment,
   recipeFromExperiment, stepExperiment,
   type Analysis, type AnalysisKind, type Experiment, type Recipe, type Regime,
   type Sample, type SampleKind,
@@ -297,6 +297,8 @@ export interface SolStep {
   yieldFactor: Record<string, number[]>
   waterAggregateUsedL: number
   waterIndustrialL: number
+  /** Вода, ушедшая в лабораторные пробы, л. */
+  waterSampleL: number
   /** Конденсат, собранный за шаг, л. */
   condensateL: number
   waterProducedL: number
@@ -389,7 +391,7 @@ const emptyMetrics = (sol: number): Metrics => ({
 
 const emptyStep = (sol: number): SolStep => ({
   sol, growthByBed: {}, yieldFactor: {},
-  waterAggregateUsedL: 0, waterIndustrialL: 0, condensateL: 0, waterProducedL: 0, waterShortfallL: 0,
+  waterAggregateUsedL: 0, waterIndustrialL: 0, waterSampleL: 0, condensateL: 0, waterProducedL: 0, waterShortfallL: 0,
   nutrientUsedKg: 0, nutrientProducedKg: 0, o2ProducedKg: 0, cropO2Kg: 0, o2LeakedKg: 0,
   o2DemandKg: 0, o2ShortfallKg: 0, o2VentedKg: 0, foodShortfallKg: 0,
   power: { generationKwh: 0, demandKwh: 0, servedKwh: 0, unmetKwh: 0, curtailedKwh: 0, shed: [] },
@@ -629,6 +631,37 @@ function planTasks(world: ColonyWorld): void {
     if (hasOpenTask(world, 'tend', batch.id)) continue
     addTask(world, { kind: 'tend', targetId: batch.id, requiredHours: 0.8, sol, priority: 4, recurring: true })
   }
+  // Плановый мониторинг теплиц. Пробы берутся по РАСПИСАНИЮ, а не по
+  // показаниям: загрязнение и соли скрыты, и запускать отбор по их значению
+  // значило бы выдать игроку ответ до анализа. Вид пробы чередуется, чтобы
+  // мониторинг накрывал обе скрытые величины (соли и загрязнение идут по
+  // субстрату) и воду.
+  const greenhouseIds = [...new Set(world.batches.map(b => b.greenhouseId))]
+  for (const id of greenhouseIds) {
+    const plantedHere = world.batches.some(b => b.greenhouseId === id && b.plantedSol !== null)
+    if (!plantedHere) continue
+    const cycle = Math.floor(sol / Math.max(1, DEEP_P.sampleIntervalSols))
+    const kind: SampleKind = cycle % 2 === 0 ? 'substrate' : 'water'
+    if (hasOpenTask(world, 'sample', `${id}:${kind}`)) continue
+    const lastSample = world.samples.filter(s => s.sourceId === id).reduce((m, s) => Math.max(m, s.sol), -1)
+    if (sol - lastSample < DEEP_P.sampleIntervalSols) continue
+    if (availableOf(world, 'water_clean') < DEEP_P.sampleLitres) continue
+    addTask(world, { kind: 'sample', targetId: `${id}:${kind}`, requiredHours: DEEP_P.sampleHours, sol, priority: 5 })
+  }
+  // Анализ ставится на каждую доставленную пробу, у которой ещё нет анализа.
+  // Реагенты — конечный ресурс: нет реактивов — нет результата, а не «результат
+  // с потолка». Скрытая причина не становится известной раньше анализа.
+  for (const sample of world.samples) {
+    if (!sample.delivered) continue
+    if (world.analyses.some(a => a.sampleId === sample.id)) continue
+    if (hasOpenTask(world, 'analysis', sample.id)) continue
+    const kinds = ANALYSIS_KINDS.filter(k => ANALYSIS_META[k].sample === sample.kind)
+    const kind = kinds.find(k => world.stock.amount.reagents >= ANALYSIS_META[k].reagents)
+    if (!kind) continue
+    addTask(world, {
+      kind: 'analysis', targetId: sample.id, requiredHours: ANALYSIS_META[kind].hours, sol, priority: 5,
+    })
+  }
   for (const deposit of world.deposits) {
     if (deposit.confidence >= 0.95 || hasOpenTask(world, 'survey', deposit.id)) continue
     addTask(world, { kind: 'survey', targetId: deposit.id, requiredHours: 3.2, sol, priority: 7 })
@@ -670,6 +703,17 @@ function progressTasks(world: ColonyWorld, hours: number, step: SolStep): void {
     if (!isOpen(task) || task.status === 'paused') continue
     const block = blockReason(world, task)
     if (block) {
+      // Люди обязаны отпускаться, и не только в момент перехода в «blocked»:
+      // внутри суток несколько подшагов, и задача может быть переведена в
+      // «queued» и снова заблокирована, поэтому чистка делается безусловно.
+      // Раньше заблокированная работа держала назначенных за собой: `taskId`
+      // указывал на неё, а `isOpen` для неё ложен, поэтому человек не продвигал
+      // её и не назначался на другую — простаивал до конца прогона.
+      for (const crewId of task.assignees) {
+        const member = world.crew.find(c => c.id === crewId)
+        if (member && member.taskId === task.id) member.taskId = null
+      }
+      task.assignees = []
       if (task.status !== 'blocked') {
         task.status = 'blocked'
         task.blockCode = block.code
@@ -721,7 +765,7 @@ function progressTasks(world: ColonyWorld, hours: number, step: SolStep): void {
         continue
       }
     }
-    if (taskRemaining(task) <= 1e-9) completeTask(world, task)
+    if (taskRemaining(task) <= 1e-9) completeTask(world, task, step)
   }
 }
 
@@ -783,7 +827,7 @@ function blockReason(world: ColonyWorld, task: Task): { code: string; reason: st
   }
 }
 
-function completeTask(world: ColonyWorld, task: Task): void {
+function completeTask(world: ColonyWorld, task: Task, step?: SolStep): void {
   task.status = 'done'
   task.finishedSol = world.sol
   consumeMaterials(world.stock, task, 1)
@@ -845,6 +889,23 @@ function completeTask(world: ColonyWorld, task: Task): void {
     case 'maintain': {
       const device = world.devices.find(d => d.id === target)
       if (device) serviceDevice(device)
+      break
+    }
+    case 'sample': {
+      // targetId — «теплица:вид пробы». Проба стоит воды; не хватило воды —
+      // пробы не будет, а не «проба из воздуха».
+      const [source, kind] = target.split(':')
+      if (source && kind) takeSample(world, kind as SampleKind, source, step)
+      break
+    }
+    case 'analysis': {
+      const sample = world.samples.find(s => s.id === target)
+      if (!sample) break
+      const kinds = ANALYSIS_KINDS.filter(k => ANALYSIS_META[k].sample === sample.kind)
+      const kind = kinds.find(k => world.stock.amount.reagents >= ANALYSIS_META[k].reagents)
+      // Проба уже взята; анализ всё равно требует реактивов и времени
+      // специалиста. Результат приходит с указанной точностью, а не мгновенно.
+      if (kind) requestAnalysis(world, kind, sample.sourceId)
       break
     }
     case 'survey': {
@@ -1093,11 +1154,19 @@ function growCrops(world: ColonyWorld, hours: number, step: SolStep, potential: 
   const planted = world.batches.filter(b => b.plantedSol !== null)
   const waterDemand = planted.reduce((sum, b) => sum + batchWaterDemandL(b, shareOfSol), 0)
   const nutrientDemand = planted.reduce((sum, b) => sum + batchNutrientDemandKg(b, shareOfSol), 0)
+  // Раствор готовится по рецепту: вода + N/P/K в фиксированной пропорции.
+  // `prepareSolution` — единственное место, где считается, сколько раствора
+  // выйдет из наличных воды и удобрений; раньше эта физика была продублирована
+  // здесь же вручную, и две копии расходились.
+  const recipeKgPerL = DEEP_P.nutrientSolutionKgPerL
+  const solution = prepareSolution(
+    availableOf(world, 'water_clean'), nutrientTotal(world.stock), recipeKgPerL,
+  )
   const waterFraction = fraction(availableOf(world, 'water_clean'), waterDemand)
-  // Носитель питания: доля нормы полива, которая реально дошла до корня.
-  // Раствор не доставляется по сухому субстрату, поэтому это же число
-  // ограничивает и усвоение N/P/K (см. `nutrients` ниже).
-  const carrierFraction = clamp01(waterFraction)
+  // Носитель питания: какая доля нормы полива реально дошла до корня.
+  // Ограничение снизу — и по воде, и по удобрениям: пустой склад при полном
+  // баке даёт не раствор, а воду, поэтому предел берётся по раствору.
+  const carrierFraction = clamp01(fraction(solution.solutionL, waterDemand))
 
   // CO₂ — общий ресурс секции. Снимок парциального давления делается ДО того,
   // как грядки начнут его забирать: иначе первые грядки в цикле получают всю
@@ -1654,7 +1723,18 @@ export function stepSol(world: ColonyWorld, inputs: SolInputs): ColonyWorld {
   next.rngState = rng.state
   next.totals.sols = next.sol
   // Очереди не растут бесконечно.
-  next.tasks = next.tasks.filter(t => !isFinished(t)).slice(-400)
+  //
+  // Удаляя задачу, надо отпустить людей, которые на неё записаны. Раньше
+  // чистка ссылок жила только в `completeTask`, а здесь задачи выкидывались
+  // пачкой — и человек, попавший под срез, навсегда оставался «занятым»
+  // несуществующей работой: `taskId` ссылался на удалённую задачу, и он больше
+  // не назначался ни на что. С появлением регулярных проб и анализов очередь
+  // выросла, и срез начал срабатывать в штатном прогоне.
+  const kept = new Set(next.tasks.filter(t => !isFinished(t)).slice(-400).map(t => t.id))
+  next.tasks = next.tasks.filter(t => kept.has(t.id))
+  for (const member of next.crew) {
+    if (member.taskId !== null && !kept.has(member.taskId)) member.taskId = null
+  }
   next.haulJobs = next.haulJobs.filter(j => j.phase !== 'done').slice(-40)
   next.compost = next.compost.slice(-40)
   next.samples = next.samples.slice(-60)
@@ -1755,9 +1835,14 @@ export function importResource(world: ColonyWorld, resource: ResourceId, amount:
 const RESOURCES_DISCRETE = new Set<ResourceId>(['filters', 'parts', 'packaging', 'reagents'])
 
 /** Взять пробу: расход воды и труд. */
-export function takeSample(world: ColonyWorld, kind: SampleKind, sourceId: string): Sample | null {
+export function takeSample(world: ColonyWorld, kind: SampleKind, sourceId: string, step?: SolStep): Sample | null {
   if (availableOf(world, 'water_clean') < DEEP_P.sampleLitres) return null
-  stockTake(world.stock, 'water_clean', DEEP_P.sampleLitres)
+  const taken = stockTake(world.stock, 'water_clean', DEEP_P.sampleLitres)
+  // Проба стоит воды, и эта вода обязана попасть в отчётность: иначе запас
+  // убывает, а `waterUsedLitres` за сутки этого не показывает, и сверка
+  // «было − стало = списано» расходится ровно на объём пробы.
+  if (step) step.waterSampleL += taken.taken
+  world.totals.waterIndustrialL += taken.taken
   const sample: Sample = { id: `S-${nextId(world, 'sample')}`, kind, sourceId, sol: world.sol, delivered: true }
   world.samples.push(sample)
   return sample
