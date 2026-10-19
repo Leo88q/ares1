@@ -2,11 +2,14 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { advanceDay, buildModule, type ColonyState } from '../../apps/web/src/colony/simulation'
 import { buildStartColony, SCENARIOS } from '../../scripts/deepScenario'
-import { applyStorageCapacity, createWorld, prepareEva } from '../../apps/web/src/colony/deep/world'
+import {
+  applyStorageCapacity, createWorld, deliverSamples, prepareEva, requestAnalysis, takeSample,
+} from '../../apps/web/src/colony/deep/world'
 import { emptyStepOf } from '../../apps/web/src/colony/deep/bridge'
 import { TASK_META } from '../../apps/web/src/colony/deep/tasks'
 import { colonyWorldConfig } from '../../apps/web/src/colony/deep/bridge'
 import { DEEP_P } from '../../apps/web/src/colony/deep/params'
+import { validateParams } from '../../apps/web/src/colony/deep/params'
 
 /**
  * Хранилище следует за построенными складами.
@@ -157,4 +160,49 @@ test('rover work is done from the cabin, so it is not an EVA', () => {
   assert.equal(eva.extract.eva, false, 'extraction runs from the cab')
   assert.equal(eva.haul.eva, false, 'hauling runs from the cab')
   assert.ok(eva.survey.eva && eva.clean_panels.eva, 'survey and panel cleaning are outside work')
+})
+
+// --- Проба доезжает до лаборатории ----------------------------------------
+
+/**
+ * Цепочка лаборатории: проба → ДОСТАВКА → анализ.
+ *
+ * Поле `Sample.delivered` существовало с самого начала и везде проверялось,
+ * но `takeSample` создавало пробу уже доставленной. Проверка «анализ требует
+ * доставленной пробы» выполнялась всегда, поэтому шаг транспорта не стоил
+ * ничего и не значил ничего.
+ */
+test('a sample reaches the bench a sol after it is taken, not instantly', () => {
+  const world = createWorld(colonyWorldConfig(buildStartColony()))
+  const sample = takeSample(world, 'substrate', world.batches[0].greenhouseId)
+  assert.ok(sample, 'the sample must be taken')
+  assert.equal(sample.delivered, false, 'a freshly taken sample is still in the field')
+  assert.equal(requestAnalysis(world, 'contamination', sample.sourceId), null,
+    'the analysis must wait for the sample to arrive')
+
+  deliverSamples({ ...world, sol: world.sol + 1 })
+  assert.equal(sample.delivered, true, 'the sample arrives with the next sol')
+  assert.ok(requestAnalysis(world, 'contamination', sample.sourceId),
+    'once delivered, the sample can be analysed')
+})
+
+test('the lab chain still runs end to end in a real colony', () => {
+  // Транспорт не должен обрывать цепочку: за 60 солов пробы берутся,
+  // доезжают и дают анализы.
+  const state = run(60)
+  const world = state.world!
+  assert.ok(world.samples.length > 0, 'samples must be taken')
+  assert.ok(world.analyses.length > 0, 'analyses must be produced')
+  assert.ok(world.samples.every(s => s.delivered || s.sol >= world.sol),
+    'no sample may sit undelivered past the sol after it was taken')
+})
+
+// --- Реестр параметров -----------------------------------------------------
+
+test('every parameter sits inside its declared range', () => {
+  // У каждого параметра есть единицы, границы и статус «источник / допущение».
+  // Ничего это не проверяло: `validateParams` не вызывал никто, поэтому
+  // вылетевший за границы параметр оставался бы незамеченным до тех пор, пока
+  // не проявился бы в прогоне как необъяснимое поведение.
+  assert.deepEqual(validateParams(), [], 'the parameter table must be self-consistent')
 })

@@ -127,3 +127,16 @@ test('the tabs are wired as ARIA tabs, not just a row of buttons', () => {
   const controls = [...html.matchAll(/aria-controls="deep-panel"/g)]
   assert.equal(controls.length, DEEP_TABS.length, 'every tab must point at the panel')
 })
+
+test('the life panel reports the backup runtime, not just the atmosphere', () => {
+  // Игроку нужно видеть не только давление, но и сколько база продержится без
+  // солнца: это число решающее — чистить панели или экономить.
+  const world = worldAfterOneSol()
+  for (const language of ['ru', 'en']) {
+    const html = markup(world, language, 'life')
+    assert.ok(html.includes('deep-power-summary'), 'the power summary must be rendered')
+    assert.ok(html.includes(language === 'ru' ? 'Запас хода' : 'Backup runtime'),
+      `the backup runtime must be visible in ${language}`)
+    assert.ok(!/NaN|undefined/.test(html), `the summary must not render NaN in ${language}`)
+  }
+})

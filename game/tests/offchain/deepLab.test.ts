@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { advanceDay, initialColony, type ColonyState } from '../../apps/web/src/colony/simulation'
 import {
-  applyRecipe, requestAnalysis, saveRecipe, startExperiment, takeSample,
+  applyRecipe, deliverSamples, requestAnalysis, saveRecipe, startExperiment, takeSample,
 } from '../../apps/web/src/colony/deep/world'
 import { DEFAULT_REGIME, finishExperiment, type Regime } from '../../apps/web/src/colony/deep/lab'
 import type { ColonyWorld } from '../../apps/web/src/colony/deep/world'
@@ -48,9 +48,15 @@ test('a sample costs water and an analysis costs reagents', () => {
   assert.ok(sample, 'the sample must be taken')
   assert.ok(world.stock.amount.water_clean < waterBefore, 'sampling must cost water')
 
+  // Проба берётся там, где среда, а измеряется в лаборатории: доставленная
+  // проба — отдельный шаг цепочки, а не то же самое, что отбор.
+  assert.equal(requestAnalysis(world, 'contamination', greenhouse), null,
+    'a sample that is still in the field cannot be analysed')
+  deliverSamples({ ...world, sol: world.sol + 1 })
+
   // Без пробы анализ невозможен: сначала физический образец, потом измерение.
   const analysis = requestAnalysis(world, 'contamination', greenhouse)
-  assert.ok(analysis, 'the analysis must be accepted once a sample exists')
+  assert.ok(analysis, 'the analysis must be accepted once the sample is on the bench')
   assert.ok(world.stock.amount.reagents < reagentsBefore, 'the analysis must consume reagents')
 })
 

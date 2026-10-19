@@ -497,6 +497,8 @@
 .colony-deep-bar { display: inline-block; width: 54px; height: 5px; background: #2e291f; border-radius: 3px; overflow: hidden; vertical-align: middle; }
 .colony-deep-bar > i { display: block; height: 100%; background: var(--c-cyan); }
 .colony-deep-bar--danger > i { background: #d98a5a; }
+/* Тревожное значение в сводке: непокрытый дефицит, сброшенные нагрузки, малый запас хода. */
+.colony-deep-alarm { color: #d98a5a; }
 .colony-deep-bar--gold > i { background: #d9bb62; }
 
 .colony-deep table { min-width: 100%; }

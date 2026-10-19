@@ -1781,6 +1781,9 @@ export function stepSol(world: ColonyWorld, inputs: SolInputs): ColonyWorld {
   const rng = rngFromState(next.rngState)
   next.outbox = { plant: [], sort: [] }
   const step = emptyStep(next.sol)
+  // Вчерашние пробы доезжают до лаборатории: анализ возможен только с ними
+  // в руках, а не с момента отбора.
+  deliverSamples(next)
   const scenario = next.scenario
   const sunHours = inputs.sunHours ?? scenario.sunHours
   const weatherFactor = inputs.weatherFactor ?? scenario.weatherFactor
@@ -2009,6 +2012,32 @@ export function importResource(world: ColonyWorld, resource: ResourceId, amount:
 const RESOURCES_DISCRETE = new Set<ResourceId>(['filters', 'parts', 'packaging', 'reagents'])
 
 /** Взять пробу: расход воды и труд. */
+/**
+ * Доставка проб в лабораторию: проба, взятая сегодня, попадает на стол
+ * завтра.
+ *
+ * Берут пробы там, где среда — в теплице или у резервуара, а анализируют в
+ * лаборатории. Пока проба не донесена, анализ невозможен: планировщик
+ * (`planTasks`) не ставит работу на неё, а ручной заказ отвергается. Раньше
+ * проба создавалась сразу доставленной, поэтому «транспорт» существовал
+ * только как поле в интерфейсе, и цепочка «проба → доставка → анализ»
+ * разрывалась в самом начале.
+ */
+export function deliverSamples(world: ColonyWorld): number {
+  let n = 0
+  for (const sample of world.samples) {
+    if (sample.delivered || sample.sol >= world.sol) continue
+    sample.delivered = true
+    n += 1
+  }
+  if (n > 0) {
+    pushEvent(world, 'sample-delivered', 'info',
+      `В лабораторию доставлено проб: ${n}`,
+      `${n} sample(s) delivered to the lab`, null)
+  }
+  return n
+}
+
 export function takeSample(world: ColonyWorld, kind: SampleKind, sourceId: string, step?: SolStep): Sample | null {
   if (availableOf(world, 'water_clean') < DEEP_P.sampleLitres) return null
   const taken = stockTake(world.stock, 'water_clean', DEEP_P.sampleLitres)
@@ -2017,7 +2046,7 @@ export function takeSample(world: ColonyWorld, kind: SampleKind, sourceId: strin
   // «было − стало = списано» расходится ровно на объём пробы.
   if (step) step.waterSampleL += taken.taken
   world.totals.waterIndustrialL += taken.taken
-  const sample: Sample = { id: `S-${nextId(world, 'sample')}`, kind, sourceId, sol: world.sol, delivered: true }
+  const sample: Sample = { id: `S-${nextId(world, 'sample')}`, kind, sourceId, sol: world.sol, delivered: false }
   world.samples.push(sample)
   return sample
 }

@@ -6,7 +6,7 @@ import { SPECIALTY_LABEL } from './deep/crew'
 import { TASK_META } from './deep/tasks'
 import { ANALYSIS_KINDS, ANALYSIS_META } from './deep/lab'
 import {
-  applyRecipe, requestAnalysis, saveRecipe, setTaskPaused, setTaskPriority,
+  applyRecipe, requestAnalysis, reserveSolsOf, saveRecipe, setTaskPaused, setTaskPriority,
   startExperiment, takeSample,
 } from './deep/world'
 import { finishExperiment } from './deep/lab'
@@ -234,7 +234,38 @@ function LifePanel({ world, language }: { world: ColonyWorld; language: string }
         <td><Bar value={s.condition} tone={s.condition < 0.7 ? 'danger' : undefined} /> {pct(s.condition)}</td>
       </tr>)}</tbody>
     </table></div>
+    <PowerSummary world={world} language={language} />
   </section>
+}
+
+/**
+ * Энергия за текущий сол: выработка, потребление, заряд, дефицит, сброшенные
+ * нагрузки и запас хода на аккумуляторах.
+ *
+ * Запас хода (`reserveSolsOf`) считался с самого начала, но не показывался
+ * нигде: игрок видел секции и атмосферу, но не видел, сколько база продержится
+ * без солнца. Это ровно тот показатель, по которому принимается решение —
+ * чистить панели или экономить.
+ */
+function PowerSummary({ world, language }: { world: ColonyWorld; language: string }) {
+  const c = deepCopy(language)
+  const p = world.lastStep?.power
+  const stored = world.devices.filter(d => d.storedKwh !== undefined)
+    .reduce((sum, d) => sum + (d.storedKwh ?? 0), 0)
+  const rows: Array<[string, string, boolean]> = [
+    [c.generation, `${num(p?.generationKwh ?? 0)} ${c.kwh}`, false],
+    [c.consumption, `${num(p?.demandKwh ?? 0)} ${c.kwh}`, false],
+    [c.charge, `${num(stored)} ${c.kwh}`, false],
+    [c.deficit, `${num(p?.unmetKwh ?? 0)} ${c.kwh}`, (p?.unmetKwh ?? 0) > 0.01],
+    [c.shed, (p?.shed ?? []).length > 0 ? p!.shed.join(', ') : c.none, (p?.shed ?? []).length > 0],
+    [c.backupRuntime, `${num(reserveSolsOf(world))} ${c.sols}`, reserveSolsOf(world) < 1],
+  ]
+  return <div className="colony-table-scroll"><table data-testid="deep-power-summary">
+    <tbody>{rows.map(([label, value, alarm]) => <tr key={label}>
+      <th scope="row">{label}</th>
+      <td className={alarm ? 'colony-deep-alarm' : undefined}>{value}</td>
+    </tr>)}</tbody>
+  </table></div>
 }
 
 function GreenhousePanel({ world, language }: { world: ColonyWorld; language: string }) {

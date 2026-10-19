@@ -45,6 +45,10 @@ const en = {
   section: 'Section', volume: 'Volume', pressure: 'Pressure', o2: 'O₂', co2: 'CO₂',
   temp: 'Temperature', humidity: 'Humidity', tightness: 'Seal',
   m3: 'm³', kpa: 'kPa', celsius: '°C',
+  powerTitle: 'Power for the current sol',
+  generation: 'Produced', consumption: 'Consumed', charge: 'In batteries',
+  deficit: 'Unserved', shed: 'Shed', backupRuntime: 'Backup runtime',
+  kwh: 'kWh',
 
   // Теплица
   greenhouseTitle: 'Batches and growth factors',
@@ -128,6 +132,10 @@ const ru: typeof en = {
   section: 'Секция', volume: 'Объём', pressure: 'Давление', o2: 'O₂', co2: 'CO₂',
   temp: 'Температура', humidity: 'Влажность', tightness: 'Герметичность',
   m3: 'м³', kpa: 'кПа', celsius: '°C',
+  powerTitle: 'Энергия за текущий сол',
+  generation: 'Выработка', consumption: 'Потребление', charge: 'В аккумуляторах',
+  deficit: 'Непокрыто', shed: 'Сброшено', backupRuntime: 'Запас хода',
+  kwh: 'кВт·ч',
 
   greenhouseTitle: 'Партии и факторы роста',
   bed: 'Грядка', stage: 'Стадия', development: 'Развитие', limiting: 'Ограничивает',
