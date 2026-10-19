@@ -6,13 +6,18 @@ export type NetworkType = typeof NETWORK_TYPES[number]
 export interface Cell { x: number; z: number }
 export interface ColonyNetwork { id: string; type: NetworkType; from: string; to: string; cells: Cell[] }
 export const NETWORK_CREDITS_PER_CELL: Record<NetworkType, number> = { power: 1, water: 2, return: 2, tunnel: 4 }
-export const NETWORK_LIMIT = 1024
+const NETWORK_LIMIT = 1024
 export const NETWORK_COLORS: Record<NetworkType, string> = { power: '#e5ba55', water: '#67c3da', return: '#b38cbd', tunnel: '#b2baa6' }
 const key = (p: Cell): number => p.z * COLONY_GRID_SIZE + p.x
 const inside = (p: Cell): boolean => Number.isInteger(p.x) && Number.isInteger(p.z) && p.x >= 0 && p.z >= 0 && p.x < 48 && p.z < 48
 const same = (a: Cell, b: Cell): boolean => a.x === b.x && a.z === b.z
 export function supportsNetwork(kind: ModuleKind, type: NetworkType): boolean {
-  return type === 'power' || (type === 'tunnel' ? !['solar', 'battery', 'rover'].includes(kind) : ['habitat', 'greenhouse', 'recycler'].includes(kind))
+  // Водяная и возвратная сети — там, где вода реально проходит: жильё,
+  // теплицы, регенерация, очистка и лаборатория. Добытчик стоит на
+  // месторождении за пределами базы, поэтому в водяной контур не входит.
+  if (type === 'power') return true
+  if (type === 'tunnel') return !['solar', 'battery', 'rover', 'extractor'].includes(kind)
+  return ['habitat', 'greenhouse', 'recycler', 'purifier', 'lab'].includes(kind)
 }
 export function ports(m: ColonyModule, type: NetworkType): Cell[] {
   if (!supportsNetwork(m.kind, type)) return []
@@ -112,6 +117,45 @@ export function placementHitsNetwork(state: ColonyState, kind: ModuleKind, at: P
   const [w, d] = footprint(kind, at.rotation)
   return networksOf(state).some(n => n.from !== movingId && n.to !== movingId && n.cells.some(c => c.x >= at.x && c.x < at.x + w && c.z >= at.z && c.z < at.z + d))
 }
+/**
+ * Пропускная способность одного канала, кВт.
+ *
+ * Кабель тем слабее, чем он длиннее: падение напряжения ограничивает
+ * передаваемую мощность. Это не украшение — именно из-за этого далёкий модуль
+ * получает меньше, даже когда на базе избыток генерации, и у игрока появляется
+ * настоящий выбор: ставить компактно или тянуть вторую линию.
+ *
+ * Модель агрегированная (§7 «документировать агрегацию против гидравлики»),
+ * не расчёт цепи: гиперболический спад, при `derateCells` канал теряет
+ * половину ёмкости.
+ */
+export const linkCapacityKw = (cells: number, capacityKw: number, derateCells: number): number => {
+  const d = Math.max(1e-6, derateCells)
+  return capacityKw * d / (d + Math.max(0, cells))
+}
+
+/**
+ * Сколько мощности может дойти до каждого модуля: сумма ёмкостей всех его
+ * годных силовых линий. Две линии — вдвое больше, поэтому избыточная
+ * прокладка кабеля действительно работает.
+ */
+export function modulePowerCapacityKw(
+  state: Pick<ColonyState, 'modules' | 'networks'>,
+  capacityKw: number,
+  derateCells: number,
+): Map<string, number> {
+  const result = new Map<string, number>()
+  const blocked = blockedCells(state.modules)
+  const byId = new Map(state.modules.map(m => [m.id, m]))
+  for (const n of networksOf(state)) {
+    if (n.type !== 'power') continue
+    if (!checkNetwork(state.modules, n, blocked, byId)) continue
+    const kw = linkCapacityKw(n.cells.length, capacityKw, derateCells)
+    for (const end of [n.from, n.to]) result.set(end, (result.get(end) ?? 0) + kw)
+  }
+  return result
+}
+
 export interface ModuleServices { power: boolean; water: boolean; return: boolean; access: boolean }
 /** One base utility backbone, anchored at the first habitat. Separate autonomous
  * districts are not simulated. Reachability is by explicit, currently valid edges.

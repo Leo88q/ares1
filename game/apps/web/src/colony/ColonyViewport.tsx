@@ -26,6 +26,7 @@ export default function ColonyViewport({ state, selectedId, sunHours, language, 
   const [failed, setFailed] = useState(false)
   const [ready, setReady] = useState(false)
   const [modelError, setModelError] = useState(false)
+  const [failedFiles, setFailedFiles] = useState<string[]>([])
   const c = colonyCopy(language)
   const modules = moduleCopy(language)
 
@@ -36,7 +37,7 @@ export default function ColonyViewport({ state, selectedId, sunHours, language, 
         onSelect: id => select.current(id),
         onSite: at => site.current(at),
         onReady: () => setReady(true),
-        onModelError: () => setModelError(true),
+        onModelError: (files: string[]) => { setModelError(true); setFailedFiles(files) },
         onContextLost: () => setFailed(true),
       })
     } catch {
@@ -69,7 +70,10 @@ export default function ColonyViewport({ state, selectedId, sunHours, language, 
         <span className="colony-scene-coordinates">ARES—01 / STUDY 001</span>
       </div>
       {!ready && !failed && <div className="colony-scene-loading" role="status"><span />{c.loading}</div>}
-      {modelError && !failed && <p className="colony-model-error" role="status">{c.modelError}</p>}
+      {modelError && !failed && <p className="colony-model-error" role="status">
+        {c.modelError}
+        {failedFiles.length > 0 && <> {c.modelErrorFiles}: {failedFiles.join(', ')}</>}
+      </p>}
       {!failed && <>
         <div className="colony-camera-controls">
         <button type="button" aria-label={c.rotateLeft} title={c.rotateLeft} onClick={() => instance.current?.rotate(-1)}><RotateCcw size={16} /></button>

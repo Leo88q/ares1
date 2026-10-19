@@ -4,18 +4,30 @@
  * Evidence, assumptions and deliberately omitted physics: docs/LUNAR_FARM_PLAN.md.
  * No wallet, RPC, token mint, random reward, price oracle or background accrual.
  */
-export type ModuleKind = 'solar' | 'greenhouse' | 'habitat' | 'recycler' | 'rover' | 'workshop' | 'battery'
+export type ModuleKind =
+  | 'solar' | 'greenhouse' | 'habitat' | 'recycler' | 'rover' | 'workshop' | 'battery'
+  // Добыча, склад, очистка и лаборатория раньше существовали только как
+  // подразумеваемая инфраструктура: игрок не мог их поставить, нарастить
+  // или лишиться. Теперь это такие же модули, как остальные.
+  | 'extractor' | 'depot' | 'purifier' | 'lab'
 
 import { networkServices, starterNetworks, placementHitsNetwork, type ColonyNetwork, type ModuleServices } from './networks'
 import { COLONY_MODULE_LIMIT, findPlacement, placementError, type Placement } from './layout'
 import { BEDS, PARAMETERS } from '../organism/parameters'
 import {
-  addPlot, advanceDay as unifiedAdvance, canHarvestBed as unifiedCanHarvest, exportKg, harvestBed as unifiedHarvest,
+  addPlot, canHarvestBed as unifiedCanHarvest, exportKg, harvestBed as unifiedHarvest,
   initialUnifiedBase, storedKg, type UnifiedBase,
 } from '../organism/unified'
+import type { ColonyWorld } from './deep/world'
+import {
+  addDeepModule, advanceColonyDay, createWorldForColony, DEVICE_FOR_MODULE, ensureWorld, overhaulWorld,
+  syncStateFromWorld, withDeepExtras,
+} from './deep/bridge'
+import { cloneWorld } from './deep/world'
+import { stockTake } from './deep/resources'
 
 /** Storage limit of the base (kg of raw + processed food). Decision §32 / P1b: 120 kg. */
-export const COLONY_STORAGE_KG = 120
+const COLONY_STORAGE_KG = 120
 export { PARAMETERS }
 
 export const CATALOG: Record<ModuleKind, { credits: number; wearDay: number; file: string; color: string }> = {
@@ -26,6 +38,10 @@ export const CATALOG: Record<ModuleKind, { credits: number; wearDay: number; fil
   rover: { credits: 180, wearDay: 0.6, file: 'rover.glb', color: '#e89b6e' },
   workshop: { credits: 140, wearDay: 0.2, file: 'workshop.glb', color: '#adabc8' },
   battery: { credits: 90, wearDay: 0.15, file: 'battery.glb', color: '#d3be85' },
+  extractor: { credits: 160, wearDay: 0.55, file: 'extractor.glb', color: '#c98f5f' },
+  depot: { credits: 70, wearDay: 0.1, file: 'depot.glb', color: '#9aa3ad' },
+  purifier: { credits: 130, wearDay: 0.35, file: 'purifier.glb', color: '#6fb6d8' },
+  lab: { credits: 200, wearDay: 0.25, file: 'lab.glb', color: '#b8a6d9' },
 }
 export const MODULE_KINDS = Object.keys(CATALOG) as ModuleKind[]
 export const SLOTS = Array.from({ length: 24 }, (_, index) => ({
@@ -76,6 +92,12 @@ export interface ColonyState {
   foodShortfallKg: number
   deliveredKg: number
   lastDay: DayBudget | null
+  /**
+   * Deep colony world: physical stocks, equipment, deposits, haulage, lab, faults.
+   * Owns water / nutrients / spares / oxygen / batteries; `ledger` owns food mass.
+   * Absent in states restored from an older session — created on the first day.
+   */
+  world?: ColonyWorld
   /** Single source of truth for food, beds and harvest (organism/unified.ts). The fields above are views of it. */
   ledger: UnifiedBase
 }
@@ -97,6 +119,8 @@ export interface DayBudget {
   recovery: number
   waterUsedLitres: number
   waterNeededLitres: number
+  /** Makeup water for crew + leaks only; crop and electrolysis water are charged by the deep world. */
+  waterCrewMakeupL: number
   waterShortfallLitres: number
   nutrientsUsedKg: number
   growthFraction: number
@@ -107,6 +131,8 @@ export interface DayBudget {
   oxygenShortfallKg: number
   oxygenVentedKg: number
   oxygenEndKg: number
+  /** Filled in by the deep layer; absent for a pure aggregate projection. */
+  deep?: import('./deep/bridge').DeepDayExtras
 }
 
 /** Starting food (kg). 120 kg lets a colony with no repairs get through the first full crop cycle plus 30 days
@@ -134,12 +160,15 @@ export function initialColony(): ColonyState {
     plots: modules.filter(m => m.kind === 'greenhouse').map(m => ({ id: m.id, tier: 0 as const, beds: [...(m.beds ?? [])] })),
     crew: 4, storageCapKg: COLONY_STORAGE_KG, startKg: INITIAL_FOOD_KG,
   })
-  return syncView({
+  // Глубокий мир создаётся детерминированно: один и тот же старт ⇒ тот же прогон.
+  const base: ColonyState = {
     day: 0, modules, networks: starterNetworks(modules), crew: 4, credits: PARAMETERS.initialCredits, spentCredits: 0, earnedCredits: 0,
     waterLitres: 800, nutrientsKg: 4, sparesKg: 8, foodKg: 0, oxygenKg: PARAMETERS.oxygenStartKg, oxygenShortfallKg: 0,
     batteryKwh: 80,
     harvestedKg: 0, consumedFoodKg: 0, foodShortfallKg: 0, deliveredKg: 0, lastDay: null, ledger,
-  })
+    world: undefined,
+  }
+  return syncView({ ...base, world: createWorldForColony(base) })
 }
 
 /** Recompute every view field from the ledger, so the UI and old tests read the same numbers as the ledger. */
@@ -159,7 +188,7 @@ export function syncView(state: ColonyState): ColonyState {
   }
 }
 
-export function validateScenario(s: Scenario): void {
+function validateScenario(s: Scenario): void {
   if (!Number.isFinite(s.sunHours) || s.sunHours < 0 || s.sunHours > 24
     || !Number.isFinite(s.waterRecovery) || s.waterRecovery < 0 || s.waterRecovery > 0.98) {
     throw new RangeError('Scenario: sunHours must be 0–24; waterRecovery must be 0–0.98')
@@ -169,8 +198,11 @@ const fraction = (available: number, required: number): number => required > 0 ?
 const capacityFactor = (m: ColonyModule): number => Math.max(0.2, m.condition / 100)
 
 /** WP10: bed i is planted (cycle / K) days after bed i − 1. `leadDays` = growth of bed 0. */
-export const bedStepDays = (): number => PARAMETERS.cropCycleDays / BEDS.perField
+const bedStepDays = (): number => PARAMETERS.cropCycleDays / BEDS.perField
 export function greenhouseBeds(leadDays: number): number[] {
+  // Отрицательные значения здесь не ошибка, а сдвиг первой уборки: грядка
+  // «ещё не посажена» на столько-то дней, поэтому свежая теплица отдаёт
+  // урожаи ступенями — 90, 105, 120, 135, 150, 165 — а не всё разом.
   return Array.from({ length: BEDS.perField }, (_, i) => leadDays - i * bedStepDays())
 }
 /** Grow every bed by `growth` days; a bed that completes one cycle is harvested and restarts from the excess. */
@@ -307,6 +339,9 @@ export function dailyBudget(state: ColonyState, scenario: Scenario = DEFAULT_SCE
   const electrolysisO2Kg = Math.min(recyclerO2CapacityKg * activeEssentialFraction, o2WaterCapKg)
   const o2WaterLitres = electrolysisO2Kg * p.electrolysisWaterKgPerKgO2 * (1 - recovery)
   const crewMakeup = crewWater * (1 - recovery) + p.leakLitresDay + o2WaterLitres
+  // Only the envelope leak: the deep world charges crew water itself (gross draw,
+  // condensate and grey-water recovery), as well as crop transpiration and electrolysis.
+  const waterCrewMakeupL = p.leakLitresDay
   const cropMakeup = evaporation * (1 - recovery) + healthyCropArea * p.cropKgM2Day * p.cropWaterBoundLitresKg
   const workHours = healthyCropArea * p.cropWorkHoursM2Day
     + countModules(state, 'solar') * 0.2 + countModules(state, 'recycler') * 0.5
@@ -332,7 +367,7 @@ export function dailyBudget(state: ColonyState, scenario: Scenario = DEFAULT_SCE
     curtailedKwh: surplus - batteryChargeInputKwh,
     batteryChargeInputKwh, batteryDischargeOutputKwh, batteryEndKwh,
     essentialPowerFraction, cropPowerFraction, cropAreaM2, recovery,
-    waterUsedLitres, waterNeededLitres,
+    waterUsedLitres, waterNeededLitres, waterCrewMakeupL,
     waterShortfallLitres: Math.max(0, waterNeededLitres - state.waterLitres),
     nutrientsUsedKg: Math.min(state.nutrientsKg, nutrientsNeeded * activeGrowth),
     growthFraction, workHours, availableWorkHours,
@@ -343,23 +378,29 @@ export function dailyBudget(state: ColonyState, scenario: Scenario = DEFAULT_SCE
   }
 }
 
+/**
+ * Advance one sol.
+ *
+ * Division of labour (see colony/deep/bridge.ts): `dailyBudget` is the power and
+ * labour projection, the deep world is the single writer of physical stocks, and
+ * the unified ledger is the single writer of food mass. The deep layer converts
+ * the aggregate growth potential into real bed-days, so a shortage of power,
+ * water, CO2, labour or equipment is felt as slower growth or lost yield — not
+ * as a second, disconnected counter.
+ */
 export function advanceDay(state: ColonyState, scenario: Scenario = DEFAULT_SCENARIO): ColonyState {
   const budget = dailyBudget(state, scenario)
   if (state.day >= PARAMETERS.maxDays) return state
-  // Growth of each greenhouse = energy/water/light budget × its condition (the same limits as before).
-  const growthOf = (id: string): number => {
-    const m = state.modules.find(x => x.id === id)
-    return m ? (budget.growthByModule?.[id] ?? budget.growthFraction) * capacityFactor(m) : 0
+  const result = advanceColonyDay(state, scenario, budget)
+  const world = result.world
+  const step = result.step
+  const next: ColonyState = {
+    ...result.state,
+    day: state.day + 1,
+    world,
+    oxygenShortfallKg: state.oxygenShortfallKg + step.o2ShortfallKg,
   }
-  const ledger = unifiedAdvance(state.ledger, growthOf)
-  const modules = state.modules.map(m => ({ ...m, condition: Math.max(20, m.condition - CATALOG[m.kind].wearDay) }))
-  return syncView({
-    ...state, modules, day: state.day + 1, batteryKwh: budget.batteryEndKwh, batteryCharge: budget.batteryByModule,
-    oxygenKg: budget.oxygenEndKg, oxygenShortfallKg: state.oxygenShortfallKg + budget.oxygenShortfallKg,
-    waterLitres: Math.max(0, state.waterLitres - budget.waterUsedLitres),
-    nutrientsKg: Math.max(0, state.nutrientsKg - budget.nutrientsUsedKg),
-    lastDay: budget, ledger,
-  })
+  return { ...syncView(next), lastDay: withDeepExtras(budget, step, world, result.harvestedKg, result.sortedKg) }
 }
 
 export function advanceDays(state: ColonyState, days: number, scenario: Scenario = DEFAULT_SCENARIO): ColonyState {
@@ -387,10 +428,15 @@ export function buildModuleAt(state: ColonyState, kind: ModuleKind, at: Placemen
   const module: ColonyModule = { id, kind, slot, placement: { ...at }, condition: 100, growthDays: 0,
     beds: kind === 'greenhouse' ? greenhouseBeds(0) : undefined }
   const ledger = kind === 'greenhouse' ? addPlot(state.ledger, { id, tier: 0, beds: greenhouseBeds(0), harvestedKg: 0 }) : state.ledger
-  return syncView({ ...state, credits: state.credits - cost, spentCredits: state.spentCredits + cost,
+  const base: ColonyState = { ...state, credits: state.credits - cost, spentCredits: state.spentCredits + cost,
     sparesKg: state.sparesKg - 1, modules: [...state.modules, module], ledger,
     networks: state.networks ?? starterNetworks(state.modules),
-    batteryCharge: kind === 'battery' ? { ...batteryStocks(state), [id]: 0 } : state.batteryCharge })
+    batteryCharge: kind === 'battery' ? { ...batteryStocks(state), [id]: 0 } : state.batteryCharge }
+  // Глубокий слой: у модуля появляются настоящие узлы, а у теплицы — партии.
+  if (DEVICE_FOR_MODULE[module.kind].length === 0 && module.kind !== 'rover') return syncView(base)
+  const world = cloneWorld(ensureWorld(state))
+  addDeepModule(world, module)
+  return syncView({ ...base, world })
 }
 export function buildModule(state: ColonyState, kind: ModuleKind): ColonyState {
   if (!canBuild(state, kind)) return state
@@ -414,10 +460,13 @@ export function canRepair(state: ColonyState): boolean {
 }
 export function repairColony(state: ColonyState): ColonyState {
   if (!canRepair(state)) return state
-  return { ...state, credits: state.credits - PARAMETERS.repairCredits,
-    spentCredits: state.spentCredits + PARAMETERS.repairCredits, sparesKg: state.sparesKg - PARAMETERS.repairSparesKg,
-    modules: state.modules.map(m => ({ ...m, condition: 100 })),
-  }
+  // The deep world owns condition, faults, parts and credits: the service has to
+  // charge the world, otherwise `syncStateFromWorld` restores the pre-repair values.
+  const world = ensureWorld(state)
+  overhaulWorld(world)
+  world.credits -= PARAMETERS.repairCredits
+  stockTake(world.stock, 'parts', PARAMETERS.repairSparesKg)
+  return syncStateFromWorld({ ...state, spentCredits: state.spentCredits + PARAMETERS.repairCredits }, world)
 }
 
 export function buySupplies(state: ColonyState): ColonyState {

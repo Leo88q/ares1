@@ -37,7 +37,7 @@ const ColonyContext = createContext<ColonyStore | null>(null)
  * conditional) but idle: no timers, no state churn — used when a shared store
  * from ColonyProvider already owns the session.
  */
-export function useColonyStore(active = true): ColonyStore {
+function useColonyStore(active = true): ColonyStore {
   const [state, setState] = useState<ColonyState>(initialColony)
   const [scenario, setScenario] = useState<Scenario>({ ...DEFAULT_SCENARIO })
   const [running, setRunning] = useState(false)

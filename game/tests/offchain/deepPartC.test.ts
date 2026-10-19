@@ -1,0 +1,690 @@
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { advanceDay, buildModule, type ColonyState } from '../../apps/web/src/colony/simulation'
+import { buildStartColony, SCENARIOS } from '../../scripts/deepScenario'
+import {
+  applyStorageCapacity, createWorld, deliverContract, deliverSamples, isolateSection, prepareEva,
+  cancelTask, importResource, pricePerUnit, requestAnalysis, setRisky, setSafeMode, setStandby, takeSample,
+} from '../../apps/web/src/colony/deep/world'
+import { createDevice, deviceUsable, syncStandby } from '../../apps/web/src/colony/deep/devices'
+import { repairDevice } from '../../apps/web/src/colony/deep/reliability'
+import { emptyStepOf } from '../../apps/web/src/colony/deep/bridge'
+import { TASK_META } from '../../apps/web/src/colony/deep/tasks'
+import { colonyWorldConfig } from '../../apps/web/src/colony/deep/bridge'
+import { DEEP_P } from '../../apps/web/src/colony/deep/params'
+import type { Vehicle } from '../../apps/web/src/colony/deep/machines'
+import { validateParams } from '../../apps/web/src/colony/deep/params'
+
+/**
+ * Хранилище следует за построенными складами.
+ *
+ * До этой правки ёмкости задавались один раз при создании мира. Построенный
+ * игроком склад был чистым расходом: он потреблял мощность, изнашивался, мог
+ * отказать — и не увеличивал ни одного резервуара. Проверка «функция
+ * существует» этого не ловила: `setCapacity` не вызывал никто вообще.
+ */
+
+const SCENARIO = SCENARIOS[0].scenario
+const DEEP = SCENARIOS[0].deep!
+
+const step = (state: ColonyState): ColonyState => {
+  if (state.world) state.world.scenario = { ...state.world.scenario, ...DEEP }
+  return advanceDay(state, SCENARIO)
+}
+
+const run = (sols: number): ColonyState => {
+  let state: ColonyState = buildStartColony()
+  for (let sol = 0; sol < sols; sol++) state = step(state)
+  return state
+}
+
+const addDepot = (state: ColonyState): ColonyState => {
+  const built = buildModule(state, 'depot')
+  if (built === state) throw new Error('depot could not be built')
+  // Постройка без коммуникаций — это корпус, а не склад: сети поднимаются
+  // заново по итоговому составу модулей, тем же путём, что и в игре.
+  return { ...built, networks: undefined }
+}
+
+test('a depot you build enlarges the tank and the bins', () => {
+  let state = buildStartColony()
+  state = step(state)
+  const before = state.world!.stock.cap
+  const depotsBefore = state.world!.devices.filter(d => d.kind === 'depot').length
+
+  state = step(addDepot(state))
+
+  const after = state.world!.stock.cap
+  const depotsAfter = state.world!.devices.filter(d => d.kind === 'depot').length
+  assert.equal(depotsAfter, depotsBefore + 1, 'the depot must exist as a device in the world')
+  assert.ok(after.water_clean > before.water_clean,
+    `tank must grow with the depot: ${before.water_clean} → ${after.water_clean} L`)
+  assert.ok(after.seed_potato > before.seed_potato,
+    `bins must grow with the depot: ${before.seed_potato} → ${after.seed_potato} kg`)
+  // Гарантия от «склад есть, но он ничего не даёт»: прирост задан параметром.
+  assert.ok(Math.abs(after.seed_potato / before.seed_potato - (1 + DEEP_P.depotSolidGain)) < 1e-9,
+    `one depot must add depotSolidGain (${DEEP_P.depotSolidGain}) to the bins`)
+})
+
+test('the starting colony keeps its capacities: the recount is not a silent rebalance', () => {
+  // Пересчёт ёмкостей не должен ничего сдвинуть на старте, иначе это не
+  // починка, а скрытая перебалансировка.
+  const state = buildStartColony()
+  const world = createWorld(colonyWorldConfig(state))
+  const frozen = { ...world.stock.cap }
+  applyStorageCapacity(world)
+  for (const [id, value] of Object.entries(frozen)) {
+    assert.ok(Math.abs((world.stock.cap as Record<string, number>)[id] - value) < 1e-9,
+      `capacity of ${id} must not change on an untouched world: ${value} → ${world.stock.cap[id as never]}`)
+  }
+})
+
+test('shrinking a capacity never deletes what is already stored', () => {
+  // Раньше `setCapacity` обрезал запас под новую ёмкость. Если склад снесли,
+  // масса исчезала молча, хотя реестр её уже оприходовал.
+  const world = createWorld(colonyWorldConfig(buildStartColony()))
+  const id = 'ware_potato'
+  const baseline = world.stock.cap[id]
+
+  // Расширяем хранилище двумя складами, затариваем его под завязку…
+  const template = world.devices.find(d => d.kind === 'depot')!
+  world.devices.push({ ...template, id: 'DEP-x1' }, { ...template, id: 'DEP-x2' })
+  applyStorageCapacity(world)
+  const grown = world.stock.cap[id]
+  assert.ok(grown > baseline, `two depots must enlarge the bin: ${baseline} → ${grown} kg`)
+  world.stock.amount[id] = grown - 1
+
+  // …и убираем оба из списка агрегатов: груз физически остаётся на площадке.
+  //
+  // Честно: сноса зданий в игре нет вовсе — есть только постройка
+  // (`buildModule`), обратного действия не существует, и ТЗ его не требует
+  // («размещение / перемещение / поворот»). Поэтому здесь проверяется не
+  // действие игрока, а инвариант, который делает хранение зависимым от
+  // инфраструктуры: ёмкость пересчитывается по списку агрегатов, и если
+  // агрегат исчезает из списка, ёмкость возвращается к исходной.
+  world.devices = world.devices.filter(d => d.id !== 'DEP-x1' && d.id !== 'DEP-x2')
+  applyStorageCapacity(world)
+  assert.ok(Math.abs(world.stock.cap[id] - baseline) < 1e-9, 'the bin must return to its baseline')
+  assert.equal(world.stock.amount[id], grown - 1,
+    'stored mass must survive a capacity cut: it stops being refilled, it does not evaporate')
+})
+
+// --- Выход наружу и шлюз ---------------------------------------------------
+
+/**
+ * Шлюз и выход наружу — разные вещи, и обе стоят ресурсов.
+ *
+ * Параметры `evaPrepHours`, `evaWaterLitres` и `airlockLossFraction`
+ * существовали с самого начала, но не читал их никто: наружная работа
+ * начиналась мгновенно, без костюма, без воды на сублиматор и без потери
+ * атмосферы. Юнит-тесты этого не ловили — они проверяли функции по отдельности.
+ */
+test('going outside costs suit-up time, sublimator water and airlock air', () => {
+  const state = run(20)
+  const world = state.world!
+  assert.ok(world.totals.evaPrepHours > 0,
+    `EVA must cost suit-up hours, got ${world.totals.evaPrepHours}`)
+  assert.ok(world.totals.evaO2Kg > 0,
+    `the airlock must vent oxygen, got ${world.totals.evaO2Kg} kg`)
+  // Выход — это не бесплатная прогулка, но и не разорение: шлюз мал.
+  const perSol = world.totals.evaO2Kg / Math.max(1, world.sol)
+  assert.ok(perSol < 1, `airlock losses must stay small, got ${perSol.toFixed(3)} kg/sol`)
+})
+
+test('suiting up is once per person per sol, not once per task', () => {
+  // Подготовка накапливается и сохраняется до конца суток: иначе каждый
+  // наружный выезд заново съедал бы полторы смены, и наружная работа встала бы.
+  let state = buildStartColony()
+  for (let sol = 0; sol < 30; sol++) state = step(state)
+  const world = state.world!
+  const evaTasks = world.tasks.filter(t => t.eva).length
+  assert.ok(evaTasks >= 0, 'sanity')
+  for (const member of world.crew) {
+    assert.ok(member.evaPrepHours <= DEEP_P.evaPrepHours + 1e-9,
+      `${member.id} spent ${member.evaPrepHours} h suiting up, more than one suit-up per sol`)
+  }
+})
+
+test('sublimator water leaves the colony and does not come back as grey water', () => {
+  // Сублиматор возгоняет воду наружу. Забирать её в стоки значило бы
+  // притворяться, что замкнутый контур воды бесплатный.
+  const world = createWorld(colonyWorldConfig(buildStartColony()))
+  const member = world.crew[0]
+  const before = world.stock.amount.water_clean
+  const greyBefore = world.stock.amount.water_grey
+  const stepObj = emptyStepOf(world.sol)
+  for (let i = 0; i < 10 && !member.suited; i++) prepareEva(world, member, 1, stepObj)
+  assert.ok(member.suited, 'the member must end up suited after the full prep')
+  assert.ok(world.stock.amount.water_clean < before,
+    `EVA must draw sublimator water: ${before} → ${world.stock.amount.water_clean} L`)
+  assert.equal(world.stock.amount.water_grey, greyBefore,
+    'sublimator water is vented to the atmosphere, not collected as grey water')
+  assert.ok(stepObj.waterIndustrialL >= DEEP_P.evaWaterLitres - 1e-9,
+    'the water must be reported as spent, or the daily reconciliation breaks')
+})
+
+test('rover work is done from the cabin, so it is not an EVA', () => {
+  // Добыча и перевозка идут из гермокабины ровера: скафандр им не нужен.
+  // Наружу выходят разведка и чистка панелей — иначе платить сублиматором
+  // приходилось бы за каждый рейс, и колония теряла воду быстрее, чем добывала.
+  const eva = TASK_META
+  assert.equal(eva.extract.eva, false, 'extraction runs from the cab')
+  assert.equal(eva.haul.eva, false, 'hauling runs from the cab')
+  assert.ok(eva.survey.eva && eva.clean_panels.eva, 'survey and panel cleaning are outside work')
+})
+
+// --- Проба доезжает до лаборатории ----------------------------------------
+
+/**
+ * Цепочка лаборатории: проба → ДОСТАВКА → анализ.
+ *
+ * Поле `Sample.delivered` существовало с самого начала и везде проверялось,
+ * но `takeSample` создавало пробу уже доставленной. Проверка «анализ требует
+ * доставленной пробы» выполнялась всегда, поэтому шаг транспорта не стоил
+ * ничего и не значил ничего.
+ */
+test('a sample reaches the bench a sol after it is taken, not instantly', () => {
+  const world = createWorld(colonyWorldConfig(buildStartColony()))
+  const sample = takeSample(world, 'substrate', world.batches[0].greenhouseId)
+  assert.ok(sample, 'the sample must be taken')
+  assert.equal(sample.delivered, false, 'a freshly taken sample is still in the field')
+  assert.equal(requestAnalysis(world, 'contamination', sample.sourceId), null,
+    'the analysis must wait for the sample to arrive')
+
+  deliverSamples({ ...world, sol: world.sol + 1 })
+  assert.equal(sample.delivered, true, 'the sample arrives with the next sol')
+  assert.ok(requestAnalysis(world, 'contamination', sample.sourceId),
+    'once delivered, the sample can be analysed')
+})
+
+test('the lab chain still runs end to end in a real colony', () => {
+  // Транспорт не должен обрывать цепочку: за 60 солов пробы берутся,
+  // доезжают и дают анализы.
+  const state = run(60)
+  const world = state.world!
+  assert.ok(world.samples.length > 0, 'samples must be taken')
+  assert.ok(world.analyses.length > 0, 'analyses must be produced')
+  assert.ok(world.samples.every(s => s.delivered || s.sol >= world.sol),
+    'no sample may sit undelivered past the sol after it was taken')
+})
+
+// --- Реестр параметров -----------------------------------------------------
+
+test('every parameter sits inside its declared range', () => {
+  // У каждого параметра есть единицы, границы и статус «источник / допущение».
+  // Ничего это не проверяло: `validateParams` не вызывал никто, поэтому
+  // вылетевший за границы параметр оставался бы незамеченным до тех пор, пока
+  // не проявился бы в прогоне как необъяснимое поведение.
+  assert.deepEqual(validateParams(), [], 'the parameter table must be self-consistent')
+})
+
+// --- Машины тоже ремонтируются ---------------------------------------------
+
+/**
+ * Ровер был расходником.
+ *
+ * `stepVehicleReliability` копил износ и отказы, а `repairVehicle` и
+ * `serviceVehicle` не вызывал никто: машина умирала навсегда, и вернуть её мог
+ * только капремонт всей базы. Отказ ровера дороже отказа насоса — она одна
+ * возит всю руду, поэтому без ремонта логистика останавливается навсегда.
+ */
+test('a broken vehicle is diagnosed and repaired, not condemned', () => {
+  let state = buildStartColony()
+  state = step(state)
+  // Мир клонируется каждый сол, поэтому машину нужно искать по id заново:
+  // ссылка на объект из прошлого сола — это уже не тот объект.
+  const id = state.world!.vehicles[0].id
+  const current = (): Vehicle => state.world!.vehicles.find(v => v.id === id)!
+  {
+    const vehicle = current()
+    vehicle.hoursSinceService = DEEP_P.serviceIntervalHours * 2
+    vehicle.wear = 0.6
+    vehicle.condition = 0.4
+    vehicle.fault = {
+      code: 'traction', diagnosed: false, partsNeeded: 1,
+      repairHours: DEEP_P.repairHoursPerPart, sinceSol: 0, cause: 'тест',
+    }
+  }
+  const partsBefore = state.world!.stock.amount.parts
+
+  for (let sol = 0; sol < 25 && current().fault; sol++) state = step(state)
+
+  const vehicle = current()
+  assert.equal(vehicle.fault, null, `the vehicle must be repaired, it is still ${vehicle.fault?.code}`)
+  assert.ok(vehicle.condition > 0.4,
+    `repair must restore some condition: 0.4 → ${vehicle.condition.toFixed(3)}`)
+  assert.ok(vehicle.hoursSinceService < DEEP_P.serviceIntervalHours,
+    'a repaired vehicle counts as serviced')
+  assert.ok(state.world!.stock.amount.parts < partsBefore,
+    `the repair must consume a spare part: ${partsBefore} → ${state.world!.stock.amount.parts}`)
+})
+
+test('vehicles are serviced on a schedule, not only by a full overhaul', () => {
+  // Обслуживание планируется до отказа: машина не должна доезжать до поломки.
+  const state = run(120)
+  const world = state.world!
+  assert.ok(world.vehicles.length > 0, 'the colony must have vehicles')
+  for (const vehicle of world.vehicles) {
+    assert.ok(vehicle.hoursSinceService < DEEP_P.serviceIntervalHours * 1.5,
+      `${vehicle.id} ran ${vehicle.hoursSinceService.toFixed(0)} h without service `
+      + `(interval ${DEEP_P.serviceIntervalHours}) — nothing schedules its maintenance`)
+  }
+  assert.ok(world.totals.labourByKind.maintain > 0,
+    'maintenance must cost crew hours')
+})
+
+// --- Изоляция и безопасный режим ------------------------------------------
+
+/**
+ * Оба действия были написаны, имели последствия в модели — и не имели ни одной
+ * кнопки. Изоляция отрезает секцию от подпитки кислородом и очистки,
+ * безопасный режим останавливает агрегат (`deviceUsable` его исключает).
+ * Проверить «функция существует» было нечем: проверить последствие — можно.
+ */
+
+/**
+ * Два одинаковых прогона из одной стартовой колонии: мир детерминирован,
+ * поэтому любая разница обязана действию, а не случайности.
+ */
+const pair = (sols: number, mutate: (state: ColonyState) => void): { treated: ColonyState; control: ColonyState } => {
+  const start = (): ColonyState => step(buildStartColony())
+  let treated = start()
+  mutate(treated)
+  let control = start()
+  for (let sol = 0; sol < sols; sol++) {
+    treated = step(treated)
+    control = step(control)
+  }
+  return { treated, control }
+}
+
+test('sealing a section cuts it off from life support', () => {
+  const target = (s: ColonyState) => s.world!.sections.find(x => x.kind === 'greenhouse')!
+  const { treated, control } = pair(12, s => { isolateSection(s.world!, target(s).id, true) })
+  const sealed = target(treated)
+  const open = target(control)
+  assert.ok(sealed.o2Kg < open.o2Kg - 1e-6,
+    `a sealed section must stop being topped up: ${open.o2Kg.toFixed(3)} kg open `
+    + `vs ${sealed.o2Kg.toFixed(3)} kg sealed`)
+})
+
+test('safe mode stops the unit instead of pretending to', () => {
+  const rig = (s: ColonyState) => s.world!.devices.find(d => d.kind === 'extractor')!
+  const { treated, control } = pair(12, s => { setSafeMode(s.world!, rig(s).id, true) })
+  const stopped = treated.world!.totals.minedKg
+  const running = control.world!.totals.minedKg
+  assert.ok(stopped < running - 1e-6,
+    `a rig in safe mode must not mine: ${running.toFixed(1)} kg running `
+    + `vs ${stopped.toFixed(1)} kg in safe mode`)
+})
+
+// --- Контракт исполняется физическим товаром -------------------------------
+
+/**
+ * Глубокий контракт был неисполним.
+ *
+ * `deliverContract` не вызывал никто, `autoDeliver` не читал никто, а
+ * `config.contracts` был пуст: модель ограничений (объём, срок, качество,
+ * упаковка, предоплаченный фонд, уникальный номер поставки) была написана и
+ * покрыта тестами, но панель показывала контракты, которые не могут
+ * сдвинуться с места.
+ */
+test('the colony has a contract, and it can be fulfilled with real goods', () => {
+  let state = buildStartColony()
+  state = step(state)
+  const world = state.world!
+  assert.ok(world.contracts.length > 0, 'the colony must start with a contract')
+
+  const contract = world.contracts[0]
+  world.stock.amount.ware_potato = 50
+  world.stock.amount.packaging = 100
+  const wareBefore = world.stock.amount.ware_potato
+  const creditsBefore = world.credits
+
+  const result = deliverContract(world, contract.id, 10)
+  assert.ok(result.ok, `the delivery must be accepted, got ${result.reason}`)
+  assert.equal(result.kg, 10)
+  assert.ok(world.stock.amount.ware_potato <= wareBefore - 10 + 1e-9,
+    'the physical lot must be written off, not conjured at the dock')
+  assert.ok(world.credits > creditsBefore, 'the delivery must be paid from the pre-funded pool')
+  assert.ok(world.stock.amount.packaging < 100, 'packaging must be consumed')
+})
+
+test('a contract cannot be over-filled or paid twice', () => {
+  const world = createWorld(colonyWorldConfig(buildStartColony()))
+  const contract = world.contracts[0]
+  world.stock.amount.ware_potato = 500
+  world.stock.amount.packaging = 1000
+
+  // Гоним поставки, пока контракт не закроется.
+  for (let i = 0; i < 40 && contract.status === 'active'; i++) {
+    deliverContract(world, contract.id, 10)
+  }
+  assert.equal(contract.status, 'fulfilled', 'the contract must close')
+  assert.ok(contract.deliveredKg <= contract.requiredKg + 1e-9,
+    `delivered ${contract.deliveredKg} kg of ${contract.requiredKg} kg — the buyer is bounded`)
+  assert.ok(contract.paidCR <= contract.rewardFundCR + 1e-9,
+    `paid ${contract.paidCR} CR of a ${contract.rewardFundCR} CR fund — the pool is pre-funded`)
+  // Каждая поставка имеет уникальный номер: одну и ту же не оплатить дважды.
+  const ids = new Set(contract.deliveries.map(d => d.id))
+  assert.equal(ids.size, contract.deliveries.length, 'delivery numbers must be unique')
+  const total = contract.deliveries.reduce((sum, d) => sum + d.kg, 0)
+  assert.ok(Math.abs(total - contract.deliveredKg) < 1e-9,
+    'delivered mass must equal the sum of the deliveries')
+})
+
+test('export and the contract are one instrument, not two', () => {
+  // Прежде вывоз шёл через реестр еды (`deliverFood`), а панель показывала
+  // глубокий контракт: две разные истории об одном картофеле.
+  const state = run(180)
+  const world = state.world!
+  const contractDelivered = world.contracts.reduce((sum, c) => sum + c.deliveredKg, 0)
+  assert.ok(Math.abs(world.totals.exportedKg - contractDelivered) < 1e-9,
+    `every exported kilogram must be a contract delivery: `
+    + `exported ${world.totals.exportedKg} kg vs delivered ${contractDelivered} kg`)
+})
+
+// --- Резервирование и рискованный ремонт -----------------------------------
+
+/**
+ * Резервирования не было вовсе: сломанный агрегат просто выбывал, и второй
+ * корпус того же вида построить было нельзя с пользой — он работал бы на
+ * износ рядом с первым, а не ждал своего часа.
+ */
+test('a standby unit idles while the primary is healthy and takes the load when it drops', () => {
+  const primary = createDevice('pump', 'Насос 1', { sectionId: 'home' })
+  const spare = createDevice('pump', 'Насос 2', { sectionId: 'home', standby: true })
+  syncStandby([primary, spare])
+
+  assert.equal(spare.standbyIdle, true, 'the spare must idle while the primary runs')
+  assert.equal(deviceUsable(spare), false, 'an idling spare must not produce or draw power')
+  assert.equal(deviceUsable(primary), true)
+
+  // Основной выбыл — подхват должен состояться в тот же сол, без вмешательства.
+  primary.fault = {
+    code: 'impeller', diagnosed: false, partsNeeded: 1, repairHours: 4, sinceSol: 10, cause: 'износ',
+  }
+  syncStandby([primary, spare])
+  assert.equal(spare.standbyIdle, false, 'the spare must take over when the primary drops')
+  assert.equal(deviceUsable(spare), true, 'the spare must actually carry the load')
+
+  // Резервы друг друга не подхватывают: два резерва ждали бы третий.
+  const third = createDevice('pump', 'Насос 3', { sectionId: 'home', standby: true })
+  syncStandby([primary, spare, third])
+  assert.equal(third.standbyIdle, false, 'a spare must cover a non-spare failure, not another spare')
+  // И резерв другой секции не считается своим.
+  const elsewhere = createDevice('pump', 'Насос 4', { sectionId: 'greenhouse-1', standby: true })
+  syncStandby([primary, elsewhere])
+  assert.equal(elsewhere.standbyIdle, true, 'a spare from another section must not cover this one')
+})
+
+test('risky repair saves the part and the hours, and costs the condition', () => {
+  const build = (): ReturnType<typeof createDevice> => {
+    const d = createDevice('pump', 'Насос', { sectionId: 'home' })
+    d.wear = 0.5
+    d.condition = 0.5
+    d.fault = { code: 'impeller', diagnosed: true, partsNeeded: 2, repairHours: 4, sinceSol: 1, cause: 'износ' }
+    return d
+  }
+  const careful = build()
+  const carefulResult = repairDevice(careful, 10)
+  assert.ok(carefulResult.ok && carefulResult.parts === 2, 'a careful repair consumes the part')
+
+  const risky = build()
+  const riskyResult = repairDevice(risky, 0, { risky: true })
+  assert.ok(riskyResult.ok, 'a risky repair must work without any part')
+  assert.equal(riskyResult.parts, 0, 'a risky repair consumes no spare')
+  assert.ok(risky.condition < careful.condition - 1e-9,
+    `the unit must come back under-repaired: ${careful.condition.toFixed(3)} careful `
+    + `vs ${risky.condition.toFixed(3)} risky`)
+
+  // Без диагноза обычный ремонт невозможен, рискованный — возможен: это и
+  // есть цена решения (чинят по симптомам, а не по списку работ).
+  const blind = build()
+  blind.fault!.diagnosed = false
+  assert.equal(repairDevice(blind, 10).reason, 'not-diagnosed')
+  assert.ok(repairDevice(blind, 0, { risky: true }).ok, 'a risky repair needs no diagnosis')
+})
+
+test('a risky repair can fail again at once', () => {
+  const always = { state: 0, next: () => 0 }
+  const never = { state: 0, next: () => 0.999 }
+  const build = (): ReturnType<typeof createDevice> => {
+    const d = createDevice('pump', 'Насос', { sectionId: 'home' })
+    d.wear = 0.4
+    d.condition = 0.6
+    d.fault = { code: 'impeller', diagnosed: false, partsNeeded: 2, repairHours: 4, sinceSol: 1, cause: 'износ' }
+    return d
+  }
+  const lucky = build()
+  const luckyResult = repairDevice(lucky, 0, { risky: true, rng: never })
+  assert.equal(luckyResult.reason, 'repaired-risky')
+  assert.equal(lucky.fault, null, 'when luck holds, the unit runs')
+
+  const unlucky = build()
+  const unluckyResult = repairDevice(unlucky, 0, { risky: true, rng: always })
+  assert.equal(unluckyResult.reason, 'repaired-risky-refault')
+  assert.ok(unlucky.fault, 'a risky repair may not hold: the cause was never fixed')
+  assert.equal(unlucky.fault!.diagnosed, false, 'the new failure is undiagnosed again')
+})
+
+test('a risky repair skips the diagnosis and the spare in a live colony', () => {
+  // Оба прогона получают один и тот же отказ; отличается только флаг.
+  // Без контроля тест проходил бы впустую: отсутствие часов осмотра могло
+  // означать просто то, что осмотр не планируется никогда.
+  const rig = (s: ColonyState) => s.world!.devices.find(d => d.kind === 'extractor')!
+  const fault = () => ({ code: 'seizure', diagnosed: false, partsNeeded: 2, repairHours: 4, sinceSol: 1, cause: 'износ' })
+  const start = (): ColonyState => {
+    const s = step(buildStartColony())
+    rig(s).fault = fault()
+    return s
+  }
+  let treated = start(), control = start()
+  setRisky(treated.world!, rig(treated).id, true)
+  const partsBefore = treated.world!.stock.amount.parts
+
+  for (let sol = 0; sol < 8; sol++) { treated = step(treated); control = step(control) }
+
+  const inspectControl = control.world!.totals.labourByKind.inspect ?? 0
+  const inspectTreated = treated.world!.totals.labourByKind.inspect ?? 0
+  assert.ok(inspectControl > 0,
+    'the control run must spend hours on a diagnosis — otherwise the test proves nothing')
+  assert.ok(inspectTreated < inspectControl,
+    `a risky repair must not spend hours on a diagnosis: ${inspectControl.toFixed(1)} h careful `
+    + `vs ${inspectTreated.toFixed(1)} h risky`)
+
+  // И не берет запчасть: в рискованном прогоне расход деталей не вырос.
+  const partsTreated = treated.world!.stock.amount.parts
+  assert.ok(partsTreated >= partsBefore - 1e-9,
+    `a risky repair must consume no spare: ${partsBefore} → ${partsTreated}`)
+  // Но агрегат чинили: цена уплачена состоянием и риском повторного отказа,
+  // а не тем, что работу просто не делали.
+  assert.ok((treated.world!.totals.labourByKind.repair ?? 0) > 0,
+    'the rig must actually have been repaired, not skipped')
+})
+
+test('a standby unit idles at no cost and takes the load the sol the primary drops', () => {
+  const pump = (s: ColonyState) => s.world!.devices.find(d => d.kind === 'pump')!
+  let state = step(buildStartColony())
+  const spare = createDevice('pump', 'Насос-резерв', { sectionId: pump(state).sectionId ?? null, standby: true })
+  state.world!.devices.push(spare)
+  const spareOf = (s: ColonyState) => s.world!.devices.find(d => d.id === spare.id)!
+
+  // Фаза 1: основной исправен, резерв стоит. Он не работает и не изнашивается —
+  // иначе резерв был бы просто вторым работающим агрегатом.
+  for (let sol = 0; sol < 4; sol++) state = step(state)
+  assert.equal(spareOf(state).standbyIdle, true, 'the spare must idle while the primary is healthy')
+  assert.equal(spareOf(state).hoursOperating, 0, 'an idling spare must not run up hours')
+  assert.equal(spareOf(state).wear, 0, 'an idling spare must not wear')
+
+  // Фаза 2: основной выбыл, подхват в тот же сол, без участия игрока.
+  pump(state).fault = {
+    code: 'impeller', diagnosed: true, partsNeeded: 2, repairHours: 400, sinceSol: 1, cause: 'износ',
+  }
+  const hoursBefore = spareOf(state).hoursOperating
+  state = step(state)
+  assert.equal(spareOf(state).standbyIdle, false, 'the spare must take over the sol the primary drops')
+  assert.ok(spareOf(state).hoursOperating > hoursBefore,
+    `the spare must actually run: ${hoursBefore.toFixed(1)} h → `
+    + `${spareOf(state).hoursOperating.toFixed(1)} h`)
+
+  // Честное ограничение: насос не узкое место номинального сценария, поэтому
+  //end-to-end вода не меняется — резерв закрывает простой агрегата, а не дефицит
+  // сырья. Проверять «воды стало больше» значит проверять чужой механизм.
+})
+
+// --- Импорт за кредиты ----------------------------------------------------
+
+/**
+ * `importResource` был написан целиком и никем не вызывался. Из-за этого
+ * строка отчёта «импорт 0 — полная автономия по статье» ничего не значила:
+ * купить было нельзя вовсе, поэтому ноль означал отсутствие механизма, а не
+ * отсутствие зависимости.
+ */
+test('supplies can be bought with credits, and only with credits', () => {
+  let state = buildStartColony()
+  state = step(state)
+  const world = state.world!
+  world.credits = 1000
+  const partsBefore = world.stock.amount.parts
+  const creditsBefore = world.credits
+
+  const bought = importResource(world, 'parts', 3)
+  assert.ok(bought.ok, 'the purchase must go through')
+  assert.equal(bought.got, 3, 'three units must arrive')
+  assert.ok(world.stock.amount.parts >= partsBefore + 3 - 1e-9, 'the parts must land in the store')
+  assert.ok(world.credits < creditsBefore, 'the purchase must be paid for')
+  assert.equal(world.totals.importedParts, 3, 'the import must be recorded in the autonomy figure')
+
+  // Денег нет — и товара нет: ресурсы не берутся из воздуха.
+  world.credits = 0
+  const broke = importResource(world, 'parts', 5)
+  assert.equal(broke.ok, false, 'without credits there is no purchase')
+  assert.equal(broke.got, 0, 'nothing must arrive for free')
+})
+
+test('an import respects the store capacity and the price', () => {
+  const world = createWorld(colonyWorldConfig(buildStartColony()))
+  world.credits = 1000
+  const price = pricePerUnit('parts')
+  assert.ok(price > 0, 'a spare must have a price, otherwise buying is not a real cost')
+
+  // Место кончилось — завоз не проходит, даже при деньгах.
+  world.stock.amount.parts = world.stock.cap.parts
+  const full = importResource(world, 'parts', 5)
+  assert.equal(full.got, 0, 'a full store must refuse the delivery, not overflow')
+
+  world.stock.amount.parts = world.stock.cap.parts - 1
+  const one = importResource(world, 'parts', 5)
+  assert.equal(one.got, 1, 'only what fits may arrive')
+  assert.ok(Math.abs(one.spent - price) < 1e-9, 'the price must be charged per delivered unit')
+})
+
+test('a resource without a price cannot be imported', () => {
+  const world = createWorld(colonyWorldConfig(buildStartColony()))
+  world.credits = 1000
+  assert.equal(pricePerUnit('seed_potato'), 0, 'food is not a supply line')
+  const refused = importResource(world, 'seed_potato', 10)
+  assert.equal(refused.ok, false, 'an unpriced resource must not appear out of nowhere')
+})
+
+// --- Отмена работы ---------------------------------------------------------
+
+/**
+ * Отмены не было вовсе: статус `cancelled` существовал, `isFinished` его
+ * понимал, но не выставлял никто — была только пауза. Из требования ТЗ
+ * («при отмене возвращаются только неиспользованные материалы») была
+ * реализована ровно половина, и та на паузе.
+ */
+test('cancelling a task frees the crew and returns only the unused materials', () => {
+  let state = buildStartColony()
+  state = step(state)
+  const world = state.world!
+
+  // Задача с зарезервированной запчастью, на которой уже занят человек.
+  const target = world.devices.find(d => d.kind === 'extractor')!
+  // Долгий ремонт: задача должна остаться в очереди, а не закрыться в тот
+  // же сол, иначе отменять будет нечего.
+  target.fault = { code: 'seizure', diagnosed: true, partsNeeded: 2, repairHours: 400, sinceSol: 1, cause: 'износ' }
+  state = step(state)
+  const w2 = state.world!
+  const repair = w2.tasks.find(t => t.kind === 'repair' && t.targetId === target.id)
+  assert.ok(repair, 'the planner must raise a repair for a diagnosed fault')
+  assert.ok(repair!.materials.length > 0, 'the repair must reserve a part')
+
+  const partsBefore = w2.stock.amount.parts
+  const result = cancelTask(w2, repair!.id)
+  assert.ok(result.ok, 'an open task must be cancellable')
+  assert.equal(repair!.status, 'cancelled', 'the task must leave the queue for good')
+  assert.ok(w2.stock.amount.parts >= partsBefore,
+    'the reserved part must come back: nothing was spent on work not done')
+  assert.equal(repair!.assignees.length, 0, 'the crew must be released')
+  for (const member of w2.crew) {
+    if (member.taskId === repair!.id) assert.fail('a released crew member must not stay assigned')
+  }
+
+  // Повторная отмена — не действие: задача уже снята.
+  assert.equal(cancelTask(w2, repair!.id).ok, false, 'a cancelled task cannot be cancelled twice')
+})
+
+test('a cancelled task does not come back to life, and a finished one cannot be cancelled', () => {
+  let state = buildStartColony()
+  state = step(state)
+  const world = state.world!
+  const task = world.tasks.find(t => t.status === 'queued' || t.status === 'active')
+  assert.ok(task, 'the colony must have work in the queue')
+  assert.ok(cancelTask(world, task!.id).ok)
+
+  // Планировщик видит снятую работу как закрытую и не продолжает её.
+  const after = step(state)
+  const revived = after.world!.tasks.find(t => t.id === task!.id)
+  assert.ok(!revived || revived.status === 'cancelled' || revived.status === 'done',
+    'a cancelled task must not silently resume')
+})
+
+// --- Растения не обеспечивают базу кислородом одни -------------------------
+
+/**
+ * Прямое требование ТЗ: «растения не должны одни обеспечивать базу
+ * кислородом». Проверяется причинно, а не по величине: если остановить
+ * электролиз, колония должна начать задыхаться — иначе зелёная масса сама
+ * закрывает потребность и установка не нужна.
+ */
+test('plants alone cannot keep the base breathing', () => {
+  const runWithout = (sols: number, stopElectrolysis: boolean): ColonyState => {
+    let state: ColonyState = buildStartColony()
+    if (stopElectrolysis) {
+      state = step(state)
+      const gen = state.world!.devices.find(d => d.kind === 'o2_gen')!
+      setSafeMode(state.world!, gen.id, true)
+    }
+    for (let sol = 0; sol < sols; sol++) {
+      state = step(state)
+      // Безопасный режим снимается только нами: держим установку остановленной.
+      if (stopElectrolysis) {
+        const gen = state.world!.devices.find(d => d.kind === 'o2_gen')!
+        if (!gen.safeMode) setSafeMode(state.world!, gen.id, true)
+      }
+    }
+    return state
+  }
+
+  const control = runWithout(40, false)
+  const noElectrolysis = runWithout(40, true)
+
+  const demand = control.world!.totals.crewO2Kg
+  const fromCrops = control.world!.totals.cropO2Kg
+  assert.ok(demand > 0 && fromCrops > 0, 'both figures must be measured, not empty')
+  assert.ok(fromCrops < demand,
+    `plants must not cover the crew by themselves: ${fromCrops.toFixed(1)} kg from crops `
+    + `against ${demand.toFixed(1)} kg of demand`)
+
+  // Причинная проверка: без электролиза запас кислорода падает, а не держится.
+  assert.ok(noElectrolysis.world!.totals.o2ShortfallKg > control.world!.totals.o2ShortfallKg + 1e-6,
+    `stopping electrolysis must hurt: ${control.world!.totals.o2ShortfallKg.toFixed(3)} kg `
+    + `shortfall with it vs ${noElectrolysis.world!.totals.o2ShortfallKg.toFixed(3)} kg without`)
+  const o2 = (s: ColonyState) => s.world!.stock.amount.o2
+  assert.ok(o2(noElectrolysis) < o2(control),
+    `the tank must run down without electrolysis: ${o2(control).toFixed(1)} kg vs `
+    + `${o2(noElectrolysis).toFixed(1)} kg`)
+})

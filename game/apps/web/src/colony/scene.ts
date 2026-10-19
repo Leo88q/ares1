@@ -4,6 +4,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { CATALOG, PARAMETERS } from './simulation'
 import type { ColonyModule, ColonyState } from './simulation'
 import { COLONY_CELL_METRES, COLONY_GRID_SIZE, footprint, modulePlacement, placementWorld, placementError, worldCell } from './layout'
+import { createDeepOverlay } from './deepScene'
+import { basePosition, deepVisualState, type Vec2 } from './deepVisual'
 import type { ConstructionDraft } from './ConstructionPlan'
 import { createModuleBatcher } from './moduleBatcher'
 import { createOverviewTemplates } from './moduleOverview'
@@ -42,6 +44,8 @@ export interface ColonySceneStats {
   contextLost: boolean
   drawCalls: number; triangles: number; geometries: number; textures: number; programs: number
   modules: number; updates: number; patches: number; writtenInstances: number; batches: number; instances: number; capacity: number
+  /** Сколько экземпляров глубокого слоя реально записано в инстансы. */
+  deep: { vehicles: number; faults: number; sections: number }
   culledModules: number; lowDetail: boolean; serviceRebuilds: number
   updateMs: number; renderCpuMs: number
 }
@@ -56,12 +60,15 @@ export interface ColonyScene {
   dispose: () => void
 }
 
+/** Грядок в теплице: столько же, сколько партий в глубоком мире. */
+const BEDS_PER_GREENHOUSE = 6
+
 /** Demand-rendered, bounded-pixel-ratio scene; all model requests are same-origin. */
 export function createColonyScene(host: HTMLElement, callbacks: {
   onSelect: (id: string) => void
   onSite: (at: { x: number; z: number }) => void
   onReady: () => void
-  onModelError: () => void
+  onModelError: (files: string[]) => void
   onContextLost: () => void
 }, options: { batching?: boolean; incremental?: boolean } = {}): ColonyScene {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
@@ -167,6 +174,10 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   const overviewTemplates = createOverviewTemplates()
   const moduleBatches = createModuleBatcher(); scene.add(moduleBatches.root)
   const detailRoot = new THREE.Group(); scene.add(detailRoot)
+  // Глубокий слой в сцене: машины на маршруте, маркеры отказов, состояние
+  // секций. Отдельная группа — её легко отключить и освободить целиком.
+  const deepOverlay = createDeepOverlay()
+  scene.add(deepOverlay.root)
   const moduleRoot = new THREE.Group()
   moduleRoot.visible = false // retained exact geometry for raycasting, not drawn twice
   const propsRoot = new THREE.Group()
@@ -406,6 +417,10 @@ export function createColonyScene(host: HTMLElement, callbacks: {
         for (let j = 0; j < 4; j++) {
           const plant = model('plant.glb', 0.43)
           plant.position.set((row - 1) * 0.85, 0.4, (j - 1.5) * 0.5)
+          // 12 растений на 6 грядок: каждой грядке достаётся пара, чтобы партии
+          // было видно порознь, а не средним по теплице.
+          plant.userData.bedIndex = (row * 4 + j) % BEDS_PER_GREENHOUSE
+          plant.userData.baseScaleY = plant.scale.y
           crops.add(plant)
         }
       }
@@ -496,6 +511,14 @@ export function createColonyScene(host: HTMLElement, callbacks: {
         disposeTrees([object], [], [scene, moduleRoot, ...templates.values(), ...overviewTemplates.values()], pooledResources())
       }
     }
+    // Грядки глубокого мира, проиндексированные «модуль:номер», чтобы сцена
+    // могла показать состояние каждой партии, а не среднее по теплице.
+    const bedByModule = new Map<string, { development: number }>()
+    if (state.world) {
+      for (const batch of state.world.batches) {
+        bedByModule.set(`${batch.greenhouseId}:${batch.bedIndex}`, { development: batch.development })
+      }
+    }
     state.modules.forEach((m, index) => {
       let object = moduleObjects.get(m.id)
       if (!object) { object = createModule(m, index); moduleObjects.set(m.id, object); moduleRoot.add(object); poseVersion++ }
@@ -505,10 +528,30 @@ export function createColonyScene(host: HTMLElement, callbacks: {
       object.position.set(p.x, 0, p.z); object.rotation.y = angle
       const crops = object.getObjectByName('crops')
       if (crops) {
-        const growth = 0.3 + m.growthDays / PARAMETERS.cropCycleDays * 0.7
-        if (crops.scale.y !== growth) { crops.scale.y = growth; dirtyBranches.add(crops) }
+        if (crops.scale.y !== 1) { crops.scale.y = 1; dirtyBranches.add(crops) }
+        // Развитие берётся из глубоких партий: у каждой грядки своё, поэтому
+        // среднего по модулю больше нет. Без мира — прежний вид по `growthDays`.
+        const fallback = 0.3 + m.growthDays / PARAMETERS.cropCycleDays * 0.7
+        for (const plant of crops.children) {
+          const index = typeof plant.userData.bedIndex === 'number' ? plant.userData.bedIndex : -1
+          const bed = index >= 0 ? bedByModule.get(`${m.id}:${index}`) : undefined
+          const base = typeof plant.userData.baseScaleY === 'number' ? plant.userData.baseScaleY : 1
+          const target = base * (bed ? 0.15 + bed.development * 0.85 : fallback)
+          if (Math.abs(plant.scale.y - target) > 1e-3) { plant.scale.y = target; dirtyBranches.add(plant) }
+        }
       }
     })
+    // Позиции модулей нужны оверлею, чтобы ставить маркер над своим модулем.
+    const moduleAt = new Map<string, Vec2>()
+    for (const m of state.modules) {
+      const { x, z } = placementWorld(m.kind, modulePlacement(m))
+      moduleAt.set(m.id, { x, z })
+    }
+    deepOverlay.update(
+      deepVisualState(state.world, basePosition([...moduleAt.values()])),
+      id => moduleAt.get(id) ?? null,
+    )
+
     const selected = state.modules.find(m => m.id === selectedId)
     selection.visible = !!selected
     if (selected) {
@@ -547,7 +590,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   // Local byte fetches can be aborted on route changes and StrictMode remounts.
   const abort = new AbortController()
   const manager = new THREE.LoadingManager()
-  manager.onError = () => { if (!disposed) callbacks.onModelError() }
+  manager.onError = () => { if (!disposed) callbacks.onModelError([]) }
   const loader = new GLTFLoader(manager)
   loader.register(parser => {
     // ImageBitmapLoader fetches embedded images via blob: URLs, which the app's
@@ -559,9 +602,10 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     return { name: 'ARES_csp_image_loader' }
   })
   let modelFailed = false
+  const failedFiles: string[] = []
   void Promise.all(FILES.map(async file => {
+    const { url, base } = modelLocation(file)
     try {
-      const { url, base } = modelLocation(file)
       const response = await fetch(url, { signal: abort.signal })
       if (!response.ok) throw new Error(`Model HTTP ${response.status}`)
       const bytes = await response.arrayBuffer()
@@ -569,15 +613,25 @@ export function createColonyScene(host: HTMLElement, callbacks: {
       const gltf = await loader.parseAsync(bytes, base)
       if (disposed) { disposeTrees([gltf.scene]); return }
       templates.set(file, gltf.scene)
-    } catch {
-      if (!disposed && !abort.signal.aborted) modelFailed = true
+    } catch (error) {
+      if (!disposed && !abort.signal.aborted) {
+        modelFailed = true
+        failedFiles.push(file)
+        // Прежде ошибка глоталась целиком: интерфейс сообщал «часть моделей
+        // не загрузилась» и не говорил какая. Без имени файла это
+        // недиагностируемо — 19 запросов, и ни одного следа в консоли.
+        console.warn(`[colony] модель не загрузилась: ${url}`, error)
+      }
     }
   })).then(() => {
     if (disposed) return
     modelsSettled = true
     decorate()
     if (latest) update(latest.state, latest.selectedId, latest.sunHours)
-    if (modelFailed) callbacks.onModelError()
+    if (modelFailed) {
+      console.warn(`[colony] не загрузились модели: ${failedFiles.join(', ')}`)
+      callbacks.onModelError(failedFiles)
+    }
     callbacks.onReady()
   })
 
@@ -627,7 +681,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   return {
     diagnostics: () => ({ contextLost: renderer.getContext().isContextLost(), drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles,
       geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programs: renderer.info.programs?.length ?? 0,
-      modules: moduleObjects.size, ...moduleBatches.stats(), culledModules, lowDetail, serviceRebuilds: serviceReader.rebuilds(), updateMs: lastUpdateMs, renderCpuMs: lastRenderCpuMs }),
+      modules: moduleObjects.size, deep: deepOverlay.counts(), ...moduleBatches.stats(), culledModules, lowDetail, serviceRebuilds: serviceReader.rebuilds(), updateMs: lastUpdateMs, renderCpuMs: lastRenderCpuMs }),
     update, setDraft,
     setNetworkPreview: n => { networkPreview = n; if (latest) utilities.update(latest.state.modules, networksOf(latest.state), n); requestRender() },
     resetCamera,
@@ -640,6 +694,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
       renderer.domElement.removeEventListener('pointerup', onUp)
       renderer.domElement.removeEventListener('webglcontextlost', onContextLost)
       moduleBatches.dispose()
+      deepOverlay.dispose()
       utilities.dispose()
       disposeTrees([scene, moduleRoot, ...templates.values(), ...overviewTemplates.values()], pooledResources())
       serviceReader.clear(); dirtyBranches.clear(); scene.clear(); moduleRoot.clear(); moduleObjects.clear(); templates.clear(); overviewTemplates.clear(); padGeometries.clear(); lampMaterials.clear()
