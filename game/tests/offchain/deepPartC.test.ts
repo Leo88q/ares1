@@ -583,8 +583,8 @@ test('an import respects the store capacity and the price', () => {
 test('a resource without a price cannot be imported', () => {
   const world = createWorld(colonyWorldConfig(buildStartColony()))
   world.credits = 1000
-  assert.equal(pricePerUnit('potato_food'), 0, 'food is not a supply line')
-  const refused = importResource(world, 'potato_food', 10)
+  assert.equal(pricePerUnit('seed_potato'), 0, 'food is not a supply line')
+  const refused = importResource(world, 'seed_potato', 10)
   assert.equal(refused.ok, false, 'an unpriced resource must not appear out of nowhere')
 })
 

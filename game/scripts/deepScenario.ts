@@ -17,7 +17,8 @@ import {
   advanceDay, buildModule, buySupplies, deliverFood, foodReserve, initialColony,
   type ColonyModule, type ColonyState, type ModuleKind, type Scenario,
 } from '../apps/web/src/colony/simulation'
-import type { ColonyWorld, DeepScenario, DeviceKind } from '../apps/web/src/colony/deep/world'
+import type { ColonyWorld, DeepScenario } from '../apps/web/src/colony/deep/world'
+import type { DeviceKind } from '../apps/web/src/colony/deep/devices'
 import type { DailyRow, ScenarioReport } from './deepScenario.types'
 import { PARAMETERS } from '../apps/web/src/organism/parameters'
 
@@ -121,6 +122,10 @@ const NETS_FOR: Record<ModuleKind, ReadonlyArray<'power' | 'water' | 'return' | 
   rover: ['power', 'tunnel'],
   workshop: ['power', 'tunnel'],
   battery: ['power'],
+  extractor: ['power', 'tunnel'],
+  depot: ['power', 'tunnel'],
+  purifier: ['power', 'water', 'return'],
+  lab: ['power', 'water', 'tunnel'],
 }
 
 export function buildStartColony(): ColonyState {
@@ -163,7 +168,6 @@ export function runScenario(spec: ScenarioSpec, sols = SOLS): ScenarioReport {
     nutrientsKg: state.nutrientsKg,
     sparesKg: state.sparesKg,
     oxygenKg: state.oxygenKg,
-    credits: state.credits,
   }
   const daily: DailyRow[] = []
   const bottleneckSols: Record<string, number> = {}
@@ -228,7 +232,7 @@ export function runScenario(spec: ScenarioSpec, sols = SOLS): ScenarioReport {
     title: spec.title,
     sols,
     scenario: spec.scenario,
-    deep: { ...(state.world?.scenario ?? {}) } as DeepScenario,
+    deep: { ...(state.world?.scenario ?? {}) } as unknown as Record<string, unknown>,
     start,
     daily,
     totals: {
