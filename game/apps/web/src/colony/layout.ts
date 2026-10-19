@@ -11,6 +11,7 @@ export interface Placement { x: number; z: number; rotation: QuarterTurn }
 export const FOOTPRINTS: Record<ModuleKind, readonly [number, number]> = {
   solar: [2, 3], greenhouse: [2, 3], habitat: [2, 2], recycler: [2, 2],
   battery: [1, 2], rover: [2, 2], workshop: [2, 2],
+  extractor: [2, 2], depot: [2, 3], purifier: [2, 2], lab: [2, 2],
 }
 export type PlacementError = 'coordinates' | 'bounds' | 'occupied' | null
 

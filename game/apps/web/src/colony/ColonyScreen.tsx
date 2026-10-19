@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { ArrowLeft, ArrowRight, BatteryMedium, Box, Check, ChevronRight, CircleHelp, Droplets, ExternalLink, FlaskConical, Hammer, House, Leaf, Orbit, Package, Pause, Play, Plus, RotateCcw, Sun, Truck, Wrench } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BatteryMedium, Box, Check, ChevronRight, CircleHelp, Droplets, ExternalLink, Filter, FlaskConical, Hammer, House, Leaf, Orbit, Package, Pickaxe, Pause, Play, Plus, RotateCcw, Sun, Truck, Wrench } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { colonyCopy, moduleCopy } from './copy'
 import { COLONY_MANUAL_HARVEST_ENABLED } from '../utils/colonyFeature'
@@ -19,7 +19,11 @@ import NetworkPanel, { networkName } from './NetworkPanel'
 import './colony.css'
 
 const ColonyViewport = lazy(() => import('./ColonyViewport'))
-const ICONS: Record<ModuleKind, LucideIcon> = { solar: Sun, greenhouse: Leaf, habitat: House, recycler: Droplets, rover: Truck, workshop: Wrench, battery: BatteryMedium }
+const ICONS: Record<ModuleKind, LucideIcon> = {
+  solar: Sun, greenhouse: Leaf, habitat: House, recycler: Droplets,
+  rover: Truck, workshop: Wrench, battery: BatteryMedium,
+  extractor: Pickaxe, depot: Package, purifier: Filter, lab: FlaskConical,
+}
 const number = (value: number, decimals = 0): string => value.toFixed(decimals)
 type View = 'base' | 'economy' | 'assets'
 // Same v2 painted art the ARES section screens use; text stays live DOM.

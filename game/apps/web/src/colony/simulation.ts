@@ -4,7 +4,12 @@
  * Evidence, assumptions and deliberately omitted physics: docs/LUNAR_FARM_PLAN.md.
  * No wallet, RPC, token mint, random reward, price oracle or background accrual.
  */
-export type ModuleKind = 'solar' | 'greenhouse' | 'habitat' | 'recycler' | 'rover' | 'workshop' | 'battery'
+export type ModuleKind =
+  | 'solar' | 'greenhouse' | 'habitat' | 'recycler' | 'rover' | 'workshop' | 'battery'
+  // Добыча, склад, очистка и лаборатория раньше существовали только как
+  // подразумеваемая инфраструктура: игрок не мог их поставить, нарастить
+  // или лишиться. Теперь это такие же модули, как остальные.
+  | 'extractor' | 'depot' | 'purifier' | 'lab'
 
 import { networkServices, starterNetworks, placementHitsNetwork, type ColonyNetwork, type ModuleServices } from './networks'
 import { COLONY_MODULE_LIMIT, findPlacement, placementError, type Placement } from './layout'
@@ -33,6 +38,10 @@ export const CATALOG: Record<ModuleKind, { credits: number; wearDay: number; fil
   rover: { credits: 180, wearDay: 0.6, file: 'rover.glb', color: '#e89b6e' },
   workshop: { credits: 140, wearDay: 0.2, file: 'workshop.glb', color: '#adabc8' },
   battery: { credits: 90, wearDay: 0.15, file: 'battery.glb', color: '#d3be85' },
+  extractor: { credits: 160, wearDay: 0.55, file: 'extractor.glb', color: '#c98f5f' },
+  depot: { credits: 70, wearDay: 0.1, file: 'depot.glb', color: '#9aa3ad' },
+  purifier: { credits: 130, wearDay: 0.35, file: 'purifier.glb', color: '#6fb6d8' },
+  lab: { credits: 200, wearDay: 0.25, file: 'lab.glb', color: '#b8a6d9' },
 }
 export const MODULE_KINDS = Object.keys(CATALOG) as ModuleKind[]
 export const SLOTS = Array.from({ length: 24 }, (_, index) => ({

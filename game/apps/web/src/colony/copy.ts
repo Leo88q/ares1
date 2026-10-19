@@ -146,6 +146,10 @@ const moduleEn: Record<ModuleKind, { name: string; code: string; description: st
   rover: { name: 'Utility rover', code: 'ROV', description: '4 kWh/day assumed. Enables dispatch to the local outpost; it does not create food, water or credits.' },
   workshop: { name: 'Workshop', code: 'MRO', description: '2 kWh/day assumed. Enables servicing with a budget and spares. No free self-repair.' },
   battery: { name: 'Battery bank', code: 'BAT', description: '100 kWh · 90% charge and 90% discharge efficiency assumed. Stores energy, never generates it.' },
+  extractor: { name: 'Ice extractor', code: 'EXT', description: 'Mines ice-bearing regolith at a deposit. Throughput depends on power, condition and the hardness of the rock; ore is not water until it is sublimated.' },
+  depot: { name: 'Storage depot', code: 'DEP', description: 'Adds tank and bin capacity. Storage does not produce anything and does not make water or nutrients appear.' },
+  purifier: { name: 'Water purifier', code: 'PRF', description: 'Turns raw water into clean water at a stated litres-per-hour ceiling, spending filters and energy. Yield is below 100% by design.' },
+  lab: { name: 'Field laboratory', code: 'LAB', description: 'Runs assays and controlled A/B experiments. Results arrive with a stated precision after reagents and specialist time are spent.' },
 }
 const moduleRu: typeof moduleEn = {
   solar: { name: 'Солнечный массив', code: 'PWR', description: '40 м² · 12,19 кВт после допущений о КПД и потерях, до износа. Выработка зависит от эффективных часов солнца.' },
@@ -155,6 +159,10 @@ const moduleRu: typeof moduleEn = {
   rover: { name: 'Грузовой вездеход', code: 'ROV', description: 'Допущение 4 кВт·ч/сутки. Открывает отгрузку соседней базе; не создаёт продукты, воду или кредиты.' },
   workshop: { name: 'Мастерская', code: 'MRO', description: 'Допущение 2 кВт·ч/сутки. Даёт обслуживание за бюджет и запчасти. Бесплатного саморемонта нет.' },
   battery: { name: 'Накопитель энергии', code: 'BAT', description: '100 кВт·ч · допущение 90% на заряд и 90% на разряд. Хранит энергию, но не производит её.' },
+  extractor: { name: 'Ледодобытчик', code: 'EXT', description: 'Добывает льдосодержащую породу на месторождении. Производительность зависит от мощности, состояния и крепости породы; порода не вода, пока не отогнана.' },
+  depot: { name: 'Складской блок', code: 'DEP', description: 'Добавляет ёмкость баков и бункеров. Хранение ничего не производит и не заставляет воду или удобрения появиться.' },
+  purifier: { name: 'Водоочистка', code: 'PRF', description: 'Превращает сырую воду в чистую с заявленным пределом литров в час, тратя фильтры и энергию. Выход ниже 100% намеренно.' },
+  lab: { name: 'Полевая лаборатория', code: 'LAB', description: 'Ставит анализы и управляемые A/B-опыты. Результат приходит с указанной точностью после реагентов и времени специалиста.' },
 }
 export function moduleCopy(language: string): typeof moduleEn {
   return language === 'ru' ? moduleRu : moduleEn

@@ -47,5 +47,31 @@ export function createOverviewTemplates(): Map<ModuleKind, THREE.Group> {
   for (const x of [-1.35, 1.35]) for (const z of [-1.05, 1.05]) {
     const wheel = mesh(rover, cylinder, dark, [0.55, 0.35, 0.55], [x, 0.55, z]); wheel.rotation.z = Math.PI / 2
   }
+  // Ледодобытчик: рама, буровая вышка и бункер для породы.
+  const extractor = type('extractor')
+  mesh(extractor, box, bronze, [3.2, 0.25, 3.0], [0, 0.2, 0])
+  mesh(extractor, box, hull, [1.6, 1.4, 1.6], [0, 1.0, -0.4])
+  for (const [x, z] of [[-1.1, -1.0], [1.1, -1.0], [-1.1, 1.0], [1.1, 1.0]] as const) {
+    mesh(extractor, cylinder, dark, [0.18, 2.2, 0.18], [x, 1.3, z])
+  }
+  mesh(extractor, cylinder, dark, [0.22, 2.6, 0.22], [0, 1.7, 0.5]); 
+  mesh(extractor, box, dark, [1.5, 0.9, 1.2], [0, 0.75, 1.5])
+  // Складской блок: длинный низкий контейнер и пара баков.
+  const depot = type('depot')
+  mesh(depot, box, hull, [3.4, 1.8, 5.4], [0, 1.0, 0])
+  mesh(depot, box, bronze, [3.6, 0.22, 5.6], [0, 2.0, 0])
+  for (const z of [-1.6, 1.6]) mesh(depot, cylinder, blue, [0.6, 1.3, 0.6], [1.4, 0.85, z])
+  // Водоочистка: баки и корпус фильтров.
+  const purifier = type('purifier')
+  mesh(purifier, box, bronze, [3.2, 0.25, 3.0], [0, 0.2, 0])
+  for (const x of [-0.8, 0.8]) mesh(purifier, cylinder, blue, [0.7, 2.0, 0.7], [x, 1.2, -0.4])
+  mesh(purifier, box, hull, [2.2, 1.1, 1.0], [0, 0.75, 1.2])
+  mesh(purifier, cylinder, dark, [0.3, 1.4, 0.3], [0, 1.9, 1.2])
+  // Лаборатория: гермоблок со смотровым окном и антенной.
+  const lab = type('lab')
+  mesh(lab, box, hull, [3.2, 2.0, 3.0], [0, 1.1, 0])
+  mesh(lab, box, bronze, [3.4, 0.22, 3.2], [0, 2.2, 0])
+  mesh(lab, box, glass, [1.7, 1.0, 0.1], [0, 1.3, 1.55])
+  mesh(lab, cylinder, dark, [0.1, 1.5, 0.1], [1.3, 2.9, -1.0])
   return templates
 }

@@ -73,6 +73,12 @@ export const DEVICE_FOR_MODULE: Record<ModuleKind, DeviceKind[]> = {
   workshop: ['workshop'],
   recycler: ['o2_gen'],       // агрегатная модель объединяла регенерацию и электролиз
   rover: [],                  // ровер → машина, а не стационарное устройство
+  // То, что раньше подразумевалось само собой, теперь ставится руками:
+  // поставил — получил узел, не поставил или потерял — цепочка встала.
+  extractor: ['extractor'],
+  depot: ['depot'],
+  purifier: ['purifier'],
+  lab: ['lab'],
 }
 
 /**
@@ -128,6 +134,7 @@ export function colonyWorldConfig(state: ColonyState, seed = 0x5eed_1a1a): World
   // должна закрывать дыхательный бюджет и при износе, иначе разовый отказ
   // сразу означает гипоксию, а не «надо починить».
   const breathO2KgPerSol = (state.crew * DEEP_P.crewO2KgPerSol * 1.5) / o2Generators
+  const count = (kind: ModuleKind): number => state.modules.filter(m => m.kind === kind).length
   return {
     crew: CREW_PLAN.slice(0, Math.max(1, state.crew)),
     greenhouses: state.modules.filter(m => m.kind === 'greenhouse').length,
@@ -137,12 +144,16 @@ export function colonyWorldConfig(state: ColonyState, seed = 0x5eed_1a1a): World
     batteries: state.modules.filter(m => m.kind === 'battery').length,
     habitats: state.modules.filter(m => m.kind === 'habitat').length,
     workshops: state.modules.filter(m => m.kind === 'workshop').length,
-    labs: 1,
+    // Один узел каждого вида составляет «базовую» инфраструктуру, поэтому
+    // существующая колония продолжает работать как раньше. Каждый поставленный
+    // игроком модуль сверх того добавляет настоящую мощность: второй
+    // ледодобытчик — это вторая добыча, а не ещё одна иконка.
+    labs: 1 + count('lab'),
     pumps: 1,
-    purifiers: 1,
+    purifiers: 1 + count('purifier'),
     recyclers: 1,
-    extractors: 1,
-    depots: 1,
+    extractors: 1 + count('extractor'),
+    depots: 1 + count('depot'),
     o2Generators,
     scrubbers: 1,
     vehicles: ['scout', 'excavator', 'hauler'],

@@ -12,7 +12,12 @@ const key = (p: Cell): number => p.z * COLONY_GRID_SIZE + p.x
 const inside = (p: Cell): boolean => Number.isInteger(p.x) && Number.isInteger(p.z) && p.x >= 0 && p.z >= 0 && p.x < 48 && p.z < 48
 const same = (a: Cell, b: Cell): boolean => a.x === b.x && a.z === b.z
 export function supportsNetwork(kind: ModuleKind, type: NetworkType): boolean {
-  return type === 'power' || (type === 'tunnel' ? !['solar', 'battery', 'rover'].includes(kind) : ['habitat', 'greenhouse', 'recycler'].includes(kind))
+  // Водяная и возвратная сети — там, где вода реально проходит: жильё,
+  // теплицы, регенерация, очистка и лаборатория. Добытчик стоит на
+  // месторождении за пределами базы, поэтому в водяной контур не входит.
+  if (type === 'power') return true
+  if (type === 'tunnel') return !['solar', 'battery', 'rover', 'extractor'].includes(kind)
+  return ['habitat', 'greenhouse', 'recycler', 'purifier', 'lab'].includes(kind)
 }
 export function ports(m: ColonyModule, type: NetworkType): Cell[] {
   if (!supportsNetwork(m.kind, type)) return []
