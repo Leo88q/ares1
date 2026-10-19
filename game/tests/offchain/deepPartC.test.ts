@@ -4,8 +4,10 @@ import { advanceDay, buildModule, type ColonyState } from '../../apps/web/src/co
 import { buildStartColony, SCENARIOS } from '../../scripts/deepScenario'
 import {
   applyStorageCapacity, createWorld, deliverContract, deliverSamples, isolateSection, prepareEva,
-  requestAnalysis, setSafeMode, takeSample,
+  requestAnalysis, setRisky, setSafeMode, setStandby, takeSample,
 } from '../../apps/web/src/colony/deep/world'
+import { createDevice, deviceUsable, syncStandby } from '../../apps/web/src/colony/deep/devices'
+import { repairDevice } from '../../apps/web/src/colony/deep/reliability'
 import { emptyStepOf } from '../../apps/web/src/colony/deep/bridge'
 import { TASK_META } from '../../apps/web/src/colony/deep/tasks'
 import { colonyWorldConfig } from '../../apps/web/src/colony/deep/bridge'
@@ -373,4 +375,153 @@ test('export and the contract are one instrument, not two', () => {
   assert.ok(Math.abs(world.totals.exportedKg - contractDelivered) < 1e-9,
     `every exported kilogram must be a contract delivery: `
     + `exported ${world.totals.exportedKg} kg vs delivered ${contractDelivered} kg`)
+})
+
+// --- Резервирование и рискованный ремонт -----------------------------------
+
+/**
+ * Резервирования не было вовсе: сломанный агрегат просто выбывал, и второй
+ * корпус того же вида построить было нельзя с пользой — он работал бы на
+ * износ рядом с первым, а не ждал своего часа.
+ */
+test('a standby unit idles while the primary is healthy and takes the load when it drops', () => {
+  const primary = createDevice('pump', 'Насос 1', { sectionId: 'home' })
+  const spare = createDevice('pump', 'Насос 2', { sectionId: 'home', standby: true })
+  syncStandby([primary, spare])
+
+  assert.equal(spare.standbyIdle, true, 'the spare must idle while the primary runs')
+  assert.equal(deviceUsable(spare), false, 'an idling spare must not produce or draw power')
+  assert.equal(deviceUsable(primary), true)
+
+  // Основной выбыл — подхват должен состояться в тот же сол, без вмешательства.
+  primary.fault = {
+    code: 'impeller', diagnosed: false, partsNeeded: 1, repairHours: 4, sinceSol: 10, cause: 'износ',
+  }
+  syncStandby([primary, spare])
+  assert.equal(spare.standbyIdle, false, 'the spare must take over when the primary drops')
+  assert.equal(deviceUsable(spare), true, 'the spare must actually carry the load')
+
+  // Резервы друг друга не подхватывают: два резерва ждали бы третий.
+  const third = createDevice('pump', 'Насос 3', { sectionId: 'home', standby: true })
+  syncStandby([primary, spare, third])
+  assert.equal(third.standbyIdle, false, 'a spare must cover a non-spare failure, not another spare')
+  // И резерв другой секции не считается своим.
+  const elsewhere = createDevice('pump', 'Насос 4', { sectionId: 'greenhouse-1', standby: true })
+  syncStandby([primary, elsewhere])
+  assert.equal(elsewhere.standbyIdle, true, 'a spare from another section must not cover this one')
+})
+
+test('risky repair saves the part and the hours, and costs the condition', () => {
+  const build = (): ReturnType<typeof createDevice> => {
+    const d = createDevice('pump', 'Насос', { sectionId: 'home' })
+    d.wear = 0.5
+    d.condition = 0.5
+    d.fault = { code: 'impeller', diagnosed: true, partsNeeded: 2, repairHours: 4, sinceSol: 1, cause: 'износ' }
+    return d
+  }
+  const careful = build()
+  const carefulResult = repairDevice(careful, 10)
+  assert.ok(carefulResult.ok && carefulResult.parts === 2, 'a careful repair consumes the part')
+
+  const risky = build()
+  const riskyResult = repairDevice(risky, 0, { risky: true })
+  assert.ok(riskyResult.ok, 'a risky repair must work without any part')
+  assert.equal(riskyResult.parts, 0, 'a risky repair consumes no spare')
+  assert.ok(risky.condition < careful.condition - 1e-9,
+    `the unit must come back under-repaired: ${careful.condition.toFixed(3)} careful `
+    + `vs ${risky.condition.toFixed(3)} risky`)
+
+  // Без диагноза обычный ремонт невозможен, рискованный — возможен: это и
+  // есть цена решения (чинят по симптомам, а не по списку работ).
+  const blind = build()
+  blind.fault!.diagnosed = false
+  assert.equal(repairDevice(blind, 10).reason, 'not-diagnosed')
+  assert.ok(repairDevice(blind, 0, { risky: true }).ok, 'a risky repair needs no diagnosis')
+})
+
+test('a risky repair can fail again at once', () => {
+  const always = { state: 0, next: () => 0 }
+  const never = { state: 0, next: () => 0.999 }
+  const build = (): ReturnType<typeof createDevice> => {
+    const d = createDevice('pump', 'Насос', { sectionId: 'home' })
+    d.wear = 0.4
+    d.condition = 0.6
+    d.fault = { code: 'impeller', diagnosed: false, partsNeeded: 2, repairHours: 4, sinceSol: 1, cause: 'износ' }
+    return d
+  }
+  const lucky = build()
+  const luckyResult = repairDevice(lucky, 0, { risky: true, rng: never })
+  assert.equal(luckyResult.reason, 'repaired-risky')
+  assert.equal(lucky.fault, null, 'when luck holds, the unit runs')
+
+  const unlucky = build()
+  const unluckyResult = repairDevice(unlucky, 0, { risky: true, rng: always })
+  assert.equal(unluckyResult.reason, 'repaired-risky-refault')
+  assert.ok(unlucky.fault, 'a risky repair may not hold: the cause was never fixed')
+  assert.equal(unlucky.fault!.diagnosed, false, 'the new failure is undiagnosed again')
+})
+
+test('a risky repair skips the diagnosis and the spare in a live colony', () => {
+  // Оба прогона получают один и тот же отказ; отличается только флаг.
+  // Без контроля тест проходил бы впустую: отсутствие часов осмотра могло
+  // означать просто то, что осмотр не планируется никогда.
+  const rig = (s: ColonyState) => s.world!.devices.find(d => d.kind === 'extractor')!
+  const fault = () => ({ code: 'seizure', diagnosed: false, partsNeeded: 2, repairHours: 4, sinceSol: 1, cause: 'износ' })
+  const start = (): ColonyState => {
+    const s = step(buildStartColony())
+    rig(s).fault = fault()
+    return s
+  }
+  let treated = start(), control = start()
+  setRisky(treated.world!, rig(treated).id, true)
+  const partsBefore = treated.world!.stock.amount.parts
+
+  for (let sol = 0; sol < 8; sol++) { treated = step(treated); control = step(control) }
+
+  const inspectControl = control.world!.totals.labourByKind.inspect ?? 0
+  const inspectTreated = treated.world!.totals.labourByKind.inspect ?? 0
+  assert.ok(inspectControl > 0,
+    'the control run must spend hours on a diagnosis — otherwise the test proves nothing')
+  assert.ok(inspectTreated < inspectControl,
+    `a risky repair must not spend hours on a diagnosis: ${inspectControl.toFixed(1)} h careful `
+    + `vs ${inspectTreated.toFixed(1)} h risky`)
+
+  // И не берет запчасть: в рискованном прогоне расход деталей не вырос.
+  const partsTreated = treated.world!.stock.amount.parts
+  assert.ok(partsTreated >= partsBefore - 1e-9,
+    `a risky repair must consume no spare: ${partsBefore} → ${partsTreated}`)
+  // Но агрегат чинили: цена уплачена состоянием и риском повторного отказа,
+  // а не тем, что работу просто не делали.
+  assert.ok((treated.world!.totals.labourByKind.repair ?? 0) > 0,
+    'the rig must actually have been repaired, not skipped')
+})
+
+test('a standby unit idles at no cost and takes the load the sol the primary drops', () => {
+  const pump = (s: ColonyState) => s.world!.devices.find(d => d.kind === 'pump')!
+  let state = step(buildStartColony())
+  const spare = createDevice('pump', 'Насос-резерв', { sectionId: pump(state).sectionId ?? null, standby: true })
+  state.world!.devices.push(spare)
+  const spareOf = (s: ColonyState) => s.world!.devices.find(d => d.id === spare.id)!
+
+  // Фаза 1: основной исправен, резерв стоит. Он не работает и не изнашивается —
+  // иначе резерв был бы просто вторым работающим агрегатом.
+  for (let sol = 0; sol < 4; sol++) state = step(state)
+  assert.equal(spareOf(state).standbyIdle, true, 'the spare must idle while the primary is healthy')
+  assert.equal(spareOf(state).hoursOperating, 0, 'an idling spare must not run up hours')
+  assert.equal(spareOf(state).wear, 0, 'an idling spare must not wear')
+
+  // Фаза 2: основной выбыл, подхват в тот же сол, без участия игрока.
+  pump(state).fault = {
+    code: 'impeller', diagnosed: true, partsNeeded: 2, repairHours: 400, sinceSol: 1, cause: 'износ',
+  }
+  const hoursBefore = spareOf(state).hoursOperating
+  state = step(state)
+  assert.equal(spareOf(state).standbyIdle, false, 'the spare must take over the sol the primary drops')
+  assert.ok(spareOf(state).hoursOperating > hoursBefore,
+    `the spare must actually run: ${hoursBefore.toFixed(1)} h → `
+    + `${spareOf(state).hoursOperating.toFixed(1)} h`)
+
+  // Честное ограничение: насос не узкое место номинального сценария, поэтому
+  //end-to-end вода не меняется — резерв закрывает простой агрегата, а не дефицит
+  // сырья. Проверять «воды стало больше» значит проверять чужой механизм.
 })

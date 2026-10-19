@@ -70,6 +70,12 @@ const en = {
   safeMode: 'Safe mode', safeModeOn: 'Enter safe mode', safeModeOff: 'Return to service',
   isolate: 'Seal off', reconnect: 'Reconnect', isolated: 'Sealed',
   safeModeNote: 'Safe mode stops the unit: it draws no power and produces nothing.',
+  standby: 'Standby', standbyOn: 'standby', standbyOff: 'duty',
+  standbyNote: 'Standby: an idle spare of the same kind in this section. It does not run, '
+    + 'wear or draw power until the primary drops out — then it takes the load in the same sol.',
+  risky: 'Risky repair', riskyOn: 'risky',
+  riskyNote: 'Risky repair: no diagnosis and no spare part, twice as fast — but the unit comes '
+    + 'back under-repaired and may fail again at once.',
   ship: 'Ship', shipKg: 'Ship', nothingToShip: 'nothing to ship', ware: 'Ware lot',
   isolateNote: 'A sealed section is cut off from life support: no make-up oxygen, no scrubbing.',
 
@@ -159,6 +165,13 @@ const ru: typeof en = {
   safeMode: 'Безопасный режим', safeModeOn: 'В безопасный режим', safeModeOff: 'Вернуть в работу',
   isolate: 'Изолировать', reconnect: 'Подключить обратно', isolated: 'Изолирована',
   safeModeNote: 'Безопасный режим останавливает агрегат: он не берёт мощность и не даёт выхода.',
+  standby: 'Резерв', standbyOn: 'в резерве', standbyOff: 'в работе',
+  standbyNote: 'Резерв: праздный агрегат того же вида в этой секции. Он не работает, не '
+    + 'изнашивается и не берёт мощность, пока основной исправен, — и берёт нагрузку в тот же сол, '
+    + 'когда основной выбыл.',
+  risky: 'Рискованный ремонт', riskyOn: 'рискованно',
+  riskyNote: 'Рискованный ремонт: без диагноза и без запчасти, вдвое быстрее — но агрегат '
+    + 'выходит недочиненным и может встать снова сразу.',
   ship: 'Отгрузка', shipKg: 'Отгрузить', nothingToShip: 'нечего везти', ware: 'Товарная партия',
   isolateNote: 'Изолированная секция отрезана от жизнеобеспечения: нет подпитки кислородом и очистки.',
 

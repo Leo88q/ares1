@@ -56,6 +56,23 @@ export interface Device {
   /** Безопасный режим для ремонта: агрегат остановлен сознательно. */
   safeMode: boolean
   /**
+   * Холодный резерв: агрегат стоит готовым и не работает, пока его виды в
+   * этой секции исправны. Игрок платит за второй корпус массой, объёмом и
+   * обслуживанием — и получает подхват, когда основной встал.
+   */
+  standby: boolean
+  /**
+   * Вычисляется раз в сол: резерв не нужен, поэтому стоит. Производный
+   * признак, а не настройка: хранится в агрегате, чтобы `deviceUsable`
+   * остался чистым предикатом без доступа к миру.
+   */
+  standbyIdle: boolean
+  /**
+   * Рискованный ремонт: чинить без диагноза и без запчасти, быстро, но
+   * агрегат выходит из ремонта недочиненным и может встать снова.
+   */
+  risky: boolean
+  /**
    * Есть ли подключение по сетям колонии. false — агрегат отсоединён
    * (нет питания/воды/доступа): не потребляет, не выдаёт и не заряжается.
    * Ставится мостом из `networkServices` существующей колонии.
@@ -143,6 +160,9 @@ export function createDevice(
     fault: null,
     enabled: options.enabled ?? true,
     safeMode: false,
+    standby: options.standby ?? false,
+    standbyIdle: false,
+    risky: false,
     connected: options.connected ?? true,
     duty: 1,
     powerFraction: 0, receivedKw: 0,
@@ -161,9 +181,32 @@ export function resetDeviceIds(): void {
   deviceCounter = 0
 }
 
-/** Агрегат может работать сейчас: включён, не в безопасном режиме, без отказа. */
-export const deviceUsable = (d: Device): boolean =>
+/** Состояние агрегата без учёта резерва: для подсчёта «нужен ли подхват». */
+export const deviceHealthy = (d: Device): boolean =>
   d.enabled && d.connected && !d.safeMode && d.fault === null
+
+/**
+ * Агрегат может работать сейчас: включён, не в безопасном режиме, без
+ * отказа — и не простаивает в резерве. Резерв, который стоит без дела,
+ * не потребляет и не изнашивается; как только основной его вида в секции
+ * выбыл, резерв перестаёт быть праздным и берёт нагрузку.
+ */
+export const deviceUsable = (d: Device): boolean => deviceHealthy(d) && !d.standbyIdle
+
+/**
+ * Пересчитать, какие резервы сейчас нужны. Один раз за сол, до производства.
+ * Резерв включается, если в той же секции есть агрегат того же вида, который
+ * здоров как узел, но не может работать, либо выбыл сам. Резервы друг друга
+ * не подхватывают — иначе два резерва будут ждать третий.
+ */
+export function syncStandby(devices: Device[]): void {
+  for (const d of devices) {
+    if (!d.standby) { d.standbyIdle = false; continue }
+    const needed = devices.some(o => o !== d && o.kind === d.kind && o.sectionId === d.sectionId
+      && !o.standby && !deviceHealthy(o))
+    d.standbyIdle = !needed
+  }
+}
 
 /**
  * Реальная производительность агрегата: доля мощности × состояние.

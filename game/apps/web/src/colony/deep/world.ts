@@ -28,7 +28,7 @@ import {
 } from './tasks'
 import {
   createDevice, deviceHeatKw, deviceIdleReason, deviceOutput, deviceUsable, isGenerator, resetDeviceIds,
-  type Device,
+  syncStandby, type Device,
 } from './devices'
 import {
   airlockLoss, createSection, drainCondensate, injectO2, leakSection, outsideTemperatureC, scrubCo2,
@@ -662,7 +662,13 @@ function planTasks(world: ColonyWorld): void {
   // уборку навсегда.
   for (const batch of world.batches) batch.harvestReady = false
   for (const device of world.devices) {
-    if (device.fault && !device.fault.diagnosed && !hasOpenTask(world, 'inspect', device.id)) {
+    // Рискованный ремонт чинит по симптомам: ни осмотра, ни запчасти.
+    if (device.fault && device.risky && !hasOpenTask(world, 'repair', device.id)) {
+      addTask(world, {
+        kind: 'repair', targetId: device.id, sol, priority: 1,
+        requiredHours: device.fault.repairHours * DEEP_P.riskyRepairHoursShare,
+      })
+    } else if (device.fault && !device.fault.diagnosed && !hasOpenTask(world, 'inspect', device.id)) {
       addTask(world, { kind: 'inspect', targetId: device.id, requiredHours: DEEP_P.inspectHours, sol, priority: 1 })
     } else if (device.fault?.diagnosed && !hasOpenTask(world, 'repair', device.id)) {
       addTask(world, {
@@ -981,7 +987,10 @@ function blockReason(world: ColonyWorld, task: Task): { code: string; reason: st
       // принимать за «цели нет» и проваливаться в ветку машины.
       const fault = device ? device.fault : vehicle!.fault
       if (task.kind === 'maintain' && fault) return { code: BLOCK_CODES.faulty, reason: 'сначала ремонт' }
-      if (task.kind === 'repair' && (!fault || !fault.diagnosed)) return { code: BLOCK_CODES.noAccess, reason: 'отказ не диагностирован' }
+      const risky = device ? device.risky : vehicle!.risky
+      if (task.kind === 'repair' && (!fault || (!fault.diagnosed && !risky))) {
+        return { code: BLOCK_CODES.noAccess, reason: 'отказ не диагностирован' }
+      }
       if (task.kind === 'inspect' && !fault) return { code: BLOCK_CODES.noTarget, reason: 'отказа нет' }
       return null
     }
@@ -1063,10 +1072,20 @@ function completeTask(world: ColonyWorld, task: Task, step?: SolStep): void {
       const vehicle = device ? undefined : world.vehicles.find(v => v.id === target)
       const parts = task.materials.reduce((sum, m) => sum + m.consumed, 0)
       if (device?.fault) {
-        const result = repairDevice(device, parts)
+        // Риск бросает ГПСЧ мира: решение игрока не должно менять
+        // воспроизводимость прогона.
+        const rng = rngFromState(world.rngState)
+        const result = repairDevice(device, parts, device.risky ? { risky: true, rng } : {})
+        world.rngState = rng.state
         if (result.ok) {
           world.totals.partsUsed += result.parts
-          pushEvent(world, 'repaired', 'info', `${device.name}: ремонт завершён (${result.parts} деталей)`,
+          const risky = result.reason === 'repaired-risky' || result.reason === 'repaired-risky-refault'
+          if (risky) pushEvent(world, 'repaired-risky', 'warn',
+            `${device.name}: рискованный ремонт без запчасти — состояние ${round(device.condition, 2)}`
+            + (result.reason === 'repaired-risky-refault' ? ', агрегат встал снова' : ''),
+            `${device.name}: risky repair with no spare — condition ${round(device.condition, 2)}`
+            + (result.reason === 'repaired-risky-refault' ? ', failed again' : ''), device.id)
+          else pushEvent(world, 'repaired', 'info', `${device.name}: ремонт завершён (${result.parts} деталей)`,
             `${device.name}: repair finished (${result.parts} parts)`, device.id)
         }
       } else if (vehicle?.fault) {
@@ -1841,6 +1860,9 @@ export function stepSol(world: ColonyWorld, inputs: SolInputs): ColonyWorld {
   // Вчерашние пробы доезжают до лаборатории: анализ возможен только с ними
   // в руках, а не с момента отбора.
   deliverSamples(next)
+  // Резерв включается до производства: подхват должен состояться в тот же
+  // сол, когда основной выбыл, а не на следующий.
+  syncStandby(next.devices)
   const scenario = next.scenario
   const sunHours = inputs.sunHours ?? scenario.sunHours
   const weatherFactor = inputs.weatherFactor ?? scenario.weatherFactor
@@ -2250,6 +2272,29 @@ export function setSafeMode(world: ColonyWorld, deviceId: string, on: boolean): 
   if (!device) return false
   device.safeMode = on
   return true
+}
+
+/** Назначить агрегат холодным резервом своего вида в своей секции. */
+export function setStandby(world: ColonyWorld, deviceId: string, on: boolean): boolean {
+  const device = world.devices.find(d => d.id === deviceId)
+  if (!device) return false
+  device.standby = on
+  syncStandby(world.devices)
+  return true
+}
+
+/**
+ * Разрешить рискованный ремонт: без диагноза, без запчасти и вдвое быстрее,
+ * но агрегат выходит недочиненным и может встать снова. Разрешение даётся
+ * агрегату или машине, а не задаче: пока флаг снят, обычный порядок
+ * восстановлен.
+ */
+export function setRisky(world: ColonyWorld, targetId: string, on: boolean): boolean {
+  const device = world.devices.find(d => d.id === targetId)
+  if (device) { device.risky = on; return true }
+  const vehicle = world.vehicles.find(v => v.id === targetId)
+  if (vehicle) { vehicle.risky = on; return true }
+  return false
 }
 
 /** Зеркало немытого картофеля из реестра еды. */

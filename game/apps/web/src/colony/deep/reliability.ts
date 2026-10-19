@@ -64,17 +64,41 @@ export function diagnoseFault(device: Device): boolean {
 }
 
 /** Ремонт: нужен диагноз, детали и время. Мгновенного бесплатного ремонта нет. */
-export function repairDevice(device: Device, partsAvailable: number): { ok: boolean; parts: number; reason: string } {
+export function repairDevice(
+  device: Device, partsAvailable: number,
+  opts: { risky?: boolean; rng?: Rng } = {},
+): { ok: boolean; parts: number; reason: string } {
   const fault = device.fault
   if (!fault) return { ok: false, parts: 0, reason: 'no-fault' }
-  if (!fault.diagnosed) return { ok: false, parts: 0, reason: 'not-diagnosed' }
-  if (partsAvailable < fault.partsNeeded) return { ok: false, parts: 0, reason: 'no-parts' }
+  // Рискованный ремонт идёт без диагноза: чинят «по symptoms», а не по списку
+  // работ. Диагноз — это отдельный выход специалиста и отдельные часы.
+  if (!fault.diagnosed && !opts.risky) return { ok: false, parts: 0, reason: 'not-diagnosed' }
+  // И без запчасти: перемычка, обмотка, обрезка — но ресурс не вернуть.
+  if (!opts.risky && partsAvailable < fault.partsNeeded) return { ok: false, parts: 0, reason: 'no-parts' }
+  const parts = opts.risky ? 0 : fault.partsNeeded
+  if (!opts.risky && partsAvailable < parts) return { ok: false, parts: 0, reason: 'no-parts' }
   device.fault = null
   device.safeMode = false
-  device.wear = clamp01(device.wear * (1 - DEEP_P.repairRestoresCondition))
+  // Рискованный ремонт возвращает лишь долю ресурса: агрегат на ходу, но
+  // хрупкий, и следующий отказ придёт раньше.
+  const share = opts.risky ? DEEP_P.riskyRepairConditionShare : 1
+  device.wear = clamp01(device.wear * (1 - DEEP_P.repairRestoresCondition * share))
   device.condition = clamp01(1 - device.wear)
   device.hoursSinceService = 0
-  return { ok: true, parts: fault.partsNeeded, reason: 'repaired' }
+  // И он может не продержаться: перемычка не лечит причину. Отказ приходит
+  // немедленно, а не «когда-нибудь» — игрок видит цену решения в тот же сол.
+  if (opts.risky && opts.rng && opts.rng.next() < DEEP_P.riskyRepairRefaultChance) {
+    // Тот же код поломки: причина не устранена, перемычка лишь сняла симптом.
+    device.fault = {
+      code: fault.code, diagnosed: false, partsNeeded: fault.partsNeeded,
+      repairHours: fault.repairHours, sinceSol: 0,
+      cause: 'рискованный ремонт: причина не устранена',
+    }
+    device.wear = clamp01(device.wear + 0.05)
+    device.condition = clamp01(1 - device.wear)
+    return { ok: true, parts: 0, reason: 'repaired-risky-refault' }
+  }
+  return { ok: true, parts, reason: opts.risky ? 'repaired-risky' : 'repaired' }
 }
 
 /** Регламентное обслуживание: сбрасывает счётчик и частично возвращает ресурс. */

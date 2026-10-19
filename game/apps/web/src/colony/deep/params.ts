@@ -269,6 +269,12 @@ const LIST: ParamSpec[] = [
   spec('repairPartsBase', 1, 'шт', 0, 20, 'assumption', 'reliability', 'Базовое число деталей для ремонта.'),
   spec('repairRestoresCondition', 0.75, '1', 0, 1, 'balance', 'reliability',
     'Ремонт возвращает часть состояния; полная замена недоступна в этой итерации.'),
+  spec('riskyRepairConditionShare', 0.35, 'доля', 0, 1, 'assumption', 'reliability',
+    'Какая доля обычного восстановления достаётся рискованному ремонту: агрегат выходит из ремонта недочиненным.'),
+  spec('riskyRepairRefaultChance', 0.3, 'вероятность', 0, 1, 'assumption', 'reliability',
+    'Вероятность, что рискованный ремонт не продержится и агрегат встанет снова сразу.'),
+  spec('riskyRepairHoursShare', 0.5, 'доля', 0.05, 1, 'assumption', 'reliability',
+    'Доля длительности обычного ремонта при рискованном: вдвое быстрее, но без запчасти и диагноза.'),
 
   // --- Лаборатория --------------------------------------------------------
   spec('sampleHours', 0.5, 'h', 0.1, 6, 'assumption', 'lab', 'Труд на отбор пробы.'),

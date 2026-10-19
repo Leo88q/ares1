@@ -80,6 +80,12 @@ export interface Vehicle {
   unattendedHours: number
   /** Простой по причине (для журнала). */
   idleReason: string | null
+  /**
+   * Рискованный ремонт: чинить без диагноза и без запчасти, быстро, но
+   * машина выходит недочиненной и может встать снова. Решение игрока, а не
+   * автоматическая политика — отказ ровера стоит дороже отказа насоса.
+   */
+  risky: boolean
 }
 
 export function createVehicle(id: string, name: string, vehicleClass: VehicleClass): Vehicle {
@@ -93,6 +99,7 @@ export function createVehicle(id: string, name: string, vehicleClass: VehicleCla
     at: 'base', destination: null, travelledKm: 0, legKm: 0,
     state: 'idle', jobId: null, operatorId: null,
     autonomy: profile.autonomy, odometerKm: 0, unattendedHours: 0, idleReason: null,
+    risky: false,
   }
 }
 

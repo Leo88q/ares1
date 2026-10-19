@@ -7,7 +7,7 @@ import { TASK_META } from './deep/tasks'
 import { ANALYSIS_KINDS, ANALYSIS_META } from './deep/lab'
 import {
   applyRecipe, deliverContract, isolateSection, requestAnalysis, reserveSolsOf, saveRecipe,
-  setSafeMode, setTaskPaused, setTaskPriority, startExperiment, takeSample,
+  setRisky, setSafeMode, setStandby, setTaskPaused, setTaskPriority, startExperiment, takeSample,
 } from './deep/world'
 import { finishExperiment } from './deep/lab'
 import { batchStage, batchSummary, projectedYieldKg, STAGE_LABEL, FACTOR_LABEL } from './deep/growth'
@@ -431,7 +431,7 @@ function RepairPanel({ world, language, onChange }: { world: ColonyWorld; langua
   return <section className="colony-study-card">
     <p className="colony-eyebrow">{c.repairTitle}</p>
     <div className="colony-table-scroll"><table>
-      <thead><tr><th>{c.device}</th><th>{c.condition}</th><th>{c.connected}</th><th>{c.fault}</th><th>{c.attention}</th><th>{c.safeMode}</th></tr></thead>
+      <thead><tr><th>{c.device}</th><th>{c.condition}</th><th>{c.connected}</th><th>{c.fault}</th><th>{c.attention}</th><th>{c.safeMode}</th><th>{c.standby}</th><th>{c.risky}</th></tr></thead>
       <tbody>{world.devices.map((d: Device) => {
         const note = byId.get(d.id)
         return <tr key={d.id} data-testid={`deep-device-${d.id}`}>
@@ -444,11 +444,21 @@ function RepairPanel({ world, language, onChange }: { world: ColonyWorld; langua
             aria-pressed={d.safeMode}
             onClick={() => { setSafeMode(world, d.id, !d.safeMode); onChange() }}>
             {d.safeMode ? c.safeModeOff : c.safeModeOn}</button></td>
+          <td><button type="button" data-testid={`deep-standby-${d.id}`}
+            aria-pressed={d.standby}
+            onClick={() => { setStandby(world, d.id, !d.standby); onChange() }}>
+            {d.standby ? c.standbyOn : c.standbyOff}</button></td>
+          <td><button type="button" data-testid={`deep-risky-${d.id}`}
+            aria-pressed={d.risky}
+            onClick={() => { setRisky(world, d.id, !d.risky); onChange() }}>
+            {c.riskyOn}</button></td>
         </tr>
       })}</tbody>
     </table></div>
     {attention.length === 0 && <p className="colony-fineprint">{c.noFaults}</p>}
     <p className="colony-fineprint">{c.safeModeNote}</p>
+    <p className="colony-fineprint">{c.standbyNote}</p>
+    <p className="colony-fineprint">{c.riskyNote}</p>
   </section>
 }
 
