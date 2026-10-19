@@ -165,24 +165,5 @@ export interface ContractSummary {
   fundLeftCR: number
 }
 
-export function contractSummary(contracts: readonly Contract[]): ContractSummary {
-  return {
-    active: contracts.filter(c => c.status === 'active').length,
-    fulfilled: contracts.filter(c => c.status === 'fulfilled').length,
-    expired: contracts.filter(c => c.status === 'expired').length,
-    requiredKg: contracts.reduce((sum, c) => sum + c.requiredKg, 0),
-    deliveredKg: contracts.reduce((sum, c) => sum + c.deliveredKg, 0),
-    paidCR: contracts.reduce((sum, c) => sum + c.paidCR, 0),
-    fundLeftCR: contracts.reduce((sum, c) => sum + Math.max(0, c.rewardFundCR - c.paidCR), 0),
-  }
-}
 
 /** Проверка: одна поставка не оплачивается дважды (номера уникальны). */
-export function deliveriesUnique(contracts: readonly Contract[]): boolean {
-  const seen = new Set<string>()
-  for (const contract of contracts) for (const delivery of contract.deliveries) {
-    if (seen.has(delivery.id)) return false
-    seen.add(delivery.id)
-  }
-  return true
-}

@@ -20,7 +20,7 @@
  *    `cableLimitKw`, и это ограничение видно игроку.
  */
 import { DEEP_P } from './params'
-import { SOL_HOURS, clamp01, fraction } from './units'
+import { SOL_HOURS, clamp01 } from './units'
 import { deviceUsable, isBattery, isGenerator, type Device } from './devices'
 
 /** Доля сола со светом. */
@@ -40,10 +40,6 @@ export function solarOutputKw(device: Device, solHour: number, sunHours: number,
   const amplitude = (sunHours / LIT_HOURS) * (Math.PI / 2)
   return Math.max(0, device.peakKw * shape * amplitude * (1 - clamp01(device.dust)) * clamp01(device.condition) * clamp01(weatherFactor))
 }
-
-/** Суточная выработка батареи, kWh (совпадает с агрегатной моделью колонии). */
-export const solarDailyKwh = (device: Device, sunHours: number, weatherFactor: number): number =>
-  isGenerator(device) ? device.peakKw * sunHours * (1 - clamp01(device.dust)) * clamp01(device.condition) * clamp01(weatherFactor) : 0
 
 export interface PowerLoad {
   id: string
@@ -230,13 +226,6 @@ export function accumulateDust(device: Device, shareOfSol: number, dustRateMulti
   device.dust = clamp01(device.dust + DEEP_P.dustAccumulationPerSol * shareOfSol * dustRateMultiplier)
 }
 
-export function cleanPanels(device: Device): number {
-  if (!isGenerator(device)) return 0
-  const before = device.dust
-  device.dust = clamp01(device.dust * (1 - DEEP_P.dustCleanRestore))
-  return before - device.dust
-}
-
 /** Потеря генерации от пыли по всей базе, 0…1. */
 export const dustLoss = (devices: readonly Device[]): number => {
   const arrays = devices.filter(isGenerator)
@@ -245,4 +234,3 @@ export const dustLoss = (devices: readonly Device[]): number => {
 }
 
 /** Доля обеспеченности спроса генерацией (для интерфейса). */
-export const supplyAdequacy = (result: PowerResult): number => fraction(result.servedKw, result.demandKw)

@@ -40,9 +40,6 @@ export function uniform(rng: Rng, min: number, max: number): number {
 }
 
 /** Целое число в [min, max]. */
-export function uniformInt(rng: Rng, min: number, max: number): number {
-  return Math.floor(uniform(rng, min, max + 1))
-}
 
 /** Нормальное распределение (Марсалья). Используется для шума измерений. */
 export function normal(rng: Rng, mean = 0, deviation = 1): number {
@@ -62,11 +59,3 @@ export function hazardProbability(hazardPerHour: number, hours: number): number 
 }
 
 /** Стабильный строковый хеш → 32-битный seed (для seed от названия сценария). */
-export function hashSeed(text: string): number {
-  let hash = 2166136261
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i)
-    hash = Math.imul(hash, 16777619)
-  }
-  return hash >>> 0
-}

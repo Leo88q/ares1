@@ -23,11 +23,11 @@ import {
 } from './crew'
 import {
   BLOCK_CODES, TASK_META, autoAssign, compareTasks, consumeMaterials, createTask,
-  isFinished, isOpen, releaseMaterials, reserveMaterials, taskRemaining, taskQueueSummary,
+  isFinished, isOpen, releaseMaterials, reserveMaterials, taskRemaining,
   type Task, type TaskKind,
 } from './tasks'
 import {
-  createDevice, deviceHeatKw, deviceIdleReason, deviceOutput, deviceUsable, isGenerator, resetDeviceIds,
+  createDevice, deviceHeatKw, deviceOutput, deviceUsable, isGenerator, resetDeviceIds,
   syncStandby, type Device,
 } from './devices'
 import {
@@ -35,7 +35,7 @@ import {
   stepSectionCirculation, stepSectionHumidity, stepSectionThermal, atmosphereQuality, co2PartialKpa, o2PartialKpa,
   totalPressureKpa, KELVIN, R_GAS, MOLAR_O2, type Section,
 } from './sections'
-import { accumulateDust, dispatchPower, reserveSols, solarDailyKwh } from './power'
+import { accumulateDust, dispatchPower, reserveSols } from './power'
 import {
   attentionList, diagnoseFault, diagnoseVehicle, repairDevice, repairVehicle, serviceDevice, serviceVehicle,
   stepDeviceReliability, stepVehicleReliability,
@@ -63,7 +63,7 @@ import {
 } from './lab'
 import { compostToNutrients, createCompostBatch, stepComposting, type CompostBatch } from './waste'
 import {
-  contractSummary, createContract, deliverToContract, estimatePotato, expireContract,
+  createContract, deliverToContract, estimatePotato, expireContract,
   type Contract, type ContractSeed, type PotatoEstimate,
 } from './contracts'
 
@@ -87,10 +87,6 @@ export interface DeepScenario {
   coldDropC: number
   /** Принудительный отказ: устройство выходит из строя на заданном солу. */
   forcedFault?: { sol: number; deviceKind: Device['kind'] } | null
-}
-
-export const DEFAULT_DEEP_SCENARIO: DeepScenario = {
-  sunHours: 18, weatherFactor: 1, dustRate: 1, coldDropC: 0, forcedFault: null,
 }
 
 // --- События и метрики -----------------------------------------------------
@@ -603,14 +599,6 @@ export function pushEvent(world: ColonyWorld, code: string, severity: EventSever
 const nextId = (world: ColonyWorld, key: string): number => {
   world.counters[key] = (world.counters[key] ?? 0) + 1
   return world.counters[key]
-}
-
-export const deviceById = (world: ColonyWorld, id: string): Device | undefined => world.devices.find(d => d.id === id)
-export const batchesOf = (world: ColonyWorld, greenhouseId: string): CropBatch[] =>
-  world.batches.filter(b => b.greenhouseId === greenhouseId).sort((a, b) => a.bedIndex - b.bedIndex)
-export const sectionOfDevice = (world: ColonyWorld, id: string): Section | undefined => {
-  const device = world.devices.find(d => d.id === id)
-  return device?.sectionId ? world.sections.find(s => s.id === device.sectionId) : undefined
 }
 
 const addTask = (world: ColonyWorld, spec: Parameters<typeof createTask>[1]): Task => {
@@ -2270,22 +2258,6 @@ export function setTaskPaused(world: ColonyWorld, taskId: string, paused: boolea
 }
 
 /** Назначить человека на задачу вручную (снимает с предыдущей). */
-export function assignCrewToTask(world: ColonyWorld, crewId: string, taskId: string | null): boolean {
-  const member = world.crew.find(c => c.id === crewId)
-  if (!member) return false
-  if (member.taskId) {
-    const previous = world.tasks.find(t => t.id === member.taskId)
-    if (previous) previous.assignees = previous.assignees.filter(id => id !== crewId)
-    member.taskId = null
-  }
-  if (!taskId) return true
-  const task = world.tasks.find(t => t.id === taskId)
-  if (!task || !isOpen(task)) return false
-  if (task.assignees.length >= task.crewNeeded) return false
-  task.assignees.push(crewId)
-  member.taskId = taskId
-  return true
-}
 
 /** Изолировать секцию: аварийная мера при утечке. */
 export function isolateSection(world: ColonyWorld, sectionId: string, isolated: boolean): boolean {
@@ -2332,12 +2304,6 @@ export const setSortableRawKg = (world: ColonyWorld, kg: number): void => { worl
 
 // --- Сводки для интерфейса -------------------------------------------------
 
-export const dailySolarKwhOf = (world: ColonyWorld): number =>
-  world.devices.filter(isGenerator).reduce((sum, d) => sum + solarDailyKwh(d, world.scenario.sunHours, world.scenario.weatherFactor), 0)
 export const reserveSolsOf = (world: ColonyWorld): number => reserveSols(world.devices)
 export const attention = (world: ColonyWorld) => attentionList(world)
-export const idleReasons = (world: ColonyWorld): Record<string, string | null> =>
-  Object.fromEntries(world.devices.map(d => [d.id, deviceIdleReason(d)]))
-export const contractsOf = (world: ColonyWorld) => contractSummary(world.contracts)
-export const taskQueueOf = (world: ColonyWorld) => taskQueueSummary(world.tasks)
 export { TASK_META }

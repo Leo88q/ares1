@@ -10,7 +10,6 @@
  * Ни одно значение в этом файле не выдаётся за измерённую марсианскую
  * агротехнику или сертифицированную инженерную систему жизнеобеспечения.
  */
-import { SOL_HOURS } from './units'
 
 export type ParamSource = 'measured' | 'derived' | 'assumption' | 'balance'
 export interface ParamSpec<T = number> {
@@ -310,23 +309,7 @@ export const DEEP_P = Object.freeze(
 /** Полная таблица для документации, UI и тестов границ. */
 export const DEEP_PARAM_TABLE: readonly ParamSpec[] = Object.freeze(LIST.map(p => ({ ...p })))
 
-/** Группы параметров для секций документации. */
-export const DEEP_PARAM_GROUPS: readonly string[] = Object.freeze(
-  [...new Set(LIST.map(p => p.group))],
-)
-
-/** Есть ли внешний источник у параметра (для UI-метки «источник / допущение»). */
-export const hasExternalSource = (key: string): boolean =>
-  LIST.some(p => p.key === key && (p.source === 'measured' || (p.source === 'derived' && !!p.ref)))
-
 // --- Вспомогательные производные ---
-
-/** Часов работы оборудования за один сол при полной нагрузке. */
-export const operatingHoursPerSol = (): number => SOL_HOURS
-
-/** Предел мощности аккумулятора (kW) при заданной ёмкости (kWh). */
-export const batteryPowerLimitKw = (capacityKwh: number): number =>
-  capacityKwh * DEEP_P.batteryC_rate
 
 /** Ключи параметров (выводится из списка, чтобы не расходиться с реестром). */
 const PARAM_KEY_LIST = LIST.map(p => p.key)

@@ -15,7 +15,6 @@
  */
 import { DEEP_P } from './params'
 import { clamp, clamp01, fraction } from './units'
-import { harvestFactor } from '../../organism/beds'
 
 export type CropStage = 'empty' | 'sprout' | 'vegetative' | 'tuber' | 'mature' | 'dead'
 
@@ -309,24 +308,8 @@ export function projectedYieldKg(batch: CropBatch): number {
 }
 
 /** Фактор окна уборки: перестой и ранняя уборка снижают выход (правило T2). */
-export const windowFactor = (ratio: number): number => harvestFactor(ratio)
-
-
 
 /** Сброс грядки после уборки: развитие обнуляется, требуется посадка заново. */
-export function clearBatch(batch: CropBatch): void {
-  batch.development = 0
-  batch.stress = 0
-  batch.yieldPenalty = 0
-  batch.health = 0
-  batch.plantedSol = null
-  batch.seedKg = 0
-  batch.density = 0
-  batch.stage = 'empty'
-  batch.lastTendSol = null
-  batch.waterlogSol = null
-  batch.harvestedKg = 0
-}
 
 /** Посадка: семенной картофель — физический ресурс, норма посадки ограничена. */
 export function plantBatch(batch: CropBatch, sol: number, seedKg: number, areaM2: number): { planted: boolean; density: number } {
@@ -354,10 +337,6 @@ export const seedNeededKg = (areaM2: number): number => areaM2 * DEEP_P.seedRate
  * Предел размножения: из одного кг семян за цикл нельзя получить сколько угодно
  * посадочного материала — ограничено массой, временем и условиями.
  */
-export function seedMultiplication(batch: CropBatch): number {
-  const raw = batch.expectedKg / Math.max(1e-9, seedNeededKg(batch.areaM2))
-  return Math.min(DEEP_P.seedMultiplicationCap, raw * clamp01(batch.health) * (1 - batch.yieldPenalty))
-}
 
 /** Потребность партии в воде на шаг, L. */
 export const batchWaterDemandL = (batch: CropBatch, dtSols: number): number =>
@@ -376,10 +355,6 @@ export const batchNutrientDemandKg = (batch: CropBatch, dtSols: number): number 
   batch.plantedSol === null
     ? 0
     : batch.areaM2 * DEEP_P.cropKgPerM2PerSol * 0.01 * clamp(batch.feedRate, 0, 2) * dtSols
-
-/** Потребность в досветке, kWh на шаг. */
-export const batchLightKwh = (batch: CropBatch, dtSols: number): number =>
-  batch.plantedSol === null ? 0 : batch.areaM2 * DEEP_P.lampKwPerM2 * DEEP_P.photoperiodHours * clamp01(batch.density) * dtSols
 
 /** Связывание CO2 фотосинтезом, кг за шаг (только при реальном росте). */
 export const batchCo2UptakeKg = (batch: CropBatch, dDevelopment: number): number => {

@@ -87,7 +87,6 @@ export const DEVICE_FOR_MODULE: Record<ModuleKind, DeviceKind[]> = {
  * насос, очистка, регенерация стоков, скруббер, склад, добывающая установка и
  * лаборатория. Узлы не создают ресурсы — только дают мощности и цепочки.
  */
-export const BASE_INFRASTRUCTURE: DeviceKind[] = ['pump', 'purifier', 'recycler', 'scrubber', 'depot', 'extractor', 'lab']
 
 const CREW_PLAN: Array<{ id: string; name: string; specialty: 'agronomist' | 'engineer' | 'operator' | 'generalist' }> = [
   { id: 'crew-1', name: 'К. Иванова', specialty: 'agronomist' },
@@ -272,9 +271,6 @@ export function createWorldForColony(state: ColonyState, seed?: number): ColonyW
 const SEED_KG_PER_BED = DEEP_P.seedRateKgPerM2 * PARAMETERS.cropAreaM2 / BEDS.perField
 
 /** Масса семян, занятая грядкой: физический ресурс, не абстракция. */
-export function seedMassPerBed(): number {
-  return SEED_KG_PER_BED
-}
 function updateSeedMass(batch: CropBatch): void {
   batch.seedKg = batch.plantedSol === null ? 0 : SEED_KG_PER_BED
 }
@@ -416,11 +412,6 @@ export function addDeepModule(world: ColonyWorld, module: ColonyModule): (Device
 }
 
 /** Удалить устройства глубокого слоя при сносе модуля. */
-export function removeDeepModule(world: ColonyWorld, id: string): void {
-  world.devices = world.devices.filter(d => d.legacyModuleId !== id)
-  world.vehicles = world.vehicles.filter(v => !v.id.endsWith(id))
-  world.batches = world.batches.filter(b => b.greenhouseId !== id)
-}
 
 export type { VehicleClass }
 
@@ -438,15 +429,6 @@ export interface AdvanceResult {
  * Потенциал роста по каждой теплице: агрегатный потенциал × состояние модуля.
  * Агрегатная модель считает потенциал, глубокий мир превращает его в дни роста.
  */
-export function growthPotentialOf(state: ColonyState, budget: DayBudget): Record<string, number> {
-  const out: Record<string, number> = {}
-  for (const module of state.modules) {
-    if (module.kind !== 'greenhouse') continue
-    const base = budget.growthByModule?.[module.id] ?? budget.growthFraction
-    out[module.id] = base * capacityFactor(module)
-  }
-  return out
-}
 
 /** Ожидаемый выход одной грядки за цикл без стресса: база учёта потерь. */
 export const BED_FULL_KG = bedCycleKg(PARAMETERS.cropAreaM2 * PARAMETERS.cropKgM2Day * PARAMETERS.cropCycleDays)

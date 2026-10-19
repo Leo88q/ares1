@@ -257,22 +257,11 @@ export function drainCondensate(s: Section): number {
  * (≈ 800–1700 ppm при 70 kPa): ниже — ограничение фотосинтеза, выше — стресс.
  * Игровая кривая, не измерение конкретного сорта.
  */
-export function co2GrowthFactor(ppCo2Kpa: number): number {
-  if (ppCo2Kpa <= 0.004) return 0.15
-  if (ppCo2Kpa < 0.06) return 0.15 + 0.85 * fraction(ppCo2Kpa - 0.004, 0.056)
-  if (ppCo2Kpa <= 0.12) return 1
-  if (ppCo2Kpa < 0.5) return 1 - 0.5 * fraction(ppCo2Kpa - 0.12, 0.38)
-  return 0.4
-}
 
 /**
  * Кислород в корневой зоне: при избыточном поливе субстрат заливается и корни
  * задыхаются. Агрегированная оценка по парциальному давлению O2 и доле перелива.
  */
-export function rootOxygenFactor(ppO2Kpa: number, waterlogRatio: number): number {
-  const airFactor = clamp01(fraction(ppO2Kpa, 12))
-  return clamp01(airFactor * (1 - 0.6 * clamp01(waterlogRatio)))
-}
 
 /**
  * Качество атмосферы 0…1 для интерфейса и последствий (давление, O2, CO2).
@@ -307,10 +296,6 @@ export function outsideTemperatureC(solHour: number, coldDropC: number): number 
 }
 
 export type PressureBand = 'nominal' | 'low' | 'critical'
-export function pressureBand(kpa: number): PressureBand {
-  const nominal = DEEP_P.nominalPressureKpa
-  return kpa >= nominal * 0.9 ? 'nominal' : kpa >= nominal * 0.6 ? 'low' : 'critical'
-}
 
 /** Температурная кривая роста (совпадает с LAB/2, чтобы не вводить вторую физику). */
 export const temperatureGrowthFactor = (celsius: number): number =>

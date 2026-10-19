@@ -135,9 +135,6 @@ export function finishAnalysis(analysis: Analysis, sol: number, hiddenValue: num
 }
 
 /** Какое скрытое состояние измеряет анализ на объекте (для движка). */
-export function hiddenValueFor(analysis: Analysis, read: (targetId: string, kind: AnalysisKind) => number): number {
-  return clamp01(read(analysis.targetId, analysis.kind))
-}
 
 // --- Контролируемые эксперименты ------------------------------------------
 
@@ -315,25 +312,4 @@ export function recipeFromExperiment(experiment: Experiment, id: string, sol: nu
 }
 
 /** Сводка лаборатории для интерфейса. */
-export interface LabSummary {
-  samples: number
-  queued: number
-  running: number
-  done: number
-  experiments: number
-  recipes: number
-}
 
-export function labSummary(
-  samples: readonly Sample[], analyses: readonly Analysis[],
-  experiments: readonly Experiment[], recipes: readonly Recipe[],
-): LabSummary {
-  return {
-    samples: samples.filter(s => s.delivered).length,
-    queued: analyses.filter(a => a.status === 'queued').length,
-    running: analyses.filter(a => a.status === 'running').length,
-    done: analyses.filter(a => a.status === 'done').length,
-    experiments: experiments.filter(e => e.status === 'running').length,
-    recipes: recipes.length,
-  }
-}

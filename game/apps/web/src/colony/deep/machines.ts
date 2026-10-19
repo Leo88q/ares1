@@ -9,7 +9,7 @@
  * машина ездит по грунту и не заменяет ни одну из сетей.
  */
 import { DEEP_P } from './params'
-import { clamp01, fraction } from './units'
+import { clamp01 } from './units'
 import type { ResourceId } from './resources'
 import type { Fault } from './devices'
 
@@ -267,12 +267,8 @@ export function chargeVehicle(vehicle: Vehicle, kwh: number): number {
 }
 
 /** Требуется ли оператор прямо сейчас: автономность не бесконечна. */
-export function needsOperator(vehicle: Vehicle): boolean {
-  return vehicle.unattendedHours > DEEP_P.crewWorkHoursPerSol * vehicle.autonomy
-}
 
 /** Расстояние «в одну сторону» до узла, км (для планирования рейса). */
-export const legDistance = (job: HaulJob): number => job.legKm
 
 /** Оценка длительности рейса, часы. */
 export function estimateTripHours(vehicle: Vehicle, distanceKm: number, kg: number): number {
@@ -286,12 +282,5 @@ export const rangeKm = (vehicle: Vehicle): number =>
   vehicle.kwhPerKm > 0 ? vehicle.batteryKwh / (vehicle.kwhPerKm * (2 - clamp01(vehicle.condition))) : 0
 
 /** Доля заряда 0…1. */
-export const chargeRatio = (vehicle: Vehicle): number => fraction(vehicle.batteryKwh, vehicle.capacityKwh)
 
 /** Простой машины по причине — агрегированное отображение «работа/простой». */
-export function vehicleStatus(vehicle: Vehicle): { state: VehicleState; reason: string | null } {
-  if (vehicle.fault) return { state: 'stalled', reason: vehicle.fault.diagnosed ? 'fault-diagnosed' : 'fault-undiagnosed' }
-  if (vehicle.batteryKwh <= 0.01) return { state: 'stalled', reason: 'no-energy' }
-  if (needsOperator(vehicle)) return { state: 'idle', reason: 'no-operator' }
-  return { state: vehicle.state, reason: vehicle.idleReason }
-}

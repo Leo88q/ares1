@@ -14,7 +14,7 @@
  * (`pumpKwhPerCubicMetre`); трубы, кабели и гермопереходы — разные сущности.
  */
 import { DEEP_P } from './params'
-import { clamp01, fraction } from './units'
+import { clamp01 } from './units'
 import type { Rng } from './rng'
 import { uniform } from './rng'
 
@@ -99,7 +99,6 @@ export function extractionCapacity(hours: number, hoursAllocated: number, condit
 export const extractionEnergyKwh = (kg: number, hardness: number): number => kg * DEEP_P.extractionKwhPerKg * Math.max(0.3, hardness)
 
 /** Труд оператора на добычу, человеко-часы. */
-export const extractionLabourHours = (hours: number): number => hours * DEEP_P.extractionOperatorHoursPerHour
 
 /** Добыча: порода остаётся на месторождении (потом её нужно привезти). */
 export function mineDeposit(deposit: Deposit, kg: number): { mined: number; depleted: boolean } {
@@ -204,7 +203,6 @@ export function prepareSolution(waterL: number, nutrientKg: number, ratioKgPerL:
 }
 
 /** Энергия перекачки объёма, kWh (агрегированная модель насосов). */
-export const pumpingKwh = (litres: number): number => (litres / 1000) * DEEP_P.pumpKwhPerCubicMetre
 
 /** Оценка: сколько солов продержится месторождение при текущем темпе. */
 export function depositLifeSols(deposit: Deposit, kgPerSol: number): number {
@@ -230,4 +228,3 @@ export const estimateError = (deposit: Deposit): number =>
   deposit.actualKg > 0 ? Math.abs(deposit.estimateKg - deposit.actualKg) / deposit.actualKg : 0
 
 /** Уверенность в оценке 0…1 для UI. */
-export const depositReadiness = (deposit: Deposit): number => fraction(deposit.confidence, 1)

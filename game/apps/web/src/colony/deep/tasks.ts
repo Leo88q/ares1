@@ -17,16 +17,10 @@ import { crewSkill, isIdle, remainingHours, type CrewMember } from './crew'
 import type { ResourceId } from './resources'
 import { stockCommit, stockRelease, stockReserve } from './resources'
 import type { Stock } from './resources'
-import { clamp01 } from './units'
 
 export type TaskKind =
   | 'plant' | 'tend' | 'harvest' | 'sample' | 'analysis' | 'clean_panels'
   | 'inspect' | 'repair' | 'extract' | 'haul' | 'process' | 'survey' | 'maintain'
-
-export const TASK_KINDS: readonly TaskKind[] = [
-  'plant', 'tend', 'harvest', 'sample', 'analysis', 'clean_panels',
-  'inspect', 'repair', 'extract', 'haul', 'process', 'survey', 'maintain',
-]
 
 export interface TaskMeta {
   kind: TaskKind
@@ -138,7 +132,6 @@ export function createTask(id: string, spec: NewTask): Task {
 }
 
 export const taskRemaining = (task: Task): number => Math.max(0, task.requiredHours - task.doneHours)
-export const taskProgress = (task: Task): number => clamp01(task.doneHours / task.requiredHours)
 export const isOpen = (task: Task): boolean => task.status === 'queued' || task.status === 'active' || task.status === 'blocked'
 export const isFinished = (task: Task): boolean => task.status === 'done' || task.status === 'cancelled'
 
@@ -194,9 +187,6 @@ export function releaseMaterials(stock: Stock, task: Task): number {
 }
 
 /** Снять назначение: человек освобождается, задача теряет исполнителя. */
-export function unassign(task: Task, crewId: string): void {
-  task.assignees = task.assignees.filter(id => id !== crewId)
-}
 
 /** Пригодность человека: квалификация и свободное время. */
 export function crewFitness(member: CrewMember, task: Task): number {
@@ -245,16 +235,6 @@ export interface TaskQueueSummary {
   requiredHours: number
 }
 
-export function taskQueueSummary(tasks: readonly Task[]): TaskQueueSummary {
-  const open = tasks.filter(isOpen)
-  return {
-    open: open.length,
-    active: tasks.filter(t => t.status === 'active').length,
-    blocked: tasks.filter(t => t.status === 'blocked').length,
-    done: tasks.filter(t => t.status === 'done').length,
-    requiredHours: open.reduce((sum, t) => sum + taskRemaining(t), 0),
-  }
-}
 
 /** Причины блокировки: короткие коды для локализации и лога. */
 export const BLOCK_CODES = {

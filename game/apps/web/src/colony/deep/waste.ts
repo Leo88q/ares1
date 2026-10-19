@@ -68,15 +68,10 @@ export function compostToNutrients(compostKg: number): { n: number; p: number; k
 }
 
 /** Сколько килограммов отходов можно принять сейчас (ёмкость переработки). */
-export const compostIntakeLimitKg = (): number => 60
 
 /** Потери: что уходит безвозвратно при переработке (CO2, испарение). */
-export function compostLosses(inputKg: number): number {
-  return Math.max(0, inputKg * (1 - DEEP_P.compostKgPerKg - DEEP_P.compostNutrientKgPerKg))
-}
 
 /** Изношенные расходники: в этой итерации не перерабатываются (явное ограничение). */
-export const SPENT_CONSUMABLES_RECYCLABLE = false
 
 /** Оценка замкнутости: доля питательных элементов, возвращённая из отходов. */
 export function nutrientClosureRatio(returnedKg: number, appliedKg: number): number {

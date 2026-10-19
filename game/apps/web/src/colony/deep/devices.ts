@@ -218,18 +218,8 @@ export const deviceOutput = (d: Device): number => deviceUsable(d) ? clamp01(d.p
 export const deviceHeatKw = (d: Device): number => d.receivedKw * d.heatFraction
 
 /** Устройства, которым положено питание (не источники и не батареи). */
-export const isConsumer = (d: Device): boolean => d.ratedKw > 0
 
 export const isGenerator = (d: Device): boolean => d.kind === 'solar'
 export const isBattery = (d: Device): boolean => d.kind === 'battery'
 
 /** Краткая причина простоя для интерфейса (без моков: реальное состояние). */
-export function deviceIdleReason(d: Device): string | null {
-  if (!d.connected) return 'disconnected'
-  if (d.fault) return d.fault.diagnosed ? 'fault-diagnosed' : 'fault-undiagnosed'
-  if (d.safeMode) return 'safe-mode'
-  if (!d.enabled) return 'disabled'
-  if (d.powerFraction <= 0.001) return 'no-power'
-  if (d.condition < 0.25) return 'worn'
-  return null
-}

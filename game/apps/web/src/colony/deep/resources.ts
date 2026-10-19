@@ -9,7 +9,6 @@
  *  - функции мутируют переданный склад: мир клонируется один раз за шаг,
  *    внутри шага допускается изменяемое состояние (это же делает код читаемым).
  */
-import { clamp01 } from './units'
 
 export type ResourceId =
   | 'water_raw' | 'water_clean' | 'water_grey' | 'brine' | 'solution'
@@ -156,29 +155,9 @@ export function stockRelease(s: Stock, id: ResourceId, amount: number): number {
   return value
 }
 
-/** Переместить между складами без потерь дублирования: берём, сколько вошло. */
-export function stockMove(s: Stock, from: ResourceId, to: ResourceId, amount: number): FlowResult {
-  const value = Math.min(discrete(from, amount), availableOf(s, from), roomOf(s, to))
-  if (!(value > 0)) return { ...ZERO, shortage: Math.max(0, amount) }
-  const take = stockTake(s, from, value)
-  const add = stockAdd(s, to, take.taken)
-  if (add.added < take.taken) stockAdd(s, from, take.taken - add.added)
-  return { added: add.added, taken: take.taken, overflow: add.overflow, shortage: take.shortage }
-}
-
-/** Доля заполнения (0…1) по заданному ресурсу. */
-export const fillRatio = (s: Stock, id: ResourceId): number => {
-  const cap = capOf(s, id)
-  return cap > 0 ? clamp01(stockOf(s, id) / cap) : 0
-}
-
 /** Суммарный запас питательных элементов N+P+K, kg (вид для существующего интерфейса). */
 export const nutrientTotal = (s: Stock): number =>
   stockOf(s, 'nutrient_n') + stockOf(s, 'nutrient_p') + stockOf(s, 'nutrient_k')
-
-/** Общий запас картофеля во всех категориях, kg (без учёта еды в хранилище базы). */
-export const potatoTotal = (s: Stock): number =>
-  stockOf(s, 'seed_potato') + stockOf(s, 'ware_potato') + stockOf(s, 'cull_potato')
 
 /**
  * Установить новую ёмкость.

@@ -12,17 +12,12 @@ import { clamp01, fraction } from './units'
 
 export type Specialty = 'agronomist' | 'engineer' | 'operator' | 'generalist'
 
-export const SPECIALTIES: readonly Specialty[] = ['agronomist', 'engineer', 'operator', 'generalist']
 
 export const SPECIALTY_LABEL: Record<Specialty, { ru: string; en: string }> = {
   agronomist: { ru: 'Агроном', en: 'Agronomist' },
   engineer: { ru: 'Инженер', en: 'Engineer' },
   operator: { ru: 'Оператор техники', en: 'Operator' },
   generalist: { ru: 'Универсал', en: 'Generalist' },
-}
-
-export const SPECIALTY_CODE: Record<Specialty, string> = {
-  agronomist: 'AGRO', engineer: 'ENGR', operator: 'OPR', generalist: 'GEN',
 }
 
 export interface CrewMember {
