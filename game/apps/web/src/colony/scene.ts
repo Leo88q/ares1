@@ -68,7 +68,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   onSelect: (id: string) => void
   onSite: (at: { x: number; z: number }) => void
   onReady: () => void
-  onModelError: () => void
+  onModelError: (files: string[]) => void
   onContextLost: () => void
 }, options: { batching?: boolean; incremental?: boolean } = {}): ColonyScene {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' })
@@ -590,7 +590,7 @@ export function createColonyScene(host: HTMLElement, callbacks: {
   // Local byte fetches can be aborted on route changes and StrictMode remounts.
   const abort = new AbortController()
   const manager = new THREE.LoadingManager()
-  manager.onError = () => { if (!disposed) callbacks.onModelError() }
+  manager.onError = () => { if (!disposed) callbacks.onModelError([]) }
   const loader = new GLTFLoader(manager)
   loader.register(parser => {
     // ImageBitmapLoader fetches embedded images via blob: URLs, which the app's
@@ -602,9 +602,10 @@ export function createColonyScene(host: HTMLElement, callbacks: {
     return { name: 'ARES_csp_image_loader' }
   })
   let modelFailed = false
+  const failedFiles: string[] = []
   void Promise.all(FILES.map(async file => {
+    const { url, base } = modelLocation(file)
     try {
-      const { url, base } = modelLocation(file)
       const response = await fetch(url, { signal: abort.signal })
       if (!response.ok) throw new Error(`Model HTTP ${response.status}`)
       const bytes = await response.arrayBuffer()
@@ -612,15 +613,25 @@ export function createColonyScene(host: HTMLElement, callbacks: {
       const gltf = await loader.parseAsync(bytes, base)
       if (disposed) { disposeTrees([gltf.scene]); return }
       templates.set(file, gltf.scene)
-    } catch {
-      if (!disposed && !abort.signal.aborted) modelFailed = true
+    } catch (error) {
+      if (!disposed && !abort.signal.aborted) {
+        modelFailed = true
+        failedFiles.push(file)
+        // Прежде ошибка глоталась целиком: интерфейс сообщал «часть моделей
+        // не загрузилась» и не говорил какая. Без имени файла это
+        // недиагностируемо — 19 запросов, и ни одного следа в консоли.
+        console.warn(`[colony] модель не загрузилась: ${url}`, error)
+      }
     }
   })).then(() => {
     if (disposed) return
     modelsSettled = true
     decorate()
     if (latest) update(latest.state, latest.selectedId, latest.sunHours)
-    if (modelFailed) callbacks.onModelError()
+    if (modelFailed) {
+      console.warn(`[colony] не загрузились модели: ${failedFiles.join(', ')}`)
+      callbacks.onModelError(failedFiles)
+    }
     callbacks.onReady()
   })
 
