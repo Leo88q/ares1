@@ -634,3 +634,50 @@ test('a cancelled task does not come back to life, and a finished one cannot be 
   assert.ok(!revived || revived.status === 'cancelled' || revived.status === 'done',
     'a cancelled task must not silently resume')
 })
+
+// --- Растения не обеспечивают базу кислородом одни -------------------------
+
+/**
+ * Прямое требование ТЗ: «растения не должны одни обеспечивать базу
+ * кислородом». Проверяется причинно, а не по величине: если остановить
+ * электролиз, колония должна начать задыхаться — иначе зелёная масса сама
+ * закрывает потребность и установка не нужна.
+ */
+test('plants alone cannot keep the base breathing', () => {
+  const runWithout = (sols: number, stopElectrolysis: boolean): ColonyState => {
+    let state: ColonyState = buildStartColony()
+    if (stopElectrolysis) {
+      state = step(state)
+      const gen = state.world!.devices.find(d => d.kind === 'o2_gen')!
+      setSafeMode(state.world!, gen.id, true)
+    }
+    for (let sol = 0; sol < sols; sol++) {
+      state = step(state)
+      // Безопасный режим снимается только нами: держим установку остановленной.
+      if (stopElectrolysis) {
+        const gen = state.world!.devices.find(d => d.kind === 'o2_gen')!
+        if (!gen.safeMode) setSafeMode(state.world!, gen.id, true)
+      }
+    }
+    return state
+  }
+
+  const control = runWithout(40, false)
+  const noElectrolysis = runWithout(40, true)
+
+  const demand = control.world!.totals.crewO2Kg
+  const fromCrops = control.world!.totals.cropO2Kg
+  assert.ok(demand > 0 && fromCrops > 0, 'both figures must be measured, not empty')
+  assert.ok(fromCrops < demand,
+    `plants must not cover the crew by themselves: ${fromCrops.toFixed(1)} kg from crops `
+    + `against ${demand.toFixed(1)} kg of demand`)
+
+  // Причинная проверка: без электролиза запас кислорода падает, а не держится.
+  assert.ok(noElectrolysis.world!.totals.o2ShortfallKg > control.world!.totals.o2ShortfallKg + 1e-6,
+    `stopping electrolysis must hurt: ${control.world!.totals.o2ShortfallKg.toFixed(3)} kg `
+    + `shortfall with it vs ${noElectrolysis.world!.totals.o2ShortfallKg.toFixed(3)} kg without`)
+  const o2 = (s: ColonyState) => s.world!.stock.amount.o2
+  assert.ok(o2(noElectrolysis) < o2(control),
+    `the tank must run down without electrolysis: ${o2(control).toFixed(1)} kg vs `
+    + `${o2(noElectrolysis).toFixed(1)} kg`)
+})
