@@ -262,6 +262,13 @@ export interface WorldConfig {
   maxHistory: number
   /** Грядки стартуют засаженными с этим развитием (0…1). */
   initialDevelopment: number
+
+  /**
+   * Пропускная способность силового канала по устройству, кВт (§7).
+   * Пересчитывается мостом при каждом синхроне; устройство без ключа
+   * каналом не ограничено.
+   */
+  powerCapacityByDevice?: Record<string, number>
 }
 
 const BASE_CAPS: Partial<Record<ResourceId, number>> = {
@@ -1554,6 +1561,7 @@ export function stepSol(world: ColonyWorld, inputs: SolInputs): ColonyWorld {
     const power = dispatchPower({
       devices: next.devices, hours, solHour, sunHours, weatherFactor,
       criticalReserveFraction: next.config.criticalReserveFraction,
+      networkCapacity: next.config.powerCapacityByDevice,
     })
     step.power.generationKwh += power.generationKw * hours
     step.power.demandKwh += power.demandKw * hours

@@ -18,7 +18,7 @@
  * дефицита и трудозатраты.
  */
 import { PARAMETERS, type ColonyModule, type ColonyState, type DayBudget, type ModuleKind, type Scenario } from '../simulation'
-import { networkServices } from '../networks'
+import { modulePowerCapacityKw, networkServices } from '../networks'
 import { fraction, clamp01, SOL_HOURS } from './units'
 import { DEEP_P } from './params'
 import { stockTake } from './resources'
@@ -186,6 +186,11 @@ export function colonyWorldConfig(state: ColonyState, seed = 0x5eed_1a1a): World
     maxEvents: 60,
     maxHistory: 200,
     initialDevelopment: 0,
+    // Ключ создаётся сразу: его наличие не должно меняться между ходами, иначе
+    // сравнение состояний видит разницу формы там, где её нет.
+    powerCapacityByDevice: Object.fromEntries(
+      modulePowerCapacityKw(state, DEEP_P.powerLinkCapacityKw, DEEP_P.powerLinkDerateCells),
+    ),
   }
 }
 
@@ -257,6 +262,18 @@ export function syncWorldFromState(world: ColonyWorld, state: ColonyState): void
   Object.assign(world.stock.amount, nutrientStockOf(state.nutrientsKg))
   setSortableRawKg(world, state.ledger.rawKg)
   const services = state.networks ? networkServices(state) : null
+  // Пропускная способность канала (§7): считается по тому же набору линий,
+  // что и связность, — включая синтетический каркас, если игрок ещё ничего
+  // не проложил. Базовая инфраструктура стоит на хабе и каналом не ограничена.
+  // Карта кладётся в конфигурацию, а не на устройства: устройства входят в
+  // состояние, которое игрок сравнивает между ходами, и новое поле на них
+  // ломало бы проверку неизменяемости входа.
+  const powerCapacity = modulePowerCapacityKw(
+    state, DEEP_P.powerLinkCapacityKw, DEEP_P.powerLinkDerateCells,
+  )
+  const capacity: Record<string, number> = {}
+  for (const [moduleId, kw] of powerCapacity) capacity[moduleId] = kw
+  world.config.powerCapacityByDevice = capacity
   for (const device of world.devices) {
     if (!device.legacyModuleId) {
       // Базовая инфраструктура глубокого слоя всегда подключена.

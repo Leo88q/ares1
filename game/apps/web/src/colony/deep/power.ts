@@ -80,22 +80,41 @@ export interface DispatchInput {
   weatherFactor: number
   /** Доля ёмкости, зарезервированная только под критические системы. */
   criticalReserveFraction: number
+  /**
+   * Пропускная способность канала, кВт (§7). Ключ — `legacyModuleId`, поэтому
+   * базовая инфраструктура без модуля каналом не ограничена: она стоит на
+   * самом хабе.
+   */
+  networkCapacity?: Record<string, number>
 }
 
 const dischargeLimitKw = (battery: Device): number => battery.capacityKwh * DEEP_P.batteryC_rate
 const chargeRoomKwh = (battery: Device): number => Math.max(0, battery.capacityKwh - battery.storedKwh)
 
 /** Распределение энергии за подшаг: приоритеты, резерв критических систем, отключения. */
+/**
+ * Потолок запроса агрегата по его каналу. Ёмкость лежит в конфигурации мира,
+ * а не на устройстве: устройство — часть состояния, которое игрок сравнивает
+ * между ходами, и новое поле на нём ломало бы проверку неизменяемости.
+ */
+const networkCeilingKw = (d: Device, capacity: Record<string, number> | undefined): number => {
+  const cap = d.legacyModuleId === undefined ? undefined : capacity?.[d.legacyModuleId]
+  return cap === undefined || !Number.isFinite(cap) ? Number.POSITIVE_INFINITY : Math.max(0, cap)
+}
+
 export function dispatchPower(input: DispatchInput): PowerResult {
-  const { devices, hours, solHour, sunHours, weatherFactor, criticalReserveFraction } = input
+  const { devices, hours, solHour, sunHours, weatherFactor, criticalReserveFraction, networkCapacity } = input
   const generators = devices.filter(d => isGenerator(d) && d.connected)
   const batteries = devices.filter(d => isBattery(d) && d.connected)
   const consumers = devices
     .filter(d => d.ratedKw > 0 && deviceUsable(d))
     .map<PowerLoad>(d => ({
       id: d.id, ratedKw: d.ratedKw,
-      // Агрегат без работы не тянет номинальную мощность.
-      wantKw: d.ratedKw * clamp01(d.duty ?? 1), priority: d.priority, critical: d.critical,
+      // Агрегат без работы не тянет номинальную мощность. Запрос дополнительно
+      // упирается в канал: если кабель не довезёт номинал, агрегат его и не
+      // попросит — иначе он отбирал бы генерацию, которую не может принять.
+      wantKw: Math.min(d.ratedKw * clamp01(d.duty ?? 1), networkCeilingKw(d, networkCapacity)),
+      priority: d.priority, critical: d.critical,
       powerFraction: 0, receivedKw: 0,
     }))
     .sort((a, b) => (a.priority - b.priority) || (a.id < b.id ? -1 : 1))
