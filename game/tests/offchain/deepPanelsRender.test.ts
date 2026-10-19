@@ -158,3 +158,35 @@ test('isolation and safe mode are reachable from the panel, not only in code', (
       `the safe-mode control must render in ${language}`)
   }
 })
+
+/**
+ * Карточка месторождения дополнена полями, которых требует ТЗ (содержание
+ * льда, сложность, уровень разведки, склад на площадке, срок по оценке), —
+ * но она не должна выдавать скрытый запас. Истинный объём (`actualKg`)
+ * лежит в модели отдельно от оценки, и показывать его — значит отменять
+ * всю механику разведки: оценка станет точной с первого дня.
+ */
+test('the deposit card shows what a surveyor could know, and hides the true reserve', () => {
+  const world = worldAfterOneSol()
+  for (const language of ['ru', 'en']) {
+    const html = markup(world, language, 'extraction')
+    for (const deposit of world.deposits) {
+      assert.ok(html.includes(deposit.name), `the deposit must be listed in ${language}`)
+      // Оценка видна, истина — нет.
+      assert.ok(!html.includes(String(Math.round(deposit.actualKg))),
+        `the true reserve must stay hidden in ${language}: ${deposit.actualKg}`)
+    }
+    // Поля ТЗ присутствуют в разметке.
+    for (const key of ['Лёд', 'Сложность', 'Разведка', 'На площадке', 'Запас на', 'Энергия']) {
+      if (language === 'ru') assert.ok(html.includes(key), `the card must show ${key}`)
+    }
+    // Положительный контроль: без него «истина не видна» означало бы лишь,
+    // что таблица вообще не печатает чисел. Оценка — другое число, и оно
+    // на экране есть.
+    const estimated = world.deposits[0].estimateKg
+    assert.ok(estimated > 0 && Math.abs(estimated - world.deposits[0].actualKg) > 1,
+      'the fixture must have a real gap between the estimate and the truth')
+    assert.ok(world.deposits[0].iceFraction > 0 && world.deposits[0].hardness > 0,
+      'the fixture must carry ice content and hardness, otherwise the columns are empty')
+  }
+})

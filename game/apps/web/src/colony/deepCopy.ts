@@ -77,6 +77,8 @@ const en = {
   riskyNote: 'Risky repair: no diagnosis and no spare part, twice as fast — but the unit comes '
     + 'back under-repaired and may fail again at once.',
   ship: 'Ship', shipKg: 'Ship', nothingToShip: 'nothing to ship', ware: 'Ware lot',
+  ice: 'Ice', hardness: 'Hardness', survey: 'Surveys', stockpile: 'On site', reserveLife: 'Life',
+  energy: 'Energy', kwhPerKg: 'kWh/kg', operator: 'Operator',
   importTitle: 'Procurement', importNote: 'Supplies are bought with the colony credits, not '
     + 'conjured: every delivered unit is paid for. Zero imports over a run is the autonomy '
     + 'figure, and it only means something because buying is possible.',
@@ -180,6 +182,8 @@ const ru: typeof en = {
   riskyNote: 'Рискованный ремонт: без диагноза и без запчасти, вдвое быстрее — но агрегат '
     + 'выходит недочиненным и может встать снова сразу.',
   ship: 'Отгрузка', shipKg: 'Отгрузить', nothingToShip: 'нечего везти', ware: 'Товарная партия',
+  ice: 'Лёд', hardness: 'Сложность', survey: 'Разведка', stockpile: 'На площадке',
+  reserveLife: 'Запас на', energy: 'Энергия', kwhPerKg: 'кВт·ч/кг', operator: 'Оператор',
   importTitle: 'Закупка', importNote: 'Снабжение покупается за кредиты колонии, а не берётся '
     + 'из воздуха: каждая завезённая единица оплачена. Ноль импорта за прогон — это показатель '
     + 'автономии, и он что-то значит именно потому, что купить можно.',

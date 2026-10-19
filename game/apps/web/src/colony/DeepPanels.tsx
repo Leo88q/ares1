@@ -15,7 +15,7 @@ import { finishExperiment } from './deep/lab'
 import { batchStage, batchSummary, projectedYieldKg, STAGE_LABEL, FACTOR_LABEL } from './deep/growth'
 import { totalPressureKpa, o2PartialKpa, co2PartialKpa } from './deep/sections'
 import { attentionList } from './deep/reliability'
-import { depositBlockReason, depositWorkable } from './deep/extraction'
+import { depositBlockReason, depositWorkable, extractionEnergyKwh } from './deep/extraction'
 import type { Device } from './deep/devices'
 
 export const DEEP_TABS = ['crew', 'tasks', 'stores', 'extraction', 'life', 'greenhouse', 'lab', 'repair', 'contracts', 'journal'] as const
@@ -224,14 +224,24 @@ function ExtractionPanel({ world, language }: { world: ColonyWorld; language: st
     <section className="colony-study-card">
       <p className="colony-eyebrow">{c.extractionTitle}</p>
       <div className="colony-table-scroll"><table>
-        <thead><tr><th>{c.deposit}</th><th>{c.distance}</th><th>{c.estimate}</th><th>{c.confidence}</th><th>{c.workable}</th><th>{c.reason}</th></tr></thead>
+        <thead><tr><th>{c.deposit}</th><th>{c.distance}</th><th>{c.estimate}</th><th>{c.confidence}</th><th>{c.ice}</th><th>{c.hardness}</th><th>{c.survey}</th><th>{c.stockpile}</th><th>{c.reserveLife}</th><th>{c.energy}</th><th>{c.workable}</th><th>{c.reason}</th></tr></thead>
         <tbody>{world.deposits.map(d => {
           const workable = depositWorkable(d)
+          // Срок считается по ВИДИМОЙ оценке: истинный запас скрыт до разведки,
+          // и делить его на темп значило бы показать игроку то, чего он не знает.
+          const rate = world.sol > 0 ? world.totals.minedKg / world.sol : 0
+          const life = rate > 0 ? d.estimateKg / rate : Infinity
           return <tr key={d.id} data-testid={`deep-deposit-${d.id}`}>
             <td>{d.name}</td>
             <td>{num(d.distanceKm)} {c.km}</td>
             <td>{num(d.estimateKg, 0)} kg</td>
             <td><Bar value={d.confidence} /> {pct(d.confidence)}</td>
+            <td>{pct(d.iceFraction)}</td>
+            <td>{num(d.hardness, 2)}×</td>
+            <td>{num(d.surveys, 0)}</td>
+            <td>{num(d.stockpileKg)} kg</td>
+            <td>{Number.isFinite(life) ? `${num(life, 0)} ${c.sols}` : '—'}</td>
+            <td>{num(extractionEnergyKwh(1, d.hardness), 3)} {c.kwhPerKg}</td>
             <td>{workable ? c.yes : c.no}</td>
             <td>{workable ? '—' : depositBlockReason(d)}</td>
           </tr>
