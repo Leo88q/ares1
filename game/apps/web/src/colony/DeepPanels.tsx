@@ -6,7 +6,8 @@ import { SPECIALTY_LABEL } from './deep/crew'
 import { TASK_META } from './deep/tasks'
 import { ANALYSIS_KINDS, ANALYSIS_META } from './deep/lab'
 import {
-  applyRecipe, deliverContract, isolateSection, requestAnalysis, reserveSolsOf, saveRecipe,
+  applyRecipe, deliverContract, importResource, isolateSection, pricePerUnit, requestAnalysis,
+  reserveSolsOf, saveRecipe,
   setRisky, setSafeMode, setStandby, setTaskPaused, setTaskPriority, startExperiment, takeSample,
 } from './deep/world'
 import { finishExperiment } from './deep/lab'
@@ -84,7 +85,7 @@ export function DeepPanels({ world, language, onChange, initialTab = 'crew' }: {
           aria-labelledby={`deep-tab-${tab}`} tabIndex={0}>
           {tab === 'crew' && <CrewPanel world={world} language={language} />}
           {tab === 'tasks' && <TaskPanel world={world} language={language} onChange={onChange} />}
-          {tab === 'stores' && <StorePanel world={world} language={language} />}
+          {tab === 'stores' && <StorePanel world={world} language={language} onChange={onChange} />}
           {tab === 'extraction' && <ExtractionPanel world={world} language={language} />}
           {tab === 'life' && <LifePanel world={world} language={language} onChange={onChange} />}
           {tab === 'greenhouse' && <GreenhousePanel world={world} language={language} />}
@@ -161,12 +162,22 @@ function TaskPanel({ world, language, onChange }: { world: ColonyWorld; language
   </section>
 }
 
-function StorePanel({ world, language }: { world: ColonyWorld; language: string }) {
+const IMPORTABLE = ['parts', 'filters', 'nutrient_n', 'nutrient_p', 'nutrient_k', 'water_clean'] as const
+/** Партия завоза: детали и фильтры считаются штуками, воду и удобрения берут десятками. */
+const IMPORT_BATCH: Record<string, number> = { parts: 2, filters: 2, water_clean: 50 }
+
+function StorePanel({ world, language, onChange }: { world: ColonyWorld; language: string; onChange: () => void }) {
   const c = deepCopy(language)
   const lang = language === 'ru' ? 'ru' : 'en'
   const rows = RESOURCE_IDS
     .map(id => ({ id, spec: RESOURCES[id], amount: world.stock.amount[id] ?? 0, cap: world.stock.cap[id] ?? 0, reserved: world.stock.reserved[id] ?? 0 }))
     .filter(r => r.cap > 0 || r.amount > 0)
+  const buy = (id: typeof IMPORTABLE[number]) => {
+    const price = pricePerUnit(id)
+    const room = Math.max(0, (world.stock.cap[id] ?? 0) - (world.stock.amount[id] ?? 0))
+    const batch = Math.min(IMPORT_BATCH[id] ?? 10, room, price > 0 ? world.credits / price : 0)
+    if (batch > 0) { importResource(world, id, batch); onChange() }
+  }
   return <section className="colony-study-card">
     <p className="colony-eyebrow">{c.storesTitle}</p>
     <p className="colony-fineprint">{c.storesNote}</p>
@@ -178,6 +189,27 @@ function StorePanel({ world, language }: { world: ColonyWorld; language: string 
         <td>{num(r.cap, 0)} {r.spec.unit}</td>
         <td>{num(r.reserved, r.spec.unit === 'pcs' ? 0 : 1)}</td>
       </tr>)}</tbody>
+    </table></div>
+    <p className="colony-eyebrow">{c.importTitle}</p>
+    <p className="colony-fineprint">{c.importNote}</p>
+    <div className="colony-table-scroll"><table>
+      <thead><tr><th>{c.resource}</th><th>{c.price}</th><th>{c.credits}</th><th>{c.buy}</th></tr></thead>
+      <tbody>{IMPORTABLE.map(id => {
+        const price = pricePerUnit(id)
+        const room = Math.max(0, (world.stock.cap[id] ?? 0) - (world.stock.amount[id] ?? 0))
+        const batch = Math.max(0, Math.min(IMPORT_BATCH[id] ?? 10, room, price > 0 ? world.credits / price : 0))
+        const count = RESOURCES[id].unit === 'pcs' ? Math.floor(batch) : batch
+        const cost = count * price
+        return <tr key={id} data-testid={`deep-import-${id}`}>
+          <td>{RESOURCES[id][lang]}</td>
+          <td>{num(price, 3)} CR/{RESOURCES[id].unit}</td>
+          <td>{num(world.credits, 0)} CR</td>
+          <td>{count > 0 && cost <= world.credits
+            ? <button type="button" data-testid={`deep-buy-${id}`}
+              onClick={() => buy(id)}>{c.buy} {num(count, RESOURCES[id].unit === 'pcs' ? 0 : 1)}</button>
+            : <span className="colony-fineprint">{c.noCredits}</span>}</td>
+        </tr>
+      })}</tbody>
     </table></div>
   </section>
 }

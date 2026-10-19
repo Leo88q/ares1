@@ -77,6 +77,10 @@ const en = {
   riskyNote: 'Risky repair: no diagnosis and no spare part, twice as fast — but the unit comes '
     + 'back under-repaired and may fail again at once.',
   ship: 'Ship', shipKg: 'Ship', nothingToShip: 'nothing to ship', ware: 'Ware lot',
+  importTitle: 'Procurement', importNote: 'Supplies are bought with the colony credits, not '
+    + 'conjured: every delivered unit is paid for. Zero imports over a run is the autonomy '
+    + 'figure, and it only means something because buying is possible.',
+  buy: 'Buy', price: 'Price', credits: 'Credits', noCredits: 'no room or no money',
   isolateNote: 'A sealed section is cut off from life support: no make-up oxygen, no scrubbing.',
 
   // Контракты
@@ -173,6 +177,10 @@ const ru: typeof en = {
   riskyNote: 'Рискованный ремонт: без диагноза и без запчасти, вдвое быстрее — но агрегат '
     + 'выходит недочиненным и может встать снова сразу.',
   ship: 'Отгрузка', shipKg: 'Отгрузить', nothingToShip: 'нечего везти', ware: 'Товарная партия',
+  importTitle: 'Закупка', importNote: 'Снабжение покупается за кредиты колонии, а не берётся '
+    + 'из воздуха: каждая завезённая единица оплачена. Ноль импорта за прогон — это показатель '
+    + 'автономии, и он что-то значит именно потому, что купить можно.',
+  buy: 'Купить', price: 'Цена', credits: 'Кредиты', noCredits: 'нет места или денег',
   isolateNote: 'Изолированная секция отрезана от жизнеобеспечения: нет подпитки кислородом и очистки.',
 
   contractsTitle: 'Ограниченные локальные контракты',

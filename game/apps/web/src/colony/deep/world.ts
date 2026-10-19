@@ -2093,7 +2093,8 @@ export function deliverContract(world: ColonyWorld, contractId: string, kg: numb
   return { ok: true, kg: outcome.kg, reward: outcome.rewardCR, reason: null }
 }
 
-const pricePerUnit = (resource: ResourceId): number => {
+/** Цена за единицу ресурса, CR. 0 — ресурс не завозят. */
+export const pricePerUnit = (resource: ResourceId): number => {
   switch (resource) {
     case 'water_clean': return 1 / DEEP_P.importWaterLitresPerCredit
     case 'nutrient_n': case 'nutrient_p': case 'nutrient_k': return 1 / DEEP_P.importNutrientKgPerCredit

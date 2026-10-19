@@ -4,7 +4,7 @@ import { advanceDay, buildModule, type ColonyState } from '../../apps/web/src/co
 import { buildStartColony, SCENARIOS } from '../../scripts/deepScenario'
 import {
   applyStorageCapacity, createWorld, deliverContract, deliverSamples, isolateSection, prepareEva,
-  requestAnalysis, setRisky, setSafeMode, setStandby, takeSample,
+  importResource, pricePerUnit, requestAnalysis, setRisky, setSafeMode, setStandby, takeSample,
 } from '../../apps/web/src/colony/deep/world'
 import { createDevice, deviceUsable, syncStandby } from '../../apps/web/src/colony/deep/devices'
 import { repairDevice } from '../../apps/web/src/colony/deep/reliability'
@@ -524,4 +524,59 @@ test('a standby unit idles at no cost and takes the load the sol the primary dro
   // Честное ограничение: насос не узкое место номинального сценария, поэтому
   //end-to-end вода не меняется — резерв закрывает простой агрегата, а не дефицит
   // сырья. Проверять «воды стало больше» значит проверять чужой механизм.
+})
+
+// --- Импорт за кредиты ----------------------------------------------------
+
+/**
+ * `importResource` был написан целиком и никем не вызывался. Из-за этого
+ * строка отчёта «импорт 0 — полная автономия по статье» ничего не значила:
+ * купить было нельзя вовсе, поэтому ноль означал отсутствие механизма, а не
+ * отсутствие зависимости.
+ */
+test('supplies can be bought with credits, and only with credits', () => {
+  let state = buildStartColony()
+  state = step(state)
+  const world = state.world!
+  world.credits = 1000
+  const partsBefore = world.stock.amount.parts
+  const creditsBefore = world.credits
+
+  const bought = importResource(world, 'parts', 3)
+  assert.ok(bought.ok, 'the purchase must go through')
+  assert.equal(bought.got, 3, 'three units must arrive')
+  assert.ok(world.stock.amount.parts >= partsBefore + 3 - 1e-9, 'the parts must land in the store')
+  assert.ok(world.credits < creditsBefore, 'the purchase must be paid for')
+  assert.equal(world.totals.importedParts, 3, 'the import must be recorded in the autonomy figure')
+
+  // Денег нет — и товара нет: ресурсы не берутся из воздуха.
+  world.credits = 0
+  const broke = importResource(world, 'parts', 5)
+  assert.equal(broke.ok, false, 'without credits there is no purchase')
+  assert.equal(broke.got, 0, 'nothing must arrive for free')
+})
+
+test('an import respects the store capacity and the price', () => {
+  const world = createWorld(colonyWorldConfig(buildStartColony()))
+  world.credits = 1000
+  const price = pricePerUnit('parts')
+  assert.ok(price > 0, 'a spare must have a price, otherwise buying is not a real cost')
+
+  // Место кончилось — завоз не проходит, даже при деньгах.
+  world.stock.amount.parts = world.stock.cap.parts
+  const full = importResource(world, 'parts', 5)
+  assert.equal(full.got, 0, 'a full store must refuse the delivery, not overflow')
+
+  world.stock.amount.parts = world.stock.cap.parts - 1
+  const one = importResource(world, 'parts', 5)
+  assert.equal(one.got, 1, 'only what fits may arrive')
+  assert.ok(Math.abs(one.spent - price) < 1e-9, 'the price must be charged per delivered unit')
+})
+
+test('a resource without a price cannot be imported', () => {
+  const world = createWorld(colonyWorldConfig(buildStartColony()))
+  world.credits = 1000
+  assert.equal(pricePerUnit('potato_food'), 0, 'food is not a supply line')
+  const refused = importResource(world, 'potato_food', 10)
+  assert.equal(refused.ok, false, 'an unpriced resource must not appear out of nowhere')
 })
