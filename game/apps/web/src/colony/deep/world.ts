@@ -1094,6 +1094,10 @@ function growCrops(world: ColonyWorld, hours: number, step: SolStep, potential: 
   const waterDemand = planted.reduce((sum, b) => sum + batchWaterDemandL(b, shareOfSol), 0)
   const nutrientDemand = planted.reduce((sum, b) => sum + batchNutrientDemandKg(b, shareOfSol), 0)
   const waterFraction = fraction(availableOf(world, 'water_clean'), waterDemand)
+  // Носитель питания: доля нормы полива, которая реально дошла до корня.
+  // Раствор не доставляется по сухому субстрату, поэтому это же число
+  // ограничивает и усвоение N/P/K (см. `nutrients` ниже).
+  const carrierFraction = clamp01(waterFraction)
 
   // CO₂ — общий ресурс секции. Снимок парциального давления делается ДО того,
   // как грядки начнут его забирать: иначе первые грядки в цикле получают всю
@@ -1134,7 +1138,13 @@ function growCrops(world: ColonyWorld, hours: number, step: SolStep, potential: 
     // полива холодной водой, поэтому корни почти всегда холоднее воздуха.
     // Полив обильнее обычного — корням холоднее: отсюда настоящий предел у
     // стратегии «залить водой».
-    const irrigationRatio = clamp01(waterFraction > 1e-9 ? 1 / Math.max(0.2, waterFraction) : 1)
+    // Сколько полива реально дошло, в долях от нормы. Прежняя формула
+    // (1 / max(0.2, waterFraction)) при waterFraction ≤ 1 давала ровно 1 при
+    // ЛЮБОМ дефиците: `fraction` уже обрезает в 0…1, а 1/x ≥ 1 снова
+    // обрезалось. Механизм охлаждения корневой зоны был константой, а не
+    // динамикой. Теперь это честная доля доставленного полива: бак пустеет —
+    // корни поливаются меньше, греются сильнее и недоедают (см. carrier ниже).
+    const irrigationRatio = clamp01(waterFraction)
     const rootC = relaxRootTemperatureC(
       batch.rootTemperatureC,
       rootZoneTargetC(section?.temperatureC ?? 20, irrigationRatio),
@@ -1148,10 +1158,14 @@ function growCrops(world: ColonyWorld, hours: number, step: SolStep, potential: 
       o2PartialKpa: section ? o2PartialKpa(section) : 18,
       lightFraction,
       waterFraction: waterFraction * (0.4 + 0.6 * climate),
+      // Питание доставляется РАСТВОРОМ: ион доходит до корня только с водой.
+      // Полный склад удобрений при сухом субстрате не кормит ничего — поэтому
+      // каждый элемент ограничен не только наличием на складе, но и долей
+      // доставленного полива (Либих: минимум из двух).
       nutrients: {
-        n: clamp01(availableOf(world, 'nutrient_n') / Math.max(1e-9, nutrientDemand * NUTRIENT_SHARE.nutrient_n)),
-        p: clamp01(availableOf(world, 'nutrient_p') / Math.max(1e-9, nutrientDemand * NUTRIENT_SHARE.nutrient_p)),
-        k: clamp01(availableOf(world, 'nutrient_k') / Math.max(1e-9, nutrientDemand * NUTRIENT_SHARE.nutrient_k)),
+        n: Math.min(carrierFraction, clamp01(availableOf(world, 'nutrient_n') / Math.max(1e-9, nutrientDemand * NUTRIENT_SHARE.nutrient_n))),
+        p: Math.min(carrierFraction, clamp01(availableOf(world, 'nutrient_p') / Math.max(1e-9, nutrientDemand * NUTRIENT_SHARE.nutrient_p))),
+        k: Math.min(carrierFraction, clamp01(availableOf(world, 'nutrient_k') / Math.max(1e-9, nutrientDemand * NUTRIENT_SHARE.nutrient_k))),
       },
       waterlogRatio: Math.max(0, 1 - waterFraction) * 0.5,
       sol: world.sol,
@@ -1164,7 +1178,9 @@ function growCrops(world: ColonyWorld, hours: number, step: SolStep, potential: 
     batch.development = clamp01(before + effective)
     // Расход воды и питания пропорционален реальному росту.
     const waterUsed = batchWaterDemandL(batch, shareOfSol) * clamp01(0.2 + 0.8 * (potentialFactor > 0 ? 1 : 0))
-    const nutrientUsed = batchNutrientDemandKg(batch, shareOfSol) * potentialFactor
+    // Списывается только то, что раствор реально донёс: недолитый раствор
+    // означает, что часть нормы просто не была смешана и осталась на складе.
+    const nutrientUsed = batchNutrientDemandKg(batch, shareOfSol) * potentialFactor * carrierFraction
     // Учитывается только фактически списанное: склад может быть пуст.
     const waterGot = stockTake(stock, 'water_clean', waterUsed)
     let nutrientGot = 0

@@ -14,7 +14,7 @@
  * базовый сценарий — подготовленный субстрат/гидропоника в герметичной теплице.
  */
 import { DEEP_P } from './params'
-import { clamp01, fraction } from './units'
+import { clamp, clamp01, fraction } from './units'
 import { harvestFactor } from '../../organism/beds'
 
 export type CropStage = 'empty' | 'sprout' | 'vegetative' | 'tuber' | 'mature' | 'dead'
@@ -231,6 +231,10 @@ export function stepBatch(batch: CropBatch, env: GrowthEnvironment): { dDevelopm
   // Закон минимума Либиха: рост определяет тот элемент, которого не хватает,
   // а не среднее по трем. Агрегатная доля скрывала ситуацию «азота нет, а
   // фосфора завались» и выдавала корням питание, которого у них не было.
+  // Асимметрия намеренная: завышенный `feedRate` не даёт сверхроста (избыток —
+  // это «роскошное» потребление), но списывается по полной норме и быстрее
+  // копит соли (`saltIndexGrowthPerSol` берёт feedRate без обрезки). Перекорм
+  // стоит дорого и не окупается — именно поэтому он не срезается здесь молча.
   const feed = clamp01(batch.feedRate)
   const factors: GrowthFactors = {
     light: lightFactor(env.lightFraction),
@@ -376,9 +380,19 @@ export function seedMultiplication(batch: CropBatch): number {
 export const batchWaterDemandL = (batch: CropBatch, dtSols: number): number =>
   batch.plantedSol === null ? 0 : batch.areaM2 * DEEP_P.cropWaterLPerM2PerSol * clamp01(batch.density) * dtSols
 
-/** Потребность партии в питании на шаг, kg NPK. */
+/**
+ * Потребность партии в питании на шаг, kg NPK.
+ *
+ * Верхний предел 2, а не 1: рецепт из лаборатории и пресеты режимов задают
+ * `feedRate` выше единицы («rich» = 1.35), и при `clamp01` он молча превращался
+ * в ровно 1 — лаборатория честно сравнивала режимы, а теплица этот же рецепт
+ * обрезала. Теперь обе стороны считают одинаково, но предел остаётся: кормить
+ * сверх двойной нормы нельзя (засоление и осмос).
+ */
 export const batchNutrientDemandKg = (batch: CropBatch, dtSols: number): number =>
-  batch.plantedSol === null ? 0 : batch.areaM2 * DEEP_P.cropKgPerM2PerSol * 0.01 * clamp01(batch.feedRate) * dtSols
+  batch.plantedSol === null
+    ? 0
+    : batch.areaM2 * DEEP_P.cropKgPerM2PerSol * 0.01 * clamp(batch.feedRate, 0, 2) * dtSols
 
 /** Потребность в досветке, kWh на шаг. */
 export const batchLightKwh = (batch: CropBatch, dtSols: number): number =>
