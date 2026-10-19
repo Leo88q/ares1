@@ -192,6 +192,9 @@ syncWorldFromState  →  stepSol  →  syncStateFromWorld
 | `outsideDayAmplitudeC` | 28 | °C | 0 | 60 | допущение | sections |
 | `heaterKw` | 0.9 | kW | 0.05 | 20 | баланс | sections |
 | `coolerKw` | 3.2 | kW | 0.05 | 60 | баланс | sections |
+| `circulationTauHours` | 2 | h | 0.1 | 48 | assumption | sections |
+| `circulationMinPowerFraction` | 0.05 | 1 | 0.001 | 1 | assumption | sections |
+| `circulationMinQuality` | 0.35 | 1 | 0 | 1 | assumption | sections |
 | `targetHabitatC` | 21 | °C | 10 | 30 | допущение | sections |
 | `targetGreenhouseC` | 20 | °C | 5 | 32 | допущение | sections |
 | `solarPeakKw` | 12.192 | kW | 0 | 100 | derived | power |

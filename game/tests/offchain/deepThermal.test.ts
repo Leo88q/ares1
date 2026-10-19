@@ -4,7 +4,8 @@ import { advanceDay, type ColonyState, type Scenario } from '../../apps/web/src/
 import { buildStartColony } from '../../scripts/deepScenario'
 import { DEEP_P } from '../../apps/web/src/colony/deep/params'
 import {
-  createSection, outsideTemperatureC, stepSectionThermal, type Section,
+  atmosphereQuality, createSection, outsideTemperatureC, stepSectionCirculation,
+  stepSectionThermal, type Section,
 } from '../../apps/web/src/colony/deep/sections'
 import type { ColonyWorld } from '../../apps/web/src/colony/deep/world'
 
@@ -141,5 +142,69 @@ test('a cold scenario makes the outside colder — the sign is part of the contr
   for (let hour = 0; hour < 24.6229; hour += 1) {
     const t = outsideTemperatureC(hour, 0)
     assert.ok(t >= -60 && t <= -20, `outside ${t} °C is not Mars-like`)
+  }
+})
+
+test('circulation is a separate life-support function, not a consequence of temperature', () => {
+  // В номинале теплица берёт лишь 0.17 своей номинальной мощности — это доля
+  // потребления, а не «вентилятор дует на 17 %». Первая версия порога этого
+  // не учитывала, циркуляция падала, и качество атмосферы проседало до 46 %,
+  // ломая урожай. Порог мощности отделяет «энергии нет» от «агрегат недогружен».
+  const world = step(8)
+  const gh = sectionOf(world, 'greenhouse')
+  assert.ok(gh.circulation > 0.99, `a powered greenhouse must be fully mixed, got ${gh.circulation}`)
+  assert.ok(atmosphereQuality(gh) > 0.9, 'mixing must not degrade a healthy atmosphere')
+})
+
+test('a fan needs a minimum power to hold any flow at all', () => {
+  const s = createSection('sec-c', 'c', 'dev-c', 'habitat', 120)
+  // Агрегат недогружен, но питание есть: поток держится полностью.
+  stepSectionCirculation(s, 24.6229, 0.17)
+  assert.ok(s.circulation > 0.99, `a merely under-loaded unit must still mix, got ${s.circulation}`)
+  // Питание ниже порога: чем его меньше, тем слабее поток.
+  const weak = createSection('sec-w', 'w', 'dev-w', 'habitat', 120)
+  stepSectionCirculation(weak, 24.6229, 0.01)
+  assert.ok(weak.circulation < 0.3, `below the threshold the flow must collapse, got ${weak.circulation}`)
+  // Питания нет совсем: поток останавливается (за сол экспонента оставляет
+  // ~5e-6 полного расхода — это остановка, а не остаточное проветривание).
+  const off = createSection('sec-o', 'o', 'dev-o', 'habitat', 120)
+  stepSectionCirculation(off, 24.6229, 0)
+  assert.ok(off.circulation < 1e-4, `no power means no circulation, got ${off.circulation}`)
+})
+
+test('losing the fan ruins the air before the section cools down', () => {
+  // Главное свойство: это отдельная причина последствий. Состав газа в сумме
+  // остаётся верным, но дышать нечем — и происходит это быстрее, чем секция
+  // успевает остыть.
+  const s = createSection('sec-b', 'b', 'dev-b', 'habitat', 120)
+  const before = atmosphereQuality(s)
+  const tempBefore = s.temperatureC
+  assert.ok(before > 0.9, 'a fresh section must start breathable')
+  // Один сол без питания: температура почти не ушла, а воздух уже испорчен.
+  stepSectionCirculation(s, 24.6229, 0)
+  stepSectionThermal(s, 24.6229, 0.4, -52, 21, 0)
+  const after = atmosphereQuality(s)
+  assert.ok(after < before * 0.6,
+    `stale air must be unusable: quality ${before} → ${after}`)
+  assert.ok(Math.abs(s.temperatureC - tempBefore) < 12,
+    `the point is that the air fails FIRST: temperature moved ${s.temperatureC - tempBefore} °C`)
+})
+
+test('circulation has inertia: it spins down over hours, not instantly', () => {
+  const s = createSection('sec-i', 'i', 'dev-i', 'habitat', 120)
+  stepSectionCirculation(s, 0.5, 0)
+  // За полчаса вентилятор не останавливается полностью.
+  assert.ok(s.circulation > 0.5, `a fan must coast, got ${s.circulation} after 0.5 h`)
+  assert.ok(s.circulation < 1, 'but it must already be losing flow')
+  // Через несколько постоянных времени — останавливается.
+  stepSectionCirculation(s, 24.6229, 0)
+  assert.ok(s.circulation < 0.01, `after a full sol the fan must be stopped, got ${s.circulation}`)
+})
+
+test('a blackout is felt in the air of every section, not only in the habitat', () => {
+  const world = step(20, BLACKOUT, { sunHours: 0 })
+  for (const section of world.sections) {
+    assert.ok(section.circulation < 0.05,
+      `${section.kind} must lose its fan in a blackout, circulation ${section.circulation}`)
   }
 })

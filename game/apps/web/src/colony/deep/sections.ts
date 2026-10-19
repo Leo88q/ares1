@@ -56,6 +56,14 @@ export interface Section {
   envelopeKw: number
   /** Внутренние тепловыделения, kW. */
   internalHeatKw: number
+  /**
+   * Перемешивание воздуха 0…1. Без вентилятора состав газа в сумме верен,
+   * но в зоне дыхания он перестаёт соответствовать сумме: CO₂ скапливается
+   * у людей и грядок, кислород расслаивается. Это отдельная функция
+   * жизнеобеспечения, а не следствие температуры: при отказе вентиляции
+   * атмосфера портится быстрее, чем секция успевает остыть.
+   */
+  circulation: number
 }
 
 const moles = (massKg: number, molarMass: number): number => massKg / molarMass
@@ -92,6 +100,7 @@ export function createSection(id: string, name: string, deviceId: string, kind: 
     id, name, deviceId, kind, volumeM3, o2Kg, co2Kg, n2Kg,
     temperatureC, humidity: 0.45, condition: 1, isolated: false, connected: true,
     crewIds: [], condensateL: 0, lostKg: 0, heaterKw: 0, coolerKw: 0, envelopeKw: 0, internalHeatKw: 0,
+    circulation: 1,
   }
 }
 
@@ -178,6 +187,29 @@ export function stepSectionThermal(
   return { heaterKw, coolerKw, envelopeKw }
 }
 
+/**
+ * Перемешивание воздуха. Вентилятор не мгновенный: он раскручивается и
+ * останавливается, а stratification развивается постепенно. Поэтому
+ * циркуляция идёт к целевой экспонентой с постоянной `circulationTauHours`
+ * — так шаг остаётся устойчивым при любом размере подшага.
+ *
+ * Цель — `poweredFraction`: сколько мощности реально подано на
+ * климатический агрегат секции (он же гонит воздух).
+ */
+export function stepSectionCirculation(s: Section, hours: number, poweredFraction: number): number {
+  // Вентилятору нужна некоторая мощность, чтобы вообще крутиться. Доля
+  // мощности агрегата — это сколько он потребляет от номинала, а не «на
+  // сколько процентов дует вентилятор»: теплица в номинале берёт 0.17 и при
+  // этом проветривается полностью. Поэтому ниже порога поток гаснет, а выше
+  // порога циркуляция сразу полная.
+  const need = Math.max(1e-6, DEEP_P.circulationMinPowerFraction)
+  const target = clamp01(poweredFraction / need)
+  const tau = Math.max(1e-6, DEEP_P.circulationTauHours)
+  const alpha = 1 - Math.exp(-Math.max(0, hours) / tau)
+  s.circulation = clamp01(s.circulation + (target - s.circulation) * alpha)
+  return s.circulation
+}
+
 /** Сколько литров влаги удерживает воздух секции при текущей влажности (агрегированно). */
 export const sectionMoistureCapacityL = (s: Section): number =>
   Math.max(0.5, (s.volumeM3 / DEEP_P.habitatVolumeM3) * 8)
@@ -224,12 +256,23 @@ export function rootOxygenFactor(ppO2Kpa: number, waterlogRatio: number): number
   return clamp01(airFactor * (1 - 0.6 * clamp01(waterlogRatio)))
 }
 
-/** Качество атмосферы 0…1 для интерфейса и последствий (давление, O2, CO2). */
+/**
+ * Качество атмосферы 0…1 для интерфейса и последствий (давление, O2, CO2).
+ *
+ * Суммарные массы газов отвечают за состав, но НЕ за то, чем дышит человек:
+ * без перемешивания CO₂ стоит облаком у источника, а кислород расслаивается.
+ * Поэтому качество умножается на перемешивание: при работающем вентиляторе
+ * множитель равен единице и расчёт совпадает с прежним, при остановленном —
+ * опускается до `circulationMinQuality`, и секция с формально верным составом
+ * становится непригодной. Это и есть отдельная функция жизнеобеспечения.
+ */
 export function atmosphereQuality(s: Section): number {
   const o2 = clamp01(fraction(o2PartialKpa(s), DEEP_P.minO2PartialKpa))
   const co2 = clamp01(1 - fraction(Math.max(0, co2PartialKpa(s) - DEEP_P.targetCo2PartialKpa), DEEP_P.maxCo2PartialKpa))
   const pressure = clamp01(fraction(totalPressureKpa(s), DEEP_P.nominalPressureKpa * 0.85))
-  return clamp01(Math.min(o2, co2, pressure))
+  const floor = clamp01(DEEP_P.circulationMinQuality)
+  const mixing = floor + (1 - floor) * clamp01(s.circulation)
+  return clamp01(Math.min(o2, co2, pressure) * mixing)
 }
 
 /**

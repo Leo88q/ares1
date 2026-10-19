@@ -32,7 +32,7 @@ import {
 } from './devices'
 import {
   createSection, drainCondensate, injectO2, leakSection, outsideTemperatureC, scrubCo2,
-  stepSectionHumidity, stepSectionThermal, atmosphereQuality, co2PartialKpa, o2PartialKpa,
+  stepSectionCirculation, stepSectionHumidity, stepSectionThermal, atmosphereQuality, co2PartialKpa, o2PartialKpa,
   totalPressureKpa, KELVIN, R_GAS, MOLAR_O2, type Section,
 } from './sections'
 import { accumulateDust, dispatchPower, reserveSols, solarDailyKwh } from './power'
@@ -63,7 +63,7 @@ import {
   type Contract, type ContractSeed, type PotatoEstimate,
 } from './contracts'
 
-export const WORLD_VERSION = 3
+export const WORLD_VERSION = 4
 
 /** Целевое парциальное давление O2 в жилой секции, kPa. */
 export const TARGET_O2_HABITAT = 18
@@ -1038,6 +1038,10 @@ function updateSections(world: ColonyWorld, hours: number, outsideC: number, ste
       : section.kind === 'habitat' ? DEEP_P.targetHabitatC : DEEP_P.targetHabitatC
     const hvac = stepSectionThermal(section, hours, internalKw, outsideC, targetC, hvacFraction)
     if (hvac.coolerKw > 0) world.totals.coolingKwh = round((world.totals.coolingKwh ?? 0) + hvac.coolerKw * hours, 6)
+    // Перемешивание воздуха питается от того же агрегата, что и климат: нет
+    // энергии — нет вентилятора, и атмосфера портится раньше, чем секция
+    // успевает остыть. Это отдельная причина стресса, а не дубль температуры.
+    stepSectionCirculation(section, hours, hvacFraction)
     const beforeO2 = section.o2Kg
     leakSection(section, shareOfSol)
     step.o2LeakedKg += Math.max(0, beforeO2 - section.o2Kg)
