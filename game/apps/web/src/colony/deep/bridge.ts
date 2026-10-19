@@ -173,7 +173,19 @@ export function colonyWorldConfig(state: ColonyState, seed = 0x5eed_1a1a): World
       reagents: 20,
       co2: 4,
     },
-    contracts: [],
+    // Контракт берётся из существующей колонии, а не выдумывается рядом:
+    // иначе в игре одновременно живут два разных контракта, и панель
+    // показывает тот, который нельзя исполнить.
+    contracts: [{
+      id: 'local-potato',
+      title: 'Локальный покупатель: картофель',
+      requiredKg: PARAMETERS.contractKg,
+      minQuality: 0.6,
+      dueSol: 180,
+      rewardFundCR: PARAMETERS.contractKg * PARAMETERS.contractCreditsKg,
+      packingRequired: true,
+      buyer: 'ARES-1 local buyer',
+    }],
     seed,
     // Номинальная пылевая нагрузка: пыль ускоряет износ, но базовый сценарий — не буря.
     scenario: { sunHours: 18, weatherFactor: 1, dustRate: 0.35, coldDropC: 0, forcedFault: null },
@@ -186,7 +198,11 @@ export function colonyWorldConfig(state: ColonyState, seed = 0x5eed_1a1a): World
     // `processUnstaffedKgPerSol`, поэтому выключенный экипаж не обрекает
     // колонию на голод, а лишь замедляет переработку вчетверо.
     autoSort: true,
-    autoDeliver: false,
+    autoDeliver: true,
+    // Политика эксперимента: четырёхкратный резерв (≈56 солов еды). Цикл
+    // картофеля — 90 солов, и между сборами проходит больше двух недель,
+    // поэтому продажа под 14-дневный резерв означает голод.
+    exportReserveSols: DEEP_P.exportReserveSols,
     criticalReserveFraction: 0.25,
     // Доля урожая, уходящая в семенной фонд. 0.12 — земная практика для
     // продовольственного картофеля, но для ЭТОЙ модели она завышена: посадка
@@ -575,8 +591,17 @@ export function advanceColonyDay(state: ColonyState, scenario: Scenario, budget:
     // реестра. Ограничивать его скоростью агрегата значило бы оставить массу
     // висеть в `ware_potato` и разорвать тождество реестра — сырьё уже списано,
     // а еда ещё не начислена.
+    // Резерв: в еду уходит только то, что не покрывает запас на
+    // `exportReserveSols` солов. Всё, что выше, остаётся физической партией на
+    // складе — и именно оно может уйти по контракту. Раньше в еду уходила вся
+    // товарная доля без остатка, поэтому `ware_potato` всегда был нулём и
+    // отгружать было нечего: схема цепи обещала «излишек сверх резерва →
+    // контракт», а в коде эта ветка не существовала.
+    const reserveKg = state.crew * PARAMETERS.freshFoodKgCrewDay * world.config.exportReserveSols
     for (const id of ['ware_potato', 'cull_potato'] as const) {
-      const got = stockTake(stepped.stock, id, stepped.stock.amount[id])
+      const room = Math.max(0, reserveKg - ledger.processedKg)
+      if (room <= 1e-9) break
+      const got = stockTake(stepped.stock, id, Math.min(stepped.stock.amount[id], room))
       if (got.taken > 1e-9) {
         ledger = {
           ...ledger,
@@ -587,6 +612,25 @@ export function advanceColonyDay(state: ColonyState, scenario: Scenario, budget:
     }
   }
 
+  // Зеркало склада, а не отдельный счётчик: сколько физически лежит в
+  // товарной партии и некондиции, столько и числится задержанным. Иначе
+  // тождество реестра расходится на задержанный объём — сырьё уже списано,
+  // а еда ещё не начислена. Зеркало пересчитывается каждый сол, поэтому
+  // порча, отгрузка и переработка учитываются сами, без отдельной бухгалтерии.
+  // Порча задержанной партии: масса уже не на складе и никогда не станет едой,
+  // поэтому реестр обязан списать её как потери хранения.
+  const spoiled = stepped.lastStep?.heldSpoiledKg ?? 0
+  // Отгрузка по контракту забирает физическую партию глубокого склада. Реестр
+  // об этом не знает, поэтому вывезенные килограммы нужно вернуть в его
+  // расход: иначе тождество расходится ровно на объём поставки.
+  const exported = Math.max(0, stepped.totals.exportedKg - world.totals.exportedKg)
+  ledger = {
+    ...ledger,
+    heldBackKg: Math.max(0, stepped.stock.amount.ware_potato + stepped.stock.amount.cull_potato),
+    ...(spoiled > 0 ? { spoiledKg: (ledger.spoiledKg ?? 0) + spoiled } : {}),
+    ...(exported > 0 ? { exportedKg: ledger.exportedKg + exported } : {}),
+  }
+
   const next = syncStateFromWorld({ ...state, ledger }, stepped)
   return { state: next, world: stepped, step: stepped.lastStep ?? emptyStepOf(stepped.sol - 1), harvestedKg, sortedKg }
 }
@@ -594,7 +638,8 @@ export function advanceColonyDay(state: ColonyState, scenario: Scenario, budget:
 export function emptyStepOf(sol: number): SolStep {
   return {
     sol, growthByBed: {}, yieldFactor: {}, waterAggregateUsedL: 0, waterIndustrialL: 0,
-    waterSampleL: 0, condensateL: 0, waterProducedL: 0, waterShortfallL: 0, nutrientUsedKg: 0, nutrientProducedKg: 0,
+    waterSampleL: 0, condensateL: 0, heldSpoiledKg: 0, waterProducedL: 0, waterShortfallL: 0,
+    nutrientUsedKg: 0, nutrientProducedKg: 0,
     o2ProducedKg: 0, cropO2Kg: 0, o2DemandKg: 0, o2LeakedKg: 0, o2ShortfallKg: 0, o2VentedKg: 0, foodShortfallKg: 0,
     power: { generationKwh: 0, demandKwh: 0, servedKwh: 0, unmetKwh: 0, curtailedKwh: 0, shed: [] },
     labour: { required: 0, provided: 0, byKind: {} },

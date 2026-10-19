@@ -82,6 +82,15 @@ export interface UnifiedBase {
    * участвует. По умолчанию 0 — старые балансы не меняются.
    */
   seedReturnedKg?: number
+  /**
+   * Килограммы, физически лежащие в товарной партии глубокого склада и ещё не
+   * переведённые в еду: резерв удержан, масса ждёт решения игрока — везти по
+   * контракту или пустить в продовольствие. Масса уже покинула сырьё реестра,
+   * но ещё не стала едой, поэтому без этого члена тождество расходится ровно
+   * на задержанный объём. Зеркало склада, а не独立 счётчик: пересчитывается
+   * мостом каждый сол. По умолчанию 0 — старые балансы не меняются.
+   */
+  heldBackKg?: number
   /** POTATO earned from crafting, off-chain ledger only. Never minted by this module. */
   potatoLedger: number
   /** POTATO per crafted kg. `null` = not calibrated, crafting refused. */
@@ -120,7 +129,7 @@ export function initialUnifiedBase(init: UnifiedInit): UnifiedBase {
     craftedKg: 0,
     processingLossKg: 0,
     foodShortfallKg: 0,
-    sortedKg: 0, spoiledKg: 0, seedReturnedKg: 0,
+    sortedKg: 0, spoiledKg: 0, seedReturnedKg: 0, heldBackKg: 0,
     potatoLedger: 0,
     potatoPerKg: init.potatoPerKg ?? null,
   }
@@ -135,7 +144,7 @@ export function unifiedBalance(b: UnifiedBase): { inflow: number; stock: number;
   const inflow = b.startKg + b.harvestedKg
   const stock = b.rawKg + b.processedKg
   const outflow = b.eatenKg + b.exportedKg + b.craftedKg + b.processingLossKg
-    + (b.sortedKg ?? 0) + (b.spoiledKg ?? 0) + (b.seedReturnedKg ?? 0)
+    + (b.sortedKg ?? 0) + (b.spoiledKg ?? 0) + (b.seedReturnedKg ?? 0) + (b.heldBackKg ?? 0)
   return { inflow, stock, outflow, residual: inflow - stock - outflow }
 }
 

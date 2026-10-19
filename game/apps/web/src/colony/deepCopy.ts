@@ -70,6 +70,7 @@ const en = {
   safeMode: 'Safe mode', safeModeOn: 'Enter safe mode', safeModeOff: 'Return to service',
   isolate: 'Seal off', reconnect: 'Reconnect', isolated: 'Sealed',
   safeModeNote: 'Safe mode stops the unit: it draws no power and produces nothing.',
+  ship: 'Ship', shipKg: 'Ship', nothingToShip: 'nothing to ship', ware: 'Ware lot',
   isolateNote: 'A sealed section is cut off from life support: no make-up oxygen, no scrubbing.',
 
   // Контракты
@@ -158,6 +159,7 @@ const ru: typeof en = {
   safeMode: 'Безопасный режим', safeModeOn: 'В безопасный режим', safeModeOff: 'Вернуть в работу',
   isolate: 'Изолировать', reconnect: 'Подключить обратно', isolated: 'Изолирована',
   safeModeNote: 'Безопасный режим останавливает агрегат: он не берёт мощность и не даёт выхода.',
+  ship: 'Отгрузка', shipKg: 'Отгрузить', nothingToShip: 'нечего везти', ware: 'Товарная партия',
   isolateNote: 'Изолированная секция отрезана от жизнеобеспечения: нет подпитки кислородом и очистки.',
 
   contractsTitle: 'Ограниченные локальные контракты',

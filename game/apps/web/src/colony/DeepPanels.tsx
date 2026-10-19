@@ -6,8 +6,8 @@ import { SPECIALTY_LABEL } from './deep/crew'
 import { TASK_META } from './deep/tasks'
 import { ANALYSIS_KINDS, ANALYSIS_META } from './deep/lab'
 import {
-  applyRecipe, isolateSection, requestAnalysis, reserveSolsOf, saveRecipe, setSafeMode,
-  setTaskPaused, setTaskPriority, startExperiment, takeSample,
+  applyRecipe, deliverContract, isolateSection, requestAnalysis, reserveSolsOf, saveRecipe,
+  setSafeMode, setTaskPaused, setTaskPriority, startExperiment, takeSample,
 } from './deep/world'
 import { finishExperiment } from './deep/lab'
 import { batchStage, batchSummary, projectedYieldKg, STAGE_LABEL, FACTOR_LABEL } from './deep/growth'
@@ -90,7 +90,7 @@ export function DeepPanels({ world, language, onChange, initialTab = 'crew' }: {
           {tab === 'greenhouse' && <GreenhousePanel world={world} language={language} />}
           {tab === 'lab' && <LabPanel world={world} language={language} onChange={onChange} />}
           {tab === 'repair' && <RepairPanel world={world} language={language} onChange={onChange} />}
-          {tab === 'contracts' && <ContractPanel world={world} language={language} />}
+          {tab === 'contracts' && <ContractPanel world={world} language={language} onChange={onChange} />}
           {tab === 'journal' && <JournalPanel world={world} language={language} />}
         </div>}
     </div>
@@ -452,21 +452,35 @@ function RepairPanel({ world, language, onChange }: { world: ColonyWorld; langua
   </section>
 }
 
-function ContractPanel({ world, language }: { world: ColonyWorld; language: string }) {
+function ContractPanel({ world, language, onChange }: { world: ColonyWorld; language: string; onChange: () => void }) {
   const c = deepCopy(language)
+  // Автополитика держит резерв; ручная кнопка отдаёт решение игроку —
+  // отвезти излишек раньше и остаться с тонким запасом еды.
+  const ware = world.stock.amount.ware_potato
+  const shippable = (remaining: number): number => Math.max(0, Math.min(ware, remaining, 10))
   return <section className="colony-study-card">
     <p className="colony-eyebrow">{c.contractsTitle}</p>
     <p className="colony-fineprint">{c.contractsNote}</p>
     <div className="colony-table-scroll"><table>
-      <thead><tr><th>{c.contracts}</th><th>{c.required}</th><th>{c.delivered}</th><th>{c.due}</th><th>{c.rate}</th><th>{c.reward}</th></tr></thead>
-      <tbody>{world.contracts.map(ct => <tr key={ct.id} data-testid={`deep-contract-${ct.id}`}>
-        <td>{ct.title}</td>
-        <td>{num(ct.requiredKg)} kg</td>
-        <td><Bar value={ct.requiredKg > 0 ? ct.deliveredKg / ct.requiredKg : 0} /> {num(ct.deliveredKg)} kg</td>
-        <td>{ct.dueSol}</td>
-        <td>{num(ct.creditsPerKg, 2)} CR/kg</td>
-        <td>{num(ct.rewardFundCR, 0)} CR</td>
-      </tr>)}</tbody>
+      <thead><tr><th>{c.contracts}</th><th>{c.required}</th><th>{c.delivered}</th><th>{c.due}</th><th>{c.rate}</th><th>{c.reward}</th><th>{c.ware}</th><th>{c.ship}</th></tr></thead>
+      <tbody>{world.contracts.map(ct => {
+        const remaining = Math.max(0, ct.requiredKg - ct.deliveredKg)
+        const kg = shippable(remaining)
+        return <tr key={ct.id} data-testid={`deep-contract-${ct.id}`}>
+          <td>{ct.title}</td>
+          <td>{num(ct.requiredKg)} kg</td>
+          <td><Bar value={ct.requiredKg > 0 ? ct.deliveredKg / ct.requiredKg : 0} /> {num(ct.deliveredKg)} kg</td>
+          <td>{ct.dueSol}</td>
+          <td>{num(ct.creditsPerKg, 2)} CR/kg</td>
+          <td>{num(ct.rewardFundCR, 0)} CR</td>
+          <td>{num(ware)} kg</td>
+          <td>{ct.status === 'active' && kg > 1e-9
+            ? <button type="button" data-testid={`deep-ship-${ct.id}`}
+              onClick={() => { deliverContract(world, ct.id, kg); onChange() }}>
+              {c.shipKg} {num(kg)} kg</button>
+            : <span className="colony-fineprint">{ct.status === 'active' ? c.nothingToShip : ct.status}</span>}</td>
+        </tr>
+      })}</tbody>
     </table></div>
     {world.contracts.length === 0 && <p className="colony-fineprint">{c.empty}</p>}
   </section>

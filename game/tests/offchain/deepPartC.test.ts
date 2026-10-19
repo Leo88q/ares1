@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { advanceDay, buildModule, type ColonyState } from '../../apps/web/src/colony/simulation'
 import { buildStartColony, SCENARIOS } from '../../scripts/deepScenario'
 import {
-  applyStorageCapacity, createWorld, deliverSamples, isolateSection, prepareEva, requestAnalysis,
-  setSafeMode, takeSample,
+  applyStorageCapacity, createWorld, deliverContract, deliverSamples, isolateSection, prepareEva,
+  requestAnalysis, setSafeMode, takeSample,
 } from '../../apps/web/src/colony/deep/world'
 import { emptyStepOf } from '../../apps/web/src/colony/deep/bridge'
 import { TASK_META } from '../../apps/web/src/colony/deep/tasks'
@@ -307,4 +307,70 @@ test('safe mode stops the unit instead of pretending to', () => {
   assert.ok(stopped < running - 1e-6,
     `a rig in safe mode must not mine: ${running.toFixed(1)} kg running `
     + `vs ${stopped.toFixed(1)} kg in safe mode`)
+})
+
+// --- Контракт исполняется физическим товаром -------------------------------
+
+/**
+ * Глубокий контракт был неисполним.
+ *
+ * `deliverContract` не вызывал никто, `autoDeliver` не читал никто, а
+ * `config.contracts` был пуст: модель ограничений (объём, срок, качество,
+ * упаковка, предоплаченный фонд, уникальный номер поставки) была написана и
+ * покрыта тестами, но панель показывала контракты, которые не могут
+ * сдвинуться с места.
+ */
+test('the colony has a contract, and it can be fulfilled with real goods', () => {
+  let state = buildStartColony()
+  state = step(state)
+  const world = state.world!
+  assert.ok(world.contracts.length > 0, 'the colony must start with a contract')
+
+  const contract = world.contracts[0]
+  world.stock.amount.ware_potato = 50
+  world.stock.amount.packaging = 100
+  const wareBefore = world.stock.amount.ware_potato
+  const creditsBefore = world.credits
+
+  const result = deliverContract(world, contract.id, 10)
+  assert.ok(result.ok, `the delivery must be accepted, got ${result.reason}`)
+  assert.equal(result.kg, 10)
+  assert.ok(world.stock.amount.ware_potato <= wareBefore - 10 + 1e-9,
+    'the physical lot must be written off, not conjured at the dock')
+  assert.ok(world.credits > creditsBefore, 'the delivery must be paid from the pre-funded pool')
+  assert.ok(world.stock.amount.packaging < 100, 'packaging must be consumed')
+})
+
+test('a contract cannot be over-filled or paid twice', () => {
+  const world = createWorld(colonyWorldConfig(buildStartColony()))
+  const contract = world.contracts[0]
+  world.stock.amount.ware_potato = 500
+  world.stock.amount.packaging = 1000
+
+  // Гоним поставки, пока контракт не закроется.
+  for (let i = 0; i < 40 && contract.status === 'active'; i++) {
+    deliverContract(world, contract.id, 10)
+  }
+  assert.equal(contract.status, 'fulfilled', 'the contract must close')
+  assert.ok(contract.deliveredKg <= contract.requiredKg + 1e-9,
+    `delivered ${contract.deliveredKg} kg of ${contract.requiredKg} kg — the buyer is bounded`)
+  assert.ok(contract.paidCR <= contract.rewardFundCR + 1e-9,
+    `paid ${contract.paidCR} CR of a ${contract.rewardFundCR} CR fund — the pool is pre-funded`)
+  // Каждая поставка имеет уникальный номер: одну и ту же не оплатить дважды.
+  const ids = new Set(contract.deliveries.map(d => d.id))
+  assert.equal(ids.size, contract.deliveries.length, 'delivery numbers must be unique')
+  const total = contract.deliveries.reduce((sum, d) => sum + d.kg, 0)
+  assert.ok(Math.abs(total - contract.deliveredKg) < 1e-9,
+    'delivered mass must equal the sum of the deliveries')
+})
+
+test('export and the contract are one instrument, not two', () => {
+  // Прежде вывоз шёл через реестр еды (`deliverFood`), а панель показывала
+  // глубокий контракт: две разные истории об одном картофеле.
+  const state = run(180)
+  const world = state.world!
+  const contractDelivered = world.contracts.reduce((sum, c) => sum + c.deliveredKg, 0)
+  assert.ok(Math.abs(world.totals.exportedKg - contractDelivered) < 1e-9,
+    `every exported kilogram must be a contract delivery: `
+    + `exported ${world.totals.exportedKg} kg vs delivered ${contractDelivered} kg`)
 })

@@ -37,7 +37,7 @@
  "daily": [
   {
    "sol": 1,
-   "foodKg": 108,
+   "foodKg": 118,
    "waterCleanL": 793.7,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -63,7 +63,7 @@
   },
   {
    "sol": 2,
-   "foodKg": 106,
+   "foodKg": 116,
    "waterCleanL": 774.4,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -89,7 +89,7 @@
   },
   {
    "sol": 3,
-   "foodKg": 104,
+   "foodKg": 114,
    "waterCleanL": 755.2,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -115,7 +115,7 @@
   },
   {
    "sol": 4,
-   "foodKg": 102,
+   "foodKg": 112,
    "waterCleanL": 767.1,
    "waterRawL": 5.2,
    "waterGreyL": 3.1,
@@ -141,7 +141,7 @@
   },
   {
    "sol": 5,
-   "foodKg": 100,
+   "foodKg": 110,
    "waterCleanL": 792.5,
    "waterRawL": 5.2,
    "waterGreyL": 3.1,
@@ -167,7 +167,7 @@
   },
   {
    "sol": 6,
-   "foodKg": 98,
+   "foodKg": 108,
    "waterCleanL": 801.7,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -193,7 +193,7 @@
   },
   {
    "sol": 7,
-   "foodKg": 96,
+   "foodKg": 106,
    "waterCleanL": 831.6,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -219,7 +219,7 @@
   },
   {
    "sol": 8,
-   "foodKg": 94,
+   "foodKg": 104,
    "waterCleanL": 861.5,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -245,7 +245,7 @@
   },
   {
    "sol": 9,
-   "foodKg": 92,
+   "foodKg": 102,
    "waterCleanL": 891.4,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -271,7 +271,7 @@
   },
   {
    "sol": 10,
-   "foodKg": 90,
+   "foodKg": 100,
    "waterCleanL": 921.4,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -297,7 +297,7 @@
   },
   {
    "sol": 11,
-   "foodKg": 88,
+   "foodKg": 98,
    "waterCleanL": 951.4,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -323,7 +323,7 @@
   },
   {
    "sol": 12,
-   "foodKg": 86,
+   "foodKg": 96,
    "waterCleanL": 981.4,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -349,7 +349,7 @@
   },
   {
    "sol": 13,
-   "foodKg": 84,
+   "foodKg": 94,
    "waterCleanL": 1011.4,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -375,7 +375,7 @@
   },
   {
    "sol": 14,
-   "foodKg": 82,
+   "foodKg": 92,
    "waterCleanL": 1041.4,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -401,7 +401,7 @@
   },
   {
    "sol": 15,
-   "foodKg": 80,
+   "foodKg": 90,
    "waterCleanL": 1071.3,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -427,7 +427,7 @@
   },
   {
    "sol": 16,
-   "foodKg": 78,
+   "foodKg": 88,
    "waterCleanL": 1101.1,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -453,7 +453,7 @@
   },
   {
    "sol": 17,
-   "foodKg": 76,
+   "foodKg": 86,
    "waterCleanL": 1131,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -479,7 +479,7 @@
   },
   {
    "sol": 18,
-   "foodKg": 74,
+   "foodKg": 84,
    "waterCleanL": 1160.4,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -505,7 +505,7 @@
   },
   {
    "sol": 19,
-   "foodKg": 72,
+   "foodKg": 82,
    "waterCleanL": 1190.3,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -531,7 +531,7 @@
   },
   {
    "sol": 20,
-   "foodKg": 70,
+   "foodKg": 80,
    "waterCleanL": 1220.3,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -557,7 +557,7 @@
   },
   {
    "sol": 21,
-   "foodKg": 68,
+   "foodKg": 78,
    "waterCleanL": 1250.2,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -583,7 +583,7 @@
   },
   {
    "sol": 22,
-   "foodKg": 66,
+   "foodKg": 76,
    "waterCleanL": 1280.2,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -609,7 +609,7 @@
   },
   {
    "sol": 23,
-   "foodKg": 64,
+   "foodKg": 74,
    "waterCleanL": 1310.3,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -635,7 +635,7 @@
   },
   {
    "sol": 24,
-   "foodKg": 62,
+   "foodKg": 72,
    "waterCleanL": 1340.3,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -661,7 +661,7 @@
   },
   {
    "sol": 25,
-   "foodKg": 60,
+   "foodKg": 70,
    "waterCleanL": 1370.4,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -687,7 +687,7 @@
   },
   {
    "sol": 26,
-   "foodKg": 58,
+   "foodKg": 68,
    "waterCleanL": 1400.4,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -713,7 +713,7 @@
   },
   {
    "sol": 27,
-   "foodKg": 56,
+   "foodKg": 66,
    "waterCleanL": 1430.6,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -739,7 +739,7 @@
   },
   {
    "sol": 28,
-   "foodKg": 54,
+   "foodKg": 64,
    "waterCleanL": 1460.7,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -765,7 +765,7 @@
   },
   {
    "sol": 29,
-   "foodKg": 52,
+   "foodKg": 62,
    "waterCleanL": 1490.9,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -791,7 +791,7 @@
   },
   {
    "sol": 30,
-   "foodKg": 50,
+   "foodKg": 60,
    "waterCleanL": 1521,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -817,7 +817,7 @@
   },
   {
    "sol": 31,
-   "foodKg": 48,
+   "foodKg": 58,
    "waterCleanL": 1550.9,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -843,7 +843,7 @@
   },
   {
    "sol": 32,
-   "foodKg": 81.98,
+   "foodKg": 91.98,
    "waterCleanL": 1552,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -869,7 +869,7 @@
   },
   {
    "sol": 33,
-   "foodKg": 72.14,
+   "foodKg": 82.14,
    "waterCleanL": 1581.9,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -895,7 +895,7 @@
   },
   {
    "sol": 34,
-   "foodKg": 70.14,
+   "foodKg": 80.14,
    "waterCleanL": 1611.8,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -921,7 +921,7 @@
   },
   {
    "sol": 35,
-   "foodKg": 68.14,
+   "foodKg": 78.14,
    "waterCleanL": 1641.8,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -947,7 +947,7 @@
   },
   {
    "sol": 36,
-   "foodKg": 66.14,
+   "foodKg": 76.14,
    "waterCleanL": 1671.3,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -973,7 +973,7 @@
   },
   {
    "sol": 37,
-   "foodKg": 64.14,
+   "foodKg": 74.14,
    "waterCleanL": 1701.3,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -999,7 +999,7 @@
   },
   {
    "sol": 38,
-   "foodKg": 62.14,
+   "foodKg": 72.14,
    "waterCleanL": 1731.3,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1025,7 +1025,7 @@
   },
   {
    "sol": 39,
-   "foodKg": 60.14,
+   "foodKg": 70.14,
    "waterCleanL": 1761.3,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1051,7 +1051,7 @@
   },
   {
    "sol": 40,
-   "foodKg": 58.14,
+   "foodKg": 68.14,
    "waterCleanL": 1791.4,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1077,7 +1077,7 @@
   },
   {
    "sol": 41,
-   "foodKg": 56.14,
+   "foodKg": 66.14,
    "waterCleanL": 1821.5,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1103,7 +1103,7 @@
   },
   {
    "sol": 42,
-   "foodKg": 54.14,
+   "foodKg": 64.14,
    "waterCleanL": 1851.6,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1129,7 +1129,7 @@
   },
   {
    "sol": 43,
-   "foodKg": 52.14,
+   "foodKg": 62.14,
    "waterCleanL": 1881.8,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1155,7 +1155,7 @@
   },
   {
    "sol": 44,
-   "foodKg": 50.14,
+   "foodKg": 60.14,
    "waterCleanL": 1912,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1181,7 +1181,7 @@
   },
   {
    "sol": 45,
-   "foodKg": 48.14,
+   "foodKg": 58.14,
    "waterCleanL": 1941.9,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1207,7 +1207,7 @@
   },
   {
    "sol": 46,
-   "foodKg": 46.14,
+   "foodKg": 56.14,
    "waterCleanL": 1971.7,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1233,7 +1233,7 @@
   },
   {
    "sol": 47,
-   "foodKg": 44.14,
+   "foodKg": 54.14,
    "waterCleanL": 2001.6,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1259,7 +1259,7 @@
   },
   {
    "sol": 48,
-   "foodKg": 78.12,
+   "foodKg": 88.12,
    "waterCleanL": 2002.8,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1285,7 +1285,7 @@
   },
   {
    "sol": 49,
-   "foodKg": 68.28,
+   "foodKg": 78.28,
    "waterCleanL": 2032.8,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1311,7 +1311,7 @@
   },
   {
    "sol": 50,
-   "foodKg": 66.28,
+   "foodKg": 76.28,
    "waterCleanL": 2062.7,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1337,7 +1337,7 @@
   },
   {
    "sol": 51,
-   "foodKg": 64.28,
+   "foodKg": 74.28,
    "waterCleanL": 2092.7,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1363,7 +1363,7 @@
   },
   {
    "sol": 52,
-   "foodKg": 62.28,
+   "foodKg": 72.28,
    "waterCleanL": 2122.7,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1389,7 +1389,7 @@
   },
   {
    "sol": 53,
-   "foodKg": 60.28,
+   "foodKg": 70.28,
    "waterCleanL": 2152.8,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1415,7 +1415,7 @@
   },
   {
    "sol": 54,
-   "foodKg": 58.28,
+   "foodKg": 68.28,
    "waterCleanL": 2182.4,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1441,7 +1441,7 @@
   },
   {
    "sol": 55,
-   "foodKg": 56.28,
+   "foodKg": 66.28,
    "waterCleanL": 2212.5,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1467,7 +1467,7 @@
   },
   {
    "sol": 56,
-   "foodKg": 54.28,
+   "foodKg": 64.28,
    "waterCleanL": 2242.6,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1493,7 +1493,7 @@
   },
   {
    "sol": 57,
-   "foodKg": 52.28,
+   "foodKg": 62.28,
    "waterCleanL": 2272.7,
    "waterRawL": 0,
    "waterGreyL": 3.1,
@@ -1519,7 +1519,7 @@
   },
   {
    "sol": 58,
-   "foodKg": 50.28,
+   "foodKg": 60.28,
    "waterCleanL": 2297.7,
    "waterRawL": 3.3,
    "waterGreyL": 6.1,
@@ -1545,7 +1545,7 @@
   },
   {
    "sol": 59,
-   "foodKg": 48.28,
+   "foodKg": 58.28,
    "waterCleanL": 2297.7,
    "waterRawL": 11.3,
    "waterGreyL": 23.7,
@@ -1571,7 +1571,7 @@
   },
   {
    "sol": 60,
-   "foodKg": 46.28,
+   "foodKg": 56.28,
    "waterCleanL": 2297.7,
    "waterRawL": 12.9,
    "waterGreyL": 48.1,
@@ -1597,7 +1597,7 @@
   },
   {
    "sol": 61,
-   "foodKg": 44.28,
+   "foodKg": 54.28,
    "waterCleanL": 2297.7,
    "waterRawL": 14.5,
    "waterGreyL": 72.5,
@@ -1623,7 +1623,7 @@
   },
   {
    "sol": 62,
-   "foodKg": 42.28,
+   "foodKg": 52.28,
    "waterCleanL": 2297.7,
    "waterRawL": 26.8,
    "waterGreyL": 96.9,
@@ -1649,7 +1649,7 @@
   },
   {
    "sol": 63,
-   "foodKg": 40.28,
+   "foodKg": 50.28,
    "waterCleanL": 2297.7,
    "waterRawL": 39,
    "waterGreyL": 121.3,
@@ -1675,7 +1675,7 @@
   },
   {
    "sol": 64,
-   "foodKg": 74.26,
+   "foodKg": 84.26,
    "waterCleanL": 2268.9,
    "waterRawL": 51.3,
    "waterGreyL": 145.7,
@@ -1701,7 +1701,7 @@
   },
   {
    "sol": 65,
-   "foodKg": 71.35,
+   "foodKg": 81.35,
    "waterCleanL": 2297.7,
    "waterRawL": 29.8,
    "waterGreyL": 170.1,
@@ -1727,7 +1727,7 @@
   },
   {
    "sol": 66,
-   "foodKg": 62.42,
+   "foodKg": 72.42,
    "waterCleanL": 2297.7,
    "waterRawL": 42.2,
    "waterGreyL": 194.5,
@@ -1753,7 +1753,7 @@
   },
   {
    "sol": 67,
-   "foodKg": 60.42,
+   "foodKg": 70.42,
    "waterCleanL": 2297.7,
    "waterRawL": 54.6,
    "waterGreyL": 218.9,
@@ -1779,7 +1779,7 @@
   },
   {
    "sol": 68,
-   "foodKg": 58.42,
+   "foodKg": 68.42,
    "waterCleanL": 2297.7,
    "waterRawL": 67,
    "waterGreyL": 243.3,
@@ -1805,7 +1805,7 @@
   },
   {
    "sol": 69,
-   "foodKg": 56.42,
+   "foodKg": 66.42,
    "waterCleanL": 2297.7,
    "waterRawL": 79.4,
    "waterGreyL": 267.7,
@@ -1831,7 +1831,7 @@
   },
   {
    "sol": 70,
-   "foodKg": 54.42,
+   "foodKg": 64.42,
    "waterCleanL": 2297.7,
    "waterRawL": 91.9,
    "waterGreyL": 292.1,
@@ -1857,7 +1857,7 @@
   },
   {
    "sol": 71,
-   "foodKg": 52.42,
+   "foodKg": 62.42,
    "waterCleanL": 2297.7,
    "waterRawL": 104.4,
    "waterGreyL": 316.5,
@@ -1883,7 +1883,7 @@
   },
   {
    "sol": 72,
-   "foodKg": 50.42,
+   "foodKg": 60.42,
    "waterCleanL": 2297.7,
    "waterRawL": 116.3,
    "waterGreyL": 340.9,
@@ -1909,7 +1909,7 @@
   },
   {
    "sol": 73,
-   "foodKg": 48.42,
+   "foodKg": 58.42,
    "waterCleanL": 2297.7,
    "waterRawL": 128.9,
    "waterGreyL": 365.3,
@@ -1935,7 +1935,7 @@
   },
   {
    "sol": 74,
-   "foodKg": 46.42,
+   "foodKg": 56.42,
    "waterCleanL": 2297.7,
    "waterRawL": 141,
    "waterGreyL": 389.7,
@@ -1961,7 +1961,7 @@
   },
   {
    "sol": 75,
-   "foodKg": 44.42,
+   "foodKg": 54.42,
    "waterCleanL": 2297.7,
    "waterRawL": 153.2,
    "waterGreyL": 414.1,
@@ -1987,7 +1987,7 @@
   },
   {
    "sol": 76,
-   "foodKg": 42.42,
+   "foodKg": 52.42,
    "waterCleanL": 2297.7,
    "waterRawL": 165.4,
    "waterGreyL": 438.5,
@@ -2013,7 +2013,7 @@
   },
   {
    "sol": 77,
-   "foodKg": 40.42,
+   "foodKg": 50.42,
    "waterCleanL": 2297.7,
    "waterRawL": 177.7,
    "waterGreyL": 462.9,
@@ -2039,7 +2039,7 @@
   },
   {
    "sol": 78,
-   "foodKg": 38.42,
+   "foodKg": 48.42,
    "waterCleanL": 2297.7,
    "waterRawL": 190,
    "waterGreyL": 487.3,
@@ -2065,7 +2065,7 @@
   },
   {
    "sol": 79,
-   "foodKg": 36.42,
+   "foodKg": 46.42,
    "waterCleanL": 2297.7,
    "waterRawL": 202.3,
    "waterGreyL": 511.7,
@@ -2091,7 +2091,7 @@
   },
   {
    "sol": 80,
-   "foodKg": 70.4,
+   "foodKg": 80.4,
    "waterCleanL": 2268.9,
    "waterRawL": 214.6,
    "waterGreyL": 536.1,
@@ -2117,7 +2117,7 @@
   },
   {
    "sol": 81,
-   "foodKg": 60.56,
+   "foodKg": 70.56,
    "waterCleanL": 2297.7,
    "waterRawL": 193.1,
    "waterGreyL": 560.5,
@@ -2143,7 +2143,7 @@
   },
   {
    "sol": 82,
-   "foodKg": 58.56,
+   "foodKg": 68.56,
    "waterCleanL": 2297.7,
    "waterRawL": 205.5,
    "waterGreyL": 584.9,
@@ -2169,7 +2169,7 @@
   },
   {
    "sol": 83,
-   "foodKg": 56.56,
+   "foodKg": 66.56,
    "waterCleanL": 2297.7,
    "waterRawL": 217.9,
    "waterGreyL": 609.3,
@@ -2195,7 +2195,7 @@
   },
   {
    "sol": 84,
-   "foodKg": 54.56,
+   "foodKg": 64.56,
    "waterCleanL": 2297.7,
    "waterRawL": 230.3,
    "waterGreyL": 633.7,
@@ -2221,7 +2221,7 @@
   },
   {
    "sol": 85,
-   "foodKg": 52.56,
+   "foodKg": 62.56,
    "waterCleanL": 2297.7,
    "waterRawL": 242.8,
    "waterGreyL": 658.1,
@@ -2247,7 +2247,7 @@
   },
   {
    "sol": 86,
-   "foodKg": 50.56,
+   "foodKg": 60.56,
    "waterCleanL": 2297.7,
    "waterRawL": 255.3,
    "waterGreyL": 682.5,
@@ -2273,7 +2273,7 @@
   },
   {
    "sol": 87,
-   "foodKg": 48.56,
+   "foodKg": 58.56,
    "waterCleanL": 2297.7,
    "waterRawL": 267.9,
    "waterGreyL": 706.9,
@@ -2299,7 +2299,7 @@
   },
   {
    "sol": 88,
-   "foodKg": 46.56,
+   "foodKg": 56.56,
    "waterCleanL": 2297.7,
    "waterRawL": 280,
    "waterGreyL": 731.3,
@@ -2325,7 +2325,7 @@
   },
   {
    "sol": 89,
-   "foodKg": 44.56,
+   "foodKg": 54.56,
    "waterCleanL": 2297.7,
    "waterRawL": 292.2,
    "waterGreyL": 755.7,
@@ -2351,7 +2351,7 @@
   },
   {
    "sol": 90,
-   "foodKg": 42.56,
+   "foodKg": 52.56,
    "waterCleanL": 2297.7,
    "waterRawL": 303.8,
    "waterGreyL": 780.1,
@@ -2377,7 +2377,7 @@
   },
   {
    "sol": 91,
-   "foodKg": 40.56,
+   "foodKg": 50.56,
    "waterCleanL": 2297.7,
    "waterRawL": 316.1,
    "waterGreyL": 804.5,
@@ -2403,7 +2403,7 @@
   },
   {
    "sol": 92,
-   "foodKg": 38.56,
+   "foodKg": 48.56,
    "waterCleanL": 2297.7,
    "waterRawL": 328.4,
    "waterGreyL": 828.9,
@@ -2429,7 +2429,7 @@
   },
   {
    "sol": 93,
-   "foodKg": 36.56,
+   "foodKg": 46.56,
    "waterCleanL": 2297.7,
    "waterRawL": 340.7,
    "waterGreyL": 853.3,
@@ -2455,7 +2455,7 @@
   },
   {
    "sol": 94,
-   "foodKg": 34.56,
+   "foodKg": 44.56,
    "waterCleanL": 2297.7,
    "waterRawL": 353,
    "waterGreyL": 877.7,
@@ -2481,7 +2481,7 @@
   },
   {
    "sol": 95,
-   "foodKg": 68.54,
+   "foodKg": 78.54,
    "waterCleanL": 2268.9,
    "waterRawL": 365.3,
    "waterGreyL": 902.1,
@@ -2507,7 +2507,7 @@
   },
   {
    "sol": 96,
-   "foodKg": 58.7,
+   "foodKg": 68.7,
    "waterCleanL": 2297.7,
    "waterRawL": 343.9,
    "waterGreyL": 920,
@@ -2533,7 +2533,7 @@
   },
   {
    "sol": 97,
-   "foodKg": 56.7,
+   "foodKg": 66.7,
    "waterCleanL": 2297.7,
    "waterRawL": 356.3,
    "waterGreyL": 920,
@@ -2559,7 +2559,7 @@
   },
   {
    "sol": 98,
-   "foodKg": 54.7,
+   "foodKg": 64.7,
    "waterCleanL": 2297.7,
    "waterRawL": 368.7,
    "waterGreyL": 920,
@@ -2585,7 +2585,7 @@
   },
   {
    "sol": 99,
-   "foodKg": 52.7,
+   "foodKg": 62.7,
    "waterCleanL": 2297.7,
    "waterRawL": 381.2,
    "waterGreyL": 920,
@@ -2611,7 +2611,7 @@
   },
   {
    "sol": 100,
-   "foodKg": 50.7,
+   "foodKg": 60.7,
    "waterCleanL": 2297.7,
    "waterRawL": 393.7,
    "waterGreyL": 920,
@@ -2637,7 +2637,7 @@
   },
   {
    "sol": 101,
-   "foodKg": 48.7,
+   "foodKg": 58.7,
    "waterCleanL": 2297.7,
    "waterRawL": 406.2,
    "waterGreyL": 920,
@@ -2663,7 +2663,7 @@
   },
   {
    "sol": 102,
-   "foodKg": 46.7,
+   "foodKg": 56.7,
    "waterCleanL": 2297.7,
    "waterRawL": 418.8,
    "waterGreyL": 920,
@@ -2689,7 +2689,7 @@
   },
   {
    "sol": 103,
-   "foodKg": 44.7,
+   "foodKg": 54.7,
    "waterCleanL": 2297.7,
    "waterRawL": 430.9,
    "waterGreyL": 920,
@@ -2715,7 +2715,7 @@
   },
   {
    "sol": 104,
-   "foodKg": 42.7,
+   "foodKg": 52.7,
    "waterCleanL": 2297.7,
    "waterRawL": 443.1,
    "waterGreyL": 920,
@@ -2741,7 +2741,7 @@
   },
   {
    "sol": 105,
-   "foodKg": 40.7,
+   "foodKg": 50.7,
    "waterCleanL": 2297.7,
    "waterRawL": 455.4,
    "waterGreyL": 920,
@@ -2767,7 +2767,7 @@
   },
   {
    "sol": 106,
-   "foodKg": 38.7,
+   "foodKg": 48.7,
    "waterCleanL": 2297.7,
    "waterRawL": 467.6,
    "waterGreyL": 920,
@@ -2793,7 +2793,7 @@
   },
   {
    "sol": 107,
-   "foodKg": 36.7,
+   "foodKg": 46.7,
    "waterCleanL": 2297.7,
    "waterRawL": 479.9,
    "waterGreyL": 920,
@@ -2819,7 +2819,7 @@
   },
   {
    "sol": 108,
-   "foodKg": 34.7,
+   "foodKg": 44.7,
    "waterCleanL": 2297.7,
    "waterRawL": 492.2,
    "waterGreyL": 920,
@@ -2845,7 +2845,7 @@
   },
   {
    "sol": 109,
-   "foodKg": 32.7,
+   "foodKg": 42.7,
    "waterCleanL": 2297.7,
    "waterRawL": 503.9,
    "waterGreyL": 920,
@@ -2871,7 +2871,7 @@
   },
   {
    "sol": 110,
-   "foodKg": 30.7,
+   "foodKg": 40.7,
    "waterCleanL": 2297.7,
    "waterRawL": 516,
    "waterGreyL": 920,
@@ -2897,7 +2897,7 @@
   },
   {
    "sol": 111,
-   "foodKg": 28.7,
+   "foodKg": 38.7,
    "waterCleanL": 2297.7,
    "waterRawL": 528.1,
    "waterGreyL": 920,
@@ -2923,7 +2923,7 @@
   },
   {
    "sol": 112,
-   "foodKg": 62.68,
+   "foodKg": 72.68,
    "waterCleanL": 2268.9,
    "waterRawL": 529.9,
    "waterGreyL": 920,
@@ -2949,7 +2949,7 @@
   },
   {
    "sol": 113,
-   "foodKg": 52.84,
+   "foodKg": 62.84,
    "waterCleanL": 2297.7,
    "waterRawL": 498,
    "waterGreyL": 920,
@@ -2975,7 +2975,7 @@
   },
   {
    "sol": 114,
-   "foodKg": 50.84,
+   "foodKg": 60.84,
    "waterCleanL": 2297.7,
    "waterRawL": 510.4,
    "waterGreyL": 920,
@@ -3001,7 +3001,7 @@
   },
   {
    "sol": 115,
-   "foodKg": 48.84,
+   "foodKg": 58.84,
    "waterCleanL": 2297.7,
    "waterRawL": 522.9,
    "waterGreyL": 920,
@@ -3027,7 +3027,7 @@
   },
   {
    "sol": 116,
-   "foodKg": 46.84,
+   "foodKg": 56.84,
    "waterCleanL": 2297.7,
    "waterRawL": 535.5,
    "waterGreyL": 920,
@@ -3053,7 +3053,7 @@
   },
   {
    "sol": 117,
-   "foodKg": 44.84,
+   "foodKg": 54.84,
    "waterCleanL": 2297.7,
    "waterRawL": 547.6,
    "waterGreyL": 920,
@@ -3079,7 +3079,7 @@
   },
   {
    "sol": 118,
-   "foodKg": 42.84,
+   "foodKg": 52.84,
    "waterCleanL": 2297.7,
    "waterRawL": 559.8,
    "waterGreyL": 920,
@@ -3105,7 +3105,7 @@
   },
   {
    "sol": 119,
-   "foodKg": 40.84,
+   "foodKg": 50.84,
    "waterCleanL": 2297.7,
    "waterRawL": 572,
    "waterGreyL": 920,
@@ -3131,7 +3131,7 @@
   },
   {
    "sol": 120,
-   "foodKg": 38.84,
+   "foodKg": 48.84,
    "waterCleanL": 2297.7,
    "waterRawL": 584.3,
    "waterGreyL": 920,
@@ -3157,7 +3157,7 @@
   },
   {
    "sol": 121,
-   "foodKg": 36.84,
+   "foodKg": 46.84,
    "waterCleanL": 2297.7,
    "waterRawL": 596.6,
    "waterGreyL": 920,
@@ -3183,7 +3183,7 @@
   },
   {
    "sol": 122,
-   "foodKg": 34.84,
+   "foodKg": 44.84,
    "waterCleanL": 2297.7,
    "waterRawL": 608.9,
    "waterGreyL": 920,
@@ -3209,7 +3209,7 @@
   },
   {
    "sol": 123,
-   "foodKg": 32.84,
+   "foodKg": 42.84,
    "waterCleanL": 2297.7,
    "waterRawL": 621.2,
    "waterGreyL": 920,
@@ -3235,7 +3235,7 @@
   },
   {
    "sol": 124,
-   "foodKg": 30.84,
+   "foodKg": 40.84,
    "waterCleanL": 2297.7,
    "waterRawL": 633.6,
    "waterGreyL": 920,
@@ -3261,7 +3261,7 @@
   },
   {
    "sol": 125,
-   "foodKg": 28.84,
+   "foodKg": 38.84,
    "waterCleanL": 2297.7,
    "waterRawL": 645.9,
    "waterGreyL": 920,
@@ -3287,7 +3287,7 @@
   },
   {
    "sol": 126,
-   "foodKg": 26.84,
+   "foodKg": 36.84,
    "waterCleanL": 2297.7,
    "waterRawL": 658.4,
    "waterGreyL": 920,
@@ -3313,7 +3313,7 @@
   },
   {
    "sol": 127,
-   "foodKg": 24.84,
+   "foodKg": 34.84,
    "waterCleanL": 2297.7,
    "waterRawL": 670.8,
    "waterGreyL": 920,
@@ -3339,7 +3339,7 @@
   },
   {
    "sol": 128,
-   "foodKg": 58.84,
+   "foodKg": 68.84,
    "waterCleanL": 2268.9,
    "waterRawL": 683,
    "waterGreyL": 920,
@@ -3365,7 +3365,7 @@
   },
   {
    "sol": 129,
-   "foodKg": 55.92,
+   "foodKg": 65.92,
    "waterCleanL": 2297.7,
    "waterRawL": 661.3,
    "waterGreyL": 920,
@@ -3391,7 +3391,7 @@
   },
   {
    "sol": 130,
-   "foodKg": 46.99,
+   "foodKg": 56.99,
    "waterCleanL": 2297.7,
    "waterRawL": 673.8,
    "waterGreyL": 920,
@@ -3417,7 +3417,7 @@
   },
   {
    "sol": 131,
-   "foodKg": 44.99,
+   "foodKg": 54.99,
    "waterCleanL": 2297.7,
    "waterRawL": 686,
    "waterGreyL": 920,
@@ -3443,7 +3443,7 @@
   },
   {
    "sol": 132,
-   "foodKg": 42.99,
+   "foodKg": 52.99,
    "waterCleanL": 2297.7,
    "waterRawL": 698.2,
    "waterGreyL": 920,
@@ -3469,7 +3469,7 @@
   },
   {
    "sol": 133,
-   "foodKg": 40.99,
+   "foodKg": 50.99,
    "waterCleanL": 2297.7,
    "waterRawL": 710.4,
    "waterGreyL": 920,
@@ -3495,7 +3495,7 @@
   },
   {
    "sol": 134,
-   "foodKg": 38.99,
+   "foodKg": 48.99,
    "waterCleanL": 2297.7,
    "waterRawL": 722.6,
    "waterGreyL": 920,
@@ -3521,7 +3521,7 @@
   },
   {
    "sol": 135,
-   "foodKg": 36.99,
+   "foodKg": 46.99,
    "waterCleanL": 2297.7,
    "waterRawL": 734.9,
    "waterGreyL": 920,
@@ -3547,7 +3547,7 @@
   },
   {
    "sol": 136,
-   "foodKg": 34.99,
+   "foodKg": 44.99,
    "waterCleanL": 2297.7,
    "waterRawL": 747.2,
    "waterGreyL": 920,
@@ -3573,7 +3573,7 @@
   },
   {
    "sol": 137,
-   "foodKg": 32.99,
+   "foodKg": 42.99,
    "waterCleanL": 2297.7,
    "waterRawL": 759.5,
    "waterGreyL": 920,
@@ -3599,7 +3599,7 @@
   },
   {
    "sol": 138,
-   "foodKg": 30.99,
+   "foodKg": 40.99,
    "waterCleanL": 2297.7,
    "waterRawL": 771.9,
    "waterGreyL": 920,
@@ -3625,7 +3625,7 @@
   },
   {
    "sol": 139,
-   "foodKg": 28.99,
+   "foodKg": 38.99,
    "waterCleanL": 2297.7,
    "waterRawL": 784.3,
    "waterGreyL": 920,
@@ -3651,7 +3651,7 @@
   },
   {
    "sol": 140,
-   "foodKg": 26.99,
+   "foodKg": 36.99,
    "waterCleanL": 2297.7,
    "waterRawL": 796.7,
    "waterGreyL": 920,
@@ -3677,7 +3677,7 @@
   },
   {
    "sol": 141,
-   "foodKg": 24.99,
+   "foodKg": 34.99,
    "waterCleanL": 2297.7,
    "waterRawL": 809.1,
    "waterGreyL": 920,
@@ -3703,7 +3703,7 @@
   },
   {
    "sol": 142,
-   "foodKg": 22.99,
+   "foodKg": 32.99,
    "waterCleanL": 2297.7,
    "waterRawL": 821.6,
    "waterGreyL": 920,
@@ -3729,7 +3729,7 @@
   },
   {
    "sol": 143,
-   "foodKg": 20.99,
+   "foodKg": 30.99,
    "waterCleanL": 2297.7,
    "waterRawL": 834.1,
    "waterGreyL": 920,
@@ -3755,7 +3755,7 @@
   },
   {
    "sol": 144,
-   "foodKg": 54.99,
+   "foodKg": 64.99,
    "waterCleanL": 2268.9,
    "waterRawL": 846.6,
    "waterGreyL": 920,
@@ -3781,7 +3781,7 @@
   },
   {
    "sol": 145,
-   "foodKg": 45.14,
+   "foodKg": 55.14,
    "waterCleanL": 2297.7,
    "waterRawL": 824.9,
    "waterGreyL": 920,
@@ -3807,7 +3807,7 @@
   },
   {
    "sol": 146,
-   "foodKg": 43.14,
+   "foodKg": 53.14,
    "waterCleanL": 2297.7,
    "waterRawL": 837.1,
    "waterGreyL": 920,
@@ -3833,7 +3833,7 @@
   },
   {
    "sol": 147,
-   "foodKg": 41.14,
+   "foodKg": 51.14,
    "waterCleanL": 2297.7,
    "waterRawL": 849.3,
    "waterGreyL": 920,
@@ -3859,7 +3859,7 @@
   },
   {
    "sol": 148,
-   "foodKg": 39.14,
+   "foodKg": 49.14,
    "waterCleanL": 2297.7,
    "waterRawL": 861,
    "waterGreyL": 920,
@@ -3885,7 +3885,7 @@
   },
   {
    "sol": 149,
-   "foodKg": 37.14,
+   "foodKg": 47.14,
    "waterCleanL": 2297.7,
    "waterRawL": 873.3,
    "waterGreyL": 920,
@@ -3911,7 +3911,7 @@
   },
   {
    "sol": 150,
-   "foodKg": 35.14,
+   "foodKg": 45.14,
    "waterCleanL": 2297.7,
    "waterRawL": 885.6,
    "waterGreyL": 920,
@@ -3937,7 +3937,7 @@
   },
   {
    "sol": 151,
-   "foodKg": 33.14,
+   "foodKg": 43.14,
    "waterCleanL": 2297.7,
    "waterRawL": 897.9,
    "waterGreyL": 920,
@@ -3963,7 +3963,7 @@
   },
   {
    "sol": 152,
-   "foodKg": 31.14,
+   "foodKg": 41.14,
    "waterCleanL": 2297.7,
    "waterRawL": 910.2,
    "waterGreyL": 920,
@@ -3989,7 +3989,7 @@
   },
   {
    "sol": 153,
-   "foodKg": 29.14,
+   "foodKg": 39.14,
    "waterCleanL": 2297.7,
    "waterRawL": 922.6,
    "waterGreyL": 920,
@@ -4015,7 +4015,7 @@
   },
   {
    "sol": 154,
-   "foodKg": 27.14,
+   "foodKg": 37.14,
    "waterCleanL": 2297.7,
    "waterRawL": 935,
    "waterGreyL": 920,
@@ -4041,7 +4041,7 @@
   },
   {
    "sol": 155,
-   "foodKg": 25.14,
+   "foodKg": 35.14,
    "waterCleanL": 2297.7,
    "waterRawL": 947.5,
    "waterGreyL": 920,
@@ -4067,7 +4067,7 @@
   },
   {
    "sol": 156,
-   "foodKg": 23.14,
+   "foodKg": 33.14,
    "waterCleanL": 2297.7,
    "waterRawL": 959.9,
    "waterGreyL": 920,
@@ -4093,7 +4093,7 @@
   },
   {
    "sol": 157,
-   "foodKg": 21.14,
+   "foodKg": 31.14,
    "waterCleanL": 2297.7,
    "waterRawL": 972.4,
    "waterGreyL": 920,
@@ -4119,7 +4119,7 @@
   },
   {
    "sol": 158,
-   "foodKg": 19.14,
+   "foodKg": 29.14,
    "waterCleanL": 2297.7,
    "waterRawL": 969.3,
    "waterGreyL": 920,
@@ -4145,7 +4145,7 @@
   },
   {
    "sol": 159,
-   "foodKg": 17.14,
+   "foodKg": 27.14,
    "waterCleanL": 2297.7,
    "waterRawL": 939.6,
    "waterGreyL": 920,
@@ -4171,7 +4171,7 @@
   },
   {
    "sol": 160,
-   "foodKg": 51.14,
+   "foodKg": 61.14,
    "waterCleanL": 2268.9,
    "waterRawL": 910,
    "waterGreyL": 920,
@@ -4197,7 +4197,7 @@
   },
   {
    "sol": 161,
-   "foodKg": 41.3,
+   "foodKg": 51.3,
    "waterCleanL": 2297.7,
    "waterRawL": 841.3,
    "waterGreyL": 920,
@@ -4223,7 +4223,7 @@
   },
   {
    "sol": 162,
-   "foodKg": 39.3,
+   "foodKg": 49.3,
    "waterCleanL": 2297.7,
    "waterRawL": 801.2,
    "waterGreyL": 920,
@@ -4249,7 +4249,7 @@
   },
   {
    "sol": 163,
-   "foodKg": 37.3,
+   "foodKg": 47.3,
    "waterCleanL": 2297.7,
    "waterRawL": 761,
    "waterGreyL": 920,
@@ -4275,7 +4275,7 @@
   },
   {
    "sol": 164,
-   "foodKg": 35.3,
+   "foodKg": 45.3,
    "waterCleanL": 2297.7,
    "waterRawL": 731.6,
    "waterGreyL": 920,
@@ -4301,7 +4301,7 @@
   },
   {
    "sol": 165,
-   "foodKg": 33.3,
+   "foodKg": 43.3,
    "waterCleanL": 2297.7,
    "waterRawL": 702.1,
    "waterGreyL": 920,
@@ -4327,7 +4327,7 @@
   },
   {
    "sol": 166,
-   "foodKg": 31.3,
+   "foodKg": 41.3,
    "waterCleanL": 2297.7,
    "waterRawL": 672.1,
    "waterGreyL": 920,
@@ -4353,7 +4353,7 @@
   },
   {
    "sol": 167,
-   "foodKg": 29.3,
+   "foodKg": 39.3,
    "waterCleanL": 2297.7,
    "waterRawL": 642.7,
    "waterGreyL": 920,
@@ -4379,7 +4379,7 @@
   },
   {
    "sol": 168,
-   "foodKg": 27.3,
+   "foodKg": 37.3,
    "waterCleanL": 2297.7,
    "waterRawL": 613.3,
    "waterGreyL": 920,
@@ -4405,7 +4405,7 @@
   },
   {
    "sol": 169,
-   "foodKg": 25.3,
+   "foodKg": 35.3,
    "waterCleanL": 2297.7,
    "waterRawL": 583.9,
    "waterGreyL": 920,
@@ -4431,7 +4431,7 @@
   },
   {
    "sol": 170,
-   "foodKg": 23.3,
+   "foodKg": 33.3,
    "waterCleanL": 2297.7,
    "waterRawL": 554.6,
    "waterGreyL": 920,
@@ -4457,7 +4457,7 @@
   },
   {
    "sol": 171,
-   "foodKg": 21.3,
+   "foodKg": 31.3,
    "waterCleanL": 2297.7,
    "waterRawL": 525.3,
    "waterGreyL": 920,
@@ -4483,7 +4483,7 @@
   },
   {
    "sol": 172,
-   "foodKg": 19.3,
+   "foodKg": 29.3,
    "waterCleanL": 2297.7,
    "waterRawL": 496.1,
    "waterGreyL": 920,
@@ -4509,7 +4509,7 @@
   },
   {
    "sol": 173,
-   "foodKg": 17.3,
+   "foodKg": 27.3,
    "waterCleanL": 2297.7,
    "waterRawL": 466.8,
    "waterGreyL": 920,
@@ -4535,7 +4535,7 @@
   },
   {
    "sol": 174,
-   "foodKg": 15.3,
+   "foodKg": 25.3,
    "waterCleanL": 2297.7,
    "waterRawL": 437.6,
    "waterGreyL": 920,
@@ -4561,7 +4561,7 @@
   },
   {
    "sol": 175,
-   "foodKg": 13.3,
+   "foodKg": 23.3,
    "waterCleanL": 2297.7,
    "waterRawL": 408.1,
    "waterGreyL": 920,
@@ -4587,7 +4587,7 @@
   },
   {
    "sol": 176,
-   "foodKg": 47.3,
+   "foodKg": 57.3,
    "waterCleanL": 2268.9,
    "waterRawL": 378.5,
    "waterGreyL": 920,
@@ -4613,7 +4613,7 @@
   },
   {
    "sol": 177,
-   "foodKg": 44.38,
+   "foodKg": 54.38,
    "waterCleanL": 2297.7,
    "waterRawL": 315.1,
    "waterGreyL": 920,
@@ -4639,7 +4639,7 @@
   },
   {
    "sol": 178,
-   "foodKg": 35.45,
+   "foodKg": 45.45,
    "waterCleanL": 2297.7,
    "waterRawL": 285.5,
    "waterGreyL": 920,
@@ -4665,7 +4665,7 @@
   },
   {
    "sol": 179,
-   "foodKg": 33.45,
+   "foodKg": 43.45,
    "waterCleanL": 2297.7,
    "waterRawL": 256,
    "waterGreyL": 920,
@@ -4691,7 +4691,7 @@
   },
   {
    "sol": 180,
-   "foodKg": 31.45,
+   "foodKg": 41.45,
    "waterCleanL": 2297.7,
    "waterRawL": 226.6,
    "waterGreyL": 920,
@@ -4720,7 +4720,7 @@
   "harvestedKg": 359.91,
   "yieldLossKg": 0.09,
   "sortedKg": 359.91,
-  "exportedKg": 10,
+  "exportedKg": 0,
   "crewFoodKg": 360,
   "foodShortfallKg": 0,
   "minedKg": 26000,
@@ -4767,7 +4767,7 @@
   "contractPaidCR": 0
  },
  "end": {
-  "foodKg": 31.45,
+  "foodKg": 41.45,
   "waterCleanL": 2297.7,
   "nutrientsKg": 1.911,
   "parts": 10,
@@ -4775,13 +4775,13 @@
   "seedKg": 34.76,
   "wareKg": 0,
   "batteryKwh": 227.63,
-  "credits": 290,
+  "credits": 250,
   "harvestedKg": 359.91,
-  "deliveredKg": 10
+  "deliveredKg": 0
  },
  "minimums": {
   "waterCleanL": 755.2,
-  "foodKg": 13.3,
+  "foodKg": 23.3,
   "oxygenKg": 31.1
  },
  "firstBottleneck": "power",

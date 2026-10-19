@@ -192,8 +192,15 @@ export function runScenario(spec: ScenarioSpec, sols = SOLS): ScenarioReport {
     // четырёхкратный резерв (≈56 солов еды) и везти лишь то, что выше него:
     // продажа раньше съедает стартовый запас до первого урожая, и колония
     // голодает на 31-м солу, формально выполнив контракт.
-    const reserve = foodReserve(state)
-    if (state.ledger.processedKg >= reserve * 4) state = deliverFood(state)
+    // Отгрузку ведёт глубокий слой: он списывает физическую товарную партию,
+    // требует упаковку и держит предоплаченный фонд. Прежний вызов
+    // `deliverFood` брал излишек из реестра еды, то есть из привезённого с
+    // Земли запаса, — колония формально выполняла контракт, не вырастив ни
+    // килограмма сверх своего рациона. Теперь везём только выращенное.
+    if (!state.world) {
+      const reserve = foodReserve(state)
+      if (state.ledger.processedKg >= reserve * 4) state = deliverFood(state)
+    }
     const world = state.world
     if (!world) throw new Error('deep world missing after advanceDay')
     const bottleneck = world.lastStep?.bottleneck ?? 'none'

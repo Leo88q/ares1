@@ -196,6 +196,8 @@ export interface Totals {
   evaPrepHours: number
   /** Кислород, стравленный шлюзами при выходах, кг. */
   evaO2Kg: number
+  /** Товарная партия и некондиция, потерянные при хранении, кг. */
+  spoiledHeldKg: number
   downtimeDeviceSols: number
   faults: number
   importedWaterL: number
@@ -252,6 +254,11 @@ export interface WorldConfig {
   autoTasks: boolean
   /** Автоматически сортировать урожай. */
   autoSort: boolean
+  /**
+   * Сколько солов еды держать в резерве, прежде чем излишек считается
+   * вывозимым. Ниже этого запаса товарная партия идёт в еду целиком.
+   */
+  exportReserveSols: number
   /** Автоматически отправлять излишек по контракту. */
   autoDeliver: boolean
   /** Доля ёмкости аккумуляторов, зарезервированная под критические системы. */
@@ -345,6 +352,8 @@ export interface SolStep {
   waterIndustrialL: number
   /** Вода, ушедшая в лабораторные пробы, л. */
   waterSampleL: number
+  /** Товарная партия и некондиция, испортившиеся на складе за сол, кг. */
+  heldSpoiledKg: number
   /** Конденсат, собранный за шаг, л. */
   condensateL: number
   waterProducedL: number
@@ -416,7 +425,7 @@ const emptyTotals = (): Totals => ({
   condensateL: 0, coolingKwh: 0,
   harvestedKg: 0, yieldLossKg: 0, sortedKg: 0, exportedKg: 0, nutrientAppliedKg: 0,
   nutrientReturnedKg: 0, filtersUsed: 0, partsUsed: 0, packagingUsed: 0, labourHours: 0,
-  labourByKind: {}, evaPrepHours: 0, evaO2Kg: 0,
+  labourByKind: {}, evaPrepHours: 0, evaO2Kg: 0, spoiledHeldKg: 0,
   downtimeDeviceSols: 0, faults: 0, importedWaterL: 0, importedNutrientKg: 0,
   importedParts: 0, importedFilters: 0, crewFoodKg: 0, crewWaterL: 0, crewO2Kg: 0,
   foodShortfallKg: 0, o2ShortfallKg: 0, o2ProducedKg: 0, cropO2Kg: 0, o2VentedKg: 0, o2LeakedKg: 0,
@@ -440,7 +449,7 @@ const emptyStep = (sol: number): SolStep => ({
   sol, growthByBed: {}, yieldFactor: {},
   waterAggregateUsedL: 0, waterIndustrialL: 0, waterSampleL: 0, condensateL: 0, waterProducedL: 0, waterShortfallL: 0,
   nutrientUsedKg: 0, nutrientProducedKg: 0, o2ProducedKg: 0, cropO2Kg: 0, o2LeakedKg: 0,
-  o2DemandKg: 0, o2ShortfallKg: 0, o2VentedKg: 0, foodShortfallKg: 0,
+  o2DemandKg: 0, o2ShortfallKg: 0, o2VentedKg: 0, foodShortfallKg: 0, heldSpoiledKg: 0,
   power: { generationKwh: 0, demandKwh: 0, servedKwh: 0, unmetKwh: 0, curtailedKwh: 0, shed: [] },
   labour: { required: 0, provided: 0, byKind: {} },
   bottleneck: 'none',
@@ -1696,7 +1705,7 @@ function chargeVehicles(world: ColonyWorld, hours: number): void {
 
 // --- Порча и итоги ---------------------------------------------------------
 
-function stepSpoilage(world: ColonyWorld, shareOfSol: number): void {
+function stepSpoilage(world: ColonyWorld, shareOfSol: number, step?: SolStep): void {
   const spoil = (resource: ResourceId, shelfSols: number, to: ResourceId): number => {
     if (shelfSols <= 0) return 0
     const rate = shareOfSol / shelfSols
@@ -1709,6 +1718,12 @@ function stepSpoilage(world: ColonyWorld, shareOfSol: number): void {
   const ware = spoil('ware_potato', DEEP_P.wareShelfSols, 'food_waste')
   const seed = spoil('seed_potato', DEEP_P.seedShelfSols, 'food_waste')
   const cull = spoil('cull_potato', DEEP_P.wareShelfSols * 0.4, 'biomass')
+  // Испорченная товарная партия и некондиция числились в реестре как
+  // «задержанные» (`heldBackKg`). Если не записать порчу, масса исчезает из
+  // тождества: она уже не на складе и никогда не станет едой. Пока партия
+  // целиком уходила в еду в тот же сол, это было незаметно.
+  if (step) step.heldSpoiledKg += ware + cull
+  world.totals.spoiledHeldKg += ware + cull
   if (ware + seed + cull > 0.005) {
     pushEvent(world, 'spoilage', 'warn', `Потери хранения: ${round(ware + seed + cull, 2)} кг`,
       `Storage losses: ${round(ware + seed + cull, 2)} kg`, null)
@@ -1898,7 +1913,7 @@ export function stepSol(world: ColonyWorld, inputs: SolInputs): ColonyWorld {
     chargeVehicles(next, hours)
     stepReliabilityAll(next, hours, rng)
     stepCrew(next, hours, step, inputs.foodFraction)
-    stepSpoilage(next, shareOfSol)
+    stepSpoilage(next, shareOfSol, step)
   }
 
   // Вентинг избыточного кислорода: бак ограничен, излишек не хранится.
@@ -1950,7 +1965,40 @@ export function stepSol(world: ColonyWorld, inputs: SolInputs): ColonyWorld {
         `Contract "${contract.title}" expired`, contract.id)
     }
   }
+  if (next.config.autoDeliver) autoDeliverToContract(next)
   return next
+}
+
+/** Сколько килограммов уходит за один рейс: покупатель принимает партиями. */
+const DELIVERY_BATCH_KG = 10
+
+/**
+ * Автоотгрузка излишка по контракту.
+ *
+ * Везём только то, что физически лежит в товарной партии сверх продовольственного
+ * резерва: резерв удерживается на шаге переработки, поэтому в `ware_potato`
+ * остаётся ровно излишек. Ничего не создаётся в момент отгрузки.
+ *
+ * Нужен исправный ровер: покупатель локальный, но товар всё равно надо
+ * довезти. И упаковка: без неё поставку не принимают.
+ */
+function autoDeliverToContract(world: ColonyWorld): void {
+  const contract = world.contracts.find(c => c.status === 'active')
+  if (!contract) return
+  const remaining = contract.requiredKg - contract.deliveredKg
+  if (remaining <= 1e-9) return
+  if (!world.vehicles.some(v => vehicleUsable(v))) return
+  const surplus = world.stock.amount.ware_potato
+  if (surplus <= 1e-9) return
+  const kg = Math.min(surplus, remaining, DELIVERY_BATCH_KG)
+  const result = deliverContract(world, contract.id, kg)
+  if (!result.ok && result.reason === 'no-packaging') {
+    // Партия есть, везти не в чем: это должно быть видно, а не молча
+    // откладываться до срока контракта.
+    pushEvent(world, 'contract-no-packaging', 'warn',
+      `Партия ${round(kg, 1)} кг готова, но нет упаковки — поставка не принята`,
+      `${round(kg, 1)} kg ready but there is no packaging — delivery refused`, contract.id)
+  }
 }
 
 // --- Действия игрока -------------------------------------------------------
