@@ -2215,6 +2215,35 @@ export function applyRecipe(world: ColonyWorld, recipeId: string, greenhouseId: 
 }
 
 /** Ручной приоритет задачи (меньше = важнее). */
+/**
+ * Отмена работы: задача снимается навсегда, а не ждёт на паузе.
+ *
+ * Возвращаются только неиспользованные материалы — то, что уже пошло в дело
+ * (запчасть, снятая с полки под конкретный ремонт, семена, отданные грядке),
+ * остаётся списанным: работа частью сделана, и отмена её не отменяет.
+ *
+ * Отмена не лечит причину. Пока агрегат сломан, планировщик поднимет работу
+ * снова — это правильное поведение, и интерфейс прямо об этом говорит.
+ */
+export function cancelTask(world: ColonyWorld, taskId: string): { ok: boolean; released: number } {
+  const task = world.tasks.find(t => t.id === taskId)
+  if (!task || !isOpen(task)) return { ok: false, released: 0 }
+  const released = releaseMaterials(world.stock, task)
+  for (const crewId of task.assignees) {
+    const member = world.crew.find(c => c.id === crewId)
+    if (member && member.taskId === task.id) member.taskId = null
+  }
+  task.assignees = []
+  task.status = 'cancelled'
+  const meta = TASK_META[task.kind]
+  const back = released > 1e-9 ? `, возвращено ${round(released, 2)}` : ''
+  pushEvent(world, 'task-cancelled', 'info',
+    `Работа снята: ${meta.ru}${back === '' ? '' : back.replace(', возвращено', ', возвращено')}`,
+    `Task cancelled: ${meta.en}${released > 1e-9 ? `, ${round(released, 2)} returned` : ''}`,
+    task.targetId)
+  return { ok: true, released }
+}
+
 export function setTaskPriority(world: ColonyWorld, taskId: string, priority: number | null): boolean {
   const task = world.tasks.find(t => t.id === taskId)
   if (!task || !isOpen(task)) return false

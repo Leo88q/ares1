@@ -81,6 +81,9 @@ const en = {
     + 'conjured: every delivered unit is paid for. Zero imports over a run is the autonomy '
     + 'figure, and it only means something because buying is possible.',
   buy: 'Buy', price: 'Price', credits: 'Credits', noCredits: 'no room or no money',
+  cancelTask: 'Cancel', cancelNote: 'Cancelling returns only the unused materials — what the work '
+    + 'already consumed stays spent. It does not fix the cause: while the unit is broken, the '
+    + 'planner will raise the work again.',
   isolateNote: 'A sealed section is cut off from life support: no make-up oxygen, no scrubbing.',
 
   // Контракты
@@ -181,6 +184,9 @@ const ru: typeof en = {
     + 'из воздуха: каждая завезённая единица оплачена. Ноль импорта за прогон — это показатель '
     + 'автономии, и он что-то значит именно потому, что купить можно.',
   buy: 'Купить', price: 'Цена', credits: 'Кредиты', noCredits: 'нет места или денег',
+  cancelTask: 'Снять', cancelNote: 'При отмене возвращаются только неиспользованные материалы — '
+    + 'то, что работа уже израсходовала, остаётся списанным. Отмена не лечит причину: пока агрегат '
+    + 'сломан, планировщик поднимет работу снова.',
   isolateNote: 'Изолированная секция отрезана от жизнеобеспечения: нет подпитки кислородом и очистки.',
 
   contractsTitle: 'Ограниченные локальные контракты',

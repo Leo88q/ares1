@@ -4,7 +4,7 @@ import { advanceDay, buildModule, type ColonyState } from '../../apps/web/src/co
 import { buildStartColony, SCENARIOS } from '../../scripts/deepScenario'
 import {
   applyStorageCapacity, createWorld, deliverContract, deliverSamples, isolateSection, prepareEva,
-  importResource, pricePerUnit, requestAnalysis, setRisky, setSafeMode, setStandby, takeSample,
+  cancelTask, importResource, pricePerUnit, requestAnalysis, setRisky, setSafeMode, setStandby, takeSample,
 } from '../../apps/web/src/colony/deep/world'
 import { createDevice, deviceUsable, syncStandby } from '../../apps/web/src/colony/deep/devices'
 import { repairDevice } from '../../apps/web/src/colony/deep/reliability'
@@ -579,4 +579,58 @@ test('a resource without a price cannot be imported', () => {
   assert.equal(pricePerUnit('potato_food'), 0, 'food is not a supply line')
   const refused = importResource(world, 'potato_food', 10)
   assert.equal(refused.ok, false, 'an unpriced resource must not appear out of nowhere')
+})
+
+// --- Отмена работы ---------------------------------------------------------
+
+/**
+ * Отмены не было вовсе: статус `cancelled` существовал, `isFinished` его
+ * понимал, но не выставлял никто — была только пауза. Из требования ТЗ
+ * («при отмене возвращаются только неиспользованные материалы») была
+ * реализована ровно половина, и та на паузе.
+ */
+test('cancelling a task frees the crew and returns only the unused materials', () => {
+  let state = buildStartColony()
+  state = step(state)
+  const world = state.world!
+
+  // Задача с зарезервированной запчастью, на которой уже занят человек.
+  const target = world.devices.find(d => d.kind === 'extractor')!
+  // Долгий ремонт: задача должна остаться в очереди, а не закрыться в тот
+  // же сол, иначе отменять будет нечего.
+  target.fault = { code: 'seizure', diagnosed: true, partsNeeded: 2, repairHours: 400, sinceSol: 1, cause: 'износ' }
+  state = step(state)
+  const w2 = state.world!
+  const repair = w2.tasks.find(t => t.kind === 'repair' && t.targetId === target.id)
+  assert.ok(repair, 'the planner must raise a repair for a diagnosed fault')
+  assert.ok(repair!.materials.length > 0, 'the repair must reserve a part')
+
+  const partsBefore = w2.stock.amount.parts
+  const result = cancelTask(w2, repair!.id)
+  assert.ok(result.ok, 'an open task must be cancellable')
+  assert.equal(repair!.status, 'cancelled', 'the task must leave the queue for good')
+  assert.ok(w2.stock.amount.parts >= partsBefore,
+    'the reserved part must come back: nothing was spent on work not done')
+  assert.equal(repair!.assignees.length, 0, 'the crew must be released')
+  for (const member of w2.crew) {
+    if (member.taskId === repair!.id) assert.fail('a released crew member must not stay assigned')
+  }
+
+  // Повторная отмена — не действие: задача уже снята.
+  assert.equal(cancelTask(w2, repair!.id).ok, false, 'a cancelled task cannot be cancelled twice')
+})
+
+test('a cancelled task does not come back to life, and a finished one cannot be cancelled', () => {
+  let state = buildStartColony()
+  state = step(state)
+  const world = state.world!
+  const task = world.tasks.find(t => t.status === 'queued' || t.status === 'active')
+  assert.ok(task, 'the colony must have work in the queue')
+  assert.ok(cancelTask(world, task!.id).ok)
+
+  // Планировщик видит снятую работу как закрытую и не продолжает её.
+  const after = step(state)
+  const revived = after.world!.tasks.find(t => t.id === task!.id)
+  assert.ok(!revived || revived.status === 'cancelled' || revived.status === 'done',
+    'a cancelled task must not silently resume')
 })

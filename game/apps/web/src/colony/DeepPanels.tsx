@@ -6,7 +6,8 @@ import { SPECIALTY_LABEL } from './deep/crew'
 import { TASK_META } from './deep/tasks'
 import { ANALYSIS_KINDS, ANALYSIS_META } from './deep/lab'
 import {
-  applyRecipe, deliverContract, importResource, isolateSection, pricePerUnit, requestAnalysis,
+  applyRecipe, cancelTask, deliverContract, importResource, isolateSection, pricePerUnit,
+  requestAnalysis,
   reserveSolsOf, saveRecipe,
   setRisky, setSafeMode, setStandby, setTaskPaused, setTaskPriority, startExperiment, takeSample,
 } from './deep/world'
@@ -136,6 +137,7 @@ function TaskPanel({ world, language, onChange }: { world: ColonyWorld; language
   return <section className="colony-study-card">
     <p className="colony-eyebrow">{c.queueTitle}</p>
     <p className="colony-fineprint">{c.queueNote}</p>
+    <p className="colony-fineprint">{c.cancelNote}</p>
     <div className="colony-table-scroll"><table>
       <thead><tr><th>{c.task}</th><th>{c.target}</th><th>{c.progress}</th><th>{c.status}</th><th>{c.priority}</th><th /></tr></thead>
       <tbody>{open.map(t => {
@@ -154,6 +156,8 @@ function TaskPanel({ world, language, onChange }: { world: ColonyWorld; language
             <button type="button" aria-label={c.raise} onClick={() => { setTaskPriority(world, t.id, (t.manualPriority ?? t.basePriority) - 1); onChange() }}>↑</button>
             <button type="button" aria-label={c.lower} onClick={() => { setTaskPriority(world, t.id, (t.manualPriority ?? t.basePriority) + 1); onChange() }}>↓</button>
             <button type="button" onClick={() => { setTaskPriority(world, t.id, null); onChange() }}>{c.resetPrio}</button>
+            <button type="button" data-testid={`deep-cancel-${t.id}`}
+              onClick={() => { cancelTask(world, t.id); onChange() }}>{c.cancelTask}</button>
           </td>
         </tr>
       })}</tbody>
