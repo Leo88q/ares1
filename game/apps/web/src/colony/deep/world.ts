@@ -36,7 +36,10 @@ import {
   totalPressureKpa, KELVIN, R_GAS, MOLAR_O2, type Section,
 } from './sections'
 import { accumulateDust, dispatchPower, reserveSols, solarDailyKwh } from './power'
-import { attentionList, diagnoseFault, repairDevice, serviceDevice, stepDeviceReliability, stepVehicleReliability } from './reliability'
+import {
+  attentionList, diagnoseFault, diagnoseVehicle, repairDevice, repairVehicle, serviceDevice, serviceVehicle,
+  stepDeviceReliability, stepVehicleReliability,
+} from './reliability'
 import {
   createDeposit, depositBlockReason, depositWorkable, extractionCapacity,
   loadStockpile, mineDeposit, prepareSolution, purifyWater, recycleGreyWater, sublimateOre, surveyDeposit,
@@ -661,6 +664,24 @@ function planTasks(world: ColonyWorld): void {
       addTask(world, { kind: 'maintain', targetId: device.id, requiredHours: 2.2, sol, priority: 5 })
     }
   }
+  // Машины обслуживаются по тем же правилам, что и стационарные узлы. Без
+  // этого цикла ровер изнашивался безвозвратно: `stepVehicleReliability`
+  // копил износ и отказы, а `repairVehicle` и `serviceVehicle` не вызывал
+  // никто — машина умирала навсегда, и вернуть её мог только капремонт всей
+  // базы. Отказ машины дороже отказа насоса: она одна возит всю руду.
+  for (const vehicle of world.vehicles) {
+    if (vehicle.fault && !vehicle.fault.diagnosed && !hasOpenTask(world, 'inspect', vehicle.id)) {
+      addTask(world, { kind: 'inspect', targetId: vehicle.id, requiredHours: DEEP_P.inspectHours, sol, priority: 1 })
+    } else if (vehicle.fault?.diagnosed && !hasOpenTask(world, 'repair', vehicle.id)) {
+      addTask(world, {
+        kind: 'repair', targetId: vehicle.id, requiredHours: vehicle.fault.repairHours, sol, priority: 1,
+        materials: [{ resource: 'parts', amount: vehicle.fault.partsNeeded }],
+      })
+    } else if (!vehicle.fault && vehicle.hoursSinceService > DEEP_P.serviceIntervalHours * 0.85
+      && !hasOpenTask(world, 'maintain', vehicle.id)) {
+      addTask(world, { kind: 'maintain', targetId: vehicle.id, requiredHours: 2.2, sol, priority: 5 })
+    }
+  }
   for (const device of world.devices) {
     if (isGenerator(device) && device.dust > 0.06 && !hasOpenTask(world, 'clean_panels', device.id)) {
       addTask(world, { kind: 'clean_panels', targetId: device.id, requiredHours: 1.6, sol, priority: 6 })
@@ -945,10 +966,14 @@ function blockReason(world: ColonyWorld, task: Task): { code: string; reason: st
     case 'maintain':
     case 'clean_panels': {
       const device = world.devices.find(d => d.id === target)
-      if (!device) return { code: BLOCK_CODES.noTarget, reason: 'нет оборудования' }
-      if (task.kind === 'maintain' && device.fault) return { code: BLOCK_CODES.faulty, reason: 'сначала ремонт' }
-      if (task.kind === 'repair' && (!device.fault || !device.fault.diagnosed)) return { code: BLOCK_CODES.noAccess, reason: 'отказ не диагностирован' }
-      if (task.kind === 'inspect' && !device.fault) return { code: BLOCK_CODES.noTarget, reason: 'отказа нет' }
+      const vehicle = device ? undefined : world.vehicles.find(v => v.id === target)
+      if (!device && !vehicle) return { code: BLOCK_CODES.noTarget, reason: 'нет оборудования' }
+      // Не `??`: отсутствие отказа — это законное `undefined`, и его нельзя
+      // принимать за «цели нет» и проваливаться в ветку машины.
+      const fault = device ? device.fault : vehicle!.fault
+      if (task.kind === 'maintain' && fault) return { code: BLOCK_CODES.faulty, reason: 'сначала ремонт' }
+      if (task.kind === 'repair' && (!fault || !fault.diagnosed)) return { code: BLOCK_CODES.noAccess, reason: 'отказ не диагностирован' }
+      if (task.kind === 'inspect' && !fault) return { code: BLOCK_CODES.noTarget, reason: 'отказа нет' }
       return null
     }
     case 'survey': {
@@ -1014,28 +1039,45 @@ function completeTask(world: ColonyWorld, task: Task, step?: SolStep): void {
     }
     case 'inspect': {
       const device = world.devices.find(d => d.id === target)
+      const vehicle = device ? undefined : world.vehicles.find(v => v.id === target)
       if (device && diagnoseFault(device)) {
         pushEvent(world, 'diagnosed', 'info', `${device.name}: причина — ${device.fault?.cause}`,
           `${device.name}: cause — ${device.fault?.code}`, device.id)
+      } else if (vehicle && diagnoseVehicle(vehicle)) {
+        pushEvent(world, 'diagnosed', 'info', `${vehicle.name}: причина — ${vehicle.fault?.cause}`,
+          `${vehicle.name}: cause — ${vehicle.fault?.code}`, vehicle.id)
       }
       break
     }
     case 'repair': {
       const device = world.devices.find(d => d.id === target)
+      const vehicle = device ? undefined : world.vehicles.find(v => v.id === target)
+      const parts = task.materials.reduce((sum, m) => sum + m.consumed, 0)
       if (device?.fault) {
-        const parts = task.materials.reduce((sum, m) => sum + m.consumed, 0)
         const result = repairDevice(device, parts)
         if (result.ok) {
           world.totals.partsUsed += result.parts
           pushEvent(world, 'repaired', 'info', `${device.name}: ремонт завершён (${result.parts} деталей)`,
             `${device.name}: repair finished (${result.parts} parts)`, device.id)
         }
+      } else if (vehicle?.fault) {
+        const result = repairVehicle(vehicle, parts)
+        if (result.ok) {
+          world.totals.partsUsed += result.parts
+          pushEvent(world, 'repaired', 'info', `${vehicle.name}: ремонт завершён (${result.parts} деталей)`,
+            `${vehicle.name}: repair finished (${result.parts} parts)`, vehicle.id)
+        }
       }
       break
     }
     case 'maintain': {
       const device = world.devices.find(d => d.id === target)
+      const vehicle = device ? undefined : world.vehicles.find(v => v.id === target)
       if (device) serviceDevice(device)
+      else if (vehicle && serviceVehicle(vehicle)) {
+        pushEvent(world, 'serviced', 'info', `${vehicle.name}: обслуживание выполнено`,
+          `${vehicle.name}: serviced`, vehicle.id)
+      }
       break
     }
     case 'sample': {

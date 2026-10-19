@@ -9,6 +9,7 @@ import { emptyStepOf } from '../../apps/web/src/colony/deep/bridge'
 import { TASK_META } from '../../apps/web/src/colony/deep/tasks'
 import { colonyWorldConfig } from '../../apps/web/src/colony/deep/bridge'
 import { DEEP_P } from '../../apps/web/src/colony/deep/params'
+import type { Vehicle } from '../../apps/web/src/colony/deep/machines'
 import { validateParams } from '../../apps/web/src/colony/deep/params'
 
 /**
@@ -205,4 +206,59 @@ test('every parameter sits inside its declared range', () => {
   // вылетевший за границы параметр оставался бы незамеченным до тех пор, пока
   // не проявился бы в прогоне как необъяснимое поведение.
   assert.deepEqual(validateParams(), [], 'the parameter table must be self-consistent')
+})
+
+// --- Машины тоже ремонтируются ---------------------------------------------
+
+/**
+ * Ровер был расходником.
+ *
+ * `stepVehicleReliability` копил износ и отказы, а `repairVehicle` и
+ * `serviceVehicle` не вызывал никто: машина умирала навсегда, и вернуть её мог
+ * только капремонт всей базы. Отказ ровера дороже отказа насоса — она одна
+ * возит всю руду, поэтому без ремонта логистика останавливается навсегда.
+ */
+test('a broken vehicle is diagnosed and repaired, not condemned', () => {
+  let state = buildStartColony()
+  state = step(state)
+  // Мир клонируется каждый сол, поэтому машину нужно искать по id заново:
+  // ссылка на объект из прошлого сола — это уже не тот объект.
+  const id = state.world!.vehicles[0].id
+  const current = (): Vehicle => state.world!.vehicles.find(v => v.id === id)!
+  {
+    const vehicle = current()
+    vehicle.hoursSinceService = DEEP_P.serviceIntervalHours * 2
+    vehicle.wear = 0.6
+    vehicle.condition = 0.4
+    vehicle.fault = {
+      code: 'traction', diagnosed: false, partsNeeded: 1,
+      repairHours: DEEP_P.repairHoursPerPart, sinceSol: 0, cause: 'тест',
+    }
+  }
+  const partsBefore = state.world!.stock.amount.parts
+
+  for (let sol = 0; sol < 25 && current().fault; sol++) state = step(state)
+
+  const vehicle = current()
+  assert.equal(vehicle.fault, null, `the vehicle must be repaired, it is still ${vehicle.fault?.code}`)
+  assert.ok(vehicle.condition > 0.4,
+    `repair must restore some condition: 0.4 → ${vehicle.condition.toFixed(3)}`)
+  assert.ok(vehicle.hoursSinceService < DEEP_P.serviceIntervalHours,
+    'a repaired vehicle counts as serviced')
+  assert.ok(state.world!.stock.amount.parts < partsBefore,
+    `the repair must consume a spare part: ${partsBefore} → ${state.world!.stock.amount.parts}`)
+})
+
+test('vehicles are serviced on a schedule, not only by a full overhaul', () => {
+  // Обслуживание планируется до отказа: машина не должна доезжать до поломки.
+  const state = run(120)
+  const world = state.world!
+  assert.ok(world.vehicles.length > 0, 'the colony must have vehicles')
+  for (const vehicle of world.vehicles) {
+    assert.ok(vehicle.hoursSinceService < DEEP_P.serviceIntervalHours * 1.5,
+      `${vehicle.id} ran ${vehicle.hoursSinceService.toFixed(0)} h without service `
+      + `(interval ${DEEP_P.serviceIntervalHours}) — nothing schedules its maintenance`)
+  }
+  assert.ok(world.totals.labourByKind.maintain > 0,
+    'maintenance must cost crew hours')
 })

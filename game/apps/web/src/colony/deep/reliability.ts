@@ -159,6 +159,13 @@ export function raiseVehicleFault(vehicle: Vehicle, rng: Rng): Fault {
   return fault
 }
 
+/** Диагностика машины: до неё ремонт невозможен (нет списка работ). */
+export function diagnoseVehicle(vehicle: Vehicle): boolean {
+  if (!vehicle.fault || vehicle.fault.diagnosed) return false
+  vehicle.fault.diagnosed = true
+  return true
+}
+
 /** Ремонт машины: нужен диагноз, детали и время; мгновенного ремонта нет. */
 export function repairVehicle(vehicle: Vehicle, partsAvailable: number): { ok: boolean; parts: number; reason: string } {
   const fault = vehicle.fault
