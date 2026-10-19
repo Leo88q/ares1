@@ -15,8 +15,8 @@ import { clamp, clamp01, fraction } from './units'
 /** Универсальная газовая постоянная, Дж/(моль·К). */
 export const R_GAS = 8.314462618
 export const MOLAR_O2 = 0.032
-export const MOLAR_CO2 = 0.044
-export const MOLAR_N2 = 0.028
+const MOLAR_CO2 = 0.044
+const MOLAR_N2 = 0.028
 export const KELVIN = 273.15
 
 export type SectionKind = 'habitat' | 'greenhouse' | 'workshop' | 'lab'
@@ -70,25 +70,25 @@ const moles = (massKg: number, molarMass: number): number => massKg / molarMass
 const safeVolume = (v: number): number => (v > 0 ? v : 1)
 
 /** Парциальное давление газа, kPa. */
-export function partialPressureKpa(massKg: number, molarMass: number, volumeM3: number, temperatureC: number): number {
+function partialPressureKpa(massKg: number, molarMass: number, volumeM3: number, temperatureC: number): number {
   const n = moles(massKg, molarMass)
   return (n * R_GAS * (temperatureC + KELVIN)) / safeVolume(volumeM3) / 1000
 }
 
 /** Масса газа, соответствующая парциальному давлению, кг. */
-export function massForPartialKpa(kpa: number, molarMass: number, volumeM3: number, temperatureC: number): number {
+function massForPartialKpa(kpa: number, molarMass: number, volumeM3: number, temperatureC: number): number {
   const n = (kpa * 1000 * safeVolume(volumeM3)) / (R_GAS * (temperatureC + KELVIN))
   return n * molarMass
 }
 
 export const o2PartialKpa = (s: Section): number => partialPressureKpa(s.o2Kg, MOLAR_O2, s.volumeM3, s.temperatureC)
 export const co2PartialKpa = (s: Section): number => partialPressureKpa(s.co2Kg, MOLAR_CO2, s.volumeM3, s.temperatureC)
-export const n2PartialKpa = (s: Section): number => partialPressureKpa(s.n2Kg, MOLAR_N2, s.volumeM3, s.temperatureC)
+const n2PartialKpa = (s: Section): number => partialPressureKpa(s.n2Kg, MOLAR_N2, s.volumeM3, s.temperatureC)
 export const totalPressureKpa = (s: Section): number => o2PartialKpa(s) + co2PartialKpa(s) + n2PartialKpa(s)
-export const airMassKg = (s: Section): number => s.o2Kg + s.co2Kg + s.n2Kg
+const airMassKg = (s: Section): number => s.o2Kg + s.co2Kg + s.n2Kg
 
 /** Целевое парциальное давление кислорода, kPa (запас выше минимума). */
-export const TARGET_O2_PARTIAL_KPA = 18
+const TARGET_O2_PARTIAL_KPA = 18
 
 export function createSection(id: string, name: string, deviceId: string, kind: SectionKind, volumeM3: number): Section {
   const temperatureC = kind === 'greenhouse' ? 20 : 21
@@ -229,7 +229,7 @@ export function stepSectionCirculation(s: Section, hours: number, poweredFractio
 }
 
 /** Сколько литров влаги удерживает воздух секции при текущей влажности (агрегированно). */
-export const sectionMoistureCapacityL = (s: Section): number =>
+const sectionMoistureCapacityL = (s: Section): number =>
   Math.max(0.5, (s.volumeM3 / DEEP_P.habitatVolumeM3) * 8)
 
 /**

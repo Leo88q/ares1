@@ -70,9 +70,9 @@ import {
 export const WORLD_VERSION = 4
 
 /** Целевое парциальное давление O2 в жилой секции, kPa. */
-export const TARGET_O2_HABITAT = 18
+const TARGET_O2_HABITAT = 18
 /** Целевое парциальное давление CO2 в теплице (обогащение), kPa. */
-export const TARGET_CO2_GREENHOUSE = 0.09
+const TARGET_CO2_GREENHOUSE = 0.09
 
 // --- Сценарий --------------------------------------------------------------
 
@@ -794,7 +794,7 @@ const HAUL_ABANDON_SOLS = 12
  * считанные соли. Поэтому доля берётся от воздуха шлюза при той же плотности
  * кислорода, что в секции, и восполняется из общего запаса O2.
  */
-export function airlockCycleO2Kg(world: ColonyWorld, member: CrewMember): number {
+function airlockCycleO2Kg(world: ColonyWorld, member: CrewMember): number {
   const section = world.sections.find(s => s.deviceId === member.location)
     ?? world.sections.find(s => s.kind === 'habitat')
   if (!section || section.volumeM3 <= 0) return 0
@@ -1804,7 +1804,7 @@ function recordMetrics(world: ColonyWorld, step: SolStep): void {
 }
 
 /** Первое узкое место: причина, а не список симптомов. */
-export function detectBottleneck(world: ColonyWorld, step: SolStep): string {
+function detectBottleneck(world: ColonyWorld, step: SolStep): string {
   if (step.power.unmetKwh > 0.5) return 'power'
   if (world.stock.amount.water_clean < 40 && step.waterProducedL < step.waterAggregateUsedL + step.waterIndustrialL) return 'water'
   if (nutrientTotal(world.stock) < 0.2) return 'nutrients'

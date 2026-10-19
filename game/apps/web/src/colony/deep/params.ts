@@ -315,7 +315,7 @@ export const DEEP_PARAM_TABLE: readonly ParamSpec[] = Object.freeze(LIST.map(p =
 const PARAM_KEY_LIST = LIST.map(p => p.key)
 
 export type ParamKey = (typeof PARAM_KEY_LIST)[number]
-export const PARAM_KEYS = PARAM_KEY_LIST as readonly ParamKey[]
+const PARAM_KEYS = PARAM_KEY_LIST as readonly ParamKey[]
 
 /** Проверка реестра: значения внутри диапазона, ключи уникальны. */
 export function validateParams(): string[] {

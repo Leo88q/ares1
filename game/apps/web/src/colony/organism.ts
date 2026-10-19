@@ -62,7 +62,7 @@ export function powerVisualState(state: ColonyState, sunHours: number): PowerVis
 /** Visual scale only for cargo crates; not a game rule. */
 export const CARGO_CAPACITY_KG = 120
 /** Condition below this shows damage on a module pad. */
-export const DAMAGED_CONDITION = 50
+const DAMAGED_CONDITION = 50
 /** Slot grid used by the scene (6 columns, 4 rows). */
 const COLUMNS = 6
 const ROWS = 4

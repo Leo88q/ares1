@@ -57,7 +57,7 @@ const SKILL_MATRIX: Record<Specialty, Partial<Record<string, number>>> = {
   generalist: { plant: 0.85, tend: 0.85, harvest: 0.85, sample: 0.85, analysis: 0.8, process: 0.85, clean_panels: 0.85, inspect: 0.9, repair: 0.75, extract: 0.85, haul: 0.85, survey: 0.85, maintain: 0.85 },
 }
 
-export const FALLBACK_SKILL = 0.6
+const FALLBACK_SKILL = 0.6
 
 /** Квалификация человека на тип работы (множитель к скорости). */
 export function crewSkill(member: CrewMember, kind: string): number {
@@ -66,7 +66,7 @@ export function crewSkill(member: CrewMember, kind: string): number {
 }
 
 /** Множитель эффективности: квалификация × усталость × состояние × питание. */
-export function crewEfficiency(member: CrewMember, kind: string): number {
+function crewEfficiency(member: CrewMember, kind: string): number {
   const fatiguePenalty = 1 - 0.6 * clamp01(member.fatigue)
   const healthFactor = 0.35 + 0.65 * clamp01(member.health)
   const nutritionFactor = nutritionFactorOf(member)
@@ -77,7 +77,7 @@ export function crewEfficiency(member: CrewMember, kind: string): number {
  * Питание: последствия нехватки еды нарастают по времени, а не мгновенным штрафом.
  * Первые `starvationOnsetSols` солей дефицит переносится, затем эффективность падает линейно.
  */
-export function nutritionFactorOf(member: CrewMember): number {
+function nutritionFactorOf(member: CrewMember): number {
   const grace = Math.max(0, DEEP_P.starvationOnsetSols)
   const debt = Math.max(0, member.foodDebtSols)
   if (debt <= grace) return 1
@@ -85,7 +85,7 @@ export function nutritionFactorOf(member: CrewMember): number {
 }
 
 /** Сколько часов человек реально может отработать в этот сол. */
-export function plannedHours(member: CrewMember): number {
+function plannedHours(member: CrewMember): number {
   const base = DEEP_P.crewWorkHoursPerSol
   return Math.max(0, base * (1 - 0.45 * clamp01(member.fatigue)) * (0.4 + 0.6 * clamp01(member.health)) * nutritionFactorOf(member))
 }

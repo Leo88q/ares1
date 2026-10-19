@@ -103,7 +103,7 @@ export const COLONY_DEPOSITS = [
 ]
 
 /** Минимальный порог состояния модуля: сохранён из существующей модели. */
-export const MIN_MODULE_CONDITION = 20
+const MIN_MODULE_CONDITION = 20
 
 /** Функция ёмкости грядок: состояние модуля ограничивает темп роста. */
 const capacityFactor = (m: ColonyModule): number => Math.max(0.2, m.condition / 100)
@@ -112,7 +112,7 @@ const capacityFactor = (m: ColonyModule): number => Math.max(0.2, m.condition / 
  * Идентификаторы глубоких устройств берутся из модулей существующей колонии:
  * один модуль — один узел, id совпадает, поэтому вид и симуляция не расходятся.
  */
-export function deviceIdsOf(state: ColonyState): Partial<Record<DeviceKind, string[]>> {
+function deviceIdsOf(state: ColonyState): Partial<Record<DeviceKind, string[]>> {
   const out: Partial<Record<DeviceKind, string[]>> = {}
   for (const module of state.modules) {
     for (const kind of DEVICE_FOR_MODULE[module.kind]) (out[kind] ??= []).push(module.id)
@@ -431,7 +431,7 @@ export interface AdvanceResult {
  */
 
 /** Ожидаемый выход одной грядки за цикл без стресса: база учёта потерь. */
-export const BED_FULL_KG = bedCycleKg(PARAMETERS.cropAreaM2 * PARAMETERS.cropKgM2Day * PARAMETERS.cropCycleDays)
+const BED_FULL_KG = bedCycleKg(PARAMETERS.cropAreaM2 * PARAMETERS.cropKgM2Day * PARAMETERS.cropCycleDays)
 
 /**
  * Один сол колонии: агрегатный прогноз → шаг глубокого мира → реестр еды.

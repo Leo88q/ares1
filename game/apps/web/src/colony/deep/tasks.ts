@@ -136,7 +136,7 @@ export const isOpen = (task: Task): boolean => task.status === 'queued' || task.
 export const isFinished = (task: Task): boolean => task.status === 'done' || task.status === 'cancelled'
 
 /** Приоритет сортировки: ручной приоритет важнее автоматического. */
-export function effectivePriority(task: Task): number {
+function effectivePriority(task: Task): number {
   return task.manualPriority ?? task.basePriority
 }
 
@@ -189,7 +189,7 @@ export function releaseMaterials(stock: Stock, task: Task): number {
 /** Снять назначение: человек освобождается, задача теряет исполнителя. */
 
 /** Пригодность человека: квалификация и свободное время. */
-export function crewFitness(member: CrewMember, task: Task): number {
+function crewFitness(member: CrewMember, task: Task): number {
   if (!isIdle(member) && !task.assignees.includes(member.id)) return -1
   if (remainingHours(member) <= 0) return -1
   const skill = crewSkill(member, task.kind)

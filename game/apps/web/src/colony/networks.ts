@@ -6,7 +6,7 @@ export type NetworkType = typeof NETWORK_TYPES[number]
 export interface Cell { x: number; z: number }
 export interface ColonyNetwork { id: string; type: NetworkType; from: string; to: string; cells: Cell[] }
 export const NETWORK_CREDITS_PER_CELL: Record<NetworkType, number> = { power: 1, water: 2, return: 2, tunnel: 4 }
-export const NETWORK_LIMIT = 1024
+const NETWORK_LIMIT = 1024
 export const NETWORK_COLORS: Record<NetworkType, string> = { power: '#e5ba55', water: '#67c3da', return: '#b38cbd', tunnel: '#b2baa6' }
 const key = (p: Cell): number => p.z * COLONY_GRID_SIZE + p.x
 const inside = (p: Cell): boolean => Number.isInteger(p.x) && Number.isInteger(p.z) && p.x >= 0 && p.z >= 0 && p.x < 48 && p.z < 48

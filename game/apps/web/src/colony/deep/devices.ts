@@ -13,7 +13,7 @@ export type DeviceKind =
   | 'o2_gen' | 'scrubber' | 'pump' | 'purifier' | 'recycler' | 'extractor' | 'depot'
 
 /** Приоритеты потребителей: меньше = важнее. Отключения идут снизу вверх. */
-export const POWER_PRIORITY = {
+const POWER_PRIORITY = {
   lifeSupport: 1,
   water: 2,
   crop: 3,
@@ -182,7 +182,7 @@ export function resetDeviceIds(): void {
 }
 
 /** Состояние агрегата без учёта резерва: для подсчёта «нужен ли подхват». */
-export const deviceHealthy = (d: Device): boolean =>
+const deviceHealthy = (d: Device): boolean =>
   d.enabled && d.connected && !d.safeMode && d.fault === null
 
 /**

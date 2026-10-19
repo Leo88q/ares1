@@ -147,7 +147,7 @@ export interface PotatoEstimate {
 }
 
 export const POTATO_ESTIMATE_NOTE_RU = 'РАСЧЁТНЫЙ ПОКАЗАТЕЛЬ SIM: не токен, не баланс кошелька, не выплата.'
-export const POTATO_ESTIMATE_NOTE_EN = 'SIM ESTIMATE ONLY: not a token, not a wallet balance, not a payout.'
+const POTATO_ESTIMATE_NOTE_EN = 'SIM ESTIMATE ONLY: not a token, not a wallet balance, not a payout.'
 
 export function estimatePotato(kg: number, ratePerKg: number): PotatoEstimate {
   const value = Math.max(0, kg) * Math.max(0, ratePerKg)

@@ -297,7 +297,7 @@ const rootOxygenFactorOf = (ppO2Kpa: number, waterlogRatio: number): number =>
   clamp01(fraction(ppO2Kpa, 12)) * (1 - 0.6 * clamp01(waterlogRatio))
 
 /** Качество урожая 0…1: стресс, загрязнение, соли, состояние. */
-export function batchQuality(batch: CropBatch): number {
+function batchQuality(batch: CropBatch): number {
   return clamp01(1 - batch.yieldPenalty * 0.8 - Math.max(0, batch.contamination - 0.2) * 0.6
     - Math.max(0, batch.saltIndex - 0.2) * 0.5) * clamp01(batch.health)
 }

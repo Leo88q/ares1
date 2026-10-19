@@ -15,7 +15,7 @@ import { DEEP_P } from './params'
 import { clamp01, fraction, SOL_HOURS } from './units'
 import { hazardProbability, type Rng } from './rng'
 
-export const FAULT_CODES = {
+const FAULT_CODES = {
   pumpSeizure: 'pump-seizure',
   beltSlip: 'belt-slip',
   sealLeak: 'seal-leak',
@@ -44,7 +44,7 @@ const FAULT_BY_KIND: Record<Device['kind'], { code: string; ru: string; en: stri
 
 /** Интенсивность отказа за час: база × износ × просрочка обслуживания. */
 /** Поднять отказ устройства: причина берётся из профиля вида. */
-export function raiseFault(device: Device, rng: Rng): Fault {
+function raiseFault(device: Device, rng: Rng): Fault {
   const candidates = FAULT_BY_KIND[device.kind] ?? [{ code: FAULT_CODES.controllerFault, ru: 'Отказ узла', en: 'Unit fault' }]
   const pick = candidates[Math.min(candidates.length - 1, Math.floor(rng.next() * candidates.length))]
   const parts = Math.max(1, Math.round(DEEP_P.repairPartsBase + device.wear * 3))
@@ -110,7 +110,7 @@ export function serviceDevice(device: Device): boolean {
   return true
 }
 
-export function faultHazardPerHour(device: Device): number {
+function faultHazardPerHour(device: Device): number {
   if (device.fault) return 0
   const overdue = clamp01(fraction(device.hoursSinceService, DEEP_P.serviceIntervalHours) - 1)
   const wear = clamp01(device.wear)
@@ -120,7 +120,7 @@ export function faultHazardPerHour(device: Device): number {
 }
 
 /** Насколько просрочено обслуживание: 0 — вовремя, 1 — в два раза просрочено. */
-export const serviceOverdue = (device: Device): number =>
+const serviceOverdue = (device: Device): number =>
   clamp01(fraction(device.hoursSinceService, DEEP_P.serviceIntervalHours) - 1)
 
 /** Износ за сол при номинальной нагрузке: из профиля вида (согласовано с CATALOG). */
@@ -169,7 +169,7 @@ const VEHICLE_FAULTS = [
 ]
 
 /** Отказ машины: до диагностики ремонт невозможен, машина стоит. */
-export function raiseVehicleFault(vehicle: Vehicle, rng: Rng): Fault {
+function raiseVehicleFault(vehicle: Vehicle, rng: Rng): Fault {
   const pick = VEHICLE_FAULTS[Math.min(VEHICLE_FAULTS.length - 1, Math.floor(rng.next() * VEHICLE_FAULTS.length))]
   const parts = Math.max(1, Math.round(DEEP_P.repairPartsBase + vehicle.wear * 3))
   const fault: Fault = {

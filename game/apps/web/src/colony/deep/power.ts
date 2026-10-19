@@ -24,14 +24,14 @@ import { SOL_HOURS, clamp01 } from './units'
 import { deviceUsable, isBattery, isGenerator, type Device } from './devices'
 
 /** Доля сола со светом. */
-export const LIT_FRACTION = 1 - DEEP_P.solarNightFraction
-export const LIT_HOURS = SOL_HOURS * LIT_FRACTION
+const LIT_FRACTION = 1 - DEEP_P.solarNightFraction
+const LIT_HOURS = SOL_HOURS * LIT_FRACTION
 
 /**
  * Мгновенная мощность одной солнечной батареи, kW.
  * Профиль нормирован так, что интеграл за сол = peakKw × sunHours × (1 − dust).
  */
-export function solarOutputKw(device: Device, solHour: number, sunHours: number, weatherFactor: number): number {
+function solarOutputKw(device: Device, solHour: number, sunHours: number, weatherFactor: number): number {
   if (!isGenerator(device) || !deviceUsable(device)) return 0
   const start = (SOL_HOURS - LIT_HOURS) / 2
   const t = (solHour - start) / LIT_HOURS

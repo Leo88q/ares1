@@ -116,7 +116,7 @@ export function createAnalysis(id: string, kind: AnalysisKind, sampleId: string,
   }
 }
 
-export function bandOf(value: number): AnalysisResult['band'] {
+function bandOf(value: number): AnalysisResult['band'] {
   return value < 0.3 ? 'ok' : value < 0.6 ? 'watch' : 'critical'
 }
 

@@ -27,7 +27,7 @@ import { cloneWorld } from './deep/world'
 import { stockTake } from './deep/resources'
 
 /** Storage limit of the base (kg of raw + processed food). Decision §32 / P1b: 120 kg. */
-export const COLONY_STORAGE_KG = 120
+const COLONY_STORAGE_KG = 120
 export { PARAMETERS }
 
 export const CATALOG: Record<ModuleKind, { credits: number; wearDay: number; file: string; color: string }> = {
@@ -188,7 +188,7 @@ export function syncView(state: ColonyState): ColonyState {
   }
 }
 
-export function validateScenario(s: Scenario): void {
+function validateScenario(s: Scenario): void {
   if (!Number.isFinite(s.sunHours) || s.sunHours < 0 || s.sunHours > 24
     || !Number.isFinite(s.waterRecovery) || s.waterRecovery < 0 || s.waterRecovery > 0.98) {
     throw new RangeError('Scenario: sunHours must be 0–24; waterRecovery must be 0–0.98')
@@ -198,7 +198,7 @@ const fraction = (available: number, required: number): number => required > 0 ?
 const capacityFactor = (m: ColonyModule): number => Math.max(0.2, m.condition / 100)
 
 /** WP10: bed i is planted (cycle / K) days after bed i − 1. `leadDays` = growth of bed 0. */
-export const bedStepDays = (): number => PARAMETERS.cropCycleDays / BEDS.perField
+const bedStepDays = (): number => PARAMETERS.cropCycleDays / BEDS.perField
 export function greenhouseBeds(leadDays: number): number[] {
   // Отрицательные значения здесь не ошибка, а сдвиг первой уборки: грядка
   // «ещё не посажена» на столько-то дней, поэтому свежая теплица отдаёт

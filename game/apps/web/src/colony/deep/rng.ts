@@ -11,7 +11,7 @@ export interface Rng {
   next(): number
 }
 
-export const DEFAULT_SEED = 0x9e3779b9
+const DEFAULT_SEED = 0x9e3779b9
 
 /** Создать ГПСЧ из seed. */
 export function createRng(seed: number): Rng {

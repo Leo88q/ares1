@@ -95,12 +95,12 @@ export function emptyStock(cap: Partial<Record<ResourceId, number>> = {}): Stock
   return { amount, cap: caps, reserved }
 }
 
-export const stockOf = (s: Stock, id: ResourceId): number => s.amount[id] ?? 0
-export const reservedOf = (s: Stock, id: ResourceId): number => s.reserved[id] ?? 0
-export const capOf = (s: Stock, id: ResourceId): number => s.cap[id] ?? 0
+const stockOf = (s: Stock, id: ResourceId): number => s.amount[id] ?? 0
+const reservedOf = (s: Stock, id: ResourceId): number => s.reserved[id] ?? 0
+const capOf = (s: Stock, id: ResourceId): number => s.cap[id] ?? 0
 /** Доступно для новых работ: запас минус уже зарезервированное. */
 export const availableOf = (s: Stock, id: ResourceId): number => Math.max(0, stockOf(s, id) - reservedOf(s, id))
-export const roomOf = (s: Stock, id: ResourceId): number => Math.max(0, capOf(s, id) - stockOf(s, id))
+const roomOf = (s: Stock, id: ResourceId): number => Math.max(0, capOf(s, id) - stockOf(s, id))
 
 const discrete = (id: ResourceId, value: number): number => (RESOURCES[id].discrete ? Math.floor(value) : value)
 

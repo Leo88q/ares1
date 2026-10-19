@@ -27,7 +27,7 @@ export interface VehicleProfile {
   en: string
 }
 
-export const VEHICLE_PROFILES: Record<VehicleClass, VehicleProfile> = {
+const VEHICLE_PROFILES: Record<VehicleClass, VehicleProfile> = {
   scout: {
     class: 'scout', capacityKg: DEEP_P.scoutCapacityKg, capacityKwh: DEEP_P.scoutBatteryKwh,
     speedKmh: DEEP_P.scoutSpeedKmh, kwhPerKm: DEEP_P.vehicleKwhPerKm * 0.6, autonomy: DEEP_P.vehicleAutonomy,
@@ -133,7 +133,7 @@ export interface HaulHandlers {
 }
 
 /** Свободное место в кузове, кг. */
-export const payloadRoom = (vehicle: Vehicle): number => Math.max(0, vehicle.capacityKg - vehicle.payloadKg)
+const payloadRoom = (vehicle: Vehicle): number => Math.max(0, vehicle.capacityKg - vehicle.payloadKg)
 /** Машина может работать: нет отказа, есть энергия. */
 export const vehicleUsable = (vehicle: Vehicle): boolean => vehicle.fault === null && vehicle.batteryKwh > 0.01
 

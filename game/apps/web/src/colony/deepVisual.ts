@@ -16,7 +16,7 @@ import { COLONY_CELL_METRES, COLONY_GRID_SIZE } from './layout'
  */
 
 /** Узел «база»: то, к чему привязаны рейсы. */
-export const BASE_NODE = 'base'
+const BASE_NODE = 'base'
 
 export interface Vec2 { x: number; z: number }
 
@@ -70,7 +70,7 @@ export interface DeepVisual {
   beds: BedVisual[]
 }
 
-export const EMPTY_VISUAL: DeepVisual = { vehicles: [], faults: [], sections: [], beds: [] }
+const EMPTY_VISUAL: DeepVisual = { vehicles: [], faults: [], sections: [], beds: [] }
 
 /** Клетка сетки колонии → мировая точка центра клетки. */
 export const cellWorld = (x: number, z: number): Vec2 => ({
