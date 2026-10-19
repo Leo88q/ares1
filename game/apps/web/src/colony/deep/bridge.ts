@@ -34,7 +34,8 @@ import {
 } from './world'
 import { advanceDay as advanceUnified, plantBed, type UnifiedBase } from '../../organism/unified'
 import { bedCycleKg } from '../../organism/beds'
-import { BEDS } from '../../organism/parameters'
+import { BEDS, LAB } from '../../organism/parameters'
+import { isOpen } from './tasks'
 
 /** Дополнительные поля сводки дня, которые заполняет глубокий слой. */
 export interface DeepDayExtras {
@@ -180,10 +181,20 @@ export function colonyWorldConfig(state: ColonyState, seed = 0x5eed_1a1a): World
     baseTankLitres: 900,
     tankLitresPerDepot: 1_400,
     autoTasks: true,
-    autoSort: false,
+    // Разделка включена: это единственный путь, который возвращает семена и
+    // выделяет товарную долю. Резервная скорость без людей задана параметром
+    // `processUnstaffedKgPerSol`, поэтому выключенный экипаж не обрекает
+    // колонию на голод, а лишь замедляет переработку вчетверо.
+    autoSort: true,
     autoDeliver: false,
     criticalReserveFraction: 0.25,
-    seedSplitShare: 0.12,
+    // Доля урожая, уходящая в семенной фонд. 0.12 — земная практика для
+    // продовольственного картофеля, но для ЭТОЙ модели она завышена: посадка
+    // требует 0.15 кг/м² при выходе ~10.8 кг/м² за цикл, то есть на семена
+    // нужно около 1.4 % урожая. При 12 % возврат превышал расход в восемь раз
+    // и просто отъедал еду — колония переставала кормить себя на 162-м солу.
+    // 0.08 держит двукратный запас к реальной потребности.
+    seedSplitShare: 0.08,
     cullShare: 0.08,
     condensateLitresPerSol: 30,
     // Электролиз закрывает дыхательный бюджет экипажа: растения его дополняют,
@@ -457,7 +468,32 @@ export function advanceColonyDay(state: ColonyState, scenario: Scenario, budget:
   for (const command of stepped.outbox.plant) ledger = plantBed(ledger, command.plotId, command.bedIndex)
   const growthByBed = (plotId: string, index: number): number => stepped.lastStep?.growthByBed[plotId]?.[index] ?? 0
   const yieldFactor = (plotId: string, index: number): number => stepped.lastStep?.yieldFactor[plotId]?.[index] ?? 1
-  ledger = advanceUnified(ledger, growthByBed, { yieldFactor, autoReplant: false })
+  // Уборку открывает выполненная работа. Грядка, за которую не взялись, стоит
+  // на полном цикле и копит стресс — люди ограничивают уборку. Если партии в
+  // глубоком слое нет (базовая колония без него), уборка идёт как прежде.
+  const harvestAllow = (plotId: string, index: number): boolean => {
+    const batch = stepped.batches.find(b => b.greenhouseId === plotId && b.bedIndex === index)
+    if (!batch) return true
+    if (batch.harvestReady) return true
+    // Ждём только поставленную работу. Грядка часто дозревает ВНУТРИ суток —
+    // уже после того, как планировщик прошёл, — и задача на неё появится лишь
+    // следующим утром. Запрещать уборку в этом случае значит не «послать
+    // людей», а просто потерять сутки: работа ещё не существует, а запрет уже
+    // действует. Поэтому пока задачи нет, уборка идёт как прежде.
+    const pending = stepped.tasks.some(t => t.kind === 'harvest' && t.targetId === batch.id && isOpen(t))
+    if (!pending) return true
+    // Льготный срок. Ждать людей бесконечно нельзя: перезревший картофель
+    // портится, а не висит на грядке вечно, да и тупик из неразобранной
+    // очереди — это отказ интерфейса, а не модели. Люди по-прежнему ускоряют
+    // уборку: без них каждый раз приходится ждать срока.
+    if (batch.ripeSinceSol === null) return true
+    return stepped.sol - batch.ripeSinceSol > DEEP_P.harvestGraceSols
+  }
+  // Сырьё делит глубокий слой (семена / товарная / некондиция), поэтому реестр
+  // здесь сырьё не перерабатывает — иначе две цепочки съедят одну массу.
+  ledger = advanceUnified(ledger, growthByBed, {
+    yieldFactor, autoReplant: false, harvestAllow, skipProcessing: true,
+  })
 
   // 2. Учёт уборки в глубоком мире: снять партию, записать выход и потери.
   let harvestedKg = 0
@@ -501,9 +537,45 @@ export function advanceColonyDay(state: ColonyState, scenario: Scenario, budget:
   for (const command of stepped.outbox.sort) {
     const kg = Math.min(command.kg, ledger.rawKg)
     if (kg <= 1e-9) continue
-    ledger = { ...ledger, rawKg: ledger.rawKg - kg, sortedKg: (ledger.sortedKg ?? 0) + kg }
-    applySort(stepped, kg)
+    // `sortedKg` здесь НЕ увеличивается: весь объём разделки уже учтён — часть
+    // вернётся как еда и потери, часть уйдёт в семена. Считать и то и другое
+    // значило бы посчитать эту массу дважды.
+    ledger = { ...ledger, rawKg: ledger.rawKg - kg }
+    // Семена уходят из словаря реестра в глубокий склад, поэтому реестр обязан
+    // их запомнить: иначе масса бесследно исчезает и тождество перестаёт
+    // сходиться. Возврат семян — такой же выход урожая, как еда или потери.
+    const split = applySort(stepped, kg)
+    if (split.seed > 1e-9) {
+      ledger = { ...ledger, seedReturnedKg: (ledger.seedReturnedKg ?? 0) + split.seed }
+    }
     sortedKg += kg
+  }
+
+  // 3b. Товарная доля становится едой. Разделка целиком в глубоком слое, но
+  // массу еды по-прежнему пишет только реестр: глубокий слой владеет фракциями
+  // (семена / товарная / некондиция), реестр — продовольствием. Переработка
+  // ограничена пропускной способностью агрегата и даёт потери по выходу, как
+  // и раньше, — еда не возникает из сырья целиком.
+  {
+    // Некондиция — это тоже картофель: мелкий и битый, но съедобный. На
+    // Mars-колонии его не выбрасывают, поэтому в еду идёт и товарная доля, и
+    // некондиция. Иначе разделка отъедает 20 % урожая (12 % семена + 8 %
+    // некондиция), и колония перестаёт кормить себя — физически неоправданно.
+    // Пропускная способность живёт в РАЗДЕЛКЕ (задача или резервный путь), а
+    // не здесь: этот шаг лишь переводит уже разделённые фракции в единицы
+    // реестра. Ограничивать его скоростью агрегата значило бы оставить массу
+    // висеть в `ware_potato` и разорвать тождество реестра — сырьё уже списано,
+    // а еда ещё не начислена.
+    for (const id of ['ware_potato', 'cull_potato'] as const) {
+      const got = stockTake(stepped.stock, id, stepped.stock.amount[id])
+      if (got.taken > 1e-9) {
+        ledger = {
+          ...ledger,
+          processedKg: ledger.processedKg + got.taken * LAB.processingYield,
+          processingLossKg: (ledger.processingLossKg ?? 0) + got.taken * (1 - LAB.processingYield),
+        }
+      }
+    }
   }
 
   const next = syncStateFromWorld({ ...state, ledger }, stepped)

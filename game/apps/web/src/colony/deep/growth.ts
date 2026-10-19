@@ -91,7 +91,14 @@ export interface CropBatch {
    * инертен и остывает от полива, поэтому корни почти всегда холоднее воздуха.
    */
   rootTemperatureC: number
-
+  /**
+   * Грядка подготовлена к уборке: работа выполнена в текущем солу. Созревшая
+   * грядка стоит и ждёт, пока за неё возьмутся, — люди ограничивают уборку
+   * так же, как её ограничивает место на складе. Сбрасывается каждые сутки.
+   */
+  harvestReady: boolean
+  /** Сол, на котором грядка дозрела. null — ещё не дозрела. */
+  ripeSinceSol: number | null
 }
 
 export const NEUTRAL_FACTORS: GrowthFactors = {
@@ -123,6 +130,8 @@ export function createBatch(
     targetC: 20,
     rootTemperatureC: 20,
     feedRate: 1,
+    harvestReady: false,
+    ripeSinceSol: null,
   }
 }
 

@@ -597,6 +597,10 @@ const massForDelta = (section: Section, deltaKpa: number, molar: number): number
 function planTasks(world: ColonyWorld): void {
   if (!world.config.autoTasks) return
   const sol = world.sol
+  // Разрешение на уборку действительно одни сутки: прошлые сутки уже не
+  // повод собирать грядку сегодня, иначе одна выполненная работа открывала бы
+  // уборку навсегда.
+  for (const batch of world.batches) batch.harvestReady = false
   for (const device of world.devices) {
     if (device.fault && !device.fault.diagnosed && !hasOpenTask(world, 'inspect', device.id)) {
       addTask(world, { kind: 'inspect', targetId: device.id, requiredHours: DEEP_P.inspectHours, sol, priority: 1 })
@@ -630,6 +634,18 @@ function planTasks(world: ColonyWorld): void {
     if (since < DEEP_P.tendIntervalSols * 0.7) continue
     if (hasOpenTask(world, 'tend', batch.id)) continue
     addTask(world, { kind: 'tend', targetId: batch.id, requiredHours: 0.8, sol, priority: 4, recurring: true })
+  }
+  // Уборка: созревшая грядка не собирается сама по себе. Работа уходит в ту же
+  // очередь, и пока её не выполнят, грядка стоит на полном цикле — копит стресс
+  // запущенности и теряет будущий урожай. Это тот же механизм ожидания, что и
+  // у нехватки места на складе, только причина — люди, а не тара.
+  for (const batch of world.batches) {
+    if (batch.plantedSol === null) continue
+    if (batch.development < 1 - 1e-6) continue
+    if (batch.ripeSinceSol === null) batch.ripeSinceSol = sol
+    if (batch.harvestReady) continue
+    if (hasOpenTask(world, 'harvest', batch.id)) continue
+    addTask(world, { kind: 'harvest', targetId: batch.id, requiredHours: DEEP_P.harvestHours, sol, priority: 3 })
   }
   // Плановый мониторинг теплиц. Пробы берутся по РАСПИСАНИЮ, а не по
   // показаниям: загрязнение и соли скрыты, и запускать отбор по их значению
@@ -852,6 +868,16 @@ function completeTask(world: ColonyWorld, task: Task, step?: SolStep): void {
     case 'tend': {
       const batch = world.batches.find(b => b.id === target)
       if (batch) batch.lastTendSol = world.sol
+      break
+    }
+    case 'harvest': {
+      // Сама масса уходит через реестр — он единственный писатель еды. Здесь
+      // работа лишь снимает запрет: грядка открыта к уборке в эти сутки.
+      const batch = world.batches.find(b => b.id === target)
+      if (batch) {
+        batch.harvestReady = true
+        batch.lastTendSol = world.sol
+      }
       break
     }
     case 'clean_panels': {
@@ -1718,6 +1744,17 @@ export function stepSol(world: ColonyWorld, inputs: SolInputs): ColonyWorld {
     next.totals.o2VentedKg += vented
   }
 
+  // Резервный путь разделки. Если до задачи «переработка» за сутки руки не
+  // дошли, сырьё всё равно обязано превращаться в еду — иначе колония гибнет
+  // от голода из-за неразобранной очереди, а это отказ интерфейса, а не
+  // физики. Но без людей разделка идёт вчетверо медленнее, поэтому нанимать
+  // их по-прежнему выгодно, и переработка остаётся реальным ограничением.
+  const sortedByTask = next.outbox.sort.reduce((sum, c) => sum + c.kg, 0)
+  if (sortedByTask <= 1e-9 && next.sortableRawKg > 0.01) {
+    const unstaffed = Math.min(next.sortableRawKg, DEEP_P.processUnstaffedKgPerSol)
+    if (unstaffed > 1e-9) next.outbox.sort.push({ kg: unstaffed })
+  }
+
   step.bottleneck = detectBottleneck(next, step)
   next.sol += 1
   next.rngState = rng.state
@@ -1753,14 +1790,21 @@ export function stepSol(world: ColonyWorld, inputs: SolInputs): ColonyWorld {
 // --- Действия игрока -------------------------------------------------------
 
 /** Отсортировать урожай: немытый картофель → семена / товарная / некондиция / остатки. */
+/**
+ * Разделка сырого урожая на семенную, товарную и некондиционную фракции.
+ *
+ * Масса сохраняется: seed + cull + ware в точности равна входу. Прежняя
+ * формула добавляла сверху ещё `kg * 0.3` на остатки и при этом считала
+ * некондицию дважды, превращая 100 кг в 137. Остатки ботвы и корней —
+ * отдельная масса, она учитывается при уборке (`startCompost`), а не здесь.
+ */
 export function applySort(world: ColonyWorld, rawKg: number): { ware: number; seed: number; cull: number; biomass: number; used: number } {
   const kg = Math.max(0, rawKg)
   if (kg <= 1e-9) return { ware: 0, seed: 0, cull: 0, biomass: 0, used: 0 }
-  const good = kg
-  const seed = good * clamp01(world.config.seedSplitShare)
-  const cull = (good - seed) * clamp01(world.config.cullShare)
-  const ware = good - seed - cull
-  const biomass = cull + kg * 0.3
+  const seed = kg * clamp01(world.config.seedSplitShare)
+  const cull = kg * clamp01(world.config.cullShare)
+  const ware = kg - seed - cull
+  const biomass = 0
   stockAdd(world.stock, 'seed_potato', seed)
   stockAdd(world.stock, 'ware_potato', ware)
   stockAdd(world.stock, 'cull_potato', cull)

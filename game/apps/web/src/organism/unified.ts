@@ -7,7 +7,7 @@
  * until PotatoPerKg is calibrated (§13.2, marked H), so `potatoPerKg === null` means "not calibrated".
  *
  * Conservation (checked by tests and by `unifiedBalance`):
- *   startKg + harvestedKg = rawKg + processedKg + eatenKg + exportedKg + craftedKg + processingLossKg
+ *   startKg + harvestedKg = rawKg + processedKg + eatenKg + exportedKg + craftedKg + processingLossKg (+ sortedKg + spoiledKg + seedReturnedKg)
  *
  * Глубокая симуляция колонии (colony/deep) — НЕ вторая экономика еды: она
  * считает, СКОЛЬКО развития получает грядка и какую долю урожая потеряла,
@@ -76,6 +76,12 @@ export interface UnifiedBase {
   /** Учётные счётчики глубокого слоя. По умолчанию 0: старые балансы не меняются. */
   sortedKg?: number
   spoiledKg?: number
+  /**
+   * Килограммы урожая, отправленные в семенной фонд. Это такой же выход, как
+   * еда или потери: масса покидает продовольственный контур и больше в нём не
+   * участвует. По умолчанию 0 — старые балансы не меняются.
+   */
+  seedReturnedKg?: number
   /** POTATO earned from crafting, off-chain ledger only. Never minted by this module. */
   potatoLedger: number
   /** POTATO per crafted kg. `null` = not calibrated, crafting refused. */
@@ -114,7 +120,7 @@ export function initialUnifiedBase(init: UnifiedInit): UnifiedBase {
     craftedKg: 0,
     processingLossKg: 0,
     foodShortfallKg: 0,
-    sortedKg: 0, spoiledKg: 0,
+    sortedKg: 0, spoiledKg: 0, seedReturnedKg: 0,
     potatoLedger: 0,
     potatoPerKg: init.potatoPerKg ?? null,
   }
@@ -128,7 +134,8 @@ const freeKg = (b: UnifiedBase): number => Math.max(0, b.storageCapKg - storedKg
 export function unifiedBalance(b: UnifiedBase): { inflow: number; stock: number; outflow: number; residual: number } {
   const inflow = b.startKg + b.harvestedKg
   const stock = b.rawKg + b.processedKg
-  const outflow = b.eatenKg + b.exportedKg + b.craftedKg + b.processingLossKg + (b.sortedKg ?? 0) + (b.spoiledKg ?? 0)
+  const outflow = b.eatenKg + b.exportedKg + b.craftedKg + b.processingLossKg
+    + (b.sortedKg ?? 0) + (b.spoiledKg ?? 0) + (b.seedReturnedKg ?? 0)
   return { inflow, stock, outflow, residual: inflow - stock - outflow }
 }
 
@@ -187,6 +194,18 @@ export interface AdvanceOptions {
   yieldFactor?: (plotId: string, bedIndex: number) => number
   /** false — после уборки грядка пуста и требует посадки (по умолчанию true). */
   autoReplant?: boolean
+  /**
+   * Разрешение на уборку конкретной грядки. Если передано, созревшая грядка
+   * ждёт, пока работа не будет выполнена, — точно так же, как она уже ждёт
+   * места на складе. Не передано (базовая колония) — уборка идёт как раньше.
+   */
+  harvestAllow?: (plotId: string, bedIndex: number) => boolean
+  /**
+   * true — реестр не перерабатывает сырьё сам: разделкой управляет глубокий
+   * слой, который возвращает семена и выделяет товарную долю. По умолчанию
+   * false, то есть прежнее поведение.
+   */
+  skipProcessing?: boolean
 }
 
 /** Growth input per plot: a number for every plot, or a function of the plot id (energy and water limits). */
@@ -218,6 +237,11 @@ function growBeds(b: UnifiedBase, growth: GrowthInput, opts: AdvanceOptions = {}
       if (plot.planted && plot.planted[bi] === false) continue
       const kg = bedFullKg(plot.tier) * Math.max(0, Math.min(1, yieldOf(plot.id, bi)))
       if (kg > freeKg(cur) + 1e-9) continue // waits at full cycle; retried next day
+      // Люди ограничивают уборку так же, как её уже ограничивает место на
+      // складе: созревшая грядка стоит и ждёт, копя стресс запущенности, а не
+      // собирается сама. Предикат необязателен — базовая колония его не
+      // передаёт и убирает как прежде.
+      if (opts.harvestAllow && !opts.harvestAllow(plot.id, bi)) continue
       const beds = [...plot.beds]
       beds[bi] = v - UNIFIED_CYCLE_DAYS
       const planted = [...(plot.planted ?? plot.beds.map(() => true))]
@@ -259,7 +283,9 @@ function feedCrew(b: UnifiedBase): UnifiedBase {
  */
 export function advanceDay(b: UnifiedBase, growth: GrowthInput, opts: AdvanceOptions = {}): UnifiedBase {
   let cur = growBeds({ ...b, day: b.day + 1 }, growth, opts)
-  cur = processDay(cur)
+  // Глубокий слой делит сырьё сам (семена / товарная / некондиция), поэтому
+  // реестр здесь сырьё не трогает — иначе две цепочки съедят одну массу.
+  if (!opts.skipProcessing) cur = processDay(cur)
   cur = feedCrew(cur)
   return cur
 }

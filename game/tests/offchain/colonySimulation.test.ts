@@ -6,6 +6,7 @@ import { starterNetworks } from '../../apps/web/src/colony/networks'
 import { COLONY_MODULE_LIMIT } from '../../apps/web/src/colony/layout'
 import type { ColonyState } from '../../apps/web/src/colony/simulation'
 import { syncView } from '../../apps/web/src/colony/simulation'
+import { unifiedBalance } from '../../apps/web/src/organism/unified'
 
 const close = (actual: number, expected: number, tolerance = 1e-7): void => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`)
 /** Ledger identity (P1b): start + harvested = raw + processed + eaten + exported + crafted + processing loss. */
@@ -22,7 +23,11 @@ const checkAccounting = (s: ColonyState): void => {
   close(s.credits, P.initialCredits + s.earnedCredits - s.spentCredits)
   const l = s.ledger
   close(s.foodKg, l.rawKg + l.processedKg)
-  close(l.startKg + l.harvestedKg, l.rawKg + l.processedKg + l.eatenKg + l.exportedKg + l.craftedKg + l.processingLossKg)
+  // Тождество считает каноническая функция, а не копия в тесте: иначе при
+  // появлении нового выхода (например, возврата семян) копия молча расходится
+  // с моделью. Выходы: съедено, вывезено, переработано в POTATO, потери
+  // переработки, отправлено на сортировку, испорчено, ушло в семенной фонд.
+  close(unifiedBalance(l).residual, 0)
   close(s.consumedFoodKg, l.eatenKg)
   close(s.deliveredKg, l.exportedKg)
   assert.ok(s.deliveredKg <= P.contractKg)
