@@ -16,6 +16,7 @@ import { batchStage, batchSummary, projectedYieldKg, STAGE_LABEL, FACTOR_LABEL }
 import { totalPressureKpa, o2PartialKpa, co2PartialKpa } from './deep/sections'
 import { attentionList } from './deep/reliability'
 import { depositBlockReason, depositWorkable, extractionEnergyKwh } from './deep/extraction'
+import { nutrientClosureRatio } from './deep/waste'
 import type { Device } from './deep/devices'
 
 export const DEEP_TABS = ['crew', 'tasks', 'stores', 'extraction', 'life', 'greenhouse', 'lab', 'repair', 'contracts', 'journal'] as const
@@ -342,7 +343,28 @@ function GreenhousePanel({ world, language }: { world: ColonyWorld; language: st
         </tr>
       })}</tbody>
     </table></div>
+    <NutrientClosure world={world} language={language} />
   </section>
+}
+
+/**
+ * Замкнутость цикла питательных веществ.
+ *
+ * ТЗ требует, чтобы рециркуляция не была бесплатным и полным циклом. Число
+ * возврата считалось и уходило только в отчёт; на экране игрок видел
+ * «внесено» и не видел, сколько вернулось. Без этой строки замкнутый цикл
+ * выглядит как замкнутый цикл: компост есть, значитудобрения якобы возвращается.
+ */
+function NutrientClosure({ world, language }: { world: ColonyWorld; language: string }) {
+  const c = deepCopy(language)
+  const applied = world.totals.nutrientAppliedKg
+  const returned = world.totals.nutrientReturnedKg
+  const closure = nutrientClosureRatio(returned, applied)
+  return <p className="colony-fineprint" data-testid="deep-nutrient-closure">
+    {c.nutrientClosure}: {num(applied, 2)} {c.nutrientApplied} · {num(returned, 2)} {c.nutrientReturned}
+    {' · '}<b>{pct(closure)}</b> {c.closureRatio}
+    {closure < 0.5 && <> · {c.closureOpen}</>}
+  </p>
 }
 
 /** Режимы для A/B: то, что игрок реально может крутить в теплице. */

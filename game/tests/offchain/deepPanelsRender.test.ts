@@ -190,3 +190,27 @@ test('the deposit card shows what a surveyor could know, and hides the true rese
       'the fixture must carry ice content and hardness, otherwise the columns are empty')
   }
 })
+
+/**
+ * Замкнутость круговорота удобрений выведена на экран.
+ *
+ * ТЗ требует, чтобы рециркуляция не была бесплатным и полным циклом. Число
+ * возврата считалось и уходило только в отчёт: на экране игрок видел
+ * «внесено» и не видел, сколько вернулось. Из-за этого замкнутый цикл
+ * выглядел замкнутым — компост есть, значит удобрения якобы возвращаются.
+ */
+test('the greenhouse shows how much of the nutrients actually come back', () => {
+  const world = worldAfterOneSol()
+  for (const language of ['ru', 'en']) {
+    const html = markup(world, language, 'greenhouse')
+    assert.ok(html.includes('deep-nutrient-closure'),
+      'the closure figure must be on screen in both languages')
+  }
+  // Цикл разомкнут, и это видно: возврат мал против внесённого.
+  const applied = world.totals.nutrientAppliedKg
+  const returned = world.totals.nutrientReturnedKg
+  assert.ok(applied > 0, 'the colony must actually apply nutrients, otherwise the test proves nothing')
+  assert.ok(returned < applied,
+    `recycling must not be a free closed loop: ${applied.toFixed(2)} kg applied `
+    + `vs ${returned.toFixed(2)} kg returned`)
+})
