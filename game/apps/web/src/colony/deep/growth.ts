@@ -21,14 +21,30 @@ export type CropStage = 'empty' | 'sprout' | 'vegetative' | 'tuber' | 'mature' |
 
 export interface GrowthFactors {
   light: number
+  /** Температура ВОЗДУХА: то, что чувствует ботва. */
   temperature: number
+  /**
+   * Температура КОРНЕВОЙ ЗОНЫ. Держится отдельно и отстаёт от воздуха:
+   * субстрат инертен, а холодная поливная вода остужает корни быстрее, чем
+   * воздух успевает их прогреть. Корни куда чувствительнее ботвы к холоду —
+   * ниже 10 °C усвоение фосфора practically останавливается.
+   */
+  rootTemperature: number
   water: number
-  nutrient: number
+  /** Азот: рост вегетативной массы. */
+  nitrogen: number
+  /** Фосфор: корни и клубнеобразование. */
+  phosphorus: number
+  /** Калий: транспорт сахаров и водный режим. */
+  potassium: number
   co2: number
   rootO2: number
   contamination: number
   neglect: number
 }
+
+/** Доли доступности каждого элемента 0…1. */
+export interface NutrientFractions { n: number; p: number; k: number }
 
 export interface CropBatch {
   id: string
@@ -70,10 +86,18 @@ export interface CropBatch {
   targetC: number
   /** Целевая норма питания 0…1.5. */
   feedRate: number
+  /**
+   * Температура корневой зоны этой грядки, °C. Своя у каждой грядки: субстрат
+   * инертен и остывает от полива, поэтому корни почти всегда холоднее воздуха.
+   */
+  rootTemperatureC: number
+
 }
 
 export const NEUTRAL_FACTORS: GrowthFactors = {
-  light: 1, temperature: 1, water: 1, nutrient: 1, co2: 1, rootO2: 1, contamination: 1, neglect: 1,
+  light: 1, temperature: 1, rootTemperature: 1, water: 1,
+  nitrogen: 1, phosphorus: 1, potassium: 1,
+  co2: 1, rootO2: 1, contamination: 1, neglect: 1,
 }
 
 export function createBatch(
@@ -97,6 +121,7 @@ export function createBatch(
     factors: { ...NEUTRAL_FACTORS },
     recipeId: null,
     targetC: 20,
+    rootTemperatureC: 20,
     feedRate: 1,
   }
 }
@@ -122,14 +147,16 @@ export const STAGE_LABEL: Record<CropStage, { ru: string; en: string }> = {
 export interface GrowthEnvironment {
   /** Температура воздуха в секции, °C. */
   temperatureC: number
+  /** Температура корневой зоны, °C: своя у каждой грядки. */
+  rootTemperatureC: number
   co2PartialKpa: number
   o2PartialKpa: number
   /** Доля светового режима 0…1: мощность досветки и фотопериод. */
   lightFraction: number
   /** Доступность воды 0…1. */
   waterFraction: number
-  /** Доступность питания 0…1. */
-  nutrientFraction: number
+  /** Доступность каждого элемента 0…1 (закон минимума Либиха). */
+  nutrients: NutrientFractions
   /** Перелив: доля избыточного полива 0…1. */
   waterlogRatio: number
   /** Текущий сол (для запущенности). */
@@ -138,9 +165,20 @@ export interface GrowthEnvironment {
   dtSols: number
 }
 
-const temperatureFactor = (celsius: number): number =>
+export const temperatureFactor = (celsius: number): number =>
   !Number.isFinite(celsius) || celsius <= 4 || celsius >= 36 ? 0
     : celsius < 16 ? ((celsius - 4) / 12) ** 2 : celsius <= 22 ? 1 : (36 - celsius) / 14
+
+/**
+ * Температура корневой зоны. Оптимум у́же и ниже, чем у воздуха: 15–20 °C
+ * против 16–22 °C для ботвы, а провал вниз резче — холодные корни перестают
+ * тянуть фосфор задолго до того, как ботва покажет хоть что-то.
+ */
+export const rootTemperatureFactor = (celsius: number): number =>
+  !Number.isFinite(celsius) || celsius <= 6 || celsius >= 32 ? 0
+    : celsius < 10 ? ((celsius - 6) / 4) ** 2 * 0.5
+      : celsius < 15 ? 0.5 + 0.5 * ((celsius - 10) / 5) ** 1.5
+        : celsius <= 20 ? 1 : (32 - celsius) / 12
 
 const lightFactor = (lightFraction: number): number => {
   // Ниже 40 % светового режима растения не просто «медленнее», а стрессуют.
@@ -158,6 +196,30 @@ const contaminationFactor = (contamination: number, salt: number): number => {
  * Один шаг развития партии. Возвращает прирост развития (в долях цикла) и
  * факторы, чтобы интерфейс мог объяснить причину.
  */
+/**
+ * К какой температуре стремится корневая зона.
+ *
+ * Вода приходит из очистки холодной — она из льдосодержащей породы, — и
+ * каждый полив тянет субстрат вниз. Чем обильнее полив, тем холоднее корням:
+ * именно поэтому «залить водой» не помогает, а вредит, и отсюда же берётся
+ * настоящий выбор — дать воде отстояться и прогреться перед подачей.
+ */
+export const rootZoneTargetC = (airC: number, irrigationRatio: number): number =>
+  // Верхняя граница не 1: полив СВЕРХ нормы должен остужать сильнее, иначе
+  // стратегия «залить водой» не имеет никакой цены, хотя именно за неё
+  // колония платит и водой, и корнями.
+  airC - DEEP_P.rootZoneChillC * Math.min(4, Math.max(0, irrigationRatio))
+
+/**
+ * Субстрат инертен: он не принимает температуру полива мгновенно, а идёт к
+ * ней с постоянной времени. Экспонента устойчива при любом размере подшага.
+ */
+export function relaxRootTemperatureC(currentC: number, targetC: number, dtSols: number): number {
+  const tau = Math.max(1e-6, DEEP_P.rootZoneTauSols)
+  const alpha = 1 - Math.exp(-Math.max(0, dtSols) / tau)
+  return currentC + (targetC - currentC) * alpha
+}
+
 export function stepBatch(batch: CropBatch, env: GrowthEnvironment): { dDevelopment: number; factors: GrowthFactors } {
   const dt = Math.max(0, env.dtSols)
   if (batch.plantedSol === null || batch.health <= 1e-6) {
@@ -166,11 +228,18 @@ export function stepBatch(batch: CropBatch, env: GrowthEnvironment): { dDevelopm
   }
   const neglectSols = batch.lastTendSol === null ? 0 : Math.max(0, env.sol - batch.lastTendSol)
   const neglect = clamp01(1 - Math.max(0, neglectSols - DEEP_P.tendIntervalSols) / DEEP_P.tendIntervalSols)
+  // Закон минимума Либиха: рост определяет тот элемент, которого не хватает,
+  // а не среднее по трем. Агрегатная доля скрывала ситуацию «азота нет, а
+  // фосфора завались» и выдавала корням питание, которого у них не было.
+  const feed = clamp01(batch.feedRate)
   const factors: GrowthFactors = {
     light: lightFactor(env.lightFraction),
     temperature: temperatureFactor(env.temperatureC),
+    rootTemperature: rootTemperatureFactor(env.rootTemperatureC),
     water: clamp01(env.waterFraction),
-    nutrient: clamp01(env.nutrientFraction) * clamp01(batch.feedRate),
+    nitrogen: clamp01(env.nutrients.n) * feed,
+    phosphorus: clamp01(env.nutrients.p) * feed,
+    potassium: clamp01(env.nutrients.k) * feed,
     co2: co2FactorOf(env.co2PartialKpa),
     rootO2: rootOxygenFactorOf(env.o2PartialKpa, env.waterlogRatio),
     contamination: contaminationFactor(batch.contamination, batch.saltIndex),
@@ -284,6 +353,9 @@ export function plantBatch(batch: CropBatch, sol: number, seedKg: number, areaM2
   batch.stress = 0
   batch.yieldPenalty = 0
   batch.lastTendSol = sol
+  // Свежий субстрат прогревается вместе с секцией: у новой грядки корни
+  // начинают с температуры воздуха, а не с холодного старта.
+  batch.rootTemperatureC = rootZoneTargetC(batch.targetC, 1)
   batch.stage = 'sprout'
   return { planted: density > 0.05, density }
 }
@@ -353,9 +425,12 @@ export function batchSummary(batch: CropBatch): BatchSummary {
 
 export const FACTOR_LABEL: Record<keyof GrowthFactors, { ru: string; en: string }> = {
   light: { ru: 'Свет', en: 'Light' },
-  temperature: { ru: 'Температура', en: 'Temperature' },
+  temperature: { ru: 'Температура воздуха', en: 'Air temperature' },
+  rootTemperature: { ru: 'Температура корней', en: 'Root-zone temperature' },
   water: { ru: 'Вода', en: 'Water' },
-  nutrient: { ru: 'Питание', en: 'Nutrient' },
+  nitrogen: { ru: 'Азот (N)', en: 'Nitrogen (N)' },
+  phosphorus: { ru: 'Фосфор (P)', en: 'Phosphorus (P)' },
+  potassium: { ru: 'Калий (K)', en: 'Potassium (K)' },
   co2: { ru: 'CO₂', en: 'CO₂' },
   rootO2: { ru: 'O₂ в корнях', en: 'Root O₂' },
   contamination: { ru: 'Загрязнение', en: 'Contamination' },

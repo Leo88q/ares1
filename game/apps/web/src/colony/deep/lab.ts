@@ -16,7 +16,10 @@ import { DEEP_P } from './params'
 import { clamp01 } from './units'
 import type { Rng } from './rng'
 import { normal } from './rng'
-import { createBatch, stepBatch, type CropBatch, type GrowthEnvironment } from './growth'
+import {
+  createBatch, relaxRootTemperatureC, rootZoneTargetC, stepBatch,
+  type CropBatch, type GrowthEnvironment,
+} from './growth'
 
 export type SampleKind = 'water' | 'solution' | 'substrate' | 'tissue'
 
@@ -218,13 +221,27 @@ export function stepExperiment(
 ): { waterL: number; energyKwh: number; labourHours: number; nutrientKg: number } {
   let waterL = 0, energyKwh = 0, labourHours = 0, nutrientKg = 0
   for (const arm of [experiment.a, experiment.b]) {
+    // Корневая зона считается той же физикой, что и в основной теплице:
+    // обильный полив холодной водой остужает корни. Без этого A/B-опыт по
+    // поливу был бы нечестным — он менял бы только расход, но не среду.
+    const rootC = relaxRootTemperatureC(
+      arm.batch.rootTemperatureC,
+      rootZoneTargetC(arm.regime.targetC, arm.regime.irrigation),
+      dtSols,
+    )
+    arm.batch.rootTemperatureC = rootC
     const env: GrowthEnvironment = {
       temperatureC: arm.regime.targetC,
+      rootTemperatureC: rootC,
       co2PartialKpa: 0.09,
       o2PartialKpa: 18,
       lightFraction: arm.regime.light * resources.energyFraction,
       waterFraction: clamp01(resources.waterFraction) / Math.max(0.2, arm.regime.irrigation),
-      nutrientFraction: clamp01(resources.nutrientFraction),
+      nutrients: {
+        n: clamp01(resources.nutrientFraction),
+        p: clamp01(resources.nutrientFraction),
+        k: clamp01(resources.nutrientFraction),
+      },
       waterlogRatio: Math.max(0, arm.regime.irrigation - 1.2),
       sol, dtSols,
     }

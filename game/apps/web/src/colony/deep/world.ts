@@ -48,6 +48,7 @@ import {
 } from './machines'
 import {
   batchCo2UptakeKg, batchNutrientDemandKg, batchO2OutputKg, batchWaterDemandL,
+  relaxRootTemperatureC, rootZoneTargetC,
   createBatch, plantBatch, seedNeededKg, stepBatch,
   type CropBatch, type GrowthEnvironment,
 } from './growth'
@@ -577,6 +578,14 @@ export const splitNutrients = (kg: number): Array<[ResourceId, number]> => [
   ['nutrient_n', kg * 0.45], ['nutrient_p', kg * 0.2], ['nutrient_k', kg * 0.35],
 ]
 
+/**
+ * Доли элементов в смеси — прямо из `splitNutrients`, чтобы доступность
+ * каждого элемента считалась по тем же пропорциям, по которым он и
+ * расходуется. Иначе грядка могла бы требовать калия больше, чем его есть
+ * в смеси.
+ */
+const NUTRIENT_SHARE = Object.fromEntries(splitNutrients(1)) as Record<'nutrient_n' | 'nutrient_p' | 'nutrient_k', number>
+
 /** Масса газа, нужная чтобы поднять парциальное давление на `deltaKpa`. */
 const massForDelta = (section: Section, deltaKpa: number, molar: number): number =>
   (deltaKpa * 1000 * section.volumeM3) / (R_GAS * (section.temperatureC + KELVIN)) * molar
@@ -1085,7 +1094,6 @@ function growCrops(world: ColonyWorld, hours: number, step: SolStep, potential: 
   const waterDemand = planted.reduce((sum, b) => sum + batchWaterDemandL(b, shareOfSol), 0)
   const nutrientDemand = planted.reduce((sum, b) => sum + batchNutrientDemandKg(b, shareOfSol), 0)
   const waterFraction = fraction(availableOf(world, 'water_clean'), waterDemand)
-  const nutrientFraction = fraction(nutrientTotal(stock), nutrientDemand)
 
   // CO₂ — общий ресурс секции. Снимок парциального давления делается ДО того,
   // как грядки начнут его забирать: иначе первые грядки в цикле получают всю
@@ -1122,13 +1130,29 @@ function growCrops(world: ColonyWorld, hours: number, step: SolStep, potential: 
     // Если потенциал не передан агрегатным слоем, свет учитывается здесь.
     const lightFraction = potential ? 1 : clamp01(device ? device.powerFraction : 0)
     const climate = section ? clamp01(atmosphereQuality(section)) : 0
+    // Корневая зона своя у каждой грядки: субстрат инертен и остывает от
+    // полива холодной водой, поэтому корни почти всегда холоднее воздуха.
+    // Полив обильнее обычного — корням холоднее: отсюда настоящий предел у
+    // стратегии «залить водой».
+    const irrigationRatio = clamp01(waterFraction > 1e-9 ? 1 / Math.max(0.2, waterFraction) : 1)
+    const rootC = relaxRootTemperatureC(
+      batch.rootTemperatureC,
+      rootZoneTargetC(section?.temperatureC ?? 20, irrigationRatio),
+      shareOfSol,
+    )
+    batch.rootTemperatureC = rootC
     const env: GrowthEnvironment = {
       temperatureC: section?.temperatureC ?? 20,
+      rootTemperatureC: rootC,
       co2PartialKpa: section ? (co2Partial.get(section.id) ?? co2PartialKpa(section)) * (co2Share.get(section.id) ?? 1) : 0.03,
       o2PartialKpa: section ? o2PartialKpa(section) : 18,
       lightFraction,
       waterFraction: waterFraction * (0.4 + 0.6 * climate),
-      nutrientFraction,
+      nutrients: {
+        n: clamp01(availableOf(world, 'nutrient_n') / Math.max(1e-9, nutrientDemand * NUTRIENT_SHARE.nutrient_n)),
+        p: clamp01(availableOf(world, 'nutrient_p') / Math.max(1e-9, nutrientDemand * NUTRIENT_SHARE.nutrient_p)),
+        k: clamp01(availableOf(world, 'nutrient_k') / Math.max(1e-9, nutrientDemand * NUTRIENT_SHARE.nutrient_k)),
+      },
       waterlogRatio: Math.max(0, 1 - waterFraction) * 0.5,
       sol: world.sol,
       dtSols: shareOfSol,

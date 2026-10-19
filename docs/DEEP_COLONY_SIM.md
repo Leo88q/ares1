@@ -192,6 +192,8 @@ syncWorldFromState  →  stepSol  →  syncStateFromWorld
 | `outsideDayAmplitudeC` | 28 | °C | 0 | 60 | допущение | sections |
 | `heaterKw` | 0.9 | kW | 0.05 | 20 | баланс | sections |
 | `coolerKw` | 3.2 | kW | 0.05 | 60 | баланс | sections |
+| `rootZoneChillC` | 2.5 | °C | 0 | 12 | assumption | growth |
+| `rootZoneTauSols` | 0.25 | сол | 0.02 | 4 | assumption | growth |
 | `powerLinkCapacityKw` | 8 | kW | 0.5 | 500 | assumption | power |
 | `powerLinkDerateCells` | 40 | клеток | 1 | 500 | assumption | power |
 | `circulationTauHours` | 2 | h | 0.1 | 48 | assumption | sections |
