@@ -94,7 +94,14 @@ test('shrinking a capacity never deletes what is already stored', () => {
   assert.ok(grown > baseline, `two depots must enlarge the bin: ${baseline} → ${grown} kg`)
   world.stock.amount[id] = grown - 1
 
-  // …и сносим оба: груз физически остаётся на площадке.
+  // …и убираем оба из списка агрегатов: груз физически остаётся на площадке.
+  //
+  // Честно: сноса зданий в игре нет вовсе — есть только постройка
+  // (`buildModule`), обратного действия не существует, и ТЗ его не требует
+  // («размещение / перемещение / поворот»). Поэтому здесь проверяется не
+  // действие игрока, а инвариант, который делает хранение зависимым от
+  // инфраструктуры: ёмкость пересчитывается по списку агрегатов, и если
+  // агрегат исчезает из списка, ёмкость возвращается к исходной.
   world.devices = world.devices.filter(d => d.id !== 'DEP-x1' && d.id !== 'DEP-x2')
   applyStorageCapacity(world)
   assert.ok(Math.abs(world.stock.cap[id] - baseline) < 1e-9, 'the bin must return to its baseline')
