@@ -140,3 +140,21 @@ test('the life panel reports the backup runtime, not just the atmosphere', () =>
     assert.ok(!/NaN|undefined/.test(html), `the summary must not render NaN in ${language}`)
   }
 })
+
+test('isolation and safe mode are reachable from the panel, not only in code', () => {
+  // Оба действия имели последствия в модели и не имели ни одной кнопки:
+  // игрок не мог отсечь секцию ни остановить агрегат.
+  const world = worldAfterOneSol()
+  for (const language of ['ru', 'en']) {
+    const life = markup(world, language, 'life')
+    const section = world.sections[0]
+    assert.ok(life.includes(`deep-isolate-${section.id}`),
+      `the isolate control must render in ${language}`)
+    assert.ok(life.includes('aria-pressed'), 'the control must expose its state to assistive tech')
+
+    const repair = markup(world, language, 'repair')
+    const device = world.devices[0]
+    assert.ok(repair.includes(`deep-safemode-${device.id}`),
+      `the safe-mode control must render in ${language}`)
+  }
+})

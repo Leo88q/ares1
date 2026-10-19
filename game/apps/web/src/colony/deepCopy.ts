@@ -67,6 +67,10 @@ const en = {
   device: 'Equipment', condition: 'Condition', fault: 'Fault', connected: 'Connected',
   attention: 'Needs attention', severity: 'Severity',
   noFaults: 'No faults. Repair needs a specialist, hours, spares and access.',
+  safeMode: 'Safe mode', safeModeOn: 'Enter safe mode', safeModeOff: 'Return to service',
+  isolate: 'Seal off', reconnect: 'Reconnect', isolated: 'Sealed',
+  safeModeNote: 'Safe mode stops the unit: it draws no power and produces nothing.',
+  isolateNote: 'A sealed section is cut off from life support: no make-up oxygen, no scrubbing.',
 
   // Контракты
   contractsTitle: 'Bounded local contracts',
@@ -151,6 +155,10 @@ const ru: typeof en = {
   device: 'Оборудование', condition: 'Состояние', fault: 'Отказ', connected: 'Подключено',
   attention: 'Требует внимания', severity: 'Важность',
   noFaults: 'Отказов нет. Ремонт требует специалиста, часов, запчастей и доступа.',
+  safeMode: 'Безопасный режим', safeModeOn: 'В безопасный режим', safeModeOff: 'Вернуть в работу',
+  isolate: 'Изолировать', reconnect: 'Подключить обратно', isolated: 'Изолирована',
+  safeModeNote: 'Безопасный режим останавливает агрегат: он не берёт мощность и не даёт выхода.',
+  isolateNote: 'Изолированная секция отрезана от жизнеобеспечения: нет подпитки кислородом и очистки.',
 
   contractsTitle: 'Ограниченные локальные контракты',
   required: 'Требуется', delivered: 'Сдано', due: 'Срок, сол',

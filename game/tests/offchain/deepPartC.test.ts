@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { advanceDay, buildModule, type ColonyState } from '../../apps/web/src/colony/simulation'
 import { buildStartColony, SCENARIOS } from '../../scripts/deepScenario'
 import {
-  applyStorageCapacity, createWorld, deliverSamples, prepareEva, requestAnalysis, takeSample,
+  applyStorageCapacity, createWorld, deliverSamples, isolateSection, prepareEva, requestAnalysis,
+  setSafeMode, takeSample,
 } from '../../apps/web/src/colony/deep/world'
 import { emptyStepOf } from '../../apps/web/src/colony/deep/bridge'
 import { TASK_META } from '../../apps/web/src/colony/deep/tasks'
@@ -261,4 +262,49 @@ test('vehicles are serviced on a schedule, not only by a full overhaul', () => {
   }
   assert.ok(world.totals.labourByKind.maintain > 0,
     'maintenance must cost crew hours')
+})
+
+// --- Изоляция и безопасный режим ------------------------------------------
+
+/**
+ * Оба действия были написаны, имели последствия в модели — и не имели ни одной
+ * кнопки. Изоляция отрезает секцию от подпитки кислородом и очистки,
+ * безопасный режим останавливает агрегат (`deviceUsable` его исключает).
+ * Проверить «функция существует» было нечем: проверить последствие — можно.
+ */
+
+/**
+ * Два одинаковых прогона из одной стартовой колонии: мир детерминирован,
+ * поэтому любая разница обязана действию, а не случайности.
+ */
+const pair = (sols: number, mutate: (state: ColonyState) => void): { treated: ColonyState; control: ColonyState } => {
+  const start = (): ColonyState => step(buildStartColony())
+  let treated = start()
+  mutate(treated)
+  let control = start()
+  for (let sol = 0; sol < sols; sol++) {
+    treated = step(treated)
+    control = step(control)
+  }
+  return { treated, control }
+}
+
+test('sealing a section cuts it off from life support', () => {
+  const target = (s: ColonyState) => s.world!.sections.find(x => x.kind === 'greenhouse')!
+  const { treated, control } = pair(12, s => { isolateSection(s.world!, target(s).id, true) })
+  const sealed = target(treated)
+  const open = target(control)
+  assert.ok(sealed.o2Kg < open.o2Kg - 1e-6,
+    `a sealed section must stop being topped up: ${open.o2Kg.toFixed(3)} kg open `
+    + `vs ${sealed.o2Kg.toFixed(3)} kg sealed`)
+})
+
+test('safe mode stops the unit instead of pretending to', () => {
+  const rig = (s: ColonyState) => s.world!.devices.find(d => d.kind === 'extractor')!
+  const { treated, control } = pair(12, s => { setSafeMode(s.world!, rig(s).id, true) })
+  const stopped = treated.world!.totals.minedKg
+  const running = control.world!.totals.minedKg
+  assert.ok(stopped < running - 1e-6,
+    `a rig in safe mode must not mine: ${running.toFixed(1)} kg running `
+    + `vs ${stopped.toFixed(1)} kg in safe mode`)
 })

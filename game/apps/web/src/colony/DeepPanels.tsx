@@ -6,8 +6,8 @@ import { SPECIALTY_LABEL } from './deep/crew'
 import { TASK_META } from './deep/tasks'
 import { ANALYSIS_KINDS, ANALYSIS_META } from './deep/lab'
 import {
-  applyRecipe, requestAnalysis, reserveSolsOf, saveRecipe, setTaskPaused, setTaskPriority,
-  startExperiment, takeSample,
+  applyRecipe, isolateSection, requestAnalysis, reserveSolsOf, saveRecipe, setSafeMode,
+  setTaskPaused, setTaskPriority, startExperiment, takeSample,
 } from './deep/world'
 import { finishExperiment } from './deep/lab'
 import { batchStage, batchSummary, projectedYieldKg, STAGE_LABEL, FACTOR_LABEL } from './deep/growth'
@@ -86,10 +86,10 @@ export function DeepPanels({ world, language, onChange, initialTab = 'crew' }: {
           {tab === 'tasks' && <TaskPanel world={world} language={language} onChange={onChange} />}
           {tab === 'stores' && <StorePanel world={world} language={language} />}
           {tab === 'extraction' && <ExtractionPanel world={world} language={language} />}
-          {tab === 'life' && <LifePanel world={world} language={language} />}
+          {tab === 'life' && <LifePanel world={world} language={language} onChange={onChange} />}
           {tab === 'greenhouse' && <GreenhousePanel world={world} language={language} />}
           {tab === 'lab' && <LabPanel world={world} language={language} onChange={onChange} />}
-          {tab === 'repair' && <RepairPanel world={world} language={language} />}
+          {tab === 'repair' && <RepairPanel world={world} language={language} onChange={onChange} />}
           {tab === 'contracts' && <ContractPanel world={world} language={language} />}
           {tab === 'journal' && <JournalPanel world={world} language={language} />}
         </div>}
@@ -217,12 +217,12 @@ function ExtractionPanel({ world, language }: { world: ColonyWorld; language: st
   </>
 }
 
-function LifePanel({ world, language }: { world: ColonyWorld; language: string }) {
+function LifePanel({ world, language, onChange }: { world: ColonyWorld; language: string; onChange: () => void }) {
   const c = deepCopy(language)
   return <section className="colony-study-card">
     <p className="colony-eyebrow">{c.lifeTitle}</p>
     <div className="colony-table-scroll"><table>
-      <thead><tr><th>{c.section}</th><th>{c.volume}</th><th>{c.pressure}</th><th>{c.o2}</th><th>{c.co2}</th><th>{c.temp}</th><th>{c.humidity}</th><th>{c.tightness}</th></tr></thead>
+      <thead><tr><th>{c.section}</th><th>{c.volume}</th><th>{c.pressure}</th><th>{c.o2}</th><th>{c.co2}</th><th>{c.temp}</th><th>{c.humidity}</th><th>{c.tightness}</th><th>{c.isolated}</th></tr></thead>
       <tbody>{world.sections.map(s => <tr key={s.id} data-testid={`deep-section-${s.id}`}>
         <td>{s.name}</td>
         <td>{num(s.volumeM3, 0)} {c.m3}</td>
@@ -232,8 +232,13 @@ function LifePanel({ world, language }: { world: ColonyWorld; language: string }
         <td>{num(s.temperatureC)} {c.celsius}</td>
         <td>{pct(s.humidity)}</td>
         <td><Bar value={s.condition} tone={s.condition < 0.7 ? 'danger' : undefined} /> {pct(s.condition)}</td>
+        <td><button type="button" data-testid={`deep-isolate-${s.id}`}
+          aria-pressed={s.isolated}
+          onClick={() => { isolateSection(world, s.id, !s.isolated); onChange() }}>
+          {s.isolated ? c.reconnect : c.isolate}</button></td>
       </tr>)}</tbody>
     </table></div>
+    <p className="colony-fineprint">{c.isolateNote}</p>
     <PowerSummary world={world} language={language} />
   </section>
 }
@@ -419,14 +424,14 @@ function LabPanel({ world, language, onChange }: {
   </>
 }
 
-function RepairPanel({ world, language }: { world: ColonyWorld; language: string }) {
+function RepairPanel({ world, language, onChange }: { world: ColonyWorld; language: string; onChange: () => void }) {
   const c = deepCopy(language)
   const attention = attentionList(world)
   const byId = new Map(attention.map(a => [a.id, a]))
   return <section className="colony-study-card">
     <p className="colony-eyebrow">{c.repairTitle}</p>
     <div className="colony-table-scroll"><table>
-      <thead><tr><th>{c.device}</th><th>{c.condition}</th><th>{c.connected}</th><th>{c.fault}</th><th>{c.attention}</th></tr></thead>
+      <thead><tr><th>{c.device}</th><th>{c.condition}</th><th>{c.connected}</th><th>{c.fault}</th><th>{c.attention}</th><th>{c.safeMode}</th></tr></thead>
       <tbody>{world.devices.map((d: Device) => {
         const note = byId.get(d.id)
         return <tr key={d.id} data-testid={`deep-device-${d.id}`}>
@@ -435,10 +440,15 @@ function RepairPanel({ world, language }: { world: ColonyWorld; language: string
           <td>{d.connected ? c.yes : c.no}</td>
           <td>{d.fault ? d.fault.code : '—'}</td>
           <td>{note ? `${note.reason} · ${c[note.severity === 'critical' ? 'severityCritical' : note.severity === 'warning' ? 'severityWarning' : 'severityInfo']}` : '—'}</td>
+          <td><button type="button" data-testid={`deep-safemode-${d.id}`}
+            aria-pressed={d.safeMode}
+            onClick={() => { setSafeMode(world, d.id, !d.safeMode); onChange() }}>
+            {d.safeMode ? c.safeModeOff : c.safeModeOn}</button></td>
         </tr>
       })}</tbody>
     </table></div>
     {attention.length === 0 && <p className="colony-fineprint">{c.noFaults}</p>}
+    <p className="colony-fineprint">{c.safeModeNote}</p>
   </section>
 }
 
