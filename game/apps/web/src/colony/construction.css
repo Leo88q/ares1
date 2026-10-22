@@ -15,7 +15,7 @@
 .colony-construction button:disabled { opacity: .4; cursor: not-allowed; }
 .colony-construction button:focus-visible, .colony-construction input:focus-visible, .colony-relocate:focus-visible { outline: 2px solid #f7d792; outline-offset: 2px; }
 .colony-relocate { min-height: 44px; width: 100%; margin-top: 12px; }
-@media(max-width:360px) { .colony-construction { padding: 8px; } .colony-plan-navigation { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@container colony (max-width:360px) { .colony-construction { padding: 8px; } .colony-plan-navigation { grid-template-columns: repeat(3,minmax(0,1fr)); } }
 .colony-network-panel > label { display: grid; gap: 5px; margin: 10px 0; font-size: 12px; }
 .colony-network-panel select { width: 100%; min-width: 0; min-height: 44px; color: #ead7ac; background: #191f19; border: 1px solid #7f6943; padding: 7px; }
 .colony-network-panel .colony-construction-map { margin-top: 12px; }

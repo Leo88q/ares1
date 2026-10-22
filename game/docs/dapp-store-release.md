@@ -1,91 +1,76 @@
-# Релиз в Solana dApp Store
+# Solana dApp Store release — ARES-1
 
-Официальные доки, на которые опирается этот гайд:
-- Сборка и подпись APK: https://docs.solanamobile.com/dapp-store/build-and-sign-an-apk
-- Сабмит нового приложения: https://docs.solanamobile.com/dapp-store/submit-new-app
+**Current status: not submitted, not approved, and not live in the Store.** This is a release runbook, not proof of acceptance. Do not claim a mainnet game or paid colony experience while the corresponding program and purchase path are not deployed and verified.
 
-Наш фронтенд — обычный PWA (Vite/React), поэтому используем путь **PWA → Trusted Web Activity (TWA)** через Bubblewrap, а не нативный Android или Expo.
+## Product approach: complete production game, not a public pilot
 
-## Что уже подготовлено в репозитории
+- Target the **complete mainnet game** as the first public Store release; do not ship a devnet-only beta, a demo, a training mode, or a reduced feature set as the public product. Localnet/devnet/fork testing is still required as pre-release QA, not a public pilot.
+- The app must open into the real game flow. Users can inspect the product before connecting a wallet; before every transaction, show the network, exact asset/amount, account rent and who pays it. Clearly distinguish mainnet-verified state from persistent backend state; do not imply backend actions are on-chain.
+- Do not submit a fake/minimal game contract merely to appear Solana-native. The Store submission and the game program are separate release dependencies: Store approval does not prove the game contract, mint, economy, or backend is production-ready.
+- Keep the purchase/sale path closed until its own release approval. The agreed 1053 SKR price is not permission to open a sale. A free mainnet write still costs transaction fees and account rent; the release plan must specify bounded sponsorship or user-paid costs and anti-abuse controls.
+- A production Store build must use the verified mainnet program/config/mint and production HTTPS origin; no devnet fallback in the submitted APK.
 
-- `apps/web/public/manifest.json` — web-манифест PWA (имя, иконки, `display: standalone`).
-- `apps/web/public/android-chrome-192x192.png`, `android-chrome-512x512.png` — **плейсхолдер-иконки** (сгенерированы автоматически). Замени на настоящий брендинг перед сабмитом — с плейсхолдером модерация Solana Mobile не пройдёт.
-- `apps/web/public/.well-known/assetlinks.json` — пустой плейсхолдер, перегенерируется на шаге 3 ниже.
-- `apps/web/src/main.tsx` — в список кошельков добавлен `SolanaMobileWalletAdapter` (Mobile Wallet Adapter), чтобы внутри APK подключение шло через Seed Vault / установленные мобильные кошельки, а не через браузерное расширение.
-- `scripts/build-apk.sh` — обёртка над Bubblewrap CLI.
+## Store requirements and realistic cost
 
-## Шаг 1. Задеплой фронтенд на постоянный HTTPS-домен
+Solana Mobile's current flow accepts a signed APK. A web app is wrapped in the Solana Mobile WebView shell and submitted through the Publisher Portal. The portal requires a publisher account with KYC/KYB, app metadata, a publisher wallet, and signed publishing transactions. The current guide says to have approximately **0.2 SOL** for transaction fees and ArDrive uploads; this is an estimate, not a guaranteed fixed fee. The portal has a storage estimator and also supports uploading to the publisher's AWS S3 bucket, which avoids an ArDrive balance top-up but does not remove Solana transaction costs. A true zero-cost mainnet submission cannot be promised; use an approved grant/sponsor or defer submission rather than bypassing checks.
 
-Bubblewrap и dApp Store требуют реальный публичный URL (не localhost). Собери и захости `apps/web`:
+Official references:
 
-```bash
-cd apps/web
-npm run build
-# задеплой содержимое dist/ на свой хостинг (Vercel, Cloudflare Pages, Netlify, свой сервер и т.д.)
-```
+- [Solana Mobile: submit a new app](https://docs.solanamobile.com/dapp-store/submit-new-app)
+- [Solana Mobile: build and sign an APK](https://docs.solanamobile.com/dapp-store/build-and-sign-an-apk)
+- [Solana Mobile: webshell CLI](https://docs.solanamobile.com/cli/webshell)
+- [Publisher Policy](https://legal.solanamobile.com/publisher-policy-web)
 
-Отдельно от Frontend/Backend в приложении (RPC-нода, `VITE_BACKEND_URL`) настрой prod-переменные окружения перед сборкой (`.env.production` на основе `.env.example`).
+## Current repository readiness
 
-Проверь, что после деплоя доступны:
-- `https://your-domain.com/manifest.json`
-- `https://your-domain.com/android-chrome-192x192.png` и `.../512x512.png`
+- `apps/web/public/manifest.json` exists. Verify the published name, description and icons before listing; the current artwork/manifest must be reviewed as final branded store assets, not assumed to be acceptable placeholders.
+- The current PWA is reachable only after a real HTTPS frontend deployment. No live production origin is confirmed by this repository.
+- The web bootstrap now registers MWA through `@solana-mobile/wallet-standard-mobile` **0.5.1** using `registerMwa`. Typecheck and browser tests pass; the Android WebShell connect/signing flow has not yet been verified on a Seeker or supported Android wallet. Keep extension wallets for desktop testing.
+- The app has no verified safe starter balance path before the first Field. A Common Field costs 100 POTATO; the devnet SOL airdrop does not solve this token-entry requirement. This blocks the complete production onboarding until a bounded, security-reviewed grant or other approved acquisition path exists; do not label backend credits as on-chain POTATO.
+- The app has no verified mainnet ARES-1 program/release path. A production listing is blocked until the mainnet program ID, config, mint, backend authority model, and release artifact are independently confirmed and all mainnet gates pass. The submitted APK must not silently fall back to devnet.
+- Do not collect profile/device data without explaining it. Avoid user-generated content in v1; if added, implement moderation/reporting and the required user controls. Add a privacy notice that accurately covers RPC, wallet, analytics and backend data handling.
 
-## Шаг 2. Собери и подпиши APK через Bubblewrap
+## Build a signed APK with the current WebShell path
 
-```bash
-PWA_URL=https://your-domain.com bash scripts/build-apk.sh
-```
+Prerequisites: a publicly reachable HTTPS web origin, JDK 17+, Android SDK, a unique Android application id, and a signing keystore dedicated to this app. Do not commit the keystore or passwords. Preserve the keystore for every update. The dApp Store app must have its own signing key; do not reuse a Google Play signing key.
 
-Скрипт вызывает `bubblewrap init --manifest <PWA_URL>/manifest.json`, затем `bubblewrap build`. При первом запуске Bubblewrap попросит:
-- путь для нового Android keystore (сохрани файл и пароли — без них нельзя будет выпустить обновление);
-- package name (например `com.yourstudio.solanapotato`);
-- параметры splash screen.
-
-⚠️ Если приложение также будет в Google Play — для dApp Store нужен **отдельный** keystore, ключи нельзя переиспользовать между сторами.
-
-Результат: подписанный `app-release-signed.apk` в `android-twa/`.
-
-## Шаг 3. Подключи Digital Asset Links
-
-Без этого шага APK будет открываться с адресной строкой Chrome вместо полноэкранного вида.
+1. Build and deploy the reviewed web app to its production HTTPS origin. Set `VITE_SOLANA_CLUSTER=mainnet-beta` and only independently verified mainnet program/config/mint/RPC values in the Store build. Test every app route, MWA connect/sign/send, transaction warnings, account-rent payer, backend-persistent colony disclosure, failure/recovery path and external link on a supported Android device. Devnet builds are internal QA artifacts only, never the first public listing.
+2. Create the WebShell project once; use the exact same project directory and keystore for subsequent versions:
 
 ```bash
-cd android-twa
-keytool -list -v -keystore <твой-keystore>        # скопируй SHA256 fingerprint
-bubblewrap fingerprint add <SHA256_fingerprint>
-bubblewrap fingerprint generateAssetLinks
+cd game
+PWA_URL=https://your-verified-domain.example \
+ANDROID_APPLICATION_ID=com.yourstudio.ares1 \
+KEYSTORE_PATH=/secure/path/ares1-dapp-store.keystore \
+KEYSTORE_ALIAS=ares1 \
+OUT_DIR=./android-webshell \
+bash scripts/build-apk.sh
 ```
 
-Скопируй сгенерированный `assetlinks.json` поверх `apps/web/public/.well-known/assetlinks.json` и передеплой фронтенд, чтобы файл стал доступен по адресу:
+On first run, the script uses the pinned `solana-mobile` CLI from npm, seeds the shell from `/manifest.json`, and prompts for Android version metadata. It asks for signing passwords unless `SOLANA_MOBILE_KEYSTORE_PASSWORD` and (if distinct) `SOLANA_MOBILE_KEY_PASSWORD` are supplied through a protected environment. Never put passwords in command-line arguments, repository files, or chat. `webshell init` creates the keystore if the configured path does not exist; back it up securely before proceeding.
 
-```
-https://your-domain.com/.well-known/assetlinks.json
-```
-
-## Шаг 4. Проверь APK
+3. Verify the release APK signature and install it on a device/emulator:
 
 ```bash
-apksigner verify --print-certs app-release-signed.apk
-bubblewrap install app-release-signed.apk   # установка на подключённое устройство/эмулятор
+apksigner verify --print-certs android-webshell/app/build/outputs/apk/release/app-release.apk
+npx solana-mobile@0.6.0 device install android-webshell/app/build/outputs/apk/release/app-release.apk
 ```
 
-Если после установки видна навигационная панель браузера — Digital Asset Links не подключились, вернись к шагу 3.
+The WebShell is not a Trusted Web Activity, so Digital Asset Links are not required. For each update, increment Android `versionCode` and use the same signing key. The shell loads the deployed web origin, so web updates can ship independently, but changes affecting native wrapper metadata still require a new APK.
 
-## Шаг 5. Публикация через Publisher Portal
+## Submit through the Publisher Portal
 
-CLI-паблишинга больше нет — всё через веб: https://publish.solanamobile.com
+1. Complete publisher signup and KYC/KYB; review the current Publisher Policy and Developer Agreement.
+2. Connect and preserve the publisher wallet. It will be needed for future releases; estimate exact funding with the portal before signing.
+3. Choose a storage provider and inspect its estimate. Use ArDrive or the publisher's own S3 bucket; storage cost is separate from game-account rent.
+4. Create the dApp listing with accurate production metadata, screenshots, icon, mainnet disclosures and a clear explanation of which assets/state are on-chain versus backend-persistent.
+5. Upload the signed APK, approve only the expected release/upload transactions, and retain signatures and release metadata.
+6. Submit for review. Store approval and timing belong to Solana Mobile; do not announce acceptance before it is granted.
 
-1. Зарегистрируй publisher-аккаунт, пройди KYC/KYB.
-2. Подключи Solana-кошелёк (Phantom/Solflare/Backpack) — это твой *publisher wallet*, храни доступ к нему: он нужен для всех будущих обновлений этого приложения.
-3. Пополни его на ~0.2 SOL (комиссии + загрузка на Arweave через ArDrive).
-4. Выбери storage provider (рекомендуется ArDrive).
-5. "Add a dApp" → "New dApp" → заполни метаданные (название, описание, скриншоты, иконка, категория).
-6. Открой созданное приложение → "New Version" → загрузи `app-release-signed.apk`.
-7. Подпиши все запрошенные транзакции/сообщения (загрузка ассетов на Arweave + минт release NFT) — если пропустить хоть одну, часть ассетов не попадёт в сабмит.
-8. Дождись ревью (обычно 3–5 рабочих дней, ответ приходит на email от `publishersupport@dappstore.solanamobile.com`).
+## Distinguish the three cost buckets
 
-## Важно про архитектуру именно этого приложения
+1. **Store submission:** Publisher/release transactions plus APK/media storage. The current official guide suggests ~0.2 SOL for a first submission, depending on uploads and current fees.
+2. **Program deployment/upgrade:** Separate from Store listing. Adding a game contract is not needed just to mint the Store's release metadata. A future colony program upgrade requires build, validator tests, review and a separate deployment budget.
+3. **Player/game state:** Solana rent-exempt balances depend on account data length. Query `getMinimumBalanceForRentExemption` for exact sizes at release time; never hardcode an assumed rent rate. Rent deposits are locked while accounts live, not a recurring game subscription. Keep colony state compact (one bounded colony account with packed occupancy/structure records where compute and size tests permit), avoid one PDA/NFT per building or SKU, and offer safe close/reclaim only when no user-owned value/state is silently destroyed.
 
-- Фарминг, харвест, маркетплейс, нашивки (квесты `claim_achievement`) и рефералка (`register_referrer`/`fill_order`) — **полностью on-chain** и не зависят ни от какого веб-контекста: в APK/TWA работают через любой MWA-совместимый кошелёк.
-- (До 14.09.2026 квесты/реварды шли через backend `/api/reward/claim` с проверкой `X-Telegram-Init-Data` и не работали вне Telegram. Кран и initData **удалены** — квесты теперь on-chain, идентичность = кошелёк.)
-- Для локального/предрелизного APK оставляй `VITE_SOLANA_CLUSTER=devnet` и используй только тестовые кошельки. Не выставляй mainnet-переменные и не загружай сборку в Publisher Portal, пока current launch gates, владельческое решение, security review, legal notices, program deployment и transaction path не подтверждены.
+The read-only estimator `yarn rent:estimate` queries live rent values for a new Field account (70 bytes), a draft compact Colony account, optional buyer ATA, and optional separate Building PDAs. Example: `SOLANA_CLUSTER=devnet SOLANA_RPC_URL=https://api.devnet.solana.com COLONY_ACCOUNT_BYTES=512 yarn rent:estimate`. Set the cluster/RPC and Colony byte count explicitly for the intended release; the default 512-byte Colony size is a planning placeholder, not an implemented layout. It verifies the RPC genesis hash and sends no transactions. No fake accounts, meaningless transactions, hidden user-paid rent, or claims of free mainnet gameplay. If a studio sponsors free mainnet onboarding, disclose that it pays the fee/rent and set strict one-per-wallet and budget limits; sponsorship shifts costs to the studio rather than eliminating them.

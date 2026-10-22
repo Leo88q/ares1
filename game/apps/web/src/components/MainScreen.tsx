@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useI18n, t } from '../i18n'
 
 import { useGame } from '../contexts/GameContext'
-import { useSolana } from '../contexts/SolanaContext'
+import { IS_MAINNET, useSolana } from '../contexts/SolanaContext'
 import FieldCardVice from './FieldCardVice'
 import FieldsPanel from '../fields/FieldsPanel'
 import { fieldVisual } from '../fields/model'
@@ -18,7 +19,6 @@ import { FieldGestureLayer } from './ares/FieldGestureLayer'
 import { ErrorState } from '../ui/states'
 import { Key } from '../ui/kit'
 import { Tuber9 } from './ares/mascot'
-import CaseReveal from './CaseReveal'
 
 export default function MainScreen() {
  const { fields, stats, loading, fieldsError, reload, purchasing, harvest, purchaseField, upgradeField, repairField, payTax, applyFertilizer } = useGame()
@@ -26,15 +26,6 @@ export default function MainScreen() {
  const { lang } = useI18n()
  const fieldText = fieldCopy(lang)
  const visualFields = fields.map(field => fieldVisual(field, Math.floor(Date.now() / 1000)))
- const [revealTier, setRevealTier] = useState<number | null>(null)
-
- // Покупка поля за POTATO: тип выбирает игрок, поэтому редкость раскрытия = тип.
- const handlePurchase = async (type: number) => {
-  const ok = await purchaseField(type)
-  if (ok) setRevealTier(type)
-  return ok
- }
-
  return (
   <AgroBay>
    <div className="main-screen-container">
@@ -46,14 +37,9 @@ export default function MainScreen() {
      <small style={{ color: '#C9A176', fontSize: 8 }}>3D · CC0</small>
     </a>
     <PresaleSection />
-        <CaseReveal
-         open={revealTier !== null}
-         tier={revealTier ?? 0}
-         mode="field"
-         onClose={() => setRevealTier(null)}
-        />
+    {!loading && fields.length === 0 && <FreeStartNotice />}
         <BuyFieldCard
-         onPurchase={handlePurchase}
+         onPurchase={purchaseField}
          purchasing={purchasing}
          balanceMicro={stats.potatoBalance}
          firstField={fields.length === 0}
@@ -61,7 +47,6 @@ export default function MainScreen() {
     <BatchHarvestBar />
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
      <div
-      data-tutorial="fields"
       style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: 16, marginTop: 20, alignItems: 'start' }}
      >
       {!ready ? (
@@ -271,6 +256,61 @@ function ConnectHint() {
  )
 }
 
+const FIELD_ACCOUNT_DATA_BYTES = 70 // Anchor discriminator (8) + Field::INIT_SPACE (62)
+
+function FreeStartNotice(): JSX.Element {
+ const { t } = useI18n()
+ const { connection, ready, connected } = useSolana()
+ const { airdropSol } = useGame()
+ const [fieldRentLamports, setFieldRentLamports] = useState<number | null>(null)
+ const [rentUnavailable, setRentUnavailable] = useState(false)
+ const [requestingSol, setRequestingSol] = useState(false)
+ useEffect(() => {
+  setFieldRentLamports(null)
+  setRentUnavailable(false)
+  if (!ready) return
+  let active = true
+  void connection.getMinimumBalanceForRentExemption(FIELD_ACCOUNT_DATA_BYTES, 'confirmed')
+   .then((lamports) => {
+    if (!Number.isSafeInteger(lamports) || lamports <= 0) throw new Error('Invalid RPC rent estimate')
+    if (active) setFieldRentLamports(lamports)
+   })
+   .catch(() => { if (active) setRentUnavailable(true) })
+  return () => { active = false }
+ }, [connection, ready])
+ const requestTestSol = async () => {
+  if (!connected || IS_MAINNET || requestingSol) return
+  setRequestingSol(true)
+  try { await airdropSol() } finally { setRequestingSol(false) }
+ }
+ return (
+  <section aria-labelledby="free-start-title" className="po-plate" style={{ padding: '16px 18px', margin: '0 0 14px', border: '1px solid rgba(255,179,71,0.28)' }}>
+   <p className="ares-mono" style={{ color: '#C9A176', fontSize: 9, letterSpacing: '.14em', margin: '0 0 6px' }}>{t('DEVNET · НАСТОЯЩИЕ ON-CHAIN-ЭКРАНЫ')}</p>
+   <h2 id="free-start-title" className="ares-stencil" style={{ color: '#EFD9AC', fontSize: 14, margin: '0 0 7px' }}>{t('ДО ПЕРВОГО ПОЛЯ · ЧЕСТНЫЙ СТАТУС')}</h2>
+   <p style={{ color: 'var(--pf-text-secondary)', fontSize: 11, lineHeight: 1.55, margin: 0 }}>
+    {t('Первое обычное поле стоит {amount} тестовых POTATO. Для создания аккаунта также нужен SOL на rent и сетевую комиссию; ниже показана текущая оценка rent из RPC. Публичной выдачи POTATO до первого поля сейчас нет, а покупка за SKR закрыта. Бесплатный игровой старт пока недоступен: не отправляй деньги и не используй mainnet ради теста.', { amount: fmtPotato(fieldPriceMicro(0), 0) })}
+   </p>
+   <p aria-live="polite" style={{ color: rentUnavailable ? '#F0A18E' : '#D8BB8E', fontSize: 10, lineHeight: 1.45, margin: '7px 0 0' }}>
+    {fieldRentLamports !== null
+     ? t('Текущий rent для Field account ({bytes} байт): {amount} SOL. Комиссия сети и другие создаваемые аккаунты отдельно.', { bytes: FIELD_ACCOUNT_DATA_BYTES, amount: (fieldRentLamports / 1_000_000_000).toFixed(9) })
+     : rentUnavailable
+      ? t('RPC не вернул оценку rent. Не подтверждай транзакцию, если расход неясен.')
+      : t('Запрашиваем текущий rent для Field account…')}
+   </p>
+   <p style={{ color: 'var(--pf-text-muted)', fontSize: 10, lineHeight: 1.5, margin: '7px 0 10px' }}>
+    {t('ЛАБ и статус колонии можно осмотреть без кошелька; это просмотр реальных экранов, не тренировочная игра и не сохраняемая игровая сессия.')}
+   </p>
+   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    {connected && !IS_MAINNET && <button type="button" className="mk-key" onClick={() => void requestTestSol()} disabled={!ready || requestingSol} style={{ padding: '7px 10px', fontSize: 9 }}>
+     {requestingSol ? t('Запрашиваем SOL…') : t('Запросить 1 тестовый SOL')}
+    </button>}
+    <Link to="/lab" className="mk-key" style={{ padding: '7px 10px', fontSize: 9, textDecoration: 'none' }}>{t('ОТКРЫТЬ ЛАБ')}</Link>
+    <Link to="/base" className="mk-key" style={{ padding: '7px 10px', fontSize: 9, textDecoration: 'none' }}>{t('КОЛОНИЯ')}</Link>
+   </div>
+  </section>
+ )
+}
+
 interface BuyProps {
  onPurchase: (type: number) => Promise<boolean>
  purchasing: boolean
@@ -408,7 +448,7 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
 
    {firstField && (
     <div style={{ fontSize: 11, color: 'var(--ares-dust, #E0A183)', textAlign: 'center', lineHeight: 1.4, background: 'rgba(0,0,0,0.25)', padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
-     {t('Стартовый паёк выдаётся в «Каюте» (задачи смены) или доступен на бирже Снабжения за SKR.')}
+     {t('Стартовый паёк до первого поля в текущей версии не выдаётся. Бесплатная выдача POTATO пока не подключена; не покупай токены ради теста.')}
     </div>
    )}
   </motion.div>

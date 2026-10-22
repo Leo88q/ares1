@@ -78,6 +78,12 @@ export default defineConfig(({ mode }) => {
       port: 5175,
       host: true,
       allowedHosts: true,
+      proxy: {
+        '/api': {
+          target: process.env.BACKEND_PROXY_TARGET || 'http://127.0.0.1:8080',
+          changeOrigin: false,
+        },
+      },
     },
     preview: {
       port: 4173,

@@ -22,7 +22,7 @@
 | `chain_reconciliation` | доказательство сходимости: `granted − ledger = drift` (append-only) |
 | `service_cursors` | курсоры сервисов; единственная изменяемая таблица, и та — только CAS по `version` |
 | роли | `game_ops_migrator` (DDL), `game_ops_writer` (рантайм), `game_ops_reader` (дашборды) |
-| 12 триггеров | append-only, батч-проверка цепочки, машина состояний, неизменяемость денежных полей, CAS курсоров, аудит |
+| 26 триггеров в текущих миграциях | append-only, batch-проверка цепочки, машина состояний, неизменяемость денежных полей, CAS курсоров, аудит и Colony event/challenge guards |
 
 Три независимых уровня защиты (падение одного не открывает историю):
 
@@ -52,7 +52,7 @@ GAME_OPS_WRITER_PASSWORD=… GAME_OPS_READER_PASSWORD=… \
   yarn db:roles --url="$MIGRATOR_URL" --writer-login=ares1_backend --reader-login=ares1_dash
 
 # 3. Приёмка ДО переключения трафика
-yarn db:verify --url="$MIGRATOR_URL"          # 21 проверка, ненулевой код при провале
+yarn db:verify --url="$MIGRATOR_URL"          # полная приёмка схемы и прав, ненулевой код при провале
 
 # 4. Запуск бэкенда (слой включается только при заданном GAME_OPS_DATABASE_URL)
 yarn workspace backend start
@@ -79,7 +79,7 @@ GAME_OPS_WRITER_PASSWORD=… GAME_OPS_READER_PASSWORD=… \
 (`node apps/backend/dist/db-migrate.js`, тот же код, что и `yarn db:migrate`) и
 завершается; `backend` стартует только после его успеха
 (`depends_on: service_completed_successfully`) под ролью `game_ops_writer`
-(`GAME_OPS_DB_ROLE`), то есть без прав на DDL и без права править журнал.
+(`GAME_OPS_DB_ROLE`), то есть без прав на DDL и без права править журнал. При `COLONIES_ENABLED=true` startup дополнительно требует ровно `GAME_OPS_DB_ROLE=game_ops_writer` и проверяет фактический `current_user` вместе с узкими Colony grants (runtime не может выдавать entitlements, менять Field/owner, править event log или выполнять DDL).
 Проверка после выкатки: `curl -H "Authorization: Bearer $ADMIN_API_TOKEN" \
 http://127.0.0.1:8080/api/gameops/ready` — `ready: true` и все проверки `ok`.
 
@@ -111,6 +111,7 @@ yarn db:verify --url="$MIGRATOR_URL"                        # полная пр�
 yarn db:verify --url="$URL" --skip-privileges               # managed-база без ролей
 yarn db:mutate --url="$URL" --anchor=/secure/audit.json     # мутационные пробы
 GAME_OPS_TEST_URL="$URL" GAME_OPS_TEST_ROLE=game_ops_writer yarn test:db
+yarn test:db:unit # isolated PGlite migrations + schema/Colony grants; no configured DB required
 ```
 
 Тесты слоя делят один стенд, поэтому `test:db` запускает файлы последовательно
@@ -125,18 +126,14 @@ GAME_OPS_TEST_URL="$URL" GAME_OPS_TEST_ROLE=game_ops_writer yarn test:db
 | Группа | Что доказывается |
 |---|---|
 | `migrations.*` | все файлы в реестре, контрольные суммы совпадают с репозиторием |
-| `schema.*` | 7 таблиц, 3 представления, ≥12 триггеров, ключевые индексы |
+| `schema.*` | 11 обязательных таблиц (в текущей схеме 16), 3 представления, ≥16 триггеров, ключевые индексы |
 | `privileges.*` | у писателя нет `UPDATE`/`DELETE` на журнал/аудит/сверку, `UPDATE` на интенты только по колонкам, нет права `CREATE` |
 | `mutate.*` | фактические попытки `UPDATE`/`DELETE`/подмены отклоняются (под `SET ROLE` рантайм-роли) |
 | `chain.*` | содержимое каждой строки журнала, связность, голова, `row_count` |
 | `intents.ledger_amount_match` | суммы и получатели подтверждённых интентов совпадают с зеркалом (ловит подмену денежного поля интента, которую hash-chain не видит) |
 | `reconciliation.drift` | по каждому потоку последняя сверка имеет `drift = 0` |
 
-Результаты на рабочем стенде (PGlite 0.5.8 = PostgreSQL 18 в WASM) и в локальном
-прогоне CI-последовательности (`scripts/ci-local.sh --skip-chain` с заданным
-`GAME_OPS_TEST_URL`): **21/21 проверок, 0 провалов**; мутации — **7/7 внутренних
-дефектов поймано** + внешний якорь аудита сработал (см. § 5); интеграционные
-тесты слоя — **32/32**; тесты админ-API — **14/14**.
+Последняя disposable-PGlite-проверка (PGlite 0.5.8, PostgreSQL 18 в WASM) применила миграции `0001`–`0010` (**10/10**) и прошла `db:verify` (**23/23**): схема, миграционные контрольные суммы, роли, права и guards проверены. База была чистой: `mutate.none` и пустая event/ledger history означают, что этот запуск не заменяет тесты мутаций на заполненных данных. PGlite не является выбранной operational PostgreSQL-базой и не проверяет сеть, failover, managed-provider behavior, production backup или restore. Исторические результаты ранее выполненных mutation/integration тестов не следует интерпретировать как acceptance Colony на реальной БД.
 
 ## 4. Что делать, если
 
@@ -260,3 +257,28 @@ Readiness отдаёт 503, выдача наград закрыта. Поряд
   репозитория; токен сравнивается постоянным временем.
 - **Не покрыто тестами**: поведение под реальной сетевой деградацией
   (потери пакетов, failover) — это проверяется на staging, а не в песочнице.
+
+## 8. Persistent Colony backup / recovery gate
+
+Migration `0010_colonies.sql` adds an append-only event history whose event payloads
+contain each committed state snapshot. Before any production enablement:
+
+1. Configure encrypted automated backups and point-in-time recovery in the selected
+   PostgreSQL provider. Keep backup credentials and keys outside this repository;
+   this repo does not select or purchase a provider.
+2. Record the provider's retention window, RPO/RTO, operator access policy and
+   alert route in the deployment record. A green health endpoint is not evidence
+   that backups are restorable.
+3. On a schedule, restore the latest backup to a separate isolated database (never
+   over production), run `yarn db:verify` against it, then run
+   `GAME_OPS_DATABASE_URL=... yarn colony:audit` using the read-only
+   `game_ops_reader` role. The audit checks each immutable hash chain, sequence,
+   state checksum and reconstruction from event snapshots.
+4. Compare restored row/event counts and sample wallet/Field links without
+   exporting wallet lists into logs. Record duration, failures and restore point;
+   alert on any mismatch or missed drill.
+5. Keep `COLONY_V1_RELEASE_READY=false` until a successful restore drill, a written
+   RPO/RTO acceptance and operational sign-off exist. Do not test restoration
+   against a live mainnet database or use production wallet secrets in the drill.
+
+The sandbox has no configured PostgreSQL provider/credentials, so the provider backup/restore procedure and `db:verify` have not been executed against the selected operational database; this is a hard release gate, not a claim of backup readiness. As a narrower offline check, all ten SQL migrations (through `0010_colonies.sql`) were applied to a disposable in-memory PGlite instance, and the Colony role grants, event immutability trigger and expired-challenge cleanup were exercised successfully. That is syntax/logic validation only; it does not substitute for `db:verify`, real PostgreSQL acceptance, or restore testing.

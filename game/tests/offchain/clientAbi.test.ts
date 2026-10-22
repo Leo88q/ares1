@@ -30,11 +30,6 @@ const cases: [string, () => Promise<TransactionInstruction>, Record<string, unkn
   ['create_sell_order', () => client.ixCreateSellOrder(program, p), { order_id: bn, amount_micro: bn, price_lamports_per_potato: bn }],
   ['fill_order', () => client.ixFillOrder(program, p), {}],
   ['cancel_order', () => client.ixCancelOrder(program, p), {}],
-  ['init_presale', () => client.ixInitPresale(program, p), { cap: p.cap, price_lamports: bn }],
-  ['update_presale_price', () => client.ixUpdatePresalePrice(program, p), { price_lamports: bn }],
-  ['buy_field_sol', () => client.ixBuyFieldSol(program, p), { field_id: bn, field_type: 2, max_total_lamports: bn }],
-  ['buy_field_skr', () => client.ixBuyFieldSkr(program, p), { field_id: bn }],
-  ['buy_export_license', () => client.ixBuyExportLicense(program, p), {}],
   ['migrate_config', () => client.ixMigrateConfig(program, p), {}],
   ['migrate_field', () => client.ixMigrateField(program, p), {}],
   ['migrate_epoch', () => client.ixMigrateEpoch(program, p), {}],
@@ -43,11 +38,16 @@ const cases: [string, () => Promise<TransactionInstruction>, Record<string, unkn
   ['close_field', () => client.ixCloseField(program, p), {}],
   ['update_skr_mint', () => client.ixUpdateSkrMint(program, p), { new_skr_mint: keys.newSkrMint }],
   ['apply_pending_skr_mint', () => client.ixApplyPendingSkrMint(program, p), {}],
-  ['apply_pending_presale_price', () => client.ixApplyPendingPresalePrice(program, p), {}],
   ['close_old_epoch', () => client.ixCloseOldEpoch(program, p), {}],
   ['update_reward_signer', () => client.ixUpdateRewardSigner(program, p), { new_signer: keys.newSigner }],
   ['claim_achievement', () => client.ixClaimAchievement(program, p, 3, []), { quest_id: 3 }],
 ];
+test('user-facing SKR sale transaction builders are absent from the browser client', () => {
+  for (const name of ['ixInitPresale', 'ixUpdatePresalePrice', 'ixBuyFieldSol', 'ixBuyFieldSkr', 'ixBuyExportLicense', 'ixApplyPendingPresalePrice']) {
+    assert.equal(Object.hasOwn(client, name), false, `${name} must not be exported to the app`);
+  }
+});
+
 for (const [name, build, args] of cases) {
   test(`browser ABI: ${name} matches generated discriminator, args, account order and privileges`, async () => {
     const spec = idl.instructions.find(ix => ix.name === name)!;

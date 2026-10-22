@@ -77,7 +77,6 @@ samp {
 /* Группы кнопок переносим, а не сжимаем. */
 .hero-actions,
 .consent__actions,
-.presale-actions,
 .footer-legal {
   flex-wrap: wrap;
 }

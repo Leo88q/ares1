@@ -64,10 +64,12 @@ test('the field lab is a product section: real contexts only, never invents Fiel
   const lab = readFileSync(new URL('../src/lab/FieldLabScreen.tsx', import.meta.url), 'utf8')
   assert.match(lab, /useGame\(\)/)
   assert.match(lab, /useSolana\(\)/)
-  assert.match(lab, /FieldVisual\[\]/)
-  // Учебные стенды — локальные визуалы: ни ключей, ни аккаунтов, ни хранилищ.
-  assert.doesNotMatch(lab, /new PublicKey|new Keypair|useWallet\(|sendTransaction\(|localStorage\.|sessionStorage\./)
-  assert.match(lab, /href="\/market"/)
+  assert.match(lab, /game\.fields\.map\(field => fieldVisual\(field, nowSec\)\)/)
+  assert.match(lab, /fields=\{ownedFields\}/)
+  assert.match(lab, /onHarvest=\{game\.harvest\}/)
+  // The live lab displays existing accounts and never creates local demo state.
+  assert.doesNotMatch(lab, /new PublicKey|new Keypair|useWallet\(|sendTransaction\(|localStorage\.|sessionStorage\.|demo|training|SIM/i)
+  assert.match(lab, /to="\/market"/)
   const csp = readFileSync(new URL('../public/_headers', import.meta.url), 'utf8')
   assert.doesNotMatch(csp.match(/connect-src [^;]+/)?.[0] ?? '', /blob:/)
 })

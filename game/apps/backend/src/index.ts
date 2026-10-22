@@ -8,13 +8,18 @@ import { gameOpsRouter } from "./routes/gameops.js";
 import { presaleRouter } from "./routes/presale.js";
 import { slotsRouter } from "./routes/slots.js";
 import { resolveSlotsConfig } from "./slots/config.js";
+import { COLONY_V1_RELEASE_READY, USER_PRESALE_PAYMENTS_ENABLED } from "./launchGates.js";
+import { colonyPackageCatalogResponse } from "./colonies/catalog.js";
+import { colonyAuthRouter } from "./colonies/routes.js";
+import { ColonyService } from "./colonies/service.js";
+import { checkColonyDatabaseRole } from "./colonies/dbReadiness.js";
 import { loadGameOpsConfig } from "./gameops/env.js";
 import { closePool, createPool } from "./gameops/pool.js";
 import { createPgRollLock } from "./gameops/epochLock.js";
 import { bindPresaleDatabaseCluster } from "./gameops/clusterGuard.js";
 import { checkReadiness, httpStatusFor } from "./gameops/readiness.js";
 import { startEpochRoller } from "./epochRoller.js";
-import { connection, fetchConfig, payerKeypair, programId } from "./solana.js";
+import { connection, secondaryConnection, fetchConfig, payerKeypair, programId } from "./solana.js";
 import { buildAlert, sendAlert } from "./alert.js";
 
 /** Minimal fixed-window rate limiter per IP with TTL pruning. */
@@ -62,6 +67,25 @@ async function main() {
   if (actualGenesis !== expectedGenesis) {
     throw new Error(`RPC cluster mismatch: configured=${env.cluster}, genesis=${actualGenesis}`);
   }
+  if (env.coloniesEnabled && env.requireSecondaryRpc && !secondaryConnection) {
+    throw new Error("COLONIES_ENABLED requires RPC_URL_SECONDARY for Field ownership verification");
+  }
+  if (env.coloniesEnabled && secondaryConnection) {
+    const secondaryGenesis = await secondaryConnection.getGenesisHash();
+    if (secondaryGenesis !== expectedGenesis) throw new Error(`Secondary RPC cluster mismatch: configured=${env.cluster}, genesis=${secondaryGenesis}`);
+  }
+  if (env.cluster === "mainnet-beta" && env.coloniesEnabled && !COLONY_V1_RELEASE_READY) {
+    throw new Error("COLONIES_ENABLED is blocked on mainnet until the Colony V1 release gate is approved");
+  }
+  if (process.env.NODE_ENV === "production" && env.cluster === "mainnet-beta" && (!env.coloniesEnabled || !COLONY_V1_RELEASE_READY)) {
+    throw new Error("Production mainnet backend is blocked until the complete Colony V1 acceptance suite and release review pass");
+  }
+  if (env.coloniesEnabled && Buffer.byteLength(env.colonySessionSecret, "utf8") < 32) {
+    throw new Error("COLONY_SESSION_SECRET is required (>=32 UTF-8 bytes) when COLONIES_ENABLED=true");
+  }
+  if (env.coloniesEnabled && process.env.NODE_ENV === "production" && env.corsOrigin === "*") {
+    throw new Error("COLONIES_ENABLED requires an explicit production CORS_ORIGIN allowlist");
+  }
 
   const app = express();
   // Env-driven (TRUST_PROXY): a hard-coded hop count mis-prices req.ip both
@@ -103,6 +127,9 @@ async function main() {
   // эндпоинты отвечают 503 NOT_CONFIGURED — fail-closed, а не «работает
   // наполовину». Монтируется НИЖЕ, после лимитера (см. комментарий у /ready).
   const gameOpsConfig = loadGameOpsConfig();
+  if (env.coloniesEnabled && gameOpsConfig?.role !== "game_ops_writer") {
+    throw new Error("COLONIES_ENABLED requires GAME_OPS_DB_ROLE=game_ops_writer; refusing a connection with implicit or elevated grants");
+  }
   const gameOpsPool = gameOpsConfig ? createPool(gameOpsConfig) : null;
   if (gameOpsConfig && gameOpsPool) {
     // A DB is permanently pinned to its first presale network binding; a reused
@@ -115,6 +142,24 @@ async function main() {
     console.warn(
       "[startup] game_ops off: кросс-инстансная блокировка эпохи недоступна — держите ровно одну реплику бэкенда.",
     );
+  }
+  if (env.coloniesEnabled) {
+    if (!gameOpsPool) throw new Error("COLONIES_ENABLED requires GAME_OPS_DATABASE_URL");
+    const schema = await gameOpsPool.query<{ challenges: string | null; entitlements: string | null; colonies: string | null; events: string | null }>(
+      `SELECT to_regclass('game_ops.colony_auth_challenges')::text AS challenges,
+              to_regclass('game_ops.colony_entitlements')::text AS entitlements,
+              to_regclass('game_ops.colonies')::text AS colonies,
+              to_regclass('game_ops.colony_events')::text AS events`,
+    );
+    const row = schema.rows[0];
+    if (!row?.challenges || !row.entitlements || !row.colonies || !row.events) {
+      throw new Error("COLONIES_ENABLED requires game_ops migration 0010_colonies.sql; refusing partial startup");
+    }
+    const colonyRole = await checkColonyDatabaseRole(gameOpsPool);
+    if (!colonyRole.ready) {
+      throw new Error(`COLONIES_ENABLED requires least-privilege game_ops_writer grants: ${colonyRole.failures.join("; ")}`);
+    }
+    console.log("[startup] Colony auth + finalized Field ownership verification enabled; runtime grants verified");
   }
 
   // Readiness probe (k8s): цепь и слой данных проверяются вместе. Если хотя бы
@@ -143,6 +188,28 @@ async function main() {
   // effective limit is N× — use a shared store when you scale horizontally.
   app.use(rateLimit(env.rateLimitPerMinute));
 
+  if (env.coloniesEnabled && gameOpsPool) {
+    app.use("/api/colonies", colonyAuthRouter({
+      pool: gameOpsPool,
+      cluster: env.cluster,
+      sessionSecret: env.colonySessionSecret,
+      allowedOrigins: env.corsOrigin.split(",").map(origin => origin.trim()).filter(Boolean),
+      allowLocalhostForDevelopment: process.env.NODE_ENV !== "production",
+      fieldRpc: connection,
+      secondaryFieldRpc: secondaryConnection,
+      requireSecondaryFieldRpc: env.requireSecondaryRpc,
+      programId,
+      colonyService: new ColonyService(gameOpsPool, env.cluster),
+    }));
+  }
+
+  // Product transparency endpoint only; this static proposal cannot create
+  // payment orders or entitlements and remains explicitly closed by default.
+  app.get("/api/colonies/catalog", (_req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    res.json(colonyPackageCatalogResponse());
+  });
+
   if (gameOpsConfig && gameOpsPool) {
     app.use("/api/gameops", gameOpsRouter(gameOpsPool, gameOpsConfig));
   }
@@ -157,15 +224,15 @@ async function main() {
         presaleRouter(gameOpsPool, gameOpsConfig, {
           connection,
           cluster: env.cluster,
-          paymentsEnabled: env.cluster === "mainnet-beta"
+          paymentsEnabled: USER_PRESALE_PAYMENTS_ENABLED && (env.cluster === "mainnet-beta"
             ? process.env.NODE_ENV === "production" && env.mainnetPresaleApproved
-            : env.devnetPresaleTestEnabled,
+            : env.devnetPresaleTestEnabled),
           potatoMint: chainCfg.potatoMint.toBase58(),
         }),
       );
-      const paymentsEnabled = env.cluster === "mainnet-beta"
+      const paymentsEnabled = USER_PRESALE_PAYMENTS_ENABLED && (env.cluster === "mainnet-beta"
         ? process.env.NODE_ENV === "production" && env.mainnetPresaleApproved
-        : env.devnetPresaleTestEnabled;
+        : env.devnetPresaleTestEnabled);
       console.log(`[startup] presale router on: cluster=${env.cluster} payments=${paymentsEnabled ? "enabled" : "disabled-by-default"}`);
     } catch (err) {
       console.log("[startup] presale router not mounted: chain config unavailable");
