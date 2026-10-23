@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { applyColonyAction, createInitialColonyState, materializeColony } from '../src/colonies/engine.js';
+import { resolveColonyGrants } from '../src/colonies/catalog.js';
 
 test('server-priced construction spends fixed resources and creates a timed job', () => {
   const start = new Date('2026-10-22T00:00:00.000Z');
@@ -27,9 +28,9 @@ test('research consumes server-calculated materials and completes by server time
   const state = createInitialColonyState(start);
   const started = applyColonyAction(state, { type: 'start_research', research: 'resource_efficiency' }, start).state;
   assert.equal(started.resources.science, 30);
-  assert.equal(started.pendingResearch?.completesAt, '2026-10-22T04:00:00.000Z');
+  assert.equal(started.pendingResearch[0]?.completesAt, '2026-10-22T04:00:00.000Z');
   const complete = materializeColony(started, new Date('2026-10-22T04:00:00.000Z'));
-  assert.equal(complete.pendingResearch, null);
+  assert.equal(complete.pendingResearch.length, 0);
   assert.deepEqual(complete.completedResearch, ['resource_efficiency']);
 });
 
@@ -72,4 +73,34 @@ test('production materialization is invariant to short versus long intervals', (
   let short = initial;
   for (let step = 1; step <= 24; step += 1) short = materializeColony(short, new Date(start.getTime() + step * 60 * 60 * 1000));
   assert.deepEqual(short, long);
+});
+
+test('approved expansion grants increase resource caps and enforce parallel build/research queues', () => {
+  const start = new Date('2026-10-22T00:00:00.000Z');
+  const grants = resolveColonyGrants(['STARTER_COLONY_V1', 'INDUSTRIAL_NETWORK_V1', 'RESEARCH_WING_V1', 'FRONTIER_EXPANSION_V1']);
+  let state = createInitialColonyState(start, grants);
+  assert.deepEqual(state.capacities, { metal: 4_000, water: 4_000, power: 4_000, science: 2_000 });
+  state = applyColonyAction(state, { type: 'start_build', building: 'solar_array' }, start).state;
+  state = applyColonyAction(state, { type: 'start_build', building: 'water_recycler' }, start).state;
+  state = applyColonyAction(state, { type: 'start_build', building: 'metal_extractor' }, start).state;
+  assert.equal(state.buildings.filter(job => job.status === 'constructing').length, 3);
+  assert.throws(() => applyColonyAction(state, { type: 'start_build', building: 'solar_array' }, start), /ALREADY_BUILT/);
+
+  let researchState = createInitialColonyState(start, resolveColonyGrants(['STARTER_COLONY_V1', 'RESEARCH_WING_V1']));
+  researchState = { ...researchState, completedResearch: ['resource_efficiency'], resources: { metal: 500, water: 500, power: 500, science: 100 } };
+  researchState = applyColonyAction(researchState, { type: 'start_research', research: 'hydrology' }, start).state;
+  researchState = applyColonyAction(researchState, { type: 'start_research', research: 'metallurgy' }, start).state;
+  assert.equal(researchState.pendingResearch.length, 2);
+  assert.throws(() => applyColonyAction(researchState, { type: 'start_research', research: 'solar_grid' }, start), /QUEUE_FULL/);
+});
+
+test('grant synchronization is append-only-friendly, expands capacity, and refuses capability reductions', async () => {
+  const { syncColonyGrants } = await import('../src/colonies/engine.js');
+  const start = new Date('2026-10-22T00:00:00.000Z');
+  const starter = createInitialColonyState(start);
+  const expanded = syncColonyGrants(starter, resolveColonyGrants(['STARTER_COLONY_V1', 'RESEARCH_WING_V1']));
+  assert.equal(expanded.capacities.science, 1_000);
+  assert.equal(expanded.grants.researchQueues, 2);
+  assert.deepEqual(expanded.resources, starter.resources);
+  assert.throws(() => syncColonyGrants(expanded, resolveColonyGrants(['STARTER_COLONY_V1'])), /GRANTS_REDUCTION_UNSUPPORTED/);
 });

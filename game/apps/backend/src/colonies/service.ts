@@ -3,13 +3,14 @@ import type { Pool, PoolClient } from 'pg';
 import { withTransaction } from '../gameops/pool.js';
 import { canonicalJson, COLONY_GENESIS_HASH, hashColonyEvent, verifyColonyEventChain } from './eventHash.js';
 import type { StoredColonyEvent } from './eventHash.js';
-import { applyColonyAction, assertValidColonyState, createInitialColonyState, hashColonyState, materializeColony } from './engine.js';
+import { resolveColonyGrants } from './catalog.js';
+import { applyColonyAction, assertValidColonyState, ColonyRuleError, createInitialColonyState, hashColonyState, materializeColony, syncColonyGrants } from './engine.js';
 import type { ColonyAction, ColonyState } from './engine.js';
 import { COLONY_RULESET_VERSION, validBuildingKind, validResearchId } from './rules.js';
 
 export class ColonyServiceError extends Error {
   readonly preserveThroughTransaction = true;
-  constructor(readonly code: 'ENTITLEMENT_REQUIRED' | 'COLONY_NOT_FOUND' | 'FIELD_MISMATCH' | 'VERSION_CONFLICT' | 'INTEGRITY_FAILURE' | 'INVALID_REQUEST' | 'IDEMPOTENCY_CONFLICT') {
+  constructor(readonly code: 'ENTITLEMENT_REQUIRED' | 'COLONY_NOT_FOUND' | 'FIELD_MISMATCH' | 'VERSION_CONFLICT' | 'INTEGRITY_FAILURE' | 'INVALID_REQUEST' | 'IDEMPOTENCY_CONFLICT' | 'GRANT_REDUCTION_UNSUPPORTED') {
     super(code);
     this.name = 'ColonyServiceError';
   }
@@ -157,7 +158,7 @@ async function appendEvent(client: PoolClient, params: {
     stateHash,
     state: params.state,
     materializedAt: params.state.lastMaterializedAt,
-    pending: Boolean(params.state.pendingResearch || params.state.buildings.some(building => building.status === 'constructing')),
+    pending: Boolean(params.state.pendingResearch.length || params.state.buildings.some(building => building.status === 'constructing' || building.status === 'upgrading')),
   };
 }
 
@@ -178,6 +179,42 @@ function assertRequestId(requestId: string): void {
 export class ColonyService {
   constructor(private readonly pool: Pool, private readonly cluster: 'devnet' | 'mainnet-beta') {}
 
+  private async activeGrants(client: PoolClient, wallet: string) {
+    const result = await client.query<{ sku_id: string }>(
+      `SELECT sku_id FROM game_ops.colony_entitlements
+        WHERE owner_wallet = $1 AND cluster = $2 AND revoked_at IS NULL ORDER BY granted_at ASC`,
+      [wallet, this.cluster],
+    );
+    try {
+      return resolveColonyGrants(result.rows.map(row => row.sku_id));
+    } catch (error) {
+      if (error instanceof Error && error.message === 'STARTER_ENTITLEMENT_REQUIRED') throw new ColonyServiceError('ENTITLEMENT_REQUIRED');
+      throw new ColonyServiceError('INTEGRITY_FAILURE');
+    }
+  }
+
+  private async synchronizeGrants(client: PoolClient, row: ColonyRow): Promise<ColonyRow> {
+    const grants = await this.activeGrants(client, row.owner_wallet);
+    if (canonicalJson(grants) === canonicalJson(row.state.grants)) return row;
+    let state: ColonyState;
+    try {
+      state = syncColonyGrants(row.state, grants);
+    } catch (error) {
+      if (error instanceof ColonyRuleError && error.code === 'GRANTS_REDUCTION_UNSUPPORTED') {
+        throw new ColonyServiceError('GRANT_REDUCTION_UNSUPPORTED');
+      }
+      throw error;
+    }
+    const snapshot = await appendEvent(client, {
+      row,
+      requestId: randomUUID(),
+      eventType: 'colony_grants_updated',
+      payload: { grants, state },
+      state,
+    });
+    return { ...row, sequence: snapshot.sequence, state, state_hash: snapshot.stateHash };
+  }
+
   async initialize(params: {
     wallet: string;
     fieldAddress: string;
@@ -191,18 +228,26 @@ export class ColonyService {
       if (existing) {
         if (existing.field_address !== params.fieldAddress) throw new ColonyServiceError('FIELD_MISMATCH');
         await verifiedEvents(client, existing);
-        return this.snapshot(existing, now, false);
+        const current = await this.synchronizeGrants(client, existing);
+        return this.snapshot(current, now, false);
       }
-      const entitlement = await client.query<{ id: string }>(
-        `SELECT id FROM game_ops.colony_entitlements
-          WHERE owner_wallet = $1 AND cluster = $2 AND sku_id = 'STARTER_COLONY_V1' AND revoked_at IS NULL
-          ORDER BY granted_at ASC LIMIT 1`,
+      const entitlements = await client.query<{ id: string; sku_id: string }>(
+        `SELECT id, sku_id FROM game_ops.colony_entitlements
+          WHERE owner_wallet = $1 AND cluster = $2 AND revoked_at IS NULL
+          ORDER BY granted_at ASC`,
         [params.wallet, this.cluster],
       );
-      const entitlementId = entitlement.rows[0]?.id;
-      if (!entitlementId) throw new ColonyServiceError('ENTITLEMENT_REQUIRED');
+      const starter = entitlements.rows.find(item => item.sku_id === 'STARTER_COLONY_V1');
+      if (!starter) throw new ColonyServiceError('ENTITLEMENT_REQUIRED');
+      let grants;
+      try {
+        grants = resolveColonyGrants(entitlements.rows.map(item => item.sku_id));
+      } catch {
+        throw new ColonyServiceError('INTEGRITY_FAILURE');
+      }
+      const entitlementId = starter.id;
       const colonyId = randomUUID();
-      const state = createInitialColonyState(now);
+      const state = createInitialColonyState(now, grants);
       const stateHash = hashColonyState(state);
       const inserted = await client.query<ColonyRow>(
         `INSERT INTO game_ops.colonies
@@ -251,10 +296,11 @@ export class ColonyService {
   async get(wallet: string): Promise<ColonySnapshot> {
     const now = new Date();
     return withTransaction(this.pool, `colony:read:${wallet}`, async client => {
-      const row = await readColony(client, wallet, false);
+      const row = await readColony(client, wallet, true);
       if (!row) throw new ColonyServiceError('COLONY_NOT_FOUND');
       await verifiedEvents(client, row);
-      return this.snapshot(row, now, true);
+      const current = await this.synchronizeGrants(client, row);
+      return this.snapshot(current, now, true);
     });
   }
 
@@ -269,7 +315,7 @@ export class ColonyService {
     if (!Number.isSafeInteger(params.expectedSequence) || params.expectedSequence < 1) throw new ColonyServiceError('INVALID_REQUEST');
     const action = normalizeAction(params.action);
     return withTransaction(this.pool, `colony:action:${params.wallet}`, async client => {
-      const row = await readColony(client, params.wallet, true);
+      let row = await readColony(client, params.wallet, true);
       if (!row) throw new ColonyServiceError('COLONY_NOT_FOUND');
       if (row.field_address !== params.fieldAddress) throw new ColonyServiceError('FIELD_MISMATCH');
       const history = await verifiedEvents(client, row);
@@ -278,6 +324,7 @@ export class ColonyService {
         if (canonicalJson(prior.payload.action) !== canonicalJson(action)) throw new ColonyServiceError('IDEMPOTENCY_CONFLICT');
         return { snapshot: this.snapshot(row, new Date(), true), duplicate: true, result: isRecordPayload(prior.payload.result) ? prior.payload.result : null };
       }
+      row = await this.synchronizeGrants(client, row);
       if (parseSequence(row.sequence) !== params.expectedSequence) throw new ColonyServiceError('VERSION_CONFLICT');
       const now = new Date();
       const transition = applyColonyAction(row.state, action, now);
@@ -304,7 +351,7 @@ export class ColonyService {
       stateHash: row.state_hash,
       state,
       materializedAt: now.toISOString(),
-      pending: Boolean(state.pendingResearch || state.buildings.some(building => building.status === 'constructing')),
+      pending: Boolean(state.pendingResearch.length || state.buildings.some(building => building.status === 'constructing' || building.status === 'upgrading')),
     };
   }
 }

@@ -23,7 +23,7 @@ test("starter SKU is a deterministic 1053 SKR field + Core + Lab entry point", (
     labLevelCap: 1,
     buildQueues: 1,
     researchQueues: 1,
-    storageMultiplier: 1,
+    storageMultipliers: { metal: 1, water: 1, power: 1, science: 1 },
     core: true,
     lab: true,
   });
@@ -57,4 +57,23 @@ test("SKR price values use decimal strings, never imprecise JS numbers", () => {
     assert.match(item.priceSkr, /^\d+$/);
   }
   assert.deepEqual(new Set(COLONY_PACKAGE_CATALOG.map((item) => item.id)).size, COLONY_PACKAGE_CATALOG.length);
+});
+
+test('expansion grant aggregation applies additive queues and max-per-resource capacity multipliers', async () => {
+  const { resolveColonyGrants } = await import('../src/colonies/catalog.js');
+  const research = resolveColonyGrants(['STARTER_COLONY_V1', 'RESEARCH_WING_V1']);
+  assert.equal(research.fieldSlots, 1);
+  assert.equal(research.researchQueues, 2);
+  assert.deepEqual(research.storageMultipliers, { metal: 1, water: 1, power: 1, science: 2 });
+
+  const all = resolveColonyGrants([
+    'INDUSTRIAL_NETWORK_V1', 'STARTER_COLONY_V1', 'FRONTIER_EXPANSION_V1', 'RESEARCH_WING_V1',
+  ]);
+  assert.equal(all.fieldSlots, 7);
+  assert.equal(all.labLevelCap, 4);
+  assert.equal(all.buildQueues, 3);
+  assert.equal(all.researchQueues, 3);
+  assert.deepEqual(all.storageMultipliers, { metal: 4, water: 4, power: 4, science: 4 });
+  assert.throws(() => resolveColonyGrants(['FRONTIER_EXPANSION_V1']), /STARTER_ENTITLEMENT_REQUIRED/);
+  assert.throws(() => resolveColonyGrants(['STARTER_COLONY_V1', 'FRONTIER_EXPANSION_V1', 'FRONTIER_EXPANSION_V1']), /DUPLICATE_COLONY_SKU/);
 });

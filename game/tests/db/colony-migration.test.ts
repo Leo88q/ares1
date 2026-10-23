@@ -19,14 +19,17 @@ test('all game_ops migrations, including Colony, pass the disposable PGlite acce
   const db = await PGlite.create();
   try {
     const files = await applyAllMigrations(db);
-    assert.equal(files.length, 10);
-    assert.equal(files.at(-1), '0010_colonies.sql');
+    assert.equal(files.length, 11);
+    assert.equal(files.at(-1), '0011_colony_entitlement_sku_unique.sql');
 
     const schema = await db.query<{ table_name: string }>("SELECT table_name FROM information_schema.tables WHERE table_schema = 'game_ops' AND table_type = 'BASE TABLE'");
     const tableNames = new Set(schema.rows.map(row => row.table_name));
     const requiredTables = ['schema_version', 'reward_intents', 'reward_ledger', 'ledger_chain_head', 'admin_audit', 'chain_reconciliation', 'service_cursors', 'colony_auth_challenges', 'colony_entitlements', 'colonies', 'colony_events'];
     for (const name of requiredTables) assert.ok(tableNames.has(name), `required table ${name} must exist`);
     assert.equal(tableNames.size, 16);
+    const entitlementIndex = await db.query<{ indexdef: string }>("SELECT indexdef FROM pg_indexes WHERE schemaname = 'game_ops' AND indexname = 'colony_entitlements_one_active_sku_idx'");
+    assert.match(entitlementIndex.rows[0]?.indexdef ?? '', /UNIQUE/i);
+    assert.match(entitlementIndex.rows[0]?.indexdef ?? '', /WHERE \(revoked_at IS NULL\)/i);
     const triggers = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'game_ops' AND NOT t.tgisinternal`);
     assert.equal(triggers.rows[0]?.count, 26);
 
@@ -52,9 +55,16 @@ test('all game_ops migrations, including Colony, pass the disposable PGlite acce
     await db.query(`INSERT INTO game_ops.colony_entitlements
       (id, owner_wallet, sku_id, cluster, source, source_reference)
       VALUES ($1, $2, 'STARTER_COLONY_V1', 'devnet', 'internal_qa', 'pglite-colony-test')`, [entitlementId, testWallet]);
+    await assert.rejects(
+      db.query(`INSERT INTO game_ops.colony_entitlements
+        (id, owner_wallet, sku_id, cluster, source, source_reference)
+        VALUES ('10000000-0000-4000-8000-000000000099', $1, 'STARTER_COLONY_V1', 'devnet', 'internal_qa', 'pglite-colony-duplicate')`, [testWallet]),
+      /unique|duplicate key/i,
+      'a wallet cannot hold two active copies of the same SKU',
+    );
     await db.query(`INSERT INTO game_ops.colonies
       (id, entitlement_id, owner_wallet, field_address, ruleset_version, state, sequence, state_hash)
-      VALUES ($1, $2, $3, $4, 2, '{}', 0, $5)`, [colonyId, entitlementId, testWallet, testField, '0'.repeat(64)]);
+      VALUES ($1, $2, $3, $4, 3, '{}', 0, $5)`, [colonyId, entitlementId, testWallet, testField, '0'.repeat(64)]);
     await db.query(`INSERT INTO game_ops.colony_events
       (colony_id, sequence, request_id, event_type, payload, previous_hash, event_hash)
       VALUES ($1, 1, $2, 'colony_created', '{}', $3, $4)`, [colonyId, '30000000-0000-4000-8000-000000000001', '0'.repeat(64), '1'.repeat(64)]);

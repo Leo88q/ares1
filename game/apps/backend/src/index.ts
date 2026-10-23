@@ -145,15 +145,18 @@ async function main() {
   }
   if (env.coloniesEnabled) {
     if (!gameOpsPool) throw new Error("COLONIES_ENABLED requires GAME_OPS_DATABASE_URL");
-    const schema = await gameOpsPool.query<{ challenges: string | null; entitlements: string | null; colonies: string | null; events: string | null }>(
+    const schema = await gameOpsPool.query<{ challenges: string | null; entitlements: string | null; colonies: string | null; events: string | null; max_version: number | null; sku_unique_index: string | null }>(
       `SELECT to_regclass('game_ops.colony_auth_challenges')::text AS challenges,
               to_regclass('game_ops.colony_entitlements')::text AS entitlements,
               to_regclass('game_ops.colonies')::text AS colonies,
-              to_regclass('game_ops.colony_events')::text AS events`,
+              to_regclass('game_ops.colony_events')::text AS events,
+              (SELECT max(version)::int FROM game_ops.schema_version) AS max_version,
+              to_regclass('game_ops.colony_entitlements_one_active_sku_idx')::text AS sku_unique_index`,
     );
     const row = schema.rows[0];
-    if (!row?.challenges || !row.entitlements || !row.colonies || !row.events) {
-      throw new Error("COLONIES_ENABLED requires game_ops migration 0010_colonies.sql; refusing partial startup");
+    if (!row?.challenges || !row.entitlements || !row.colonies || !row.events
+      || row.max_version !== 11 || !row.sku_unique_index) {
+      throw new Error("COLONIES_ENABLED requires game_ops schema version 11 and active SKU uniqueness index; refusing partial startup");
     }
     const colonyRole = await checkColonyDatabaseRole(gameOpsPool);
     if (!colonyRole.ready) {

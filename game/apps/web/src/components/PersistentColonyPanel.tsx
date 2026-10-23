@@ -9,14 +9,15 @@ type ResourceName = 'metal' | 'water' | 'power' | 'science'
 type BuildingKind = 'solar_array' | 'water_recycler' | 'metal_extractor'
 type ResearchId = 'resource_efficiency' | 'hydrology' | 'metallurgy' | 'solar_grid'
 interface ColonyState {
-  schemaVersion: 1
+  schemaVersion: 2
   rulesetVersion: number
   coreLevel: number
   labLevel: number
   resources: Record<ResourceName, number>
   capacities: Record<ResourceName, number>
   buildings: Array<{ id: string; kind: BuildingKind; level: number; status: 'constructing' | 'upgrading' | 'active'; targetLevel?: number; completesAt: string }>
-  pendingResearch: { id: string; completesAt: string } | null
+  grants: { fieldSlots: number; labLevelCap: number; buildQueues: number; researchQueues: number; storageMultipliers: Record<ResourceName, number> }
+  pendingResearch: Array<{ id: string; completesAt: string }>
   completedResearch: string[]
 }
 interface Snapshot {
@@ -192,7 +193,7 @@ export default function PersistentColonyPanel(): JSX.Element {
     (Object.keys(resourceLabels) as ResourceName[]).map(key => [key, cost[key] * factor]),
   ) as Record<ResourceName, number>
   const durationLabel = (seconds: number | undefined) => seconds === undefined ? '—' : `${Math.ceil(seconds / 3600)} h`
-  const hasBuildingJob = snapshot?.state.buildings.some(item => item.status === 'constructing' || item.status === 'upgrading') ?? false
+  const buildQueueFull = snapshot ? snapshot.state.buildings.filter(item => item.status === 'constructing' || item.status === 'upgrading').length >= snapshot.state.grants.buildQueues : true
   const rulesMatch = !!snapshot && !!rules && rules.version === snapshot.rulesetVersion
 
   return <section className="persistent-colony" data-testid="persistent-colony" aria-label={t('PERSISTENT COLONY')}>
@@ -230,15 +231,15 @@ export default function PersistentColonyPanel(): JSX.Element {
         <div className="persistent-colony__progress">
           <article><h3><Box size={15} /> CORE · L{snapshot.state.coreLevel}</h3><p>{t('ЦЕНТР КОЛОНИИ')}</p></article>
           <article><h3>LAB · L{snapshot.state.labLevel}</h3><p>{snapshot.state.completedResearch.length ? snapshot.state.completedResearch.join(', ') : t('ИССЛЕДОВАНИЙ ПОКА НЕТ')}</p></article>
-          <article><h3><CircleDashed size={15} />{t('ОЧЕРЕДЬ')}</h3><p>{snapshot.state.pendingResearch ? `${snapshot.state.pendingResearch.id} · ${new Date(snapshot.state.pendingResearch.completesAt).toLocaleString()}` : t('ИССЛЕДОВАНИЯ СВОБОДНЫ')}</p>{snapshot.state.buildings.filter(item => item.status === 'constructing' || item.status === 'upgrading').map(item => <p key={item.id}>{buildingLabels[item.kind]} L{item.level}{item.targetLevel ? ` → L${item.targetLevel}` : ''} · {new Date(item.completesAt).toLocaleString()}</p>)}</article>
+          <article><h3><CircleDashed size={15} />{t('ОЧЕРЕДЬ')}</h3><p>{snapshot.state.pendingResearch.length ? snapshot.state.pendingResearch.map(job => `${job.id} · ${new Date(job.completesAt).toLocaleString()}`).join(' / ') : t('ИССЛЕДОВАНИЯ СВОБОДНЫ')}</p>{snapshot.state.buildings.filter(item => item.status === 'constructing' || item.status === 'upgrading').map(item => <p key={item.id}>{buildingLabels[item.kind]} L{item.level}{item.targetLevel ? ` → L${item.targetLevel}` : ''} · {new Date(item.completesAt).toLocaleString()}</p>)}</article>
         </div>
         <div className="persistent-colony__actions">
           <div><h3>{t('СТРОИТЕЛЬСТВО')}</h3>
-            {(Object.keys(buildingLabels) as BuildingKind[]).map(kind => <button type="button" key={kind} disabled={busy || !rulesMatch || hasBuildingJob || snapshot.state.buildings.some(item => item.kind === kind)} onClick={() => void action({ type: 'start_build', building: kind })}>{buildingLabels[kind]} · {formatCost(rules?.buildings[kind].cost)} · {durationLabel(rules?.buildings[kind].durationSeconds)}</button>)}
-            {snapshot.state.buildings.map(building => building.status === 'active' && <button type="button" key={`upgrade-${building.id}`} disabled={busy || !rulesMatch || building.level >= 3 || snapshot.state.buildings.some(item => item.status === 'constructing' || item.status === 'upgrading')} onClick={() => void action({ type: 'start_upgrade', buildingId: building.id })}>{t('УЛУЧШИТЬ')} {buildingLabels[building.kind]} L{building.level} → L{building.level + 1} · {formatCost(rules ? scaleCost(rules.buildings[building.kind].cost, building.level) : undefined)} · {durationLabel(rules ? rules.buildings[building.kind].durationSeconds * building.level : undefined)}</button>)}
+            {(Object.keys(buildingLabels) as BuildingKind[]).map(kind => <button type="button" key={kind} disabled={busy || !rulesMatch || buildQueueFull || snapshot.state.buildings.some(item => item.kind === kind)} onClick={() => void action({ type: 'start_build', building: kind })}>{buildingLabels[kind]} · {formatCost(rules?.buildings[kind].cost)} · {durationLabel(rules?.buildings[kind].durationSeconds)}</button>)}
+            {snapshot.state.buildings.map(building => building.status === 'active' && <button type="button" key={`upgrade-${building.id}`} disabled={busy || !rulesMatch || building.level >= 3 || buildQueueFull} onClick={() => void action({ type: 'start_upgrade', buildingId: building.id })}>{t('УЛУЧШИТЬ')} {buildingLabels[building.kind]} L{building.level} → L{building.level + 1} · {formatCost(rules ? scaleCost(rules.buildings[building.kind].cost, building.level) : undefined)} · {durationLabel(rules ? rules.buildings[building.kind].durationSeconds * building.level : undefined)}</button>)}
           </div>
           <div><h3>{t('ИССЛЕДОВАНИЯ')}</h3>
-            {(Object.keys(researchLabels) as ResearchId[]).map(research => <button type="button" key={research} disabled={busy || !rules || !rulesMatch || snapshot.state.completedResearch.includes(research) || !!snapshot.state.pendingResearch || rules.research[research].prerequisites.some(required => !snapshot.state.completedResearch.includes(required))} onClick={() => void action({ type: 'start_research', research })}>{researchLabels[research]} · {formatCost(rules?.research[research].cost)} · {durationLabel(rules?.research[research].durationSeconds)}</button>)}
+            {(Object.keys(researchLabels) as ResearchId[]).map(research => <button type="button" key={research} disabled={busy || !rules || !rulesMatch || snapshot.state.completedResearch.includes(research) || snapshot.state.pendingResearch.length >= snapshot.state.grants.researchQueues || snapshot.state.pendingResearch.some(job => job.id === research) || rules.research[research].prerequisites.some(required => !snapshot.state.completedResearch.includes(required))} onClick={() => void action({ type: 'start_research', research })}>{researchLabels[research]} · {formatCost(rules?.research[research].cost)} · {durationLabel(rules?.research[research].durationSeconds)}</button>)}
           </div>
           <button className="persistent-colony__refresh" type="button" disabled={busy} onClick={() => void refresh()}><RefreshCw size={14} />{t('ОБНОВИТЬ ИЗ BACKEND')}</button>
         </div>

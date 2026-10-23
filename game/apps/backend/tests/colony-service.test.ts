@@ -17,13 +17,14 @@ interface FakeEvent {
 }
 
 function fakePool(wallet: string, fieldAddress: string) {
-  const entitlements = [{ id: randomUUID() }];
+  const entitlements = [{ id: randomUUID(), sku_id: 'STARTER_COLONY_V1' }];
   const colonies = new Map<string, FakeRow>();
   const events = new Map<string, FakeEvent[]>();
   const client = {
     async query(sql: string, params: unknown[] = []): Promise<QueryResult> {
       if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(sql) || sql.startsWith('SELECT set_config')) return { rows: [], rowCount: 0 } as unknown as QueryResult;
-      if (sql.includes('SELECT id FROM game_ops.colony_entitlements')) return { rows: entitlements, rowCount: entitlements.length } as unknown as QueryResult;
+      if (sql.includes('SELECT id, sku_id FROM game_ops.colony_entitlements')) return { rows: entitlements, rowCount: entitlements.length } as unknown as QueryResult;
+      if (sql.includes('SELECT sku_id FROM game_ops.colony_entitlements')) return { rows: entitlements.map(({ sku_id }) => ({ sku_id })), rowCount: entitlements.length } as unknown as QueryResult;
       if (sql.includes('FROM game_ops.colonies WHERE owner_wallet')) {
         const row = colonies.get(String(params[0]));
         return { rows: row ? [row] : [], rowCount: row ? 1 : 0 } as unknown as QueryResult;
@@ -119,4 +120,18 @@ test('event-chain or state tampering fails closed before returning persisted sta
   const created = await service.initialize({ wallet: WALLET, fieldAddress: FIELD, requestId: randomUUID(), evidence });
   fake.events.get(created.colonyId)![0]!.payload.fieldAddress = 'tampered';
   await assert.rejects(service.get(WALLET), (error: unknown) => error instanceof ColonyServiceError && error.code === 'INTEGRITY_FAILURE');
+});
+
+test('a new approved expansion entitlement is synchronized into the durable event chain on read', async () => {
+  const fake = fakePool(WALLET, FIELD);
+  const service = new ColonyService(fake.pool, 'devnet');
+  const created = await service.initialize({ wallet: WALLET, fieldAddress: FIELD, requestId: randomUUID(), evidence });
+  fake.entitlements.push({ id: randomUUID(), sku_id: 'RESEARCH_WING_V1' });
+  const expanded = await service.get(WALLET);
+  assert.equal(expanded.sequence, created.sequence + 1);
+  assert.equal(expanded.state.grants.researchQueues, 2);
+  assert.equal(expanded.state.capacities.science, 1_000);
+  const history = fake.events.get(created.colonyId)!;
+  assert.equal(history.at(-1)?.event_type, 'colony_grants_updated');
+  assert.equal(history.length, expanded.sequence);
 });

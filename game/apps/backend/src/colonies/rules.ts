@@ -2,7 +2,7 @@
  * Server-owned prototype ruleset. Values are deliberately versioned and remain
  * release-blocked until product/economy review; no client-supplied costs/rates.
  */
-export const COLONY_RULESET_VERSION = 2;
+export const COLONY_RULESET_VERSION = 3;
 export const COLONY_RULESET_STATUS = 'internal-review' as const;
 export const RESOURCE_KEYS = ['metal', 'water', 'power', 'science'] as const;
 export type Resource = typeof RESOURCE_KEYS[number];

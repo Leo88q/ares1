@@ -17,7 +17,7 @@ test('Colony migration and least-privilege runtime role pass on PostgreSQL', { s
   const migration = await migrate({ url, verifyOnly: true, logger: silentLogger });
   assert.deepEqual(migration.applied, [], 'CI must apply migrations before this acceptance test');
   assert.deepEqual(migration.checksumMismatches, []);
-  assert.ok(migration.verified >= 10, `expected Colony migration 0010 in registry, got ${migration.verified}`);
+  assert.ok(migration.verified >= 11, `expected Colony entitlement uniqueness migration 0011 in registry, got ${migration.verified}`);
 
   const owner = new pg.Pool({ connectionString: url, max: 1, application_name: 'ares1-colony-pg-acceptance-owner' });
   const runtime = new pg.Pool({
