@@ -50,6 +50,27 @@ test('building upgrades queue server-priced levels and preserve the current leve
   assert.equal(complete.buildings[0]?.targetLevel, undefined);
 });
 
+test('Lab upgrades spend provisional server-side resources, use a build slot, and increase science output on completion', () => {
+  const start = new Date('2026-10-22T00:00:00.000Z');
+  const grants = resolveColonyGrants(['STARTER_COLONY_V1', 'RESEARCH_WING_V1']);
+  const base = createInitialColonyState(start, grants);
+  const stocked = { ...base, resources: { metal: 500, water: 500, power: 500, science: 100 } };
+  const transition = applyColonyAction(stocked, { type: 'start_lab_upgrade' }, start);
+  assert.deepEqual(transition.state.resources, { metal: 400, water: 450, power: 400, science: 25 });
+  assert.deepEqual(transition.state.pendingLabUpgrade, {
+    targetLevel: 2, startedAt: start.toISOString(), completesAt: '2026-10-22T12:00:00.000Z',
+  });
+  assert.throws(() => applyColonyAction(transition.state, { type: 'start_build', building: 'solar_array' }, start), /QUEUE_FULL/);
+  assert.throws(() => applyColonyAction(transition.state, { type: 'start_lab_upgrade' }, start), /LAB_UPGRADE_PENDING/);
+  const done = materializeColony(transition.state, new Date('2026-10-22T12:00:00.000Z'));
+  assert.equal(done.labLevel, 2);
+  assert.equal(done.pendingLabUpgrade, null);
+  assert.equal(done.resources.science, 49);
+  assert.throws(() => applyColonyAction(createInitialColonyState(start), { type: 'start_lab_upgrade' }, start), /LAB_AT_CAP/);
+  const legacy = { ...stocked, rulesetVersion: 3 };
+  assert.throws(() => applyColonyAction(legacy, { type: 'start_lab_upgrade' }, start), /INVALID_ACTION/);
+});
+
 test('research prerequisites and resource-specific production bonuses are server-enforced', () => {
   const start = new Date('2026-10-22T00:00:00.000Z');
   assert.throws(() => applyColonyAction(createInitialColonyState(start), { type: 'start_research', research: 'hydrology' }, start), /RESEARCH_PREREQUISITE/);

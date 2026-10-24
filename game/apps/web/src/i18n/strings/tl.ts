@@ -798,4 +798,19 @@ export default {
   'ГИДРОЛОГИЯ': 'PAMAMAHALA NG TUBIG',
   'МЕТАЛЛУРГИЯ': 'PAGPROSESO NG METAL',
   'СОЛНЕЧНАЯ СЕТЬ': 'SISTEMA NG ARAW',
+  'Это Field уже было привязано.': 'Naka-link na ang Field na ito.',
+  'Поле проверено в Solana и связано с Colony. Это не изменяет добычу ресурсов.': 'Na-verify ang Field sa Solana at ini-link sa Colony. Hindi nito binabago ang produksyon ng resources.',
+  'ПРИВЯЗАННЫЕ FIELD': 'MGA NAKA-LINK NA FIELD',
+  'ДОБАВИТЬ АКТИВНОЕ ПОЛЕ ИЗ КОШЕЛЬКА': 'MAGDAGDAG NG AKTIBONG FIELD MULA SA WALLET NA ITO',
+  'ПРОВЕРИТЬ И ПРИВЯЗАТЬ FIELD': 'I-VERIFY AT I-LINK ANG FIELD',
+  'Сервер повторно проверяет finalized-владение. Field учитывается как слот; дополнительная добыча пока не включена.': 'Muling ibe-verify ng server ang finalized na pagmamay-ari. Slot lang ang bilang ng Field; wala pang dagdag na produksyon.',
+  'УЛУЧШЕНИЕ ЛАБОРАТОРИИ': 'PAG-UPGRADE NG LAB',
+  'УЛУЧШИТЬ LAB': 'I-UPGRADE ANG LAB',
+
+  'ОСНОВНОЕ': 'PANGUNAHI',
+  'ОТВЯЗАТЬ': 'I-UNLINK',
+
+  'ПОЛУЧИТЬ БЕСПЛАТНЫЙ STARTER И СОЗДАТЬ COLONY': 'I-CLAIM ANG LIBRENG STARTER AT GUMAWA NG COLONY',
+  'Бесплатный старт: одна Colony на кошелёк после проверки активного Field. Покупка и транзакция не нужны.': 'Libreng pagsisimula: isang Colony bawat wallet pagkatapos ma-verify ang aktibong Field. Walang kailangang bilhin o i-transact.',
+
 }

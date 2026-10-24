@@ -9,9 +9,11 @@ const securePrivileges = {
   challenge_wallet_immutable: true, challenge_no_delete: true,
   entitlement_read: true, entitlement_no_insert: true, entitlement_no_update: true, entitlement_no_delete: true,
   colony_read: true, colony_insert: true, colony_state_update: true,
-  colony_owner_immutable: true, colony_field_immutable: true, colony_ruleset_immutable: true,
+  colony_owner_immutable: true, colony_field_immutable: true, colony_ruleset_update: true,
   event_read: true, event_insert: true, event_no_update: true, event_no_delete: true,
-  cleanup_execute: true, no_schema_create: true,
+  field_link_read: true, field_link_insert: true, field_link_no_update: true,
+  field_link_unlink_update: true, field_link_linked_at_immutable: true, field_link_no_delete: true,
+  cleanup_execute: true, free_starter_claim_execute: true, no_schema_create: true,
 };
 
 function poolReturning(row: Record<string, unknown>): Pool {

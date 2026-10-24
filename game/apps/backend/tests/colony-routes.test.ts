@@ -8,6 +8,7 @@ import type { Pool, PoolClient, QueryResult } from 'pg';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { colonyAuthRouter } from '../src/colonies/routes.js';
+import type { ColonyService } from '../src/colonies/service.js';
 
 const ORIGIN = 'https://game.example';
 const SECRET = 'test-only-colony-session-secret-32-bytes';
@@ -70,9 +71,27 @@ test('colony auth routes issue an origin-bound one-time session from a wallet si
       return { context: { slot: 456 }, value: { data: fieldData, owner: programId } };
     },
   } as unknown as import('@solana/web3.js').Connection;
+  let linkedEvidence: unknown;
+  let initializedRequest: unknown;
+  let unlinkedRequest: unknown;
+  const colonyService = {
+    freeStarterEnabled: true,
+    async initialize(params: { wallet: string; fieldAddress: string; requestId: string; evidence: unknown }) {
+      initializedRequest = params;
+      return { colonyId: 'colony-test', fieldAddress: params.fieldAddress };
+    },
+    async linkField(params: { evidence: { fieldAddress: string } }) {
+      linkedEvidence = params.evidence;
+      return { snapshot: { linkedFields: [params.evidence.fieldAddress] }, duplicate: false };
+    },
+    async unlinkField(params: { wallet: string; fieldAddress: string; requestId: string; expectedSequence: number }) {
+      unlinkedRequest = params;
+      return { snapshot: { linkedFields: [] }, duplicate: false };
+    },
+  } as unknown as ColonyService;
   app.use('/api/colonies', colonyAuthRouter({
     pool: challengeDb(), cluster: 'mainnet-beta', sessionSecret: SECRET,
-    allowedOrigins: [ORIGIN], fieldRpc, programId,
+    allowedOrigins: [ORIGIN], fieldRpc, programId, colonyService,
   }));
   const server = createServer(app);
   server.listen(0, '127.0.0.1');
@@ -93,7 +112,10 @@ test('colony auth routes issue an origin-bound one-time session from a wallet si
     assert.equal(session.cluster, 'mainnet-beta');
     const rulesResponse = await fetch(`${base}/rules`, { headers: { origin: ORIGIN, authorization: `Bearer ${session.token}` } });
     assert.equal(rulesResponse.status, 200);
-    assert.equal((await rulesResponse.json() as { status: string; buildings: Record<string, unknown> }).status, 'internal-review');
+    const rules = await rulesResponse.json() as { status: string; freeStarterEnabled: boolean; freeStarterLimit: string; buildings: Record<string, unknown> };
+    assert.equal(rules.status, 'internal-review');
+    assert.equal(rules.freeStarterEnabled, true);
+    assert.equal(rules.freeStarterLimit, 'one-per-wallet');
 
     const sessionResponse = await fetch(`${base}/auth/session`, { headers: { origin: ORIGIN, authorization: `Bearer ${session.token}` } });
     assert.equal(sessionResponse.status, 200);
@@ -105,6 +127,32 @@ test('colony auth routes issue an origin-bound one-time session from a wallet si
     });
     assert.equal(fieldResponse.status, 200);
     assert.equal((await fieldResponse.json() as { fieldAddress: string; wallet: string }).fieldAddress, fieldAddress.toBase58());
+
+    const initializeResponse = await fetch(`${base}/initialize`, {
+      method: 'POST', headers: { ...headers, authorization: `Bearer ${session.token}` },
+      body: JSON.stringify({ fieldAddress: fieldAddress.toBase58(), requestId: '50000000-0000-4000-8000-000000000003' }),
+    });
+    assert.equal(initializeResponse.status, 201);
+    assert.deepEqual(initializedRequest, {
+      wallet, fieldAddress: fieldAddress.toBase58(), requestId: '50000000-0000-4000-8000-000000000003',
+      evidence: { wallet, fieldAddress: fieldAddress.toBase58(), cluster: 'mainnet-beta', observedSlot: 456, commitment: 'finalized', fieldLevel: 1, fieldType: 0, durability: 5 },
+    });
+
+    const linkResponse = await fetch(`${base}/fields/link`, {
+      method: 'POST', headers: { ...headers, authorization: `Bearer ${session.token}` },
+      body: JSON.stringify({ fieldAddress: fieldAddress.toBase58(), requestId: '50000000-0000-4000-8000-000000000001', expectedSequence: 1 }),
+    });
+    assert.equal(linkResponse.status, 200);
+    assert.equal((await linkResponse.json() as { duplicate: boolean }).duplicate, false);
+    assert.equal((linkedEvidence as { commitment: string }).commitment, 'finalized');
+
+    const unlinkResponse = await fetch(`${base}/fields/unlink`, {
+      method: 'POST', headers: { ...headers, authorization: `Bearer ${session.token}` },
+      body: JSON.stringify({ fieldAddress: fieldAddress.toBase58(), requestId: '50000000-0000-4000-8000-000000000002', expectedSequence: 2 }),
+    });
+    assert.equal(unlinkResponse.status, 200);
+    assert.equal((await unlinkResponse.json() as { duplicate: boolean }).duplicate, false);
+    assert.deepEqual(unlinkedRequest, { wallet, fieldAddress: fieldAddress.toBase58(), requestId: '50000000-0000-4000-8000-000000000002', expectedSequence: 2 });
 
     const replay = await fetch(`${base}/auth/verify`, { method: 'POST', headers, body: JSON.stringify({ wallet, challengeId: challenge.challengeId, message: challenge.message, signature }) });
     assert.equal(replay.status, 401);

@@ -798,4 +798,19 @@ export default {
   'ГИДРОЛОГИЯ': 'THỦY VĂN',
   'МЕТАЛЛУРГИЯ': 'Luyện kim',
   'СОЛНЕЧНАЯ СЕТЬ': 'LƯỚI ĐIỆN MẶT TRỜI',
+  'Это Field уже было привязано.': 'Field này đã được liên kết.',
+  'Поле проверено в Solana и связано с Colony. Это не изменяет добычу ресурсов.': 'Field đã được xác minh trên Solana và liên kết với Colony. Việc này không thay đổi sản lượng tài nguyên.',
+  'ПРИВЯЗАННЫЕ FIELD': 'FIELD ĐÃ LIÊN KẾT',
+  'ДОБАВИТЬ АКТИВНОЕ ПОЛЕ ИЗ КОШЕЛЬКА': 'THÊM FIELD ĐANG HOẠT ĐỘNG TỪ VÍ NÀY',
+  'ПРОВЕРИТЬ И ПРИВЯЗАТЬ FIELD': 'XÁC MINH VÀ LIÊN KẾT FIELD',
+  'Сервер повторно проверяет finalized-владение. Field учитывается как слот; дополнительная добыча пока не включена.': 'Máy chủ xác minh lại quyền sở hữu ở trạng thái finalized. Field được tính là một ô; hiện chưa tăng sản lượng.',
+  'УЛУЧШЕНИЕ ЛАБОРАТОРИИ': 'NÂNG CẤP PHÒNG THÍ NGHIỆM',
+  'УЛУЧШИТЬ LAB': 'NÂNG CẤP LAB',
+
+  'ОСНОВНОЕ': 'CHÍNH',
+  'ОТВЯЗАТЬ': 'HỦY LIÊN KẾT',
+
+  'ПОЛУЧИТЬ БЕСПЛАТНЫЙ STARTER И СОЗДАТЬ COLONY': 'NHẬN STARTER MIỄN PHÍ VÀ TẠO COLONY',
+  'Бесплатный старт: одна Colony на кошелёк после проверки активного Field. Покупка и транзакция не нужны.': 'Bắt đầu miễn phí: mỗi ví nhận một Colony sau khi xác minh Field đang hoạt động. Không cần mua hoặc gửi giao dịch.',
+
 }

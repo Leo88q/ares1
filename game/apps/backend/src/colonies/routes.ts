@@ -6,7 +6,7 @@ import { withTransaction } from '../gameops/pool.js';
 import { FieldOwnershipError, verifyFieldOwnership } from './fieldOwnership.js';
 import { ColonyRuleError } from './engine.js';
 import { ColonyService, ColonyServiceError } from './service.js';
-import { BASE_CAPACITY, BUILDINGS, COLONY_RULESET_STATUS, COLONY_RULESET_VERSION, RESEARCH, STARTER_INITIAL_RESOURCES } from './rules.js';
+import { BASE_CAPACITY, BUILDINGS, COLONY_RULESET_STATUS, COLONY_RULESET_VERSION, LAB_UPGRADE_BASE, RESEARCH, STARTER_INITIAL_RESOURCES } from './rules.js';
 import { createWalletChallenge, hashWalletChallenge, issueWalletSession, verifyWalletChallenge, verifyWalletSession } from './walletAuth.js';
 
 export interface ColonyAuthRouterOptions {
@@ -174,6 +174,71 @@ export function colonyAuthRouter(options: ColonyAuthRouterOptions): Router {
     }
   });
 
+  router.post('/fields/link', async (req: Request, res: Response) => {
+    const origin = requestOrigin(req, options);
+    const match = /^Bearer ([A-Za-z0-9_.-]{20,2048})$/.exec(req.get('authorization') ?? '');
+    if (!origin || !match) return res.status(401).json({ error: 'SESSION_REQUIRED' });
+    const session = verifyWalletSession({ token: match[1]!, origin, secret: options.sessionSecret });
+    if (!session) return res.status(401).json({ error: 'SESSION_INVALID' });
+    if (!options.colonyService || !options.fieldRpc || !options.programId) return res.status(503).json({ error: 'COLONY_SERVICE_NOT_CONFIGURED' });
+    if (!isRecord(req.body) || typeof req.body.fieldAddress !== 'string'
+      || typeof req.body.requestId !== 'string' || typeof req.body.expectedSequence !== 'number') {
+      return res.status(400).json({ error: 'INVALID_FIELD_LINK_REQUEST' });
+    }
+    try {
+      const evidence = await verifyFieldOwnership({
+        primary: options.fieldRpc, secondary: options.secondaryFieldRpc ?? undefined,
+        requireSecondary: options.requireSecondaryFieldRpc, cluster: options.cluster,
+        programId: options.programId, wallet: session.wallet, fieldAddress: req.body.fieldAddress,
+      });
+      const result = await options.colonyService.linkField({
+        wallet: session.wallet, fieldAddress: evidence.fieldAddress,
+        requestId: req.body.requestId, expectedSequence: req.body.expectedSequence, evidence,
+      });
+      return res.json({ ...result, rulesetStatus: COLONY_RULESET_STATUS, persistent: true });
+    } catch (error) {
+      if (error instanceof FieldOwnershipError) {
+        const unavailable = error.code === 'RPC_DISAGREEMENT' || error.code === 'SECONDARY_REQUIRED';
+        return res.status(unavailable ? 503 : 403).json({ error: error.code });
+      }
+      if (error instanceof ColonyServiceError) {
+        const status = error.code === 'COLONY_NOT_FOUND' ? 404
+          : error.code === 'INVALID_REQUEST' ? 400
+          : ['VERSION_CONFLICT', 'FIELD_MISMATCH', 'IDEMPOTENCY_CONFLICT', 'FIELD_SLOT_LIMIT', 'FIELD_ALREADY_LINKED', 'FIELD_IN_USE'].includes(error.code) ? 409 : 503;
+        return res.status(status).json({ error: error.code });
+      }
+      return res.status(503).json({ error: 'COLONY_STORAGE_UNAVAILABLE' });
+    }
+  });
+
+  router.post('/fields/unlink', async (req: Request, res: Response) => {
+    const origin = requestOrigin(req, options);
+    const match = /^Bearer ([A-Za-z0-9_.-]{20,2048})$/.exec(req.get('authorization') ?? '');
+    if (!origin || !match) return res.status(401).json({ error: 'SESSION_REQUIRED' });
+    const session = verifyWalletSession({ token: match[1]!, origin, secret: options.sessionSecret });
+    if (!session) return res.status(401).json({ error: 'SESSION_INVALID' });
+    if (!options.colonyService) return res.status(503).json({ error: 'COLONY_SERVICE_NOT_CONFIGURED' });
+    if (!isRecord(req.body) || typeof req.body.fieldAddress !== 'string'
+      || typeof req.body.requestId !== 'string' || typeof req.body.expectedSequence !== 'number') {
+      return res.status(400).json({ error: 'INVALID_FIELD_UNLINK_REQUEST' });
+    }
+    try {
+      const result = await options.colonyService.unlinkField({
+        wallet: session.wallet, fieldAddress: req.body.fieldAddress,
+        requestId: req.body.requestId, expectedSequence: req.body.expectedSequence,
+      });
+      return res.json({ ...result, rulesetStatus: COLONY_RULESET_STATUS, persistent: true });
+    } catch (error) {
+      if (error instanceof ColonyServiceError) {
+        const status = error.code === 'COLONY_NOT_FOUND' ? 404
+          : error.code === 'INVALID_REQUEST' ? 400
+          : ['VERSION_CONFLICT', 'IDEMPOTENCY_CONFLICT', 'FIELD_NOT_LINKED', 'FIELD_PRIMARY_IMMUTABLE'].includes(error.code) ? 409 : 503;
+        return res.status(status).json({ error: error.code });
+      }
+      return res.status(503).json({ error: 'COLONY_STORAGE_UNAVAILABLE' });
+    }
+  });
+
   router.post('/initialize', async (req: Request, res: Response) => {
     const origin = requestOrigin(req, options);
     const match = /^Bearer ([A-Za-z0-9_.-]{20,2048})$/.exec(req.get('authorization') ?? '');
@@ -216,9 +281,12 @@ export function colonyAuthRouter(options: ColonyAuthRouterOptions): Router {
     return res.json({
       version: COLONY_RULESET_VERSION,
       status: COLONY_RULESET_STATUS,
+      freeStarterEnabled: options.colonyService?.freeStarterEnabled ?? false,
+      freeStarterLimit: 'one-per-wallet',
       initialResources: STARTER_INITIAL_RESOURCES,
       capacities: BASE_CAPACITY,
       buildings: BUILDINGS,
+      labUpgrade: LAB_UPGRADE_BASE,
       research: RESEARCH,
     });
   });

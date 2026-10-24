@@ -77,6 +77,9 @@ async function main() {
   if (env.cluster === "mainnet-beta" && env.coloniesEnabled && !COLONY_V1_RELEASE_READY) {
     throw new Error("COLONIES_ENABLED is blocked on mainnet until the Colony V1 release gate is approved");
   }
+  if (env.cluster === "mainnet-beta" && env.colonyFreeStarterEnabled && !COLONY_V1_RELEASE_READY) {
+    throw new Error("COLONY_FREE_STARTER_ENABLED is blocked on mainnet until the Colony V1 release gate is approved");
+  }
   if (process.env.NODE_ENV === "production" && env.cluster === "mainnet-beta" && (!env.coloniesEnabled || !COLONY_V1_RELEASE_READY)) {
     throw new Error("Production mainnet backend is blocked until the complete Colony V1 acceptance suite and release review pass");
   }
@@ -145,18 +148,22 @@ async function main() {
   }
   if (env.coloniesEnabled) {
     if (!gameOpsPool) throw new Error("COLONIES_ENABLED requires GAME_OPS_DATABASE_URL");
-    const schema = await gameOpsPool.query<{ challenges: string | null; entitlements: string | null; colonies: string | null; events: string | null; max_version: number | null; sku_unique_index: string | null }>(
+    const schema = await gameOpsPool.query<{ challenges: string | null; entitlements: string | null; colonies: string | null; events: string | null; max_version: number | null; sku_unique_index: string | null; colony_fields_table: string | null; colony_fields_primary_index: string | null; colony_fields_address_index: string | null; free_starter_claim: string | null }>(
       `SELECT to_regclass('game_ops.colony_auth_challenges')::text AS challenges,
               to_regclass('game_ops.colony_entitlements')::text AS entitlements,
               to_regclass('game_ops.colonies')::text AS colonies,
               to_regclass('game_ops.colony_events')::text AS events,
               (SELECT max(version)::int FROM game_ops.schema_version) AS max_version,
-              to_regclass('game_ops.colony_entitlements_one_active_sku_idx')::text AS sku_unique_index`,
+              to_regclass('game_ops.colony_entitlements_one_active_sku_idx')::text AS sku_unique_index,
+            to_regclass('game_ops.colony_fields')::text AS colony_fields_table,
+            to_regclass('game_ops.colony_fields_one_primary_idx')::text AS colony_fields_primary_index,
+            to_regclass('game_ops.colony_fields_one_active_address_idx')::text AS colony_fields_address_index,
+            to_regprocedure('game_ops.claim_free_colony_starter(uuid,text,text)')::text AS free_starter_claim`,
     );
     const row = schema.rows[0];
     if (!row?.challenges || !row.entitlements || !row.colonies || !row.events
-      || row.max_version !== 11 || !row.sku_unique_index) {
-      throw new Error("COLONIES_ENABLED requires game_ops schema version 11 and active SKU uniqueness index; refusing partial startup");
+      || row.max_version !== 13 || !row.sku_unique_index || !row.colony_fields_table || !row.colony_fields_primary_index || !row.colony_fields_address_index || !row.free_starter_claim) {
+      throw new Error("COLONIES_ENABLED requires game_ops schema version 13, active SKU uniqueness, Field links and free-starter grant function; refusing partial startup");
     }
     const colonyRole = await checkColonyDatabaseRole(gameOpsPool);
     if (!colonyRole.ready) {
@@ -202,7 +209,7 @@ async function main() {
       secondaryFieldRpc: secondaryConnection,
       requireSecondaryFieldRpc: env.requireSecondaryRpc,
       programId,
-      colonyService: new ColonyService(gameOpsPool, env.cluster),
+      colonyService: new ColonyService(gameOpsPool, env.cluster, env.colonyFreeStarterEnabled),
     }));
   }
 

@@ -16,12 +16,17 @@ interface ColonyPrivilegeRow {
   colony_state_update: boolean
   colony_owner_immutable: boolean
   colony_field_immutable: boolean
-  colony_ruleset_immutable: boolean
+  colony_ruleset_update: boolean
   event_read: boolean
   event_insert: boolean
   event_no_update: boolean
   event_no_delete: boolean
+  field_link_read: boolean
+  field_link_insert: boolean
+  field_link_no_update: boolean
+  field_link_no_delete: boolean
   cleanup_execute: boolean
+  free_starter_claim_execute: boolean
   no_schema_create: boolean
 }
 
@@ -49,12 +54,19 @@ export async function checkColonyDatabaseRole(pool: Pool): Promise<ColonyDatabas
       has_column_privilege(current_user, 'game_ops.colonies', 'state', 'UPDATE') AS colony_state_update,
       NOT has_column_privilege(current_user, 'game_ops.colonies', 'owner_wallet', 'UPDATE') AS colony_owner_immutable,
       NOT has_column_privilege(current_user, 'game_ops.colonies', 'field_address', 'UPDATE') AS colony_field_immutable,
-      NOT has_column_privilege(current_user, 'game_ops.colonies', 'ruleset_version', 'UPDATE') AS colony_ruleset_immutable,
+      has_column_privilege(current_user, 'game_ops.colonies', 'ruleset_version', 'UPDATE') AS colony_ruleset_update,
       has_table_privilege(current_user, 'game_ops.colony_events', 'SELECT') AS event_read,
       has_table_privilege(current_user, 'game_ops.colony_events', 'INSERT') AS event_insert,
       NOT has_table_privilege(current_user, 'game_ops.colony_events', 'UPDATE') AS event_no_update,
       NOT has_table_privilege(current_user, 'game_ops.colony_events', 'DELETE') AS event_no_delete,
+      has_table_privilege(current_user, 'game_ops.colony_fields', 'SELECT') AS field_link_read,
+      has_table_privilege(current_user, 'game_ops.colony_fields', 'INSERT') AS field_link_insert,
+      NOT has_table_privilege(current_user, 'game_ops.colony_fields', 'UPDATE') AS field_link_no_update,
+      has_column_privilege(current_user, 'game_ops.colony_fields', 'unlinked_at', 'UPDATE') AS field_link_unlink_update,
+      NOT has_column_privilege(current_user, 'game_ops.colony_fields', 'linked_at', 'UPDATE') AS field_link_linked_at_immutable,
+      NOT has_table_privilege(current_user, 'game_ops.colony_fields', 'DELETE') AS field_link_no_delete,
       has_function_privilege(current_user, 'game_ops.purge_expired_colony_challenges()', 'EXECUTE') AS cleanup_execute,
+      has_function_privilege(current_user, 'game_ops.claim_free_colony_starter(uuid,text,text)', 'EXECUTE') AS free_starter_claim_execute,
       NOT has_schema_privilege(current_user, 'game_ops', 'CREATE') AS no_schema_create
   `)
   const row = result.rows[0]

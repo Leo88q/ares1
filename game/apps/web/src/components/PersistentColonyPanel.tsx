@@ -18,12 +18,14 @@ interface ColonyState {
   buildings: Array<{ id: string; kind: BuildingKind; level: number; status: 'constructing' | 'upgrading' | 'active'; targetLevel?: number; completesAt: string }>
   grants: { fieldSlots: number; labLevelCap: number; buildQueues: number; researchQueues: number; storageMultipliers: Record<ResourceName, number> }
   pendingResearch: Array<{ id: string; completesAt: string }>
+  pendingLabUpgrade?: { targetLevel: number; completesAt: string } | null
   completedResearch: string[]
 }
 interface Snapshot {
   colonyId: string
   ownerWallet: string
   fieldAddress: string
+  linkedFields: string[]
   rulesetVersion: number
   sequence: number
   stateHash: string
@@ -35,7 +37,10 @@ interface AuthResult { token: string; wallet: string; cluster: string; expiresIn
 interface ColonyRules {
   version: number
   status: string
+  freeStarterEnabled: boolean
+  freeStarterLimit: string
   buildings: Record<BuildingKind, { cost: Record<ResourceName, number>; durationSeconds: number; production: Partial<Record<ResourceName, number>> }>
+  labUpgrade: { cost: Record<ResourceName, number>; durationSeconds: number }
   research: Record<ResearchId, { cost: Record<ResourceName, number>; durationSeconds: number; productionBonusBps: number; prerequisites: ResearchId[]; productionBonusResource?: ResourceName }>
 }
 interface ApiError { error?: string }
@@ -64,17 +69,25 @@ export default function PersistentColonyPanel(): JSX.Element {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const [rules, setRules] = useState<ColonyRules | null>(null)
   const [selectedField, setSelectedField] = useState<string>('')
+  const [selectedLinkField, setSelectedLinkField] = useState<string>('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const apiBase = `${BACKEND_URL}/api/colonies`
   const eligibleFields = useMemo(() => game.fields.filter(field => field.isActive && field.durability > 0), [game.fields])
+  const linkableFields = useMemo(() => eligibleFields.filter(field => !snapshot?.linkedFields.includes(field.publicKey.toBase58())), [eligibleFields, snapshot?.linkedFields])
 
   useEffect(() => {
     if (!selectedField || !eligibleFields.some(field => field.publicKey.toBase58() === selectedField)) {
       setSelectedField(eligibleFields[0]?.publicKey.toBase58() ?? '')
     }
   }, [eligibleFields, selectedField])
+
+  useEffect(() => {
+    if (!selectedLinkField || !linkableFields.some(field => field.publicKey.toBase58() === selectedLinkField)) {
+      setSelectedLinkField(linkableFields[0]?.publicKey.toBase58() ?? '')
+    }
+  }, [linkableFields, selectedLinkField])
 
   const api = useCallback(async <T,>(path: string, init: RequestInit = {}): Promise<T> => {
     const response = await fetch(`${apiBase}${path}`, {
@@ -163,7 +176,7 @@ export default function PersistentColonyPanel(): JSX.Element {
     } finally { setBusy(false) }
   }
 
-  const action = async (payload: { type: 'start_build'; building: BuildingKind } | { type: 'start_upgrade'; buildingId: string } | { type: 'start_research'; research: ResearchId }) => {
+  const action = async (payload: { type: 'start_build'; building: BuildingKind } | { type: 'start_upgrade'; buildingId: string } | { type: 'start_lab_upgrade' } | { type: 'start_research'; research: ResearchId }) => {
     if (!snapshot) return
     setBusy(true); setError(null); setNotice(null)
     try {
@@ -174,6 +187,38 @@ export default function PersistentColonyPanel(): JSX.Element {
       setNotice(result.duplicate ? t('Это действие уже было сохранено.') : t('Действие сохранено сервером.'))
     } catch (cause) {
       const code = cause instanceof Error ? cause.message : 'ACTION_FAILED'
+      setError(code)
+      if (code === 'VERSION_CONFLICT') await refresh()
+    } finally { setBusy(false) }
+  }
+
+  const linkField = async () => {
+    if (!snapshot || !selectedLinkField) return
+    setBusy(true); setError(null); setNotice(null)
+    try {
+      const result = await api<{ snapshot: Snapshot; duplicate: boolean }>('/fields/link', {
+        method: 'POST', body: JSON.stringify({ fieldAddress: selectedLinkField, requestId: crypto.randomUUID(), expectedSequence: snapshot.sequence }),
+      })
+      setSnapshot(result.snapshot)
+      setNotice(result.duplicate ? t('Это Field уже было привязано.') : t('Поле проверено в Solana и связано с Colony. Это не изменяет добычу ресурсов.'))
+    } catch (cause) {
+      const code = cause instanceof Error ? cause.message : 'FIELD_LINK_FAILED'
+      setError(code)
+      if (code === 'VERSION_CONFLICT') await refresh()
+    } finally { setBusy(false) }
+  }
+
+  const unlinkField = async (fieldAddress: string) => {
+    if (!snapshot) return
+    setBusy(true); setError(null); setNotice(null)
+    try {
+      const result = await api<{ snapshot: Snapshot; duplicate: boolean }>('/fields/unlink', {
+        method: 'POST', body: JSON.stringify({ fieldAddress, requestId: crypto.randomUUID(), expectedSequence: snapshot.sequence }),
+      })
+      setSnapshot(result.snapshot)
+      setNotice(t('Действие сохранено сервером.'))
+    } catch (cause) {
+      const code = cause instanceof Error ? cause.message : 'FIELD_UNLINK_FAILED'
       setError(code)
       if (code === 'VERSION_CONFLICT') await refresh()
     } finally { setBusy(false) }
@@ -193,8 +238,10 @@ export default function PersistentColonyPanel(): JSX.Element {
     (Object.keys(resourceLabels) as ResourceName[]).map(key => [key, cost[key] * factor]),
   ) as Record<ResourceName, number>
   const durationLabel = (seconds: number | undefined) => seconds === undefined ? '—' : `${Math.ceil(seconds / 3600)} h`
-  const buildQueueFull = snapshot ? snapshot.state.buildings.filter(item => item.status === 'constructing' || item.status === 'upgrading').length >= snapshot.state.grants.buildQueues : true
+  const buildQueueFull = snapshot ? snapshot.state.buildings.filter(item => item.status === 'constructing' || item.status === 'upgrading').length + (snapshot.state.pendingLabUpgrade ? 1 : 0) >= snapshot.state.grants.buildQueues : true
   const rulesMatch = !!snapshot && !!rules && rules.version === snapshot.rulesetVersion
+  const labUpgradeCost = snapshot && rules ? scaleCost(rules.labUpgrade.cost, snapshot.state.labLevel) : undefined
+  const labUpgradeDuration = snapshot && rules ? rules.labUpgrade.durationSeconds * snapshot.state.labLevel : undefined
 
   return <section className="persistent-colony" data-testid="persistent-colony" aria-label={t('PERSISTENT COLONY')}>
     <header className="persistent-colony__header">
@@ -217,20 +264,36 @@ export default function PersistentColonyPanel(): JSX.Element {
             {eligibleFields.map(field => <option key={field.publicKey.toBase58()} value={field.publicKey.toBase58()}>{field.publicKey.toBase58().slice(0, 7)}…{field.publicKey.toBase58().slice(-7)} · L{field.level}</option>)}
           </select>
         </label>
-        <button type="button" disabled={busy || !selectedField} onClick={() => void initialize()}><Construction size={15} />{t('ПРОВЕРИТЬ ENTITLEMENT И СОЗДАТЬ COLONY')}</button>
-        <p>{t('Создание требует серверного Starter entitlement и finalized-проверки владельца Field. В этом окружении выдача пакетов и продажа выключены.')}</p>
+        <button type="button" disabled={busy || !selectedField} onClick={() => void initialize()}><Construction size={15} />{rules?.freeStarterEnabled ? t('ПОЛУЧИТЬ БЕСПЛАТНЫЙ STARTER И СОЗДАТЬ COLONY') : t('ПРОВЕРИТЬ ENTITLEMENT И СОЗДАТЬ COLONY')}</button>
+        <p>{rules?.freeStarterEnabled
+          ? t('Бесплатный старт: одна Colony на кошелёк после проверки активного Field. Покупка и транзакция не нужны.')
+          : t('Создание требует серверного Starter entitlement и finalized-проверки владельца Field. В этом окружении выдача пакетов и продажа выключены.')}</p>
       </div> : <>
         <div className="persistent-colony__summary">
           <div><span>{t('COLONY ID')}</span><strong>{snapshot.colonyId.slice(0, 8)}… · v{snapshot.sequence}</strong></div>
           <div><span>{t('ON-CHAIN FIELD')}</span><strong>{snapshot.fieldAddress.slice(0, 7)}…{snapshot.fieldAddress.slice(-7)}</strong></div>
           <div><span>{t('RULESET')}</span><strong>v{snapshot.rulesetVersion} · {t('ВНУТРЕННЯЯ ПРОВЕРКА')}</strong></div>
         </div>
+        <div className="persistent-colony__initialize">
+          <strong>{t('ПРИВЯЗАННЫЕ FIELD')} · {snapshot.linkedFields.length} / {snapshot.state.grants.fieldSlots}</strong>
+          <p>{snapshot.linkedFields.map(field => `${field.slice(0, 7)}…${field.slice(-7)}${field === snapshot.fieldAddress ? ` · ${t('ОСНОВНОЕ')}` : ''}`).join(' · ')}</p>
+          {snapshot.linkedFields.filter(field => field !== snapshot.fieldAddress).map(field => <button type="button" key={`unlink-${field}`} disabled={busy} onClick={() => void unlinkField(field)}>{t('ОТВЯЗАТЬ')} {field.slice(0, 7)}…{field.slice(-7)}</button>)}
+          {linkableFields.length > 0 && snapshot.linkedFields.length < snapshot.state.grants.fieldSlots && <>
+            <label>{t('ДОБАВИТЬ АКТИВНОЕ ПОЛЕ ИЗ КОШЕЛЬКА')}
+              <select value={selectedLinkField} onChange={event => setSelectedLinkField(event.target.value)} disabled={busy}>
+                {linkableFields.map(field => <option key={field.publicKey.toBase58()} value={field.publicKey.toBase58()}>{field.publicKey.toBase58().slice(0, 7)}…{field.publicKey.toBase58().slice(-7)} · L{field.level}</option>)}
+              </select>
+            </label>
+            <button type="button" disabled={busy || !selectedLinkField} onClick={() => void linkField()}>{t('ПРОВЕРИТЬ И ПРИВЯЗАТЬ FIELD')}</button>
+          </>}
+          <p>{t('Сервер повторно проверяет finalized-владение. Field учитывается как слот; дополнительная добыча пока не включена.')}</p>
+        </div>
         <div className="persistent-colony__resources">
           {(Object.keys(resourceLabels) as ResourceName[]).map(key => <div key={key}><span>{resourceLabels[key]}</span><strong>{snapshot.state.resources[key].toLocaleString()} / {snapshot.state.capacities[key].toLocaleString()}</strong></div>)}
         </div>
         <div className="persistent-colony__progress">
           <article><h3><Box size={15} /> CORE · L{snapshot.state.coreLevel}</h3><p>{t('ЦЕНТР КОЛОНИИ')}</p></article>
-          <article><h3>LAB · L{snapshot.state.labLevel}</h3><p>{snapshot.state.completedResearch.length ? snapshot.state.completedResearch.join(', ') : t('ИССЛЕДОВАНИЙ ПОКА НЕТ')}</p></article>
+          <article><h3>LAB · L{snapshot.state.labLevel}</h3><p>{snapshot.state.completedResearch.length ? snapshot.state.completedResearch.join(', ') : t('ИССЛЕДОВАНИЙ ПОКА НЕТ')}</p>{snapshot.state.pendingLabUpgrade && <p>{t('УЛУЧШЕНИЕ ЛАБОРАТОРИИ')} → L{snapshot.state.pendingLabUpgrade.targetLevel} · {new Date(snapshot.state.pendingLabUpgrade.completesAt).toLocaleString()}</p>}<button type="button" disabled={busy || !rulesMatch || snapshot.state.pendingLabUpgrade != null || snapshot.state.labLevel >= snapshot.state.grants.labLevelCap || buildQueueFull} onClick={() => void action({ type: 'start_lab_upgrade' })}>{t('УЛУЧШИТЬ LAB')} · {formatCost(labUpgradeCost)} · {durationLabel(labUpgradeDuration)}</button></article>
           <article><h3><CircleDashed size={15} />{t('ОЧЕРЕДЬ')}</h3><p>{snapshot.state.pendingResearch.length ? snapshot.state.pendingResearch.map(job => `${job.id} · ${new Date(job.completesAt).toLocaleString()}`).join(' / ') : t('ИССЛЕДОВАНИЯ СВОБОДНЫ')}</p>{snapshot.state.buildings.filter(item => item.status === 'constructing' || item.status === 'upgrading').map(item => <p key={item.id}>{buildingLabels[item.kind]} L{item.level}{item.targetLevel ? ` → L${item.targetLevel}` : ''} · {new Date(item.completesAt).toLocaleString()}</p>)}</article>
         </div>
         <div className="persistent-colony__actions">

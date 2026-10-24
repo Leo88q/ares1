@@ -798,4 +798,19 @@ export default {
   'ГИДРОЛОГИЯ': 'HIDROLOGI',
   'МЕТАЛЛУРГИЯ': 'METALURGI',
   'СОЛНЕЧНАЯ СЕТЬ': 'JARINGAN SURYA',
+  'Это Field уже было привязано.': 'Field ini sudah ditautkan.',
+  'Поле проверено в Solana и связано с Colony. Это не изменяет добычу ресурсов.': 'Field diverifikasi di Solana dan ditautkan ke Colony. Ini tidak mengubah produksi sumber daya.',
+  'ПРИВЯЗАННЫЕ FIELD': 'FIELD TERTAUT',
+  'ДОБАВИТЬ АКТИВНОЕ ПОЛЕ ИЗ КОШЕЛЬКА': 'TAMBAHKAN FIELD AKTIF DARI DOMPET INI',
+  'ПРОВЕРИТЬ И ПРИВЯЗАТЬ FIELD': 'VERIFIKASI DAN TAUTKAN FIELD',
+  'Сервер повторно проверяет finalized-владение. Field учитывается как слот; дополнительная добыча пока не включена.': 'Server memverifikasi ulang kepemilikan finalized. Field dihitung sebagai slot; produksi tambahan belum aktif.',
+  'УЛУЧШЕНИЕ ЛАБОРАТОРИИ': 'PENINGKATAN LAB',
+  'УЛУЧШИТЬ LAB': 'TINGKATKAN LAB',
+
+  'ОСНОВНОЕ': 'UTAMA',
+  'ОТВЯЗАТЬ': 'LEPAS TAUTAN',
+
+  'ПОЛУЧИТЬ БЕСПЛАТНЫЙ STARTER И СОЗДАТЬ COLONY': 'KLAIM STARTER GRATIS DAN BUAT COLONY',
+  'Бесплатный старт: одна Colony на кошелёк после проверки активного Field. Покупка и транзакция не нужны.': 'Mulai gratis: satu Colony per dompet setelah verifikasi Field aktif. Tidak perlu pembelian atau transaksi.',
+
 }

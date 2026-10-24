@@ -2,7 +2,7 @@
  * Server-owned prototype ruleset. Values are deliberately versioned and remain
  * release-blocked until product/economy review; no client-supplied costs/rates.
  */
-export const COLONY_RULESET_VERSION = 3;
+export const COLONY_RULESET_VERSION = 4;
 export const COLONY_RULESET_STATUS = 'internal-review' as const;
 export const RESOURCE_KEYS = ['metal', 'water', 'power', 'science'] as const;
 export type Resource = typeof RESOURCE_KEYS[number];
@@ -14,6 +14,12 @@ export interface BuildingRule {
   durationSeconds: number;
   production: Partial<Readonly<Record<Resource, number>>>;
 }
+
+/** Provisional internal-review costs; not a released or approved economy offer. */
+export const LAB_UPGRADE_BASE = Object.freeze({
+  cost: Object.freeze({ metal: 100, water: 50, power: 100, science: 75 }) as Readonly<Record<Resource, number>>,
+  durationSeconds: 12 * 60 * 60,
+})
 
 export const BUILDINGS: Readonly<Record<BuildingKind, BuildingRule>> = Object.freeze({
   solar_array: {

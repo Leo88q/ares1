@@ -4,13 +4,14 @@ import { withTransaction } from '../gameops/pool.js';
 import { canonicalJson, COLONY_GENESIS_HASH, hashColonyEvent, verifyColonyEventChain } from './eventHash.js';
 import type { StoredColonyEvent } from './eventHash.js';
 import { resolveColonyGrants } from './catalog.js';
+import type { FieldOwnershipEvidence } from './fieldOwnership.js';
 import { applyColonyAction, assertValidColonyState, ColonyRuleError, createInitialColonyState, hashColonyState, materializeColony, syncColonyGrants } from './engine.js';
 import type { ColonyAction, ColonyState } from './engine.js';
 import { COLONY_RULESET_VERSION, validBuildingKind, validResearchId } from './rules.js';
 
 export class ColonyServiceError extends Error {
   readonly preserveThroughTransaction = true;
-  constructor(readonly code: 'ENTITLEMENT_REQUIRED' | 'COLONY_NOT_FOUND' | 'FIELD_MISMATCH' | 'VERSION_CONFLICT' | 'INTEGRITY_FAILURE' | 'INVALID_REQUEST' | 'IDEMPOTENCY_CONFLICT' | 'GRANT_REDUCTION_UNSUPPORTED') {
+  constructor(readonly code: 'ENTITLEMENT_REQUIRED' | 'COLONY_NOT_FOUND' | 'FIELD_MISMATCH' | 'VERSION_CONFLICT' | 'INTEGRITY_FAILURE' | 'INVALID_REQUEST' | 'IDEMPOTENCY_CONFLICT' | 'GRANT_REDUCTION_UNSUPPORTED' | 'FIELD_SLOT_LIMIT' | 'FIELD_ALREADY_LINKED' | 'FIELD_IN_USE' | 'FIELD_NOT_LINKED' | 'FIELD_PRIMARY_IMMUTABLE') {
     super(code);
     this.name = 'ColonyServiceError';
   }
@@ -25,6 +26,7 @@ interface ColonyRow {
   state: ColonyState;
   sequence: string | number;
   state_hash: string;
+  linked_fields?: string[];
 }
 
 interface EventRow {
@@ -55,6 +57,7 @@ export interface ColonySnapshot {
   colonyId: string;
   ownerWallet: string;
   fieldAddress: string;
+  linkedFields: string[];
   rulesetVersion: number;
   sequence: number;
   stateHash: string;
@@ -75,8 +78,10 @@ function parseSequence(value: string | number): number {
 
 async function readColony(client: PoolClient, wallet: string, forUpdate: boolean): Promise<ColonyRow | null> {
   const result = await client.query<ColonyRow>(
-    `SELECT id, entitlement_id, owner_wallet, field_address, ruleset_version, state, sequence, state_hash
-       FROM game_ops.colonies WHERE owner_wallet = $1 ${forUpdate ? 'FOR UPDATE' : ''}`,
+    `SELECT c.id, c.entitlement_id, c.owner_wallet, c.field_address, c.ruleset_version, c.state, c.sequence, c.state_hash,
+            COALESCE((SELECT json_agg(f.field_address ORDER BY f.is_primary DESC, f.linked_at, f.field_address)
+                        FROM game_ops.colony_fields f WHERE f.colony_id = c.id AND f.unlinked_at IS NULL), json_build_array(c.field_address)) AS linked_fields
+       FROM game_ops.colonies c WHERE c.owner_wallet = $1 ${forUpdate ? 'FOR UPDATE OF c' : ''}`,
     [wallet],
   );
   return result.rows[0] ?? null;
@@ -109,9 +114,25 @@ async function verifiedEvents(client: PoolClient, row: ColonyRow): Promise<Event
     throw new ColonyServiceError('INTEGRITY_FAILURE');
   }
   if (normalized.length !== parseSequence(row.sequence) || canonicalJson(rebuilt) !== canonicalJson(row.state)
-    || hashColonyState(row.state) !== row.state_hash) {
+    || hashColonyState(row.state) !== row.state_hash || row.ruleset_version !== row.state.rulesetVersion) {
     throw new ColonyServiceError('INTEGRITY_FAILURE');
   }
+  const replayedFields = new Set<string>();
+  for (const event of normalized) {
+    if (!['colony_initialized', 'colony_field_linked', 'colony_field_unlinked'].includes(event.eventType)) continue;
+    const fieldAddress = event.payload.fieldAddress;
+    if (typeof fieldAddress !== 'string') throw new ColonyServiceError('INTEGRITY_FAILURE');
+    if (event.eventType === 'colony_field_unlinked') {
+      if (!replayedFields.has(fieldAddress) || fieldAddress === row.field_address) throw new ColonyServiceError('INTEGRITY_FAILURE');
+      replayedFields.delete(fieldAddress);
+    } else {
+      if (replayedFields.has(fieldAddress)) throw new ColonyServiceError('INTEGRITY_FAILURE');
+      replayedFields.add(fieldAddress);
+    }
+  }
+  const storedFields = row.linked_fields ?? [row.field_address];
+  if (canonicalJson([...replayedFields].sort()) !== canonicalJson([...storedFields].sort())
+    || !replayedFields.has(row.field_address)) throw new ColonyServiceError('INTEGRITY_FAILURE');
   return events.rows;
 }
 
@@ -145,20 +166,21 @@ async function appendEvent(client: PoolClient, params: {
     [params.row.id, sequence, params.requestId, params.eventType, JSON.stringify(params.payload), previousHash, eventHash],
   );
   await client.query(
-    `UPDATE game_ops.colonies SET state = $2::jsonb, sequence = $3, state_hash = $4, updated_at = now()
+    `UPDATE game_ops.colonies SET state = $2::jsonb, sequence = $3, state_hash = $4, ruleset_version = $5, updated_at = now()
       WHERE id = $1`,
-    [params.row.id, JSON.stringify(params.state), sequence, stateHash],
+    [params.row.id, JSON.stringify(params.state), sequence, stateHash, params.state.rulesetVersion],
   );
   return {
     colonyId: params.row.id,
     ownerWallet: params.row.owner_wallet,
     fieldAddress: params.row.field_address,
-    rulesetVersion: params.row.ruleset_version,
+    rulesetVersion: params.state.rulesetVersion,
     sequence,
     stateHash,
     state: params.state,
+    linkedFields: params.row.linked_fields ?? [params.row.field_address],
     materializedAt: params.state.lastMaterializedAt,
-    pending: Boolean(params.state.pendingResearch.length || params.state.buildings.some(building => building.status === 'constructing' || building.status === 'upgrading')),
+    pending: Boolean(params.state.pendingResearch.length || params.state.pendingLabUpgrade || params.state.buildings.some(building => building.status === 'constructing' || building.status === 'upgrading')),
   };
 }
 
@@ -167,6 +189,7 @@ function normalizeAction(value: unknown): ColonyAction {
   const action = value as Record<string, unknown>;
   if (action.type === 'start_build' && validBuildingKind(action.building)) return { type: 'start_build', building: action.building };
   if (action.type === 'start_research' && validResearchId(action.research)) return { type: 'start_research', research: action.research };
+  if (action.type === 'start_lab_upgrade') return { type: 'start_lab_upgrade' };
   throw new ColonyServiceError('INVALID_REQUEST');
 }
 
@@ -177,7 +200,11 @@ function assertRequestId(requestId: string): void {
 }
 
 export class ColonyService {
-  constructor(private readonly pool: Pool, private readonly cluster: 'devnet' | 'mainnet-beta') {}
+  constructor(
+    private readonly pool: Pool,
+    private readonly cluster: 'devnet' | 'mainnet-beta',
+    readonly freeStarterEnabled = false,
+  ) {}
 
   private async activeGrants(client: PoolClient, wallet: string) {
     const result = await client.query<{ sku_id: string }>(
@@ -215,6 +242,22 @@ export class ColonyService {
     return { ...row, sequence: snapshot.sequence, state, state_hash: snapshot.stateHash };
   }
 
+  private async synchronizeRuleset(client: PoolClient, row: ColonyRow): Promise<ColonyRow> {
+    if (row.state.rulesetVersion === COLONY_RULESET_VERSION) return row;
+    if (row.state.rulesetVersion !== 3 || row.ruleset_version !== 3) throw new ColonyServiceError('INTEGRITY_FAILURE');
+    const state = structuredClone(row.state);
+    state.rulesetVersion = COLONY_RULESET_VERSION;
+    state.pendingLabUpgrade ??= null;
+    const snapshot = await appendEvent(client, {
+      row,
+      requestId: randomUUID(),
+      eventType: 'colony_ruleset_migrated',
+      payload: { from: row.ruleset_version, to: COLONY_RULESET_VERSION, state },
+      state,
+    });
+    return { ...row, ruleset_version: COLONY_RULESET_VERSION, sequence: snapshot.sequence, state, state_hash: snapshot.stateHash };
+  }
+
   async initialize(params: {
     wallet: string;
     fieldAddress: string;
@@ -228,16 +271,30 @@ export class ColonyService {
       if (existing) {
         if (existing.field_address !== params.fieldAddress) throw new ColonyServiceError('FIELD_MISMATCH');
         await verifiedEvents(client, existing);
-        const current = await this.synchronizeGrants(client, existing);
+        const currentRules = await this.synchronizeRuleset(client, existing);
+        const current = await this.synchronizeGrants(client, currentRules);
         return this.snapshot(current, now, false);
       }
-      const entitlements = await client.query<{ id: string; sku_id: string }>(
-        `SELECT id, sku_id FROM game_ops.colony_entitlements
+      let entitlements = await client.query<{ id: string; sku_id: string; source: string }>(
+        `SELECT id, sku_id, source FROM game_ops.colony_entitlements
           WHERE owner_wallet = $1 AND cluster = $2 AND revoked_at IS NULL
           ORDER BY granted_at ASC`,
         [params.wallet, this.cluster],
       );
-      const starter = entitlements.rows.find(item => item.sku_id === 'STARTER_COLONY_V1');
+      let starter = entitlements.rows.find(item => item.sku_id === 'STARTER_COLONY_V1');
+      if (!starter && this.freeStarterEnabled) {
+        await client.query(
+          `SELECT game_ops.claim_free_colony_starter($1, $2, $3)`,
+          [randomUUID(), params.wallet, this.cluster],
+        );
+        entitlements = await client.query<{ id: string; sku_id: string; source: string }>(
+          `SELECT id, sku_id, source FROM game_ops.colony_entitlements
+            WHERE owner_wallet = $1 AND cluster = $2 AND revoked_at IS NULL
+            ORDER BY granted_at ASC`,
+          [params.wallet, this.cluster],
+        );
+        starter = entitlements.rows.find(item => item.sku_id === 'STARTER_COLONY_V1');
+      }
       if (!starter) throw new ColonyServiceError('ENTITLEMENT_REQUIRED');
       let grants;
       try {
@@ -264,6 +321,12 @@ export class ColonyService {
         await verifiedEvents(client, raced);
         return this.snapshot(raced, now, false);
       }
+      const primaryLinkId = randomUUID();
+      await client.query(
+        `INSERT INTO game_ops.colony_fields (id, colony_id, field_address, is_primary) VALUES ($1, $2, $3, true)`,
+        [primaryLinkId, colonyId, params.fieldAddress],
+      );
+      row.linked_fields = [params.fieldAddress];
       const event = {
         colonyId,
         sequence: 1,
@@ -271,7 +334,9 @@ export class ColonyService {
         eventType: 'colony_initialized',
         payload: {
           fieldAddress: params.fieldAddress,
+          linkId: primaryLinkId,
           entitlementId,
+          entitlementSource: starter.source,
           cluster: this.cluster,
           observedSlot: params.evidence.observedSlot,
           commitment: params.evidence.commitment,
@@ -293,13 +358,138 @@ export class ColonyService {
     });
   }
 
+  async linkField(params: {
+    wallet: string;
+    fieldAddress: string;
+    requestId: string;
+    expectedSequence: number;
+    evidence: FieldOwnershipEvidence;
+  }): Promise<{ snapshot: ColonySnapshot; duplicate: boolean }> {
+    assertRequestId(params.requestId);
+    if (!Number.isSafeInteger(params.expectedSequence) || params.expectedSequence < 1
+      || params.evidence.wallet !== params.wallet || params.evidence.fieldAddress !== params.fieldAddress
+      || params.evidence.cluster !== this.cluster || params.evidence.commitment !== 'finalized'
+      || !Number.isSafeInteger(params.evidence.observedSlot) || params.evidence.observedSlot < 0) {
+      throw new ColonyServiceError('INVALID_REQUEST');
+    }
+    try {
+      return await withTransaction(this.pool, `colony:field-link:${params.wallet}`, async client => {
+        let row = await readColony(client, params.wallet, true);
+        if (!row) throw new ColonyServiceError('COLONY_NOT_FOUND');
+        const history = await verifiedEvents(client, row);
+        const prior = history.find(event => event.request_id === params.requestId);
+        if (prior) {
+          if (prior.event_type !== 'colony_field_linked' || prior.payload.fieldAddress !== params.fieldAddress) {
+            throw new ColonyServiceError('IDEMPOTENCY_CONFLICT');
+          }
+          return { snapshot: this.snapshot(row, new Date(), true), duplicate: true };
+        }
+        row = await this.synchronizeRuleset(client, row);
+        row = await this.synchronizeGrants(client, row);
+        if (parseSequence(row.sequence) !== params.expectedSequence) throw new ColonyServiceError('VERSION_CONFLICT');
+        const linkedFields = row.linked_fields ?? [row.field_address];
+        if (linkedFields.includes(params.fieldAddress)) throw new ColonyServiceError('FIELD_ALREADY_LINKED');
+        if (linkedFields.length >= row.state.grants.fieldSlots) throw new ColonyServiceError('FIELD_SLOT_LIMIT');
+        const collision = await client.query<{ colony_id: string }>(
+          `SELECT colony_id FROM game_ops.colony_fields WHERE field_address = $1 AND unlinked_at IS NULL`, [params.fieldAddress],
+        );
+        if (collision.rows.length) throw new ColonyServiceError('FIELD_IN_USE');
+        const linkId = randomUUID();
+        await client.query(
+          `INSERT INTO game_ops.colony_fields (id, colony_id, field_address, is_primary) VALUES ($1, $2, $3, false)`,
+          [linkId, row.id, params.fieldAddress],
+        );
+        row.linked_fields = [...linkedFields, params.fieldAddress];
+        const snapshot = await appendEvent(client, {
+          row,
+          requestId: params.requestId,
+          eventType: 'colony_field_linked',
+          payload: {
+            fieldAddress: params.fieldAddress,
+            linkId,
+            cluster: params.evidence.cluster,
+            commitment: params.evidence.commitment,
+            observedSlot: params.evidence.observedSlot,
+            fieldLevel: params.evidence.fieldLevel,
+            fieldType: params.evidence.fieldType,
+            durability: params.evidence.durability,
+            state: row.state,
+          },
+          state: row.state,
+        });
+        return { snapshot, duplicate: false };
+      });
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === '23505'
+        && 'constraint' in error && error.constraint === 'colony_fields_one_active_address_idx') {
+        throw new ColonyServiceError('FIELD_IN_USE');
+      }
+      throw error;
+    }
+  }
+
+  async unlinkField(params: {
+    wallet: string;
+    fieldAddress: string;
+    requestId: string;
+    expectedSequence: number;
+  }): Promise<{ snapshot: ColonySnapshot; duplicate: boolean }> {
+    assertRequestId(params.requestId);
+    if (!Number.isSafeInteger(params.expectedSequence) || params.expectedSequence < 1
+      || typeof params.fieldAddress !== 'string' || params.fieldAddress.length < 32 || params.fieldAddress.length > 44) {
+      throw new ColonyServiceError('INVALID_REQUEST');
+    }
+    return withTransaction(this.pool, `colony:field-unlink:${params.wallet}`, async client => {
+      let row = await readColony(client, params.wallet, true);
+      if (!row) throw new ColonyServiceError('COLONY_NOT_FOUND');
+      const history = await verifiedEvents(client, row);
+      const prior = history.find(event => event.request_id === params.requestId);
+      if (prior) {
+        if (prior.event_type !== 'colony_field_unlinked' || prior.payload.fieldAddress !== params.fieldAddress) {
+          throw new ColonyServiceError('IDEMPOTENCY_CONFLICT');
+        }
+        return { snapshot: this.snapshot(row, new Date(), true), duplicate: true };
+      }
+      row = await this.synchronizeRuleset(client, row);
+      row = await this.synchronizeGrants(client, row);
+      if (parseSequence(row.sequence) !== params.expectedSequence) throw new ColonyServiceError('VERSION_CONFLICT');
+      if (params.fieldAddress === row.field_address) throw new ColonyServiceError('FIELD_PRIMARY_IMMUTABLE');
+      const active = row.linked_fields ?? [row.field_address];
+      if (!active.includes(params.fieldAddress)) throw new ColonyServiceError('FIELD_NOT_LINKED');
+      const link = await client.query<{ id: string }>(
+        `SELECT id FROM game_ops.colony_fields
+          WHERE colony_id = $1 AND field_address = $2 AND unlinked_at IS NULL
+          FOR UPDATE`,
+        [row.id, params.fieldAddress],
+      );
+      const linkId = link.rows[0]?.id;
+      if (!linkId) throw new ColonyServiceError('INTEGRITY_FAILURE');
+      row.linked_fields = active.filter(address => address !== params.fieldAddress);
+      const snapshot = await appendEvent(client, {
+        row,
+        requestId: params.requestId,
+        eventType: 'colony_field_unlinked',
+        payload: { fieldAddress: params.fieldAddress, linkId, state: row.state },
+        state: row.state,
+      });
+      const updated = await client.query(
+        `UPDATE game_ops.colony_fields SET unlinked_at = now()
+          WHERE id = $1 AND unlinked_at IS NULL`,
+        [linkId],
+      );
+      if (updated.rowCount !== 1) throw new ColonyServiceError('INTEGRITY_FAILURE');
+      return { snapshot, duplicate: false };
+    });
+  }
+
   async get(wallet: string): Promise<ColonySnapshot> {
     const now = new Date();
     return withTransaction(this.pool, `colony:read:${wallet}`, async client => {
       const row = await readColony(client, wallet, true);
       if (!row) throw new ColonyServiceError('COLONY_NOT_FOUND');
       await verifiedEvents(client, row);
-      const current = await this.synchronizeGrants(client, row);
+      const currentRules = await this.synchronizeRuleset(client, row);
+      const current = await this.synchronizeGrants(client, currentRules);
       return this.snapshot(current, now, true);
     });
   }
@@ -324,6 +514,7 @@ export class ColonyService {
         if (canonicalJson(prior.payload.action) !== canonicalJson(action)) throw new ColonyServiceError('IDEMPOTENCY_CONFLICT');
         return { snapshot: this.snapshot(row, new Date(), true), duplicate: true, result: isRecordPayload(prior.payload.result) ? prior.payload.result : null };
       }
+      row = await this.synchronizeRuleset(client, row);
       row = await this.synchronizeGrants(client, row);
       if (parseSequence(row.sequence) !== params.expectedSequence) throw new ColonyServiceError('VERSION_CONFLICT');
       const now = new Date();
@@ -350,8 +541,9 @@ export class ColonyService {
       sequence,
       stateHash: row.state_hash,
       state,
+      linkedFields: row.linked_fields ?? [row.field_address],
       materializedAt: now.toISOString(),
-      pending: Boolean(state.pendingResearch.length || state.buildings.some(building => building.status === 'constructing' || building.status === 'upgrading')),
+      pending: Boolean(state.pendingResearch.length || state.pendingLabUpgrade || state.buildings.some(building => building.status === 'constructing' || building.status === 'upgrading')),
     };
   }
 }

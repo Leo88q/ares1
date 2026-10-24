@@ -798,4 +798,19 @@ export default {
   'ГИДРОЛОГИЯ': 'HYDROLOGY',
   'МЕТАЛЛУРГИЯ': 'METALLURGY',
   'СОЛНЕЧНАЯ СЕТЬ': 'SOLAR GRID',
+  'Это Field уже было привязано.': 'This Field is already linked.',
+  'Поле проверено в Solana и связано с Colony. Это не изменяет добычу ресурсов.': 'The Field was verified on Solana and linked to the Colony. This does not change resource production.',
+  'ПРИВЯЗАННЫЕ FIELD': 'LINKED FIELDS',
+  'ДОБАВИТЬ АКТИВНОЕ ПОЛЕ ИЗ КОШЕЛЬКА': 'ADD AN ACTIVE FIELD FROM THIS WALLET',
+  'ПРОВЕРИТЬ И ПРИВЯЗАТЬ FIELD': 'VERIFY AND LINK FIELD',
+  'Сервер повторно проверяет finalized-владение. Field учитывается как слот; дополнительная добыча пока не включена.': 'The server re-verifies finalized ownership. The Field counts as a slot; additional production is not enabled yet.',
+  'УЛУЧШЕНИЕ ЛАБОРАТОРИИ': 'LAB UPGRADE',
+  'УЛУЧШИТЬ LAB': 'UPGRADE LAB',
+
+  'ОСНОВНОЕ': 'PRIMARY',
+  'ОТВЯЗАТЬ': 'UNLINK',
+
+  'ПОЛУЧИТЬ БЕСПЛАТНЫЙ STARTER И СОЗДАТЬ COLONY': 'CLAIM FREE STARTER AND CREATE COLONY',
+  'Бесплатный старт: одна Colony на кошелёк после проверки активного Field. Покупка и транзакция не нужны.': 'Free start: one Colony per wallet after active Field verification. No purchase or transaction is required.',
+
 }
