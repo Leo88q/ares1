@@ -857,6 +857,13 @@ test('2026-10-02: фиксирует production advisories в lodash, viem/ws и
   assert.doesNotMatch(lock, /^toml@\^3\.0\.0:\n\s+version "3\.0\.0"/m, 'уязвимый toml lock-entry вернулся');
 });
 
+test('2026-10-24: body-parser fixes GHSA-27r3-jxmh-p828 in backend runtime tree', () => {
+  const pkg = JSON.parse(read('../package.json'));
+  const lock = read('../yarn.lock');
+  assert.equal(pkg.resolutions?.['body-parser'], '1.20.9', 'body-parser must be pinned to first fixed 1.x release');
+  assert.equal(parseYarnEntry(lock, 'body-parser@~1.20.5')?.version, '1.20.9');
+});
+
 test('release artifact gate exempts only the MWA local bridge probe, not arbitrary loopback URLs', () => {
   const repoRoot = path.resolve(here, '..', '..');
   const checker = path.join(repoRoot, 'scripts', 'check-release-artifacts.mjs');

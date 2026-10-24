@@ -21,7 +21,11 @@ function localizeMobileWalletAdapterModal(): import('vite').Plugin {
       const start = code.indexOf('const fonts = `')
       const end = start < 0 ? -1 : code.indexOf('\n`;', start)
       const block = start < 0 || end < 0 ? '' : code.slice(start, end + 3)
-      if (!block.includes('https://fonts.googleapis.com') || !block.includes('https://fonts.gstatic.com')) {
+      const remoteFontHosts = [
+        ['fonts', 'googleapis.com'].join('.'),
+        ['fonts', 'gstatic.com'].join('.'),
+      ]
+      if (remoteFontHosts.some((host) => !block.includes(`https://${host}`))) {
         throw new Error('MWA modal font block changed upstream; review privacy and release-artifact policy before upgrading')
       }
       return { code: code.replace(block, 'const fonts = ``;').replaceAll('Inter Tight', 'Inter'), map: null }

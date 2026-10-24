@@ -83,6 +83,7 @@
     "protobufjs": "7.6.6",
     "@solana/buffer-layout-utils": "file:apps/web/vendor/solana-buffer-layout-utils",
     "jayson": "5.0.0",
+    "body-parser": "1.20.9",
     "lodash": "4.18.1",
     "toml": "4.2.0",
     "proxy-addr": "2.0.8",
