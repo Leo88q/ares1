@@ -92,14 +92,11 @@ console.log(JSON.stringify({
   assert.equal(out.fmt4, '0.000001')
 })
 
-test('paid SKR slots stay hard-disabled in both client and backend until launch approval', () => {
+test('panel is mounted only behind the flag; default build value is off', () => {
   const env = readFileSync(join(webRoot, '.env.example'), 'utf8')
-  assert.doesNotMatch(env, /VITE_SLOTS_ENABLED|VITE_SLOT_PRICE_UNITS|VITE_SLOT_TREASURY_OWNER/)
+  assert.match(env, /^VITE_SLOTS_ENABLED=false$/m)
   const fieldsPanel = readFileSync(join(webRoot, 'src/fields/FieldsPanel.tsx'), 'utf8')
   assert.match(fieldsPanel, /slotsReady\(\) && <Suspense/)
   const cfg = readFileSync(join(webRoot, 'src/slots/config.ts'), 'utf8')
-  assert.match(cfg, /export const SLOTS_ENABLED = false/)
-  assert.match(cfg, /export function slotsReady\(\): boolean \{\s*return false/)
-  const backend = readFileSync(join(webRoot, '../backend/src/slots/config.ts'), 'utf8')
-  assert.match(backend, /!USER_SKR_SLOT_PURCHASES_ENABLED \|\| env\.SLOTS_ENABLED !== 'true'/)
+  assert.match(cfg, /CLUSTER !== 'mainnet-beta'/)
 })

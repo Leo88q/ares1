@@ -6,6 +6,11 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = fileURLToPath(new URL(".", import.meta.url));
 
+// Куда dev/preview-сервер проксирует /api/*. В проде этим занимается
+// Cloudflare Pages Function (functions/api/[[path]].js) с тем же префиксом
+// пути, поэтому локальный сценарий и продовый не расходятся.
+const presaleApiTarget = process.env.PRESALE_API_ORIGIN || "http://127.0.0.1:8080";
+
 export default defineConfig({
   plugins: [
     react(),
@@ -18,12 +23,18 @@ export default defineConfig({
     port: 5173,
     // Превью-хосты Arena: {port}-{sandboxId}.e2b.app
     allowedHosts: true,
+    proxy: {
+      "/api": { target: presaleApiTarget, changeOrigin: true },
+    },
   },
   preview: {
     host: true,
     // Тот же список, что и для dev: preview-сервер иначе отклоняет
     // прокси-хост по Host-заголовку.
     allowedHosts: true,
+    proxy: {
+      "/api": { target: presaleApiTarget, changeOrigin: true },
+    },
   },
   define: {
     "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV || "development"),

@@ -28,11 +28,6 @@ export const env = {
   cluster: configuredCluster(),
   mainnetPresaleApproved: configuredBoolean('PRESALE_MAINNET_LIVE_APPROVED'),
   devnetPresaleTestEnabled: configuredBoolean('PRESALE_DEVNET_TEST_ENABLED'),
-  coloniesEnabled: configuredBoolean('COLONIES_ENABLED'),
-  colonyFreeStarterEnabled: process.env.COLONY_FREE_STARTER_ENABLED === undefined
-    ? configuredCluster() === 'devnet' && process.env.NODE_ENV !== 'production'
-    : configuredBoolean('COLONY_FREE_STARTER_ENABLED'),
-  colonySessionSecret: process.env.COLONY_SESSION_SECRET || '',
   rpcUrl: required("RPC_URL"),
   programId: required("PROGRAM_ID"),
   /** Keypair of a DEDICATED low-privilege wallet (NOT the program authority!).

@@ -1,9 +1,4 @@
 .colony-app {
-  container-type: inline-size;
-  container-name: colony;
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
   --c-bg: #0f0e0a;
   --c-panel: #17150f;
   --c-edge: #2f2a20;
@@ -49,13 +44,12 @@
 .colony-lead { color: var(--c-muted); font-size: 12px; max-width: 750px; }
 .colony-back { display: flex; align-items: center; gap: 8px; color: var(--c-muted) !important; white-space: nowrap; font-size: 10px; }
 .colony-back:hover { color: white !important; }
-.colony-resource-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .8fr) minmax(0, 1fr) minmax(0, 1.05fr) minmax(0, 1fr); gap: 1px; border: 1px solid var(--c-edge); border-radius: 7px; overflow: hidden; background: var(--c-edge); margin-bottom: 20px; min-width: 0; }
-.colony-resource { background: #17150f; padding: 15px 19px 14px; position: relative; min-width: 0; box-sizing: border-box; }
-.colony-resource-label { display: flex; align-items: center; gap: 7px; min-width: 0; font: 8px/1.6 'JetBrains Mono', monospace; letter-spacing: .06em; color: #a0906d; }
-.colony-resource-label > span { min-width: 0; flex: 1 1 auto; overflow-wrap: break-word; }
-.colony-resource-value { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px; min-width: 0; max-width: 100%; font: clamp(15px, 4.2cqi, 20px)/1.3 'JetBrains Mono', monospace; letter-spacing: -.06em; color: #ebd3a0; margin-top: 6px; white-space: normal; overflow-wrap: break-word; }
-.colony-resource-value small { font: 10px 'Inter', sans-serif; letter-spacing: 0; color: #928363; white-space: nowrap; }
-.colony-resource p { min-width: 0; max-width: 100%; font-size: 9px; color: #8d7f60; margin-top: 5px; overflow-wrap: break-word; }
+.colony-resource-grid { display: grid; grid-template-columns: 1.15fr .8fr 1fr 1.05fr 1fr; gap: 1px; border: 1px solid var(--c-edge); border-radius: 7px; overflow: hidden; background: var(--c-edge); margin-bottom: 20px; }
+.colony-resource { background: #17150f; padding: 15px 19px 14px; position: relative; min-width: 0; }
+.colony-resource-label { display: flex; align-items: center; gap: 7px; font: 8px/1.6 'JetBrains Mono', monospace; letter-spacing: .06em; color: #a0906d; }
+.colony-resource-value { display: flex; align-items: baseline; gap: 7px; font: 25px/1.4 'JetBrains Mono', monospace; letter-spacing: -.06em; color: #ebd3a0; margin-top: 6px; white-space: nowrap; }
+.colony-resource-value small { font: 10px 'Inter', sans-serif; letter-spacing: 0; color: #928363; }
+.colony-resource p { font-size: 9px; color: #8d7f60; margin-top: 5px; }
 .colony-resource--gold .colony-resource-value { color: var(--c-gold); }
 .colony-resource--danger .colony-resource-value { color: #e3a18c; }
 .colony-resource-progress { background: #322d22; height: 2px; position: absolute; bottom: 0; left: 0; right: 0; }
@@ -183,7 +177,7 @@
 .colony-asset-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 22px; }
 .colony-asset-card { padding: 21px; border: 1px solid #383226; border-radius: 4px; background: #191611; }
 .colony-asset-index { display: flex; align-items: center; justify-content: space-between; font: 9px 'JetBrains Mono', monospace; color: #796d52; }
-.colony-asset-card h2 { font: 14px 'JetBrains Mono', monospace; font-weight: 450; margin: 22px 0 13px; overflow-wrap: break-word; }
+.colony-asset-card h2 { font: 14px 'JetBrains Mono', monospace; font-weight: 450; margin: 22px 0 13px; overflow-wrap: anywhere; }
 .colony-asset-card dl { margin: 19px 0; display: grid; gap: 7px; }
 .colony-asset-card dl > div { display: flex; justify-content: space-between; gap: 14px; font-size: 9px; }
 .colony-asset-card dt { color: #817458; }
@@ -195,11 +189,11 @@
 .colony-plan-grid > button, .colony-plan-grid > span { min-height: 60px; padding: 5px 2px; border: 1px dashed #3e382a; background: #1c1913; border-radius: 3px; min-width: 0; }
 .colony-plan-grid > button { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; }
 .colony-plan-grid b { font: 10px 'JetBrains Mono', monospace; }
-.colony-plan-grid small { font-size: 7px; overflow-wrap: break-word; }
+.colony-plan-grid small { font-size: 7px; overflow-wrap: anywhere; }
 .colony-plan-grid > button.is-active { background: #474031; }
 
-@container colony (min-width: 1600px) { .colony-viewport { height: 590px; } }
-@container colony (max-width: 1250px) {
+@media (min-width: 1600px) { .colony-viewport { height: 590px; } }
+@media (max-width: 1250px) {
   .colony-header { padding: 18px 25px; gap: 18px; }
   .colony-local { display: none; }
   .colony-main { padding: 30px 25px 20px; }
@@ -210,14 +204,14 @@
   .colony-command-bar { gap: 22px; }
   .colony-viewport { height: 540px; }
 }
-@container colony (max-width: 960px) {
+@media (max-width: 960px) {
   .colony-header { flex-wrap: wrap; padding: 18px 20px 0; gap: 15px; }
   .colony-header-right { margin-left: auto; }
   .colony-tabs { order: 3; width: 100%; margin: 0; padding: 0; }
   .colony-tabs button { padding: 11px 14px; }
   .colony-tabs button.is-active::after { bottom: -1px; }
   .colony-main { padding: 26px 20px 18px; }
-  .colony-resource-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .colony-resource-grid { grid-template-columns: repeat(3, 1fr); }
   .colony-resource-grid > :nth-child(4) { grid-column: span 2; }
   .colony-resource { padding: 12px 15px; }
   .colony-resource-value { font-size: 24px; }
@@ -240,7 +234,7 @@
   .colony-asset-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .colony-economy-grid { grid-template-columns: 1fr; }
 }
-@container colony (max-width: 700px) {
+@media (max-width: 700px) {
   .colony-header { padding: 17px 16px 0; }
   .colony-brand > span { font-size: 19px; }
   .colony-brand small { font-size: 6px; max-width: 220px; }
@@ -251,7 +245,7 @@
   .colony-intro .colony-eyebrow { font-size: 7px; letter-spacing: .06em; }
   .colony-intro h1 { font-size: 28px; margin: 10px 0; }
   .colony-lead { font-size: 11px; line-height: 1.7; }
-  .colony-resource-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 17px; }
+  .colony-resource-grid { grid-template-columns: 1fr 1fr; margin-bottom: 17px; }
   .colony-resource-grid > :nth-child(4) { grid-column: auto; }
   .colony-resource-grid > :nth-child(5) { grid-column: span 2; }
   .colony-resource-grid > :nth-child(5) .colony-resource-label { float: left; margin-top: 8px; margin-right: 16px; }
@@ -305,11 +299,10 @@
   .colony-flow { padding: 18px; }
   .colony-flow > span { font-size: 10px; }
 }
-@container colony (max-width: 360px) {
+@media (max-width: 360px) {
   .colony-main { padding-left: 10px; padding-right: 10px; }
-  .colony-app--embedded .colony-main { padding-left: 10px; padding-right: 10px; }
   .colony-tabs button { padding: 11px 9px; font-size: 11px; }
-  .colony-resource-value { font-size: clamp(14px, 4.2cqi, 17px); }
+  .colony-resource-value { font-size: 19px; }
   .colony-time-buttons .colony-button { padding: 7px; font-size: 9px !important; }
   .colony-time-buttons .colony-button:first-child { font-size: 0 !important; }
   .colony-build-list { gap: 0 13px; padding: 9px 12px; }
@@ -409,7 +402,7 @@
 .colony-footer-mark { color: #d1ad72; }
 .colony-footer button { color: #efcc8e; }
 
-@container colony (max-width: 700px) {
+@media (max-width: 700px) {
   .colony-hero { min-height: 190px; align-items: flex-end; }
   .colony-hero-copy { padding: 22px 18px 18px; }
   .colony-hero .colony-back { top: 12px; right: 12px; }
@@ -427,7 +420,7 @@
 .colony-app--embedded .colony-lead { font-size: 11px; }
 .colony-app--embedded .colony-resource-grid { margin-bottom: 14px; }
 .colony-app--embedded .colony-resource { padding: 12px 13px 12px; }
-.colony-app--embedded .colony-resource-value { font-size: clamp(14px, 4.2cqi, 20px); }
+.colony-app--embedded .colony-resource-value { font-size: 20px; }
 .colony-app--embedded .colony-command-bar { flex-wrap: wrap; gap: 12px 14px; min-height: 0; margin-bottom: 12px; }
 .colony-app--embedded .colony-time-buttons { margin-left: auto; }
 .colony-app--embedded .colony-sun-control { order: 3; flex: 1 1 100%; min-width: 0; }
@@ -451,47 +444,23 @@
 @media (max-width: 480px), (pointer: coarse) {
   .colony-camera-controls button { width: 44px; height: 44px; }
   .colony-module-selector button { min-height: 44px; }
-  /* The embedded selector rule (36 px) has higher specificity, so it is repeated here. */
+  /* the embedded selector rule (36 px) has higher specificity, so it is repeated here */
   .colony-app--embedded .colony-module-selector button { min-height: 44px; }
   .colony-world-footer button { min-height: 44px; padding: 0 12px; }
   .colony-build-item > button { min-height: 44px; }
   .colony-footer button { min-height: 44px; }
-  .colony-tabs button { min-height: 44px; }
-  .colony-languages button { min-width: 44px; min-height: 44px; }
-  .colony-brand { min-height: 44px; }
-  .colony-back { min-height: 44px; }
-  .colony-button { min-height: 44px; }
   .colony-app input[type=range] { height: 44px; }
-  .colony-time-buttons button { min-width: 44px; min-height: 44px; }
-}
-
-/* The embedded colony is always a phone-width column, even on a desktop-sized
-   browser. Keep its text and tap targets responsive to that actual column. */
-@container colony (max-width: 480px) {
-  .colony-camera-controls button { width: 44px; height: 44px; }
-  .colony-module-selector button { min-height: 44px; }
-  .colony-app--embedded .colony-module-selector button { min-height: 44px; }
-  .colony-world-footer button { min-height: 44px; padding: 0 12px; }
-  .colony-build-item > button { min-height: 44px; }
-  .colony-footer button { min-height: 44px; }
-  .colony-tabs button { min-height: 44px; }
-  .colony-languages button { min-width: 44px; min-height: 44px; }
-  .colony-brand { min-height: 44px; }
-  .colony-back { min-height: 44px; }
-  .colony-button { min-height: 44px; }
-  .colony-app input[type=range] { height: 44px; }
-  .colony-time-buttons button { min-width: 44px; min-height: 44px; }
+  .colony-time-buttons button { min-width: 44px; }
 }
 
 /* Phone (≤480px, embedded in the ARES column): the time buttons (Run / +1 day / +7 days) float just
    above the section key bar, so they stay in the thumb zone while scrolling the colony page.
    Fixed (not sticky): a sticky bottom bar only pins once its normal position is below the viewport.
    The key bar is 90 px + 10 px inset, so `bottom: 100px` clears it. */
-@container colony (max-width: 480px) {
+@media (max-width: 480px) {
   .colony-app--embedded .colony-time-buttons {
-    position: fixed; left: 50%; right: auto; width: min(100vw, 480px);
-    transform: translateX(-50%); bottom: calc(100px + env(safe-area-inset-bottom, 0px)); z-index: 40;
-    box-sizing: border-box; justify-content: flex-end; padding: 8px 12px;
+    position: fixed; left: 0; right: 0; bottom: calc(100px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+    justify-content: flex-end; padding: 8px 12px;
     background: #0f0b07; border-top: 1px solid #6e5532; box-shadow: 0 -8px 16px #0008;
   }
 }
@@ -557,11 +526,6 @@
   .colony-deep-actions button { min-height: 44px; padding: 8px 10px; }
   .colony-deep-body { overflow-x: hidden; }
 }
-@container colony (max-width: 700px) {
-  .colony-deep-tabs button { min-height: 44px; padding: 10px 12px; flex: 1 1 auto; }
-  .colony-deep-actions button { min-height: 44px; padding: 8px 10px; }
-  .colony-deep-body { overflow-x: hidden; }
-}
 
 /* Формы лаборатории: выбор режима, объекта и запуск опыта. */
 .colony-deep-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; margin: 12px 0; }
@@ -581,11 +545,6 @@
 .colony-deep-target { width: auto; min-width: 150px; }
 
 @media (max-width: 700px), (pointer: coarse) {
-  .colony-deep-form label { flex: 1 1 100%; }
-  .colony-deep-form select, .colony-deep-form input,
-  .colony-deep-form > button, .colony-deep-target { min-height: 44px; }
-}
-@container colony (max-width: 700px) {
   .colony-deep-form label { flex: 1 1 100%; }
   .colony-deep-form select, .colony-deep-form input,
   .colony-deep-form > button, .colony-deep-target { min-height: 44px; }

@@ -215,3 +215,11 @@ export function fmtPotatoExact(micro: number | bigint): string {
 export const fmtSol = (lamports: number | bigint, decimals = 3) => (Number(lamports) / 1e9).toFixed(decimals)
 
 export const fmtSkr = (atoms: number | bigint, decimals = 2) => (Number(atoms) / 1e6).toFixed(decimals)
+
+export interface PresaleDropInfo { type: number; label: string; chance: number; color: string }
+/** Шансы дропа модуля в пресейле: цена одна — тир случайный */
+export const PRESALE_DROP: PresaleDropInfo[] = [
+ { type: 0, label: 'COMMON', chance: 70, color: '#9AA0AC' },
+ { type: 1, label: 'RARE', chance: 25, color: '#ED8A45' },
+ { type: 2, label: 'EPIC', chance: 5, color: '#FFC94A' },
+]

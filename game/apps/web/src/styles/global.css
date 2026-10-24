@@ -163,10 +163,6 @@ button:disabled {
   width: 100%;
   max-width: 480px;
   min-height: 100vh;
-  /* Responsive layouts must follow the phone shell, not the desktop viewport
-     surrounding it. The shell stays phone-sized on desktop previews. */
-  container-type: inline-size;
-  container-name: app-shell;
   margin: 0 auto;
   background: linear-gradient(180deg, #1C120B 0%, #130C07 50%, #0A0604 100%);
   border-left: 1px solid rgba(255, 214, 170, 0.12);
@@ -193,7 +189,7 @@ button:disabled {
   margin-bottom: 12px;
 }
 
-@container app-shell (max-width: 420px) {
+@media (max-width: 420px) {
   .header-stats-grid {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -206,7 +202,7 @@ button:disabled {
   position: relative;
 }
 
-@container app-shell (max-width: 380px) {
+@media (max-width: 380px) {
   .main-screen-container {
     padding: 14px 10px;
     padding-bottom: 130px;

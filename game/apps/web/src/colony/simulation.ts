@@ -38,10 +38,12 @@ export const CATALOG: Record<ModuleKind, { credits: number; wearDay: number; fil
   rover: { credits: 180, wearDay: 0.6, file: 'rover.glb', color: '#e89b6e' },
   workshop: { credits: 140, wearDay: 0.2, file: 'workshop.glb', color: '#adabc8' },
   battery: { credits: 90, wearDay: 0.15, file: 'battery.glb', color: '#d3be85' },
-  extractor: { credits: 160, wearDay: 0.55, file: 'extractor.glb', color: '#c98f5f' },
-  depot: { credits: 70, wearDay: 0.1, file: 'depot.glb', color: '#9aa3ad' },
-  purifier: { credits: 130, wearDay: 0.35, file: 'purifier.glb', color: '#6fb6d8' },
-  lab: { credits: 200, wearDay: 0.25, file: 'lab.glb', color: '#b8a6d9' },
+  // Reuse the nearest bundled CC0/NASA visual until dedicated assets are licensed and pinned.
+  // These aliases keep the retired simulator's full catalog loadable without inventing provenance.
+  extractor: { credits: 160, wearDay: 0.55, file: 'rover.glb', color: '#c98f5f' },
+  depot: { credits: 70, wearDay: 0.1, file: 'habitat.glb', color: '#9aa3ad' },
+  purifier: { credits: 130, wearDay: 0.35, file: 'recycler.glb', color: '#6fb6d8' },
+  lab: { credits: 200, wearDay: 0.25, file: 'workshop.glb', color: '#b8a6d9' },
 }
 export const MODULE_KINDS = Object.keys(CATALOG) as ModuleKind[]
 export const SLOTS = Array.from({ length: 24 }, (_, index) => ({

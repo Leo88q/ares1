@@ -59,7 +59,7 @@ createRoot(document.getElementById('root')).render(<div className="pf-phone-chas
     nodePaths: [resolve(src, '../../../node_modules')],
     plugins: [{ name: 'local-provider-spies', setup(builder) {
       builder.onResolve({ filter: /contexts\/(GameContext|SolanaContext)$/ }, args => ({ path: args.path.endsWith('GameContext') ? game : solana }))
-      builder.onResolve({ filter: /\.\/(PresaleSection|Header)$/ }, () => ({ path: blank }))
+      builder.onResolve({ filter: /\.\/(PresaleSection|Header|CaseReveal)$/ }, () => ({ path: blank }))
       builder.onResolve({ filter: /^\/(ares|sfx|models)\// }, args => ({ path: args.path, external: true }))
     } }],
   })

@@ -9,7 +9,7 @@ import { useToast } from '../components/Toast'
  import {
  decodeField, pdas,
  ixCreateField, ixHarvest, ixRepairField, ixUpgradeField, ixPayTax, ixApplyFertilizer,
- ixBatchHarvest, ixCloseField, SKR_MINT,
+ ixBuyFieldSkr, ixBatchHarvest, ixCloseField, SKR_MINT, treasurySkrAta, buybackSkrAta, presaleStatePda, buyerPresalePda, treasurySolPda,
  potatoAta, decodeExportLicense,
  achievementsPda, questTreasuryPda, decodeAchievementsBitmap, ixClaimAchievement, QUEST_REWARDS_MICRO,
 } from '../utils/anchorClient'
@@ -67,6 +67,7 @@ export interface GameContextType {
  closeField: (field: PublicKey) => Promise<boolean>
  ensureLut: () => Promise<string | null>
  purchaseField: (fieldType: number) => Promise<boolean>
+ buyFieldPresale: () => Promise<number | null>
  upgradeField: (field: PublicKey) => Promise<boolean>
  repairField: (field: PublicKey) => Promise<boolean>
  payTax: (field: PublicKey) => Promise<boolean>
@@ -271,6 +272,69 @@ export function GameProvider({ children }: { children: ReactNode }) {
    }
   },
   [config, publicKey, ready, requireBalance, runTx, ownAta, programId, notify],
+ )
+
+ const buyFieldPresale = useCallback(
+  async (): Promise<number | null> => {
+   if (!config || !publicKey || !ready) {
+    notify('warning', t('Игра ещё загружается'), t('Подожди пару секунд.'))
+    return null
+   }
+   const skrMint = (config.skrMint as unknown as PublicKey) ?? SKR_MINT
+   const buyerSkrAta = getAssociatedTokenAddressSync(skrMint, publicKey)
+   try {
+    const skrBal = await withRetry(() => connection.getTokenAccountBalance(buyerSkrAta))
+    const need = 1_053_000_000n
+    if (BigInt(skrBal.value.amount) < need) {
+     notify('warning', t('Недостаточно SKR'), t('Нужно 1053 SKR, у тебя {have} SKR.', { have: (Number(BigInt(skrBal.value.amount)) / 1e6).toFixed(0) }))
+     return null
+    }
+   } catch {
+    notify('error', t('SKR недоступны'), t('Mint SKR не найден на этом кластере — пресейл за SKR сейчас отключён.'))
+    return null
+   }
+   if (solBalance < 0.02) {
+    notify('warning', t('Недостаточно SOL'), t('Нужно ~0.02 SOL на rent и комиссию сети.'))
+    return null
+   }
+   setPurchasing(true)
+   try {
+    const fieldId = randomU64()
+    const { config: configPda, field } = pdas(programId)
+    const ataIx = createAssociatedTokenAccountIdempotentInstruction(publicKey, buyerSkrAta, publicKey, skrMint)
+    const ix = await ixBuyFieldSkr(programId, {
+     config: configPda(),
+     presaleState: presaleStatePda(programId),
+     authority: config.authority,
+     buyerPresale: buyerPresalePda(programId, publicKey),
+     field: field(fieldId),
+     buyer: publicKey,
+     treasurySol: treasurySolPda(programId),
+     skrMint,
+     buyerSkrAta,
+     treasurySkrAta: treasurySkrAta(programId, skrMint),
+     buybackSkrAta: buybackSkrAta(config.authority, skrMint),
+     fieldId,
+    })
+    await sendIx([ataIx, ix])
+    await refreshAll()
+    try {
+     const info = await withRetry(() => connection.getAccountInfo(field(fieldId)))
+     if (info) {
+      const tier = info.data[67]
+      notify('success', t('Модуль получен'), t('On-chain дроп: {tier}', { tier: ['COMMON', 'RARE', 'EPIC'][tier] ?? 'COMMON' }))
+      return tier
+     }
+    } catch { /* ignore */ }
+    return null
+   } catch (err) {
+    notify('error', t('Не удалось купить растение за SKR'), describeError(err))
+    return null
+   } finally {
+    setPurchasing(false)
+   }
+  },
+  [config, publicKey, ready, solBalance, sendIx, refreshAll, programId, notify, connection],
  )
 
  const harvest = useCallback(
@@ -551,11 +615,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
    fields, stats, solBalance, loading, fieldsError, purchasing, claimed,
    licenseExpiresAt, licenseActive, batchLimit,
    harvest, batchHarvest, closeField, ensureLut,
-   purchaseField, upgradeField, repairField, payTax, applyFertilizer,
+   purchaseField, buyFieldPresale, upgradeField, repairField, payTax, applyFertilizer,
    claimReward, airdropSol, sendPotato, sendSol, reload: loadFields,
   }),
   [fields, stats, solBalance, loading, fieldsError, purchasing, claimed, licenseExpiresAt, licenseActive, batchLimit,
-   harvest, batchHarvest, closeField, ensureLut, purchaseField, upgradeField, repairField,
+   harvest, batchHarvest, closeField, ensureLut, purchaseField, buyFieldPresale, upgradeField, repairField,
    payTax, applyFertilizer, claimReward, airdropSol, sendPotato, sendSol, loadFields],
  )
 

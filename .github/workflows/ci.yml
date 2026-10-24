@@ -393,25 +393,14 @@ jobs:
         run: |
           export CHROMIUM_EXECUTABLE_PATH="$(node -e "console.log(require('playwright-core').chromium.executablePath())")"
           export CHROMIUM_ARGS_JSON='["--no-sandbox","--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist"]'
-          run_browser_test() {
-            local test="$1" log="/tmp/${1//:/-}.log" detail
-            if yarn workspace web "$test" >"$log" 2>&1; then
-              cat "$log"
-              return 0
-            fi
-            cat "$log"
-            detail="$(tail -n 40 "$log" | sed 's/%/%25/g; s/\r/%0D/g; $!s/$/%0A/' | tr -d '\n')"
-            echo "::error title=${test} failed::${detail}"
-            return 1
-          }
-          run_browser_test test:colony-browser
-          run_browser_test test:networks-browser
-          run_browser_test test:colony-performance
-          run_browser_test test:engineering-browser
-          run_browser_test test:fields-browser
-          run_browser_test test:lab-browser
-          run_browser_test test:sections-browser
-          run_browser_test test:tap-audit
+          yarn workspace web test:colony-browser
+          yarn workspace web test:networks-browser
+          yarn workspace web test:colony-performance
+          yarn workspace web test:engineering-browser
+          yarn workspace web test:fields-browser
+          yarn workspace web test:lab-browser
+          yarn workspace web test:sections-browser
+          yarn workspace web test:tap-audit
       - name: Extended colony memory soak (manual CI only)
         if: github.event_name == 'workflow_dispatch'
         run: |

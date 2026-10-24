@@ -551,11 +551,154 @@ export function decodeExportLicense(data: Buffer): DecodedExportLicense {
 }
 
 
+// ─────────────────────────── Presale (SOL) ───────────────────────────
+
+const U32LE = (v: number) => {
+ const b = Buffer.alloc(4)
+ b.writeUInt32LE(v >>> 0)
+ return b
+}
+
+export function presaleStatePda(programId: PublicKey): PublicKey {
+ return PublicKey.findProgramAddressSync([Buffer.from('presale')], programId)[0]
+}
+
+export function buyerPresalePda(programId: PublicKey, buyer: PublicKey): PublicKey {
+ return PublicKey.findProgramAddressSync([Buffer.from('buyer_presale'), buyer.toBuffer()], programId)[0]
+}
+
+export function treasurySkrAta(programId: PublicKey, skrMint: PublicKey): PublicKey {
+  const treasurySol = treasurySolPda(programId)
+  return getAssociatedTokenAddressSync(skrMint, treasurySol, true) // allowOwnerOffcurve = true для PDA
+}
+export function buybackSkrAta(authority: PublicKey, skrMint: PublicKey): PublicKey {
+  return getAssociatedTokenAddressSync(skrMint, authority, true) // allowOwnerOffcurve = true для PDA
+}
+
+export function treasurySolPda(programId: PublicKey): PublicKey {
+ return PublicKey.findProgramAddressSync([Buffer.from('treasury_sol')], programId)[0]
+}
+
+export async function ixInitPresale(programId: PublicKey, params: {
+ config: PublicKey; presaleState: PublicKey; authority: PublicKey; cap: number; priceLamports: bigint
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('init_presale'), U32LE(params.cap), u64LE(params.priceLamports))
+ const keys = [
+  { pubkey: params.config, isSigner: false, isWritable: false },
+  { pubkey: params.presaleState, isSigner: false, isWritable: true },
+  { pubkey: params.authority, isSigner: true, isWritable: true },
+  { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
+
 /**
- * User-facing SKR field purchases, export-license purchases, and presale
- * transaction builders are intentionally absent from the web client until an
- * approved launch. Existing license accounts remain readable via decodeExportLicense.
+ * priceLamports == 0 — аварийная остановка пресейла (применяется сразу).
+ * priceLamports > 0 — предложение: применяется через ixApplyPendingPresalePrice
+ * после 24-часового тимелока.
  */
+export async function ixUpdatePresalePrice(programId: PublicKey, params: {
+ config: PublicKey; presaleState: PublicKey; adminState: PublicKey; authority: PublicKey; priceLamports: bigint
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('update_presale_price'), u64LE(params.priceLamports))
+ const keys = [
+  { pubkey: params.config, isSigner: false, isWritable: false },
+  { pubkey: params.presaleState, isSigner: false, isWritable: true },
+  { pubkey: params.adminState, isSigner: false, isWritable: true },
+  { pubkey: params.authority, isSigner: true, isWritable: true },
+  { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
+
+export async function ixApplyPendingPresalePrice(programId: PublicKey, params: {
+ config: PublicKey; presaleState: PublicKey; adminState: PublicKey; authority: PublicKey
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('apply_pending_presale_price'))
+ const keys = [
+  { pubkey: params.config, isSigner: false, isWritable: false },
+  { pubkey: params.presaleState, isSigner: false, isWritable: true },
+  { pubkey: params.adminState, isSigner: false, isWritable: true },
+  { pubkey: params.authority, isSigner: true, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
+
+export async function ixBuyFieldSol(programId: PublicKey, params: {
+ config: PublicKey; presaleState: PublicKey; authority: PublicKey; buyerPresale: PublicKey;
+ field: PublicKey; buyer: PublicKey; treasurySol: PublicKey; fieldId: bigint; fieldType: number;
+ /** Slippage-guard: цена масштабируется типом поля (0.4× / 1× / 2× price_lamports). */
+ maxTotalLamports: bigint
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('buy_field_sol'), u64LE(params.fieldId), u8(params.fieldType), u64LE(params.maxTotalLamports))
+ const keys = [
+  { pubkey: params.config, isSigner: false, isWritable: true },
+  { pubkey: params.presaleState, isSigner: false, isWritable: true },
+  { pubkey: params.authority, isSigner: false, isWritable: false },
+  { pubkey: params.buyerPresale, isSigner: false, isWritable: true },
+  { pubkey: params.field, isSigner: false, isWritable: true },
+  { pubkey: params.buyer, isSigner: true, isWritable: true },
+  { pubkey: params.treasurySol, isSigner: false, isWritable: true },
+  { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
+
+
+export async function ixBuyFieldSkr(programId: PublicKey, params: {
+  config: PublicKey; presaleState: PublicKey; authority: PublicKey; buyerPresale: PublicKey;
+  field: PublicKey; buyer: PublicKey; treasurySol: PublicKey;
+  skrMint: PublicKey; buyerSkrAta: PublicKey; treasurySkrAta: PublicKey; buybackSkrAta: PublicKey;
+  fieldId: bigint;
+}): Promise<TransactionInstruction> {
+  // Тир поля кидает программа (keccak(buyer ‖ sold ‖ slot)): аргумента типа нет.
+  const data = concatBytes(await ixDiscriminator('buy_field_skr'), u64LE(params.fieldId))
+  return new TransactionInstruction({
+    programId,
+    data,
+    keys: [
+      { pubkey: params.config, isSigner: false, isWritable: true },
+      { pubkey: params.presaleState, isSigner: false, isWritable: true },
+      { pubkey: params.authority, isSigner: false, isWritable: false },
+      { pubkey: params.buyerPresale, isSigner: false, isWritable: true },
+      { pubkey: params.field, isSigner: false, isWritable: true },
+      { pubkey: params.buyer, isSigner: true, isWritable: true },
+      { pubkey: params.skrMint, isSigner: false, isWritable: false },
+      { pubkey: params.buyerSkrAta, isSigner: false, isWritable: true },
+      { pubkey: params.treasurySol, isSigner: false, isWritable: true },
+      { pubkey: params.treasurySkrAta, isSigner: false, isWritable: true },
+      { pubkey: params.buybackSkrAta, isSigner: false, isWritable: true },
+      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      // Энтропия drop-roll'а: SlotHashes[0] неизвестен покупателю при подписании.
+      { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
+    ],
+  })
+}
+
+export async function ixBuyExportLicense(programId: PublicKey, params: {
+ config: PublicKey; license: PublicKey; payer: PublicKey;
+ skrMint: PublicKey; userSkrAta: PublicKey;
+ treasurySol: PublicKey; treasurySkrAta: PublicKey;
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('buy_export_license'))
+ return new TransactionInstruction({
+  programId,
+  data,
+  keys: [
+   { pubkey: params.config, isSigner: false, isWritable: false },
+   { pubkey: params.license, isSigner: false, isWritable: true },
+   { pubkey: params.payer, isSigner: true, isWritable: true },
+   { pubkey: params.skrMint, isSigner: false, isWritable: false },
+   { pubkey: params.userSkrAta, isSigner: false, isWritable: true },
+   { pubkey: params.treasurySol, isSigner: false, isWritable: true },
+   { pubkey: params.treasurySkrAta, isSigner: false, isWritable: true },
+   { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+   { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+   { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+  ],
+ })
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Migration helpers (devnet v1 → v2)

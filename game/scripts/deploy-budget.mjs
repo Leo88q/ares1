@@ -55,11 +55,6 @@ export const CONSTANTS = Object.freeze({
  * Разовые аккаунты шага init-onchain (scripts/init-onchain.ts) — размеры данных
  * из раскладок ABI, не из ставки rent. Порядок и состав — по шагам скрипта.
  */
-export const SETUP_CORE_ACCOUNTS = Object.freeze([
-  { key: 'potato_mint', space: 82n, note: 'MINT_SIZE (SPL Token, 6 decimals)' },
-  { key: 'game_config', space: 260n, note: 'GameConfig PDA' },
-  { key: 'epoch0', space: 49n, note: 'Epoch PDA' },
-]);
 export const SETUP_ACCOUNTS = Object.freeze([
   { key: 'potato_mint', space: 82n, note: 'MINT_SIZE (SPL Token, 6 decimals)' },
   { key: 'game_config', space: 260n, note: 'GameConfig PDA' },
@@ -346,12 +341,10 @@ async function accountExists(url, programId, name) {
  * Неизвестные (mint создаётся новым keypair'ом, PDA-хранилища, ATA) берутся по
  * худшему случаю; SETUP_ONCHAIN_LAMPORTS переопределяет результат измерением.
  */
-export async function estimateSetupOnchain({ rent, url, programId, profile = 'full' }) {
-  if (!['core', 'full'].includes(profile)) throw new Error(`Неизвестный профиль init-onchain: ${profile}`);
-  const accounts = profile === 'core' ? SETUP_CORE_ACCOUNTS : SETUP_ACCOUNTS;
+export async function estimateSetupOnchain({ rent, url, programId }) {
   let total = 0n;
   const parts = [];
-  for (const account of accounts) {
+  for (const account of SETUP_ACCOUNTS) {
     const amount = rent(account.space);
     parts.push(`${account.key}=${amount}`);
     total += amount;
@@ -363,14 +356,20 @@ export async function estimateSetupOnchain({ rent, url, programId, profile = 'fu
       const [config, epoch, presale, skr] = await Promise.all([
         accountExists(url, programId, 'GameConfig'),
         accountExists(url, programId, 'Epoch'),
-        profile === 'full' ? accountExists(url, programId, 'PresaleState') : Promise.resolve(false),
-        profile === 'full' ? rpcCall(url, 'getAccountInfo', [skrMint, { encoding: 'base64', dataSlice: { offset: 0, length: 0 } }]).then((r) => Boolean(r?.value)) : Promise.resolve(false),
+        accountExists(url, programId, 'PresaleState'),
+        rpcCall(url, 'getAccountInfo', [skrMint, { encoding: 'base64', dataSlice: { offset: 0, length: 0 } }]).then((r) => Boolean(r?.value)),
       ]);
+      const discount = [
+        ['GameConfig', 260n, config],
+        ['Epoch', 49n, epoch],
+        ['PresaleState', 57n, presale],
+        ['skr_atas', 0n, skr],
+      ];
       let removed = 0n;
       if (config) removed += rent(260n);
       if (epoch) removed += rent(49n);
-      if (profile === 'full' && presale) removed += rent(57n);
-      skrPresent = profile === 'full' && skr;
+      if (presale) removed += rent(57n);
+      skrPresent = skr;
       if (skrPresent) {
         // Верхняя оценка уже включает 1 ATA; SKR добавляет ещё две.
         const extra = SETUP_SKR_ATAS.reduce((acc, a) => acc + rent(a.space), 0n);
@@ -379,17 +378,11 @@ export async function estimateSetupOnchain({ rent, url, programId, profile = 'fu
       }
       total -= removed;
       if (removed > 0n) parts.push(`existing=-${removed}`);
+      void discount;
     } catch (error) {
-      // Если RPC не позволяет проверить наличие SKR mint, в full-профиле
-      // считаем обе SKR ATA, чтобы не занизить оценку.
-      if (profile === 'full') {
-        const extra = SETUP_SKR_ATAS.reduce((acc, a) => acc + rent(a.space), 0n);
-        total += extra;
-        parts.push(`skr_atas=worst-case+${extra}`);
-      }
       parts.push(`onchain-check-failed=${error.message.slice(0, 80)}`);
     }
-  } else if (profile === 'full' && skrPresent) {
+  } else if (skrPresent) {
     const extra = SETUP_SKR_ATAS.reduce((acc, a) => acc + rent(a.space), 0n);
     total += extra;
     parts.push(`skr_atas=+${extra}`);
@@ -407,7 +400,6 @@ function parseArgs(argv) {
       case '--so': args.so = next(); break;
       case '--so-len': args.soLen = BigInt(next()); break;
       case '--rpc': args.rpc = next(); break;
-      case '--cluster': args.cluster = next(); break;
       case '--deployer': args.deployer = next(); break;
       case '--mode': args.mode = next(); break;
       case '--simd0433-active': args.simd0433Active = true; break;
@@ -415,7 +407,6 @@ function parseArgs(argv) {
       case '--cur-cap': args.curCap = BigInt(next()); break;
       case '--programdata-lamports': args.programDataLamports = BigInt(next()); break;
       case '--setup-lamports': args.setupLamports = BigInt(next()); break;
-      case '--setup-profile': args.setupProfile = next(); break;
       case '--json': args.json = true; break;
       case '--explain': args.explain = true; break;
       case '--help': args.help = true; break;
@@ -430,7 +421,6 @@ const HELP = `deploy-budget — расчёт минимального балан
   --so <путь>            .so (размер берётся из файла); по умолчанию target/deploy/solana_potato.so
   --so-len <n>           размер .so в байтах (вместо --so)
   --rpc <url>            RPC (по умолчанию из scripts/rent-audit.config.json или RPC_URL)
-  --cluster <name>       devnet|mainnet-beta; проверяет genesis hash (mainnet требует явный --rpc)
   --deployer <pubkey>    кошелёк деплоера (по умолчанию из конфига)
   --mode <режим>         auto|new|upgrade|init-only (auto — по состоянию кластера)
   --simd0433-active      ProgramData подгоняется под размер ELF (по умолчанию выкл.)
@@ -450,8 +440,6 @@ async function main() {
     return 0;
   }
   const config = loadConfig();
-  if (args.cluster && !['devnet', 'mainnet-beta'].includes(args.cluster)) throw new Error('--cluster должен быть devnet или mainnet-beta');
-  if (args.cluster === 'mainnet-beta' && !args.rpc && !process.env.RPC_URL) throw new Error('Для mainnet-beta укажите явный --rpc; конфиг по умолчанию devnet');
   const rpc = args.rpc ?? process.env.RPC_URL ?? config.rpc ?? 'https://api.devnet.solana.com';
   const deployer = args.deployer ?? config.deployer;
   const programId = process.env.PROGRAM_ID ?? config.programId;
@@ -462,7 +450,6 @@ async function main() {
     soLen = BigInt(readFileSync(soPath).length);
   }
   const offline = args.offlineRate !== undefined;
-  if (offline && args.cluster) throw new Error('--cluster несовместим с --offline-rate: тестовый расчёт не является кластерным quote');
   let rate;
   let genesisHash = null;
   let slot = null;
@@ -472,8 +459,6 @@ async function main() {
   } else {
     ({ rate } = await fetchRate(rpc));
     genesisHash = await rpcCall(rpc, 'getGenesisHash', []);
-    const expectedGenesis = args.cluster === 'mainnet-beta' ? '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' : args.cluster === 'devnet' ? 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG' : null;
-    if (expectedGenesis && genesisHash !== expectedGenesis) throw new Error(`RPC genesis ${genesisHash} не соответствует --cluster ${args.cluster}`);
     slot = await rpcCall(rpc, 'getSlot', []);
   }
   const rent = makeRentFn(rpc, rate, offline);
@@ -500,8 +485,8 @@ async function main() {
   const rentSizes = new Set([
     0n,
     CONSTANTS.PROGRAM_ACC,
-    ...(args.setupProfile === 'core' ? SETUP_CORE_ACCOUNTS : SETUP_ACCOUNTS).map((account) => account.space),
-    ...(args.setupProfile === 'core' ? [] : SETUP_SKR_ATAS.map((account) => account.space)),
+    ...SETUP_ACCOUNTS.map((account) => account.space),
+    ...SETUP_SKR_ATAS.map((account) => account.space),
   ]);
   if (mode === 'new') {
     rentSizes.add(CONSTANTS.PROGRAMDATA_META + soLen + growthHeadroomBytes);
@@ -539,7 +524,7 @@ async function main() {
   } else if (process.env.SETUP_ONCHAIN_LAMPORTS) {
     setup = { total: parseLamports(process.env.SETUP_ONCHAIN_LAMPORTS, 'SETUP_ONCHAIN_LAMPORTS'), parts: ['env'] };
   } else {
-    setup = await estimateSetupOnchain({ rent, url: offline ? null : rpc, programId, profile: args.setupProfile ?? 'full' });
+    setup = await estimateSetupOnchain({ rent, url: offline ? null : rpc, programId });
   }
 
   const reserveLamports = solToLamports(process.env.RESERVE_SOL ?? '0.30');
@@ -581,7 +566,6 @@ async function main() {
           peak: jsonSafe(result.peak),
           fees: jsonSafe(fees),
           minRemaining: jsonSafe(result.minRemaining),
-          setupProfile: args.setupProfile ?? 'full',
           setupOnchain: jsonSafe(setup.total),
           setupParts: setup.parts,
           reserve: jsonSafe(reserveLamports),
@@ -612,7 +596,6 @@ async function main() {
       ['PEAK', result.peak.toString()],
       ['FEES', fees.toString()],
       ['MIN_REMAINING', result.minRemaining.toString()],
-      ['SETUP_PROFILE', args.setupProfile ?? 'full'],
       ['SETUP_ONCHAIN', setup.total.toString()],
       ['RESERVE', reserveLamports.toString()],
       ['NEED_BEFORE_RESERVE', result.needBeforeReserve.toString()],

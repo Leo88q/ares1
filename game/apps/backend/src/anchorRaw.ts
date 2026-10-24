@@ -113,41 +113,6 @@ export function decodeGameConfig(data: Buffer): GameConfig {
   };
 }
 
-export interface DecodedField {
-  owner: PublicKey;
-  level: number;
-  durability: number;
-  lastHarvest: bigint;
-  taxPaidUntil: bigint;
-  fertilizerUntil: bigint;
-  isActive: boolean;
-  fieldType: number;
-  bump: number;
-  mutationType: number;
-}
-
-/** Decode the deployed Anchor Field account layout (fixed 70-byte account). */
-export function decodeField(data: Buffer): DecodedField {
-  validateAccount(data, "Field", [70]);
-  let o = 8;
-  const owner = readPubkey(data, o); o = owner.next;
-  const level = readU8(data, o); o = level.next;
-  const durability = readU8(data, o); o = durability.next;
-  const lastHarvest = readI64(data, o); o = lastHarvest.next;
-  const taxPaidUntil = readI64(data, o); o = taxPaidUntil.next;
-  const fertilizerUntil = readI64(data, o); o = fertilizerUntil.next;
-  const isActive = readBool(data, o); o = isActive.next;
-  const fieldType = readU8(data, o); o = fieldType.next;
-  const bump = readU8(data, o); o = bump.next;
-  const mutationType = readU8(data, o);
-  return {
-    owner: owner.value, level: level.value, durability: durability.value,
-    lastHarvest: lastHarvest.value, taxPaidUntil: taxPaidUntil.value,
-    fertilizerUntil: fertilizerUntil.value, isActive: isActive.value,
-    fieldType: fieldType.value, bump: bump.value, mutationType: mutationType.value,
-  };
-}
-
 export interface EpochAccount {
   id: bigint;
   mintCapMicro: bigint;

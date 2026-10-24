@@ -23,12 +23,32 @@ import {
   ChevronDown,
   Menu,
   X, Play} from "lucide-react";
+import { PublicKey, Transaction } from "@solana/web3.js";
+import {
+  createAssociatedTokenAccountIdempotentInstruction,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
+import { useLandingWallet } from "./hooks/useLandingWallet";
 import { useLiveChain } from "./hooks/useLiveChain";
+import {
+  SKR_MINT,
+  buybackSkrAta,
+  buyerPresalePda,
+  decodeConfig,
+  ixBuyFieldSkr,
+  pdas,
+  presaleStatePda,
+  randomU64,
+  treasurySkrAta,
+  treasurySolPda,
+} from "./utils/anchorClient";
 import { LiquidPanelBorder } from "./LiquidPanel";
 import type { LiquidPanelVariant } from "./LiquidPanel";
 import { MorphButton } from "./MorphButton";
+import { Glyph } from "./Glyph";
 import { InterstellarSection } from "./InterstellarBridge";
 import { LivingPhobos } from "./LivingPhobos";
+import { RarityModules } from "./RarityModules";
 import { PresaleBanner } from "./PresaleBanner";
 import { TokenReactor } from "./TokenReactor";
 import { GamificationHud } from "./GamificationHud";
@@ -42,6 +62,7 @@ import {
   MotionIcon,
   RollingNumber,
   ScrollRocket,
+  SparkProgress,
 } from "./MicroMotion";
 import { SoundToggle } from "./SoundToggle";
 import { CookieConsent, openCookieSettings } from "./CookieConsent";
@@ -53,6 +74,8 @@ import {
   faq,
   features,
   gameConfig,
+
+  presale,
   roadmap,
   siteContent,
   tokenCycle,
@@ -427,6 +450,79 @@ function Cursor(): JSX.Element | null {
 }
 
 
+function WalletButton(): JSX.Element {
+  const { connected, publicKey, balanceSkr, connect, disconnect, connecting } = useLandingWallet();
+  useI18n();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  if (connecting) {
+    return (
+      <button className="morph-button morph-button--header" disabled>
+        <span className="wallet-full">{t("Подключение…")}</span>
+        <span className="wallet-short"><Glyph name="wallet" size={13} /> …</span>
+      </button>
+    );
+  }
+
+  if (!connected || !publicKey) {
+    return (
+      <button onClick={() => { void connect(); }} className="morph-button morph-button--header">
+        <span className="wallet-full">{t("Подключить кошелёк")}</span>
+        <span className="wallet-short"><Glyph name="wallet" size={13} /> {t("Кошелёк")}</span>
+      </button>
+    );
+  }
+
+  const addr = publicKey.toBase58();
+  const short = addr.slice(0, 4) + "…" + addr.slice(-4);
+  const balance = (Number(balanceSkr) / 1e6).toFixed(2);
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        onClick={() => setMenuOpen(!menuOpen)}
+        className="morph-button morph-button--header"
+      >
+        <span className="wallet-full">{short} · {balance} SKR</span>
+        <span className="wallet-short">{short}</span>
+      </button>
+      {menuOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            right: 0,
+            background: "rgba(18,18,26,0.97)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 10,
+            padding: "12px 14px",
+            minWidth: 200,
+            zIndex: 1200,
+            fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+          }}
+        >
+          <div style={{ fontSize: 11, opacity: 0.85, marginBottom: 10, wordBreak: "break-all" }}>{addr}</div>
+          <button
+            onClick={() => { void disconnect(); setMenuOpen(false); }}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              background: "rgba(255,255,255,0.08)",
+              border: "none",
+              borderRadius: 6,
+              color: "inherit",
+              cursor: "pointer",
+              fontSize: 12,
+            }}
+          >
+            {t("Отключить")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Header({ notify }: { readonly notify: Notify }): JSX.Element {
   const [scrolled, setScrolled] = useState(false);
   useI18n();
@@ -480,6 +576,7 @@ function Header({ notify }: { readonly notify: Notify }): JSX.Element {
             <span className="status-dot" />
             DEVNET
           </span>
+          <WalletButton />
           <button
             className="menu-toggle"
             onClick={() => setOpen(!open)}
@@ -651,59 +748,216 @@ function MarsScene({
   );
 }
 
+function FlipValue({
+  value,
+  label,
+}: {
+  readonly value: string;
+  readonly label: string;
+}): JSX.Element {
+  const reduced = usePrefersReducedMotion();
+
+  return (
+    <div className="flip-unit">
+      <div className="flip-window">
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span
+            key={value}
+            initial={{ rotateX: reduced ? 0 : -85, opacity: 0 }}
+            animate={{ rotateX: 0, opacity: 1 }}
+            exit={{ rotateX: reduced ? 0 : 85, opacity: 0 }}
+            transition={{ duration: reduced ? 0.15 : 0.3 }}
+          >
+            {value}
+          </motion.span>
+        </AnimatePresence>
+      </div>
+      <small>{label}</small>
+    </div>
+  );
+}
+
+function Countdown(): JSX.Element {
+  const configuredEnd: string | null = presale.endsAt;
+  useI18n();
+  const end = configuredEnd === null ? NaN : Date.parse(configuredEnd);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!Number.isFinite(end)) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      if (!document.hidden) {
+        setNow(Date.now());
+      }
+    }, 1000);
+
+    function refresh(): void {
+      if (!document.hidden) {
+        setNow(Date.now());
+      }
+    }
+
+    refresh();
+    document.addEventListener("visibilitychange", refresh);
+
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [end]);
+
+  if (!Number.isFinite(end)) {
+    return (
+      <p className="countdown-note">
+        <span className="status-dot status-dot--amber" />
+        {SC.hero.countdownUnavailable}
+      </p>
+    );
+  }
+
+  const seconds = Math.max(0, Math.floor((end - now) / 1000));
+  const units = [
+    { value: Math.floor(seconds / 86400), label: t("дни") },
+    { value: Math.floor((seconds % 86400) / 3600), label: t("часы") },
+    { value: Math.floor((seconds % 3600) / 60), label: t("минуты") },
+    { value: seconds % 60, label: t("секунды") },
+  ];
+
+  return (
+    <div className="countdown">
+      <p>
+        {seconds === 0
+          ? SC.hero.countdownEnded
+          : SC.hero.countdownLabel}
+      </p>
+      <div className="flip-timer" role="timer" aria-live="off">
+        {units.map((unit) => (
+          <FlipValue
+            key={unit.label}
+            value={String(unit.value).padStart(2, "0")}
+            label={unit.label}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Hero(): JSX.Element {
   const ref = useRef<HTMLElement>(null);
   useI18n();
   const title = useTypewriter({ text: SC.hero.title });
+  const live = useLiveChain();
+  const sold = live.online ? live.sold : 0;
 
   return (
     <section ref={ref} id="hero" className="hero" aria-labelledby="hero-title">
       <MarsScene target={ref} />
+
       <div className="container hero-inner">
         <div className="hero-content">
           <Reveal>
             <div className="hero-badge">
               <span className="status-dot" />
-              {t("ARES-1 · DEVNET FIELD GAME")}
-              <span className="badge-code">BETA</span>
+              {t("ПЕРВАЯ КАРТОФЕЛЬНАЯ КОЛОНИЯ")}
+              <span className="badge-code">2031</span>
             </div>
           </Reveal>
+
           <h1 id="hero-title" className="hero-title">
             <span className="sr-only">{SC.hero.title}</span>
-            <span className="typewriter-reserve" aria-hidden="true">{SC.hero.title}</span>
+            <span className="typewriter-reserve" aria-hidden="true">
+              {SC.hero.title}
+            </span>
             <span className="typewriter-visible" aria-hidden="true">
-              {title.displayedText}{!title.isComplete && <span className="type-caret" />}
+              {title.displayedText}
+              {!title.isComplete && <span className="type-caret" />}
             </span>
           </h1>
+
           <Reveal delay={0.15}>
-            <p className="hero-description">
-              {t("ARES-1 сейчас — devnet-бета с реальными on-chain-полями и действиями. Пресейл за SKR закрыт; строительство колонии пока не подключено.")}
-            </p>
+            <p className="hero-description">{SC.hero.subtitle}</p>
           </Reveal>
+
           <Reveal className="hero-actions" delay={0.25}>
-            <a className="cta-play" href={PC.url} target="_blank" rel="noopener noreferrer">
-              <Play size={18} aria-hidden="true" />{t("ОТКРЫТЬ DEVNET-БЕТУ")}
+            <a
+              className="cta-play"
+              href={PC.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Play size={18} aria-hidden="true" />
+              {PC.label}
             </a>
-            <a className="cta-buy" href="#launch-status">{t("СТАТУС ПОКУПКИ")}</a>
+            <a
+              className="cta-buy"
+              href={SC.hero.primaryHref}
+            >
+              {SC.hero.primaryCta}
+            </a>
           </Reveal>
+
+          <Reveal className="presale-panel" delay={0.35} panel="accent">
+            <div className="presale-top">
+              <span>{t("ПЕРВАЯ ВОЛНА · LIVE")}</span>
+              <span>
+                <strong>
+                  <RollingNumber value={sold} />
+                </strong>
+                {" / "}
+                <RollingNumber value={live.online ? live.cap : presale.supply} />
+              </span>
+            </div>
+
+            <SparkProgress
+              value={sold}
+              max={live.online ? live.cap : presale.supply}
+              label={SC.hero.progressLabel}
+              valueText={
+                live.online
+                  ? t("{n} модулей продано", { n: `${sold} / ${live.online ? live.cap : presale.supply}` })
+                  : t("подключение к devnet…")
+              }
+              color="#FF2E93"
+            />
+
+            <div className="presale-bottom">
+              <span>
+                {live.online ? t("данные с devnet-цепи") : t("ожидание ответа RPC")}
+              </span>
+              <strong>{t("1 053 SKR / модуль")}</strong>
+            </div>
+            <Countdown />
+          </Reveal>
+
           <p className="hero-habitat-note">
             {t("Внутри купола — шесть гидропонных кассет: ростки, листва и клубни. Дрон показывает цикл осмотра.")}
             {t("Сцена иллюстративная, не телеметрия твоей фермы.")}
           </p>
         </div>
+
         <div className="hero-side-label" aria-hidden="true">
-          {t("ДОЛИНА МАРИНЕРА")}<span>{t("14° Ю. Ш. · МАРС")}</span>
+          {t("ДОЛИНА МАРИНЕРА")}
+          <span>{t("14° Ю. Ш. · МАРС")}</span>
         </div>
+
         <div className="hero-bottom">
-          <p><span className="status-dot" />SOLANA DEVNET</p>
+          <p>
+            <span className="status-dot" />
+            SOLANA DEVNET
+          </p>
           <span>{t("ИСХОДНИКИ ОТКРЫТЫ · ПРОГРАММА ОБНОВЛЯЕТСЯ")}</span>
-          <a href="#problem" aria-label={t("Узнать о колонии")}><ChevronDown size={18} aria-hidden="true" /></a>
+          <a href="#problem" aria-label={t("Узнать о колонии")}>
+            <ChevronDown size={18} aria-hidden="true" />
+          </a>
         </div>
       </div>
     </section>
   );
 }
-
 function Problem(): JSX.Element {
   useI18n();
   return (
@@ -756,7 +1010,8 @@ function Problem(): JSX.Element {
 
       <Reveal>
         <p className="section-footnote">
-          {t("ARES-1 сейчас — devnet-бета с on-chain-полями и действиями. Тестовые токены не имеют денежной стоимости; постоянное строительство колонии ещё не подключено.")}
+          {t("Сейчас колония работает в devnet. Открытый код позволяет изучить правила,")}
+          {t("но не исключает обновлений программы и рисков тестовой сети.")}
         </p>
       </Reveal>
     </Section>
@@ -829,9 +1084,9 @@ function Product(): JSX.Element {
     <Section id="product" speed={0.5}>
       <SectionHeading
         id="product-title"
-        eyebrow={t("СТАТУС ПРОДУКТА")}
-        title={t("ARES-1 · DEVNET FIELD GAME")}
-        text={t("Сейчас ARES-1 — игра с on-chain-полями в Solana devnet. Подключай кошелёк в игре, создавай поля за тестовый POTATO и используй действия контракта. Это не постоянная колония: аккаунты и правила строительства ещё не реализованы.")}
+        eyebrow={t("НАШ ПРОДУКТ")}
+        title={t("ARES-1 — флагман студии")}
+        text={t("Ончейн-ферма на Solana: выращивай картофель под куполами Марса, прокачивай делянки до 50 уровня, торгуй урожаем на живой бирже и собирай нашивки за достижения. Поля, рынок и награды — в смарт-контрактах: никакого офчейна.")}
       />
 
       <div className="product-grid">
@@ -847,18 +1102,18 @@ function Product(): JSX.Element {
         </Reveal>
         <Reveal className="product-points" delay={0.2}>
           <ul>
-          <li>
-            <Check size={18} aria-hidden="true" />
-            <span>{t("ПОЛЯ И СУЩЕСТВУЮЩИЕ ДЕЙСТВИЯ РАБОТАЮТ В SOLANA DEVNET")}</span>
-          </li>
-          <li>
-            <Check size={18} aria-hidden="true" />
-            <span>{t("СОЗДАНИЕ ПОЛЯ ДОСТУПНО ВНУТРИ ИГРЫ ЗА ТЕСТОВЫЙ POTATO")}</span>
-          </li>
-          <li>
-            <Check size={18} aria-hidden="true" />
-            <span>{t("ПОСТОЯННОЕ СТРОИТЕЛЬСТВО КОЛОНИИ ЕЩЁ НЕ РЕАЛИЗОВАНО")}</span>
-          </li>
+            <li>
+              <Check size={18} aria-hidden="true" />
+              <span>{t("100% ончейн — экономика в программе Solana")}</span>
+            </li>
+            <li>
+              <Check size={18} aria-hidden="true" />
+              <span>{t("3 тира модулей, мутации и прокачка")}</span>
+            </li>
+            <li>
+              <Check size={18} aria-hidden="true" />
+              <span>{t("Биржа ордеров за SOL и пресеил")}</span>
+            </li>
           </ul>
           <Action href={PC.url} target="_blank" rel="noopener noreferrer">
             {t("Играть в ARES-1")}
@@ -878,7 +1133,7 @@ function Mechanics(): JSX.Element {
         id="mechanics-title"
         eyebrow={t("02 / ЖИЗНЬ ПОД КУПОЛОМ")}
         title={SC.mechanics.title}
-        text={t("Полевая игра использует on-chain-аккаунты Solana; постоянное строительство колонии пока не доступно.")}
+        text={t("Один модуль. Свой ритм. Целая колония возможностей.")}
       />
 
       <div className="feature-grid">
@@ -900,19 +1155,31 @@ function Mechanics(): JSX.Element {
         ))}
       </div>
 
+      <Reveal className="colony-manual">
+        <div>
+          <span className="small-code">{t("СИСТЕМНОЕ ВРЕМЯ")}</span>
+          <p>{t("05–08 рассвет · 08–17 день · 17–20 синий закат · 20–05 ночь")}</p>
+        </div>
+        <div>
+          <span className="small-code">{t("ОБСЛУЖИВАНИЕ МОДУЛЯ")}</span>
+          <p>{t("Ремонт · удобрения ×1,5 на 24 ч · налог раз в 7 дней · уровни")}</p>
+        </div>
+        <div>
+          <span className="small-code">{t("БИРЖА И ДОСТИЖЕНИЯ")}</span>
+          <p>{t("Ордер от 10 POTATO и 1 SKR · 6 ончейн-квестов без бэкенда")}</p>
+        </div>
+      </Reveal>
 
       <Reveal className="tier-panel panel" panel="accent">
         <div className="tier-intro">
-          <p className="eyebrow">{t("СТАТУС ПРОДУКТА")}</p>
-          <h3>{t("ОДНО ПОЛЕ — НЕ КОЛОНИЯ")}</h3>
-          <p>{t("Покупка поля создаёт отдельный on-chain аккаунт. Она не создаёт базу, строительные ресурсы или постоянную лабораторию.")}</p>
+          <p className="eyebrow">{t("ЛОТЕРЕЯ МОДУЛЕЙ")}</p>
+          <h3>{t("ОДНА ЦЕНА.")}{" "}<br />{t("ТРИ ХАРАКТЕРА.")}</h3>
+          <p>{t("1 053 SKR за модуль. Тир определяется случайно.")}</p>
         </div>
-        <div className="product-status-list">
-          <p><span className="status-dot" />{t("АГРО · действующие on-chain поля")}</p>
-          <p><span className="status-dot" />{t("ЛАБ · просмотр тех же полей и действий")}</p>
-          <p><span className="status-dot status-dot--amber" />{t("КОЛОНИЯ · строительство ещё не реализовано")}</p>
-        </div>
-        <p className="tier-disclaimer">{t("SKR-пресейл закрыт. Devnet-активы тестовые; до отдельного одобрения не отправляйте средства.")}</p>
+        <RarityModules />
+        <p className="tier-disclaimer">
+          {t("Проценты урожая — игровые характеристики, не финансовая доходность.")}
+        </p>
       </Reveal>
     </Section>
   );
@@ -920,44 +1187,44 @@ function Mechanics(): JSX.Element {
 
 function FirstGreenhouseOperation(): JSX.Element {
   useI18n();
-  const systems = [
-    { step: "01", title: t("ПОЛЯ"), goal: t("Действующие поля — отдельные on-chain аккаунты выбранного кошелька.") },
-    { step: "02", title: t("ДЕЙСТВИЯ"), goal: t("Сбор и другие доступные действия выполняются через существующие транзакции.") },
-    { step: "03", title: t("ЛАБОРАТОРИЯ"), goal: t("Лаборатория показывает те же поля и не создаёт пробный стенд или локальный урожай.") },
-    { step: "04", title: t("КОЛОНИЯ"), goal: t("Постоянные аккаунты строительства и правила размещения пока не подключены.") },
+  const chapters = [
+    { step: "01", title: t("ПОСАДКА"), goal: t("Заложить первую делянку") },
+    { step: "02", title: t("ВОДА"), goal: t("Поддержать рост и подготовить урожай") },
+    { step: "03", title: t("РЕМОНТ КОЛОНИИ"), goal: t("Укрепить гидропонный контур") },
+    { step: "04", title: t("ПЕРВЫЙ УРОЖАЙ"), goal: t("Собрать результат цикла") },
   ];
 
   return (
     <Section id="operation" className="operation-section" speed={0.55}>
       <SectionHeading
         id="operation-title"
-        eyebrow={t("СТАТУС · DEVNET")}
-        title={t("ДЕЙСТВУЮЩАЯ ИГРА")}
-        text={t("Это обзор текущего продукта, а не кампания, обучение или локальная симуляция.")}
+        eyebrow={t("СЕЗОН 0 · DEVNET ПИЛОТ")}
+        title={t("ОПЕРАЦИЯ: ПЕРВАЯ ТЕПЛИЦА")}
+        text={t("28-дневная кампания ARES-1: четыре главы, одна общая цель — подготовить первую марсианскую теплицу.")}
       />
 
       <Reveal className="panel operation-panel" panel="accent">
         <div className="operation-chapters">
-          {systems.map((system) => (
-            <article className="operation-chapter" key={system.step}>
-              <span className="small-code">ARES-1 / {system.step}</span>
-              <h3>{system.title}</h3>
-              <p>{system.goal}</p>
+          {chapters.map((chapter) => (
+            <article className="operation-chapter" key={chapter.step}>
+              <span className="small-code">{t("ГЛАВА {step}", { step: chapter.step })}</span>
+              <h3>{chapter.title}</h3>
+              <p>{chapter.goal}</p>
             </article>
           ))}
         </div>
         <div className="operation-status">
           <p>
-            {t("Личный devnet-журнал сверяет задачи с состоянием on-chain аккаунтов. Он не выдаёт сезонные очки или награды; тестовый прогресс не переносится в mainnet.")}
+            {t("В игре открыт личный devnet-журнал: он читает текущее состояние кошелька и полей. Сезонные очки, общий рейтинг, призы и архив пока не активны; для них нужен отдельный on-chain учёт.")}
           </p>
           <Action href={`${PC.url}/operation`} target="_blank" rel="noopener noreferrer" variant="primary">
-            {t("ОТКРЫТЬ ЖУРНАЛ СОСТОЯНИЯ")}
+            {t("ОТКРЫТЬ ЖУРНАЛ ОПЕРАЦИИ")}
             <ArrowUpRight size={16} aria-hidden="true" />
           </Action>
         </div>
       </Reveal>
       <p className="section-footnote">
-        {t("Действия поля подтверждаются в кошельке и записываются в devnet-контракт; на лендинге нет локальных игровых ресурсов или начислений.")}
+        {t("Тестовый прогресс не переносится в mainnet. Никаких обещаний airdrop, финансовой доходности или роста цены.")}
       </p>
     </Section>
   );
@@ -1304,6 +1571,11 @@ function LiveStats({ notify }: { readonly notify: Notify }): JSX.Element {
 
   const tiles: { key: string; label: string; figure: string; sub?: string }[] = [
     {
+      key: "sold",
+      label: stats.sold,
+      figure: `${live.online ? live.sold : "—"} / ${live.online ? live.cap : presale.supply}`,
+    },
+    {
       key: "fields",
       label: stats.fields,
       figure: live.online ? value(live.fieldCount) : "—",
@@ -1480,6 +1752,293 @@ function FAQ(): JSX.Element {
 }
 
 
+function describeTxError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/user rejected|User rejected/i.test(msg)) {
+    return t("Транзакция отменена в кошельке.");
+  }
+  if (/presalecapreached|PresaleCapReached/i.test(msg)) {
+    return t("Волна распродана: cap 500 модулей достигнут.");
+  }
+  if (/presalewalletlimitreached|PresaleWalletLimitReached/i.test(msg)) {
+    return t("Лимит: один кошелёк может купить не больше 5 модулей в пресейле.");
+  }
+  if (/insufficient funds|INSUFFICIENT_FUNDS|blockhash/i.test(msg)) {
+    return t("Недостаточно SOL для комиссии/rent или blockhash протух — попробуй ещё раз.");
+  }
+  return t("Не удалось отправить транзакцию: {msg}", { msg });
+}
+
+function PacksSection(): JSX.Element {
+  useI18n();
+  const { connected, publicKey, balanceSkr, connect, connecting, connection } =
+    useLandingWallet();
+  const live = useLiveChain();
+  const [purchasing, setPurchasing] = useState(false);
+  const [success, setSuccess] = useState<{ tx: string; tier: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const price = chainConfig.presalePriceSkrAtoms;
+  const balanceOk = balanceSkr >= price;
+  const soldOut = live.online && live.sold >= live.cap;
+
+  const buyPack = async () => {
+    if (!connected || !publicKey || purchasing || soldOut) return;
+    setPurchasing(true);
+    setError(null);
+    try {
+      // Реальная devnet-транзакция (как в игре): buy_field_skr,
+      // тир кидает сама программа: keccak(buyer ‖ sold ‖ slot).
+      const programId = new PublicKey(chainConfig.programId);
+      const { config: configPda, field } = pdas(programId);
+
+      const cfgInfo = await connection.getAccountInfo(configPda());
+      if (!cfgInfo) throw new Error(t("GameConfig PDA не найден — devnet не отвечает."));
+      const cfg = decodeConfig(Buffer.from(cfgInfo.data));
+
+      const fieldId = randomU64();
+      // ATA покупателя SKR: (mint, owner, allowOwnerOffCurve). Раньше сюда
+      // ошибочно передавался TEST_SKR_MINT как owner и publicKey как флаг.
+      const buyerSkrAta = getAssociatedTokenAddressSync(SKR_MINT, publicKey, true);
+
+      const ataIx = createAssociatedTokenAccountIdempotentInstruction(
+        publicKey,
+        buyerSkrAta,
+        publicKey,
+        SKR_MINT,
+      );
+      const buyIx = await ixBuyFieldSkr(programId, {
+        config: configPda(),
+        presaleState: presaleStatePda(programId),
+        authority: cfg.authority,
+        buyerPresale: buyerPresalePda(programId, publicKey),
+        field: field(fieldId),
+        buyer: publicKey,
+        treasurySol: treasurySolPda(programId),
+        skrMint: SKR_MINT,
+        buyerSkrAta,
+        treasurySkrAta: treasurySkrAta(programId, SKR_MINT),
+        buybackSkrAta: buybackSkrAta(cfg.authority, SKR_MINT),
+        fieldId,
+      });
+
+      const tx = new Transaction().add(ataIx, buyIx);
+      tx.feePayer = publicKey;
+      const blockhash = await connection.getLatestBlockhash();
+      tx.recentBlockhash = blockhash.blockhash;
+
+      const signed = await window.solana?.signTransaction(tx);
+      if (!signed) throw new Error(t("Кошелёк не вернул подписанную транзакцию."));
+
+      const signature = await connection.sendRawTransaction(signed.serialize());
+      const confirmation = await connection.confirmTransaction(
+        {
+          signature,
+          blockhash: blockhash.blockhash,
+          lastValidBlockHeight: blockhash.lastValidBlockHeight,
+        },
+        "confirmed",
+      );
+      if (confirmation.value.err) {
+        throw new Error(t("Программа отклонила транзакцию: ") + String(confirmation.value.err));
+      }
+
+      // Читаем реальный тир из созданного поля: field_type на offset 67
+      let tier = 0;
+      try {
+        const fieldInfo = await connection.getAccountInfo(field(fieldId));
+        const onchainTier = fieldInfo?.data[67];
+        if (typeof onchainTier === "number") tier = onchainTier;
+      } catch {
+        /* тир не критичен: показываем COMMON-фолбэк */
+      }
+
+      setSuccess({ tx: signature, tier });
+    } catch (err: unknown) {
+      setError(describeTxError(err));
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  const addr = publicKey ? publicKey.toBase58() : "";
+  const balance = (Number(balanceSkr) / 1e6).toFixed(2);
+
+  return (
+    <Section id="packs" className="waitlist-section" speed={0.7}>
+      <Reveal className="waitlist-panel panel" panel="accent">
+        <div className="waitlist-copy">
+          <p className="eyebrow">
+            <span className="status-dot" />
+            {t("08 / ПРЕСЕЙЛ МОДУЛЕЙ")}
+          </p>
+          <h2 id="packs-title">{t("Купи модуль колонии")}</h2>
+          <p>
+            {live.online
+              ? t("{n} модулей продано — данные live с devnet.", { n: `${live.sold} / ${live.cap}` })
+              : t("Счётчик читается с devnet (общий RPC).")}{" "}
+            {t("1053 SKR — и гидропонная кассета твоя. Редкость кидает сама программа: COMMON 70% · RARE 25% · EPIC 5%.")}
+            <span className="pack-note" aria-hidden="true">keccak(buyer ‖ sold ‖ slot)</span>
+          </p>
+          <p className="waitlist-payment-note">
+            {t("Реальная devnet-транзакция: модуль записывается на твой кошелёк прямо в контракте,")}
+            {t("игра подхватит его автоматически.")}
+          </p>
+
+          <div className="boarding-pass" aria-hidden="true">
+            <Mark />
+            <div>
+              <span>{t("ЗЕМЛЯ → МАРС")}</span>
+              <strong>ARES-1</strong>
+              <small>{t("ГИДРОПОННЫЙ МОДУЛЬ")}</small>
+            </div>
+            <div className="barcode" />
+          </div>
+        </div>
+
+        <div className="waitlist-form-area">
+          <p className={`form-mode ${connected ? "form-mode--live" : ""}`}>
+            <span className={`status-dot ${connected ? "" : "status-dot--amber"}`} />
+            {connected ? t("КОШЕЛЁК ПОДКЛЮЧЁН · DEVNET") : t("КОШЕЛЁК НЕ ПОДКЛЮЧЁН")}
+          </p>
+
+          {connected ? (
+            <>
+              <div className="pack-wallet-line">
+                <span>{t("адрес")}</span>
+                <strong>{addr.slice(0, 4)}…{addr.slice(-4)}</strong>
+              </div>
+              <div className="pack-wallet-line">
+                <span>{t("баланс SKR")}</span>
+                <strong style={{ color: balanceOk ? "#35e0c0" : "#ff5470" }}>
+                  {balance} SKR
+                </strong>
+              </div>
+              <button
+                className="pack-buy-main cta-buy"
+                onClick={() => { void buyPack(); }}
+                disabled={purchasing || !balanceOk || soldOut}
+              >
+                {purchasing ? t("Отправка транзакции…") : soldOut ? t("Волна распродана") : t("Купить модуль · 1053 SKR")}
+              </button>
+              {soldOut && (
+                <p className="pack-note">{t("Все {n} модулей первой волны проданы.", { n: live.cap })}</p>
+              )}
+              {!balanceOk && !soldOut && (
+                <p className="pack-note">{t("Недостаточно SKR для покупки модуля.")}</p>
+              )}
+            </>
+          ) : (
+            <>
+              <button
+                className="pack-buy-main cta-buy"
+                onClick={() => { void connect(); }}
+                disabled={connecting}
+              >
+                {connecting ? t("Подключение…") : t("Подключить кошелёк")}
+              </button>
+              <p className="pack-note">
+                {t("Phantom или Solflare. После подключения кнопка покупки станет активной.")}
+              </p>
+            </>
+          )}
+
+          {error && <p className="pack-note pack-note--error">{error}</p>}
+
+          <p className="pack-note">
+            {t("devnet: SKR и SOL тестовые и не имеют реальной стоимости.")}
+          </p>
+        </div>
+      </Reveal>
+
+      {success && (
+        <SuccessModal tx={success.tx} tier={success.tier} onClose={() => setSuccess(null)} />
+      )}
+    </Section>
+  );
+}
+
+function SuccessModal({ tx, tier, onClose }: { tx: string; tier: number; onClose: () => void }): JSX.Element {
+  const TIERS = ["COMMON", "RARE", "EPIC"];
+  useI18n();
+  const COLORS = ["#9AA0AC", "#B85CFF", "#FFC94A"];
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.85)",
+          backdropFilter: "blur(8px)",
+          zIndex: 2000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+        }}
+      >
+        <motion.div
+          initial={{ scale: 0.92, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.92, opacity: 0 }}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            maxWidth: 440,
+            width: "100%",
+            background: "rgba(18,18,26,0.97)",
+            border: `2px solid ${COLORS[tier]}`,
+            borderRadius: 16,
+            padding: "36px 28px",
+            textAlign: "center",
+          }}
+        >
+          <img src={`/ares/cassette-${tier}.webp`} alt="" aria-hidden="true" style={{ width: 110, height: 128, objectFit: "contain", marginBottom: 14, filter: "drop-shadow(0 10px 24px rgba(0,0,0,0.5))" }} />
+          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 10, color: COLORS[tier], letterSpacing: "0.06em" }}>
+            {TIERS[tier]} · {t("МОДУЛЬ КУПЛЕН")}
+          </h2>
+          <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 18, color: "var(--pf-text-secondary, #b8b8c8)" }}>
+            {t("Модуль ждёт вас в игре: он уже записан на твой кошелёк в контракте.")}
+            {t("Заходи под тем же кошельком — делянка на месте.")}
+          </p>
+          <a
+            href={`https://explorer.solana.com/tx/${tx}?cluster=devnet`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "inline-block",
+              padding: "8px 14px",
+              background: "rgba(255,255,255,0.07)",
+              borderRadius: 6,
+              fontSize: 11,
+              color: "var(--pf-text-secondary, #b8b8c8)",
+              textDecoration: "none",
+              marginBottom: 18,
+              fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+            }}
+          >
+            {t("транзакция в эксплорере")} ↗
+          </a>
+          <div>
+            <a
+              href={PC.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cta-play"
+            >
+              <Play size={18} aria-hidden="true" />
+              {t("ИГРАТЬ")}
+            </a>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
 function Footer(): JSX.Element {
   useI18n();
   return (
@@ -1696,6 +2255,7 @@ export default function App(): JSX.Element {
         <Roadmap />
         <LiveStats notify={notify} />
         <FAQ />
+        <PacksSection />
       </main>
       <Footer />
       <Overlays />

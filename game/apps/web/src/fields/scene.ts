@@ -33,7 +33,7 @@ interface FarmObject {
 }
 
 /** World-space greenhouse interiors. Architecture, plants and equipment share
- * one projection and lighting environment, rendered over the viewport's artwork.
+ * one projection and lighting environment; no illustrated perspective underneath.
  */
 export function createFieldScene(host: HTMLElement, callbacks: {
   onSelect(id: string): void; onReady(): void; onFailure(reason: 'models' | 'context'): void
@@ -45,8 +45,7 @@ export function createFieldScene(host: HTMLElement, callbacks: {
   renderer.toneMappingExposure = 1.18; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap
   renderer.domElement.setAttribute('aria-hidden', 'true'); host.appendChild(renderer.domElement)
   const scene = new THREE.Scene()
-  // Keep the WebGL layer transparent so the viewport's illustrated greenhouse remains visible.
-  scene.background = null
+  scene.background = new THREE.Color('#252e2b')
   const camera = new THREE.OrthographicCamera(-13, 13, 10, -10, 0.1, 180)
   // Изо-камера с панорамой и поворотом шагами 90°: перетаскивание возит камеру
   // по карте, а не вращает «стол» с грядками (решение пользователя 2026-10-18).

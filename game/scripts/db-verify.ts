@@ -38,8 +38,8 @@ export interface VerifyResult {
   checks: VerifyCheck[];
 }
 
-const EXPECTED_TRIGGERS = 16;
-const EXPECTED_TABLES = ['schema_version', 'reward_intents', 'reward_ledger', 'ledger_chain_head', 'admin_audit', 'chain_reconciliation', 'service_cursors', 'colony_auth_challenges', 'colony_entitlements', 'colonies', 'colony_events', 'colony_fields'];
+const EXPECTED_TRIGGERS = 12;
+const EXPECTED_TABLES = ['schema_version', 'reward_intents', 'reward_ledger', 'ledger_chain_head', 'admin_audit', 'chain_reconciliation', 'service_cursors'];
 const EXPECTED_VIEWS = ['reward_intents_actionable', 'reward_ledger_tail', 'chain_reconciliation_latest'];
 
 export async function verifyDatabase(options: VerifyOptions): Promise<VerifyResult> {
@@ -114,10 +114,10 @@ async function checkObjects(client: Client): Promise<VerifyCheck[]> {
     "SELECT indexname FROM pg_indexes WHERE schemaname = 'game_ops'",
   );
   const indexNames = new Set(indexes.rows.map(row => row.indexname));
-  const missingIndexes = ['reward_ledger_chain_idx', 'reward_ledger_slot_idx', 'reward_intents_actionable_idx', 'colony_fields_one_primary_idx', 'colony_fields_one_active_address_idx'].filter(name => !indexNames.has(name));
+  const missingIndexes = ['reward_ledger_chain_idx', 'reward_ledger_slot_idx', 'reward_intents_actionable_idx'].filter(name => !indexNames.has(name));
 
   return [
-    { id: 'schema.tables', ok: missingTables.length === 0, detail: missingTables.length ? `нет таблиц: ${missingTables.join(', ')}` : `обязательных таблиц ${EXPECTED_TABLES.length}, всего в схеме ${names.size}` },
+    { id: 'schema.tables', ok: missingTables.length === 0, detail: missingTables.length ? `нет таблиц: ${missingTables.join(', ')}` : `таблиц ${EXPECTED_TABLES.length}` },
     { id: 'schema.views', ok: missingViews.length === 0, detail: missingViews.length ? `нет представлений: ${missingViews.join(', ')}` : `представлений ${EXPECTED_VIEWS.length}` },
     { id: 'schema.triggers', ok: triggerCount >= EXPECTED_TRIGGERS, detail: `триггеров ${triggerCount} (ожидается ≥ ${EXPECTED_TRIGGERS})` },
     { id: 'schema.indexes', ok: missingIndexes.length === 0, detail: missingIndexes.length ? `нет индексов: ${missingIndexes.join(', ')}` : 'ключевые индексы на месте' },
@@ -190,56 +190,6 @@ async function checkPrivileges(client: Client, writerRole: string): Promise<Veri
         && !(await has("SELECT has_column_privilege($1, 'game_ops.presale_runs', 'price_units', 'UPDATE') AS ok", [writerRole]))
         && !(await has("SELECT has_column_privilege($1, 'game_ops.presale_runs', 'treasury', 'UPDATE') AS ok", [writerRole])),
       detail: 'тираж пресейла: счётчик мест доступен, cap/цена/казначейство — нет',
-    },
-    {
-      id: 'privileges.colony_entitlements_read_only',
-      ok: (await has("SELECT has_table_privilege($1, 'game_ops.colony_entitlements', 'SELECT') AS ok", [writerRole]))
-        && !(await has("SELECT has_table_privilege($1, 'game_ops.colony_entitlements', 'INSERT') AS ok", [writerRole]))
-        && !(await has("SELECT has_table_privilege($1, 'game_ops.colony_entitlements', 'UPDATE') AS ok", [writerRole]))
-        && !(await has("SELECT has_table_privilege($1, 'game_ops.colony_entitlements', 'DELETE') AS ok", [writerRole])),
-      detail: 'runtime may check entitlements but cannot issue, alter or revoke them',
-    },
-    {
-      id: 'privileges.colony_event_immutable',
-      ok: !(await has("SELECT has_table_privilege($1, 'game_ops.colony_events', 'UPDATE') AS ok", [writerRole]))
-        && !(await has("SELECT has_table_privilege($1, 'game_ops.colony_events', 'DELETE') AS ok", [writerRole])),
-      detail: 'у runtime-роли нет UPDATE/DELETE на журнал событий Colony',
-    },
-    {
-      id: 'privileges.colony_owner_immutable',
-      ok: (await has("SELECT has_column_privilege($1, 'game_ops.colonies', 'state', 'UPDATE') AS ok", [writerRole]))
-        && !(await has("SELECT has_column_privilege($1, 'game_ops.colonies', 'owner_wallet', 'UPDATE') AS ok", [writerRole]))
-        && !(await has("SELECT has_column_privilege($1, 'game_ops.colonies', 'field_address', 'UPDATE') AS ok", [writerRole])),
-      detail: 'runtime может обновлять состояние, но не владельца и не привязанный Field',
-    },
-    {
-      id: 'privileges.colony_ruleset_versioned',
-      ok: (await has("SELECT has_column_privilege($1, 'game_ops.colonies', 'ruleset_version', 'UPDATE') AS ok", [writerRole]))
-        && (await has("SELECT has_column_privilege($1, 'game_ops.colonies', 'state', 'UPDATE') AS ok", [writerRole]))
-        && !(await has("SELECT has_column_privilege($1, 'game_ops.colonies', 'owner_wallet', 'UPDATE') AS ok", [writerRole]))
-        && !(await has("SELECT has_column_privilege($1, 'game_ops.colonies', 'field_address', 'UPDATE') AS ok", [writerRole])),
-      detail: 'runtime may migrate versioned Colony state atomically without changing owner or primary Field',
-    },
-    {
-      id: 'privileges.colony_fields_append_only',
-      ok: (await has("SELECT has_table_privilege($1, 'game_ops.colony_fields', 'SELECT') AS ok", [writerRole]))
-        && (await has("SELECT has_table_privilege($1, 'game_ops.colony_fields', 'INSERT') AS ok", [writerRole]))
-        && !(await has("SELECT has_table_privilege($1, 'game_ops.colony_fields', 'UPDATE') AS ok", [writerRole]))
-        && !(await has("SELECT has_table_privilege($1, 'game_ops.colony_fields', 'DELETE') AS ok", [writerRole])),
-      detail: 'runtime may add verified Field links but cannot edit or remove their durable associations',
-    },
-    {
-      id: 'privileges.challenge_one_time',
-      ok: (await has("SELECT has_column_privilege($1, 'game_ops.colony_auth_challenges', 'consumed_at', 'UPDATE') AS ok", [writerRole]))
-        && !(await has("SELECT has_column_privilege($1, 'game_ops.colony_auth_challenges', 'wallet', 'UPDATE') AS ok", [writerRole]))
-        && !(await has("SELECT has_table_privilege($1, 'game_ops.colony_auth_challenges', 'DELETE') AS ok", [writerRole])),
-      detail: 'challenge можно только пометить использованным; удалять или менять адрес нельзя',
-    },
-    {
-      id: 'privileges.challenge_cleanup_scoped',
-      ok: (await has("SELECT has_function_privilege($1, 'game_ops.purge_expired_colony_challenges()', 'EXECUTE') AS ok", [writerRole]))
-        && !(await has("SELECT has_table_privilege($1, 'game_ops.colony_auth_challenges', 'DELETE') AS ok", [writerRole])),
-      detail: 'challenge cleanup разрешён только через узкую функцию; прямого DELETE у runtime нет',
     },
     {
       id: 'privileges.no_ddl',

@@ -1,5 +1,7 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { getItem, setItem } from './utils/consent'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import InteractiveTutorial from './components/InteractiveTutorial'
 import BackgroundScene from './components/BackgroundScene'
 import GrainOverlay, { MkRoughFilters } from './components/GrainOverlay'
 import PageTransition from './components/PageTransition'
@@ -9,15 +11,18 @@ import { WalletErrorReporter } from './components/WalletErrorReporter'
 import { GameProvider } from './contexts/GameContext'
 import { t, useI18n } from './i18n'
 import { ambientMusic } from './utils/ambientMusic'
+
 import { useReferralRegistration } from './hooks/useReferralRegistration'
 import { AresBottomNav } from './components/ares/AresBottomNav'
+import { ColonyProvider } from './colony/ColonyContext'
 import { SectionFrame } from './components/ares/SectionFrame'
 import type { AresTab } from './components/ares/AresBottomNav'
-import { HullSkinMounter } from './ui/HullSkinMounter'
-import { CookieConsent } from './components/CookieConsent'
+import { LandingSequence } from './components/ares/loading'
 import './ui/hull-ui.css'
 import './styles/seeker-touch.css'
 import './ui/prize-reveal.css'
+import { HullSkinMounter } from './ui/HullSkinMounter'
+import { CookieConsent } from './components/CookieConsent'
 
 // Route-level code splitting: each screen is its own chunk.
 const MainScreen = lazy(() => import('./components/MainScreen'))
@@ -25,24 +30,30 @@ const MarketScreen = lazy(() => import('./components/MarketScreen'))
 const StatsScreen = lazy(() => import('./components/StatsScreen'))
 const ProfileScreen = lazy(() => import('./components/ProfileScreen'))
 const OperationScreen = lazy(() => import('./components/OperationScreen'))
+// АГРО: настоящие поля. ЛАБ: продуктовая полевая лаборатория. КОЛОНИЯ: 3D-база.
+// Все три читают один стор колонии (ColonyProvider), поэтому ресурсы секций не расходятся.
 const FieldLabScreen = lazy(() => import('./lab/FieldLabScreen'))
-const ColonyStatusScreen = lazy(() => import('./components/ColonyStatusScreen'))
+const ColonyScreen = lazy(() => import('./colony/ColonyScreen'))
 
 type Screen = 'farm' | 'lab' | 'colony' | 'market' | 'stats' | 'profile' | 'operation'
 
 export default function App() {
  const { lang } = useI18n()
+ const [showTutorial, setShowTutorial] = useState(() => !getItem("functional", "potato_tutorial_done"))
+ const [booted, setBooted] = useState(() => getItem("functional", "potato_landed") === "1")
  useReferralRegistration()
 
+ // Фоновая музыка глобальная: запускается один раз на всю игру
  useEffect(() => {
   ambientMusic.init()
  }, [])
 
+ // SEO-теги следуют за языком (title, description, html lang).
  useEffect(() => {
   document.title = t('Solana Potato — фарм-игра на Solana')
   document.querySelector('meta[name="description"]')?.setAttribute(
    'content',
-   t('Solana Potato — игра с on-chain-полями в Solana devnet. Тестовые токены не имеют денежной стоимости, а devnet-прогресс не переносится в mainnet.'),
+   t('Solana Potato — on-chain фарм-игра. Покупай поля, собирай урожай $POTATO каждую секунду и торгуй на встроенном P2P-маркетплейсе за SOL.'),
   )
   document.documentElement.lang = lang === 'es-419' ? 'es' : lang
  }, [lang])
@@ -52,6 +63,8 @@ export default function App() {
    <GrainOverlay />
    <MkRoughFilters />
    <HullSkinMounter />
+
+   {/* Телефонная подножка: центрированный корпус интерфейса колониста */}
    <div className="pf-phone-chassis">
     <BackgroundScene />
     <div style={{ position: 'relative', minHeight: '100vh', zIndex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -60,7 +73,21 @@ export default function App() {
        <WalletErrorReporter />
        <CookieConsent />
        <GameProvider>
-        <AppRoutes />
+        {showTutorial && <InteractiveTutorial onComplete={() => setShowTutorial(false)} />}
+        {booted ? (
+         <ColonyProvider>
+          <AppRoutes />
+         </ColonyProvider>
+        ) : (
+         <div style={{ minHeight: '100vh' }}>
+          <LandingSequence
+           onLanded={() => {
+            setItem("functional", "potato_landed", "1")
+            setBooted(true)
+           }}
+          />
+         </div>
+        )}
        </GameProvider>
       </ToastProvider>
      </ErrorBoundary>
@@ -90,10 +117,10 @@ function AppRoutes() {
   : location.pathname === '/stats' ? 'stats'
   : location.pathname === '/profile' ? 'profile'
   : location.pathname === '/operation' ? 'operation'
-  : location.pathname === '/base' || location.pathname === '/colony' ? 'colony'
+  : location.pathname === '/base' ? 'colony'
   : 'farm'
 
- const handleNavigate = (screen: Screen) => navigate(screen === 'farm' ? '/' : screen === 'colony' ? '/base' : `/${screen}`)
+  const handleNavigate = (screen: Screen) => navigate(screen === 'farm' ? '/' : screen === 'colony' ? '/base' : `/${screen}`)
 
  return (
   <>
@@ -103,13 +130,12 @@ function AppRoutes() {
       <Routes location={location}>
        <Route path="/" element={<MainScreen />} />
        <Route path="/lab" element={<FieldLabScreen />} />
-       <Route path="/base" element={<ColonyStatusScreen />} />
-       <Route path="/colony" element={<Navigate to="/base" replace />} />
+       <Route path="/base" element={<ColonyScreen embedded />} />
        <Route path="/market" element={<MarketScreen />} />
        <Route path="/stats" element={<StatsScreen />} />
        <Route path="/profile" element={<ProfileScreen />} />
        <Route path="/operation" element={<SectionFrame section="journal" label={t('ОПЕРАЦИЯ: ПЕРВАЯ ТЕПЛИЦА')}><OperationScreen /></SectionFrame>} />
-       {/* Backward compatibility: the former demo URL opens the live field console. */}
+       {/* Песочница /demo заменена продуктовой лабораторией: старые ссылки ведут туда же. */}
        <Route path="/demo" element={<Navigate to="/lab" replace />} />
        <Route path="*" element={<MainScreen />} />
       </Routes>

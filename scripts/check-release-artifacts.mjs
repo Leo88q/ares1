@@ -51,12 +51,6 @@ const BANNED_THIRD_PARTY = [
   'cdn.jsdelivr.com',
 ];
 
-// The MWA protocol intentionally probes its same-device wallet bridge at
-// http://localhost when the user taps the mobile-wallet handoff button. This is
-// not an app/dev server URL. Keep the exception exact and singular: any other
-// loopback literal in shipped code remains a hard failure.
-const MWA_LOCAL_BRIDGE_PROBE = 'await fetch("http://localhost")'
-
 // Files whose extension means "never look inside" (binary assets).
 const BINARY_EXT = new Set([
   '.png', '.jpg', '.jpeg', '.webp', '.gif', '.ico', '.bmp', '.avif',
@@ -167,8 +161,7 @@ for (const dir of dirs) {
     }
 
     // Hard-coded loopback or plain-HTTP absolute URLs in shipped assets.
-    const loopbackScanContent = content.replace(MWA_LOCAL_BRIDGE_PROBE, '')
-    const absUrls = loopbackScanContent.match(/https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/g);
+    const absUrls = content.match(/https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/g);
     if (absUrls) {
       const uniq = [...new Set(absUrls)].slice(0, 3);
       add('FAIL', 'artifact-loopback-url', rel, `hard-coded loopback URL(s): ${uniq.join(', ')}`);

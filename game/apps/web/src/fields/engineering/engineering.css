@@ -21,7 +21,7 @@
 .eg-meters { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
 .eg-meter { border: 1px solid #75593b55; border-radius: 5px; padding: 10px 9px; background: #221c14; min-width: 0; }
 .eg-meter label { display: flex; align-items: center; gap: 6px; color: #b5a58c; font-size: 10px; }
-.eg-meter > b { display: block; min-width: 0; max-width: 100%; font: 500 20px/1.5 var(--ares-font-mono,monospace); color: #e4cb9e; white-space: normal; overflow-wrap: break-word; }
+.eg-meter > b { display: block; font: 500 20px/1.5 var(--ares-font-mono,monospace); color: #e4cb9e; white-space: nowrap; }
 .eg-meter small { font-size: 9px; color: #9c8e75; }
 .eg-meter > div { height: 4px; background: #64533844; margin-top: 7px; overflow: hidden; border-radius: 2px; }
 .eg-meter i { display: block; height: 100%; background: #c6aa72; transition: width .2s ease; }
@@ -66,23 +66,23 @@
 .eg-inventory { margin-top: 17px; border-top: 1px solid #765f3b44; padding-top: 13px; }
 .eg-inventory ul { list-style: none; padding: 0; margin: 9px 0; display: grid; grid-template-columns: repeat(auto-fit,minmax(min(210px,100%),1fr)); gap: 7px; }
 .eg-inventory li { padding: 10px; border: 1px solid #80745444; border-radius: 5px; background: #24241977; min-width: 0; }
-.eg-inventory li > div { display: flex; min-width: 0; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; align-items: center; }
-.eg-inventory li b { min-width: 0; font-size: 10px; font-weight: 500; color: #cecba4; overflow-wrap: break-word; }
-.eg-inventory li > div span { min-width: 0; font: 12px var(--ares-font-mono,monospace); color: #c9d79f; overflow-wrap: break-word; }
+.eg-inventory li > div { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.eg-inventory li b { font-size: 10px; font-weight: 500; color: #cecba4; }
+.eg-inventory li > div span { font: 12px var(--ares-font-mono,monospace); color: #c9d79f; }
 .eg-inventory small { display: block; color: #a0a184; font-size: 9px; margin: 4px 0 8px; }
 .eg-inventory button { width: 100%; }
 .eg-inventory > p, .eg-empty { color: #9da486; font-size: 10px; margin: 10px 0; }
 .eg-mass-ledger { display: flex; gap: 5px 12px; flex-wrap: wrap; color: #a6a58a; font-size: 9px; }
 .eg-mass-ledger b { color: #c8c49f; font-weight: 500; }
 .eg-source-note { font-size: 9px; color: #879780; margin: 13px 0 0; }
-@container app-shell (max-width:380px) { .mf-source-tabs { padding: 9px; gap: 5px; } .mf-source-tabs button { padding: 7px; font-size: 10px; } .eg-meter > b { font-size: 18px; } .eg-telemetry { padding: 12px; } .eg-console h3 { font-size: 20px; } }
+@media(max-width:380px) { .mf-source-tabs { padding: 9px; gap: 5px; } .mf-source-tabs button { padding: 7px; font-size: 10px; } .eg-meter > b { font-size: 18px; } .eg-telemetry { padding: 12px; } .eg-console h3 { font-size: 20px; } }
 
 .eg-topology { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px; padding: 9px 12px; background: #1b2118; border-top: 1px solid #6a806033; }
-.eg-topology > div { min-width: 0; border: 1px solid #75583a44; border-radius: 4px; padding: 7px 14px 7px 52px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; color: #96836b; }
+.eg-topology > div { min-width: 0; border: 1px solid #75583a44; border-radius: 4px; padding: 7px 8px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; color: #96836b; }
 .eg-topology > div.is-active { color: #afc69c; border-color: #839a5d44; }
 .eg-topology span { font: 9px/1.3 var(--pf-font-ui,sans-serif); }
 .eg-topology b { display: block; width: 100%; font: 10px/1.4 var(--ares-font-mono,monospace); color: #c5ca9e; }
-@container app-shell (max-width:380px) { .eg-topology { padding: 8px; } .eg-topology > div { padding: 6px 8px 6px 45px; } .eg-topology span { font-size: 8px; } }
+@media(max-width:380px) { .eg-topology { padding: 8px; } .eg-topology > div { padding: 6px; } .eg-topology span { font-size: 8px; } }
 
 .eg-climate { margin: 11px 0; padding: 11px; border: 1px solid #94735a55; border-radius: 5px; background: #30211644; }
 .eg-climate-heading { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; color: #d2b295; font-size: 10px; }
@@ -101,4 +101,4 @@
 .eg-climate-target { stroke-dasharray: 5 4; }
 .eg-alert[data-cause=temperature] { background: #39445344; border-color: #788e9f66; color: #bdd0d5; }
 .eg-topology { grid-template-columns: repeat(4,minmax(0,1fr)); }
-@container app-shell (max-width:600px) { .eg-topology { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .eg-topology { grid-template-columns: repeat(2,minmax(0,1fr)); } }

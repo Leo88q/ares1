@@ -151,7 +151,7 @@
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: 0.07em;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .prize-result-amount {
@@ -159,7 +159,7 @@
   color: #ffcf89;
   font: 600 clamp(26px, 5vw, 48px)/1.25 "JetBrains Mono", monospace;
   font-variant-numeric: tabular-nums;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .prize-result-message {
@@ -167,7 +167,7 @@
   margin: 13px auto 0;
   color: #dccde4;
   font: 13px/1.85 "Inter", system-ui, sans-serif;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .prize-skip {
@@ -251,7 +251,7 @@
   margin: 9px 0 0;
   color: #ffcf89;
   font: 500 22px/1.4 "JetBrains Mono", monospace;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 .prize-static-close {

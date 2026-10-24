@@ -54,6 +54,7 @@ export default function Header({ stats }: Props) {
     {/* ── ГЕРОЙ ЭКРАНА: паёк на балансе (клёпаная обшивка) ── */}
     <div
      className="po-plate"
+     data-tutorial="balance"
      aria-label={t("Баланс POTATO")}
      style={{ padding: 0, overflow: 'hidden' }}
     >

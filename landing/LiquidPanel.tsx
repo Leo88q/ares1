@@ -1016,3 +1016,16 @@ export function QuestPanel({
     />
   );
 }
+
+export function PresalePanel({
+  className = "",
+  ...props
+}: DerivedPanelProps): JSX.Element {
+  return (
+    <LiquidPanel
+      {...props}
+      variant="accent"
+      className={`liquid-panel--presale ${className}`}
+    />
+  );
+}

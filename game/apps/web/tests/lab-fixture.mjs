@@ -1,6 +1,8 @@
-// Test-only Field Lab harness. The local field records below are isolated
-// fixture data for browser tests; the shipped UI has no wallet-free bench,
-// colony provider, local resource ledger, or transaction-capable wallet.
+// Test-only Field Lab harness for the product section /lab. Generated output
+// lives in ignored .cache, never in the shipped app. GameContext/SolanaContext
+// and the marketplace hook are replaced with local spies, so no wallet, RPC
+// call or transaction can execute in this fixture. The colony store is the real
+// one (ColonyProvider): the smokes exercise the shared session stock.
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
 import { join, resolve, basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -9,12 +11,13 @@ const require = createRequire(import.meta.url)
 
 /**
  * @param {object} [options]
- * @param {boolean} [options.connected] — true renders mock wallet fields;
- *   false renders the real no-wallet empty state (never training fields).
- * @param {number} [options.fields] — number of fixture fields when connected.
- * @param {string} [options.slug] — unique asset prefix for concurrent smokes.
+ * @param {boolean} [options.connected] — true: кошелёк подключён, лаборатория
+ *   показывает настоящие поля шпиона и стакан рынка. false: учебные стенды.
+ * @param {number} [options.fields] — сколько полей у шпиона (при connected).
+ * @param {string} [options.slug] — префикс ассетов: две фикстуры (стенды и
+ *   подключенный кошелёк) могут жить в одном смоке без пересечения путей.
  */
-export async function labFixture({ connected = false, fields: fieldCount = 2, slug = 'lab' } = {}) {
+export async function labFixture({ connected = false, fields = 2, slug = 'lab' } = {}) {
   const prefix = `/__${slug}/`
   const { build } = require('esbuild')
   const repo = fileURLToPath(new URL('../../../../', import.meta.url))
@@ -23,13 +26,15 @@ export async function labFixture({ connected = false, fields: fieldCount = 2, sl
   const dir = mkdtempSync(join(repo, '.cache/lab-fixture-'))
   const game = join(dir, 'game.tsx'), solana = join(dir, 'solana.tsx'), market = join(dir, 'market.ts')
 
+  // Тот же набор колбэков, что в настоящем GameContext: лаборатория обязана
+  // дёргать существующие действия, а не заводить свои.
   writeFileSync(game, `
 import { useSyncExternalStore } from 'react';
 import { PublicKey } from '@solana/web3.js';
 const listeners = new Set();
 const owner = new PublicKey(new Uint8Array(32).fill(9));
-const keys = Array.from({ length: ${fieldCount} }, (_, i) => new PublicKey(new Uint8Array(32).fill(i + 1)));
-let fields = ${connected} ? keys.map((publicKey, i) => ({ publicKey, owner, level: i ? 8 : 1, durability: 82, lastHarvest: 0, taxPaidUntil: 0, fertilizerUntil: 0, isActive: true, fieldType: i, mutationType: 0, accumulated: 200000 })) : [];
+const keys = Array.from({ length: ${fields} }, (_, i) => new PublicKey(new Uint8Array(32).fill(i + 1)));
+let fields = keys.map((publicKey, i) => ({ publicKey, owner, level: i ? 8 : 1, durability: 82, lastHarvest: 0, taxPaidUntil: 0, fertilizerUntil: 0, isActive: true, fieldType: i, mutationType: 0, accumulated: 200000 }));
 window.__fieldCalls = []; window.__fieldKeys = keys.map(key => key.toString());
 const change = () => { snapshot = make(); listeners.forEach(fn => fn()); };
 const action = name => async key => {
@@ -48,6 +53,8 @@ const make = () => ({
   harvest: action('harvest'), upgradeField: action('upgrade'), repairField: action('repair'),
   payTax: action('tax'), applyFertilizer: action('fertilizer'),
   loading: false, fieldsError: null, purchasing: false, reload: async () => {},
+  purchaseField: async tier => { window.__fieldCalls.push(['purchase', String(tier)]); return true; },
+  batchHarvest: async () => false, batchLimit: 10, licenseActive: true,
 });
 let snapshot = make();
 window.__reorderFields = () => { fields = [...fields].reverse(); change(); };
@@ -56,6 +63,7 @@ window.__dropWalletFields = () => { fields = []; change(); };
 export function useGame() { return useSyncExternalStore(fn => { listeners.add(fn); return () => listeners.delete(fn) }, () => snapshot); }
 `)
 
+  // connected=false — учебные стенды без кошелька; config null, как до ответа RPC.
   writeFileSync(solana, `
 import { PublicKey } from '@solana/web3.js';
 const owner = new PublicKey(new Uint8Array(32).fill(9));
@@ -67,6 +75,7 @@ export function useSolana() {
 }
 `)
 
+  // Стакан рынка — детерминированный шпион: фикстура не ходит в RPC/индексатор.
   writeFileSync(market, `
 export function useMarketplace() {
   return {
@@ -90,10 +99,17 @@ import '${src}/polyfills'; import '${src}/i18n/dicts'; import '${src}/fonts';
 import '${src}/theme/tokens.css'; import '${src}/styles/global.css'; import '${src}/styles/kit.css'; import '${src}/index.css'; import '${src}/ui/hull-ui.css';
 import { setLang } from '${src}/i18n';
 import { ToastProvider } from '${src}/components/Toast';
+import { ColonyProvider } from '${src}/colony/ColonyContext';
 import FieldLabScreen from '${src}/lab/FieldLabScreen';
 window.__setLang = setLang;
 createRoot(document.getElementById('root')).render(
-  <div className="pf-phone-chassis"><ToastProvider><FieldLabScreen /></ToastProvider></div>,
+  <div className="pf-phone-chassis">
+    <ToastProvider>
+      <ColonyProvider>
+        <FieldLabScreen />
+      </ColonyProvider>
+    </ToastProvider>
+  </div>,
 );
 `)
 

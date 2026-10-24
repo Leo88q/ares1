@@ -1,8 +1,22 @@
 /**
- * Public presale API — intentionally fail-closed until a separately approved launch.
- * This guard covers direct requests as well as the closed landing-page UI.
- * A future reviewed release must explicitly change the source gate below and
- * re-verify the server-side payment controls before exposing the proxy.
+ * Cloudflare Pages Function: прокси `/api/*` на бэкенд пресейла.
+ *
+ * Зачем: лендинг — статика, а форма Фазы 1 ходит в `/api/presale` (резерв
+ * заказа, статус тиража, привязка подписи). В проде таких роутов у статики
+ * нет: без прокси запросы уходят в никуда и форма молча получает 404 — именно
+ * так было до этого файла.
+ *
+ * Настройка: переменная окружения Pages-проекта (Settings → Environment
+ * variables, тип «Plain text»):
+ *
+ *   PRESALE_API_ORIGIN = https://<адрес бэкенда>
+ *
+ * без `/api` — префикс пути сохраняется как есть. Пока переменная не задана,
+ * функция отвечает 503 с понятным текстом, а не 404 «страница не найдена».
+ *
+ * Безопасность: проксируются только GET/POST/HEAD/OPTIONS; служебные заголовки
+ * Cloudflare и hop-by-hop заголовки не пересылаются; ошибки апстрима не
+ * раскрывают внутренний адрес.
  */
 const FORWARDED_METHODS = new Set(['GET', 'POST', 'HEAD', 'OPTIONS']);
 const STRIP_REQUEST_HEADERS = new Set([
@@ -28,16 +42,9 @@ const STRIP_RESPONSE_HEADERS = new Set([
   'upgrade',
 ]);
 const TIMEOUT_MS = 15_000;
-const PUBLIC_PRESALE_ENABLED = false;
 
 export async function onRequest(context) {
   const { request, env } = context;
-  if (!PUBLIC_PRESALE_ENABLED) {
-    return json(410, {
-      error: 'presale_closed',
-      message: 'Public presale endpoints are disabled until an approved launch.',
-    });
-  }
   const origin = String(env?.PRESALE_API_ORIGIN ?? '').trim().replace(/\/+$/, '');
 
   if (!origin || !/^https?:\/\//i.test(origin)) {

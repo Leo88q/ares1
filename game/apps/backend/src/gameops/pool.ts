@@ -58,8 +58,7 @@ export async function withTransaction<T>(
   } catch (error) {
     failed = true;
     await client.query('ROLLBACK').catch(() => { /* соединение уже могло умереть */ });
-    const preserve = error instanceof Error && (error as Error & { preserveThroughTransaction?: boolean }).preserveThroughTransaction === true;
-    throw error instanceof GameOpsError || preserve ? error : mapDbError(error);
+    throw error instanceof GameOpsError ? error : mapDbError(error);
   } finally {
     client.release(failed);
   }

@@ -219,7 +219,7 @@ function BedPanel({ mod, language, storageFull, manualHarvest }: { mod: ColonyMo
 function Resource({ art, label, value, unit, detail, progress, tone }: {
   art: ResourceArt; label: string; value: string; unit: string; detail: string; progress?: number; tone?: string
 }): JSX.Element {
-  return <div className={`colony-resource ${tone ? `colony-resource--${tone}` : ''}`}><div className="colony-resource-label"><ResourceIcon kind={art} size={22} /><span>{label}</span></div><div className="colony-resource-value">{value}<small>{unit}</small></div><p>{detail}</p>{progress !== undefined && <div className="colony-resource-progress"><span style={{ width: `${Math.max(0, Math.min(100, progress * 100))}%` }} /></div>}</div>
+  return <div className={`colony-resource ${tone ? `colony-resource--${tone}` : ''}`}><div className="colony-resource-label"><ResourceIcon kind={art} size={22} />{label}</div><div className="colony-resource-value">{value}<small>{unit}</small></div><p>{detail}</p>{progress !== undefined && <div className="colony-resource-progress"><span style={{ width: `${Math.max(0, Math.min(100, progress * 100))}%` }} /></div>}</div>
 }
 
 function Logistics({ state, onChange, language }: { state: ColonyState; onChange: (action: (s: ColonyState) => ColonyState) => void; language: string }): JSX.Element {

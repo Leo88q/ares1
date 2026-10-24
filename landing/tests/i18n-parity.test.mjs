@@ -79,24 +79,33 @@ function entriesOf(file) {
   return entries;
 }
 
-test('launch-gate, live-field, fee and season-status copy is localized with interpolation tokens preserved', () => {
+test('new presale, fee and season copy is localized with interpolation tokens preserved', () => {
   const keys = [
-    'ПРЕСЕЙЛ SKR ЗАКРЫТ',
-    'ПОКУПКА ПАКОВ ОТКЛЮЧЕНА',
-    'Пресейл mainnet пока закрыт: не отправляйте средства.',
     'Фаза 1 — отдельный пресейл mainnet. Devnet-бета бесплатна, прогресс не переносится, тестовые SOL/SKR не имеют реальной стоимости.',
-    'ARES-1 сейчас — devnet-бета с реальными on-chain-полями и действиями. Пресейл за SKR закрыт; строительство колонии пока не подключено.',
-    'До официального запуска здесь нет подключения кошелька, резерва, адреса оплаты или формы подтверждения.',
-    'Поля накапливают $POTATO по текущей devnet-конфигурации; сбор требует подтверждённой транзакции',
-    'Поля — отдельные on-chain аккаунты; продажа паков, уровни редкости и право строить колонию не подключены',
-    'Существующая лицензия может влиять только на legacy-механики devnet V1. Новые лицензии и продление за SKR отключены до отдельного одобренного запуска; она не уменьшает целевую V2-комиссию.',
-    'Экран операции сверяет задачи с текущими on-chain аккаунтами. Это не 28-дневная кампания, не обучение и не активный сезон: очки, общий рейтинг и награды не подключены.',
-    'Это обзор текущего продукта, а не кампания, обучение или локальная симуляция.',
+    'Этот сервер работает в devnet: не отправляйте сюда реальные средства.',
+    'Пресейл mainnet пока закрыт: не отправляйте средства.',
+    'Переведите ровно {amount} на:',
+    'СЕЗОННАЯ ОПЕРАЦИЯ',
+    'ОПЕРАЦИЯ: ПЕРВАЯ ТЕПЛИЦА',
+    'Текущий devnet-контракт V1 сжигает 60% старой комиссии, которую продавец вносит в POTATO при создании ордера; эта схема legacy. Целевая V2-комиссия 9–12% удерживается при успешной сделке из выплаты продавцу в SOL или SKR и идёт в казну — она не сжигает POTATO. Другие игровые расходы могут сжигать POTATO по правилам контракта. Релиз V2 ещё не включён; burn не гарантирует рост цены.',
+    'Что такое «Операция: Первая теплица»?',
+    'Целевая версия V2: 9–12% от gross-суммы удерживается только при успешном fill из выплаты продавцу и поступает в казну в валюте расчёта (SOL или SKR). Суточные маржинальные tiers зависят от суммарного POTATO-объёма seller-wallet и общие для SOL/SKR-пар — дробление ордеров одного адреса не должно обходить ставку. Конкретные границы tiers — рабочий проект и будут опубликованы после финального решения перед релизом. Sybil-кошельки без identity-системы не блокируются. Сейчас devnet-контракт — legacy SOL/POTATO; V2 и пара POTATO/SKR ещё не активны.',
   ];
   const english = entriesOf('en.ts');
   const placeholders = value => [...value.matchAll(/\{[^{}]+\}/g)].map(match => match[0]).sort();
+  const tierDraftKey = keys.find(key => key.includes('Конкретные границы tiers — рабочий проект'));
+  assert.ok(tierDraftKey, 'the active V2 copy must keep tier thresholds explicitly marked as a draft');
+  const draftCue = {
+    'es-419.ts': 'borrador',
+    'id.ts': 'rancangan',
+    'pt-BR.ts': 'rascunho',
+    'tl.ts': 'draft',
+    'vi.ts': 'bản nháp',
+  };
   for (const file of files.filter(file => file !== 'en.ts')) {
     const translated = entriesOf(file);
+    assert.ok(translated.get(tierDraftKey).toLocaleLowerCase().includes(draftCue[file]),
+      `${file} must clearly label proposed V2 tier breakpoints as a draft`);
     for (const key of keys) {
       assert.ok(english.has(key), `missing English source for ${key}`);
       assert.ok(translated.has(key), `${file} is missing ${key}`);

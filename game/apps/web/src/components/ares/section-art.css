@@ -8,16 +8,13 @@
 .ship-section-title span { color: #bd9a69; font: 8px/1.6 var(--ares-font-mono,monospace); letter-spacing: .1em; }
 .ship-section-title h2 { margin: 4px 0 0; color: #f0d4a3; font: 600 25px/1.2 var(--pf-font-ui,sans-serif); text-transform: none; letter-spacing: -.02em; text-shadow: 0 2px 6px #000c; }
 .ship-section-hud { position: absolute; z-index: 1; right: 14px; bottom: 16px; max-width: calc(100% - 28px); }
-.ship-section-body { position: relative; width: 100%; min-width: 0; box-sizing: border-box; padding-top: 8px; border-top: 1px solid #73573355; background: #19120d url('/ares/art/plate-surface.webp') top center/100% 520px; }
+.ship-section-body { position: relative; min-width: 0; padding-top: 8px; border-top: 1px solid #73573355; background: #19120d url('/ares/art/plate-surface.webp') top center/100% 520px; }
 .ship-section-body .main-screen-container { padding-top: 14px; }
 .ship-section-body .pf-h1 { color: #f0d4a5; text-shadow: 0 2px 2px #0007; }
 .ship-section-body .pf-subtitle { color: #c0aa86; }
-.ship-section-body .hull-panel, .ship-section-body .pf-card, .ship-section-body .po-plate { box-sizing: border-box; min-width: 0; background: #21190f url('/ares/kit/panel-bronze.webp') center/100% 100%; border-color: #9e784255; }
+.ship-section-body .hull-panel, .ship-section-body .pf-card, .ship-section-body .po-plate { background: #21190f url('/ares/kit/panel-bronze.webp') center/100% 100%; border-color: #9e784255; }
 .ship-section-body .hull-panel .ares-hull-frame { display: none; }
-/* panel-bronze has a wide illustrated bevel; inset live content past the rivets */
-.ship-section-body .hull-panel > .hull-panel-content { box-sizing: border-box; padding: clamp(18px, 5.5cqi, 26px); }
-.ship-section-body .pf-card,
-.ship-section-body .po-plate { padding: clamp(18px, 5.5cqi, 26px) !important; }
+.ship-section-body .hull-panel > .hull-panel-content { padding: 3px; }
 .ship-section-body .mk-key { background: url('/ares/art/button-bronze.webp') center/100% 100% no-repeat; color: #e0bf88; border: 0; border-radius: 0; box-shadow: none; min-height: 38px; }
 .ship-section-body .mk-key--paint, .ship-section-body .mk-key--engaged { color: #f3d59a; background-image: url('/ares/art/button-bronze.webp'); box-shadow: inset 0 0 0 1px #b8925166; }
 .ship-section-body .mk-key:disabled { opacity: .4; }
@@ -32,7 +29,7 @@
 .ship-nav .hull-nav-key__label { color: #cdb28b; font-size: 10px; letter-spacing: .08em; }
 .ship-nav .hull-nav-key[aria-pressed=true] .hull-nav-key__label { color: #f0d5a2; }
 .ship-nav .hull-nav-key__code { position: absolute; right: 7px; top: 5px; color: #b89a6977; font-size: 6px; }
-@container app-shell (max-width:380px) { .ship-section-hero { height: 205px; } .ship-section-title { left: 12px; top: 18px; gap: 9px; } .ship-section-title > img { width: 38px; height: 38px; } .ship-section-title h2 { font-size: 23px; } .ship-section-hud { bottom: 13px; right: 10px; } .ship-nav .hull-nav-key { min-height: 58px; padding: 6px 1px; } .ship-nav .hull-nav-key__label { font-size: 8px; letter-spacing: .035em; } .ship-nav-icon { width: 24px; height: 24px; } }
+@media(max-width:380px) { .ship-section-hero { height: 205px; } .ship-section-title { left: 12px; top: 18px; gap: 9px; } .ship-section-title > img { width: 38px; height: 38px; } .ship-section-title h2 { font-size: 23px; } .ship-section-hud { bottom: 13px; right: 10px; } .ship-nav .hull-nav-key { min-height: 58px; padding: 6px 1px; } .ship-nav .hull-nav-key__label { font-size: 8px; letter-spacing: .035em; } .ship-nav-icon { width: 24px; height: 24px; } }
 
 .ship-preview { max-width: 1180px; margin: 10px auto 0; border: 1px solid #96734177; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 38px #0006; }
 .ship-preview .ship-section-hero { height: 310px; }
@@ -50,12 +47,12 @@
 .ship-preview-cards span { color: #ab9879; font-size: 10px; }
 .ship-preview-open { display: inline-flex; align-items: center; color: #ecd0a0; text-decoration: none; padding: 13px 24px; min-height: 42px; font-size: 12px; background: url('/ares/art/button-bronze.webp') center/100% 100%; }
 .ship-preview-content > small { display: block; margin-top: 15px; color: #95886e; font-size: 10px; }
-@container app-shell (max-width:600px) { .ship-preview .ship-section-hero { height: 245px; } .ship-preview .ship-section-image { object-position: 67% center; } .ship-preview .ship-section-title { left: 18px; top: 25px; } .ship-preview .ship-section-title h2 { font-size: 28px; } .ship-preview .ship-section-title > img { width: 48px; height: 48px; } .ship-preview-content { padding: 18px 15px 24px; } .ship-preview-cards { grid-template-columns: minmax(0,1fr); gap: 10px; } .ship-preview-content > p { font-size: 11px; } .ship-preview-cards article { padding: clamp(18px, 5.5cqi, 26px); } .ship-preview-cards h3 { font-size: 18px; } }
+@media(max-width:600px) { .ship-preview .ship-section-hero { height: 245px; } .ship-preview .ship-section-image { object-position: 67% center; } .ship-preview .ship-section-title { left: 18px; top: 25px; } .ship-preview .ship-section-title h2 { font-size: 28px; } .ship-preview .ship-section-title > img { width: 48px; height: 48px; } .ship-preview-content { padding: 18px 15px 24px; } .ship-preview-cards { grid-template-columns: minmax(0,1fr); gap: 10px; } .ship-preview-content > p { font-size: 11px; } .ship-preview-cards article { padding: 19px 15px; } .ship-preview-cards h3 { font-size: 18px; } }
 
 /* Семь клавиш пульта (АГРО · ЛАБ · КОЛОНИЯ · СНАБ · ЖУРНАЛ · КАЮТА · ОПЕРАЦИЯ)
    в одну телефонную колонку. Scoped with .hull-nav so these beat the base
    hull-ui.css rules regardless of stylesheet order. */
-@container app-shell (max-width: 480px) {
+@media (max-width: 480px) {
   .hull-nav-wrap { width: calc(100% - 12px); }
   .hull-nav .hull-nav-key { padding: 5px 1px 4px; min-width: 0; }
   .hull-nav .hull-nav-key__label { font-size: 8.5px; letter-spacing: 0.02em; }
@@ -64,7 +61,7 @@
 /* ≤380 px: седьмая клавиша не должна ломать тактильный минимум. Пульт
    уплотняется (зазоры 1 px, иконка 20 px), и каждая клавиша остаётся ≥44 px
    по ширине даже на 320 px — двухрядной панели и лишнего скролла нет. */
-@container app-shell (max-width: 380px) {
+@media (max-width: 380px) {
   .hull-nav-wrap { width: calc(100% - 4px); }
   .ship-nav .hull-panel-content { padding: 4px 2px; gap: 1px; }
   .ship-nav .hull-nav-key { padding: 6px 0 5px; }

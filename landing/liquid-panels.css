@@ -148,6 +148,16 @@
     linear-gradient(135deg, #19111e, #0e0b14);
 }
 
+.liquid-panel--presale {
+  background:
+    radial-gradient(
+      ellipse at top left,
+      rgba(216, 85, 143, 0.08),
+      transparent 60%
+    ),
+    linear-gradient(135deg, #19111e, #0e0b14);
+}
+
 /* Remove the old painted screws without changing panel dimensions. */
 .panel[data-liquid-panel] {
   background-image: linear-gradient(135deg, #19111ed9, #0e0b14f5);

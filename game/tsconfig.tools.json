@@ -8,10 +8,6 @@
     ],
     "module": "esnext",
     "moduleResolution": "bundler",
-    "baseUrl": ".",
-    "paths": {
-      "@solana/web3.js": ["node_modules/@solana/web3.js/lib/index.d.ts"]
-    },
     "jsx": "react-jsx",
     "noEmit": true
   },
@@ -19,7 +15,6 @@
     "scripts/migrationClient.ts",
     "scripts/migrate-v2.ts",
     "scripts/init-onchain.ts",
-    "scripts/estimate-game-rent.ts",
     "tests/offchain/**/*.ts",
     "scripts/test-migrations-localnet.ts",
     "scripts/check-invariants.ts",
@@ -27,7 +22,6 @@
     "scripts/db-migrate.ts",
     "scripts/db-roles.ts",
     "scripts/db-verify.ts",
-    "scripts/colony-audit.ts",
     "scripts/db-bench.ts",
     "scripts/db-mutate.ts",
     "scripts/presale-reconcile.ts",

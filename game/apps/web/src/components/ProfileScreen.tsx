@@ -10,20 +10,25 @@ import { useGame } from '../contexts/GameContext'
 import { getAchievements } from '../utils/achievements'
 import { ShiftTasksList, type ShiftTask } from './ares/ShiftTasksList'
 
-import { fmtPotato, HARVEST_THRESHOLD_MICRO, MAX_DURABILITY, BATCH_LIMIT_BASE, BATCH_LIMIT_LICENSED } from '../utils/constants'
-import { pdas, decodeExportLicense } from '../utils/anchorClient'
+import { fmtPotato, fmtSkr, EXPORT_LICENSE_PRICE_SKR_ATOMS, HARVEST_THRESHOLD_MICRO, MAX_DURABILITY, BATCH_LIMIT_BASE, BATCH_LIMIT_LICENSED } from '../utils/constants'
+import { pdas, decodeExportLicense, ixBuyExportLicense, treasurySolPda, treasurySkrAta, SKR_MINT } from '../utils/anchorClient'
+import { getAssociatedTokenAddress } from '@solana/spl-token'
 import { CabinBay } from './ares/CabinBay'
 import AudioSettings from './AudioSettings'
 import { RollingNumber } from '../ui/RollingNumber'
 import { SparkProgress } from '../ui/SparkProgress'
 import { PatchWall } from './ares/PatchWall'
+import { useToast } from './Toast'
+import { describeError } from '../utils/errors'
 
 function ProfileScreenInner() {
  const { t } = useI18n()
- const { connected, publicKey, ready, programId, connection } = useSolana()
+ const { connected, publicKey, ready, programId, connection, sendIx } = useSolana()
  const { stats, claimed, fields } = useGame()
  const navigate = useNavigate()
+ const { show } = useToast()
  const [license, setLicense] = useState<{ expiresAt: number; active: boolean } | null>(null)
+ const [buyingLicense, setBuyingLicense] = useState(false)
 
  useEffect(() => {
   if (!publicKey || !programId) return
@@ -43,6 +48,25 @@ function ProfileScreenInner() {
   const i = setInterval(load, 30_000)
   return () => { cancelled = true; clearInterval(i) }
  }, [publicKey, programId, connection])
+
+ const buyLicense = async () => {
+  if (!publicKey || !programId || buyingLicense) return
+  setBuyingLicense(true)
+  try {
+   const p = pdas(programId)
+   const userSkrAta = await getAssociatedTokenAddress(SKR_MINT, publicKey)
+   const ix = await ixBuyExportLicense(programId, {
+    config: p.config(), license: p.exportLicense(publicKey), payer: publicKey,
+    skrMint: SKR_MINT, userSkrAta,
+    treasurySol: treasurySolPda(programId), treasurySkrAta: treasurySkrAta(programId, SKR_MINT),
+   })
+   await sendIx([ix])
+   setLicense({ expiresAt: Math.floor(Date.now() / 1000) + 30 * 86400, active: true })
+  } catch (err) {
+   console.error('buyLicense', err)
+   show({ type: 'error', title: t('Не удалось купить лицензию'), message: describeError(err) })
+  } finally { setBuyingLicense(false) }
+ }
 
  const licenseDays = license ? Math.max(0, Math.ceil((license.expiresAt - Math.floor(Date.now() / 1000)) / 86400)) : 0
 
@@ -153,7 +177,18 @@ function ProfileScreenInner() {
       <p style={{ fontSize: 12, color: '#9FBE7A', marginBottom: 14, lineHeight: 1.4 }}>
        {t('Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.', { n: BATCH_LIMIT_LICENSED, base: BATCH_LIMIT_BASE })}
       </p>
-      <p className="lab-note" role="status">{t('Покупка лицензии за SKR закрыта до отдельного одобрения запуска.')}</p>
+      <button
+       onClick={buyLicense}
+       disabled={buyingLicense || !publicKey}
+       className="mk-key mk-key--paint"
+       style={{
+        cursor: 'pointer',
+        padding: '11px 16px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
+        opacity: buyingLicense || !publicKey ? 0.6 : 1, width: '100%',
+       }}
+      >
+       {buyingLicense ? t('ОТПРАВКА…') : t('ПРОДЛИТЬ ЛИЦЕНЗИЮ')}
+      </button>
      </div>
     ) : (
      <div>
@@ -163,7 +198,26 @@ function ProfileScreenInner() {
       <p style={{ fontSize: 12, color: '#9FBE7A', marginBottom: 12, lineHeight: 1.4 }}>
        {t('Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.', { n: BATCH_LIMIT_LICENSED, base: BATCH_LIMIT_BASE })}
       </p>
-      <p className="lab-note" role="status">{t('Покупка лицензии за SKR закрыта до отдельного одобрения запуска.')}</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '10px 12px', borderRadius: 8, background: '#120B07', border: '1px solid #3E2413' }}>
+       <span className="ares-mono" style={{ fontSize: 14, fontWeight: 700, color: '#F6F1ED' }}>
+        {fmtSkr(EXPORT_LICENSE_PRICE_SKR_ATOMS, 0)} SKR
+       </span>
+       <span className="ares-mono" style={{ fontSize: 11, color: '#C9A176' }}>
+        {t('СРОК ДЕЙСТВИЯ: 30 ДНЕЙ')}
+       </span>
+      </div>
+      <button
+       onClick={buyLicense}
+       disabled={buyingLicense || !publicKey}
+       className="mk-key mk-key--paint"
+       style={{
+        cursor: 'pointer',
+        padding: '11px 16px', fontSize: 12, fontWeight: 700, letterSpacing: 0.5,
+        opacity: buyingLicense || !publicKey ? 0.6 : 1, width: '100%',
+       }}
+      >
+       {buyingLicense ? t('ОТПРАВКА…') : t('ПРИОБРЕСТИ ЛИЦЕНЗИЮ')}
+      </button>
      </div>
     )}
    </div>
