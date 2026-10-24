@@ -4,7 +4,8 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
-import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets'
+import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom'
+import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare'
 import {
  createDefaultAuthorizationCache,
  createDefaultChainSelector,
@@ -36,10 +37,9 @@ import './styles/wallet-adapter.css'
  * модуль упал на проверке конфигурации, исключение ловится и игрок видит
  * понятный экран с подсказкой, а не пустую страницу.
  *
- * Важно: вендорские зависимости остаются СТАТИЧЕСКИМИ импортами. Перенос
- * их в import() ломает tree-shaking барьера @solana/wallet-adapter-wallets —
- * в бандл едут все адаптеры кошельков с dev-URL и строками CDN, и гейт
- * scripts/check-release-artifacts.mjs краснеет.
+ * Важно: кошельки импортируются напрямую из адаптеров Phantom и Solflare,
+ * а не из агрегирующего @solana/wallet-adapter-wallets: barrel тянет десятки
+ * неиспользуемых адаптеров с dev-URL и CDN-строками в production-бандл.
  */
 function BootErrorScreen({ error }: { error: unknown }) {
   const message = error instanceof Error ? error.message : String(error)

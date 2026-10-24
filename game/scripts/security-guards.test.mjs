@@ -414,7 +414,7 @@ test('2026-10-02: Jayson 5 removes the vulnerable stream-json/uuid RPC parser tr
   ]) {
     assert.equal(rootPkg.resolutions?.[pattern], '11.1.1', `vulnerable uuid consumer must be patched: ${pattern}`);
   }
-  assert.equal(parseYarnEntry(yarnLock, 'uuid@^8.3.2')?.version, '11.1.1');
+  assert.doesNotMatch(yarnLock, /^uuid@\^8\.3\.2:/m, 'unused uuid ^8.3.2 descriptor must remain pruned with the aggregate wallet adapters');
   assert.equal(parseYarnEntry(yarnLock, 'uuid@^9.0.0')?.version, '11.1.1');
   assert.doesNotMatch(yarnLock, /^uuid@\^9\.0\.0:/m, 'do not keep an unused, vulnerable uuid 9 lock entry');
   assert.equal(parseYarnEntry(yarnLock, 'uuid@^14.0.0')?.version, '14.0.2', 'rpc-websockets keeps its supported uuid major');
@@ -855,6 +855,28 @@ test('2026-10-02: фиксирует production advisories в lodash, viem/ws и
   assert.doesNotMatch(lock, /^lodash@4\.18\.0:/m, 'отозванный lodash 4.18.0 lock-entry вернулся');
   assert.doesNotMatch(lock, /^ws@8\.18\.0:/m, 'уязвимый ws lock-entry вернулся');
   assert.doesNotMatch(lock, /^toml@\^3\.0\.0:\n\s+version "3\.0\.0"/m, 'уязвимый toml lock-entry вернулся');
+});
+
+test('release artifact gate exempts only the MWA local bridge probe, not arbitrary loopback URLs', () => {
+  const repoRoot = path.resolve(here, '..', '..');
+  const checker = path.join(repoRoot, 'scripts', 'check-release-artifacts.mjs');
+  const dir = mkdtempSync(path.join(repoRoot, '.tmp-release-artifact-'));
+  const run = () => spawnSync(process.execPath, [checker, path.relative(repoRoot, dir)], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  try {
+    writeFileSync(path.join(dir, 'bundle.js'), 'await fetch("http://localhost")');
+    const mobileProbe = run();
+    assert.equal(mobileProbe.status, 0, `${mobileProbe.stdout}\\n${mobileProbe.stderr}`);
+
+    writeFileSync(path.join(dir, 'bundle.js'), 'fetch("http://127.0.0.1:8899")');
+    const devServer = run();
+    assert.equal(devServer.status, 1, `${devServer.stdout}\\n${devServer.stderr}`);
+    assert.match(devServer.stdout, /artifact-loopback-url/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('2026-10-02: рабочее дерево проходит secret-scan (гейт §1.1 не красный)', () => {
