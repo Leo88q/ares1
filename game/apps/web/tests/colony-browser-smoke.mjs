@@ -20,6 +20,8 @@ const browser = await chromium.launch({
 })
 const errors = []
 const external = []
+const rpcRequests = []
+const allowedRpcEndpoint = 'https://api.devnet.solana.com/'
 
 async function openColony(width, locale = 'en-US') {
   const context = await browser.newContext({ viewport: { width, height: 900 }, locale, reducedMotion: 'reduce' })
@@ -27,7 +29,8 @@ async function openColony(width, locale = 'en-US') {
   page.on('pageerror', error => errors.push(error.message))
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
   page.on('request', request => {
-    if (!request.url().startsWith(origin) && !/^(data|blob):/.test(request.url())) external.push(request.url())
+    if (request.url() === allowedRpcEndpoint) rpcRequests.push(request.url())
+    else if (!request.url().startsWith(origin) && !/^(data|blob):/.test(request.url())) external.push(request.url())
   })
   await page.goto(`${base}/colony`, { waitUntil: 'networkidle' })
   await page.waitForURL(url => url.pathname === '/base')
@@ -61,6 +64,7 @@ try {
     console.log(`PASS ${width}px: /colony redirects to /base, persistent status only, no local simulation or horizontal overflow`)
   }
   assert.deepEqual(external, [], `unexpected external requests: ${external.join(', ')}`)
+  assert.ok(rpcRequests.every(url => url === allowedRpcEndpoint), `only the configured devnet RPC is permitted: ${rpcRequests.join(', ')}`)
   assert.deepEqual(errors, [], `browser console/page errors: ${errors.slice(0, 8).join('\n')}`)
   console.log('PASS Colony production route uses same-origin assets only and has no runtime errors')
 } finally {
