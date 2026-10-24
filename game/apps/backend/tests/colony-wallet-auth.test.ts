@@ -11,7 +11,7 @@ import {
 } from '../src/colonies/walletAuth.js';
 
 const ORIGIN = 'https://game.example';
-const SECRET = 'test-only-colony-session-secret-32-bytes';
+const SESSION_SIGNING_KEY_FOR_TESTS = 'test-only-colony-session-secret-32-bytes';
 
 function testWallet() {
   const pair = generateKeyPairSync('ed25519');
@@ -48,10 +48,10 @@ test('challenge rejects non-HTTPS origins, invalid public keys and oversized TTL
 
 test('session is origin-bound, short-lived, signed and tamper evident', () => {
   const { wallet } = testWallet();
-  const token = issueWalletSession({ wallet, origin: ORIGIN, secret: SECRET, nowSeconds: 1000, ttlSeconds: 300 });
-  assert.equal(verifyWalletSession({ token, origin: ORIGIN, secret: SECRET, nowSeconds: 1100 })?.wallet, wallet);
-  assert.equal(verifyWalletSession({ token, origin: 'https://other.example', secret: SECRET, nowSeconds: 1100 }), null);
-  assert.equal(verifyWalletSession({ token: `${token}x`, origin: ORIGIN, secret: SECRET, nowSeconds: 1100 }), null);
-  assert.equal(verifyWalletSession({ token, origin: ORIGIN, secret: SECRET, nowSeconds: 1300 }), null);
+  const token = issueWalletSession({ wallet, origin: ORIGIN, secret: SESSION_SIGNING_KEY_FOR_TESTS, nowSeconds: 1000, ttlSeconds: 300 });
+  assert.equal(verifyWalletSession({ token, origin: ORIGIN, secret: SESSION_SIGNING_KEY_FOR_TESTS, nowSeconds: 1100 })?.wallet, wallet);
+  assert.equal(verifyWalletSession({ token, origin: 'https://other.example', secret: SESSION_SIGNING_KEY_FOR_TESTS, nowSeconds: 1100 }), null);
+  assert.equal(verifyWalletSession({ token: `${token}x`, origin: ORIGIN, secret: SESSION_SIGNING_KEY_FOR_TESTS, nowSeconds: 1100 }), null);
+  assert.equal(verifyWalletSession({ token, origin: ORIGIN, secret: SESSION_SIGNING_KEY_FOR_TESTS, nowSeconds: 1300 }), null);
   assert.throws(() => issueWalletSession({ wallet, origin: ORIGIN, secret: 'short' }), /32 UTF-8 bytes/);
 });

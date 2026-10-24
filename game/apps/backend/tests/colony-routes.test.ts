@@ -11,7 +11,7 @@ import { colonyAuthRouter } from '../src/colonies/routes.js';
 import type { ColonyService } from '../src/colonies/service.js';
 
 const ORIGIN = 'https://game.example';
-const SECRET = 'test-only-colony-session-secret-32-bytes';
+const SESSION_SIGNING_KEY_FOR_TESTS = 'test-only-colony-session-secret-32-bytes';
 
 function walletPair() {
   const pair = generateKeyPairSync('ed25519');
@@ -90,7 +90,7 @@ test('colony auth routes issue an origin-bound one-time session from a wallet si
     },
   } as unknown as ColonyService;
   app.use('/api/colonies', colonyAuthRouter({
-    pool: challengeDb(), cluster: 'mainnet-beta', sessionSecret: SECRET,
+    pool: challengeDb(), cluster: 'mainnet-beta', sessionSecret: SESSION_SIGNING_KEY_FOR_TESTS,
     allowedOrigins: [ORIGIN], fieldRpc, programId, colonyService,
   }));
   const server = createServer(app);
