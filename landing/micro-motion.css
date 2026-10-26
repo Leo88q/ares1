@@ -128,10 +128,6 @@
   pointer-events: none;
 }
 
-.presale-panel .spark-progress {
-  margin-top: 12px;
-}
-
 .allocation-row .spark-progress {
   margin-top: 12px;
   --spark-height: 4px;

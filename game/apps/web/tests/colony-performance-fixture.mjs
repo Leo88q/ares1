@@ -34,10 +34,12 @@ function stress(count) {
 window.__mount = async (count, batching, incremental = true) => {
   active?.dispose(); active = null;
   state = stress(count); selected = state.modules[Math.floor(count / 2)].id;
-  let done; const ready = new Promise(r => { done = r });
+  let done, fail; const ready = new Promise((r, j) => { done = r; fail = j });
   active = createColonyScene(document.getElementById('host'), {
     onSelect: id => { window.__picked = id; selected = id; active.update(state,selected,18) },
-    onSite: () => {}, onReady: () => done(), onModelError: () => { throw Error('Stress model failed') }, onContextLost: () => { throw Error('Unexpected context loss') },
+    onSite: () => {}, onReady: () => done(),
+    onModelError: files => fail(Error('Stress model failed: ' + files.join(', '))),
+    onContextLost: () => fail(Error('Unexpected context loss')),
   }, { batching, incremental });
   active.update(state, selected, 18);
   let timeout;

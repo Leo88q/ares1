@@ -1,7 +1,6 @@
-// Production-CSP UI test. Installed browser only; never downloads Chromium.
+// Production-CSP UI test for the live 3D field view and real field actions.
+// Installed browser only; no external wallet/RPC or transaction is used.
 // CHROMIUM_EXECUTABLE_PATH=... [FIELDS_BASE_URL=...] yarn workspace web test:fields-browser
-// Песочница /demo удалена: учебные стенды теперь живут в продуктовой лаборатории
-// /lab, поэтому 3D-слой полей проверяется на её фикстуре (без кошелька).
 import assert from 'node:assert/strict'
 import { readFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -16,19 +15,18 @@ const origin = new URL(base).origin
 const csp = readFileSync(new URL('../public/_headers', import.meta.url), 'utf8').match(/^\s+Content-Security-Policy: (.+)$/m)?.[1]
 assert.ok(csp)
 const screenshots = process.env.FIELDS_SCREENSHOT_DIR
-// NO_WEBGL=1: skip the 3D demo and the 3D view switch; fallback views are still tested. CI runs the full 3D suite.
 const noWebgl = process.env.NO_WEBGL === '1'
 if (screenshots) mkdirSync(screenshots, { recursive: true })
-const fixture = await labFixture({ slug: 'lab-bench' })
-const mainFixtureAssets = await mainFixture()
-const assets = new Map([...fixture.assets, ...mainFixtureAssets.assets])
-const htmlPaths = new Set(['/__lab-bench/main', '/__fields/main'])
+const lab = await labFixture({ connected: true, fields: 3, slug: 'lab-live-fields' })
+const main = await mainFixture()
+const assets = new Map([...lab.assets, ...main.assets])
+const htmlPaths = new Set(['/__lab-live-fields/main', '/__fields/main'])
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
   args: process.env.CHROMIUM_ARGS_JSON ? JSON.parse(process.env.CHROMIUM_ARGS_JSON) : ['--no-sandbox'], headless: true })
 const errors = [], external = [], successfulModels = new Map()
 const noOverflow = async page => assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'horizontal overflow')
 const settled = async page => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
-const shot = async (page, name) => { if (screenshots) { await settled(page); await page.screenshot({ path: join(screenshots, name), fullPage: true }); await page.getByTestId('fields-viewport').screenshot({ path: join(screenshots, `scene-${name}`) }) } }
+const shot = async (page, name) => { if (screenshots) { await settled(page); await page.screenshot({ path: join(screenshots, name), fullPage: true }) } }
 
 async function open(width, { fallback = false, breakModel = false, realMain = false } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 1000 }, locale: 'ru-RU', reducedMotion: 'reduce' })
@@ -36,7 +34,7 @@ async function open(width, { fallback = false, breakModel = false, realMain = fa
   page.on('pageerror', error => errors.push(error.message))
   page.on('console', message => {
     if (message.type() !== 'error') return
-    if (noWebgl && /WebGL/.test(message.text())) return // NO_WEBGL: the missing GPU context is the expected condition
+    if (noWebgl && /WebGL/.test(message.text())) return
     if (fallback && /WebGL context could not be created|Error creating WebGL context/.test(message.text())) return
     if (breakModel && /\/models\/fields\//.test(message.location().url)) return
     errors.push(message.text())
@@ -48,8 +46,7 @@ async function open(width, { fallback = false, breakModel = false, realMain = fa
     const request = route.request(), url = new URL(request.url())
     if (url.origin !== origin && !/^(data|blob):/.test(request.url())) { external.push(request.url()); return route.abort() }
     const mocked = assets.get(url.pathname)
-    if (mocked) return route.fulfill({ status: 200, contentType: mocked.type, body: mocked.bytes,
-      headers: htmlPaths.has(url.pathname) ? { 'content-security-policy': csp } : {} })
+    if (mocked) return route.fulfill({ status: 200, contentType: mocked.type, body: mocked.bytes, headers: htmlPaths.has(url.pathname) ? { 'content-security-policy': csp } : {} })
     if (breakModel && url.pathname === '/models/fields/canopy.glb') return route.fulfill({ status: 503, body: 'Model unavailable' })
     if (!request.isNavigationRequest()) return route.continue()
     const response = await route.fetch()
@@ -59,10 +56,9 @@ async function open(width, { fallback = false, breakModel = false, realMain = fa
     const getContext = HTMLCanvasElement.prototype.getContext
     HTMLCanvasElement.prototype.getContext = function (type, ...args) { return /webgl/.test(type) ? null : getContext.call(this, type, ...args) }
   })
-  await page.goto(`${base}${realMain ? '/__fields/main' : '/__lab-bench/main'}`, { waitUntil: 'networkidle' })
+  await page.goto(`${base}${realMain ? '/__fields/main' : '/__lab-live-fields/main'}`, { waitUntil: 'networkidle' })
+  if (!realMain) await page.getByTestId('field-lab').waitFor()
   await page.locator(fallback || breakModel ? '[data-testid="fields-fallback"]' : '[data-testid="fields-viewport"][data-ready="true"]').waitFor()
-  // Лаборатория открывается на настоящем слое поля (initialLayer="chain"): 3D-вид,
-  // статус-полоса и инспектор доступны сразу, переключать слой не нужно.
   await noOverflow(page)
   return { page, context }
 }
@@ -70,6 +66,7 @@ async function open(width, { fallback = false, breakModel = false, realMain = fa
 try {
   if (!noWebgl) {
     const { page, context } = await open(1440)
+    const keys = await page.evaluate(() => window.__fieldKeys)
     assert.equal(await page.locator('.mf-field-picker button').count(), 3)
     assert.equal(await page.locator('.mf-canvas-host canvas').count(), 1)
     const cameraCanvas = page.locator('.mf-canvas-host canvas')
@@ -78,67 +75,53 @@ try {
     await page.getByRole('button', { name: 'Вернуть камеру', exact: true }).click()
     assert.equal(await cameraCanvas.getAttribute('data-yaw'), '0')
 
-    await page.getByRole('button', { name: /Поле 03 EPIC/ }).click()
-    assert.equal(await page.getByTestId('fields-viewport').getAttribute('data-selected-id'), 'lab-bench-2')
+    await page.locator('.mf-field-picker button').nth(2).click()
+    assert.equal(await page.getByTestId('fields-viewport').getAttribute('data-selected-id'), keys[2])
     await page.getByRole('button', { name: 'Остекление', exact: true }).click()
-    await shot(page, 'desktop-epic.png')
+    await shot(page, 'desktop-field-03.png')
     await page.getByRole('button', { name: 'Обзор сектора', exact: true }).click()
     await shot(page, 'desktop-sector.png')
-    // Clicking actual rendered geometry selects a field; it never performs harvest.
     const rect = await page.locator('.mf-canvas-host canvas').boundingBox()
     const camera = new THREE.OrthographicCamera(-25 * rect.width / rect.height, 25 * rect.width / rect.height, 25, -25, 0.1, 180)
     camera.position.set(30, 30, 34); camera.lookAt(0, 0.6, 0); camera.updateMatrixWorld()
     const point = new THREE.Vector3(-13, 0.3, 0).project(camera)
     await page.locator('.mf-canvas-host canvas').click({ position: { x: (point.x + 1) / 2 * rect.width, y: (1 - point.y) / 2 * rect.height } })
-    await page.waitForFunction(() => document.querySelector('[data-testid="fields-viewport"]')?.getAttribute('data-selected-id') === 'lab-bench-0')
-    await page.getByRole('button', { name: 'Выбранное поле', exact: true }).click()
-    await page.getByRole('button', { name: 'Приблизить', exact: true }).click()
-    await page.getByRole('button', { name: 'Вернуть камеру', exact: true }).click()
-    // Возвращаем выбор на стенд тира: геометрия выше выбирала bench-0.
-    await page.getByRole('button', { name: /Поле 03 EPIC/ }).click()
-    // Стенд тира помечен как учебный: без кошелька, без POTATO, без блокчейна.
-    assert.equal(await page.getByTestId('lab-bench').getAttribute('data-tier'), '2')
-    assert.match(await page.getByTestId('lab-bench').innerText(), /УЧЕБНЫЙ СТЕНД · НЕ АККАУНТ КОШЕЛЬКА/)
-    assert.match(await page.getByTestId('fields-status').innerText(), /Рост/)
-    assert.match(await page.getByTestId('fields-status').innerText(), /82%|100%/)
+    await page.waitForFunction(keys => keys.includes(document.querySelector('[data-testid="fields-viewport"]')?.getAttribute('data-selected-id')), keys)
+    assert.equal(await page.getByTestId('lab-bench').count(), 0)
+    assert.equal(await page.getByRole('button', { name: /SIM|пауза|pause/i }).count(), 0)
     await page.evaluate(() => window.__setLang('en'))
-    assert.match(await page.getByTestId('lab-bench').innerText(), /TRAINING BENCH · NOT A WALLET ACCOUNT/)
-    assert.match(await page.getByTestId('fields-status').innerText(), /Growing/)
+    assert.match(await page.locator('.mf-field-picker').innerText(), /Field/)
     await page.evaluate(() => window.__setLang('ru'))
-    assert.match(await page.getByTestId('lab-bench').innerText(), /УЧЕБНЫЙ СТЕНД/)
     await page.locator('.mf-canvas-host canvas').evaluate(canvas => canvas.getContext('webgl2')?.getExtension('WEBGL_lose_context')?.loseContext())
     await page.getByTestId('fields-fallback').waitFor()
     await page.locator('.mf-field-picker button').nth(1).press('Enter')
-    assert.equal(await page.locator('.mf-inspector').getAttribute('data-selected-id'), 'lab-bench-1')
+    assert.equal(await page.locator('.mf-inspector').getAttribute('data-selected-id'), keys[1])
     await noOverflow(page); await context.close()
-    console.log('PASS field lab benches: real GLBs, tier/geometry selection, camera, glazing, training-bench inspector, language, context loss')
+    console.log('PASS live field 3D: camera, account selection, geometry hit testing, local GLB art, language and context-loss fallback')
   }
 
   for (const width of [390, 320]) {
     const { page, context } = await open(width, { fallback: noWebgl })
-    await page.getByRole('button', { name: /Поле 03 EPIC/ }).click()
+    await page.locator('.mf-field-picker button').nth(2).click()
     await page.getByRole('button', { name: 'Остекление', exact: true }).click()
     await shot(page, `mobile-${width}.png`)
-    await page.getByRole('button', { name: 'Обзор сектора', exact: true }).click(); await noOverflow(page)
-    await context.close(); console.log(`PASS ${width}px: tier selection, glazing, overview, no overflow`)
+    await page.getByRole('button', { name: 'Обзор сектора', exact: true }).click()
+    await noOverflow(page); await context.close()
+    console.log(`PASS ${width}px: field selection, roof and overview controls, no overflow`)
   }
+
   for (const flags of [{ fallback: true }, { breakModel: true }]) {
     const { page, context } = await open(390, flags)
     await page.locator('.mf-field-picker button').last().press('Enter')
-    assert.equal(await page.locator('.mf-inspector').getAttribute('data-selected-id'), 'lab-bench-2')
-    assert.equal(await page.getByTestId('lab-bench').getAttribute('data-tier'), '2')
-    await page.getByRole('button', { name: 'Инженерный режим · SIM', exact: true }).click()
-    await page.getByTestId('engineering-console').waitFor()
+    assert.equal(await page.getByTestId('lab-bench').count(), 0)
+    assert.equal(await page.getByRole('button', { name: /SIM|пауза|pause/i }).count(), 0)
     await noOverflow(page); await context.close()
   }
-  console.log('PASS no WebGL / failed model: keyboard selection and controls remain usable')
+  console.log('PASS no WebGL / failed model: real field selectors remain usable with no demo controls')
 
-  // NO_WEBGL: the MainScreen callback check needs the 3D inspector; engineering-browser-smoke covers the same callbacks in fallback.
+  // MainScreen callback test uses mock providers only: no signature or RPC.
   if (!noWebgl) {
-    // The actual MainScreen + FieldCardVice, with fake providers only. There is
-    // no RPC or signing. Confirm every unchanged callback receives the selected
-    // account public key, even after a polling-order change.
-    const real = await open(390, { realMain: true, fallback: noWebgl })
+    const real = await open(390, { realMain: true })
     const keys = await real.page.evaluate(() => window.__fieldKeys)
     await real.page.locator('.mf-field-picker button').nth(1).click()
     assert.equal(await real.page.locator('.mf-inspector').getAttribute('data-selected-id'), keys[1])
@@ -152,25 +135,25 @@ try {
     }
     await real.page.getByRole('button', { name: 'Карточки', exact: true }).click()
     assert.equal(await real.page.locator('.mf-card-grid .plant-module-panel').count(), 2)
-    if (!noWebgl) {
     await real.page.getByRole('button', { name: '3D-вид', exact: true }).click()
     await real.page.locator('[data-testid="fields-viewport"][data-ready="true"]').waitFor()
     assert.equal(await real.page.locator('.mf-inspector').getAttribute('data-selected-id'), keys[1])
-    }
     await real.page.evaluate(() => window.__removeSelected())
     assert.equal(await real.page.locator('.mf-inspector').getAttribute('data-selected-id'), keys[0])
     await shot(real.page, 'main-390.png')
     await noOverflow(real.page); await real.context.close()
-    console.log('PASS actual MainScreen: stable public-key selection, all 5 original action callbacks, cards, account removal (mock providers, no transactions)')
+    console.log('PASS live Agro: stable public-key selection and existing field action callbacks (mock providers)')
   }
 
-  if (!noWebgl) { // 18 models load only when WebGL runs the 3D view
-  assert.equal(successfulModels.size, 18)
-  assert.ok([...successfulModels.values()].every(status => status === 200))
+  if (!noWebgl) {
+    assert.equal(successfulModels.size, 18)
+    assert.ok([...successfulModels.values()].every(status => status === 200))
   }
-  assert.deepEqual(external, [], 'no external RPC/wallet/font/model requests in the lab/fixture')
+  assert.deepEqual(external, [], 'no external RPC/wallet/font/model requests')
   assert.deepEqual(errors, [], 'no unexpected runtime, console or CSP errors')
-  console.log('PASS production CSP, all 18 local models, no external requests or unexpected errors')
+  console.log('PASS production CSP, local field models, no external requests or unexpected errors')
 } finally {
-  await browser.close(); fixture.dispose(); mainFixtureAssets.dispose()
+  await browser.close()
+  lab.dispose()
+  main.dispose()
 }

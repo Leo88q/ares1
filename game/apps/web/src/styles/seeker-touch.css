@@ -11,16 +11,22 @@
   .op-action, .phase1-link { min-height: 44px; display: inline-flex; align-items: center; }
   /* hull-ui.css sets 38 px on .ship-section-body .mk-key (higher specificity); the links sit inside that section. */
   .ship-section-body a.mk-key.op-action { min-height: 44px; }
-}
-
-/* Market filter fields and APPLY / RESET (34–36 px before). */
-@media (max-width: 480px), (pointer: coarse) {
+  /* Market filter fields and APPLY / RESET (34–36 px before). */
   .market-filter-grid .market-filter-field input { min-height: 44px; }
   .ares-stencil.market-filter-apply, .ares-stencil.market-filter-reset { min-height: 44px; }
+  /* Market filter chips: class selectors alone lose to the lazily loaded market sheet. */
+  .ares-stencil.market-filter-app, .ares-stencil.market-filter-res { min-height: 44px; }
 }
 
-/* Market filter chips: class selectors alone lose to the lazily loaded market sheet. */
-@media (max-width: 480px), (pointer: coarse) {
+/* The app is rendered in a 480px shell even in a desktop browser. Mirror the
+   phone hit areas there instead of relying only on the outer viewport width. */
+@container app-shell (max-width: 480px) {
+  .mk-key { min-height: 44px; }
+  .ship-section-body button.mk-key { min-height: 44px; }
+  .op-action, .phase1-link { min-height: 44px; display: inline-flex; align-items: center; }
+  .ship-section-body a.mk-key.op-action { min-height: 44px; }
+  .market-filter-grid .market-filter-field input { min-height: 44px; }
+  .ares-stencil.market-filter-apply, .ares-stencil.market-filter-reset,
   .ares-stencil.market-filter-app, .ares-stencil.market-filter-res { min-height: 44px; }
 }
 

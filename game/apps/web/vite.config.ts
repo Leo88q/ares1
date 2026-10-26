@@ -7,6 +7,33 @@ import { fileURLToPath } from 'node:url'
 const projectRoot = dirname(fileURLToPath(import.meta.url))
 
 /**
+ * The upstream MWA browser adapter injects a Google Fonts stylesheet at runtime.
+ * Our UI already serves Inter locally, so strip only that upstream font link
+ * while preserving the mobile-wallet handshake (including its localhost probe).
+ * Assert the expected upstream block exists so dependency upgrades are reviewed.
+ */
+function localizeMobileWalletAdapterModal(): import('vite').Plugin {
+  return {
+    name: 'localize-mobile-wallet-adapter-modal',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!id.includes('/@solana-mobile/wallet-standard-mobile/lib/esm/index.browser.js')) return null
+      const start = code.indexOf('const fonts = `')
+      const end = start < 0 ? -1 : code.indexOf('\n`;', start)
+      const block = start < 0 || end < 0 ? '' : code.slice(start, end + 3)
+      const remoteFontHosts = [
+        ['fonts', 'googleapis.com'].join('.'),
+        ['fonts', 'gstatic.com'].join('.'),
+      ]
+      if (remoteFontHosts.some((host) => !block.includes(`https://${host}`))) {
+        throw new Error('MWA modal font block changed upstream; review privacy and release-artifact policy before upgrading')
+      }
+      return { code: code.replace(block, 'const fonts = ``;').replaceAll('Inter Tight', 'Inter'), map: null }
+    },
+  }
+}
+
+/**
  * .env.example — единственный env-файл в git (политика .gitignore §1.3.1:
  * трекаются только credential-free примеры). Значения VITE_* по определению
  * публичны — они компилируются в браузерный бандл, — поэтому разобранный
@@ -73,11 +100,17 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react()],
+    plugins: [react(), localizeMobileWalletAdapterModal()],
     server: {
       port: 5175,
       host: true,
       allowedHosts: true,
+      proxy: {
+        '/api': {
+          target: process.env.BACKEND_PROXY_TARGET || 'http://127.0.0.1:8080',
+          changeOrigin: false,
+        },
+      },
     },
     preview: {
       port: 4173,
@@ -98,7 +131,6 @@ export default defineConfig(({ mode }) => {
             wallets: [
               '@solana/wallet-adapter-react',
               '@solana/wallet-adapter-react-ui',
-              '@solana/wallet-adapter-wallets',
               '@solana-mobile/wallet-adapter-mobile',
             ],
           },

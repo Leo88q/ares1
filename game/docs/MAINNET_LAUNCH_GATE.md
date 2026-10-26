@@ -210,8 +210,8 @@ custom domain.
   high/medium закрыты или письменно приняты.
 - Fuzzing/property-кампания (Trident) по инструкциям программы — дополняет
   host-property-тесты, добавленные 2026-09-26.
-- Закрытая бета 20–50 игроков, 2–3 недели: замер burn/mint, оттока и
-  реального `sell_rate`; при расхождении с моделью — подстройка капа/цен.
+- Публичный пилот/soft launch не проводится. До полного релиза обязательны internal QA на localnet/devnet/fork, stress/property tests и повторяемая симуляция burn/mint/оттока. Поскольку реальный `sell_rate` до запуска не измеряется, стартовые caps должны быть консервативными, без обещаний доходности, с включённым мониторингом и заранее проверенным аварийным стопом.
+- Hybrid Colony имеет отдельный backend trust boundary: `COLONY_V1_RELEASE_READY` остаётся `false`, пока не согласованы ruleset/SKU, entitlement fulfillment, миграции и DB roles, event-chain audit, восстановление резервной копии, независимые RPC checks, Android wallet/device QA и security review. Не ослаблять гейт для демонстрации или публичного пилота.
 - Экономическая симуляция прогоняется на каждой правке экономики
   (`yarn test:economy`).
 

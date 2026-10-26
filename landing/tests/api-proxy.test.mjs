@@ -1,129 +1,53 @@
-// Тесты прокси /api/* для Cloudflare Pages (functions/api/[[path]].js).
-//
-// Зачем тест: без прокси продовая форма молча получает 404, а прод не
-// проверяется из песочницы (нет доступа к Cloudflare). Здесь проверяется сам
-// контракт прокси: конфигурация, сохранение пути и query, отказ на лишние
-// методы, отсутствие утечки служебных заголовков и внутреннего адреса.
+// Public API stays closed until a reviewed launch explicitly enables it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import http from 'node:http';
+import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-// Node не любит '[' ']' в спецификаторе импорта, поэтому путь строим как URL.
 const { onRequest } = await import(
   new URL('../../functions/api/[[path]].js', import.meta.url).href
 );
+const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 
-// Cloudflare Pages компилирует Functions только из <Root>/functions/. Корень
-// проекта `ares1` — репозиторий: его сборка ставит landing-зависимость
-// file:../game/apps/web/vendor, которая не видна при Root=landing/ (та же
-// причина, по которой ares1-play падал 2026-10-02). Поэтому маршрут /api/*
-// обязан лежать в корне репозитория — и только там: вторая копия внутри
-// landing/ не доедет до прода и создаст иллюзию работающего прокси.
-test('маршрут /api/* объявлен ровно один раз — в корне репозитория', async () => {
-  const { existsSync } = await import('node:fs');
-  const root = new URL('../../', import.meta.url);
-  assert.equal(existsSync(new URL('functions/api/[[path]].js', root)), true);
-  assert.equal(existsSync(new URL('landing/functions', root)), false, 'копия внутри landing/ не попадёт в деплой при Root=репозиторий');
-});
-
-function makeRequest(method, path, init = {}) {
-  return new Request(`https://ares1-7e1.pages.dev${path}`, { method, ...init });
+function request(method, path) {
+  return new Request(`https://ares1.example${path}`, { method });
 }
 
-function withServer(handler) {
-  return new Promise((resolve) => {
-    const server = http.createServer(handler);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      resolve({ server, origin: `http://127.0.0.1:${port}` });
-    });
-  });
-}
-
-test('без PRESALE_API_ORIGIN отвечает 503, а не 404', async () => {
-  const res = await onRequest({ request: makeRequest('GET', '/api/presale/packs'), env: {} });
-  assert.equal(res.status, 503);
-  const body = await res.json();
-  assert.equal(body.error, 'presale_api_not_configured');
+test('the public API route is declared once at repository root', () => {
+  assert.equal(existsSync(`${repoRoot}/functions/api/[[path]].js`), true);
+  assert.equal(existsSync(`${repoRoot}/landing/functions`), false);
 });
 
-test('не-http(s) PRESALE_API_ORIGIN считается ошибкой конфигурации', async () => {
-  const res = await onRequest({
-    request: makeRequest('GET', '/api/presale/packs'),
-    env: { PRESALE_API_ORIGIN: 'ftp://example.com' },
-  });
-  assert.equal(res.status, 503);
-});
-
-test('непроксируемый метод отклоняется 405', async () => {
-  const res = await onRequest({
-    request: makeRequest('DELETE', '/api/presale/packs'),
-    env: { PRESALE_API_ORIGIN: 'http://127.0.0.1:9' },
-  });
-  assert.equal(res.status, 405);
-});
-
-test('GET сохраняет путь и query, тело и статус апстрима', async () => {
-  const { server, origin } = await withServer((req, res) => {
-    res.writeHead(200, {
-      'content-type': 'application/json',
-      'x-upstream': 'ok',
-      connection: 'keep-alive',
+test('sale status and reservation endpoints are closed even when an API origin is configured', async () => {
+  for (const [method, path] of [
+    ['GET', '/api/presale/packs'],
+    ['GET', '/api/presale/runs/wave1'],
+    ['POST', '/api/presale/runs/wave1/reserve'],
+    ['POST', '/api/presale/runs/wave1/orders/1/payment'],
+  ]) {
+    const response = await onRequest({
+      request: request(method, path),
+      env: { PRESALE_API_ORIGIN: 'https://presale.example' },
     });
-    res.end(JSON.stringify({ url: req.url, method: req.method }));
-  });
-  try {
-    const res = await onRequest({
-      request: makeRequest('GET', '/api/presale/runs/wave1?x=1'),
-      env: { PRESALE_API_ORIGIN: `${origin}/` },
+    assert.equal(response.status, 410, `${method} ${path} must remain closed`);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.deepEqual(await response.json(), {
+      error: 'presale_closed',
+      message: 'Public presale endpoints are disabled until an approved launch.',
     });
-    assert.equal(res.status, 200);
-    assert.equal(res.headers.get('x-upstream'), 'ok');
-    assert.equal(res.headers.get('connection'), null);
-    const body = await res.json();
-    assert.equal(body.url, '/api/presale/runs/wave1?x=1');
-    assert.equal(body.method, 'GET');
-  } finally {
-    server.close();
   }
 });
 
-test('POST доносит тело и требует no-store в ответе', async () => {
-  const { server, origin } = await withServer((req, res) => {
-    let raw = '';
-    req.on('data', (chunk) => {
-      raw += chunk;
-    });
-    req.on('end', () => {
-      res.writeHead(201, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ got: JSON.parse(raw) }));
-    });
-  });
-  try {
-    const res = await onRequest({
-      request: makeRequest('POST', '/api/presale/runs/wave1/reserve', {
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ wallet: 'test' }),
-      }),
-      env: { PRESALE_API_ORIGIN: origin },
-    });
-    assert.equal(res.status, 201);
-    assert.equal(res.headers.get('cache-control'), 'no-store');
-    const body = await res.json();
-    assert.deepEqual(body.got, { wallet: 'test' });
-  } finally {
-    server.close();
-  }
+test('all proxy requests stay fail-closed without a source-level launch approval', async () => {
+  const response = await onRequest({ request: request('GET', '/api/unknown'), env: {} });
+  assert.equal(response.status, 410);
+  assert.equal((await response.json()).error, 'presale_closed');
 });
 
-test('недоступный апстрим — 502 без раскрытия адреса', async () => {
-  // Порт 9 (discard) на loopback закрыт: соединение отклоняется.
-  const res = await onRequest({
-    request: makeRequest('GET', '/api/presale/packs'),
-    env: { PRESALE_API_ORIGIN: 'http://127.0.0.1:9' },
-  });
-  assert.equal(res.status, 502);
-  const body = await res.json();
-  assert.equal(body.error, 'presale_api_unreachable');
-  assert.equal(JSON.stringify(body).includes('127.0.0.1'), false);
+test('landing chain client exposes read-only telemetry and no purchase transaction builders', () => {
+  const client = readFileSync(`${repoRoot}/landing/utils/anchorClient.ts`, 'utf8');
+  const liveChain = readFileSync(`${repoRoot}/landing/hooks/useLiveChain.ts`, 'utf8');
+  assert.match(client, /Read-only helpers for public devnet telemetry/);
+  assert.doesNotMatch(client, /TransactionInstruction|SystemProgram|TOKEN_PROGRAM_ID|SKR_MINT|presaleStatePda|treasurySkrAta|\bix[A-Z]\w*/);
+  assert.doesNotMatch(liveChain, /sendTransaction|signTransaction|wallet\.adapter|ixBuy|ixCreate/);
 });

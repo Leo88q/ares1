@@ -4,12 +4,14 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
-import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets'
+import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom'
+import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare'
 import {
- SolanaMobileWalletAdapter,
- createDefaultAddressSelector,
- createDefaultAuthorizationResultCache,
-} from '@solana-mobile/wallet-adapter-mobile'
+ createDefaultAuthorizationCache,
+ createDefaultChainSelector,
+ createDefaultWalletNotFoundHandler,
+ registerMwa,
+} from '@solana-mobile/wallet-standard-mobile'
 import { reportWalletError } from './utils/walletBus'
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base'
 import { clusterApiUrl } from '@solana/web3.js'
@@ -35,10 +37,9 @@ import './styles/wallet-adapter.css'
  * модуль упал на проверке конфигурации, исключение ловится и игрок видит
  * понятный экран с подсказкой, а не пустую страницу.
  *
- * Важно: вендорские зависимости остаются СТАТИЧЕСКИМИ импортами. Перенос
- * их в import() ломает tree-shaking барьера @solana/wallet-adapter-wallets —
- * в бандл едут все адаптеры кошельков с dev-URL и строками CDN, и гейт
- * scripts/check-release-artifacts.mjs краснеет.
+ * Важно: кошельки импортируются напрямую из адаптеров Phantom и Solflare,
+ * а не из агрегирующего @solana/wallet-adapter-wallets: barrel тянет десятки
+ * неиспользуемых адаптеров с dev-URL и CDN-строками в production-бандл.
  */
 function BootErrorScreen({ error }: { error: unknown }) {
   const message = error instanceof Error ? error.message : String(error)
@@ -121,23 +122,27 @@ function handleWalletError(error: unknown, adapter?: { name?: string }) {
  reportWalletError({ kind: 'connect', adapter: adapterName, raw: message })
 }
 
-const mobileWallet = new SolanaMobileWalletAdapter({
- addressSelector: createDefaultAddressSelector(),
- // identity = фактический origin страницы (как делает авто-адаптер
- // wallet-adapter-react) — кошелёк связывает авторизацию именно с ним
- appIdentity: { name: 'Solana Potato', uri: typeof window !== 'undefined' ? window.location.origin : 'https://ares1-play.pages.dev' },
- authorizationResultCache: createDefaultAuthorizationResultCache(),
- chain: configuredCluster() as 'devnet' | 'testnet' | 'mainnet-beta',
- onWalletNotFound: async () => {
-  reportWalletError({ kind: 'not-found', adapter: 'Mobile Wallet Adapter', raw: '' })
- },
-})
+// Solana Mobile WebShell requires Wallet Standard MWA registration >=0.5.1:
+// it detects the shell and avoids the browser Local Network Access permission flow.
+// Register before WalletProvider mounts; the adapter discovers this standard wallet.
+if (typeof window !== 'undefined') {
+ const cluster = configuredCluster()
+ const chain = cluster === 'mainnet-beta' ? 'solana:mainnet'
+  : cluster === 'testnet' ? 'solana:testnet' : 'solana:devnet'
+ registerMwa({
+  appIdentity: {
+   name: 'ARES-1',
+   uri: window.location.origin,
+   icon: '/android-chrome-192x192.png',
+  },
+  authorizationCache: createDefaultAuthorizationCache(),
+  chains: [chain],
+  chainSelector: createDefaultChainSelector(),
+  onWalletNotFound: createDefaultWalletNotFoundHandler(),
+ })
+}
 
-const wallets = [
- new PhantomWalletAdapter(),
- new SolflareWalletAdapter(),
- mobileWallet,
-]
+const wallets = [new PhantomWalletAdapter(), new SolflareWalletAdapter()]
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
  state = { error: null as Error | null }
@@ -159,20 +164,9 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 
 async function bootstrap(): Promise<void> {
   try {
-    // Standalone, local design sandbox: do not mount wallet auto-connect,
-    // SolanaProvider, GameProvider, onboarding or any RPC polling on this route.
-    // Full-page links enter/leave it so the on-chain app keeps its existing boot.
-    if (window.location.pathname.replace(/\/+$/, '') === '/colony') {
-      const { default: ColonyScreen } = await import('./colony/ColonyScreen')
-      ReactDOM.createRoot(document.getElementById('root')!).render(
-        <React.StrictMode><ErrorBoundary><ColonyScreen /></ErrorBoundary></React.StrictMode>,
-      )
-      return
-    }
-
-    // Песочница /demo удалена: полевая лаборатория стала продуктовой секцией
-    // /lab внутри общего приложения (с кошельком, рынком и колонией), поэтому
-    // отдельный bootstrap без провайдеров ей больше не нужен.
+    // All public routes boot the same wallet/on-chain application shell.
+    // The former standalone /colony simulator is no longer exposed to players;
+    // /colony is redirected to the truthful product-status route in App.tsx.
 
     // Только прикладные модули — динамически (в них живут fail-fast
     // проверки конфигурации на уровне модуля). Вендор — статически,
