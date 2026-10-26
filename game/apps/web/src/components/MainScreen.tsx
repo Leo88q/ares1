@@ -288,7 +288,7 @@ function FreeStartNotice(): JSX.Element {
    <p className="ares-mono" style={{ color: '#C9A176', fontSize: 9, letterSpacing: '.14em', margin: '0 0 6px' }}>{t('DEVNET · НАСТОЯЩИЕ ON-CHAIN-ЭКРАНЫ')}</p>
    <h2 id="free-start-title" className="ares-stencil" style={{ color: '#EFD9AC', fontSize: 14, margin: '0 0 7px' }}>{t('ДО ПЕРВОГО ПОЛЯ · ЧЕСТНЫЙ СТАТУС')}</h2>
    <p style={{ color: 'var(--pf-text-secondary)', fontSize: 11, lineHeight: 1.55, margin: 0 }}>
-    {t('Первое обычное поле стоит {amount} тестовых POTATO. Для создания аккаунта также нужен SOL на rent и сетевую комиссию; ниже показана текущая оценка rent из RPC. Публичной выдачи POTATO до первого поля сейчас нет, а покупка за SKR закрыта. Бесплатный игровой старт пока недоступен: не отправляй деньги и не используй mainnet ради теста.', { amount: fmtPotato(fieldPriceMicro(0), 0) })}
+    {t('Первое обычное поле стоит {amount} тестовых POTATO. Для создания аккаунта также нужен SOL на rent и сетевую комиссию; ниже показана текущая оценка rent из RPC. Публичной выдачи POTATO нет, но участникам devnet-беты оператор выдаёт один стартовый набор на первое поле вручную: передай адрес подключённого кошелька оператору беты. Покупка за SKR закрыта: не отправляй деньги и не используй mainnet ради теста.', { amount: fmtPotato(fieldPriceMicro(0), 0) })}
    </p>
    <p aria-live="polite" style={{ color: rentUnavailable ? '#F0A18E' : '#D8BB8E', fontSize: 10, lineHeight: 1.45, margin: '7px 0 0' }}>
     {fieldRentLamports !== null
@@ -448,7 +448,7 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
 
    {firstField && (
     <div style={{ fontSize: 11, color: 'var(--ares-dust, #E0A183)', textAlign: 'center', lineHeight: 1.4, background: 'rgba(0,0,0,0.25)', padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
-     {t('Стартовый паёк до первого поля в текущей версии не выдаётся. Бесплатная выдача POTATO пока не подключена; не покупай токены ради теста.')}
+     {t('Стартовый набор на первое поле выдаёт оператор devnet-беты вручную по адресу кошелька. Публичного крана POTATO нет; не покупай токены ради теста.')}
     </div>
    )}
   </motion.div>

@@ -18,19 +18,19 @@ test('displayed Field rent size stays in parity with the Rust account layout', (
   assert.match(rust, /space\s*=\s*8\s*\+\s*Field::INIT_SPACE/)
 })
 
-test('first-field onboarding is transparent about unavailable free POTATO and stays on real routes', () => {
+test('first-field onboarding is transparent about the operator-issued starter and stays on real routes', () => {
   assert.match(main, /function FreeStartNotice\(\)/)
   assert.match(main, /fieldPriceMicro\(0\)/)
   assert.match(main, /FIELD_ACCOUNT_DATA_BYTES = 70/)
   assert.match(main, /getMinimumBalanceForRentExemption\(FIELD_ACCOUNT_DATA_BYTES/)
   assert.match(main, /Текущий rent для Field account/)
-  assert.match(main, /Публичной выдачи POTATO до первого поля сейчас нет/)
+  assert.match(main, /Публичной выдачи POTATO нет, но участникам devnet-беты оператор выдаёт один стартовый набор на первое поле вручную/)
   assert.doesNotMatch(main, /requestAirdrop|sendTransaction|signTransaction/)
   assert.match(main, /не отправляй деньги и не используй mainnet ради теста/)
   assert.match(main, /to="\/lab"/)
   assert.match(main, /to="\/base"/)
   assert.match(main, /connected && !IS_MAINNET/)
-  assert.match(main, /Стартовый паёк до первого поля в текущей версии не выдаётся/)
+  assert.match(main, /Стартовый набор на первое поле выдаёт оператор devnet-беты вручную по адресу кошелька/)
   assert.match(presale, /ПОКУПКА ЗА SKR ОТКЛЮЧЕНА/)
   assert.doesNotMatch(main, /тренировочный режим|пауза игры|pauseGame/i)
 })

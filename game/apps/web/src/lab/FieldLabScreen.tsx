@@ -74,7 +74,7 @@ export default function FieldLabScreen(): JSX.Element {
             </p>}
             {ready && connected && !game.fieldsError && game.fields.length === 0 && <EmptyFields
               title={t('ON-CHAIN ПОЛЕЙ НЕТ')}
-              description={t('Покупка за 1053 SKR закрыта. Для создания первого поля нужны 100 тестовых POTATO и SOL на rent и комиссию; бесплатная выдача POTATO до первого поля пока недоступна.')}
+              description={t('Покупка за 1053 SKR закрыта. Для создания первого поля нужны 100 тестовых POTATO и SOL на rent и комиссию; стартовый набор на первое поле участникам devnet-беты вручную выдаёт оператор по адресу кошелька.')}
               linkLabel={t('ПЕРЕЙТИ В АГРО')}
             />}
             {ready && connected && game.fields.length > 0 && <FieldsPanel
