@@ -91,7 +91,12 @@ export interface EpochRollerOptions {
   lock?: RollLock | null;
 }
 
-export function startEpochRoller(options: EpochRollerOptions = {}) {
+/** Ручка остановки: отменяет расписание и дожидается уже идущего такта. */
+export interface EpochRollerHandle {
+  stop(): Promise<void>;
+}
+
+export function startEpochRoller(options: EpochRollerOptions = {}): EpochRollerHandle {
   const lock = options.lock ?? null;
   const logLine = (message: string) => console.log(`[epoch-roller] ${message}`);
   console.log(
@@ -161,12 +166,41 @@ export function startEpochRoller(options: EpochRollerOptions = {}) {
     }
   }
 
-  cron.schedule(env.epochRollCron, () => {
-    void tick("cron");
+  // Остановка должна уметь дождаться такта, который уже читает цепь или
+  // подписывает: иначе graceful shutdown закрыл бы пул game_ops (и его
+  // advisory lock) посреди roll_epoch. Поэтому каждый запуск такта
+  // регистрируется в `inflight`, а stop() его дожидается.
+  let stopped = false;
+  const inflight = new Set<Promise<void>>();
+  const launch = (source: "cron" | "startup"): void => {
+    if (stopped) return;
+    // tick обрабатывает свои сбои сам; catch здесь — страховка от
+    // unhandled rejection, если ошибка когда-нибудь вырвется наружу.
+    const run = tick(source).catch((err: unknown) => {
+      console.error("[epoch-roller] tick escaped its own error handling:", safeError(err));
+    });
+    inflight.add(run);
+    void run.finally(() => {
+      inflight.delete(run);
+    });
+  };
+
+  const task = cron.schedule(env.epochRollCron, () => {
+    launch("cron");
   });
 
   // Immediate check on startup after 5s
-  setTimeout(() => {
-    void tick("startup");
+  const startupTimer = setTimeout(() => {
+    launch("startup");
   }, 5000);
+
+  return {
+    async stop(): Promise<void> {
+      if (stopped) return;
+      stopped = true;
+      task.stop();
+      clearTimeout(startupTimer);
+      await Promise.allSettled([...inflight]);
+    },
+  };
 }
