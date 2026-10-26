@@ -30,6 +30,16 @@ test('colony models: small, pinned, CC0 or NASA 3D Resources assets and unmodifi
   assert.ok(total < 3 * 1024 * 1024, `Model payload must stay below 3 MiB, got ${total}`)
 })
 
+test('colony catalog model references all resolve to bundled, provenance-pinned assets', () => {
+  const simulation = readFileSync(new URL('../src/colony/simulation.ts', import.meta.url), 'utf8')
+  const catalog = simulation.match(/export const CATALOG:[\s\S]*?\n}/)?.[0]
+  assert.ok(catalog, 'catalog source found')
+  const files = [...catalog.matchAll(/file: '([^']+\.glb)'/g)].map((match) => match[1])
+  assert.ok(files.length > 0)
+  const available = new Set(manifest.assets.map((asset) => asset.file))
+  for (const file of files) assert.ok(available.has(file), `unbundled catalog model: ${file}`)
+})
+
 test('colony models: valid GLB envelopes with embedded buffers and textures only', () => {
   for (const asset of manifest.assets) {
     const bytes = readFileSync(new URL(asset.file, root))

@@ -25,9 +25,10 @@ test('coverage ignores comments and recognizes the guarded treasury CLI builder'
   assert.ok(row(migration).hits.tests > 0);
   assert.ok(!result.unreferenced.includes(migration));
 
-  // The SOL-field builder is referenced from tests, but not the UI layer.
+  // SOL field purchases are closed: their legacy ABI is referenced only by
+  // offline compatibility tests, never by a browser builder or UI.
   assert.equal(row(solFieldIx).hits['web-ui'], 0);
-  assert.ok(row(solFieldIx).hits['web-builder'] > 0);
+  assert.equal(row(solFieldIx).hits['web-builder'], 0);
   assert.ok(row(solFieldIx).hits.tests > 0);
 
   // grant_reward occurs only in a comment in anchorClient.ts; backend/tests are

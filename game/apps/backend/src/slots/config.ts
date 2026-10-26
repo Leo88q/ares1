@@ -6,6 +6,7 @@
  * сохраняются. В репозитории и в логах их нет.
  */
 import { loadSigningKey } from './record.js';
+import { USER_SKR_SLOT_PURCHASES_ENABLED } from '../launchGates.js';
 import type { KeyObject } from 'node:crypto';
 
 export interface SlotsConfig {
@@ -30,7 +31,7 @@ export function resolveSlotsConfig(
   env: NodeJS.ProcessEnv,
   cluster: 'devnet' | 'mainnet-beta' | string,
 ): SlotsConfigResult {
-  if (env.SLOTS_ENABLED !== 'true') return { enabled: false, reason: 'flag-off' };
+  if (!USER_SKR_SLOT_PURCHASES_ENABLED || env.SLOTS_ENABLED !== 'true') return { enabled: false, reason: 'flag-off' };
   // Статус: mainnet — NO-GO (docs/ORGANISM_INTEGRATION.md §32.8). Слоты на mainnet не монтируются.
   if (cluster === 'mainnet-beta') {
     return { enabled: false, reason: 'mainnet-not-approved', detail: 'слоты не включаются на mainnet без GO владельца' };

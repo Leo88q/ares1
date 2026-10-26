@@ -17,6 +17,7 @@ import {
   checkReserveFloor,
   computeFees,
   deriveRate,
+  estimateSetupOnchain,
   planNew,
   planUpgrade,
   solToLamports,
@@ -25,6 +26,30 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const rentFn = (rate) => (n) => (CONSTANTS.RENT_OVERHEAD + n) * BigInt(rate);
 const NO_FEES = 0n;
+
+test('mainnet quotes require an explicit RPC; offline vectors cannot be labeled as a cluster quote', async () => {
+  const runCli = (args) => new Promise((resolve) => {
+    execFile(process.execPath, [path.join(here, 'deploy-budget.mjs'), ...args], (error, stdout, stderr) => {
+      resolve({ code: error?.code ?? 0, stdout, stderr });
+    });
+  });
+  const missingRpc = await runCli(['--so-len', '450000', '--mode', 'new', '--cluster', 'mainnet-beta', '--json']);
+  assert.equal(missingRpc.code, 2);
+  assert.match(missingRpc.stderr, /явный --rpc/);
+  const offlineLabel = await runCli(['--so-len', '450000', '--offline-rate', '6960', '--cluster', 'mainnet-beta', '--rpc', 'https://rpc.example.invalid', '--json']);
+  assert.equal(offlineLabel.code, 2);
+  assert.match(offlineLabel.stderr, /не является кластерным quote/);
+});
+
+test('setup profiles: core includes only mint/config/epoch; full keeps optional accounts', async () => {
+  const rent = rentFn(5080);
+  const core = await estimateSetupOnchain({ rent, profile: 'core' });
+  const full = await estimateSetupOnchain({ rent, profile: 'full' });
+  assert.equal(core.total, 3937000n);
+  assert.deepEqual(core.parts.map((part) => part.split('=')[0]), ['potato_mint', 'game_config', 'epoch0']);
+  assert.equal(full.total, 10642600n);
+  assert.ok(full.parts.includes('skr_atas=+2976880'));
+});
 
 // ── V1: первый деплой, so_len = max_len = 450 000 ───────────────────────────
 test('V1: первый деплой, так же как эталон §5.6', () => {

@@ -41,7 +41,7 @@ window.__reorderFields = () => { fields=[...fields].reverse();change(); };
 window.__removeSelected = () => { fields=fields.filter(field=>!field.publicKey.equals(keys[1]));change(); };
 export function useGame() { return useSyncExternalStore(fn=>{listeners.add(fn);return()=>listeners.delete(fn)},()=>snapshot); }
 `)
-  writeFileSync(solana, 'export function useSolana() { return {ready:true,connected:true,rpcError:null}; }')
+  writeFileSync(solana, 'export const IS_MAINNET = false; export function useSolana() { return {ready:true,connected:true,rpcError:null}; }')
   writeFileSync(blank, 'export default function Blank(){return null;}')
   const entry = join(dir, 'entry.tsx')
   writeFileSync(entry, `
@@ -59,7 +59,7 @@ createRoot(document.getElementById('root')).render(<div className="pf-phone-chas
     nodePaths: [resolve(src, '../../../node_modules')],
     plugins: [{ name: 'local-provider-spies', setup(builder) {
       builder.onResolve({ filter: /contexts\/(GameContext|SolanaContext)$/ }, args => ({ path: args.path.endsWith('GameContext') ? game : solana }))
-      builder.onResolve({ filter: /\.\/(PresaleSection|Header|CaseReveal)$/ }, () => ({ path: blank }))
+      builder.onResolve({ filter: /\.\/(PresaleSection|Header)$/ }, () => ({ path: blank }))
       builder.onResolve({ filter: /^\/(ares|sfx|models)\// }, args => ({ path: args.path, external: true }))
     } }],
   })

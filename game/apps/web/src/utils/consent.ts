@@ -12,10 +12,9 @@
  *    the consent record itself and nothing else — a consent banner that needs
  *    consent to store consent is a paradox.
  *
- * 3. `functional` (language, sound, haptics, tutorial, wallet-reconnect flag,
- *    LUT cache) is OFF until granted. The site works without it: the user just
- *    re-picks the language and sees the tutorial again. Everything in this
- *    category is data the user typed or chose, on their own device.
+ * 3. `functional` (language and optional interface preferences) is OFF until
+ *    granted. The game remains usable without it; the user may need to re-pick
+ *    a preference. Everything in this category stays on the user's device.
  *
  * 4. `analytics` and `marketing` have no implementation today. The categories
  *    exist and are wired so that adding a script later is impossible without
@@ -70,7 +69,6 @@ const KEY_PREFIXES: Record<ConsentCategory, readonly string[]> = {
   functional: [
     'ares1_lang',
     'wallet_connected',
-    'potato_tutorial_done',
     'potato_landed',
     'ares-lut:',
     'potato_notifications',

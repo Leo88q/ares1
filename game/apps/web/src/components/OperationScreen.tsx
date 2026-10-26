@@ -161,7 +161,7 @@ export default function OperationScreen(): JSX.Element {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 7, marginTop: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(128px, 100%), 1fr))', gap: 7, marginTop: 18 }}>
           {CHAPTERS.map((chapter, index) => {
             const Icon = chapter.icon
             const active = chapterIndex === index

@@ -414,7 +414,7 @@ test('2026-10-02: Jayson 5 removes the vulnerable stream-json/uuid RPC parser tr
   ]) {
     assert.equal(rootPkg.resolutions?.[pattern], '11.1.1', `vulnerable uuid consumer must be patched: ${pattern}`);
   }
-  assert.equal(parseYarnEntry(yarnLock, 'uuid@^8.3.2')?.version, '11.1.1');
+  assert.doesNotMatch(yarnLock, /^uuid@\^8\.3\.2:/m, 'unused uuid ^8.3.2 descriptor must remain pruned with the aggregate wallet adapters');
   assert.equal(parseYarnEntry(yarnLock, 'uuid@^9.0.0')?.version, '11.1.1');
   assert.doesNotMatch(yarnLock, /^uuid@\^9\.0\.0:/m, 'do not keep an unused, vulnerable uuid 9 lock entry');
   assert.equal(parseYarnEntry(yarnLock, 'uuid@^14.0.0')?.version, '14.0.2', 'rpc-websockets keeps its supported uuid major');
@@ -842,19 +842,52 @@ test('2026-10-02: protobufjs не возвращается в уязвимый �
   assert.equal(entry[1], enforced, 'lock и resolutions разошлись: критический advisory вернётся по lockfile');
 });
 
-test('2026-10-02: фиксирует production advisories в lodash, viem/ws и toml', () => {
+test('2026-10-26: resolves production advisories in lodash, viem/ws, toml and wallet transitive dependencies', () => {
   const pkg = JSON.parse(read('../package.json'));
   const lock = read('../yarn.lock');
   assert.equal(pkg.resolutions?.lodash, '4.18.1', 'GHSA-r5fr-rjxr-66jc требует lodash >=4.18.0; 4.18.0 отозван');
   assert.equal(pkg.resolutions?.['**/viem/ws'], '8.21.3', 'GHSA-96hv-2xvq-fx4p требует ws >=8.21.0');
-  assert.equal(pkg.resolutions?.toml, '4.2.0', 'GHSA-82x6-q7mm-w9cf требует toml >=4.2.0');
+  assert.equal(pkg.resolutions?.toml, '4.3.0', 'patched toml release resolves 4.2.x advisories');
+  assert.equal(pkg.resolutions?.['follow-redirects'], '1.16.2');
+  assert.equal(pkg.resolutions?.zod, '3.25.76');
   assert.equal(parseYarnEntry(lock, 'lodash@4.18.1')?.version, '4.18.1');
   assert.equal(parseYarnEntry(lock, 'ws@8.21.3')?.version, '8.21.3');
-  assert.equal(parseYarnEntry(lock, 'toml@^3.0.0')?.version, '4.2.0');
+  assert.equal(parseYarnEntry(lock, 'toml@^3.0.0')?.version, '4.3.0');
+  assert.equal(parseYarnEntry(lock, 'follow-redirects@1.16.2')?.version, '1.16.2');
+  assert.equal(parseYarnEntry(lock, 'zod@3.25.76')?.version, '3.25.76');
   assert.doesNotMatch(lock, /^lodash@4\.17\.21:/m, 'уязвимый lodash lock-entry вернулся');
   assert.doesNotMatch(lock, /^lodash@4\.18\.0:/m, 'отозванный lodash 4.18.0 lock-entry вернулся');
   assert.doesNotMatch(lock, /^ws@8\.18\.0:/m, 'уязвимый ws lock-entry вернулся');
   assert.doesNotMatch(lock, /^toml@\^3\.0\.0:\n\s+version "3\.0\.0"/m, 'уязвимый toml lock-entry вернулся');
+});
+
+test('2026-10-24: body-parser fixes GHSA-27r3-jxmh-p828 in backend runtime tree', () => {
+  const pkg = JSON.parse(read('../package.json'));
+  const lock = read('../yarn.lock');
+  assert.equal(pkg.resolutions?.['body-parser'], '1.20.9', 'body-parser must be pinned to first fixed 1.x release');
+  assert.equal(parseYarnEntry(lock, 'body-parser@~1.20.5')?.version, '1.20.9');
+});
+
+test('release artifact gate exempts only the MWA local bridge probe, not arbitrary loopback URLs', () => {
+  const repoRoot = path.resolve(here, '..', '..');
+  const checker = path.join(repoRoot, 'scripts', 'check-release-artifacts.mjs');
+  const dir = mkdtempSync(path.join(repoRoot, '.tmp-release-artifact-'));
+  const run = () => spawnSync(process.execPath, [checker, path.relative(repoRoot, dir)], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  try {
+    writeFileSync(path.join(dir, 'bundle.js'), 'await fetch("http://localhost")');
+    const mobileProbe = run();
+    assert.equal(mobileProbe.status, 0, `${mobileProbe.stdout}\\n${mobileProbe.stderr}`);
+
+    writeFileSync(path.join(dir, 'bundle.js'), 'fetch("http://127.0.0.1:8899")');
+    const devServer = run();
+    assert.equal(devServer.status, 1, `${devServer.stdout}\\n${devServer.stderr}`);
+    assert.match(devServer.stdout, /artifact-loopback-url/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('2026-10-02: рабочее дерево проходит secret-scan (гейт §1.1 не красный)', () => {

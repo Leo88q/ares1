@@ -52,4 +52,4 @@
 .mf-plan-bed.is-grown i { width: 10px; height: 10px; background: #a6b16b; }
 .mf-button { background: #2c2317; border: 1px solid #957143; border-radius: 5px; color: #e5c69a; cursor: pointer; padding: 7px 12px; font-size: 11px; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; }
 .mf-empty { padding: 20px; color: #c8b38e; }
-@media (max-width: 380px) { .mf-panel-header { padding: 14px 12px; } .mf-panel-header h2 { font-size: 22px; } .mf-field-picker { padding: 10px; gap: 5px; } .mf-field-picker button { padding: 8px; } .mf-field-picker button b { font-size: 11px; } .mf-scene-options { padding: 7px; gap: 3px; } .mf-scene-options button { font-size: 9px; padding: 7px; } .mf-viewport { height: 330px; } }
+@container app-shell (max-width: 380px) { .mf-panel-header { padding: 14px 12px; } .mf-panel-header h2 { font-size: 22px; } .mf-field-picker { padding: 10px; gap: 5px; } .mf-field-picker button { padding: 8px; } .mf-field-picker button b { font-size: 11px; } .mf-scene-options { padding: 7px; gap: 3px; } .mf-scene-options button { font-size: 9px; padding: 7px; } .mf-viewport { height: 330px; } }

@@ -19,6 +19,7 @@ import { anchorDiscriminator, u64LE, i64LE, decodeGameConfig, decodeEpoch, GameC
 
 export const programId = new PublicKey(env.programId);
 export const connection = new Connection(env.rpcUrl, "confirmed");
+export const secondaryConnection = env.secondaryRpcUrl ? new Connection(env.secondaryRpcUrl, "finalized") : null;
 
 /** Low-privilege payer key for roll_epoch (AUDIT B4: НЕ authority-ключ).
  *  Значение — путь к файлу или inline-JSON (см. payerKey.ts). */

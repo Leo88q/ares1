@@ -9,6 +9,9 @@
  *   7. creates SKR ATAs (80 % treasury / 20 % buyback) for the SKR presale
  *   8. verifies the SKR mint exists on this cluster (SKR features need it)
  *
+ * BOOTSTRAP_PROFILE=core creates only POTATO mint + GameConfig + Epoch. It defers
+ * presale, treasuries, quest rewards and SKR ATAs; those product features stay
+ * unavailable until a separate reviewed full bootstrap. Default remains `full`.
  * Idempotent: every step is guarded by an account-existence check, safe to re-run.
  *
  *   ADMIN_KEYPAIR_PATH=~/.config/solana/id.json RPC_URL=https://api.devnet.solana.com \
@@ -36,7 +39,11 @@ import {
 
 const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
 const PROGRAM_ID = new PublicKey(process.env.PROGRAM_ID || "DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf");
-let SKR_MINT = new PublicKey("Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o");
+const DEFAULT_SKR_MINT = "Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o";
+const USE_CUSTOM_SKR_MINT = Boolean(process.env.SKR_MINT);
+let SKR_MINT = new PublicKey(process.env.SKR_MINT || DEFAULT_SKR_MINT);
+const BOOTSTRAP_PROFILE = process.env.BOOTSTRAP_PROFILE || "full";
+if (!["core", "full"].includes(BOOTSTRAP_PROFILE)) throw new Error("BOOTSTRAP_PROFILE must be core or full");
 const ADMIN_KEYPAIR_PATH = (process.env.ADMIN_KEYPAIR_PATH || `${process.env.HOME}/.config/solana/id.json`).replace(/^~/, process.env.HOME || "");
 
 // Mirror of QUEST_REWARD_MICRO in lib.rs (50+50+100+100+200+50 = 550 🥔, one-time pool).
@@ -115,6 +122,24 @@ async function ensureAta(mintPk: PublicKey, owner: PublicKey): Promise<PublicKey
 }
 
 async function main() {
+  const genesisHash = await connection.getGenesisHash();
+  const detectedCluster = genesisHash === "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp" ? "mainnet-beta"
+    : genesisHash === "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG" ? "devnet" : "local/unknown";
+  if (process.env.SOLANA_CLUSTER && process.env.SOLANA_CLUSTER !== detectedCluster) {
+    throw new Error(`SOLANA_CLUSTER=${process.env.SOLANA_CLUSTER} does not match RPC genesis (${detectedCluster}); no transaction was sent`);
+  }
+  if (detectedCluster === "mainnet-beta") {
+    if (process.env.MAINNET_BOOTSTRAP_GO !== "YES") {
+      throw new Error("Mainnet bootstrap is blocked without MAINNET_BOOTSTRAP_GO=YES after a separate explicit release GO; no transaction was sent");
+    }
+    if (BOOTSTRAP_PROFILE !== "core") {
+      throw new Error("Full bootstrap (including presale/reward accounts) is disabled on mainnet; only reviewed core bootstrap is allowed here");
+    }
+    if (!USE_CUSTOM_SKR_MINT) {
+      throw new Error("Mainnet bootstrap requires an explicit verified SKR_MINT; refusing the devnet default");
+    }
+  }
+  console.log("Cluster:    ", detectedCluster, `(${genesisHash})`);
   console.log("Admin:      ", admin.publicKey.toBase58());
   console.log("Program:    ", PROGRAM_ID.toBase58());
   console.log("Config PDA: ", configPda.toBase58());
@@ -135,9 +160,18 @@ async function main() {
     console.log(`\nGameConfig already exists (epochId=${epochId}) — skipping mint/config/epoch steps.`);
   } else {
     const balance = await connection.getBalance(admin.publicKey);
-    if (balance < 0.1e9) throw new Error(`Admin balance too low (${(balance / 1e9).toFixed(4)} SOL). Need ≥0.1 SOL for rent + fees. (devnet airdrop: solana airdrop ${admin.publicKey.toBase58()})`);
+    const requiredSpaces = BOOTSTRAP_PROFILE === "core"
+      ? [MINT_SIZE, 260, 49]
+      : [MINT_SIZE, 260, 49, 57, 0, 0, 165, 165, 165];
+    const rents = await Promise.all(requiredSpaces.map((space) => connection.getMinimumBalanceForRentExemption(space)));
+    const rentBudget = rents.reduce((sum, value) => sum + value, 0);
+    const feeBuffer = 10_000_000; // 0.01 SOL safety buffer; not expected spend.
+    const minimumBalance = rentBudget + feeBuffer;
+    if (balance < minimumBalance) {
+      throw new Error(`Admin balance ${(balance / LAMPORTS_PER_SOL).toFixed(6)} SOL is below this ${BOOTSTRAP_PROFILE} bootstrap estimate ${(minimumBalance / LAMPORTS_PER_SOL).toFixed(6)} SOL (rent + 0.01 SOL fee buffer). No transaction was sent.`);
+    }
 
-    console.log("\nCreating POTATO mint + initialize + init_epoch in ONE atomic transaction...");
+    console.log(`\nCreating POTATO mint + initialize + init_epoch in ONE atomic transaction (${BOOTSTRAP_PROFILE} profile)...`);
     // AUDIT H-4: createMint/setAuthority/initialize отдельными транзакциями
     // оставляли окно, в котором admin владеет mint authority живого митта
     // (бесконечная эмиссия) и рискует осиротить минт при частичном сбое.
@@ -153,6 +187,7 @@ async function main() {
         { pubkey: mint, isSigner: false, isWritable: false },
         { pubkey: admin.publicKey, isSigner: true, isWritable: true },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        ...(USE_CUSTOM_SKR_MINT ? [{ pubkey: SKR_MINT, isSigner: false, isWritable: false }] : []),
       ],
       data: disc("initialize"),
     });
@@ -185,13 +220,17 @@ async function main() {
     epochId = 0n;
   }
 
-  const skrMintInfo = await connection.getAccountInfo(SKR_MINT);
-  if (!skrMintInfo) {
-    console.warn("\n⚠ SKR mint NOT found on this cluster — SKR presale / export license will be unavailable until SKR exists here.");
+  let skrMintInfo: Awaited<ReturnType<Connection["getAccountInfo"]>> = null;
+  if (BOOTSTRAP_PROFILE === "full") {
+    skrMintInfo = await connection.getAccountInfo(SKR_MINT);
+    if (!skrMintInfo) {
+      console.warn("\n⚠ SKR mint NOT found on this cluster — SKR presale / export license will be unavailable until SKR exists here.");
+    } else {
+      console.log("\nSKR mint:   ", SKR_MINT.toBase58(), "(found)");
+    }
   } else {
-    console.log("\nSKR mint:   ", SKR_MINT.toBase58(), "(found)");
+    console.log("\nCore profile: optional presale, treasury vaults, quest pool and SKR ATAs are deferred.");
   }
-
 
   // Bootstrap must never silently perform a legacy-state migration.
   const currentEpoch = await connection.getAccountInfo(epochPdaOf(epochId));
@@ -199,60 +238,62 @@ async function main() {
   validateMigrationAccount("epoch", currentEpoch, PROGRAM_ID);
   if (currentEpoch.data.length !== 49) throw new Error("Legacy epoch: use the reviewed migration planner before bootstrap");
 
-  // ── Presale (idempotent): cap 500, SOL price 0.25 SOL ──
-  if (await accountExists(presalePda)) {
-    console.log(`\n${"Presale".padEnd(12)} ${presalePda.toBase58()} (exists)`);
-  } else {
-    console.log("\nInitializing presale (cap=500, SOL price=0.25 SOL; SKR price fixed at 1053 SKR in the program)...");
-    const ix = new TransactionInstruction({
-      programId: PROGRAM_ID,
-      keys: [
-        { pubkey: configPda, isSigner: false, isWritable: false },
-        { pubkey: presalePda, isSigner: false, isWritable: true },
-        { pubkey: admin.publicKey, isSigner: true, isWritable: true },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      ],
-      data: Buffer.concat([disc("init_presale"), u32LE(500), u64LE(250_000_000n)]),
-    });
-    const sig = await send(ix);
-    console.log("Presale initialized, tx:", sig);
-  }
+  if (BOOTSTRAP_PROFILE === "full") {
+    // ── Presale (idempotent): cap 500, SOL price 0.25 SOL ──
+    if (await accountExists(presalePda)) {
+      console.log(`\n${"Presale".padEnd(12)} ${presalePda.toBase58()} (exists)`);
+    } else {
+      console.log("\nInitializing presale (cap=500, SOL price=0.25 SOL; SKR price fixed at 1053 SKR in the program)...");
+      const ix = new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: [
+          { pubkey: configPda, isSigner: false, isWritable: false },
+          { pubkey: presalePda, isSigner: false, isWritable: true },
+          { pubkey: admin.publicKey, isSigner: true, isWritable: true },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        ],
+        data: Buffer.concat([disc("init_presale"), u32LE(500), u64LE(250_000_000n)]),
+      });
+      const sig = await send(ix);
+      console.log("Presale initialized, tx:", sig);
+    }
 
-  // ── PDA vaults ──
-  await ensurePdaVault(treasurySolPda, "treasury_sol");
-  await ensurePdaVault(questTreasuryPda, "quest_treasury");
+    // ── PDA vaults ──
+    await ensurePdaVault(treasurySolPda, "treasury_sol");
+    await ensurePdaVault(questTreasuryPda, "quest_treasury");
 
-  // ── Quest pool: ATA (owner = quest_treasury PDA) + grant_reward up to 550 🥔 ──
-  const questAta = await ensureAta(mint, questTreasuryPda);
-  const questBal = (await getAccount(connection, questAta, "confirmed")).amount;
-  if (questBal < QUEST_POOL_MICRO) {
-    const grant = QUEST_POOL_MICRO - questBal;
-    console.log(`\nFunding quest treasury: granting ${grant / MICRO} 🥔 (one-time achievement pool)...`);
-    const ix = new TransactionInstruction({
-      programId: PROGRAM_ID,
-      keys: [
-        { pubkey: configPda, isSigner: false, isWritable: true },
-        { pubkey: epochPdaOf(epochId), isSigner: false, isWritable: true },
-        { pubkey: admin.publicKey, isSigner: true, isWritable: false },
-        { pubkey: mint, isSigner: false, isWritable: true },
-        { pubkey: questAta, isSigner: false, isWritable: true },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-      ],
-      data: Buffer.concat([disc("grant_reward"), u64LE(grant)]),
-    });
-    const sig = await send(ix);
-    console.log("Quest pool funded, tx:", sig);
-  } else {
-    console.log(`\nQuest treasury already funded (${questBal / MICRO} 🥔).`);
-  }
+    // ── Quest pool: ATA (owner = quest_treasury PDA) + grant_reward up to 550 🥔 ──
+    const questAta = await ensureAta(mint, questTreasuryPda);
+    const questBal = (await getAccount(connection, questAta, "confirmed")).amount;
+    if (questBal < QUEST_POOL_MICRO) {
+      const grant = QUEST_POOL_MICRO - questBal;
+      console.log(`\nFunding quest treasury: granting ${grant / MICRO} 🥔 (one-time achievement pool)...`);
+      const ix = new TransactionInstruction({
+        programId: PROGRAM_ID,
+        keys: [
+          { pubkey: configPda, isSigner: false, isWritable: true },
+          { pubkey: epochPdaOf(epochId), isSigner: false, isWritable: true },
+          { pubkey: admin.publicKey, isSigner: true, isWritable: false },
+          { pubkey: mint, isSigner: false, isWritable: true },
+          { pubkey: questAta, isSigner: false, isWritable: true },
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        ],
+        data: Buffer.concat([disc("grant_reward"), u64LE(grant)]),
+      });
+      const sig = await send(ix);
+      console.log("Quest pool funded, tx:", sig);
+    } else {
+      console.log(`\nQuest treasury already funded (${questBal / MICRO} 🥔).`);
+    }
 
-  // ── SKR ATAs for the presale split (80 % treasury / 20 % buyback) ──
-  if (skrMintInfo) {
-    const treasurySkrAta = await ensureAta(SKR_MINT, treasurySolPda);
-    const buybackSkrAta = await ensureAta(SKR_MINT, admin.publicKey);
-    console.log("\nSKR ATAs ready:");
-    console.log("  treasury:  ", treasurySkrAta.toBase58());
-    console.log("  buyback:   ", buybackSkrAta.toBase58());
+    // ── SKR ATAs for the presale split (80 % treasury / 20 % buyback) ──
+    if (skrMintInfo) {
+      const treasurySkrAta = await ensureAta(SKR_MINT, treasurySolPda);
+      const buybackSkrAta = await ensureAta(SKR_MINT, admin.publicKey);
+      console.log("\nSKR ATAs ready:");
+      console.log("  treasury:  ", treasurySkrAta.toBase58());
+      console.log("  buyback:   ", buybackSkrAta.toBase58());
+    }
   }
 
   const cfg = await connection.getAccountInfo(configPda);
