@@ -6,7 +6,7 @@
 @media (max-width: 480px), (pointer: coarse) {
   .mk-key { min-height: 48px; }
   /* Provide a little measurement tolerance above the 44 px touch-target minimum. */
-  .persistent-colony__auth > button { min-height: 48px; }
+  .persistent-colony .persistent-colony__auth > button { min-height: 48px; }
   /* section-art.css sets 38 px on the ship button with higher specificity; match it, don't fight it */
   .ship-section-body button.mk-key { min-height: 48px; }
   /* §31 item 7: links on /operation and the Phase 1 link on the farm screen were 38 px and 17 px high. */
@@ -24,7 +24,7 @@
    phone hit areas there instead of relying only on the outer viewport width. */
 @container app-shell (max-width: 480px) {
   .mk-key { min-height: 48px; }
-  .persistent-colony__auth > button { min-height: 48px; }
+  .persistent-colony .persistent-colony__auth > button { min-height: 48px; }
   .ship-section-body button.mk-key { min-height: 48px; }
   .op-action, .phase1-link { min-height: 44px; display: inline-flex; align-items: center; }
   .ship-section-body a.mk-key.op-action { min-height: 44px; }
@@ -32,4 +32,3 @@
   .ares-stencil.market-filter-apply, .ares-stencil.market-filter-reset,
   .ares-stencil.market-filter-app, .ares-stencil.market-filter-res { min-height: 48px; }
 }
-
