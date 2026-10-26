@@ -4,29 +4,32 @@
  * Only sizes change here; colours and layout keep their existing rules.
  */
 @media (max-width: 480px), (pointer: coarse) {
-  .mk-key { min-height: 44px; }
+  .mk-key { min-height: 48px; }
+  /* Provide a little measurement tolerance above the 44 px touch-target minimum. */
+  .persistent-colony__auth > button { min-height: 48px; }
   /* section-art.css sets 38 px on the ship button with higher specificity; match it, don't fight it */
-  .ship-section-body button.mk-key { min-height: 44px; }
+  .ship-section-body button.mk-key { min-height: 48px; }
   /* §31 item 7: links on /operation and the Phase 1 link on the farm screen were 38 px and 17 px high. */
   .op-action, .phase1-link { min-height: 44px; display: inline-flex; align-items: center; }
   /* hull-ui.css sets 38 px on .ship-section-body .mk-key (higher specificity); the links sit inside that section. */
   .ship-section-body a.mk-key.op-action { min-height: 44px; }
   /* Market filter fields and APPLY / RESET (34–36 px before). */
-  .market-filter-grid .market-filter-field input { min-height: 44px; }
-  .ares-stencil.market-filter-apply, .ares-stencil.market-filter-reset { min-height: 44px; }
+  .market-filter-grid .market-filter-field input { min-height: 48px; }
+  .ares-stencil.market-filter-apply, .ares-stencil.market-filter-reset { min-height: 48px; }
   /* Market filter chips: class selectors alone lose to the lazily loaded market sheet. */
-  .ares-stencil.market-filter-app, .ares-stencil.market-filter-res { min-height: 44px; }
+  .ares-stencil.market-filter-app, .ares-stencil.market-filter-res { min-height: 48px; }
 }
 
 /* The app is rendered in a 480px shell even in a desktop browser. Mirror the
    phone hit areas there instead of relying only on the outer viewport width. */
 @container app-shell (max-width: 480px) {
-  .mk-key { min-height: 44px; }
-  .ship-section-body button.mk-key { min-height: 44px; }
+  .mk-key { min-height: 48px; }
+  .persistent-colony__auth > button { min-height: 48px; }
+  .ship-section-body button.mk-key { min-height: 48px; }
   .op-action, .phase1-link { min-height: 44px; display: inline-flex; align-items: center; }
   .ship-section-body a.mk-key.op-action { min-height: 44px; }
-  .market-filter-grid .market-filter-field input { min-height: 44px; }
+  .market-filter-grid .market-filter-field input { min-height: 48px; }
   .ares-stencil.market-filter-apply, .ares-stencil.market-filter-reset,
-  .ares-stencil.market-filter-app, .ares-stencil.market-filter-res { min-height: 44px; }
+  .ares-stencil.market-filter-app, .ares-stencil.market-filter-res { min-height: 48px; }
 }
 
