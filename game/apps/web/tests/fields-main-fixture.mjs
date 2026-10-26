@@ -41,7 +41,7 @@ window.__reorderFields = () => { fields=[...fields].reverse();change(); };
 window.__removeSelected = () => { fields=fields.filter(field=>!field.publicKey.equals(keys[1]));change(); };
 export function useGame() { return useSyncExternalStore(fn=>{listeners.add(fn);return()=>listeners.delete(fn)},()=>snapshot); }
 `)
-  writeFileSync(solana, 'export function useSolana() { return {ready:true,connected:true,rpcError:null}; }')
+  writeFileSync(solana, 'export const IS_MAINNET = false; export function useSolana() { return {ready:true,connected:true,rpcError:null}; }')
   writeFileSync(blank, 'export default function Blank(){return null;}')
   const entry = join(dir, 'entry.tsx')
   writeFileSync(entry, `
