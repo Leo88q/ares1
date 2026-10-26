@@ -17,7 +17,7 @@ const screenshots = process.env.ENGINEERING_SCREENSHOT_DIR
 // NO_WEBGL=1: every field view opens in its 2D fallback (sandboxes without WebGL). CI runs the full 3D suite.
 const noWebgl = process.env.NO_WEBGL === '1'
 if (screenshots) mkdirSync(screenshots, { recursive: true })
-const fixture = await labFixture({ slug: 'lab-bench' })
+const fixture = await labFixture({ connected: true, fields: 3, slug: 'lab-bench' })
 const mainFixtureAssets = await mainFixture()
 const assets = new Map([...fixture.assets, ...mainFixtureAssets.assets])
 const htmlPaths = new Set(['/__lab-bench/main', '/__fields/main'])
