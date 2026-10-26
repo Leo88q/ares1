@@ -75,12 +75,14 @@ async function open(width, { realMain = false, fallback = false, failModel = fal
     await page.locator('[data-testid="fields-fallback"]').waitFor()
   } else {
     const outcome = await Promise.race([
-      page.locator('[data-testid="fields-viewport"][data-ready="true"]').waitFor().then(() => 'ready'),
-      page.locator('[data-testid="fields-fallback"]').waitFor().then(() => 'fallback'),
+      page.locator('[data-testid="fields-viewport"][data-ready="true"]').waitFor({ timeout: 30000 }).then(() => 'ready').catch(() => 'timeout'),
+      page.locator('[data-testid="fields-fallback"]').waitFor({ timeout: 30000 }).then(() => 'fallback').catch(() => 'timeout'),
     ])
-    if (outcome === 'fallback') {
-      const reason = await page.locator('[data-testid="fields-fallback"]').innerText()
-      throw new Error(`Field 3D view fell back: ${reason}; model responses: ${JSON.stringify(modelResponses)}; runtime errors: ${errors.join(' | ')}`)
+    if (outcome !== 'ready') {
+      const fallbackText = await page.locator('[data-testid="fields-fallback"]').allInnerTexts()
+      const viewportState = await page.locator('[data-testid="fields-viewport"]').evaluateAll(nodes => nodes.map(node => ({ ready: node.getAttribute('data-ready'), scene: node.getAttribute('data-scene'), text: node.textContent?.slice(0, 240) })))
+      const summary = (await page.locator('[data-testid="field-lab"]').innerText().catch(() => 'field-lab not rendered')).slice(0, 1800)
+      throw new Error(`Field viewport ${outcome}; fallback: ${JSON.stringify(fallbackText)}; viewport: ${JSON.stringify(viewportState)}; model responses: ${JSON.stringify(modelResponses)}; runtime errors: ${errors.join(' | ')}; page summary: ${summary}`)
     }
   }
   // Лаборатория открывается на настоящем слое поля: SIM-консоль включается клавишей.
