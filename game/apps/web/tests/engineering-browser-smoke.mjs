@@ -22,7 +22,7 @@ const mainFixtureAssets = await mainFixture()
 const assets = new Map([...fixture.assets, ...mainFixtureAssets.assets])
 const htmlPaths = new Set(['/__lab-bench/main', '/__fields/main'])
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH, args: process.env.CHROMIUM_ARGS_JSON ? JSON.parse(process.env.CHROMIUM_ARGS_JSON) : ['--no-sandbox'], headless: true })
-const errors = [], outside = []
+const errors = [], outside = [], modelResponses = []
 const noOverflow = async page => assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
 const time = async page => parseFloat(await page.getByTestId('lab-hour').innerText())
 async function actionButton(page, name) {
@@ -46,6 +46,9 @@ async function open(width, { realMain = false, fallback = false, failModel = fal
   const context = await browser.newContext({ viewport: { width, height: 1000 }, locale: 'ru-RU', reducedMotion: 'reduce' })
   const page = await context.newPage()
   page.on('pageerror', error => errors.push(error.message))
+  page.on('response', response => {
+    if (response.url().includes('/models/fields/') && response.url().endsWith('.glb')) modelResponses.push([response.url(), response.status()])
+  })
   page.on('console', message => {
     if (message.type() !== 'error') return
     if (noWebgl && /WebGL/.test(message.text())) return // NO_WEBGL: the missing GPU context is the expected condition
@@ -68,7 +71,18 @@ async function open(width, { realMain = false, fallback = false, failModel = fal
     HTMLCanvasElement.prototype.getContext = function (type, ...args) { return /webgl/.test(type) ? null : original.call(this, type, ...args) }
   })
   await page.goto(`${base}${realMain ? '/__fields/main' : '/__lab-bench/main'}`, { waitUntil: 'networkidle' })
-  await page.locator(fallback || failModel ? '[data-testid="fields-fallback"]' : '[data-testid="fields-viewport"][data-ready="true"]').waitFor()
+  if (fallback || failModel) {
+    await page.locator('[data-testid="fields-fallback"]').waitFor()
+  } else {
+    const outcome = await Promise.race([
+      page.locator('[data-testid="fields-viewport"][data-ready="true"]').waitFor().then(() => 'ready'),
+      page.locator('[data-testid="fields-fallback"]').waitFor().then(() => 'fallback'),
+    ])
+    if (outcome === 'fallback') {
+      const reason = await page.locator('[data-testid="fields-fallback"]').innerText()
+      throw new Error(`Field 3D view fell back: ${reason}; model responses: ${JSON.stringify(modelResponses)}; runtime errors: ${errors.join(' | ')}`)
+    }
+  }
   // Лаборатория открывается на настоящем слое поля: SIM-консоль включается клавишей.
   await page.getByRole('button', { name: 'Инженерный режим · SIM', exact: true }).click()
   await page.getByTestId('engineering-console').waitFor(); await noOverflow(page)
