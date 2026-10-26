@@ -953,7 +953,7 @@
   dependencies:
     "@solana/wallet-adapter-react" "^0.15.39"
 
-"@solana/wallet-adapter-base@^0.9.23", "@solana/wallet-adapter-base@^0.9.28":
+"@solana/wallet-adapter-base@^0.9.23":
   version "0.9.28"
   resolved "https://registry.npmjs.org/@solana/wallet-adapter-base/-/wallet-adapter-base-0.9.28.tgz#ef49cbd6c667004ac2743f1d33efb67967674b2d"
   integrity sha512-RCowsJPUs/UgLL/AbyeB6hozVov2UzHf7TrVZkZyJ8HLbuLswJguOnFUhRg6V1YhCp6FO7+1/qXrgeWC0qm1Jg==
@@ -974,11 +974,11 @@
     eventemitter3 "^5.0.1"
 
 "@solana/wallet-adapter-phantom@^0.9.29":
-  version "0.9.30"
-  resolved "https://registry.npmjs.org/@solana/wallet-adapter-phantom/-/wallet-adapter-phantom-0.9.30.tgz#c6afb8947ea5cb9b89c90296afaf41abb62cef54"
-  integrity sha512-EZlliQ0EchqsGZ4P2xbP3Zn1/YuqSvi8mCueXhVIYRcu15xSGt/JhvYaIGXtVlyQBwCMoTaSyXdMJhtrMFSgRQ==
+  version "0.9.29"
+  resolved "https://registry.npmjs.org/@solana/wallet-adapter-phantom/-/wallet-adapter-phantom-0.9.29.tgz"
+  integrity sha512-nAFvjtX2S1aRLzi70CSLajsmixGxev+1O1GzGzety4eyfv2AYxTHEuDIJySugcMTtSTleVpOMhHXjzlUkxuf1w==
   dependencies:
-    "@solana/wallet-adapter-base" "^0.9.28"
+    "@solana/wallet-adapter-base" "^0.9.27"
 
 "@solana/wallet-adapter-react-ui@^0.9.39":
   version "0.9.39"
@@ -999,11 +999,11 @@
     "@solana/wallet-standard-wallet-adapter-react" "^1.1.4"
 
 "@solana/wallet-adapter-solflare@^0.6.33":
-  version "0.6.34"
-  resolved "https://registry.npmjs.org/@solana/wallet-adapter-solflare/-/wallet-adapter-solflare-0.6.34.tgz#be38ff723b62ae60400a4515cdea7878a9a64cf3"
-  integrity sha512-tlbdn8ScgIqVswBDTihtIj8K5GLWtgmotWeu1GpAIfu4PtCq6DGnVYDAgP8V6XKX9x1rkm3DT52PddqaGxc8Nw==
+  version "0.6.33"
+  resolved "https://registry.npmjs.org/@solana/wallet-adapter-solflare/-/wallet-adapter-solflare-0.6.33.tgz"
+  integrity sha512-eYDjpXMF+LyfWf5jG89IqJG2ehaEsWvv7P3y3NjPmhCqe0WjfFc2EwED19G4R0JUqdhnY5zFj+gn3pJ3ystGhg==
   dependencies:
-    "@solana/wallet-adapter-base" "^0.9.28"
+    "@solana/wallet-adapter-base" "^0.9.27"
     "@solflare-wallet/sdk" "^1.4.2"
 
 "@solana/wallet-standard-chains@^1.1.0", "@solana/wallet-standard-chains@^1.1.1", "@solana/wallet-standard-chains@^1.1.2":
@@ -1084,7 +1084,7 @@
 
 "@solflare-wallet/sdk@^1.4.2":
   version "1.4.2"
-  resolved "https://registry.npmjs.org/@solflare-wallet/sdk/-/sdk-1.4.2.tgz#630b9a26f7bca255ee4a7088f287ae8c8335e345"
+  resolved "https://registry.npmjs.org/@solflare-wallet/sdk/-/sdk-1.4.2.tgz"
   integrity sha512-jrseNWipwl9xXZgrzwZF3hhL0eIVxuEtoZOSLmuPuef7FgHjstuTtNJAeT4icA7pzdDV4hZvu54pI2r2f7SmrQ==
   dependencies:
     bs58 "^5.0.0"
@@ -2029,6 +2029,11 @@ find-up@^8.0.0:
   dependencies:
     locate-path "^8.0.0"
     unicorn-magic "^0.3.0"
+
+follow-redirects@1.16.2:
+  version "1.16.2"
+  resolved "https://registry.npmjs.org/follow-redirects/-/follow-redirects-1.16.2.tgz#a233160dd1bc9b16cbbab43709e6adc7cc941c8c"
+  integrity sha512-/kVP2U8z596Ia0gwFrwyIeo74ta5aVmSeU1FfAUMAmcEP5EP7zydmag3SLiN64NaRKef3lxsq7i/g7ltJQDGow==
 
 forwarded@0.2.0:
   version "0.2.0"
@@ -3025,10 +3030,10 @@ toidentifier@~1.0.1:
   resolved "https://registry.npmjs.org/toidentifier/-/toidentifier-1.0.1.tgz"
   integrity sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==
 
-toml@4.2.0, toml@^3.0.0:
-  version "4.2.0"
-  resolved "https://registry.npmjs.org/toml/-/toml-4.2.0.tgz#a54ab41408738b3521e662a50f6423b168cb46dc"
-  integrity sha512-TvAJjbHZlYmI323+srtqHQFyJsoWy6mI09ppkuj9+iRsqsVKG9fvTcOP7FHF2UCb0QSYtjEavffrKzdd0XgClg==
+toml@4.3.0, toml@^3.0.0:
+  version "4.3.0"
+  resolved "https://registry.npmjs.org/toml/-/toml-4.3.0.tgz#10e2ff83296ec17d8935bf02364e4969cfeaae67"
+  integrity sha512-lVb8X9BsPVuH0M4BKeS91tXAmJvCjQ5UIyAbQFaxkKGyUFK2RPkhwaFSQH8vbpl1d23eu/IBH+dwVMHWaq9A5A==
 
 tr46@~0.0.3:
   version "0.0.3"
@@ -3252,3 +3257,8 @@ yocto-queue@^1.0.0:
   version "1.2.2"
   resolved "https://registry.npmjs.org/yocto-queue/-/yocto-queue-1.2.2.tgz"
   integrity sha512-4LCcse/U2MHZ63HAJVE+v71o7yOdIe4cZ70Wpf8D/IyjDKYQLV5GD46B+hSTjJsvV5PztjvHoU580EftxjDZFQ==
+
+zod@3.25.76:
+  version "3.25.76"
+  resolved "https://registry.npmjs.org/zod/-/zod-3.25.76.tgz#26841c3f6fd22a6a2760e7ccb719179768471e34"
+  integrity sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==

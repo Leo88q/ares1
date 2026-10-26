@@ -85,14 +85,16 @@
     "jayson": "5.0.0",
     "body-parser": "1.20.9",
     "lodash": "4.18.1",
-    "toml": "4.2.0",
+    "toml": "4.3.0",
     "proxy-addr": "2.0.8",
     "**/viem/ws": "8.21.3",
     "**/node-cron/uuid": "11.1.1",
     "**/uuidv4/uuid": "11.1.1",
     "**/@keystonehq/bc-ur-registry-sol/uuid": "11.1.1",
     "**/@keystonehq/sol-keyring/uuid": "11.1.1",
-    "**/@solflare-wallet/sdk/uuid": "11.1.1"
+    "**/@solflare-wallet/sdk/uuid": "11.1.1",
+    "follow-redirects": "1.16.2",
+    "zod": "3.25.76"
   },
   "packageManager": "yarn@1.22.22",
   "engines": {
