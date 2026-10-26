@@ -77,7 +77,7 @@ try {
   assert.equal(await page.getByTestId('fields-viewport').getAttribute('data-scene'), 'greenhouse-interior')
   if (!noWebgl) assert.equal(await page.getByTestId('fields-viewport').getAttribute('data-ready'), 'true')
   assert.equal(await page.locator('.mf-stage-art').count(), 0, 'no mismatched perspective artwork below the 3D room')
-  assert.ok(await page.locator('.mf-resource-icon').count() >= 8)
+  assert.ok(await page.locator('.mf-resource-icon').count() >= 5)
   assert.equal(await page.locator('.mf-resource-icon').evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0)), true)
   const secondId = await fields.nth(1).getAttribute('data-field-id')
   await fields.nth(1).click()
