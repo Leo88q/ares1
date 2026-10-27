@@ -19,6 +19,7 @@ import { createPgRollLock } from "./gameops/epochLock.js";
 import { bindPresaleDatabaseCluster } from "./gameops/clusterGuard.js";
 import { checkReadiness, httpStatusFor } from "./gameops/readiness.js";
 import { startEpochRoller } from "./epochRoller.js";
+import { createShutdown } from "./shutdown.js";
 import { connection, secondaryConnection, fetchConfig, payerKeypair, programId } from "./solana.js";
 import { buildAlert, sendAlert } from "./alert.js";
 
@@ -309,25 +310,26 @@ async function main() {
     console.warn("[startup] WARNING: CORS_ORIGIN='*' in production — restrict to your dApp domain!");
   }
 
-  // Остановка: сначала перестаём принимать запросы, затем закрываем пул, чтобы
-  // «полуоткрытая» транзакция выплаты не осталась в соединении с ролью-писателем.
-  const shutdown = async (signal: string) => {
-    console.log(`[shutdown] ${signal}: закрываю пул game_ops`);
-    if (gameOpsPool) await closePool(gameOpsPool);
-    process.exit(0);
-  };
-  process.on("SIGTERM", () => void shutdown("SIGTERM"));
-  process.on("SIGINT", () => void shutdown("SIGINT"));
-
   // Крон эпохи защищён общей блокировкой, когда включён game_ops: несколько
   // реплик (перекрытие при выкатке, горизонтальное масштабирование) тогда не
   // дублируют roll_epoch. Без БД блокировки нет — это режим «ровно один инстанс».
-  startEpochRoller({ lock: gameOpsPool ? createPgRollLock(gameOpsPool) : null });
-  app.listen(env.port, "0.0.0.0", () => {
+  const roller = startEpochRoller({ lock: gameOpsPool ? createPgRollLock(gameOpsPool) : null });
+  const server = app.listen(env.port, "0.0.0.0", () => {
     console.log(`[startup] Solana Potato backend on :${env.port}`);
     console.log(`[startup] program=${programId.toBase58()}`);
     console.log(`[startup] epoch-payer=${payerKeypair.publicKey.toBase58()} epoch=${config.epochId}`);
   });
+
+  // Остановка (see shutdown.ts): сначала крон эпохи и дренаж HTTP, затем
+  // пул — чтобы «полуоткрытая» транзакция выплаты не осталась в соединении
+  // с ролью-писателем, а roll_epoch не потерял advisory lock посреди такта.
+  const shutdown = createShutdown({
+    stopRoller: () => roller.stop(),
+    server,
+    closePool: gameOpsPool ? () => closePool(gameOpsPool) : undefined,
+  });
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 }
 
 main().catch((err) => {

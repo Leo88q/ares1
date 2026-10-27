@@ -219,7 +219,12 @@ export async function sendVersionedTx(
     ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }),
     ...instructions,
   ];
-  const { blockhash } = await connection.getLatestBlockhash("confirmed");
+  // blockhash и lastValidBlockHeight ОБЯЗАНЫ быть одной парой из одного
+  // ответа RPC: confirmTransaction ниже интерпретирует высоту как срок
+  // жизни именно этого blockhash. Раньше высота перечитывалась вторым
+  // getLatestBlockhash уже после отправки — пара расходилась, и
+  // подтверждение могло ложно истечь (или ждать чужой дедлайн).
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
   const messageV0 = new TransactionMessage({
     payerKey: payerKeypair.publicKey,
     recentBlockhash: blockhash,
@@ -235,7 +240,6 @@ export async function sendVersionedTx(
     throw new Error(`Simulation failed: ${JSON.stringify(sim.value.err)} — ${logs.slice(0, 500)}`);
   }
   const sig = await connection.sendTransaction(vtx, { skipPreflight: false, maxRetries: 3 });
-  const { lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
   const res = await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
   if (res.value.err) throw new Error(`Transaction failed: ${JSON.stringify(res.value.err)}`);
   return sig;

@@ -34,6 +34,8 @@
     "scripts/presale-open-run.ts",
     "scripts/treasury-admin.ts",
     "scripts/treasury-admin-core.ts",
+    "scripts/grant-potato.ts",
+    "scripts/grant-potato-core.ts",
     "tests/db/**/*.ts"
   ]
 }
