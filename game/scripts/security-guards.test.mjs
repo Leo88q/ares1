@@ -148,8 +148,10 @@ test('C15: комиссия считается floor-формулой с пот�
 
 test('C16/F-02: вывод казны — двухшаговый, с пином назначения и лимитами окна', () => {
   assert.equal(count(libRs, 'seeds = [b"treasury_sol"]'), 7);
-  // назначение прибито к ATA authority (POTATO, SKR) — кошелёк-посредник невозможен
-  assert.equal(count(libRs, 'associated_token::authority = authority'), 3);
+  // Назначение прибито к ATA authority (POTATO, SKR на выводе) — кошелёк-посредник
+  // невозможен. Было 3: третьим был buyback-ATA в buy_field_skr, удалён вместе со
+  // сплитом 80/20 (20 % уходили на кошелёк authority, минуя казну и её лимиты).
+  assert.equal(count(libRs, 'associated_token::authority = authority'), 2);
   assert.equal(count(libRs, 'GameError::WithdrawTimelockNotExpired'), 3);
   assert.equal(count(libRs, 'GameError::WithdrawAmountMismatch'), 3);
   assert.equal(count(libRs, 'GameError::WithdrawWindowLimitExceeded'), 1);
@@ -213,16 +215,17 @@ test('D25: пороги квестов выполнимы — «полевые»
   assert.equal(maxProofs, 12);
   assert.equal(maxLevel, 50);
   const calls = [...libRs.matchAll(/verify_fields\(\s*ctx\.remaining_accounts,\s*&user,\s*pid,\s*(\d+),\s*(\d+)\s*\)/g)];
-  assert.ok(calls.length >= 3, `полевых квестов: ${calls.length}`);
+  assert.equal(calls.length, 6, `полевых квестов: ${calls.length}, ожидалось 6 (все квесты)`);
   for (const [, min, level] of calls) {
     assert.ok(Number(min) >= 1 && Number(min) <= maxProofs, `порог полей ${min} вне 1..${maxProofs}`);
     assert.ok(Number(level) <= maxLevel, `требование уровня ${level} выше потолка ${maxLevel}`);
   }
-  // Квесты 1/2/4 проверяют БАЛАНС кошелька, а не прогресс в игре: их проходит
-  // любой, кто купил POTATO на рынке или получил перевод. Пин держит счётчик,
-  // чтобы замена порогов на владение полями была отдельным осознанным решением
-  // (P8), а не тихим изменением.
-  assert.equal(count(libRs, 'require!(ata_amount >= '), 3);
+  // Квесты 1/2/4 раньше проверяли БАЛАНС кошелька (100/1000/10000 POTATO):
+  // их проходил любой, кто купил токен, а не сыграл. Теперь все шесть квестов
+  // доказываются владением полями, и балансовых проверок быть не должно —
+  // пин вернёт сюда ревью, если такая проверка появится снова.
+  assert.equal(count(libRs, 'require!(ata_amount >= '), 0);
+  assert.equal(count(libRs, 'user_potato_ata.amount'), 0);
 });
 
 test('D27: migrate_field без PDA-проверки — долг P7 запинен вместе с обоснованием', () => {

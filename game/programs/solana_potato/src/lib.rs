@@ -445,13 +445,25 @@ pub mod solana_potato {
         require!(achievements.bitmap & bit == 0, GameError::AlreadyClaimed);
         let user = ctx.accounts.user.key();
         let pid = ctx.program_id;
-        let ata_amount = ctx.accounts.user_potato_ata.amount;
+        // Доказательство — ВЛАДЕНИЕ полями, а не баланс кошелька.
+        //
+        // Раньше квесты 1/2/4 проверяли `user_potato_ata.amount` (100 / 1000 /
+        // 10000 POTATO). Это доказывало не прогресс, а покупку: любой, кто
+        // приобрёл токен на рынке или получил перевод, забирал награду из
+        // квест-кассы, ни разу не сыграв. Баланс — это ещё и не «достижение»:
+        // его можно передать другому кошельку и получить награду дважды.
+        // Владение полем подделать нельзя: Field — PDA программы с owner=user,
+        // а создание поля сжигает POTATO, то есть награда выдаётся за то, что
+        // игрок уже вложил в игру. Порогов больше MAX_CLAIM_PROOFS нет и быть
+        // не может — их нечем доказать (см. пин в scripts/security-guards).
         match quest_id {
             0 => verify_fields(ctx.remaining_accounts, &user, pid, 1, 0)?,
-            1 => require!(ata_amount >= 100_000_000, GameError::BadProof),
-            2 => require!(ata_amount >= 1_000_000_000, GameError::BadProof),
+            1 => verify_fields(ctx.remaining_accounts, &user, pid, 2, 0)?,
+            2 => verify_fields(ctx.remaining_accounts, &user, pid, 3, 0)?,
             3 => verify_fields(ctx.remaining_accounts, &user, pid, 5, 0)?,
-            4 => require!(ata_amount >= 10_000_000_000, GameError::BadProof),
+            // 8, а не 4: это квест с самой большой наградой (200 POTATO), и он
+            // не должен оказаться дешевле предыдущего (5 полей).
+            4 => verify_fields(ctx.remaining_accounts, &user, pid, 8, 0)?,
             5 => verify_fields(ctx.remaining_accounts, &user, pid, 6, 3)?,
             _ => return err!(GameError::InvalidFieldType),
         }
@@ -602,12 +614,17 @@ pub mod solana_potato {
         };
 
         let total = PRESALE_PRICE_SKR_ATOMS; // 1053 SKR за модуль
-        let treasury_amount = total.checked_mul(80).ok_or(GameError::MathOverflow)? / 100;
-        let buyback_amount = total
-            .checked_sub(treasury_amount)
-            .ok_or(GameError::MathOverflow)?;
 
-        // 80 % SKR -> ATA казны
+        // 100 % SKR -> ATA казны.
+        //
+        // Раньше 20 % уходили на отдельный ATA, которым владел кошелёк
+        // `authority`. Это не «резерв протокола»: деньги лежали на одном ключе,
+        // программа ими не управляла, лимиты вывода казны и аудит переходов на
+        // них не распространялись, а при смене authority ATA оставался за
+        // старым ключом. Никакого on-chain buyback не существует вовсе —
+        // значит доля, которую нельзя потратить по правилам, это не доля
+        // протокола, а личный баланс оператора. Разделение убрано: всё
+        // поступление идёт в казну, где его видно и где оно ограничено.
         token::transfer(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -617,20 +634,7 @@ pub mod solana_potato {
                     authority: ctx.accounts.buyer.to_account_info(),
                 },
             ),
-            treasury_amount,
-        )?;
-
-        // 20 % SKR -> ATA buyback
-        token::transfer(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                Transfer {
-                    from: ctx.accounts.buyer_skr_ata.to_account_info(),
-                    to: ctx.accounts.buyback_skr_ata.to_account_info(),
-                    authority: ctx.accounts.buyer.to_account_info(),
-                },
-            ),
-            buyback_amount,
+            total,
         )?;
 
         // Создаём поле (логика идентична create_field)
@@ -3933,13 +3937,6 @@ pub struct BuyFieldSkr<'info> {
         associated_token::authority = treasury_sol,
     )]
     pub treasury_skr_ata: Account<'info, TokenAccount>,
-
-    #[account(
-        mut,
-        associated_token::mint = skr_mint,
-        associated_token::authority = authority,
-    )]
-    pub buyback_skr_ata: Account<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,

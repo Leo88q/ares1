@@ -1144,14 +1144,13 @@ describe("solana_potato", () => {
       const wrongSkrMint = await createMint(connection, admin, admin.publicKey, null, 6);
       const buyerSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, player.publicKey, true)).address;
       const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, treasurySolPda, true)).address;
-      const buybackSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, admin.publicKey, true)).address;
       const id = BigInt(Date.now()) + 5555n;
       await expectFail(
         program.methods.buyFieldSkr(new BN(id.toString())).accountsPartial({
           config: configPda, presaleState: presalePda, authority: admin.publicKey,
           buyerPresale: buyerPresalePda(player.publicKey), field: fieldPda(id),
           buyer: player.publicKey, skrMint: wrongSkrMint, buyerSkrAta,
-          treasurySol: treasurySolPda, treasurySkrAta, buybackSkrAta,
+          treasurySol: treasurySolPda, treasurySkrAta,
           tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
           slotHashes: SYSVAR_SLOT_HASHES_PUBKEY,
         }).signers([player]).rpc(),

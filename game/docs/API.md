@@ -160,10 +160,14 @@ harvests.
   `price_lamports`); `max_total_lamports` is a slippage guard — the tx reverts
   with `InvalidPrice` if the price was raised after signing. Rarity roll mixes in
   `SlotHashes` (needs the `slotHashes` sysvar account).
-- `buy_field_skr` (buyer): 1053 SKR split 80 % team treasury ATA / 20 % `buyback_skr_ata`
-  (the account name is historical — there is **no** on-chain buyback/burn; the 20 % share
-  sits in the team wallet ATA and is managed off-chain); global cap
-  and 5-field wallet cap; same `SlotHashes` rarity entropy (needs `slotHashes`).
+- `buy_field_skr` (buyer): 1053 SKR, **100 %** to the treasury SKR ATA.
+  The historical 80/20 split was removed: the 20 % share went to a token account
+  owned by the `authority` wallet, i.e. outside the program, outside the
+  treasury withdrawal limits and invisible to the withdrawal audit. There is
+  **no** on-chain buyback/burn, so a "reserve" the code cannot spend is not a
+  reserve — everything now lands in the treasury, where it is visible and
+  capped. Global cap and 5-field wallet cap; same `SlotHashes` rarity entropy
+  (needs `slotHashes`).
 - `buy_export_license`: configured SKR payment; inspect source/current config for terms.
 
 Both presale rails check `price_lamports > 0` (`PresaleNotActive`), which is how
