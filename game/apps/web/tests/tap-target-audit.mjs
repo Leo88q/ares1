@@ -48,7 +48,12 @@ for (const r of routes) {
       const b = el.getBoundingClientRect()
       if (b.width === 0 || b.height === 0) continue
       total++
-      if (b.width < 44 || b.height < 44) {
+      // Допуск 0.5 px: CSS-пиксели дробные при DPR 3, и контрол, объявленный
+      // ровно как 44×44, измеряется как 43.996 — гейт падал на собственном
+      // пороге (поймано в CI: «44x44 Sound and notification settings» -
+      // framer-motion держит на кнопке transform, пока идёт scale-переход).
+      // Контрол меньше 44 px по-прежнему не пройдёт: 43.5 требует 43.5+0.5 < 44.
+      if (b.width + 0.5 < 44 || b.height + 0.5 < 44) {
         const label = (el.getAttribute('aria-label') || el.textContent || el.getAttribute('title') || el.tagName).replace(/\s+/g, ' ').trim().slice(0, 40)
         small.push(`${Math.round(b.width)}x${Math.round(b.height)} ${label}`)
       }
