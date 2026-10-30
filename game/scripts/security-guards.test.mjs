@@ -201,6 +201,57 @@ test('D24: миграции валидируют раскладки и authority
   assert.ok(migrationsRs.includes('require_keys_eq!(config.authority, *signer'));
 });
 
+test('D25: пороги квестов выполнимы — «полевые» проверки не упираются в кап', () => {
+  // claim_achievement принимает не больше MAX_CLAIM_PROOFS доказательств, поэтому
+  // порог «N полей» выше капа делает квест невыполнимым навсегда: игрок физически
+  // не может передать столько аккаунтов, сколько требует проверка. То же с
+  // уровнем — MAX_FIELD_LEVEL это потолок upgrade_field, требование выше него
+  // недостижимо ни при какой игре. Оба потолка выведены из констант, а не
+  // вписаны числами: менять их можно, ломать соотношение — нет.
+  const maxProofs = Number(libRs.match(/MAX_CLAIM_PROOFS: usize = (\d+)/)?.[1]);
+  const maxLevel = Number(libRs.match(/MAX_FIELD_LEVEL: u8 = (\d+)/)?.[1]);
+  assert.equal(maxProofs, 12);
+  assert.equal(maxLevel, 50);
+  const calls = [...libRs.matchAll(/verify_fields\(\s*ctx\.remaining_accounts,\s*&user,\s*pid,\s*(\d+),\s*(\d+)\s*\)/g)];
+  assert.ok(calls.length >= 3, `полевых квестов: ${calls.length}`);
+  for (const [, min, level] of calls) {
+    assert.ok(Number(min) >= 1 && Number(min) <= maxProofs, `порог полей ${min} вне 1..${maxProofs}`);
+    assert.ok(Number(level) <= maxLevel, `требование уровня ${level} выше потолка ${maxLevel}`);
+  }
+  // Квесты 1/2/4 проверяют БАЛАНС кошелька, а не прогресс в игре: их проходит
+  // любой, кто купил POTATO на рынке или получил перевод. Пин держит счётчик,
+  // чтобы замена порогов на владение полями была отдельным осознанным решением
+  // (P8), а не тихим изменением.
+  assert.equal(count(libRs, 'require!(ata_amount >= '), 3);
+});
+
+test('D27: migrate_field без PDA-проверки — долг P7 запинен вместе с обоснованием', () => {
+  // migrate_epoch выводит PDA из данных самого аккаунта (id лежит в Epoch) и
+  // отказывает чужому адресу. У Field своего id в раскладке нет — вывести PDA в
+  // обработчике нечем, проверка отсутствует. Это не дыра ровно до тех пор, пока
+  // КАЖДЫЙ Field-аккаунт создаётся программой по каноническим seeds: тогда
+  // адресное пространство Field целиком под контролем программы, и направить
+  // migrate_field на «чужой» аккаунт некуда (владелец обязан быть программой,
+  // раскладка и дискриминатор проверяются, пишет только authority).
+  // Оба факта держим пинами: если появится init без seeds или кто-то добавит
+  // проверку в migrate_field, тест упадёт и заставит пересмотреть P7 явно.
+  const body = (name) => {
+    const start = libRs.indexOf(`pub fn ${name}`);
+    assert.ok(start > 0, `${name} не найден`);
+    return libRs.slice(start, libRs.indexOf('pub fn ', start + 10));
+  };
+  assert.equal(count(body('migrate_field'), 'find_program_address'), 0);
+  assert.equal(count(body('migrate_epoch'), 'find_program_address'), 1);
+  const fieldInits = blocks.filter(b => b.includes('Field::INIT_SPACE'));
+  assert.equal(fieldInits.length, 3, 'Field создаётся в трёх местах — сверьте пины');
+  for (const block of fieldInits) {
+    assert.ok(
+      block.includes('seeds = [b"field", field_id.to_le_bytes().as_ref()]'),
+      'Field-аккаунт создаётся без канонических seeds: адреса больше не под контролем программы',
+    );
+  }
+});
+
 test('D26: program-id паритет declare_id == Anchor.toml == IDL клиента', () => {
   const declared = libRs.match(/declare_id!\("([^"]+)"\)/)?.[1];
   assert.ok(declared, 'declare_id! не найден');
