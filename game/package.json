@@ -48,7 +48,7 @@
     "db:bench": "tsx scripts/db-bench.ts",
     "db:mutate": "tsx scripts/db-mutate.ts",
     "test:db": "tsx --test --test-concurrency=1 tests/db/*.test.ts",
-    "test:db:unit": "tsx --test tests/db/gameops-unit.test.ts tests/db/colony-migration.test.ts",
+    "test:db:unit": "tsx --test tests/db/gameops-unit.test.ts tests/db/colony-migration.test.ts tests/db/slot-reviews-migration.test.ts tests/db/presale-refund-evidence.test.ts",
     "inventory:programs": "node scripts/inventory-programs.mjs",
     "inventory:programs:schema": "node scripts/inventory-programs.mjs --schema-only",
     "simulate:colony": "tsx economy/colony-simulate.ts",

@@ -23,13 +23,25 @@ import { PACKS, packPotatoMicro } from '../presale/catalog.js';
 import {
   openRun, reserveOrder, attachPayment, confirmPayment, markDelivered,
   refundOrder, expireStaleReservations, getRunStatus, getOrderPublic, publicRunStatus,
-  listPendingDelivery, listNeedsAttention,
+  listPendingDelivery, listNeedsAttention, listPendingRefundSettlement,
 } from '../presale/orders.js';
 import { verifyPayment, verifyTokenPayment } from '../presale/verify.js';
 import { fetchPaymentView, fetchTokenPaymentView, fetchTreasuryTransfers } from '../presale/chain.js';
+import { buildPaymentExpectation, PaymentExpectationError } from '../presale/paymentExpectation.js';
+import { settleRefund, verifySolRefund, verifyTokenRefund } from '../presale/refunds.js';
 import { reconcile, payersFromChain } from '../presale/reconcile.js';
 import { planDelivery } from '../presale/delivery.js';
 import { createIntent, getIntent } from '../gameops/intents.js';
+
+/**
+ * Чтение цепи инжектируется: без этого маршрут верификации невозможно покрыть
+ * тестом, а именно в нём жил дефект «ожидание не совпадает с тем, что велено
+ * заплатить». Тест обязан проверять склейку, а не только чистые функции.
+ */
+export interface PresaleChainViews {
+  fetchPaymentView: typeof fetchPaymentView;
+  fetchTokenPaymentView: typeof fetchTokenPaymentView;
+}
 
 export interface PresaleDeps {
   connection: Connection;
@@ -39,6 +51,10 @@ export interface PresaleDeps {
   paymentsEnabled: boolean;
   /** Минт POTATO — для расчёта ATA получателя при выдаче. */
   potatoMint: string;
+  /** По умолчанию — реальные чтения цепи; тесты подменяют их снимками. */
+  views?: PresaleChainViews;
+  /** Часы в секундах; тесты задают фиксированное время для порога возраста. */
+  now?: () => number;
 }
 
 const runIdParam = (req: Request): string => String(req.params.runId ?? '');
@@ -254,6 +270,60 @@ export function presaleRouter(pool: Pool, config: GameOpsConfig, deps: PresaleDe
     handleAsync(res, 200, () => listPendingDelivery(pool));
   });
 
+  // Очередь исполнения возвратов: решение принято, деньги ещё не подтверждены.
+  router.get('/admin/refunds', admin, (_req, res) => {
+    handleAsync(res, 200, () => listPendingRefundSettlement(pool));
+  });
+
+  /**
+   * Подтвердить исполнение возврата. Заказ уже в `refunded` (решение), здесь
+   * фиксируется факт перевода покупателю — и только после проверки по цепи.
+   * Без чтения цепи маршрут отвечает 503, а не «закрывает» пункт словами.
+   */
+  router.post('/admin/orders/:id/refund-settled', admin, (req, res) => {
+    const signature = typeof req.body?.signature === 'string' ? req.body.signature.trim() : '';
+    return handleAsync(res, 200, async () => {
+      if (!/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(signature)) {
+        throw new GameOpsError('VALIDATION', 'Нужна подпись транзакции возврата', undefined, 400);
+      }
+      const order = await getOrderRow(pool, String(req.params.id));
+      if (!order) throw new GameOpsError('ORDER_NOT_FOUND', 'Заказ не найден', undefined, 404);
+      if (order.state !== 'refunded') {
+        throw new GameOpsError('INVALID_TRANSITION',
+          `Заказ в состоянии ${order.state}: сначала фиксируется решение (refund)`, undefined, 409);
+      }
+      const run = await runOf(pool, order.run_id);
+      const views = deps.views ?? { fetchPaymentView, fetchTokenPaymentView };
+      // Возвращаем ровно то, что покупатель заплатил. Если фактическая сумма не
+      // записана (возврат из payment_seen), берём не базу цены, а ТОЧНУЮ сумму
+      // счёта `база + order_no`: пыль — тоже деньги покупателя, и «округлим в
+      // свою пользу» здесь недопустимо.
+      const amount = order.received_units !== null
+        ? BigInt(order.received_units)
+        : BigInt(order.price_units) + BigInt(order.order_no);
+      // Доказательством не может быть перевод, сделанный до решения о возврате.
+      const notBefore = order.refunded_at
+        ? BigInt(Math.floor(new Date(order.refunded_at).getTime() / 1000) - 300)
+        : null;
+
+      let check;
+      if (run.currency === 'skr') {
+        const view = await views.fetchTokenPaymentView(deps.connection, signature);
+        if (!view) throw new GameOpsError('VALIDATION', 'Транзакция не найдена в цепи', undefined, 404);
+        check = verifyTokenRefund(view, { wallet: order.payer_wallet, mint: skrMintOf(run), amount });
+      } else {
+        const view = await views.fetchPaymentView(deps.connection, signature);
+        if (!view) throw new GameOpsError('VALIDATION', 'Транзакция не найдена в цепи', undefined, 404);
+        check = verifySolRefund(view, { wallet: order.payer_wallet, amount, notBefore });
+      }
+      if (!check.ok) {
+        throw new GameOpsError('VALIDATION', `Возврат не подтверждён цепью: ${check.detail}`, check.code, 400);
+      }
+      const settled = await settleRefund(pool, { id: order.id, signature, actor: 'presale.admin' });
+      return { ...settled, verified: { received: check.received.toString() } };
+    });
+  });
+
   router.get('/admin/attention', admin, (_req, res) => {
     handleAsync(res, 200, () => listNeedsAttention(pool));
   });
@@ -272,6 +342,8 @@ async function getOrderRow(pool: Pool, id: string) {
   return (rows[0] as {
     id: string; payer_wallet: string; pack_id: string; state: string;
     price_units: string; run_id: string; order_no: number;
+    created_at: string | Date;
+    refunded_at: string | null;
     tx_signature: string | null; received_units: string | null;
   }) ?? null;
 }
@@ -299,30 +371,45 @@ async function verifyOrderPayment(pool: Pool, deps: PresaleDeps, orderId: string
   if (deps.cluster === 'mainnet-beta' && run.currency !== 'sol') {
     throw new GameOpsError('VALIDATION', 'SKR payment verification is unavailable on mainnet; refusing this legacy/non-mainnet run.', undefined, 409);
   }
-  const expected = BigInt(order.price_units);
-  const base = expected - BigInt(order.order_no);
+
+  // Ожидание и порог возраста берутся ТОЛЬКО отсюда (presale/paymentExpectation.ts):
+  // покупателю при резерве обещано `база + order_no`, и проверять надо ровно это,
+  // а не базу из order.price_units. Иначе любой корректный платёж = AMOUNT_OVERPAID.
+  const now = deps.now ? deps.now() : Math.floor(Date.now() / 1000);
+  let expectation;
+  try {
+    expectation = buildPaymentExpectation({ order, run, nowSeconds: now });
+  } catch (error) {
+    if (error instanceof PaymentExpectationError) {
+      throw new GameOpsError('ORDER_INCONSISTENT', error.message, error.code, 409);
+    }
+    throw error;
+  }
+  const { expected, minBlockTime } = expectation;
+  const views = deps.views ?? { fetchPaymentView, fetchTokenPaymentView };
 
   let verdict;
   if (run.currency === 'skr') {
-    const view = await fetchTokenPaymentView(deps.connection, order.tx_signature);
+    const view = await views.fetchTokenPaymentView(deps.connection, order.tx_signature);
     if (!view) throw new GameOpsError('VALIDATION', 'Транзакция не найдена в цепи', undefined, 404);
     verdict = verifyTokenPayment(view, {
       treasuryAta: run.treasury, mint: skrMintOf(run), expectedUnits: expected,
-      payerWallet: order.payer_wallet,
+      payerWallet: order.payer_wallet, minBlockTime,
     });
   } else {
-    const view = await fetchPaymentView(deps.connection, order.tx_signature);
+    const view = await views.fetchPaymentView(deps.connection, order.tx_signature);
     if (!view) throw new GameOpsError('VALIDATION', 'Транзакция не найдена в цепи', undefined, 404);
     verdict = verifyPayment(view, {
-      treasury: run.treasury, expectedLamports: expected, payerWallet: order.payer_wallet,
+      treasury: run.treasury, expectedLamports: expected,
+      payerWallet: order.payer_wallet, minBlockTime,
     });
   }
 
   if (verdict.ok) {
     await confirmPayment(pool, { id: orderId, receivedUnits: verdict.receivedUnits, slot: verdict.slot, actor: 'presale.verify' });
   }
-  void base;
-  return { verdict };
+  // Ожидание возвращается наружу: оператор видит, с чем сравнивали, а не только вердикт.
+  return { verdict, expected: expected.toString(), minBlockTime: minBlockTime.toString() };
 }
 
 function skrMintOf(_run: { currency: string }): string {

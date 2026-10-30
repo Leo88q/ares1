@@ -41,6 +41,35 @@ function localizeMobileWalletAdapterModal(): import('vite').Plugin {
  * в окружении которых переменные не заданы (Cloudflare Pages `ares1-play`
  * и любой другой CI).
  */
+/**
+ * IDL — вторая копия program id внутри бандла: `address` запекается в `idl.json`
+ * при `anchor build`, а `VITE_PROGRAM_ID` приходит из окружения. Если они
+ * разошлись (перегенерировали IDL и забыли переменную, или наоборот), клиент
+ * строит инструкции для одной программы, а allowlist в `utils/txSafety.ts`
+ * содержит ещё и адрес из IDL — то есть разрешает подпись чужой программе.
+ * Расхождение обязано ломать сборку, а не выясняться в проде.
+ */
+function assertProgramIdMatchesIdl(): import('vite').Plugin {
+  return {
+    name: 'assert-program-id-matches-idl',
+    enforce: 'post',
+    apply: 'build',
+    buildStart() {
+      const idl = JSON.parse(readFileSync(join(projectRoot, 'src', 'idl.json'), 'utf8')) as { address?: string }
+      const configured = process.env.VITE_PROGRAM_ID
+      if (!idl.address) this.error('idl.json: отсутствует поле address')
+      if (!configured) this.error('VITE_PROGRAM_ID не задан: сборка не может проверить, что IDL и программа совпадают')
+      if (idl.address !== configured) {
+        this.error(
+          `IDL собран для программы ${idl.address}, а VITE_PROGRAM_ID=${configured}. ` +
+          'Обновите IDL (anchor build → apps/web/src/idl.json) либо переменную окружения; ' +
+          'сборка с расхождением выпустила бы клиент, разрешающий инструкции двух программ.',
+        )
+      }
+    },
+  }
+}
+
 function parseEnvFile(filePath: string): Record<string, string> {
   let text: string
   try {
@@ -100,7 +129,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), localizeMobileWalletAdapterModal()],
+    plugins: [react(), localizeMobileWalletAdapterModal(), assertProgramIdMatchesIdl()],
     server: {
       port: 5175,
       host: true,

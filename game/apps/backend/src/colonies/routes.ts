@@ -1,5 +1,5 @@
 import { randomUUID, timingSafeEqual } from 'node:crypto';
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import type { Pool } from 'pg';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { withTransaction } from '../gameops/pool.js';
@@ -7,7 +7,7 @@ import { FieldOwnershipError, verifyFieldOwnership } from './fieldOwnership.js';
 import { ColonyRuleError } from './engine.js';
 import { ColonyService, ColonyServiceError } from './service.js';
 import { BASE_CAPACITY, BUILDINGS, COLONY_RULESET_STATUS, COLONY_RULESET_VERSION, LAB_UPGRADE_BASE, RESEARCH, STARTER_INITIAL_RESOURCES } from './rules.js';
-import { createWalletChallenge, hashWalletChallenge, issueWalletSession, verifyWalletChallenge, verifyWalletSession } from './walletAuth.js';
+import { createWalletChallenge, hashWalletChallenge, issueWalletSession, verifyWalletChallenge, verifyWalletSession, type WalletSession } from './walletAuth.js';
 
 export interface ColonyAuthRouterOptions {
   pool: Pool;
@@ -51,6 +51,41 @@ function requestOrigin(req: Request, options: ColonyAuthRouterOptions): string |
   if (options.allowedOrigins.includes(origin)) return origin;
   if (options.allowLocalhostForDevelopment && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return origin;
   return null;
+}
+
+const BEARER_TOKEN = /^Bearer ([A-Za-z0-9_.-]{20,2048})$/;
+
+/**
+ * Единая точка проверки кошельковой сессии.
+ *
+ * Раньше эти шесть строк (origin → Bearer → verifyWalletSession) были скопированы
+ * в каждый хендлер. Копия — это будущая дыра: новый маршрут добавят без
+ * проверки, и заметит это не тест, а инцидент. Ответы сохранены прежними:
+ * нет origin/токена — 401 SESSION_REQUIRED, токен невалиден — 401 SESSION_INVALID.
+ * Побочный эффект (исправление): `/rules` больше не отвечает SESSION_REQUIRED на
+ * битый токен — код стал честным.
+ */
+function requireSession(options: ColonyAuthRouterOptions) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const origin = requestOrigin(req, options);
+    const match = BEARER_TOKEN.exec(req.get('authorization') ?? '');
+    if (!origin || !match) {
+      res.status(401).json({ error: 'SESSION_REQUIRED' });
+      return;
+    }
+    const session = verifyWalletSession({ token: match[1]!, origin, secret: options.sessionSecret });
+    if (!session) {
+      res.status(401).json({ error: 'SESSION_INVALID' });
+      return;
+    }
+    res.locals.colonySession = session;
+    next();
+  };
+}
+
+/** Сессия, положенная `requireSession`. Бросать нельзя — middleware уже отсеял. */
+function sessionOf(res: Response): WalletSession {
+  return res.locals.colonySession as WalletSession;
 }
 
 export function colonyAuthRouter(options: ColonyAuthRouterOptions): Router {
@@ -135,23 +170,13 @@ export function colonyAuthRouter(options: ColonyAuthRouterOptions): Router {
     }
   });
 
-  router.get('/auth/session', (req: Request, res: Response) => {
-    const origin = requestOrigin(req, options);
-    const authorization = req.get('authorization') ?? '';
-    const match = /^Bearer ([A-Za-z0-9_.-]{20,2048})$/.exec(authorization);
-    if (!origin || !match) return res.status(401).json({ error: 'SESSION_REQUIRED' });
-    const session = verifyWalletSession({ token: match[1]!, origin, secret: options.sessionSecret });
-    if (!session) return res.status(401).json({ error: 'SESSION_INVALID' });
+  router.get('/auth/session', requireSession(options), (_req: Request, res: Response) => {
+    const session = sessionOf(res);
     return res.json({ wallet: session.wallet, expiresAt: new Date(session.expiresAt * 1000).toISOString(), cluster: options.cluster });
   });
 
-  router.post('/field/verify', async (req: Request, res: Response) => {
-    const origin = requestOrigin(req, options);
-    const authorization = req.get('authorization') ?? '';
-    const match = /^Bearer ([A-Za-z0-9_.-]{20,2048})$/.exec(authorization);
-    if (!origin || !match) return res.status(401).json({ error: 'SESSION_REQUIRED' });
-    const session = verifyWalletSession({ token: match[1]!, origin, secret: options.sessionSecret });
-    if (!session) return res.status(401).json({ error: 'SESSION_INVALID' });
+  router.post('/field/verify', requireSession(options), async (req: Request, res: Response) => {
+    const session = sessionOf(res);
     if (!options.fieldRpc || !options.programId) return res.status(503).json({ error: 'FIELD_VERIFICATION_NOT_CONFIGURED' });
     if (!isRecord(req.body) || typeof req.body.fieldAddress !== 'string') return res.status(400).json({ error: 'INVALID_FIELD_ADDRESS' });
     try {
@@ -174,12 +199,8 @@ export function colonyAuthRouter(options: ColonyAuthRouterOptions): Router {
     }
   });
 
-  router.post('/fields/link', async (req: Request, res: Response) => {
-    const origin = requestOrigin(req, options);
-    const match = /^Bearer ([A-Za-z0-9_.-]{20,2048})$/.exec(req.get('authorization') ?? '');
-    if (!origin || !match) return res.status(401).json({ error: 'SESSION_REQUIRED' });
-    const session = verifyWalletSession({ token: match[1]!, origin, secret: options.sessionSecret });
-    if (!session) return res.status(401).json({ error: 'SESSION_INVALID' });
+  router.post('/fields/link', requireSession(options), async (req: Request, res: Response) => {
+    const session = sessionOf(res);
     if (!options.colonyService || !options.fieldRpc || !options.programId) return res.status(503).json({ error: 'COLONY_SERVICE_NOT_CONFIGURED' });
     if (!isRecord(req.body) || typeof req.body.fieldAddress !== 'string'
       || typeof req.body.requestId !== 'string' || typeof req.body.expectedSequence !== 'number') {
@@ -211,12 +232,8 @@ export function colonyAuthRouter(options: ColonyAuthRouterOptions): Router {
     }
   });
 
-  router.post('/fields/unlink', async (req: Request, res: Response) => {
-    const origin = requestOrigin(req, options);
-    const match = /^Bearer ([A-Za-z0-9_.-]{20,2048})$/.exec(req.get('authorization') ?? '');
-    if (!origin || !match) return res.status(401).json({ error: 'SESSION_REQUIRED' });
-    const session = verifyWalletSession({ token: match[1]!, origin, secret: options.sessionSecret });
-    if (!session) return res.status(401).json({ error: 'SESSION_INVALID' });
+  router.post('/fields/unlink', requireSession(options), async (req: Request, res: Response) => {
+    const session = sessionOf(res);
     if (!options.colonyService) return res.status(503).json({ error: 'COLONY_SERVICE_NOT_CONFIGURED' });
     if (!isRecord(req.body) || typeof req.body.fieldAddress !== 'string'
       || typeof req.body.requestId !== 'string' || typeof req.body.expectedSequence !== 'number') {
@@ -239,12 +256,8 @@ export function colonyAuthRouter(options: ColonyAuthRouterOptions): Router {
     }
   });
 
-  router.post('/initialize', async (req: Request, res: Response) => {
-    const origin = requestOrigin(req, options);
-    const match = /^Bearer ([A-Za-z0-9_.-]{20,2048})$/.exec(req.get('authorization') ?? '');
-    if (!origin || !match) return res.status(401).json({ error: 'SESSION_REQUIRED' });
-    const session = verifyWalletSession({ token: match[1]!, origin, secret: options.sessionSecret });
-    if (!session) return res.status(401).json({ error: 'SESSION_INVALID' });
+  router.post('/initialize', requireSession(options), async (req: Request, res: Response) => {
+    const session = sessionOf(res);
     if (!options.colonyService || !options.fieldRpc || !options.programId) return res.status(503).json({ error: 'COLONY_SERVICE_NOT_CONFIGURED' });
     if (!isRecord(req.body) || typeof req.body.fieldAddress !== 'string' || typeof req.body.requestId !== 'string') {
       return res.status(400).json({ error: 'INVALID_INITIALIZATION_REQUEST' });
@@ -272,12 +285,7 @@ export function colonyAuthRouter(options: ColonyAuthRouterOptions): Router {
     }
   });
 
-  router.get('/rules', (req: Request, res: Response) => {
-    const origin = requestOrigin(req, options);
-    const match = /^Bearer ([A-Za-z0-9_.-]{20,2048})$/.exec(req.get('authorization') ?? '');
-    if (!origin || !match || !verifyWalletSession({ token: match[1]!, origin, secret: options.sessionSecret })) {
-      return res.status(401).json({ error: 'SESSION_REQUIRED' });
-    }
+  router.get('/rules', requireSession(options), (req: Request, res: Response) => {
     return res.json({
       version: COLONY_RULESET_VERSION,
       status: COLONY_RULESET_STATUS,
@@ -291,12 +299,8 @@ export function colonyAuthRouter(options: ColonyAuthRouterOptions): Router {
     });
   });
 
-  router.get('/state', async (req: Request, res: Response) => {
-    const origin = requestOrigin(req, options);
-    const match = /^Bearer ([A-Za-z0-9_.-]{20,2048})$/.exec(req.get('authorization') ?? '');
-    if (!origin || !match) return res.status(401).json({ error: 'SESSION_REQUIRED' });
-    const session = verifyWalletSession({ token: match[1]!, origin, secret: options.sessionSecret });
-    if (!session) return res.status(401).json({ error: 'SESSION_INVALID' });
+  router.get('/state', requireSession(options), async (req: Request, res: Response) => {
+    const session = sessionOf(res);
     if (!options.colonyService) return res.status(503).json({ error: 'COLONY_SERVICE_NOT_CONFIGURED' });
     try {
       const snapshot = await options.colonyService.get(session.wallet);
@@ -307,12 +311,8 @@ export function colonyAuthRouter(options: ColonyAuthRouterOptions): Router {
     }
   });
 
-  router.post('/actions', async (req: Request, res: Response) => {
-    const origin = requestOrigin(req, options);
-    const match = /^Bearer ([A-Za-z0-9_.-]{20,2048})$/.exec(req.get('authorization') ?? '');
-    if (!origin || !match) return res.status(401).json({ error: 'SESSION_REQUIRED' });
-    const session = verifyWalletSession({ token: match[1]!, origin, secret: options.sessionSecret });
-    if (!session) return res.status(401).json({ error: 'SESSION_INVALID' });
+  router.post('/actions', requireSession(options), async (req: Request, res: Response) => {
+    const session = sessionOf(res);
     if (!options.colonyService || !options.fieldRpc || !options.programId) return res.status(503).json({ error: 'COLONY_SERVICE_NOT_CONFIGURED' });
     if (!isRecord(req.body) || typeof req.body.requestId !== 'string' || typeof req.body.expectedSequence !== 'number' || !isRecord(req.body.action)) {
       return res.status(400).json({ error: 'INVALID_ACTION_REQUEST' });

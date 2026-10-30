@@ -58,6 +58,20 @@ export interface SlotServiceDeps {
   now: () => number;
   randomNonce: () => string;
   audit: (entry: SlotAudit) => Promise<void>;
+  /**
+   * Валидный платёж при занятом слоте: записать разбор в durable-очередь.
+   * Раньше случай оставался только в stdout-аудите — процесс перезапустили,
+   * и денежный след исчез. Ошибка записи не должна подменять ответ покупателю,
+   * поэтому она логируется, а не выбрасывается (решение фиксируется в аудите).
+   */
+  recordReview: (input: {
+    paymentSignature: string;
+    fieldId: string;
+    slot: number;
+    wallet: string;
+    mint: string;
+    amountUnits: bigint;
+  }) => Promise<void>;
 }
 
 export interface IssuedRecord {
@@ -201,7 +215,9 @@ async function grantPaid(input: GrantInput, deps: SlotServiceDeps): Promise<Gran
     }
   }
   if (outcome === 'review') {
-    // Платёж действительный, слот занят: ничего не выдаём. Случай — в ручную очередь.
+    // Платёж действительный, слот занят: ничего не выдаём. Случай — в ручную
+    // очередь (таблица slot_payment_reviews), а не только в лог процесса.
+    await recordReviewDurably(deps, input, signature);
     await deps.audit({
       outcome: 'denied',
       action: 'slot.payment.review',
@@ -210,6 +226,36 @@ async function grantPaid(input: GrantInput, deps: SlotServiceDeps): Promise<Gran
     return denied(409, 'SLOT_TAKEN');
   }
   return outcome;
+}
+
+/**
+ * Durable-запись разбора. Сбой записи не должен превращаться в 500 у
+ * покупателя: платёж уже списан, и лучший ответ — «слот занят» + запись в
+ * аудит о том, что очередь не записалась (это инцидент, а не отказ клиенту).
+ */
+async function recordReviewDurably(deps: SlotServiceDeps, input: GrantInput, signature: string): Promise<void> {
+  try {
+    await deps.recordReview({
+      paymentSignature: signature,
+      fieldId: input.field_id,
+      slot: input.slot,
+      wallet: input.wallet,
+      mint: deps.skrMint,
+      amountUnits: deps.priceUnits,
+    });
+  } catch (error) {
+    await deps.audit({
+      outcome: 'error',
+      action: 'slot.payment.review.enqueue_failed',
+      detail: {
+        field_id: input.field_id,
+        slot: input.slot,
+        wallet: input.wallet,
+        payment_signature: signature,
+        error: error instanceof Error ? error.name : 'unknown',
+      },
+    });
+  }
 }
 
 /** Точка входа. Аудит пишется на каждый исход. */
