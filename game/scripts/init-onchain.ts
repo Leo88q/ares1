@@ -162,7 +162,7 @@ async function main() {
     const balance = await connection.getBalance(admin.publicKey);
     const requiredSpaces = BOOTSTRAP_PROFILE === "core"
       ? [MINT_SIZE, 260, 49]
-      : [MINT_SIZE, 260, 49, 57, 0, 0, 165, 165, 165];
+      : [MINT_SIZE, 260, 49, 57, 0, 0, 165, 165]; // + quest_ata и treasury SKR ATA; buyback ATA удалён
     const rents = await Promise.all(requiredSpaces.map((space) => connection.getMinimumBalanceForRentExemption(space)));
     const rentBudget = rents.reduce((sum, value) => sum + value, 0);
     const feeBuffer = 10_000_000; // 0.01 SOL safety buffer; not expected spend.

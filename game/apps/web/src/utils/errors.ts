@@ -14,7 +14,7 @@ const IDL_ERRORS = new Map<number, IdlError>(
 /** Player-facing translations of the on-chain error codes. */
 const RU: Record<string, string> = {
  AlreadyClaimed: 'Награда уже получена.',
- BadProof: 'Не выполнены условия награды (проверь уровень делянок или баланс).',
+ BadProof: 'Не выполнены условия награды (проверь число полей и их уровень).',
  Paused: 'Игра на паузе. Попробуй позже.',
  FieldInactive: 'Поле неактивно.',
  NothingToHarvest: 'Пока нечего собирать.',
