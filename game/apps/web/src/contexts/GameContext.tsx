@@ -25,6 +25,14 @@ import { usePolling } from '../hooks/usePolling'
 const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1 // 70: +mutation_type (v2)
 const FIELDS_POLL_MS = 20_000
 
+/**
+ * Частота пересчёта «сколько накопилось». Раньше было 1000 мс: каждую секунду
+ * менялся объект `fields`, а вместе с ним перерисовывалось всё дерево экрана
+ * (у полей это тяжёлая 3D-сцена). Оценка урожая — не секундомер, 5 секунд
+ * достаточно, а лишних перерисовок становится в пять раз меньше.
+ */
+const ACCRUAL_TICK_MS = 5_000
+
 export interface Field {
  publicKey: PublicKey
  owner: PublicKey
@@ -99,7 +107,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const [licenseExpiresAt, setLicenseExpiresAt] = useState(0)
 
  useEffect(() => {
-  const t = window.setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 1000)
+  const t = window.setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), ACCRUAL_TICK_MS)
   return () => window.clearInterval(t)
  }, [])
 

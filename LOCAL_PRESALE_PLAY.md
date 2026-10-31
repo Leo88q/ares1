@@ -162,6 +162,41 @@ curl -s -XPOST -H "Authorization: Bearer $ADMIN_API_TOKEN" -H 'Content-Type: app
   -d '{"intentId":<intentId>}' localhost:8081/api/presale/admin/orders/<id>/delivered
 ```
 
+## 6b. Возврат: решение и выплата — два шага
+
+`refunded` в базе означает **решение** вернуть деньги, а не факт возврата: вывод
+из казны двухшаговый (propose → execute → перевод), и бэкенд его не подписывает.
+Поэтому факт выплаты фиксируется отдельно и только доказательством из цепи.
+
+```bash
+# 1) решение (причина обязательна, она хешируется в failure_code)
+curl -s -XPOST -H "Authorization: Bearer $ADMIN_API_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"reason":"возврат по заявлению покупателя"}' \
+  localhost:8081/api/presale/admin/orders/<id>/refund
+
+# 2) отправьте деньги покупателю (treasury:admin propose/execute + перевод)
+
+# 3) доказательство выплаты: подпись транзакции
+curl -s -XPOST -H "Authorization: Bearer $ADMIN_API_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"signature":"<подпись перевода покупателю>"}' \
+  localhost:8081/api/presale/admin/orders/<id>/refund-settled
+```
+
+Проверки, которые маршрут делает сам: транзакция `finalized`, без `err`, в ней
+есть кошелёк покупателя, ему пришло **ровно** столько (для SOL — лампорты, для
+SKR — атомы в нужном минте), и она не старше решения о возврате. Не сошлось —
+400 с кодом причины (`AMOUNT_MISMATCH`, `TOO_EARLY`, …) и ничего не записано.
+
+Пока подписи нет, заказ висит в очереди возвратов:
+
+```bash
+curl -s -H "Authorization: Bearer $ADMIN_API_TOKEN" localhost:8081/api/presale/admin/refunds
+```
+
+Подпись после записи неизменяема (триггер `PRESALE_REFUND_SIGNATURE_IMMUTABLE`),
+а публичный статус заказа показывает её покупателю — проверить можно без
+поддержки.
+
 ## 7. Играем
 
 На кошельке 1000 🥔 → в игре (5175) покупаем поля и проходим по кнопкам:

@@ -50,12 +50,29 @@ export const env = {
     return v || "*"; // '*' only for local dev
   })(),
   epochRollCron: process.env.EPOCH_ROLL_CRON || "*/10 * * * *",
-  /** Express "trust proxy" setting. Behind exactly one reverse proxy (the usual
-   *  k8s ingress / ALB setup) keep "1". Set "false"/0 when the API is exposed
-   *  directly, or the rate limiter can be bypassed via a spoofed X-Forwarded-For. */
+  /** Express "trust proxy" setting.
+   *
+   *  Раньше по умолчанию возвращалось 1 — и прямой доступ к API позволял
+   *  подставить `X-Forwarded-For` и обойти per-IP лимит (Express читает
+   *  левый адрес из заголовка, если доверяет прокси). Теперь умолчание —
+   *  «не доверять никому», а в production значение обязательно и задаётся
+   *  явно: молчание здесь означает либо обход лимита, либо (если прокси есть,
+   *  а доверия нет) один общий IP у всех клиентов и мгновенный 429 для всех.
+   *  Обе ошибки тихие, поэтому выбор должен быть осознанным.
+   *
+   *  Значения: "false" — прямой доступ; число N — доверять N хопам
+   *  (обычно 1 за одним ingress/ALB); "true" — доверять любому (не для прода). */
   trustProxy: (() => {
-    const v = process.env.TRUST_PROXY;
-    if (v === undefined) return 1;
+    const raw = process.env.TRUST_PROXY;
+    const v = raw?.trim();
+    if (v === undefined || v === "") {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(
+          "Missing required env var: TRUST_PROXY (set \"1\" behind one reverse proxy, \"false\" when the API is exposed directly)",
+        );
+      }
+      return false;
+    }
     if (v === "true") return true;
     if (v === "false") return false;
     const n = parseInt(v, 10);

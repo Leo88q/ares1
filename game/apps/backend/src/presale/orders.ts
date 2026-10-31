@@ -30,6 +30,14 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 /** Почта хранится только для уведомления о выдаче — обрезать бессмысленно длинное. */
 const MAX_EMAIL_LENGTH = 254;
 
+/**
+ * Лимит бесплатных броней на кошелёк. Бронь ничего не стоит, поэтому без
+ * лимита один скрипт занимает все места волны и держит их до истечения окна
+ * резерва; per-IP лимитер в памяти от этого не защищает (реплики, смена IP).
+ */
+export const RESERVE_WINDOW_SECONDS = 3_600;
+export const MAX_RESERVATIONS_PER_WALLET_PER_WINDOW = 5;
+
 export type OrderState =
   | 'reserved' | 'payment_seen' | 'paid' | 'delivered'
   | 'refunded' | 'expired' | 'cancelled';
@@ -69,6 +77,8 @@ export interface OrderRow {
   paid_at: string | null;
   delivered_at: string | null;
   refunded_at: string | null;
+  /** Подпись транзакции, в которой покупатель реально получил возврат. */
+  refund_tx_signature: string | null;
 }
 
 export function assertWallet(value: string, field = 'payerWallet'): void {
@@ -194,6 +204,25 @@ export async function reserveOrder(pool: Pool, input: {
     if (!run.is_open) throw new GameOpsError('RUN_CLOSED', `Тираж ${input.runId} закрыт`, undefined, 409);
     if (run.reserved_count >= run.cap) {
       throw new GameOpsError('RUN_SOLD_OUT', `Тираж ${input.runId} распродан`, undefined, 409);
+    }
+
+    // Бронь бесплатна, поэтому лимит на кошелёк обязателен: без него скрипт
+    // берёт все места волны и «держит» их до истечения окна резерва, а
+    // per-IP лимитер в памяти этому не мешает (один IP = один процесс = N).
+    // Счётчик читается в той же транзакции, что и вставка, иначе два
+    // параллельных запроса оба увидят «ещё можно».
+    const recent = await client.query<{ n: number }>(
+      `SELECT count(*)::int AS n FROM game_ops.presale_orders
+        WHERE run_id = $1 AND payer_wallet = $2
+          AND created_at > now() - make_interval(secs => $3)`,
+      [input.runId, input.payerWallet, RESERVE_WINDOW_SECONDS],
+    );
+    if ((recent.rows[0]?.n ?? 0) >= MAX_RESERVATIONS_PER_WALLET_PER_WINDOW) {
+      throw new GameOpsError(
+        'RESERVE_LIMIT',
+        `Слишком много броней с этого кошелька: не больше ${MAX_RESERVATIONS_PER_WALLET_PER_WINDOW} за ${Math.round(RESERVE_WINDOW_SECONDS / 60)} минут`,
+        undefined, 429,
+      );
     }
 
     // Номер — строго монотонный: строка тиража заблокирована, параллельный
@@ -439,9 +468,24 @@ export async function listNeedsAttention(pool: Pool, limit = 100): Promise<Order
   return query<OrderRow>(
     pool,
     `SELECT * FROM game_ops.presale_orders
-      WHERE state IN ('payment_seen','refunded')
+      WHERE state = 'payment_seen'
+         -- Возврат — решение, а не исполнение: в очередь попадают только те,
+         -- где деньги ещё не подтверждены цепью. Раньше здесь стоял голый
+         -- state = 'refunded', и такие заказы висели в очереди вечно.
+         OR (state = 'refunded' AND refund_tx_signature IS NULL)
          OR (state = 'reserved' AND reserved_until <= now())
       ORDER BY updated_at DESC LIMIT $1`,
+    [limit],
+  );
+}
+
+/** Возвраты, которые решены, но ещё не подтверждены цепью (очередь исполнения). */
+export async function listPendingRefundSettlement(pool: Pool, limit = 100): Promise<OrderRow[]> {
+  return query<OrderRow>(
+    pool,
+    `SELECT * FROM game_ops.presale_orders
+      WHERE state = 'refunded' AND refund_tx_signature IS NULL
+      ORDER BY refunded_at NULLS LAST, id LIMIT $1`,
     [limit],
   );
 }

@@ -6,7 +6,7 @@
  *   4. initializes the presale (cap=500, SOL price=0.25 SOL; SKR price = 1053 SKR, program const)
  *   5. materializes the treasury_sol PDA vault (destination of buy_field_sol)
  *   6. materializes the quest_treasury PDA + ATA and funds the 550 🥔 achievement pool
- *   7. creates SKR ATAs (80 % treasury / 20 % buyback) for the SKR presale
+ *   7. creates the SKR treasury ATA for the SKR presale
  *   8. verifies the SKR mint exists on this cluster (SKR features need it)
  *
  * BOOTSTRAP_PROFILE=core creates only POTATO mint + GameConfig + Epoch. It defers
@@ -162,7 +162,7 @@ async function main() {
     const balance = await connection.getBalance(admin.publicKey);
     const requiredSpaces = BOOTSTRAP_PROFILE === "core"
       ? [MINT_SIZE, 260, 49]
-      : [MINT_SIZE, 260, 49, 57, 0, 0, 165, 165, 165];
+      : [MINT_SIZE, 260, 49, 57, 0, 0, 165, 165]; // + quest_ata и treasury SKR ATA; buyback ATA удалён
     const rents = await Promise.all(requiredSpaces.map((space) => connection.getMinimumBalanceForRentExemption(space)));
     const rentBudget = rents.reduce((sum, value) => sum + value, 0);
     const feeBuffer = 10_000_000; // 0.01 SOL safety buffer; not expected spend.
@@ -286,13 +286,13 @@ async function main() {
       console.log(`\nQuest treasury already funded (${questBal / MICRO} 🥔).`);
     }
 
-    // ── SKR ATAs for the presale split (80 % treasury / 20 % buyback) ──
+    // ── SKR ATA казны (всё поступление идёт сюда) ──
+    // Отдельного buyback-ATA больше нет: 20 %, которые лежали на кошельке
+    // authority, убраны — деньги протокола должны быть слышны казне и её лимитам.
     if (skrMintInfo) {
       const treasurySkrAta = await ensureAta(SKR_MINT, treasurySolPda);
-      const buybackSkrAta = await ensureAta(SKR_MINT, admin.publicKey);
-      console.log("\nSKR ATAs ready:");
+      console.log("\nSKR ATA ready:");
       console.log("  treasury:  ", treasurySkrAta.toBase58());
-      console.log("  buyback:   ", buybackSkrAta.toBase58());
     }
   }
 

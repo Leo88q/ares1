@@ -4,8 +4,10 @@ import cors from "cors";
 import { env } from "./env.js";
 import { expectedGenesisHash } from "./cluster.js";
 import { configRouter } from "./routes/config.js";
+import { healthRouter } from "./routes/health.js";
 import { gameOpsRouter } from "./routes/gameops.js";
 import { presaleRouter } from "./routes/presale.js";
+import { fetchTokenPaymentView } from "./presale/chain.js";
 import { slotsRouter } from "./routes/slots.js";
 import { resolveSlotsConfig } from "./slots/config.js";
 import { COLONY_V1_RELEASE_READY, USER_PRESALE_PAYMENTS_ENABLED } from "./launchGates.js";
@@ -102,29 +104,17 @@ async function main() {
 
   app.get("/live", (_req, res) => res.json({ live: true }));
 
-  // Health with detailed checks
-  app.get("/health", async (_req, res) => {
-    try {
-      const [slot, config, payerBal] = await Promise.all([
-        connection.getSlot(),
-        fetchConfig(),
-        connection.getBalance(payerKeypair.publicKey),
-      ]);
-      res.json({
-        ok: true,
-        slot,
-        epochId: config.epochId.toString(),
-        paused: config.paused,
-        payer: payerKeypair.publicKey.toBase58(),
-        payerSol: payerBal / 1e9,
-        gameOps: gameOpsPool ? "on" : "off",
-        cluster: env.cluster,
-        uptime: process.uptime(),
-      });
-    } catch (err) {
-      res.status(503).json({ ok: false, error: "Dependency check failed" });
-    }
-  });
+  // Health: состояние процесса и зависимостей, но БЕЗ идентичности плательщика.
+  // Публичный (исключён из rate-limit) эндпоинт не должен сообщать адрес и баланс
+  // hot-wallet: это карта для целенаправленной атаки на конкретный кошелёк.
+  // Состав полей закреплён тестом tests/health.test.ts.
+  app.use("/health", healthRouter({
+    connection,
+    fetchConfig,
+    gameOpsEnabled: () => Boolean(gameOpsPool),
+    cluster: env.cluster,
+    uptime: () => process.uptime(),
+  }));
 
   // Слой game_ops подключается ТОЛЬКО если задан GAME_OPS_DATABASE_URL. Без него
   // бэкенд работает как раньше (read-only API + крон эпохи), а платёжные
@@ -222,7 +212,10 @@ async function main() {
   });
 
   if (gameOpsConfig && gameOpsPool) {
-    app.use("/api/gameops", gameOpsRouter(gameOpsPool, gameOpsConfig));
+    app.use("/api/gameops", gameOpsRouter(gameOpsPool, gameOpsConfig, {
+      // Доказательство возврата по слоту читается из цепи, а не из тела запроса.
+      fetchTokenView: signature => fetchTokenPaymentView(connection, signature),
+    }));
   }
   // Пресейл монтируется только при включённом game_ops и доступной цепи: без БД
   // нет учёта заказов, без цепи — нет верификации платежа. Fail-closed.

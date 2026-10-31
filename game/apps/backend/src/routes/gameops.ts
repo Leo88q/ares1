@@ -21,6 +21,11 @@ import { latestReconciliation, recordReconciliation, reconciliationHistory } fro
 import { advanceCursor, advanceCursorBy, ensureCursor, getCursor, listCursors } from '../gameops/cursors.js';
 import { listAudit, recordAudit, recordDenied } from '../gameops/audit.js';
 import { checkReadiness, httpStatusFor } from '../gameops/readiness.js';
+import {
+  getSlotPaymentReview, listSlotPaymentReviews, resolveSlotPaymentReview, verifyRefundPayout,
+  type ReviewStatus,
+} from '../slots/reviews.js';
+import type { ChainTokenTransferView } from '../presale/verify.js';
 
 /** JSON не переносит bigint: превращаем в строки, а не в «примерно такое» число. */
 function jsonSafe(value: unknown): unknown {
@@ -121,7 +126,16 @@ function handle(res: Response, status: number | ((payload: unknown) => number), 
     });
 }
 
-export function gameOpsRouter(pool: Pool, config: GameOpsConfig): Router {
+/**
+ * Внешние зависимости админ-API. `fetchTokenView` нужен только для доказательства
+ * возврата по слоту: без чтения цепи «вернули» подтвердить нечем, поэтому такой
+ * запрос отвечает 503, а не закрывает пункт разбора словами оператора.
+ */
+export interface GameOpsRouterDeps {
+  fetchTokenView?: (signature: string) => Promise<ChainTokenTransferView | null>;
+}
+
+export function gameOpsRouter(pool: Pool, config: GameOpsConfig, deps: GameOpsRouterDeps = {}): Router {
   const router = Router();
   const admin = requireAdmin(pool, config);
 
@@ -313,6 +327,69 @@ export function gameOpsRouter(pool: Pool, config: GameOpsConfig): Router {
         });
       }
       return advanceCursorBy(pool, { streamId, patch: (req.body?.patch as Record<string, unknown>) ?? {}, actor });
+    });
+  });
+
+
+  // ── Очередь разбора платежей за слоты ─────────────────────────────────────
+  // «Деньги списаны, слот занят»: строка появляется в транзакции сервиса,
+  // закрыть её можно только доказательством из цепи.
+  const REVIEW_STATUSES = new Set(['pending', 'refunded', 'regranted', 'rejected']);
+
+  router.get('/slot-reviews', admin, (req, res) => {
+    const status = typeof req.query.status === 'string' ? req.query.status : null;
+    const limit = Number.parseInt(String(req.query.limit ?? '100'), 10);
+    handle(res, 200, () => {
+      if (status !== null && !REVIEW_STATUSES.has(status)) {
+        throw new GameOpsError('VALIDATION', `status должен быть одним из: ${[...REVIEW_STATUSES].join(', ')}`);
+      }
+      return listSlotPaymentReviews(pool, {
+        status: status as ReviewStatus | null,
+        limit: Number.isFinite(limit) ? limit : 100,
+      });
+    });
+  });
+
+  router.post('/slot-reviews/:id/resolve', admin, (req, res) => {
+    const id = String(req.params.id);
+    const action = String(req.body?.action ?? '');
+    const signature = typeof req.body?.signature === 'string' ? req.body.signature : null;
+    const note = typeof req.body?.note === 'string' ? req.body.note : null;
+    handle(res, 200, async () => {
+      if (action !== 'refund' && action !== 'regrant' && action !== 'reject') {
+        throw new GameOpsError('VALIDATION', 'action должен быть refund | regrant | reject');
+      }
+      const review = await getSlotPaymentReview(pool, id);
+      if (!review) throw new GameOpsError('ORDER_NOT_FOUND', `Разбор ${id} не найден`, undefined, 404);
+      if (review.status !== 'pending') {
+        throw new GameOpsError('INVALID_TRANSITION', `Разбор ${id} уже закрыт (${review.status})`, undefined, 409);
+      }
+      let verified: { signature: string } | null = null;
+      if (action !== 'reject') {
+        if (!deps.fetchTokenView) {
+          throw new GameOpsError('NOT_CONFIGURED',
+            'Проверка возврата недоступна: админ-API не получил чтение цепи', undefined, 503);
+        }
+        if (!signature) throw new GameOpsError('VALIDATION', 'Нужна подпись транзакции-доказательства');
+        // Доказательство проверяется ДО записи: закрыть пункт «на слово» нельзя.
+        const view = await deps.fetchTokenView(signature);
+        if (!view) throw new GameOpsError('VALIDATION', 'Транзакция-доказательство не найдена в цепи', undefined, 404);
+        const check = verifyRefundPayout(view, {
+          wallet: review.wallet, mint: review.mint, amount: BigInt(review.amount_units),
+        });
+        if (!check.ok) {
+          throw new GameOpsError('VALIDATION', `Возврат не подтверждён цепью: ${check.detail}`, check.code, 400);
+        }
+        verified = { signature };
+      }
+      const resolved = await resolveSlotPaymentReview(pool, {
+        id,
+        action,
+        signature: verified?.signature ?? null,
+        note,
+        actor: actorOf(req),
+      });
+      return resolved;
     });
   });
 

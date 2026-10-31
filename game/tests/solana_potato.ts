@@ -1144,14 +1144,13 @@ describe("solana_potato", () => {
       const wrongSkrMint = await createMint(connection, admin, admin.publicKey, null, 6);
       const buyerSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, player.publicKey, true)).address;
       const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, treasurySolPda, true)).address;
-      const buybackSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, admin.publicKey, true)).address;
       const id = BigInt(Date.now()) + 5555n;
       await expectFail(
         program.methods.buyFieldSkr(new BN(id.toString())).accountsPartial({
           config: configPda, presaleState: presalePda, authority: admin.publicKey,
           buyerPresale: buyerPresalePda(player.publicKey), field: fieldPda(id),
           buyer: player.publicKey, skrMint: wrongSkrMint, buyerSkrAta,
-          treasurySol: treasurySolPda, treasurySkrAta, buybackSkrAta,
+          treasurySol: treasurySolPda, treasurySkrAta,
           tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
           slotHashes: SYSVAR_SLOT_HASHES_PUBKEY,
         }).signers([player]).rpc(),
@@ -1392,27 +1391,25 @@ describe("solana_potato", () => {
       await expectFail(claim(stranger, 0, [], strangerAta), "BadProof");
     });
 
-    it("pays balance-based quests (100 / 1000 🥔) for a clean user", async () => {
-      // playerAta уже содержит 🥔 из ранних сьютов — берём чистого пользователя
+    it("pays quests 1/2 (2 and 3 fields) and rejects a wallet that only holds tokens", async () => {
+      // Раньше эти квесты проверяли баланс (100 / 1000 🥔): их проходил любой,
+      // кто купил токен, ни разу не сыграв, а баланс можно передать другому
+      // кошельку. Теперь доказательство — владение полями. saver ниже держит
+      // 150 🥔 и ноль полей: награды он не получает.
       const saver = Keypair.generate();
       await connection.confirmTransaction(await connection.requestAirdrop(saver.publicKey, 1 * LAMPORTS_PER_SOL));
       const saverAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, saver.publicKey)).address;
-
       await program.methods.grantReward(new BN("150000000")).accountsPartial({
         config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: saverAta, tokenProgram: TOKEN_PROGRAM_ID,
       }).rpc();
-      // 150 🥔: quest 2 (нужно 1000) невалиден, quest 1 (нужно 100) валиден
-      await expectFail(claim(saver, 2, [], saverAta), "BadProof");
-      await claim(saver, 1, [], saverAta);
-      expect(await ataBalance(saverAta)).to.eq(200_000_000n); // 150 + 50 (награда)
-      expect(await ataBalance(questAta())).to.eq(POOL - 50_000_000n - 50_000_000n);
+      await expectFail(claim(saver, 1, [], saverAta), "BadProof");
 
-      await program.methods.grantReward(new BN("900000000")).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: saverAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
-      await claim(saver, 2, [], saverAta); // 1100 🥔 ≥ 1000
-      expect(await ataBalance(saverAta)).to.eq(1200_000_000n);
-      expect(await ataBalance(questAta())).to.eq(POOL - 50_000_000n - 50_000_000n - 100_000_000n);
+      const playerAtaBefore = await ataBalance(playerAta);
+      const poolBefore = await ataBalance(questAta());
+      await claim(player, 1, presaleFieldIds.slice(0, 2)); // 2 поля
+      await claim(player, 2, presaleFieldIds.slice(0, 3)); // 3 поля
+      expect((await ataBalance(playerAta)) - playerAtaBefore).to.eq(150_000_000n); // 50 + 100
+      expect(poolBefore - (await ataBalance(questAta()))).to.eq(150_000_000n);
     });
 
     it("rejects repeating one field as a five-field achievement proof", async () => {
@@ -1429,7 +1426,7 @@ describe("solana_potato", () => {
     it("rejects out-of-range quest ids and claims while paused", async () => {
       await expectFail(claim(player, 6), "InvalidFieldType");
       await program.methods.setPaused(true).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
-      await expectFail(claim(player, 4), "Paused"); // paused-чек раньше проверки баланса
+      await expectFail(claim(player, 4), "Paused"); // paused-чек раньше проверки полей
       await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
     });
   });
