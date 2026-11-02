@@ -5026,7 +5026,7 @@ pub enum GameError {
     PresaleWalletLimitReached, // 6033
     #[msg("Presale is not active")]
     PresaleNotActive, // 6034
-    #[msg("Manual grant quota exceeded (10% of the epoch cap)")]
+    #[msg("Manual grant quota exceeded (25% of the epoch cap)")]
     GrantQuotaExceeded, // 6035
     #[msg("Withdrawal rate limit exceeded for the current 24h window")]
     WithdrawWindowLimitExceeded, // 6036

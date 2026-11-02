@@ -13,6 +13,7 @@ import {
 } from '../src/rewards/chain.js';
 import {
   failureCodeFrom,
+  isTerminalFailure,
   runDeliveryOnce,
   startDeliveryWorker,
   type DeliveryWorkerDeps,
@@ -78,7 +79,7 @@ test('findExistingGrant отдаёт слот и игнорирует неусп
 test('счастливый путь: pending → submitted → confirmed', async () => {
   const { deps, calls } = harness([intent()]);
   const result = await runDeliveryOnce(deps);
-  assert.deepEqual(result, { picked: 1, submitted: 1, confirmed: 1, failed: 0, recovered: 0, errors: [] });
+  assert.deepEqual(result, { picked: 1, submitted: 1, confirmed: 1, failed: 0, retryable: 0, recovered: 0, errors: [] });
   assert.deepEqual(calls, ['list:10', 'lookup:42', 'send:42', 'submitted:42:sig-42', 'confirmed:42:100']);
 });
 
@@ -120,11 +121,60 @@ test('ошибка отправки помечает failed кодом и не �
   assert.deepEqual(result.errors, [{ id: '1', code: 'SIMULATION_FAILED' }]);
 });
 
-test('недоступный lookup не отправляет грант вслепую', async () => {
+test('недоступный lookup не отправляет грант вслепую и не закрывает интент', async () => {
   const { deps, calls } = harness([intent()], { lookup: async () => { throw new Error('rpc down'); } });
   const result = await runDeliveryOnce(deps);
-  assert.equal(result.failed, 1);
+  // RPC — не приговор: транзакция не отправлялась, значит повтор безопасен и
+  // обязателен. Терминальный failed здесь оставил бы оплаченный заказ без выдачи.
+  assert.equal(result.failed, 0);
+  assert.equal(result.retryable, 1);
+  assert.deepEqual(result.errors, [{ id: '42', code: 'LOOKUP_FAILED' }]);
   assert.ok(!calls.some((c) => c.startsWith('send:')));
+  assert.ok(!calls.some((c) => c.startsWith('failed:')));
+});
+
+test('таймаут подтверждения оставляет интент открытым: транзакция могла уйти', async () => {
+  const { deps, calls } = harness([intent()], {
+    execute: async () => { throw new Error('REWARD_RAIL: timed out waiting for confirmation'); },
+  });
+  const result = await runDeliveryOnce(deps);
+  assert.equal(result.failed, 0);
+  assert.equal(result.retryable, 1);
+  assert.deepEqual(result.errors, [{ id: '42', code: 'CONFIRM_TIMEOUT' }]);
+  // Главное: терминального перехода нет, заказ не «потерян».
+  assert.ok(!calls.some((c) => c.startsWith('failed:')));
+});
+
+test('истёкший blockhash — тоже повтор, а не закрытие', async () => {
+  const { deps, calls } = harness([intent()], {
+    execute: async () => { throw new Error('Blockhash not found'); },
+  });
+  const result = await runDeliveryOnce(deps);
+  assert.equal(result.retryable, 1);
+  assert.equal(result.failed, 0);
+  assert.ok(!calls.some((c) => c.startsWith('failed:')));
+});
+
+test('детерминированные отказы остаются терминальными', async () => {
+  for (const [message, code] of [
+    ['insufficient funds for rent', 'SIGNER_UNFUNDED'],
+    ['REWARD_RAIL: simulation failed: {"InstructionError":[1,"Custom"]}', 'SIMULATION_FAILED'],
+  ] as const) {
+    const { deps, calls } = harness([intent()], { execute: async () => { throw new Error(message); } });
+    const result = await runDeliveryOnce(deps);
+    assert.equal(result.failed, 1, code);
+    assert.equal(result.retryable, 0, code);
+    assert.ok(calls.includes(`failed:42:${code}`), code);
+  }
+});
+
+test('isTerminalFailure отделяет повторяемые коды от закрывающих', () => {
+  for (const code of ['CONFIRM_TIMEOUT', 'BLOCKHASH_EXPIRED', 'LOOKUP_FAILED', 'GRANT_FAILED']) {
+    assert.equal(isTerminalFailure(code), false, code);
+  }
+  for (const code of ['BAD_INTENT_ROW', 'SIMULATION_FAILED', 'SIGNER_UNFUNDED', 'ALREADY_ON_CHAIN']) {
+    assert.equal(isTerminalFailure(code), true, code);
+  }
 });
 
 test('битая строка интента отклоняется до любых RPC-вызовов', async () => {

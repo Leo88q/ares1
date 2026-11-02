@@ -6794,7 +6794,7 @@
     {
       "code": 6035,
       "name": "GrantQuotaExceeded",
-      "msg": "Manual grant quota exceeded (10% of the epoch cap)"
+      "msg": "Manual grant quota exceeded (25% of the epoch cap)"
     },
     {
       "code": 6036,

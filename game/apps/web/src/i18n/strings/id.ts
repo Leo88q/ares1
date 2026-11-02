@@ -236,7 +236,7 @@ export default {
   'Карточка скачана': 'Kartu berhasil diunduh',
   'Картошка = $POTATO. Эмиссия — урожаи игроков, награды квестов и ½ налога маркета в казну; команда не продаёт токен отдельно.': 'Kentang = $POTATO. Emisi berasal dari panen pemain, hadiah misi, dan setengah pajak pasar ke bendahara; tim tidak menjual token terpisah.',
   'Квесты минтит сервер (не клиент). Age of Farming — отдельное приложение; межигровые переводы и общий burn пока не доступны. Удачи, колонист.': 'Hadiah quest di-mint oleh server, bukan klien. Age of Farming adalah aplikasi terpisah; transfer lintas game dan burn bersama belum tersedia. Semoga berhasil, kolonis.',
-  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Kuota grant manual habis (10% dari batas harian).',
+  'Квота ручных начислений исчерпана (25% от дневного лимита).': 'Kuota grant manual habis (25% dari batas harian).',
   'Кислород O₂': 'Oxygen O₂',
   'Количество POTATO': 'Jumlah POTATO',
   'Командир Сектора': 'Sector Commander',

@@ -48,7 +48,7 @@ const RU: Record<string, string> = {
  PresaleCapReached: 'Пресеил распродан: все поля раскуплены.',
  PresaleWalletLimitReached: 'Лимит пресеила: максимум 5 полей на кошелёк.',
  PresaleNotActive: 'Пресеил неактивен.',
- GrantQuotaExceeded: 'Квота ручных начислений исчерпана (10% от дневного лимита).',
+ GrantQuotaExceeded: 'Квота ручных начислений исчерпана (25% от дневного лимита).',
  WithdrawWindowLimitExceeded: 'Превышен лимит выводов на текущие 24 часа.',
  BaseYieldTooHigh: 'Базовая урожайность слишком высока (макс. 100 POTATO/день).',
  TimelockNotExpired: 'Админский таймлок ещё не истёк.',

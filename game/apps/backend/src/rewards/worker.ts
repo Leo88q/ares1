@@ -47,7 +47,10 @@ export interface DeliveryWorkerResult {
   picked: number;
   submitted: number;
   confirmed: number;
+  /** Интенты закрыты терминальным `failed`. */
   failed: number;
+  /** Интенты остались открытыми: следующий такт попробует снова. */
+  retryable: number;
   /** Грант уже был на цепи, отправку не повторяли. */
   recovered: number;
   errors: Array<{ id: string; code: string }>;
@@ -69,6 +72,36 @@ export function failureCodeFrom(error: unknown): string {
 }
 
 /**
+ * Коды, которые НЕ закрывают интент.
+ *
+ * Разделение обязательное. `CONFIRM_TIMEOUT` означает «подпись уже улетела, а
+ * подтверждение не пришло»: транзакция может подтвердиться через минуту.
+ * Если такой интент пометить терминальным `failed`, заказ навсегда останется
+ * `paid` без выдачи (`markDelivered` требует `confirmed`), а ручная повторная
+ * выдача того же заказа — это вторая выплата.
+ *
+ * Повтор безопасен по построению: nonce детерминирован (заказ/кошелёк/сутки),
+ * поэтому повторная отправка того же интента либо попадает в уже существующий
+ * PDA `[reward, ata, nonce]` (`ALREADY_ON_CHAIN` → подпись восстанавливается),
+ * либо падает на `init`, но второй грант не минтует никогда.
+ *
+ * `LOOKUP_FAILED` — RPC недоступен, отправлять вслепую нельзя: ждём следующий
+ * такт. `GRANT_FAILED` — неклассифицированный отказ; закрывать его без
+ * разбора дороже, чем повторить.
+ */
+export const RETRYABLE_FAILURE_CODES: ReadonlySet<string> = new Set([
+  "CONFIRM_TIMEOUT",
+  "BLOCKHASH_EXPIRED",
+  "LOOKUP_FAILED",
+  "GRANT_FAILED",
+]);
+
+/** Терминальный отказ означает «повторять нечего» (детерминированный отказ). */
+export function isTerminalFailure(code: string): boolean {
+  return !RETRYABLE_FAILURE_CODES.has(code);
+}
+
+/**
  * Один такт. Порядок важен: сначала фиксируем «отправлено» (подпись уже есть),
  * потом «подтверждено». Обратный порядок оставил бы интент в pending с
  * существующим грантом — ровно тот случай, который приходится разбирать руками.
@@ -81,14 +114,21 @@ export async function runDeliveryOnce(deps: DeliveryWorkerDeps): Promise<Deliver
     submitted: 0,
     confirmed: 0,
     failed: 0,
+    retryable: 0,
     recovered: 0,
     errors: [],
   };
 
   const recordFailure = async (intent: WorkerIntent, code: string, error: unknown) => {
-    result.failed += 1;
     result.errors.push({ id: intent.id, code });
-    console.error(`[reward-delivery] intent ${intent.id} failed: ${code}`, error instanceof Error ? error.message : error);
+    const detail = error instanceof Error ? error.message : error;
+    if (!isTerminalFailure(code)) {
+      result.retryable += 1;
+      console.error(`[reward-delivery] intent ${intent.id} deferred (${code}): ${detail}`);
+      return;
+    }
+    result.failed += 1;
+    console.error(`[reward-delivery] intent ${intent.id} failed: ${code}`, detail);
     try {
       await deps.markFailed({ id: intent.id, failureCode: code, actor: deps.actor });
     } catch (transitionError) {
@@ -184,12 +224,12 @@ export function startDeliveryWorker(
   if (!Number.isFinite(intervalSeconds) || intervalSeconds <= 0) return null;
   let running = false;
   const runNow = async (): Promise<DeliveryWorkerResult> => {
-    if (running) return { picked: 0, submitted: 0, confirmed: 0, failed: 0, recovered: 0, errors: [] };
+    if (running) return { picked: 0, submitted: 0, confirmed: 0, failed: 0, retryable: 0, recovered: 0, errors: [] };
     running = true;
     try {
       const result = await runDeliveryOnce(deps);
       if (result.picked > 0) {
-        log(`picked=${result.picked} submitted=${result.submitted} confirmed=${result.confirmed} failed=${result.failed} recovered=${result.recovered}`);
+        log(`picked=${result.picked} submitted=${result.submitted} confirmed=${result.confirmed} failed=${result.failed} retryable=${result.retryable} recovered=${result.recovered}`);
       }
       return result;
     } finally {

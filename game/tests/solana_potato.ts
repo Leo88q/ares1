@@ -1709,7 +1709,7 @@ describe("solana_potato", () => {
 
     // ПОСЛЕДНИЙ тест прогона: исчерпывает квоту грантов (10% капа эпохи),
     // поэтому все остальные grant_reward-сценарии идут выше по файлу.
-    it("grant_reward is capped at 10% of the epoch cap", async function () {
+    it("grant_reward is capped at 25% of the epoch cap", async function () {
       this.timeout(240_000);
       const quota = (await program.account.epoch.fetch(epochPda(0))).mintCapMicro.divn(10);
       const grant = () =>

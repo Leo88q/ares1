@@ -236,7 +236,7 @@ export default {
   'Карточка скачана': 'Share card downloaded',
   'Картошка = $POTATO. Эмиссия — урожаи игроков, награды квестов и ½ налога маркета в казну; команда не продаёт токен отдельно.': 'Potato = $POTATO. Emission is player harvests, quest rewards and half the market tax to the treasury; the team does not sell tokens separately.',
   'Квесты минтит сервер (не клиент). Age of Farming — отдельное приложение; межигровые переводы и общий burn пока не доступны. Удачи, колонист.': 'Quests are minted by the server, not the client. Age of Farming is a separate app; cross-game transfers and a shared burn are not available. Good luck, colonist.',
-  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Manual grant quota exhausted (10% of the daily cap).',
+  'Квота ручных начислений исчерпана (25% от дневного лимита).': 'Manual grant quota exhausted (25% of the daily cap).',
   'Кислород O₂': 'Oxygen O₂',
   'Количество POTATO': 'POTATO amount',
   'Командир Сектора': 'Sector Commander',

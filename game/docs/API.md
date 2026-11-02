@@ -85,7 +85,7 @@ builders in web/backend must match the generated IDL, not just its address.
 | `init_epoch` | Authority; bootstrap cap from `config.daily_mint_cap_micro` |
 | `roll_epoch` | Any funded payer after 24h; dynamic cap = mean(burn axis, utilization axis) clamped to `[daily_mint_cap_micro, 3×daily_mint_cap_micro]` |
 | `close_old_epoch` | Permissionless rent-reclaim crank; closes epoch PDAs older than `current − KEEP_EPOCHS` (2). Historical emission stats remain in events and config counters |
-| `grant_reward` | Authority OR reward signer; >0 and ≤1000 POTATO/call, within current epoch cap and max supply, and within the **manual grant quota** (`GRANT_QUOTA_SHARE_BPS` = 10 % of the epoch cap, tracked in `Epoch.granted_micro`); blocked while paused |
+| `grant_reward` | Authority OR reward signer; >0 and ≤1000 POTATO/call, within current epoch cap and max supply, and within the **manual grant quota** (`GRANT_QUOTA_SHARE_BPS` = 25 % of the epoch cap, tracked in `Epoch.granted_micro`); blocked while paused |
 | `update_reward_signer` | Authority; replace delegated reward signer (authority retains reward permission) |
 | `update_skr_mint` | Authority; **proposal only** — stores pending mint in `AdminState` |
 | `apply_pending_skr_mint` | Authority; applies the proposal after the 24 h timelock (`TimelockNotExpired` otherwise) |

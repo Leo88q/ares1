@@ -236,7 +236,7 @@ export default {
   'Карточка скачана': 'Cartão baixado',
   'Картошка = $POTATO. Эмиссия — урожаи игроков, награды квестов и ½ налога маркета в казну; команда не продаёт токен отдельно.': 'Batata = $POTATO. A emissão vem das colheitas dos jogadores, recompensas de missões e metade do imposto do mercado para o tesouro; a equipe não vende tokens à parte.',
   'Квесты минтит сервер (не клиент). Age of Farming — отдельное приложение; межигровые переводы и общий burn пока не доступны. Удачи, колонист.': 'As recompensas das missões são emitidas pelo servidor, não pelo cliente. Age of Farming é um aplicativo separado; transferências entre jogos e um burn compartilhado não estão disponíveis. Boa sorte, colonista.',
-  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Cota de créditos manuais esgotada (10% do limite diário).',
+  'Квота ручных начислений исчерпана (25% от дневного лимита).': 'Cota de créditos manuais esgotada (25% do limite diário).',
   'Кислород O₂': 'Oxigênio O₂',
   'Количество POTATO': 'Quantidade de POTATO',
   'Командир Сектора': 'Comandante de Setor',

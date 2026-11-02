@@ -236,7 +236,7 @@ export default {
   'Карточка скачана': 'Đã tải thẻ xuống',
   'Картошка = $POTATO. Эмиссия — урожаи игроков, награды квестов и ½ налога маркета в казну; команда не продаёт токен отдельно.': 'Khoai tây = $POTATO. Phát hành đến từ mùa thu hoạch của người chơi, phần thưởng nhiệm vụ và một nửa thuế thị trường vào kho bạc; đội không bán token riêng.',
   'Квесты минтит сервер (не клиент). Age of Farming — отдельное приложение; межигровые переводы и общий burn пока не доступны. Удачи, колонист.': 'Phần thưởng nhiệm vụ do máy chủ phát hành, không phải client. Age of Farming là ứng dụng riêng; chuyển liên game và burn dùng chung hiện chưa khả dụng. Chúc may mắn, người khai hoang.',
-  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Đã hết hạn mức cộng tay (10% giới hạn ngày).',
+  'Квота ручных начислений исчерпана (25% от дневного лимита).': 'Đã hết hạn mức cộng tay (25% giới hạn ngày).',
   'Кислород O₂': 'Oxygen O₂',
   'Количество POTATO': 'Số lượng POTATO',
   'Командир Сектора': 'Sector Commander',

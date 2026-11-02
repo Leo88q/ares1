@@ -236,7 +236,7 @@ export default {
   'Карточка скачана': 'Na-download na ang card',
   'Картошка = $POTATO. Эмиссия — урожаи игроков, награды квестов и ½ налога маркета в казну; команда не продаёт токен отдельно.': 'Kamote = $POTATO. Ang emission ay ani ng mga player, gantimpala ng misyon, at kalahati ng buwis sa merkado sa treasury; hindi nagbebenta ng hiwalay na token ang team.',
   'Квесты минтит сервер (не клиент). Age of Farming — отдельное приложение; межигровые переводы и общий burn пока не доступны. Удачи, колонист.': 'Ang mga reward sa quest ay mina-mint ng server, hindi ng client. Hiwalay na app ang Age of Farming; hindi available ang cross-game transfers at shared burn. Good luck, colonist.',
-  'Квота ручных начислений исчерпана (10% от дневного лимита).': 'Ubusan ang quota ng manual grant (10% ng daily cap).',
+  'Квота ручных начислений исчерпана (25% от дневного лимита).': 'Ubusan ang quota ng manual grant (25% ng daily cap).',
   'Кислород O₂': 'Oxygen O₂',
   'Количество POTATO': 'Dami ng POTATO',
   'Командир Сектора': 'Sector Commander',

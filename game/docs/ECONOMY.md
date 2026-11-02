@@ -17,7 +17,7 @@
 | Freeze authority | отсутствует (проверяется в `initialize`) | Никто не может заморозить токены игроков |
 | `max_supply_micro` | 1 000 000 000 🥔 | Жёсткий потолок в `harvest` и `grant_reward` |
 | `daily_mint_cap_micro` | 250 000 🥔/эпоху (24 ч) | Константа-потолок `MAX_DAILY_CAP_MICRO`; authority может только понижать |
-| Premine / team allocation | **нет** | Fair launch: 100 % supply появляется через `harvest` и `grant_reward` (≤ 1 000 🥔/tx, только backend; суммарно ручные гранты ≤ 10 % капа эпохи — `Epoch.granted_micro`) |
+| Premine / team allocation | **нет** | Fair launch: 100 % supply появляется через `harvest` и `grant_reward` (≤ 1 000 🥔/tx, только backend; суммарно ручные гранты ≤ 25 % капа эпохи — `Epoch.granted_micro`) |
 | Vesting | не применимо | Источники коммерческой выручки описаны отдельно; 40 % комиссии — только legacy V1, целевая V2-комиссия поступает в казну в валюте quote |
 
 **Оценка потолка.** При постоянном упоре в дневной кап 250 k 🥔 максимальный supply достигается за ~4 000 дней (11 лет). Реально кап не достигается на горизонте года при 1 000 игроков (см. симуляцию), поэтому реальным регулятором эмиссии является `base_yield_micro_per_day` (регулируется `update_config`).
