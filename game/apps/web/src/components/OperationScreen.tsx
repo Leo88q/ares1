@@ -252,14 +252,16 @@ export default function OperationScreen(): JSX.Element {
         </div>
       </div>
 
+      {/* minHeight 44 — порог тач-цели (tests/tap-target-audit.mjs, Seeker 400×890).
+          С padding 10px и font-size 11 ссылка выходила 43 px и валила гейт. */}
       <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-        <Link to="/" className="mk-key mk-key--paint op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11 }}>
+        <Link to="/" className="mk-key mk-key--paint op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 11, minHeight: 44, boxSizing: 'border-box' }}>
           {t('В ТЕПЛИЦУ')} <ArrowRight size={14} aria-hidden="true" />
         </Link>
-        <Link to="/market" className="mk-key op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11 }}>
+        <Link to="/market" className="mk-key op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 11, minHeight: 44, boxSizing: 'border-box' }}>
           {t('К РЫНКУ')} <ArrowRight size={14} aria-hidden="true" />
         </Link>
-        {!connected && <Link to="/lab" className="mk-key op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11 }}>{t('ОТКРЫТЬ ЛАБОРАТОРИЮ')}</Link>}
+        {!connected && <Link to="/lab" className="mk-key op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 11, minHeight: 44, boxSizing: 'border-box' }}>{t('ОТКРЫТЬ ЛАБОРАТОРИЮ')}</Link>}
       </div>
 
       {!ready && <div style={{ marginTop: 12, color: 'var(--pf-text-muted)', fontSize: 11 }}>{t('Ожидаем ответ Solana RPC…')}</div>}
