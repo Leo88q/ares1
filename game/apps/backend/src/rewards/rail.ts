@@ -22,13 +22,19 @@
  * проверяются юнит-тестами, роутер только передаёт их в подписант.
  */
 import { createHash } from 'node:crypto';
+// Ончейн-константы живут в одном месте (presale/catalog.ts, сверяется тестом с
+// lib.rs). Дублировать 900 здесь нельзя: при изменении окна клейма в программе
+// копия молча разъедется, и подпись с истёкшим дедлайном будет отклонена цепью
+// уже после того, как клиент получил «ок».
+import { MAX_REWARD_EXPIRY_SECONDS } from '../presale/catalog.js';
+
+export { MAX_REWARD_EXPIRY_SECONDS };
 
 /** Зеркало lib.rs:68 — потолок одной выдачи `grant_reward_once`. */
 export const MAX_REWARD_MICRO = 1_000_000_000n;
 /** Зеркало lib.rs:158 — цена эталонного поля (Луг, 1.0×). */
 export const BASE_FIELD_PRICE_MICRO = 250_000_000n;
 /** lib.rs:76 — окно клейма 15 минут; берём половину, чтобы подпись не жила долго. */
-export const MAX_REWARD_EXPIRY_SECONDS = 900n;
 export const GRANT_EXPIRY_SECONDS = 300n;
 
 /**
@@ -93,10 +99,40 @@ export function grantNonce(kind: GrantKind, wallet: string, nowSeconds: bigint):
   return firstU64(createHash('sha256').update(`${domain}:${wallet}`).digest());
 }
 
-/** Дедлайн подписи: сейчас + окно, но не дальше ончейн-лимита. */
+/**
+ * Дедлайн подписи: сейчас + окно, но не дальше ончейн-лимита.
+ *
+ * Ограничение не косметическое: `grant_reward_once` отвергает `expires_at`
+ * дальше `MAX_REWARD_EXPIRY_SECONDS` от времени кластера. Если завтра
+ * `GRANT_EXPIRY_SECONDS` поднимут «чтобы ретраи жили дольше», без этого min()
+ * выдача начнёт падать на цепи, а не на конфиге.
+ */
 export function grantExpiry(nowSeconds: bigint): bigint {
   const expiry = nowSeconds + GRANT_EXPIRY_SECONDS;
-  return expiry;
+  return expiry > nowSeconds + MAX_REWARD_EXPIRY_SECONDS
+    ? nowSeconds + MAX_REWARD_EXPIRY_SECONDS
+    : expiry;
+}
+
+/**
+ * Возврат списанного бюджета: отправка не удалась — деньги не выданы.
+ *
+ * Зачем. Бюджет списывается ДО отправки (иначе две параллельные выдачи прошли
+ * бы проверку обе). Но если `sendGrant` упал (подписант без SOL, RPC, симуляция),
+ * списание оставалось: серия неудачных попыток вычерпывала суточный бюджет, и
+ * честные игроки получали 503 при живом бюджете. Возврат идемпотентен по дню:
+ * после смены UTC-суток возвращать нечего.
+ */
+export function refundBudget(
+  state: GrantBudgetState,
+  kind: GrantKind,
+  nowSeconds: bigint,
+): GrantBudgetState {
+  const day = utcDay(nowSeconds);
+  if (state.day !== day) return state;
+  const amount = GRANT_AMOUNTS_MICRO[kind];
+  const next = state.spentMicro - amount;
+  return { day, spentMicro: next > 0n ? next : 0n };
 }
 
 /** Базовый формат Solana-адреса (base58, 32–44 символа). */

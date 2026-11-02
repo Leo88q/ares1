@@ -22,6 +22,7 @@ import {
   budgetFitsGrantQuota,
   chargeBudget,
   grantExpiry,
+  refundBudget,
   grantNonce,
   isWalletAddress,
   utcDay,
@@ -289,4 +290,57 @@ function KeypairWallet(index: number): string {
 
 test('GRANT_AMOUNTS_MICRO совпадает с суммами эндпоинтов', () => {
   assert.deepEqual(GRANT_AMOUNTS_MICRO, { starter: STARTER_GRANT_MICRO, daily: DAILY_BONUS_MICRO });
+});
+
+test('дедлайн подписи не выходит за ончейн-окно клейма', () => {
+  const now = 1_800_000_000n;
+  const expiry = grantExpiry(now);
+  assert.equal(expiry, now + 300n);
+  // Даже если окно поднимут выше 900 с, подпись обязана остаться внутри лимита
+  // программы (grant_reward_once отвергает более дальний expires_at).
+  assert.ok(grantExpiry(now) - now <= 900n);
+});
+
+test('списание бюджета откатывается при неудачной отправке, но не после смены суток', () => {
+  const now = 1_800_000_000n;
+  const charged = chargeBudget({ day: -1n, spentMicro: 0n }, 'starter', now);
+  assert.equal(charged.ok, true);
+  const refunded = refundBudget(charged.state, 'starter', now);
+  assert.equal(refunded.spentMicro, 0n);
+  // Следующие сутки — возвращать нечего: счётчик уже новый.
+  const nextDay = refundBudget(charged.state, 'starter', now + 86_400n);
+  assert.equal(nextDay.spentMicro, charged.state.spentMicro);
+  // Ниже нуля не уходим даже при двойном возврате.
+  assert.equal(refundBudget(refunded, 'starter', now).spentMicro, 0n);
+});
+
+test('неудачная выдача не съедает суточный бюджет рельсы', async () => {
+  // Подписант падает всегда: 80 запросов не должны исчерпать бюджет, иначе
+  // честные игроки получат 503 при живом бюджете.
+  const app = express();
+  app.use('/api/rewards', rewardsRouter({
+    enabled: true,
+    rewardSigner: null,
+    now: () => 1_800_000_000n,
+    sendGrant: async () => { throw new Error('REWARD_RAIL: signer is not configured'); },
+  }));
+  const server: Server = app.listen(0, '127.0.0.1');
+  await new Promise<void>(resolve => server.once('listening', () => resolve()));
+  try {
+    const port = (server.address() as AddressInfo).port;
+    let last: Response | null = null;
+    for (let i = 0; i < 90; i += 1) {
+      const wallet = `W${String(i).padStart(43, '1')}`.slice(0, 44);
+      last = await fetch(`http://127.0.0.1:${port}/api/rewards/starter`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ wallet }),
+      });
+    }
+    assert.equal(last?.status, 502, 'должны упираться в отказ отправки, а не в BUDGET_EXHAUSTED');
+    const status = await fetch(`http://127.0.0.1:${port}/api/rewards/status`);
+    assert.equal(status.status, 200);
+  } finally {
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
 });

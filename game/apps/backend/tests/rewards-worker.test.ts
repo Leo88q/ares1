@@ -79,7 +79,8 @@ test('findExistingGrant отдаёт слот и игнорирует неусп
 test('счастливый путь: pending → submitted → confirmed', async () => {
   const { deps, calls } = harness([intent()]);
   const result = await runDeliveryOnce(deps);
-  assert.deepEqual(result, { picked: 1, submitted: 1, confirmed: 1, failed: 0, retryable: 0, recovered: 0, errors: [] });
+  assert.deepEqual(result, { picked: 1, submitted: 1, confirmed: 1, failed: 0, retryable: 0, recovered: 0,
+    reconciled: 0, errors: [] });
   assert.deepEqual(calls, ['list:10', 'lookup:42', 'send:42', 'submitted:42:sig-42', 'confirmed:42:100']);
 });
 
@@ -209,4 +210,95 @@ test('воркер не запускается при interval <= 0 и не ду
   const [a, b] = await Promise.all([handle!.runNow(), handle!.runNow()]);
   assert.equal(a.picked + b.picked, 0);
   handle!.stop();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Фаза подтверждения `submitted`-интентов без слота.
+//
+// Регресс, который она закрывает: markConfirmed мог не пройти уже ПОСЛЕ отправки
+// (таймаут, рестарт, slot === undefined). Интент оставался submitted навсегда —
+// view reward_intents_actionable отдаёт только pending, переход submitted →
+// pending запрещён, заказ висит `paid` без выдачи, а ручная повторная выдача
+// того же заказа — вторая выплата.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SG = '1'.repeat(88); // валидная по форме base58-подпись (64..88)
+
+function submittedHarness(rows: WorkerIntent[], lookup: DeliveryWorkerDeps['lookupExistingGrant']) {
+  const calls: string[] = [];
+  const deps: DeliveryWorkerDeps = {
+    actor: 'reward-delivery',
+    listActionable: async () => [],
+    listAwaitingConfirmation: async (limit) => { calls.push(`awaiting:${limit}`); return rows.slice(0, limit); },
+    executeGrant: async () => { calls.push('send'); return { signature: SG, slot: 1n }; },
+    lookupExistingGrant: async (row) => { calls.push(`lookup:${row.id}`); return lookup!(row); },
+    markSubmitted: async ({ id }) => { calls.push(`submitted:${id}`); },
+    markConfirmed: async ({ id, slot }) => { calls.push(`confirmed:${id}:${slot}`); },
+    markFailed: async ({ id, failureCode }) => { calls.push(`failed:${id}:${failureCode}`); },
+  };
+  return { deps, calls };
+}
+
+test('submitted без слота подтверждается по истории PDA, а не помечается failed', async () => {
+  const row = intent({ state: 'submitted', signature: SG });
+  const { deps, calls } = submittedHarness([row], async () => ({ signature: SG, slot: 777n }));
+  const result = await runDeliveryOnce(deps);
+  assert.equal(result.reconciled, 1);
+  assert.equal(result.confirmed, 1);
+  assert.equal(result.failed, 0);
+  assert.deepEqual(calls, ['awaiting:10', 'lookup:42', 'confirmed:42:777']);
+  assert.ok(!calls.some((c) => c.startsWith('failed:')), 'paid-заказ нельзя закрывать failed');
+});
+
+test('submitted без гранта на цепи остаётся открытым: следующий такт повторит', async () => {
+  const row = intent({ state: 'submitted', signature: SG });
+  const { deps, calls } = submittedHarness([row], async () => null);
+  const result = await runDeliveryOnce(deps);
+  assert.equal(result.reconciled, 0);
+  assert.equal(result.retryable, 1);
+  assert.equal(result.failed, 0);
+  assert.deepEqual(calls, ['awaiting:10', 'lookup:42']);
+});
+
+test('грант без слота ещё не подтверждение: ждём finality, failed не пишем', async () => {
+  const row = intent({ state: 'submitted', signature: SG });
+  const { deps, calls } = submittedHarness([row], async () => ({ signature: SG }));
+  const result = await runDeliveryOnce(deps);
+  assert.equal(result.retryable, 1);
+  assert.equal(result.confirmed, 0);
+  assert.deepEqual(calls, ['awaiting:10', 'lookup:42']);
+});
+
+test('подпись в интенте и подпись создателя PDA расходятся — это инцидент, не выдача', async () => {
+  const row = intent({ state: 'submitted', signature: SG });
+  const other = Keypair.generate().publicKey.toBase58().padEnd(88, '1');
+  const { deps, calls } = submittedHarness([row], async () => ({ signature: other, slot: 5n }));
+  const result = await runDeliveryOnce(deps);
+  assert.equal(result.confirmed, 0);
+  assert.deepEqual(result.errors, [{ id: '42', code: 'SIGNATURE_MISMATCH' }]);
+  assert.deepEqual(calls, ['awaiting:10', 'lookup:42']);
+});
+
+test('submitted без подписи нельзя подтвердить вслепую', async () => {
+  const row = intent({ state: 'submitted', signature: null });
+  const { deps, calls } = submittedHarness([row], async () => ({ signature: SG, slot: 5n }));
+  const result = await runDeliveryOnce(deps);
+  assert.deepEqual(result.errors, [{ id: '42', code: 'MISSING_SIGNATURE' }]);
+  assert.deepEqual(calls, ['awaiting:10']);
+});
+
+test('сбой RPC в фазе подтверждения не закрывает интент', async () => {
+  const row = intent({ state: 'submitted', signature: SG });
+  const { deps } = submittedHarness([row], async () => { throw new Error('rpc down'); });
+  const result = await runDeliveryOnce(deps);
+  assert.equal(result.retryable, 1);
+  assert.equal(result.failed, 0);
+  assert.deepEqual(result.errors, [{ id: '42', code: 'LOOKUP_FAILED' }]);
+});
+
+test('без зависимости listAwaitingConfirmation фаза выключена, pending работает как раньше', async () => {
+  const { deps } = harness([intent()]);
+  const result = await runDeliveryOnce(deps);
+  assert.equal(result.reconciled, 0);
+  assert.equal(result.confirmed, 1);
 });

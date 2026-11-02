@@ -127,6 +127,37 @@ export async function fetchTokenPaymentView(
 }
 
 /**
+ * Кошелёк, с которого деньги реально ушли.
+ *
+ * `accountKeys[0]` — это плательщик комиссии, а не обязательно источник средств.
+ * Как только платёж проходит через релейсер (или комиссию платит сервис),
+ * атрибуция «первому ключу» приписывает перевод чужому кошельку: сверка
+ * объявляет walletMismatch у честного платежа, а `payersFromChain` — «список
+ * плательщиков, восстановленный только из цепи» — начинает врать, и возврат
+ * уходит не тому. Источник определяем по максимальной отрицательной дельте
+ * баланса, исключая казначейство (у него дельта положительная).
+ *
+ * `null` — ни один аккаунт не потерял деньги: для успешной транзакции с
+ * притоком это невозможно, и молча подставлять `accountKeys[0]` нельзя.
+ */
+export function sourceWalletOf(
+  view: { accountKeys: readonly string[]; preBalances: readonly bigint[]; postBalances: readonly bigint[] },
+  treasury: string,
+): string | null {
+  let best: { key: string; lost: bigint } | null = null;
+  for (const [index, key] of view.accountKeys.entries()) {
+    if (key === treasury) continue;
+    const pre = view.preBalances[index];
+    const post = view.postBalances[index];
+    if (pre === undefined || post === undefined) continue;
+    const lost = pre - post;
+    if (lost <= 0n) continue;
+    if (!best || lost > best.lost) best = { key, lost };
+  }
+  return best?.key ?? null;
+}
+
+/**
  * История притоков к кошельку-казначейству для сверки. Строится ТОЛЬКО из
  * истории кошелька — из неё же восстанавливается список плательщиков, поэтому
  * сверка не зависит от БД.
@@ -174,9 +205,15 @@ export async function fetchTreasuryTransfers(
       if (index < 0) continue;
       const received = view.postBalances[index] - view.preBalances[index];
       if (received <= 0n) continue;
+      const fromWallet = sourceWalletOf(view, treasury);
+      if (!fromWallet) {
+        // Приток есть, а плательщика нет — значит разбор ответа RPC неверен.
+        // Подставить «первый ключ» здесь значило бы выдать догадку за факт.
+        throw new Error(`Treasury transaction ${signature.signature} has an inflow without a source wallet; refusing to guess the payer`);
+      }
       transfers.push({
         signature: signature.signature,
-        fromWallet: view.accountKeys[0] ?? '',
+        fromWallet,
         units: received,
         slot: view.slot,
         blockTime: view.blockTime,

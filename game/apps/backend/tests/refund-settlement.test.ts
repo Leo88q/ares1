@@ -44,7 +44,7 @@ const config: GameOpsConfig = {
   adminToken: token,
   reconciliationMaxAgeMinutes: 20,
   chainId: 'reward',
-  expectedSchemaVersion: 15,
+  expectedSchemaVersion: 16,
 };
 
 /** Снимок транзакции возврата: деньги уходят покупателю, казначейство платит. */

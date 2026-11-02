@@ -41,7 +41,7 @@ const config: GameOpsConfig = {
   adminToken: token,
   reconciliationMaxAgeMinutes: 20,
   chainId: 'reward',
-  expectedSchemaVersion: 15,
+  expectedSchemaVersion: 16,
 };
 
 /** База цены тиража (без пыли). Покупатель платит base + order_no. */

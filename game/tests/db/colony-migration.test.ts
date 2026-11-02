@@ -23,8 +23,8 @@ test('all game_ops migrations, including Colony, pass the disposable PGlite acce
   const db = await PGlite.create();
   try {
     const files = await applyAllMigrations(db);
-    assert.equal(files.length, 15);
-    assert.equal(files.at(-1), '0015_presale_refund_evidence.sql');
+    assert.equal(files.length, 16);
+    assert.equal(files.at(-1), '0016_presale_refund_reason.sql');
 
     const schema = await db.query<{ table_name: string }>("SELECT table_name FROM information_schema.tables WHERE table_schema = 'game_ops' AND table_type = 'BASE TABLE'");
     const tableNames = new Set(schema.rows.map(row => row.table_name));
@@ -41,7 +41,8 @@ test('all game_ops migrations, including Colony, pass the disposable PGlite acce
     assert.match(activeFieldIndex.rows[0]?.indexdef ?? '', /UNIQUE/i);
     assert.match(activeFieldIndex.rows[0]?.indexdef ?? '', /WHERE \(unlinked_at IS NULL\)/i);
     const triggers = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'game_ops' AND NOT t.tgisinternal`);
-    assert.equal(triggers.rows[0]?.count, 32);
+    // 32 до 0016; +2 триггера причины возврата (immutability + audit).
+    assert.equal(triggers.rows[0]?.count, 34);
 
     const freeStarterFunction = await db.query<{ function_name: string | null }>("SELECT to_regprocedure('game_ops.claim_free_colony_starter(uuid,text,text)')::text AS function_name");
     assert.match(freeStarterFunction.rows[0]?.function_name ?? '', /game_ops\.claim_free_colony_starter\(uuid, ?text, ?text\)/);

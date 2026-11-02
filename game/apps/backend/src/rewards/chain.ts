@@ -61,8 +61,13 @@ export interface ExistingGrant {
  * фиксируется вместе со слотом.
  */
 export async function findExistingGrant(connection: Connection, pda: PublicKey): Promise<ExistingGrant | null> {
-  const history = await connection.getSignaturesForAddress(pda, { limit: 1 }, "confirmed");
-  const first = history[0];
-  if (!first || first.err) return null;
-  return { signature: first.signature, slot: BigInt(first.slot) };
+  // Не «последняя подпись», а последняя УСПЕШНАЯ из нескольких: после удачного
+  // гранта любая повторная попытка с тем же nonce падает на `init` и оставляет
+  // свою (ошибочную) подпись в истории PDA. С `limit: 1` такая попытка прятала
+  // бы настоящий грант: воркер решал бы «гранта нет» и отправлял ещё одну
+  // заведомо падающую транзакцию.
+  const history = await connection.getSignaturesForAddress(pda, { limit: 10 }, "confirmed");
+  const successful = history.find(entry => entry.err === null || entry.err === undefined);
+  if (!successful) return null;
+  return { signature: successful.signature, slot: BigInt(successful.slot) };
 }

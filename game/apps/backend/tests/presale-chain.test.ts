@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import type { Connection } from '@solana/web3.js';
-import { fetchPaymentView, fetchTreasuryTransfers } from '../src/presale/chain.js';
+import { fetchPaymentView, fetchTreasuryTransfers, sourceWalletOf } from '../src/presale/chain.js';
 
 const payer = Keypair.generate().publicKey;
 const treasury = Keypair.generate().publicKey;
@@ -87,4 +87,32 @@ test('versioned transaction account keys include loaded addresses in balance-ind
   const view = await fetchPaymentView(connection, 'versioned-signature');
   assert.deepEqual(view?.accountKeys, [payer.toBase58(), treasury.toBase58()]);
   assert.deepEqual(view?.postBalances, [990n, 10n]);
+});
+
+test('плательщик определяется по дельте баланса, а не по accountKeys[0] (комиссию платит релейсер)', () => {
+  const buyer = Keypair.generate().publicKey.toBase58();
+  const relayer = Keypair.generate().publicKey.toBase58();
+  const treasuryKey = Keypair.generate().publicKey.toBase58();
+  const view = {
+    accountKeys: [relayer, buyer, treasuryKey],
+    // Релейсер только оплатил комиссию, покупатель потерял сумму перевода.
+    preBalances: [10_000_000n, 1_000_000_000n, 0n],
+    postBalances: [9_994_500n, 500_000_000n, 500_000_000n],
+  };
+  assert.equal(sourceWalletOf(view, treasuryKey), buyer);
+});
+
+test('казначейство исключено из кандидатов, а транзакция без потерь не даёт плательщика', () => {
+  const treasuryKey = Keypair.generate().publicKey.toBase58();
+  const other = Keypair.generate().publicKey.toBase58();
+  assert.equal(sourceWalletOf({
+    accountKeys: [treasuryKey, other],
+    preBalances: [0n, 1_000n],
+    postBalances: [1_000n, 500n],
+  }, treasuryKey), other);
+  assert.equal(sourceWalletOf({
+    accountKeys: [treasuryKey],
+    preBalances: [0n],
+    postBalances: [5n],
+  }, treasuryKey), null);
 });

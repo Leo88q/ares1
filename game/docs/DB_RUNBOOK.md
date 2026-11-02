@@ -22,7 +22,7 @@
 | `chain_reconciliation` | доказательство сходимости: `granted − ledger = drift` (append-only) |
 | `service_cursors` | курсоры сервисов; единственная изменяемая таблица, и та — только CAS по `version` |
 | роли | `game_ops_migrator` (DDL), `game_ops_writer` (рантайм), `game_ops_reader` (дашборды) |
-| 28 триггеров в текущих миграциях | append-only, batch-проверка цепочки, машина состояний, неизменяемость денежных полей, CAS курсоров, аудит и Colony event/challenge guards |
+| 34 триггера в текущих миграциях | append-only, batch-проверка цепочки, машина состояний, неизменяемость денежных полей, CAS курсоров, аудит, Colony event/challenge guards и неизменяемость решения о возврате (подпись + причина, 0015/0016) |
 
 Три независимых уровня защиты (падение одного не открывает историю):
 
@@ -85,14 +85,14 @@ http://127.0.0.1:8080/api/gameops/ready` — `ready: true` и все прове�
 
 ### Включение бесплатного Colony onboarding на изолированном devnet/staging
 
-Это только серверная возможность; включение не делает релиз или продажу. Сначала применить миграции до версии 13, создать runtime-роли и пройти `db:verify`, затем настроить на staging:
+Это только серверная возможность; включение не делает релиз или продажу. Сначала применить миграции до версии 16, создать runtime-роли и пройти `db:verify`, затем настроить на staging:
 
 ```env
 SOLANA_CLUSTER=devnet
 COLONIES_ENABLED=true
 COLONY_FREE_STARTER_ENABLED=true
 GAME_OPS_DB_ROLE=game_ops_writer
-GAME_OPS_EXPECTED_SCHEMA_VERSION=13
+GAME_OPS_EXPECTED_SCHEMA_VERSION=16
 ```
 
 Понадобятся также отдельная devnet `GAME_OPS_DATABASE_URL`, `COLONY_SESSION_SECRET` (не менее 32 случайных байт), `RPC_URL`, `RPC_URL_SECONDARY` если включён `REQUIRE_SECONDARY_RPC`, точный `PROGRAM_ID` и allowlist `CORS_ORIGIN`. Использовать отдельную тестовую БД, привязанную к devnet; не подключать production/mainnet базу или секреты. Backend бесплатно выдаёт один Starter на кошелёк (в рамках одного cluster) только в той же транзакции, где проверенный Field становится primary и записывается genesis event; дополнительные Field-бонусов нет. Лимит на кошелёк не является Sybil-защитой: несколько отдельных кошельков могут получить несколько стартов. Флаг по умолчанию выключен в production, mainnet заблокирован `COLONY_V1_RELEASE_READY=false`. Покупки и платежи остаются выключенными.
@@ -149,7 +149,7 @@ yarn test:db:unit # isolated PGlite migrations + schema/Colony grants; no config
 | `intents.ledger_amount_match` | суммы и получатели подтверждённых интентов совпадают с зеркалом (ловит подмену денежного поля интента, которую hash-chain не видит) |
 | `reconciliation.drift` | по каждому потоку последняя сверка имеет `drift = 0` |
 
-Локальный прогон `yarn test:db:unit` (PGlite 0.5.8) применяет миграции `0001`–`0013`; проверки включают grants, Field-link lifecycle, безопасную бесплатную стартовую выдачу и повторный claim. Отдельный CI job `gameops-db` применяет миграции на настоящем PostgreSQL и запускает `colony-postgres.test.ts` с runtime-ролью, включая сервисный путь создания Colony. В этом workspace operational `GAME_OPS_TEST_URL` не задан, поэтому PostgreSQL acceptance и `db:verify` против целевой БД здесь не выполнялись. PGlite не проверяет failover, managed-provider behavior, production backup или restore; CI acceptance тоже не заменяет эксплуатационный backup/restore drill.
+Локальный прогон `yarn test:db:unit` (PGlite 0.5.8) применяет миграции `0001`–`0016`; проверки включают grants, Field-link lifecycle, безопасную бесплатную стартовую выдачу и повторный claim. Отдельный CI job `gameops-db` применяет миграции на настоящем PostgreSQL и запускает `colony-postgres.test.ts` с runtime-ролью, включая сервисный путь создания Colony. В этом workspace operational `GAME_OPS_TEST_URL` не задан, поэтому PostgreSQL acceptance и `db:verify` против целевой БД здесь не выполнялись. PGlite не проверяет failover, managed-provider behavior, production backup или restore; CI acceptance тоже не заменяет эксплуатационный backup/restore drill.
 
 ## 4. Что делать, если
 

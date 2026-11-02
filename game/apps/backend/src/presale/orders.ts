@@ -346,8 +346,13 @@ export async function refundOrder(pool: Pool, input: {
   }
   return withTransaction<OrderRow>(pool, input.actor, async client => {
     const updated = await client.query<OrderRow>(
+      // failure_code остаётся коротким машинным кодом для очередей и метрик, но
+      // сам текст причины теперь хранится целиком (0016): вернуть деньги и не
+      // сохранить, почему это сделано, — значит потерять единственное
+      // доказательство решения.
       `UPDATE game_ops.presale_orders
           SET state = 'refunded', refunded_at = now(),
+              refund_reason = btrim($2),
               failure_code = 'REFUND_' || upper(left(md5($2), 4))
         WHERE id = $1 AND state IN ('payment_seen','paid')
         RETURNING *`,

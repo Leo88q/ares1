@@ -24,6 +24,7 @@ import {
   grantExpiry,
   grantNonce,
   isWalletAddress,
+  refundBudget,
   type GrantBudgetState,
   type GrantKind,
 } from "./rail.js";
@@ -130,11 +131,17 @@ export function rewardsRouter(deps: RewardsRouterDeps): Router {
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown error";
       // Уже выданный грант — не ошибка сервера: PDA существует, деньги на месте.
+      // Бюджет в этом случае НЕ возвращаем: грант выдан, деньги ушли получателю.
       if (/already in use|custom program error: 0x0\b/.test(message)) {
         res.status(409).json({ error: "ALREADY_GRANTED", message: "this grant was already claimed" });
         return;
       }
-      res.status(502).json({ error: "GRANT_FAILED", message: message.slice(0, 300) });
+      // Ничего не выдано — списание бюджета откатываем, иначе серия неудачных
+      // попыток вычерпывает суточный бюджет и честные игроки получают 503.
+      budgets[kind] = refundBudget(budgets[kind], kind, deps.now());
+      // Наружу — только код и короткий хвост причины: полный текст ошибки RPC
+      // содержит адреса аккаунтов и внутренние детали.
+      res.status(502).json({ error: "GRANT_FAILED", message: message.slice(-200) });
     }
   };
 

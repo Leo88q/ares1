@@ -21,6 +21,8 @@ export interface WorkerIntent {
   amountMicro: bigint;
   nonce: bigint;
   state: string;
+  /** Подпись уже отправленной транзакции; нужна фазе подтверждения. */
+  signature?: string | null;
 }
 
 export interface GrantLookup {
@@ -34,6 +36,13 @@ export interface DeliveryWorkerDeps {
   /** actor для аудита переходов. */
   actor: string;
   listActionable: (limit: number) => Promise<WorkerIntent[]>;
+  /**
+   * `submitted`-интенты без слота: транзакция ушла, подтверждение не записалось.
+   * Отсутствие зависимости = фаза подтверждения выключена (тесты и стенды без БД);
+   * в боевой сборке её обязан передать `index.ts`, иначе такие интенты не
+   * добираются никем.
+   */
+  listAwaitingConfirmation?: (limit: number) => Promise<WorkerIntent[]>;
   /** Отправка гранта. Возвращает подпись и, если известен, слот. */
   executeGrant: (intent: WorkerIntent) => Promise<GrantLookup>;
   /** Проверка «грант уже на цепи» (по PDA). null — гранта нет. */
@@ -53,6 +62,8 @@ export interface DeliveryWorkerResult {
   retryable: number;
   /** Грант уже был на цепи, отправку не повторяли. */
   recovered: number;
+  /** `submitted`-интенты, подтверждённые по истории PDA гранта. */
+  reconciled: number;
   errors: Array<{ id: string; code: string }>;
 }
 
@@ -101,6 +112,82 @@ export function isTerminalFailure(code: string): boolean {
   return !RETRYABLE_FAILURE_CODES.has(code);
 }
 
+const BASE58_SIGNATURE = /^[1-9A-HJ-NP-Za-km-z]{64,88}$/;
+
+/**
+ * Фаза подтверждения: добирает `submitted`-интенты без слота.
+ *
+ * Почему это отдельная фаза, а не ветка основного цикла. Основной цикл берёт
+ * только `pending` (view `reward_intents_actionable`), а `markConfirmed` может не
+ * пройти уже ПОСЛЕ того, как транзакция ушла: таймаут подтверждения, рестарт
+ * между `markSubmitted` и `markConfirmed`, `slot === undefined` в ответе RPC.
+ * Такой интент не возвращается в `pending` (переход `submitted → pending`
+ * запрещён машиной состояний), поэтому единственный способ его закрыть —
+ * перечитать историю PDA `[b"reward", ata, nonce]`: если грант на цепи есть,
+ * подтверждаем по его подписи и слоту.
+ *
+ * Ошибки не терминальны: интент остаётся `submitted`, следующий такт повторит.
+ * Закрывать его `failed` нельзя — деньги уже могли уйти получателю.
+ */
+async function reconcileSubmitted(
+  deps: DeliveryWorkerDeps,
+  result: DeliveryWorkerResult,
+  limit: number,
+): Promise<void> {
+  if (!deps.listAwaitingConfirmation) return;
+  let rows: WorkerIntent[];
+  try {
+    rows = await deps.listAwaitingConfirmation(limit);
+  } catch (error) {
+    result.errors.push({ id: "-", code: "RECONCILE_LIST_FAILED" });
+    console.error("[reward-delivery] cannot list submitted intents:", error instanceof Error ? error.message : error);
+    return;
+  }
+
+  for (const intent of rows) {
+    result.picked += 1;
+    if (!BASE58.test(intent.recipientAta) || intent.nonce < 0n) {
+      result.errors.push({ id: intent.id, code: "BAD_INTENT_ROW" });
+      console.error(`[reward-delivery] intent ${intent.id}: submitted row violates grant bounds`);
+      continue;
+    }
+    // Без записанной подписи сверять нечего: `markConfirmed` требует её точного
+    // совпадения, а придумать её вместо цепи нельзя.
+    if (!intent.signature || !BASE58_SIGNATURE.test(intent.signature)) {
+      result.errors.push({ id: intent.id, code: "MISSING_SIGNATURE" });
+      console.error(`[reward-delivery] intent ${intent.id}: submitted without a usable signature`);
+      continue;
+    }
+    let grant: GrantLookup | null;
+    try {
+      grant = await deps.lookupExistingGrant(intent);
+    } catch (error) {
+      result.retryable += 1;
+      result.errors.push({ id: intent.id, code: "LOOKUP_FAILED" });
+      console.error(`[reward-delivery] intent ${intent.id} confirmation lookup failed:`, error instanceof Error ? error.message : error);
+      continue;
+    }
+    if (!grant || grant.slot === undefined) {
+      // Транзакция подтверждена не finality-уровнем: ждём следующий такт.
+      result.retryable += 1;
+      continue;
+    }
+    if (grant.signature !== intent.signature) {
+      result.errors.push({ id: intent.id, code: "SIGNATURE_MISMATCH" });
+      console.error(`[reward-delivery] intent ${intent.id}: PDA created by ${grant.signature}, intent records ${intent.signature}`);
+      continue;
+    }
+    try {
+      await deps.markConfirmed({ id: intent.id, slot: grant.slot, signature: grant.signature, actor: deps.actor });
+      result.reconciled += 1;
+      result.confirmed += 1;
+    } catch (error) {
+      result.errors.push({ id: intent.id, code: "MARK_CONFIRMED_REJECTED" });
+      console.error(`[reward-delivery] intent ${intent.id} markConfirmed rejected:`, error instanceof Error ? error.message : error);
+    }
+  }
+}
+
 /**
  * Один такт. Порядок важен: сначала фиксируем «отправлено» (подпись уже есть),
  * потом «подтверждено». Обратный порядок оставил бы интент в pending с
@@ -116,8 +203,13 @@ export async function runDeliveryOnce(deps: DeliveryWorkerDeps): Promise<Deliver
     failed: 0,
     retryable: 0,
     recovered: 0,
+    reconciled: 0,
     errors: [],
   };
+
+  // Сначала закрываем уже отправленное: иначе интент, у которого не записалось
+  // подтверждение, не вернётся в очередь никогда.
+  await reconcileSubmitted(deps, result, limit);
 
   const recordFailure = async (intent: WorkerIntent, code: string, error: unknown) => {
     result.errors.push({ id: intent.id, code });
@@ -224,12 +316,12 @@ export function startDeliveryWorker(
   if (!Number.isFinite(intervalSeconds) || intervalSeconds <= 0) return null;
   let running = false;
   const runNow = async (): Promise<DeliveryWorkerResult> => {
-    if (running) return { picked: 0, submitted: 0, confirmed: 0, failed: 0, retryable: 0, recovered: 0, errors: [] };
+    if (running) return { picked: 0, submitted: 0, confirmed: 0, failed: 0, retryable: 0, recovered: 0, reconciled: 0, errors: [] };
     running = true;
     try {
       const result = await runDeliveryOnce(deps);
       if (result.picked > 0) {
-        log(`picked=${result.picked} submitted=${result.submitted} confirmed=${result.confirmed} failed=${result.failed} retryable=${result.retryable} recovered=${result.recovered}`);
+        log(`picked=${result.picked} submitted=${result.submitted} confirmed=${result.confirmed} reconciled=${result.reconciled} failed=${result.failed} retryable=${result.retryable} recovered=${result.recovered}`);
       }
       return result;
     } finally {

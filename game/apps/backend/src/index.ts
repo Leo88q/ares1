@@ -19,7 +19,7 @@ import { loadRewardKeypair, sendGrant as sendRewardGrant } from "./rewards/send.
 import { startDeliveryWorker } from "./rewards/worker.js";
 import { claimPda, findExistingGrant, resolveAtaOwner } from "./rewards/chain.js";
 import { startQuestBudgetWorker } from "./rewards/questBudget.js";
-import { listActionable, markConfirmed, markFailed, markSubmitted } from "./gameops/intents.js";
+import { listActionable, listAwaitingConfirmation, markConfirmed, markFailed, markSubmitted } from "./gameops/intents.js";
 import { configPda, epochPda, questTreasuryPda } from "./solana.js";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { colonyPackageCatalogResponse } from "./colonies/catalog.js";
@@ -331,6 +331,20 @@ async function main() {
             nonce: BigInt(String(row.nonce)),
             // View `reward_intents_actionable` отдаёт только pending-строки.
             state: "pending",
+          }));
+        },
+        // `submitted` без слота: транзакция ушла, подтверждение не записалось.
+        // Без этой фазы такой интент не вернётся в очередь никогда (переход
+        // submitted → pending запрещён), а заказ останется paid без выдачи.
+        listAwaitingConfirmation: async (limit) => {
+          const rows = await listAwaitingConfirmation(gameOpsPool!, limit);
+          return rows.map((row) => ({
+            id: String(row.id),
+            recipientAta: String(row.recipient_ata),
+            amountMicro: BigInt(String(row.amount_micro)),
+            nonce: BigInt(String(row.nonce)),
+            state: "submitted",
+            signature: row.signature,
           }));
         },
         lookupExistingGrant: async ({ recipientAta, nonce }) =>
