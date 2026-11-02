@@ -1,5 +1,6 @@
 import { assertDedicatedPayer, safeError } from "./security.js";
 import express, { NextFunction, Request, Response } from "express";
+import { PublicKey } from "@solana/web3.js";
 import cors from "cors";
 import { env } from "./env.js";
 import { expectedGenesisHash } from "./cluster.js";
@@ -10,7 +11,14 @@ import { presaleRouter } from "./routes/presale.js";
 import { fetchTokenPaymentView } from "./presale/chain.js";
 import { slotsRouter } from "./routes/slots.js";
 import { resolveSlotsConfig } from "./slots/config.js";
-import { COLONY_V1_RELEASE_READY, USER_PRESALE_PAYMENTS_ENABLED } from "./launchGates.js";
+import { COLONY_V1_RELEASE_READY, REWARDS_RAIL_ENABLED, USER_PRESALE_PAYMENTS_ENABLED } from "./launchGates.js";
+import { rewardsRouter } from "./rewards/router.js";
+import { storeRouter } from "./routes/store.js";
+import { loadRewardKeypair, sendGrant as sendRewardGrant } from "./rewards/send.js";
+import { startDeliveryWorker } from "./rewards/worker.js";
+import { claimPda, findExistingGrant, resolveAtaOwner } from "./rewards/chain.js";
+import { listActionable, markConfirmed, markFailed, markSubmitted } from "./gameops/intents.js";
+import { configPda, epochPda } from "./solana.js";
 import { colonyPackageCatalogResponse } from "./colonies/catalog.js";
 import { colonyAuthRouter } from "./colonies/routes.js";
 import { ColonyService } from "./colonies/service.js";
@@ -253,6 +261,103 @@ async function main() {
   } else {
     console.log(`[startup] slots router off: ${slotsCfg.reason}${"detail" in slotsCfg ? ` (${slotsCfg.detail})` : ""}`);
   }
+  // Витрина: каталог паков и честное состояние продаж. Не требует БД и цепи,
+  // поэтому игрок видит, что можно купить, даже когда платежи ещё закрыты.
+  app.use("/api/store", storeRouter({
+    salesEnabled: USER_PRESALE_PAYMENTS_ENABLED && (env.cluster === "mainnet-beta"
+      ? process.env.NODE_ENV === "production" && env.mainnetPresaleApproved
+      : env.devnetPresaleTestEnabled),
+    closedReason: "sales are closed until the launch approval and the devnet smoke run",
+  }));
+
+  // Стартовый набор и дейлик. Ключ — отдельный reward_signer, не authority и не
+  // payer; рельса выключена константой REWARDS_RAIL_ENABLED до одобрения
+  // запуска. Отсутствие ключа — не ошибка старта: рельса просто не работает.
+  const rewardKeypair = loadRewardKeypair(process.env.REWARD_KEYPAIR_JSON);
+  const rewardsEnabled = REWARDS_RAIL_ENABLED && rewardKeypair !== null && (env.cluster !== "mainnet-beta"
+    || (process.env.NODE_ENV === "production" && process.env.REWARDS_MAINNET_APPROVED === "true"));
+  const rewardsDisabledReason = !REWARDS_RAIL_ENABLED
+    ? "reward rail is disabled until the devnet smoke run and owner approval"
+    : rewardKeypair === null
+      ? "REWARD_KEYPAIR_JSON is not configured"
+      : "reward rail is not approved for this network";
+  app.use("/api/rewards", rewardsRouter({
+    enabled: rewardsEnabled,
+    disabledReason: rewardsDisabledReason,
+    rewardSigner: rewardKeypair?.publicKey ?? null,
+    now: () => BigInt(Math.floor(Date.now() / 1000)),
+    sendGrant: async ({ wallet, amountMicro, nonce, expiresAt }) => {
+      // Ключ обязан быть тем самым reward_signer из ончейн-конфига: проверка
+      // внутри sendGrant, здесь только сборка аккаунтов.
+      const chainCfg = await fetchConfig();
+      if (!rewardKeypair) throw new Error("REWARD_RAIL: signer is not configured");
+      return sendRewardGrant({
+        connection,
+        signer: rewardKeypair,
+        programId,
+        config: configPda(),
+        epoch: epochPda(chainCfg.epochId),
+        potatoMint: chainCfg.potatoMint,
+        wallet: new PublicKey(wallet),
+        amountMicro,
+        nonce,
+        expiresAt,
+      }, { gameConfig: chainCfg, payer: payerKeypair.publicKey });
+    },
+  }));
+  console.log(`[startup] rewards rail ${rewardsEnabled ? "on" : "off"}: ${rewardsEnabled ? "grant_reward_once" : rewardsDisabledReason}`);
+
+  // Авто-доставка reward_intents тем же reward_signer. Включается только когда
+  // рельса жива, есть game_ops и явно задан такт: до запуска не должно быть ни
+  // таймера, ни RPC-опроса. Восстановление после падения между отправкой и
+  // записью подписи — через PDA гранта, а не повторной отправкой.
+  const deliveryWorker = rewardsEnabled && gameOpsPool && rewardKeypair && env.rewardDeliveryIntervalSeconds > 0
+    ? startDeliveryWorker({
+        actor: "reward-delivery",
+        limit: 10,
+        listActionable: async (limit) => {
+          const rows = await listActionable(gameOpsPool!, limit);
+          return rows.map((row) => ({
+            id: String(row.id),
+            recipientAta: String(row.recipient_ata),
+            amountMicro: BigInt(String(row.amount_micro)),
+            nonce: BigInt(String(row.nonce)),
+            // View `reward_intents_actionable` отдаёт только pending-строки.
+            state: "pending",
+          }));
+        },
+        lookupExistingGrant: async ({ recipientAta, nonce }) =>
+          findExistingGrant(connection, claimPda(programId, new PublicKey(recipientAta), nonce)),
+        executeGrant: async ({ recipientAta, amountMicro, nonce }) => {
+          const chainCfg = await fetchConfig();
+          const wallet = await resolveAtaOwner(connection, new PublicKey(recipientAta));
+          const signature = await sendRewardGrant({
+            connection,
+            signer: rewardKeypair,
+            programId,
+            config: configPda(),
+            epoch: epochPda(chainCfg.epochId),
+            potatoMint: chainCfg.potatoMint,
+            wallet,
+            amountMicro,
+            nonce,
+            expiresAt: BigInt(Math.floor(Date.now() / 1000) + 300),
+          }, { gameConfig: chainCfg, payer: payerKeypair.publicKey });
+          const status = await connection.getSignatureStatuses([signature]);
+          const slot = status.value[0]?.slot;
+          return { signature, slot: slot === undefined || slot === null ? undefined : BigInt(slot) };
+        },
+        markSubmitted: (input) => markSubmitted(gameOpsPool!, input),
+        markConfirmed: (input) => markConfirmed(gameOpsPool!, input),
+        markFailed: (input) => markFailed(gameOpsPool!, input),
+      }, env.rewardDeliveryIntervalSeconds)
+    : null;
+  if (deliveryWorker) {
+    console.log(`[startup] reward delivery on: every ${env.rewardDeliveryIntervalSeconds}s`);
+  } else if (rewardsEnabled) {
+    console.log("[startup] reward delivery off: set REWARD_DELIVERY_INTERVAL_SECONDS and game_ops to drain intents");
+  }
+
   app.use("/api/config", configRouter);
 
   // 404
@@ -317,7 +422,7 @@ async function main() {
   // пул — чтобы «полуоткрытая» транзакция выплаты не осталась в соединении
   // с ролью-писателем, а roll_epoch не потерял advisory lock посреди такта.
   const shutdown = createShutdown({
-    stopRoller: () => roller.stop(),
+    stopRoller: () => { roller.stop(); deliveryWorker?.stop(); },
     server,
     closePool: gameOpsPool ? () => closePool(gameOpsPool) : undefined,
   });

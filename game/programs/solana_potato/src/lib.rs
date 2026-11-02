@@ -10,7 +10,7 @@
 //!   a per-epoch mint cap (`Epoch.mint_cap_micro`, dynamically clamped to
 //!   [daily_mint_cap_micro, 3×daily_mint_cap_micro] on every roll) and by
 //!   `GameConfig.max_supply_micro`. Manual `grant_reward` mints are additionally
-//!   capped at `GRANT_QUOTA_SHARE_BPS` (10 %) of the epoch cap.
+//!   capped at `GRANT_QUOTA_SHARE_BPS` (25 %) of the epoch cap.
 //! * Epochs are 24h long and are rolled permissionlessly via `roll_epoch`.
 //! * Every in-game spend is a burn; 60 % of marketplace fees are burned and the
 //!   remaining 40 % go to the treasury ATA owned by the config PDA.
@@ -2775,7 +2775,7 @@ fn write_field_account(field: &Field, data: &mut [u8]) -> Result<()> {
 /// `grant_reward` и `grant_reward_once`: если правило разъедется между двумя
 /// рельсами, более слабый станет обходным путём вокруг более строгого.
 pub fn charge_epoch_grant(epoch: &mut Epoch, amount_micro: u64) -> Result<()> {
-    // Квота ручных грантов: суммарно не более GRANT_QUOTA_SHARE_BPS (10 %)
+    // Квота ручных грантов: суммарно не более GRANT_QUOTA_SHARE_BPS (25 %)
     // капа эпохи. Иначе скомпрометированный reward_signer мог бы вычерпать
     // весь дневной кап грантами, оставив игроков без harvest.
     let grant_quota = ((epoch.mint_cap_micro as u128)
@@ -5231,10 +5231,10 @@ mod tests {
     }
 
     #[test]
-    fn grant_quota_is_ten_percent_of_epoch_cap() {
+    fn grant_quota_is_quarter_of_epoch_cap() {
         let cap = MAX_DAILY_CAP_MICRO; // 250k 🥔
         let quota = ((cap as u128) * GRANT_QUOTA_SHARE_BPS as u128 / BPS) as u64;
-        assert_eq!(quota, 25_000_000_000); // 25k 🥔
+        assert_eq!(quota, 62_500_000_000); // 62.5k 🥔
         assert!(
             quota >= MAX_REWARD_MICRO,
             "single max reward must fit in quota"
@@ -5639,7 +5639,7 @@ mod tests {
         assert_eq!(MAX_WITHDRAW_SKR_ATOMS_PER_WINDOW, 100_000_000_000);
         assert_eq!(MAX_CLAIM_PROOFS, 12);
         assert_eq!(MAX_REWARD_MICRO, 1_000_000_000);
-        assert_eq!(GRANT_QUOTA_SHARE_BPS, 1_000);
+        assert_eq!(GRANT_QUOTA_SHARE_BPS, 2_500);
         assert_eq!(FEE_BURN_PERCENT, 60);
         assert_eq!(MIN_ORDER_AMOUNT_MICRO, 10_000_000);
         assert_eq!(MIN_ORDER_TOTAL_LAMPORTS, 1_000_000);

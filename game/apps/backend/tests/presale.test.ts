@@ -132,17 +132,17 @@ test('пак сверх потолка выдачи отклоняется с в
   assert.deepEqual(emptyProblems, ['пустой состав: выдавать нечего']);
 });
 
-test('квота выдачи — физика, а не настройка: 25 000 POTATO в сутки, 25 паков', () => {
-  // 10 % от капа эпохи 250 000 POTATO.
-  assert.equal(dailyGrantQuotaMicro(), 25_000n * MICRO);
+test('квота выдачи — физика, а не настройка: 62 500 POTATO в сутки, 62 пака', () => {
+  // 25 % от капа эпохи 250 000 POTATO.
+  assert.equal(dailyGrantQuotaMicro(), 62_500n * MICRO);
   for (const pack of PACKS) {
-    assert.equal(packsPerDay(pack), 25, `пак ${pack.id}: ожидалось 25 паков в сутки`);
+    assert.equal(packsPerDay(pack), 62, `пак ${pack.id}: ожидалось 62 пака в сутки`);
   }
-  // Тираж в 100 паков физически выдаётся за 4 суток, а не за день.
-  assert.equal(deliveryDays(PACKS[0], 100), 4);
-  assert.equal(deliveryDays(PACKS[0], 25), 1);
-  // 26 паков — уже двое суток: округление вверх, обещать «1 день» было бы враньём.
-  assert.equal(deliveryDays(PACKS[0], 26), 2);
+  // Тираж в 100 паков физически выдаётся за 2 суток, а не за день.
+  assert.equal(deliveryDays(PACKS[0], 100), 2);
+  assert.equal(deliveryDays(PACKS[0], 62), 1);
+  // 63 пака — уже двое суток: округление вверх, обещать «1 день» было бы враньём.
+  assert.equal(deliveryDays(PACKS[0], 63), 2);
   assert.equal(deliveryDays({ fields: [] }, 10), Number.POSITIVE_INFINITY);
 });
 

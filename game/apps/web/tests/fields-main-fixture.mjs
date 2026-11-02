@@ -55,11 +55,11 @@ createRoot(document.getElementById('root')).render(<div className="pf-phone-chas
     entryPoints: [entry], bundle: true, format: 'esm', platform: 'browser', target: 'es2020',
     outfile: join(dir, 'out/main.js'), publicPath: '/__fields/', metafile: true, minify: true,
     jsx: 'automatic', loader: { '.woff2': 'file', '.woff': 'file' },
-    define: { 'process.env.NODE_ENV': '"production"', 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true' },
+    define: { 'process.env.NODE_ENV': '"production"', 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'true', 'import.meta.env.VITE_BACKEND_URL': '""' },
     nodePaths: [resolve(src, '../../../node_modules')],
     plugins: [{ name: 'local-provider-spies', setup(builder) {
       builder.onResolve({ filter: /contexts\/(GameContext|SolanaContext)$/ }, args => ({ path: args.path.endsWith('GameContext') ? game : solana }))
-      builder.onResolve({ filter: /\.\/(PresaleSection|Header)$/ }, () => ({ path: blank }))
+      builder.onResolve({ filter: /\.\/(PresaleSection|Header|StoreSection)$/ }, () => ({ path: blank }))
       builder.onResolve({ filter: /^\/(ares|sfx|models)\// }, args => ({ path: args.path, external: true }))
     } }],
   })

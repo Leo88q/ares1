@@ -743,9 +743,7 @@ export default {
   '−1 % продавцу на сделках приглашённого — на каждой покупке': '−1% ke penjual pada transaksi tamu undangan — di setiap pembelian',
   'ДО ПЕРВОГО ПОЛЯ · ЧЕСТНЫЙ СТАТУС': 'SEBELUM LADANG PERTAMA · STATUS JUJUR',
   'DEVNET · НАСТОЯЩИЕ ON-CHAIN-ЭКРАНЫ': 'DEVNET · LAYAR ON-CHAIN NYATA',
-  'Первое обычное поле стоит {amount} тестовых POTATO. Для создания аккаунта также нужен SOL на rent и сетевую комиссию; ниже показана текущая оценка rent из RPC. Публичной выдачи POTATO нет, но участникам devnet-беты оператор выдаёт один стартовый набор на первое поле вручную: передай адрес подключённого кошелька оператору беты. Покупка за SKR закрыта: не отправляй деньги и не используй mainnet ради теста.': 'Bidang biasa pertama berharga {amount} POTATO uji. Untuk membuat akun kamu juga membutuhkan SOL untuk rent dan biaya jaringan; perkiraan rent RPC saat ini ditampilkan di bawah. Tidak ada pemberian POTATO publik, tetapi operator beta devnet secara manual memberikan satu paket awal untuk bidang pertama kepada peserta beta: kirimkan alamat dompet yang terhubung kepada operator beta. Pembelian dengan SKR ditutup: jangan kirim uang dan jangan gunakan mainnet untuk pengujian.',
   'ЛАБ и статус колонии можно осмотреть без кошелька; это просмотр реальных экранов, не тренировочная игра и не сохраняемая игровая сессия.': 'Lab dan status koloni dapat dilihat tanpa menghubungkan dompet; ini layar produk nyata, bukan mode latihan atau sesi permainan yang tersimpan.',
-  'Стартовый набор на первое поле выдаёт оператор devnet-беты вручную по адресу кошелька. Публичного крана POTATO нет; не покупай токены ради теста.': 'Operator beta devnet secara manual memberikan paket awal untuk bidang pertama ke alamat dompet Anda. Tidak ada faucet POTATO publik; jangan membeli token hanya untuk menguji.',
 
   'Текущий rent для Field account ({bytes} байт): {amount} SOL. Комиссия сети и другие создаваемые аккаунты отдельно.': 'Rent terkini untuk akun Field ({bytes} byte): {amount} SOL. Biaya jaringan dan akun lain yang dibuat dihitung terpisah.',
   'RPC не вернул оценку rent. Не подтверждай транзакцию, если расход неясен.': 'RPC tidak memberikan estimasi rent. Jangan setujui transaksi jika biayanya tidak jelas.',
@@ -812,5 +810,29 @@ export default {
 
   'ПОЛУЧИТЬ БЕСПЛАТНЫЙ STARTER И СОЗДАТЬ COLONY': 'KLAIM STARTER GRATIS DAN BUAT COLONY',
   'Бесплатный старт: одна Colony на кошелёк после проверки активного Field. Покупка и транзакция не нужны.': 'Mulai gratis: satu Colony per dompet setelah verifikasi Field aktif. Tidak perlu pembelian atau transaksi.',
+
+  // Магазин полей: вход без деплоя и витрина паков.
+  'МАГАЗИН ПОЛЕЙ': 'TOKO LAHAN',
+  'ВХОД БЕСПЛАТНЫЙ': 'MASUK GRATIS',
+  'Стартовый набор 250 POTATO выдаётся один раз на кошелёк подписантом оператора. Ежедневный бонус 7 POTATO — один раз в UTC-сутки. Реферальных наград нет.': 'Paket awal 250 POTATO diberikan sekali per dompet oleh penanda tangan operator. Bonus harian 7 POTATO sekali per hari UTC. Tidak ada hadiah referral.',
+  'ПОЛУЧИТЬ СТАРТОВЫЙ НАБОР': 'AMBIL PAKET AWAL',
+  'Отправляем…': 'Mengirim…',
+  'Получить ежедневные 7 POTATO': 'Ambil 7 POTATO harian',
+  'Подключи кошелёк, чтобы получить бесплатный стартовый набор.': 'Hubungkan dompet untuk mengambil paket awal gratis.',
+  'Витрина недоступна: бэкенд не ответил. Это не ошибка кошелька.': 'Toko tidak tersedia: backend tidak merespons. Ini bukan kesalahan dompet.',
+  'Загружаем каталог…': 'Memuat katalog…',
+  'ПРОДАЖИ ОТКРЫТЫ': 'PENJUALAN TERBUKA',
+  'ВИТРИНА ЗАКРЫТА': 'TOKO TUTUP',
+  'Оплата паков доступна. Все суммы в POTATO.': 'Pembelian paket tersedia. Semua jumlah dalam POTATO.',
+  'Покупка паков за POTATO ещё не включена. Состав и цена показаны честно, кнопки оплаты нет.': 'Pembelian paket dengan POTATO belum diaktifkan. Isi dan harga ditampilkan jujur; tidak ada tombol pembayaran.',
+  'Стартовый набор выдан: 250 POTATO.': 'Paket awal diberikan: 250 POTATO.',
+  'Ежедневный бонус выдан: 7 POTATO.': 'Bonus harian diberikan: 7 POTATO.',
+  'Стартовый набор уже выдан этому кошельку.': 'Paket awal sudah diberikan ke dompet ini.',
+  'Ежедневный бонус уже получен сегодня.': 'Bonus harian sudah diambil hari ini.',
+  'Кулдаун: повтори через 15 секунд.': 'Cooldown: coba lagi dalam 15 detik.',
+  'Выдача недоступна: рельса наград не включена на этом окружении.': 'Pemberian tidak tersedia: jalur hadiah tidak diaktifkan di lingkungan ini.',
+  'Не удалось выдать набор. Попробуй позже.': 'Gagal memberikan paket. Coba lagi nanti.',
+  'Первое обычное поле стоит {amount} тестовых POTATO. Для создания аккаунта также нужен SOL на rent и сетевую комиссию; ниже показана текущая оценка rent из RPC. Стартовый набор 250 POTATO выдаётся бесплатно один раз на кошелёк кнопкой в магазине выше: покупка за SKR закрыта, не отправляй деньги и не используй mainnet ради теста.': 'Lahan umum pertama berharga {amount} POTATO uji. Membuat akun juga memerlukan SOL untuk rent dan biaya jaringan; estimasi rent dari RPC ditampilkan di bawah. Paket awal 250 POTATO diberikan gratis sekali per dompet dengan tombol di toko di atas: pembelian SKR ditutup, jangan kirim uang dan jangan gunakan mainnet untuk uji.',
+  'Стартовый набор 250 POTATO выдаёт подписант оператора devnet-беты по адресу кошелька — один раз на кошелёк. Публичного крана POTATO нет; не покупай токены ради теста.': 'Paket awal 250 POTATO diberikan oleh penanda tangan operator devnet ke alamat dompet — sekali per dompet. Tidak ada faucet POTATO publik; jangan beli token untuk uji.',
 
 }

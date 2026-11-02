@@ -743,9 +743,7 @@ export default {
   '−1 % продавцу на сделках приглашённого — на каждой покупке': '−1% cho người bán trong giao dịch của khách được mời — ở mỗi lần mua',
   'ДО ПЕРВОГО ПОЛЯ · ЧЕСТНЫЙ СТАТУС': 'TRƯỚC Ô ĐẤT ĐẦU TIÊN · TRẠNG THÁI MINH BẠCH',
   'DEVNET · НАСТОЯЩИЕ ON-CHAIN-ЭКРАНЫ': 'DEVNET · GIAO DIỆN ON-CHAIN THẬT',
-  'Первое обычное поле стоит {amount} тестовых POTATO. Для создания аккаунта также нужен SOL на rent и сетевую комиссию; ниже показана текущая оценка rent из RPC. Публичной выдачи POTATO нет, но участникам devnet-беты оператор выдаёт один стартовый набор на первое поле вручную: передай адрес подключённого кошелька оператору беты. Покупка за SKR закрыта: не отправляй деньги и не используй mainnet ради теста.': 'Cánh đồng thông thường đầu tiên có giá {amount} POTATO thử nghiệm. Để tạo tài khoản, bạn cũng cần SOL để trả rent và phí mạng; ước tính rent hiện tại từ RPC được hiển thị bên dưới. Không có đợt phát POTATO công khai, nhưng nhà điều hành beta devnet cấp thủ công một gói khởi đầu cho cánh đồng đầu tiên cho người tham gia beta: gửi địa chỉ ví đã kết nối của bạn cho nhà điều hành beta. Mua bằng SKR đã đóng: không gửi tiền và không dùng mainnet để thử nghiệm.',
   'ЛАБ и статус колонии можно осмотреть без кошелька; это просмотр реальных экранов, не тренировочная игра и не сохраняемая игровая сессия.': 'Bạn có thể xem Lab và trạng thái thuộc địa mà không cần kết nối ví; đây là giao diện sản phẩm thật, không phải chế độ tập luyện hay phiên chơi được lưu.',
-  'Стартовый набор на первое поле выдаёт оператор devnet-беты вручную по адресу кошелька. Публичного крана POTATO нет; не покупай токены ради теста.': 'Nhà điều hành beta devnet cấp thủ công gói khởi đầu cho cánh đồng đầu tiên vào địa chỉ ví của bạn. Không có faucet POTATO công khai; đừng mua token chỉ để thử nghiệm.',
 
   'Текущий rent для Field account ({bytes} байт): {amount} SOL. Комиссия сети и другие создаваемые аккаунты отдельно.': 'Rent hiện tại của tài khoản Field ({bytes} byte): {amount} SOL. Phí mạng và các tài khoản khác được tạo sẽ tính riêng.',
   'RPC не вернул оценку rent. Не подтверждай транзакцию, если расход неясен.': 'RPC không trả về ước tính rent. Đừng phê duyệt giao dịch nếu chi phí chưa rõ.',
@@ -812,5 +810,29 @@ export default {
 
   'ПОЛУЧИТЬ БЕСПЛАТНЫЙ STARTER И СОЗДАТЬ COLONY': 'NHẬN STARTER MIỄN PHÍ VÀ TẠO COLONY',
   'Бесплатный старт: одна Colony на кошелёк после проверки активного Field. Покупка и транзакция не нужны.': 'Bắt đầu miễn phí: mỗi ví nhận một Colony sau khi xác minh Field đang hoạt động. Không cần mua hoặc gửi giao dịch.',
+
+  // Магазин полей: вход без деплоя и витрина паков.
+  'МАГАЗИН ПОЛЕЙ': 'CỬA HÀNG RUỘNG',
+  'ВХОД БЕСПЛАТНЫЙ': 'VÀO CỬA MIỄN PHÍ',
+  'Стартовый набор 250 POTATO выдаётся один раз на кошелёк подписантом оператора. Ежедневный бонус 7 POTATO — один раз в UTC-сутки. Реферальных наград нет.': 'Gói khởi đầu 250 POTATO được trao một lần cho mỗi ví bởi người ký của nhà vận hành. Thưởng hằng ngày 7 POTATO một lần mỗi ngày UTC. Không có thưởng giới thiệu.',
+  'ПОЛУЧИТЬ СТАРТОВЫЙ НАБОР': 'NHẬN GÓI KHỞI ĐẦU',
+  'Отправляем…': 'Đang gửi…',
+  'Получить ежедневные 7 POTATO': 'Nhận 7 POTATO hằng ngày',
+  'Подключи кошелёк, чтобы получить бесплатный стартовый набор.': 'Kết nối ví để nhận gói khởi đầu miễn phí.',
+  'Витрина недоступна: бэкенд не ответил. Это не ошибка кошелька.': 'Cửa hàng không khả dụng: backend không phản hồi. Đây không phải lỗi ví.',
+  'Загружаем каталог…': 'Đang tải danh mục…',
+  'ПРОДАЖИ ОТКРЫТЫ': 'ĐANG MỞ BÁN',
+  'ВИТРИНА ЗАКРЫТА': 'CỬA HÀNG ĐÓNG',
+  'Оплата паков доступна. Все суммы в POTATO.': 'Có thể mua gói. Mọi số tiền tính bằng POTATO.',
+  'Покупка паков за POTATO ещё не включена. Состав и цена показаны честно, кнопки оплаты нет.': 'Mua gói bằng POTATO chưa được bật. Nội dung và giá được hiển thị trung thực; không có nút thanh toán.',
+  'Стартовый набор выдан: 250 POTATO.': 'Đã trao gói khởi đầu: 250 POTATO.',
+  'Ежедневный бонус выдан: 7 POTATO.': 'Đã trao thưởng hằng ngày: 7 POTATO.',
+  'Стартовый набор уже выдан этому кошельку.': 'Gói khởi đầu đã được trao cho ví này.',
+  'Ежедневный бонус уже получен сегодня.': 'Thưởng hằng ngày đã được nhận hôm nay.',
+  'Кулдаун: повтори через 15 секунд.': 'Tạm chờ: thử lại sau 15 giây.',
+  'Выдача недоступна: рельса наград не включена на этом окружении.': 'Không thể trao thưởng: tuyến thưởng chưa được bật trong môi trường này.',
+  'Не удалось выдать набор. Попробуй позже.': 'Không thể trao gói. Hãy thử lại sau.',
+  'Первое обычное поле стоит {amount} тестовых POTATO. Для создания аккаунта также нужен SOL на rent и сетевую комиссию; ниже показана текущая оценка rent из RPC. Стартовый набор 250 POTATO выдаётся бесплатно один раз на кошелёк кнопкой в магазине выше: покупка за SKR закрыта, не отправляй деньги и не используй mainnet ради теста.': 'Ruộng thường đầu tiên có giá {amount} POTATO thử nghiệm. Tạo tài khoản cũng cần SOL cho rent và phí mạng; ước tính rent hiện tại từ RPC được hiển thị bên dưới. Gói khởi đầu 250 POTATO được trao miễn phí một lần cho mỗi ví bằng nút trong cửa hàng ở trên: mua bằng SKR đã đóng, đừng gửi tiền và đừng dùng mainnet để thử.',
+  'Стартовый набор 250 POTATO выдаёт подписант оператора devnet-беты по адресу кошелька — один раз на кошелёк. Публичного крана POTATO нет; не покупай токены ради теста.': 'Gói khởi đầu 250 POTATO được người ký của nhà vận hành devnet trao cho địa chỉ ví — một lần mỗi ví. Không có faucet POTATO công khai; đừng mua token để thử.',
 
 }

@@ -50,6 +50,10 @@ export const env = {
     return v || "*"; // '*' only for local dev
   })(),
   epochRollCron: process.env.EPOCH_ROLL_CRON || "*/10 * * * *",
+
+  /** Такт авто-доставки reward_intents, в секундах. 0 = выключено (до
+   *  включения рельсы наград): никакого таймера и никаких тлеющих RPC-вызовов. */
+  rewardDeliveryIntervalSeconds: parseInt(process.env.REWARD_DELIVERY_INTERVAL_SECONDS || "0", 10),
   /** Express "trust proxy" setting.
    *
    *  Раньше по умолчанию возвращалось 1 — и прямой доступ к API позволял

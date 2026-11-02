@@ -743,9 +743,7 @@ export default {
   '−1 % продавцу на сделках приглашённого — на каждой покупке': '−1% sa nagbenta sa mga trade ng imbitado — sa bawat bili',
   'ДО ПЕРВОГО ПОЛЯ · ЧЕСТНЫЙ СТАТУС': 'BAGO ANG UNANG FIELD · TAPAT NA STATUS',
   'DEVNET · НАСТОЯЩИЕ ON-CHAIN-ЭКРАНЫ': 'DEVNET · TOTOONG ON-CHAIN NA MGA SCREEN',
-  'Первое обычное поле стоит {amount} тестовых POTATO. Для создания аккаунта также нужен SOL на rent и сетевую комиссию; ниже показана текущая оценка rent из RPC. Публичной выдачи POTATO нет, но участникам devnet-беты оператор выдаёт один стартовый набор на первое поле вручную: передай адрес подключённого кошелька оператору беты. Покупка за SKR закрыта: не отправляй деньги и не используй mainnet ради теста.': 'Ang unang regular na bukid ay nagkakahalaga ng {amount} test POTATO. Para gumawa ng account kailangan mo rin ng SOL para sa rent at bayarin sa network; nasa ibaba ang kasalukuyang tantiyang rent mula sa RPC. Walang pampublikong pagbibigay ng POTATO, pero manwal na nagbibigay ang operator ng devnet beta ng isang starter grant para sa unang bukid sa mga kalahok: Ipadala ang address ng nakakonektang wallet sa operator ng beta. Sarado ang pagbili ng SKR: huwag magpadala ng pera at huwag gumamit ng mainnet para sa pagsubok.',
   'ЛАБ и статус колонии можно осмотреть без кошелька; это просмотр реальных экранов, не тренировочная игра и не сохраняемая игровая сессия.': 'Maaari mong tingnan ang Lab at status ng colony nang walang wallet; totoong mga screen ito, hindi training mode o naka-save na session ng laro.',
-  'Стартовый набор на первое поле выдаёт оператор devnet-беты вручную по адресу кошелька. Публичного крана POTATO нет; не покупай токены ради теста.': 'Manwal na ibinibigay ng operator ng devnet beta ang starter grant para sa unang bukid sa address ng wallet mo. Walang pampublikong POTATO faucet; huwag bumili ng tokens para lang sumubok.',
 
   'Текущий rent для Field account ({bytes} байт): {amount} SOL. Комиссия сети и другие создаваемые аккаунты отдельно.': 'Kasalukuyang rent ng Field account ({bytes} byte): {amount} SOL. Hiwalay ang network fee at iba pang account na gagawin.',
   'RPC не вернул оценку rent. Не подтверждай транзакцию, если расход неясен.': 'Walang ibinalik na rent estimate ang RPC. Huwag aprubahan ang transaksyon kung hindi malinaw ang gastos.',
@@ -812,5 +810,29 @@ export default {
 
   'ПОЛУЧИТЬ БЕСПЛАТНЫЙ STARTER И СОЗДАТЬ COLONY': 'I-CLAIM ANG LIBRENG STARTER AT GUMAWA NG COLONY',
   'Бесплатный старт: одна Colony на кошелёк после проверки активного Field. Покупка и транзакция не нужны.': 'Libreng pagsisimula: isang Colony bawat wallet pagkatapos ma-verify ang aktibong Field. Walang kailangang bilhin o i-transact.',
+
+  // Магазин полей: вход без деплоя и витрина паков.
+  'МАГАЗИН ПОЛЕЙ': 'TINDAHAN NG BUKID',
+  'ВХОД БЕСПЛАТНЫЙ': 'LIBRENG PASOK',
+  'Стартовый набор 250 POTATO выдаётся один раз на кошелёк подписантом оператора. Ежедневный бонус 7 POTATO — один раз в UTC-сутки. Реферальных наград нет.': 'Ang 250 POTATO starter pack ay ibinibigay isang beses kada wallet ng signer ng operator. Ang 7 POTATO daily bonus ay isang beses kada araw ng UTC. Walang referral na gantimpala.',
+  'ПОЛУЧИТЬ СТАРТОВЫЙ НАБОР': 'KUNIN ANG STARTER PACK',
+  'Отправляем…': 'Ipinapadala…',
+  'Получить ежедневные 7 POTATO': 'Kunin ang araw-araw na 7 POTATO',
+  'Подключи кошелёк, чтобы получить бесплатный стартовый набор.': 'Ikonekta ang wallet para makuha ang libreng starter pack.',
+  'Витрина недоступна: бэкенд не ответил. Это не ошибка кошелька.': 'Hindi available ang tindahan: walang sagot ang backend. Hindi ito error ng wallet.',
+  'Загружаем каталог…': 'Nilo-load ang katalogo…',
+  'ПРОДАЖИ ОТКРЫТЫ': 'BUKAS ANG BENTAHAN',
+  'ВИТРИНА ЗАКРЫТА': 'SARADO ANG TINDAHAN',
+  'Оплата паков доступна. Все суммы в POTATO.': 'Available ang pagbili ng pack. Lahat ng halaga ay sa POTATO.',
+  'Покупка паков за POTATO ещё не включена. Состав и цена показаны честно, кнопки оплаты нет.': 'Hindi pa naka-enable ang pagbili ng pack gamit ang POTATO. Tapat na ipinapakita ang nilalaman at presyo; walang payment button.',
+  'Стартовый набор выдан: 250 POTATO.': 'Naibigay ang starter pack: 250 POTATO.',
+  'Ежедневный бонус выдан: 7 POTATO.': 'Naibigay ang daily bonus: 7 POTATO.',
+  'Стартовый набор уже выдан этому кошельку.': 'Naibigay na ang starter pack sa wallet na ito.',
+  'Ежедневный бонус уже получен сегодня.': 'Nakuha na ang daily bonus ngayong araw.',
+  'Кулдаун: повтори через 15 секунд.': 'Cooldown: subukan muli pagkatapos ng 15 segundo.',
+  'Выдача недоступна: рельса наград не включена на этом окружении.': 'Hindi available ang pagbibigay: hindi naka-enable ang rewards rail sa environment na ito.',
+  'Не удалось выдать набор. Попробуй позже.': 'Hindi naibigay ang pack. Subukan muli mamaya.',
+  'Первое обычное поле стоит {amount} тестовых POTATO. Для создания аккаунта также нужен SOL на rent и сетевую комиссию; ниже показана текущая оценка rent из RPC. Стартовый набор 250 POTATO выдаётся бесплатно один раз на кошелёк кнопкой в магазине выше: покупка за SKR закрыта, не отправляй деньги и не используй mainnet ради теста.': 'Ang unang karaniwang bukid ay nagkakahalaga ng {amount} test POTATO. Kailangan din ng SOL para sa rent at network fee para magawa ang account; ang kasalukuyang rent estimate mula sa RPC ay nasa ibaba. Ang 250 POTATO starter pack ay libreng ibinibigay isang beses kada wallet gamit ang button sa tindahan sa itaas: sarado ang pagbili ng SKR, huwag magpadala ng pera at huwag gumamit ng mainnet para sa test.',
+  'Стартовый набор 250 POTATO выдаёт подписант оператора devnet-беты по адресу кошелька — один раз на кошелёк. Публичного крана POTATO нет; не покупай токены ради теста.': 'Ang 250 POTATO starter pack ay ibinibigay ng devnet operator signer sa address ng wallet — isang beses kada wallet. Walang pampublikong POTATO faucet; huwag bumili ng token para sa test.',
 
 }

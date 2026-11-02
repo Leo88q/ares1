@@ -202,6 +202,24 @@ permissionless epoch roller, signed by a dedicated payer. HTTP responses are JSO
 | `GET /ready` | `{ready:true}` after reading config | 503 `{ready:false}` |
 | `GET /health` | `{ok,slot,epochId,paused,payer,payerSol,uptime}` | 503 with generic dependency error |
 | `GET /api/config` | Config + current epoch snapshot; u64 amounts as decimal strings | 503 with generic error |
+| `GET /api/store` | `{enabled, reason, currency:"POTATO", packs[]}` — каталог паков из тех же данных, что и выдача | Никогда не 5xx: при закрытых продажах `enabled:false` + `reason` |
+| `GET /api/rewards/status` | `{enabled, reason, rewardSigner, starter, daily}` | 200 всегда: состояние, а не действие |
+| `POST /api/rewards/starter` | `201 {ok,kind,wallet,amountMicro,signature}` (250 POTATO, один раз на кошелёк) | `400 BAD_WALLET`, `409 ALREADY_GRANTED`, `429 COOLDOWN`, `503 NOT_ENABLED`, `503 BUDGET_EXHAUSTED`, `502 GRANT_FAILED` |
+| `POST /api/rewards/daily` | `201` — 7 POTATO, один раз в UTC-сутки | те же коды, что у `starter` |
+
+Тело `POST /api/rewards/*` — `{ "wallet": "<base58>" }`; ключи и секреты не
+принимаются. Оба эндпоинта платят за счёт отдельного `reward_signer`
+(не authority и не epoch-payer), подпись проверяется по ончейн-конфигу перед
+отправкой, а транзакция симулируется перед подписью. `nonce` детерминирован
+(`sha256("starter:"+wallet)` / `sha256("daily:<utcDay>:"+wallet)`, первый u64 LE),
+поэтому повтор запроса не создаёт второй грант: PDA `[b"reward", ata, nonce]`
+уже существует, и клиент получает `409`. Мягкие бюджеты — 20 000 POTATO в сутки
+на каждый вид гранта, кулдаун 15 с на кошелёк.
+
+`/api/store` — витрина без БД. `packs[].fields` содержит `{type,count,name}`,
+`potatoMicro` — строка микро-POTATO, `potato` — целая часть. `enabled` — тот же
+гейт, что у платежей (`USER_PRESALE_PAYMENTS_ENABLED` + одобрение сети), поэтому
+витрина не выглядит покупаемой до запуска.
 
 `/api/config` returns authority, potatoMint, maxSupplyMicro, dailyMintCapMicro,
 baseYieldMicroPerDay, globalMultiplierBps, fieldCount, epochId, totalBurnedMicro,
@@ -219,5 +237,13 @@ Required backend env: `RPC_URL`, `PROGRAM_ID`, `PAYER_KEYPAIR_JSON` (path).
 `CORS_ORIGIN` is required in production; set explicit origins, never `*`.
 Optional: `PORT=8080`, `EPOCH_ROLL_CRON=*/10 * * * *`, `RATE_LIMIT_PER_MINUTE=30`,
 `TRUST_PROXY=1`.
+
+Rewards rail (off by default): `REWARD_KEYPAIR_JSON` (path to a `solana-keygen`
+JSON or inline array) holds the dedicated `reward_signer`; the rail stays off
+while `REWARDS_RAIL_ENABLED=false` in `src/launchGates.ts`, when the key is
+absent, and on mainnet unless `NODE_ENV=production` and
+`REWARDS_MAINNET_APPROVED=true`. `REWARD_DELIVERY_INTERVAL_SECONDS` (default `0`
+= worker off) starts the `reward_intents` delivery worker; it needs `game_ops`
+and recovers an already-sent grant from the claim PDA instead of re-sending it.
 See [OPERATIONS.md](OPERATIONS.md) for deployment, key inventory and incident response.
 Watchtower endpoints and persistent analytics are **not implemented** in this package.
