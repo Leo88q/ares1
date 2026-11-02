@@ -517,8 +517,10 @@ pub mod solana_potato {
         // P2-8: без этой проверки пустой пул давал SPL-ошибку «insufficient
         // funds» из недр token::transfer: игрок и поддержка видели непонятный
         // отказ без причины. Теперь причина названа до CPI, а весь откат
-        // (включая бит достижения) делает рантайм.
-        require!(ctx.accounts.quest_ata.amount >= reward, GameError::QuestPoolEmpty);
+        // (включая бит достижения) делает рантайм. Имя короткое намеренно:
+        // rustfmt держит однострочную форму require! только в этих границах.
+        let quest_balance = ctx.accounts.quest_ata.amount;
+        require!(quest_balance >= reward, GameError::QuestPoolEmpty);
         let (_, t_bump) = Pubkey::find_program_address(&[b"quest_treasury"], ctx.program_id);
         token::transfer(
             CpiContext::new_with_signer(
