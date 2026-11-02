@@ -97,8 +97,8 @@ test('A2: платежные ATA привязаны к подписанту (tok
   assert.ok(count(libRs, 'token::authority = buyer') >= 1);
 });
 
-test('B7/B8/F-01: платный RNG только на верхнем уровне (assert_no_cpi_grind ×2)', () => {
-  assert.equal(count(libRs, 'assert_no_cpi_grind()?;'), 2);
+test('B7/B8/F-01/P2-5: CPI-grind запрещён и в платном RNG, и в листинге (assert_no_cpi_grind ×5)', () => {
+  assert.equal(count(libRs, 'assert_no_cpi_grind()?;'), 5);
   assert.ok(libRs.includes('fn assert_no_cpi_grind()'));
   // Обе платно-рандомные инструкции вызывают guard ДО перевода средств.
   for (const fn of ['pub fn buy_field_skr', 'pub fn upgrade_field']) {
@@ -107,6 +107,15 @@ test('B7/B8/F-01: платный RNG только на верхнем уровн
     const guard = libRs.indexOf('assert_no_cpi_grind()?;', at);
     const transfer = libRs.indexOf('token::transfer(', at);
     assert.ok(guard > at && guard < transfer, `guard в ${fn} должен стоять до CPI`);
+  }
+  // P2-5: эти инструкции создают игроку состояние (поле, ордер) и горят его
+  // POTATO — через CPI сторонний контракт навязал бы их без ведома игрока.
+  // Guard обязан стоять первым оператором тела, до любых проверок и мутаций.
+  for (const fn of ['pub fn create_field', 'pub fn create_sell_order(', 'pub fn create_sell_order_v2']) {
+    const at = libRs.indexOf(fn);
+    assert.ok(at > 0, `${fn} отсутствует`);
+    const guard = libRs.indexOf('assert_no_cpi_grind()?;', at);
+    assert.ok(guard > at && guard - at < 400, `guard в ${fn} должен стоять первым оператором`);
   }
 });
 

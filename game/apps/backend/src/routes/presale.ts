@@ -325,11 +325,17 @@ export function presaleRouter(pool: Pool, config: GameOpsConfig, deps: PresaleDe
       if (run.currency === 'skr') {
         const view = await views.fetchTokenPaymentView(deps.connection, signature);
         if (!view) throw new GameOpsError('VALIDATION', 'Транзакция не найдена в цепи', undefined, 404);
-        check = verifyTokenRefund(view, { wallet: order.payer_wallet, mint: skrMintOf(run), amount });
+        // `run.treasury` для SKR-тиража — это ATA казны: деньги на возврат
+        // обязаны уйти именно с него, а не с любого аккаунта той же суммы.
+        check = verifyTokenRefund(view, {
+          wallet: order.payer_wallet, mint: skrMintOf(run), amount, source: run.treasury,
+        });
       } else {
         const view = await views.fetchPaymentView(deps.connection, signature);
         if (!view) throw new GameOpsError('VALIDATION', 'Транзакция не найдена в цепи', undefined, 404);
-        check = verifySolRefund(view, { wallet: order.payer_wallet, amount, notBefore });
+        check = verifySolRefund(view, {
+          wallet: order.payer_wallet, amount, notBefore, source: run.treasury,
+        });
       }
       if (!check.ok) {
         throw new GameOpsError('VALIDATION', `Возврат не подтверждён цепью: ${check.detail}`, check.code, 400);

@@ -40,12 +40,51 @@ function tokenCredit(
   return { received, accounts: posts.length };
 }
 
+/**
+ * Сколько ушло с аккаунта-источника (SOL). `null` — аккаунта нет в транзакции.
+ *
+ * Возврат обязан финансироваться казной проекта. Без этой проверки
+ * доказательством «мы вернули деньги» становился ЛЮБОЙ входящий перевод той же
+ * суммы тому же кошельку — от другого игрока, из стороннего сервиса или вообще
+ * из собственной транзакции покупателя. Оператор закрывал заказ как `refunded`,
+ * фактически не заплатив из казны.
+ */
+function solDebit(view: ChainTransferView, source: string): bigint | null {
+  const index = view.accountKeys.findIndex(key => key === source);
+  if (index < 0) return null;
+  const pre = view.preBalances[index];
+  const post = view.postBalances[index];
+  if (pre === undefined || post === undefined) return null;
+  return pre - post;
+}
+
+/** Сколько ушло с токен-аккаунта казны (SKR), суммарно по всем его записям. */
+function tokenDebit(
+  view: ChainTokenTransferView,
+  owner: string,
+  mint: string,
+): bigint | null {
+  const pres = view.preTokenBalances.filter(b => b.owner === owner && b.mint === mint);
+  if (pres.length === 0) return null;
+  let debited = 0n;
+  for (const pre of pres) {
+    const post = view.postTokenBalances.find(
+      b => b.accountIndex === pre.accountIndex && b.mint === mint,
+    );
+    // Аккаунт мог быть закрыт в этой же транзакции: тогда с него ушло всё.
+    debited += pre.amount - (post?.amount ?? 0n);
+  }
+  return debited;
+}
+
 export type PayoutErrorCode =
   | 'NOT_FINALIZED'
   | 'TX_FAILED'
   | 'WALLET_NOT_INVOLVED'
   | 'AMOUNT_MISMATCH'
-  | 'TOO_EARLY';
+  | 'TOO_EARLY'
+  /** Деньги пришли не из казны проекта: подойдёт любой перевод той же суммы. */
+  | 'SOURCE_NOT_TREASURY';
 
 export interface PayoutCheck {
   ok: boolean;
@@ -78,7 +117,7 @@ function decide(received: bigint, expected: bigint, walletInvolved: boolean): Pa
 /** SOL: приток лампортов на кошелёк покупателя (комиссию платит отправитель). */
 export function verifySolRefund(
   view: ChainTransferView,
-  expect: { wallet: string; amount: bigint; notBefore?: bigint | null },
+  expect: { wallet: string; amount: bigint; notBefore?: bigint | null; source: string },
 ): PayoutCheck {
   if (view.confirmation !== 'finalized') {
     return { ok: false, code: 'NOT_FINALIZED', received: 0n, detail: `статус ${view.confirmation}, нужен finalized` };
@@ -102,13 +141,32 @@ export function verifySolRefund(
   if (pre === undefined || post === undefined) {
     return { ok: false, code: 'WALLET_NOT_INVOLVED', received: 0n, detail: 'нет балансов кошелька покупателя' };
   }
-  return decide(post - pre, expect.amount, true);
+  const received = post - pre;
+  // Сначала — получил ли покупатель причитающееся: это первичный факт, и
+  // оператору нужен именно он. Источник проверяем только у суммы, которая уже
+  // сошлась, иначе «чужой перевод на ту же сумму» прошёл бы как возврат.
+  const buyer = decide(received, expect.amount, true);
+  if (!buyer.ok) return buyer;
+  const debited = solDebit(view, expect.source);
+  if (debited === null) {
+    return {
+      ok: false, code: 'SOURCE_NOT_TREASURY', received,
+      detail: `казна ${expect.source} не участвует в транзакции`,
+    };
+  }
+  if (debited < expect.amount) {
+    return {
+      ok: false, code: 'SOURCE_NOT_TREASURY', received,
+      detail: `казна отдала ${debited}, ожидалось не меньше ${expect.amount}`,
+    };
+  }
+  return buyer;
 }
 
 /** SKR: приток токена на кошелёк покупателя в нужном минте. */
 export function verifyTokenRefund(
   view: ChainTokenTransferView,
-  expect: { wallet: string; mint: string; amount: bigint },
+  expect: { wallet: string; mint: string; amount: bigint; source: string },
 ): PayoutCheck {
   if (view.confirmation !== 'finalized') {
     return { ok: false, code: 'NOT_FINALIZED', received: 0n, detail: `статус ${view.confirmation}, нужен finalized` };
@@ -123,7 +181,23 @@ export function verifyTokenRefund(
       detail: `у кошелька ${expect.wallet} нет баланса в минте ${expect.mint} в этой транзакции`,
     };
   }
-  return decide(inflow.received, expect.amount, true);
+  const buyer = decide(inflow.received, expect.amount, true);
+  if (!buyer.ok) return buyer;
+  // `source` — токен-аккаунт казны (ATA), а не кошелёк: именно с него уходят SKR.
+  const debited = tokenDebit(view, expect.source, expect.mint);
+  if (debited === null) {
+    return {
+      ok: false, code: 'SOURCE_NOT_TREASURY', received: inflow.received,
+      detail: `токен-аккаунт казны ${expect.source} не участвует в транзакции`,
+    };
+  }
+  if (debited < expect.amount) {
+    return {
+      ok: false, code: 'SOURCE_NOT_TREASURY', received: inflow.received,
+      detail: `казна отдала ${debited}, ожидалось не меньше ${expect.amount}`,
+    };
+  }
+  return buyer;
 }
 
 export interface RefundSettlementInput {

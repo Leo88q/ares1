@@ -49,20 +49,29 @@ const config: GameOpsConfig = {
 
 /** Снимок транзакции возврата: деньги уходят покупателю, казначейство платит. */
 function solRefundView(received: bigint, overrides: Partial<ChainTransferView> = {}): ChainTransferView {
+  // Казна платит (её баланс падает на сумму возврата + комиссию), покупатель
+  // получает ровно `received`. Проверка источника требует именно этого.
   return {
     signature: REFUND_TX,
     slot: 200n,
     blockTime: BigInt(NOW),
     err: null,
     accountKeys: [TREASURY, PAYER],
-    preBalances: [0n, 1_000_000_000n],
-    postBalances: [received + 5_000n, 1_000_000_000n + received],
+    preBalances: [10_000_000_000n, 1_000_000_000n],
+    postBalances: [10_000_000_000n - received - 5_000n, 1_000_000_000n + received],
     confirmation: 'finalized',
     ...overrides,
   };
 }
 
-function tokenView(after: bigint[], before: bigint[] = [0n, 0n]): ChainTokenTransferView {
+function tokenView(
+  after: bigint[],
+  before: bigint[] = [0n, 0n],
+  treasuryAfter: bigint | null = null,
+): ChainTokenTransferView {
+  // Индекс 0 — токен-аккаунт казны (ATA), 1 и 2 — два ATA покупателя.
+  const credited = (after[0] ?? 0n) - (before[0] ?? 0n) + (after[1] ?? 0n) - (before[1] ?? 0n);
+  const treasuryBefore = 10_000_000_000n;
   return {
     signature: REFUND_TX,
     slot: 200n,
@@ -70,10 +79,12 @@ function tokenView(after: bigint[], before: bigint[] = [0n, 0n]): ChainTokenTran
     err: null,
     accountKeys: [TREASURY, PAYER, `${PAYER}-ata-2`],
     preTokenBalances: [
+      { accountIndex: 0, mint: MINT, owner: TREASURY, amount: treasuryBefore },
       { accountIndex: 1, mint: MINT, owner: PAYER, amount: before[0] ?? 0n },
       { accountIndex: 2, mint: MINT, owner: PAYER, amount: before[1] ?? 0n },
     ],
     postTokenBalances: [
+      { accountIndex: 0, mint: MINT, owner: TREASURY, amount: treasuryAfter ?? treasuryBefore - credited },
       { accountIndex: 1, mint: MINT, owner: PAYER, amount: after[0] ?? 0n },
       { accountIndex: 2, mint: MINT, owner: PAYER, amount: after[1] ?? 0n },
     ],
@@ -84,14 +95,14 @@ function tokenView(after: bigint[], before: bigint[] = [0n, 0n]): ChainTokenTran
 // ── Чистая проверка: направление обратное платежу ────────────────────────────
 
 test('SOL: возврат подтверждён, когда покупатель получил ровно причитающееся', () => {
-  const check = verifySolRefund(solRefundView(AMOUNT), { wallet: PAYER, amount: AMOUNT });
+  const check = verifySolRefund(solRefundView(AMOUNT), { wallet: PAYER, amount: AMOUNT, source: TREASURY });
   assert.equal(check.ok, true);
   assert.equal(check.received, AMOUNT);
 });
 
 test('SOL: недостаточно финализированная транзакция не считается возвратом', () => {
   for (const confirmation of ['processed', 'confirmed'] as const) {
-    const check = verifySolRefund(solRefundView(AMOUNT, { confirmation }), { wallet: PAYER, amount: AMOUNT });
+    const check = verifySolRefund(solRefundView(AMOUNT, { confirmation }), { wallet: PAYER, amount: AMOUNT, source: TREASURY });
     assert.equal(check.ok, false);
     assert.equal(check.code, 'NOT_FINALIZED');
   }
@@ -99,7 +110,7 @@ test('SOL: недостаточно финализированная транз�
 
 test('SOL: упавшая транзакция не возврат, даже если балансы выглядят правильно', () => {
   const check = verifySolRefund(solRefundView(AMOUNT, { err: { InstructionError: [0, 'Custom'] } }), {
-    wallet: PAYER, amount: AMOUNT,
+    wallet: PAYER, amount: AMOUNT, source: TREASURY,
   });
   assert.equal(check.ok, false);
   assert.equal(check.code, 'TX_FAILED');
@@ -107,18 +118,18 @@ test('SOL: упавшая транзакция не возврат, даже е�
 
 test('SOL: кошелёк, которого нет в транзакции, ничего не получил', () => {
   const view = solRefundView(AMOUNT, { accountKeys: [TREASURY, 'SomeOtherWallet1111111111111111111111111'] });
-  const check = verifySolRefund(view, { wallet: PAYER, amount: AMOUNT });
+  const check = verifySolRefund(view, { wallet: PAYER, amount: AMOUNT, source: TREASURY });
   assert.equal(check.ok, false);
   assert.equal(check.code, 'WALLET_NOT_INVOLVED');
 });
 
 test('SOL: недоплата и переплата — обе не «почти возврат»', () => {
-  const short = verifySolRefund(solRefundView(AMOUNT - 1n), { wallet: PAYER, amount: AMOUNT });
+  const short = verifySolRefund(solRefundView(AMOUNT - 1n), { wallet: PAYER, amount: AMOUNT, source: TREASURY });
   assert.equal(short.ok, false);
   assert.equal(short.code, 'AMOUNT_MISMATCH');
   assert.equal(short.received, AMOUNT - 1n);
   // Возврат больше причитающегося — тоже повод разобраться, а не автозакрытие.
-  const over = verifySolRefund(solRefundView(AMOUNT + 1n), { wallet: PAYER, amount: AMOUNT });
+  const over = verifySolRefund(solRefundView(AMOUNT + 1n), { wallet: PAYER, amount: AMOUNT, source: TREASURY });
   assert.equal(over.ok, false);
   assert.equal(over.code, 'AMOUNT_MISMATCH');
 });
@@ -127,12 +138,12 @@ test('SOL: старый перевод той же суммы не подмен�
   // Иначе доказательством возврата стал бы любой прошлый перевод покупателю.
   const old = verifySolRefund(
     solRefundView(AMOUNT, { blockTime: BigInt(NOW - 86_400) }),
-    { wallet: PAYER, amount: AMOUNT, notBefore: BigInt(NOW - 300) },
+    { wallet: PAYER, amount: AMOUNT, notBefore: BigInt(NOW - 300), source: TREASURY },
   );
   assert.equal(old.ok, false);
   assert.equal(old.code, 'TOO_EARLY');
   const unknownAge = verifySolRefund(solRefundView(AMOUNT, { blockTime: null }), {
-    wallet: PAYER, amount: AMOUNT, notBefore: BigInt(NOW - 300),
+    wallet: PAYER, amount: AMOUNT, notBefore: BigInt(NOW - 300), source: TREASURY,
   });
   assert.equal(unknownAge.code, 'TOO_EARLY', 'без blockTime возраст не доказан');
 });
@@ -142,7 +153,7 @@ test('SKR: склейка нескольких токен-аккаунтов п�
   // только первую запись, часть возврата выпадет из проверки и оператор
   // увидит «недоплату» там, где деньги дошли полностью.
   const check = verifyTokenRefund(tokenView([300_000_000n, 200_000_007n]), {
-    wallet: PAYER, mint: MINT, amount: AMOUNT,
+    wallet: PAYER, mint: MINT, amount: AMOUNT, source: TREASURY,
   });
   assert.equal(check.ok, true);
   assert.equal(check.received, AMOUNT);
@@ -156,16 +167,74 @@ test('SKR: нет записи владельца в нужном минте —
     ],
     preTokenBalances: [],
   };
-  const check = verifyTokenRefund(view, { wallet: PAYER, mint: MINT, amount: AMOUNT });
+  const check = verifyTokenRefund(view, { wallet: PAYER, mint: MINT, amount: AMOUNT, source: TREASURY });
   assert.equal(check.ok, false);
   assert.equal(check.code, 'WALLET_NOT_INVOLVED');
 });
 
 test('SKR: транзакция без притока покупателю — не возврат', () => {
-  const check = verifyTokenRefund(tokenView([0n, 0n]), { wallet: PAYER, mint: MINT, amount: AMOUNT });
+  const check = verifyTokenRefund(tokenView([0n, 0n]), { wallet: PAYER, mint: MINT, amount: AMOUNT, source: TREASURY });
   assert.equal(check.ok, false);
   assert.equal(check.code, 'AMOUNT_MISMATCH');
   assert.equal(check.received, 0n);
+});
+
+test('SOL: чужой перевод той же суммы не считается возвратом из казны', () => {
+  // До этой проверки доказательством служил любой входящий перевод на ту же
+  // сумму: заказ закрывался как refunded, а казна ничего не платила.
+  const strangerPays: ChainTransferView = {
+    ...solRefundView(AMOUNT),
+    // Казна в транзакции есть, но её баланс НЕ уменьшился.
+    preBalances: [10_000_000_000n, 1_000_000_000n],
+    postBalances: [10_000_000_000n, 1_000_000_000n + AMOUNT],
+  };
+  const check = verifySolRefund(strangerPays, { wallet: PAYER, amount: AMOUNT, source: TREASURY });
+  assert.equal(check.ok, false);
+  assert.equal(check.code, 'SOURCE_NOT_TREASURY');
+  assert.equal(check.received, AMOUNT, 'сумма покупателю видна, но источник не тот');
+
+  // Казна в транзакции отсутствует вовсе.
+  const noTreasury = verifySolRefund(
+    { ...strangerPays, accountKeys: ['SomeOtherWallet1111111111111111111111111', PAYER],
+      preBalances: [1n, 1_000_000_000n], postBalances: [1n, 1_000_000_000n + AMOUNT] },
+    { wallet: PAYER, amount: AMOUNT, source: TREASURY },
+  );
+  assert.equal(noTreasury.code, 'SOURCE_NOT_TREASURY');
+  assert.match(noTreasury.detail, /не участвует/);
+});
+
+test('SOL: казна заплатила меньше суммы возврата — отказ', () => {
+  // Баланс казны упал, но не на всю сумму: часть пришла от третьего лица.
+  const partial: ChainTransferView = {
+    ...solRefundView(AMOUNT),
+    preBalances: [10_000_000_000n, 1_000_000_000n],
+    postBalances: [10_000_000_000n - AMOUNT / 2n, 1_000_000_000n + AMOUNT],
+  };
+  const check = verifySolRefund(partial, { wallet: PAYER, amount: AMOUNT, source: TREASURY });
+  assert.equal(check.ok, false);
+  assert.equal(check.code, 'SOURCE_NOT_TREASURY');
+});
+
+test('SKR: возврат обязан уйти с токен-аккаунта казны', () => {
+  const ok = verifyTokenRefund(tokenView([300_000_000n, 200_000_007n]), {
+    wallet: PAYER, mint: MINT, amount: AMOUNT, source: TREASURY,
+  });
+  assert.equal(ok.ok, true, 'казна списала ровно сумму — возврат подтверждён');
+
+  // Казна списала меньше, чем получил покупатель (разницу дал кто-то ещё).
+  const partial = verifyTokenRefund(tokenView([300_000_000n, 200_000_007n], [0n, 0n], 10_000_000_000n - AMOUNT / 2n), {
+    wallet: PAYER, mint: MINT, amount: AMOUNT, source: TREASURY,
+  });
+  assert.equal(partial.ok, false);
+  assert.equal(partial.code, 'SOURCE_NOT_TREASURY');
+
+  // Токен-аккаунта казны нет в транзакции.
+  const view = { ...tokenView([300_000_000n, 200_000_007n]) };
+  const noTreasury = verifyTokenRefund(
+    { ...view, preTokenBalances: view.preTokenBalances.filter(b => b.owner !== TREASURY) },
+    { wallet: PAYER, mint: MINT, amount: AMOUNT, source: TREASURY },
+  );
+  assert.equal(noTreasury.code, 'SOURCE_NOT_TREASURY');
 });
 
 // ── HTTP-маршрут ─────────────────────────────────────────────────────────────

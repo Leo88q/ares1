@@ -416,6 +416,11 @@ pub mod solana_potato {
     // Переименование в `_field_id` изменило бы имя аргумента в IDL (ABI).
     #[allow(unused_variables)]
     pub fn create_field(ctx: Context<CreateField>, field_id: u64, field_type: u8) -> Result<()> {
+        // P2-5: только верхний уровень. Через CPI сторонний контракт создавал бы
+        // игроку поле (и сжигал его POTATO) внутри своей инструкции, а игрок
+        // видел бы только итоговую подпись — ровно тот класс «навязанных»
+        // действий, который мы запретили для платного рэндома.
+        assert_no_cpi_grind()?;
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(field_type < FIELD_TYPE_COUNT, GameError::InvalidFieldType);
 
@@ -509,6 +514,11 @@ pub mod solana_potato {
         }
         achievements.bitmap |= bit;
         let reward = QUEST_REWARD_MICRO[quest_id as usize];
+        // P2-8: без этой проверки пустой пул давал SPL-ошибку «insufficient
+        // funds» из недр token::transfer: игрок и поддержка видели непонятный
+        // отказ без причины. Теперь причина названа до CPI, а весь откат
+        // (включая бит достижения) делает рантайм.
+        require!(ctx.accounts.quest_ata.amount >= reward, GameError::QuestPoolEmpty);
         let (_, t_bump) = Pubkey::find_program_address(&[b"quest_treasury"], ctx.program_id);
         token::transfer(
             CpiContext::new_with_signer(
@@ -1169,6 +1179,9 @@ pub mod solana_potato {
         amount_micro: u64,
         price_lamports_per_potato: u64,
     ) -> Result<()> {
+        // P2-5: см. create_field — CPI позволил бы выставить ордер с ценой,
+        // которую игрок не читал, и занять его CancelCooldown.
+        assert_no_cpi_grind()?;
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(
             amount_micro >= MIN_ORDER_AMOUNT_MICRO,
@@ -1242,6 +1255,8 @@ pub mod solana_potato {
         price_quote_atoms_per_potato: u64,
         quote_asset: QuoteAsset,
     ) -> Result<()> {
+        // P2-5: V2-листинг так же недоступен через CPI.
+        assert_no_cpi_grind()?;
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(
             amount_micro >= MIN_ORDER_AMOUNT_MICRO,
@@ -5135,6 +5150,8 @@ pub enum GameError {
     InvalidSellerVolumeAccount, // 6055
     #[msg("Withdrawal exceeds the share of the treasury balance allowed per call (10 %)")]
     WithdrawShareExceeded, // 6056
+    #[msg("Quest pool is empty: the achievement reward cannot be paid right now")]
+    QuestPoolEmpty, // 6057
 }
 
 // ──────────────────────────── Tests ──────────────────────────────

@@ -6,7 +6,7 @@
     "spec": "0.1.0",
     "description": "Solana Potato game program"
   },
-  "sourceIdlSha256": "bbb2ae627670fab855534e29e2ece42b66c7ba55781c8061da6afad021fb8671",
+  "sourceIdlSha256": "9ae345e072655dcfa647435dd36a5435d96fb7fb716fdc783599e11b6b9692b7",
   "events": [
     {
       "name": "AchievementClaimed",

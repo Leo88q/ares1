@@ -128,7 +128,10 @@ harvests.
 
 ## Player instructions
 
-- `create_field`: field type 0/1/2; burns 100/250/500 POTATO.
+- `create_field`: field type 0/1/2; burns 100/250/500 POTATO. Top-level only:
+  a CPI caller gets `CpiGrindNotAllowed` (6041) — an external contract must not
+  be able to buy a field (and burn the player's POTATO) inside its own
+  instruction.
 - `harvest`: owned active field, ≥60s interval, ≤**7 days** accrual
   (`MAX_ACCRUAL_SECONDS`), epoch/supply limits; lunar multiplier is **time-weighted**
   across the accrual window (`lunar_weighted_bps`), so harvesting right before
@@ -151,6 +154,9 @@ harvests.
   the hash of the inclusion slot is unknown when the player signs, so slot
   grinding for a guaranteed Golden/Silicon mutation does not work. Requires the
   `slotHashes` sysvar account.
+- `create_sell_order`, `create_sell_order_v2`: top-level only
+  (`CpiGrindNotAllowed`), so a contract cannot list the player's POTATO at a
+  price the player never saw or park their `CancelCooldown`.
 - `create_sell_order`, `fill_order`, `cancel_order`, `close_expired_order`: current
   market settles in native SOL; minimum order 10 POTATO and total 0.001 SOL. Fees depend on tier
   and referral; 60% of fee burn / 40% treasury before referral adjustments.
@@ -158,7 +164,9 @@ harvests.
   and fully deserializes the referrer ATA (`spl TokenAccount`), rejecting forged
   discount/referral accounts.
 - `register_referrer`: one-time link, **free** (registration cost is 0 POTATO), self-referral rejected.
-- `claim_achievement`: on-chain proofs and bitmap, quest IDs 0–5; transfers existing
+- `claim_achievement`: on-chain proofs and bitmap, quest IDs 0–5; requires the
+  quest vault to hold at least the reward (`QuestPoolEmpty` otherwise, 6057);
+  transfers existing
   tokens from quest treasury (does not mint new rewards). Duplicate field proofs
   rejected; proof count per call capped at `MAX_CLAIM_PROOFS` = 12 to keep the
   O(n²) duplicate check inside CU limits.
@@ -197,7 +205,9 @@ Error codes start with `AlreadyClaimed=6000`, `BadProof=6001`, `Paused=6002`.
 New codes from the 2026-09-21 remediation: `GrantQuotaExceeded=6035`,
 `WithdrawWindowLimitExceeded=6036`, `BaseYieldTooHigh=6037`,
 `TimelockNotExpired=6038`, `NothingPending=6039`, `EpochTooRecent=6040`,
-`WithdrawShareExceeded=6056` (10 % of the treasury balance per withdrawal).
+`WithdrawShareExceeded=6056` (10 % of the treasury balance per withdrawal),
+`QuestPoolEmpty=6057` (`claim_achievement` when the quest vault cannot pay the
+reward — a named reason instead of an SPL `insufficient funds`).
 Frontend translations look up error **names** from the IDL instead of assuming
 numeric offsets. Do not reorder enum variants on upgrade.
 

@@ -6900,6 +6900,11 @@
       "code": 6056,
       "name": "WithdrawShareExceeded",
       "msg": "Withdrawal exceeds the share of the treasury balance allowed per call (10 %)"
+    },
+    {
+      "code": 6057,
+      "name": "QuestPoolEmpty",
+      "msg": "Quest pool is empty: the achievement reward cannot be paid right now"
     }
   ],
   "types": [
