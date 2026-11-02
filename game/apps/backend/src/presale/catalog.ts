@@ -22,7 +22,7 @@ export const MAX_REWARD_MICRO = 1_000_000_000n;
 export const BASE_FIELD_PRICE_MICRO = 250_000_000n;
 /** lib.rs:66 — кап эмиссии за эпоху. */
 export const MAX_DAILY_CAP_MICRO = 250_000_000_000n;
-/** lib.rs:71 — доля капа эпохи, доступная ручным грантам (10 %). */
+/** lib.rs:78 — доля капа эпохи, доступная ручным грантам (25 %). */
 export const GRANT_QUOTA_SHARE_BPS = 2_500n;
 /** lib.rs:76 — окно клейма: 15 минут. */
 export const MAX_REWARD_EXPIRY_SECONDS = 900n;
