@@ -921,9 +921,9 @@ describe("solana_potato", () => {
     let referrerAta: PublicKey;
     const playerReferralPda = pda(Buffer.from("referral"), player.publicKey.toBuffer());
 
-    it("register_referrer burns exactly 5 POTATO and stores the link once", async () => {
+    it("register_referrer is free and stores the link once", async () => {
       referrerAta = (await getOrCreateAssociatedTokenAccount(connection, player, mint, referrer.publicKey)).address;
-      // F-17: регистрация — трата, при паузе блокируется
+      // F-17: регистрация — мутация состояния, при паузе блокируется
       await program.methods.setPaused(true).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
       await expectFail(
         program.methods.registerReferrer(referrer.publicKey).accountsPartial({
@@ -935,39 +935,34 @@ describe("solana_potato", () => {
       await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
       const before = await ataBalance(playerAta);
       const supplyBefore = (await getMint(connection, mint)).supply;
+      const rentBefore = await connection.getBalance(player.publicKey);
       await program.methods.registerReferrer(referrer.publicKey).accountsPartial({
         referral: playerReferralPda, config: configPda, potatoMint: mint, userPotato: playerAta,
         owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
       }).signers([player]).rpc();
-      expect(before - (await ataBalance(playerAta))).to.eq(5_000_000n);
-      expect(supplyBefore - (await getMint(connection, mint)).supply).to.eq(5_000_000n);
+      // Вход не должен требовать уже заработанных POTATO: ни списания, ни burn.
+      expect(await ataBalance(playerAta)).to.eq(before);
+      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
+      expect(await connection.getBalance(player.publicKey)).to.be.lessThan(rentBefore);
       const r = await program.account.referral.fetch(playerReferralPda);
       expect(r.owner.equals(player.publicKey)).to.be.true;
       expect(r.referrer.equals(referrer.publicKey)).to.be.true;
     });
 
-    it("registration rejects 4.999999 POTATO atomically and succeeds with exactly 5", async () => {
+    it("a newcomer with an empty wallet can register and nothing is minted or burned", async () => {
       const newcomer = Keypair.generate();
       await connection.confirmTransaction(await connection.requestAirdrop(newcomer.publicKey, LAMPORTS_PER_SOL));
       const newcomerAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, newcomer.publicKey)).address;
       const referral = pda(Buffer.from("referral"), newcomer.publicKey.toBuffer());
-      await transfer(connection, admin, adminAta, newcomerAta, admin, 4_999_999n);
       const register = () => program.methods.registerReferrer(referrer.publicKey).accountsPartial({
         referral, config: configPda, potatoMint: mint, userPotato: newcomerAta,
         owner: newcomer.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
       }).signers([newcomer]).rpc();
       const supplyBefore = (await getMint(connection, mint)).supply;
-      const rentBefore = await connection.getBalance(newcomer.publicKey);
-      await expectFail(register());
-      expect(await ataBalance(newcomerAta)).to.eq(4_999_999n);
-      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
-      expect(await connection.getAccountInfo(referral)).to.be.null;
-      expect(await connection.getBalance(newcomer.publicKey)).to.eq(rentBefore);
-
-      await transfer(connection, admin, adminAta, newcomerAta, admin, 1n);
+      expect(await ataBalance(newcomerAta)).to.eq(0n);
       await register();
       expect(await ataBalance(newcomerAta)).to.eq(0n);
-      expect(supplyBefore - (await getMint(connection, mint)).supply).to.eq(5_000_000n);
+      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
       const stored = await program.account.referral.fetch(referral);
       expect(stored.owner.equals(newcomer.publicKey)).to.be.true;
       expect(stored.referrer.equals(referrer.publicKey)).to.be.true;

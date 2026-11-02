@@ -4241,6 +4241,17 @@
     },
     {
       "name": "migrate_field",
+      "docs": [
+        "P7: migrates one Field account to the current layout.",
+        "",
+        "Field carries no `id` in its layout, so — unlike `migrate_epoch` — the",
+        "handler cannot derive the PDA from the account itself. It therefore",
+        "takes `field_id` from the caller and requires the account to be the",
+        "**canonical** `[b\"field\", field_id]` PDA, both by address and by the",
+        "stored bump. Without this the authority could point a migration at any",
+        "program-owned, 69/70-byte, Field-discriminated account; the layout",
+        "check alone only guarantees \"it looks like a field\", not \"it is one\"."
+      ],
       "discriminator": [
         65,
         252,
@@ -4560,7 +4571,14 @@
     {
       "name": "register_referrer",
       "docs": [
-        "Registers a one-time referral relationship; burns the registration cost."
+        "Registers a one-time referral relationship.",
+        "",
+        "Registration is free (`REFERRAL_REGISTRATION_COST_MICRO == 0`). The",
+        "entry fee used to burn 5 POTATO from a wallet that has not earned a",
+        "single token yet, so the invite loop only worked for players who had",
+        "already bought in — the opposite of a referral program. The burn is",
+        "skipped entirely at zero instead of being executed with amount 0, so",
+        "the instruction cannot be used to probe an empty ATA either."
       ],
       "discriminator": [
         122,
