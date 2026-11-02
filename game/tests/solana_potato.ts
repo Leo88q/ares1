@@ -441,11 +441,11 @@ describe("solana_potato", () => {
       );
     });
 
-    it("upgrade burns 100 × level and raises the level", async () => {
+    it("upgrade burns 30 × level and raises the level", async () => {
       const before = await ataBalance(adminAta);
       // UpgradeField — единственный field-spend ix с sysvar slot_hashes (энтропия мутации).
       await program.methods.upgradeField().accountsPartial({ ...fieldSpendAccounts(field, admin.publicKey, adminAta), slotHashes: SYSVAR_SLOT_HASHES_PUBKEY }).rpc();
-      expect(before - (await ataBalance(adminAta))).to.eq(100n * MICRO);
+      expect(before - (await ataBalance(adminAta))).to.eq(30n * MICRO);
       expect((await program.account.field.fetch(field)).level).to.eq(2);
     });
 
@@ -485,7 +485,7 @@ describe("solana_potato", () => {
       }).rpc();
       const minted = (await ataBalance(adminAta)) - before;
       expect(minted > 0n, "should mint something").to.be.true;
-      // level 2 (1.57×) × fertilizer (1.5×) × 6 POTATO/day for ~61s ≈ 0.01 POTATO
+      // level 2 (1.57×) × fertilizer (1.5×) × 10 POTATO/day for ~61s ≈ 0.016 POTATO
       expect(minted < 100_000n, "should mint a small amount").to.be.true;
       const f = await program.account.field.fetch(field);
       expect(f.durability).to.eq(99);
@@ -608,11 +608,12 @@ describe("solana_potato", () => {
       // 10 POTATO at 0.001 SOL each
       await program.methods.createSellOrder(new BN(orderId.toString()), new BN(10_000_000), new BN(1_000_000))
         .accountsPartial(createOrderAccounts(orderId, admin.publicKey, adminAta)).rpc();
-      expect(before - (await ataBalance(adminAta))).to.eq(10_900_000n); // 9 % fee tier
-      expect(await ataBalance(escrow)).to.eq(10_900_000n);
+      expect(before - (await ataBalance(adminAta))).to.eq(10_500_000n); // 10 + 5 % комиссия
+      expect(await ataBalance(escrow)).to.eq(10_500_000n);
       const o = await program.account.marketOrder.fetch(order);
-      expect(o.feeMicro.toNumber()).to.eq(900_000);
-      expect(o.expiresAt.toNumber() - o.createdAt.toNumber()).to.eq(86_400);
+      expect(o.feeMicro.toNumber()).to.eq(500_000);
+      // ORDER_TTL = 7 суток: суточный TTL молча выкидывал ордера из книги.
+      expect(o.expiresAt.toNumber() - o.createdAt.toNumber()).to.eq(7 * 86_400);
     });
 
     it("self-trade is blocked", async () => {
@@ -646,7 +647,7 @@ describe("solana_potato", () => {
       }).signers([player]).rpc();
 
       expect((await ataBalance(playerAta)) - buyerBefore).to.eq(10_000_000n);
-      expect((await ataBalance(treasuryAta)) - treasuryBefore).to.eq(360_000n); // 40 % of the 900 k fee
+      expect((await ataBalance(treasuryAta)) - treasuryBefore).to.eq(200_000n); // 40 % of the 500 k fee
       const sellerSolAfter = await connection.getBalance(admin.publicKey);
       // 10 POTATO × 0.001 SOL = 0.01 SOL, plus escrow + order rent refunds
       expect(sellerSolAfter - sellerSolBefore).to.be.greaterThan(10_000_000);
@@ -668,7 +669,7 @@ describe("solana_potato", () => {
         seller: player.publicKey, sellerProfile: sellerProfilePda(player.publicKey), order: orderPda(id), escrow: escrowPda(orderPda(id)),
         sellerPotato: playerAta, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
       }).signers([player]).rpc();
-      expect((await ataBalance(playerAta)) - before).to.eq(10_900_000n); // 10 + 9 % fee
+      expect((await ataBalance(playerAta)) - before).to.eq(10_500_000n); // 10 + 5 % fee
 
       const id2 = BigInt(Date.now() + 201);
       await expectFail(
@@ -690,7 +691,7 @@ describe("solana_potato", () => {
       const amountMicro = 10_000_000n;
       const priceLamportsPerPotato = 10_000_000n;
       const gross = 100_000_000n;
-      const fee = 9_000_000n;
+      const fee = 5_000_000n; // 5 % первого тира (V2_SETTLEMENT_FEE_BPS[0])
       const sellerNet = gross - fee;
       const sellerTokenBefore = await ataBalance(adminAta);
 
@@ -781,7 +782,7 @@ describe("solana_potato", () => {
       const amountMicro = 10_000_000n;
       const priceAtomsPerPotato = 1_000_000n;
       const gross = 10_000_000n; // 10 SKR
-      const fee = 900_000n; // 9% of seller proceeds, paid only on a successful fill
+      const fee = 500_000n; // 5 % of seller proceeds, paid only on a successful fill
       const sellerNet = gross - fee;
       const buyerSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, player.publicKey)).address;
       await mintTo(connection, admin, skrMint, buyerSkrAta, admin, 1_000_000_000);
@@ -1020,13 +1021,13 @@ describe("solana_potato", () => {
       expect((await ataBalance(playerAta)) - buyerBefore).to.eq(10_000_000n);
       expect((await ataBalance(referrerAta)) - refBefore).to.eq(50_000n);
       expect((await ataBalance(adminAta)) - sellerBefore).to.eq(100_000n);
-      // 9 % fee = 900 k; after 1 % refund the net fee is 800 k -> 320 k treasury, 430 k burn
-      expect((await ataBalance(treasuryAta)) - treasuryBefore).to.eq(320_000n);
-      // Supply drops ONLY by the burned fee: 900k - 100k refund = 800k net
-      // -> 320k treasury (40%) + 480k burn base - 50k referral reward = 430k burned.
+      // 5 % fee = 500 k; скидка 1 % возвращает 100 k продавцу -> net fee 400 k
+      // -> 160 k treasury (40 %), 240 k burn base - 50 k рефералу = 190 k сожжено.
+      expect((await ataBalance(treasuryAta)) - treasuryBefore).to.eq(160_000n);
+      // Supply drops ONLY by the burned fee: 500k - 100k refund = 400k net.
       // The 50k reward itself is a transfer out of escrow, not a fresh mint.
       const supplyAfter = (await getMint(connection, mint)).supply;
-      expect(supplyAfter).to.eq(supplyBefore - 430_000n);
+      expect(supplyAfter).to.eq(supplyBefore - 190_000n);
       expect(await connection.getAccountInfo(orderPk)).to.be.null;
       expect(await connection.getAccountInfo(escrowPk)).to.be.null;
     });
@@ -1055,8 +1056,8 @@ describe("solana_potato", () => {
 
       expect((await ataBalance(referrerAta)) - refBefore).to.eq(0n);
       expect((await ataBalance(adminAta)) - sellerBefore).to.eq(100_000n); // 1 % refund
-      // No referrer ATA -> the 50k reward joins the burn: 800k net - 320k treasury = 480k burned
-      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore - 480_000n);
+      // No referrer ATA -> the 50k reward joins the burn: 400k net - 160k treasury = 240k burned
+      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore - 240_000n);
       expect(await connection.getAccountInfo(orderPk)).to.be.null;
     });
   });
@@ -1707,16 +1708,17 @@ describe("solana_potato", () => {
       expect((await program.account.epoch.fetch(epochPda(0))).id.toNumber()).to.eq(0);
     });
 
-    // ПОСЛЕДНИЙ тест прогона: исчерпывает квоту грантов (10% капа эпохи),
+    // ПОСЛЕДНИЙ тест прогона: исчерпывает квоту грантов (25 % капа эпохи),
     // поэтому все остальные grant_reward-сценарии идут выше по файлу.
     it("grant_reward is capped at 25% of the epoch cap", async function () {
       this.timeout(240_000);
-      const quota = (await program.account.epoch.fetch(epochPda(0))).mintCapMicro.divn(10);
+      // GRANT_QUOTA_SHARE_BPS = 2_500 -> 25 % капа эпохи (lib.rs:78).
+      const quota = (await program.account.epoch.fetch(epochPda(0))).mintCapMicro.muln(25).divn(100);
       const grant = () =>
         program.methods.grantReward(new BN(1_000_000_000)).accountsPartial({
           config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: adminAta, tokenProgram: TOKEN_PROGRAM_ID,
         }).rpc();
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 100; i++) {
         const ep = await program.account.epoch.fetch(epochPda(0));
         if (ep.grantedMicro.add(new BN(1_000_000_000)).gt(quota)) break;
         await grant();

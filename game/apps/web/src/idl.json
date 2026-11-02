@@ -7961,7 +7961,7 @@
       "name": "Referral",
       "docs": [
         "Реферальная связь игрока. PDA seeds: `[\"referral\", owner]`.",
-        "Создаётся один раз через `register_referrer` (burn 5 POTATO)."
+        "Создаётся один раз через `register_referrer`; регистрация бесплатна."
       ],
       "type": {
         "kind": "struct",
