@@ -4,7 +4,7 @@
  * is not used by live legacy Anchor instructions; keep that separation explicit
  * until the versioned program and quote-pair accounts are deployed.
  */
-export const SETTLEMENT_FEE_BPS = [900n, 1_000n, 1_100n, 1_200n] as const
+export const SETTLEMENT_FEE_BPS = [500n, 600n, 700n, 800n] as const
 export const SELLER_VOLUME_THRESHOLDS_MICRO = [
   1_000n * 1_000_000n,
   10_000n * 1_000_000n,

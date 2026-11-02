@@ -47,14 +47,14 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   id: 'market',
   eyebrow: t('05 / РЫНОК'),
   title: t('Ордера, комиссия, burn'),
-  description: t('Legacy devnet V1: 9–12% fee in POTATO, split 60% burn / 40% treasury. Target V2 takes 9–12% from the seller payout in SOL or SKR only on a successful fill; it is not live.'),
+  description: t('Legacy V1 charges 5–8% in POTATO when an order is listed, split 60% burn / 40% treasury. V2 deducts 5–8% from the seller payout in SOL or SKR only on a successful fill.'),
   position: 'bottom',
  },
  {
   id: 'referral',
   eyebrow: t('06 / РЕФЕРАЛКА'),
   title: t('Приводи — экономьте вместе'),
-  description: t('Referral discounts and rebates belong to the legacy devnet V1 market only. Their interaction with the target 9–12% V2 settlement fee is not approved or enabled.'),
+  description: t('Referral discounts and rebates belong to the legacy V1 market only. Their interaction with the 5–8% V2 settlement fee is not approved or enabled.'),
   position: 'bottom',
  },
  {

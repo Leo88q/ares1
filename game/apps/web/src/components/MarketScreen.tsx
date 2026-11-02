@@ -78,7 +78,7 @@ function MarketScreenInner() {
    <div role="status" style={{ padding: '12px 14px', marginBottom: 14, border: '1px solid rgba(255,179,71,0.28)', borderRadius: 8, background: 'linear-gradient(180deg, rgba(37,24,14,0.94), rgba(17,11,7,0.96))' }}>
     <div className="ares-mono" style={{ color: '#FFC94A', fontSize: 9, letterSpacing: '0.13em', marginBottom: 6 }}>{t('РЫНОК DEVNET · ВЕРСИЯ V1')}</div>
     <p style={{ color: 'var(--pf-text-secondary)', fontSize: 11, lineHeight: 1.55, margin: 0 }}>
-     {t('Сейчас активна только пара POTATO/SOL; legacy-контракт удерживает комиссию в POTATO при создании ордера. Целевая V2-модель: 9–12% из выплаты продавцу при успешной сделке, в валюте расчёта и в казну; суточные накопительные tiers и отдельная пара POTATO/SKR пока не активны, точные пороги остаются проектом до финального решения. Devnet-активы тестовые.')}
+     {t('V1 удерживает 5–8% в POTATO при создании ордера. V2: 5–8% из выплаты продавцу при успешной сделке, в валюте расчёта и в казну; пороги 1 000 / 10 000 / 100 000 POTATO суточного объёма продавца действуют для пар SOL и SKR. Devnet-активы тестовые.')}
     </p>
    </div>
 

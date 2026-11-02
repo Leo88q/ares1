@@ -141,8 +141,10 @@ async function run(configSize: 156 | 164) {
     };
     await confirm(await connection.requestAirdrop(admin.publicKey, 2_000_000_000));
     let nonce = 0;
-    const send = (kind: MigrationKind, target: PublicKey, signer = admin) => {
-      const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 + nonce++ }), migrationInstruction(kind, programId, target, signer.publicKey));
+    // P7: migrate_field accepts only the canonical [b"field", field_id] PDA, so
+    // every field migration has to name the id the account was created with.
+    const send = (kind: MigrationKind, target: PublicKey, signer = admin, fieldId?: bigint) => {
+      const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 + nonce++ }), migrationInstruction(kind, programId, target, signer.publicKey, fieldId));
       tx.feePayer = admin.publicKey;
       return sendTx(tx, signer === admin ? [admin] : [admin, signer]);
     };
@@ -154,16 +156,19 @@ async function run(configSize: 156 | 164) {
       assert.equal(after!.lamports, before!.lamports);
     };
     await reject(() => send('config', configPda, intruder), 'Unauthorized', configPda);
-    await reject(() => send('field', foreignField), 'ConstraintOwner', foreignField);
-    await reject(() => send('field', configPda), 'BadProof', configPda);
+    await reject(() => send('field', foreignField, admin, 100n), 'ConstraintOwner', foreignField);
+    // 100n относится к fieldPda(100n): чужой адрес с валидной раскладкой
+    // отклоняется до записи — это и есть проверка P7.
+    await reject(() => send('field', fieldPda(101n), admin, 100n), 'BadProof', fieldPda(101n));
+    await reject(() => send('field', configPda, admin, 100n), 'BadProof', configPda);
     await reject(() => send('epoch', wrongEpochAddress), 'BadProof', wrongEpochAddress);
     await reject(() => send('admin_state', wrongAdminStateAddress), 'ConstraintSeeds', wrongAdminStateAddress);
-    const fakeIx = migrationInstruction('field', programId, fieldPda(100n), admin.publicKey);
+    const fakeIx = migrationInstruction('field', programId, fieldPda(100n), admin.publicKey, 100n);
     fakeIx.keys[1].pubkey = fakeConfig;
     await reject(() => sendTx(new Transaction().add(fakeIx), [admin]), 'ConstraintSeeds', fieldPda(100n));
 
     // Migrate a Field while config is still legacy, then normalize the config.
-    await send('field', fieldPda(100n));
+    await send('field', fieldPda(100n), admin, 100n);
     await send('config', configPda);
     await send('epoch', epochPda(42n));
     await send('admin_state', adminStatePda);

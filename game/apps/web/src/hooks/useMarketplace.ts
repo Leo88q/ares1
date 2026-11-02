@@ -141,7 +141,7 @@ export function useMarketplace() {
      orderId, amountMicro, priceLamports,
     })
     await sendIx([...ixs, ix])
-    show({ type: 'success', title: t('Ордер опубликован'), message: t('Он будет активен 24 часа.') })
+    show({ type: 'success', title: t('Ордер опубликован'), message: t('Он будет активен 7 дней.') })
     await loadOrders()
     return true
    } catch (err) {

@@ -29,8 +29,8 @@
 | `harvest` — урожай полей | Покупка поля (100 / 250 / 500 🥔) |
 | `grant_reward` — квесты через backend | Налог 2.4 / 6 / 12 🥔 в неделю за поле |
 | | Ремонт 6 / 15 / 30 🥔 |
-| | Удобрение 4 / 10 / 20 🥔 за 24 ч |
-| | Апгрейд 40·L / 100·L / 200·L 🥔 |
+| | Удобрение 0.8 / 2 / 4 🥔 за 24 ч |
+| | Апгрейд 12·L / 30·L / 60·L 🥔 |
 | | 60 % legacy V1 market fee only (not a V2 POTATO sink) |
 
 В legacy V1 оставшиеся 40 % комиссии копятся на ATA казны (owner — PDA `config`). Целевая V2 settlement-fee не сжигает POTATO: 100 % удержанной суммы направляется в SOL- или SKR-казну в той же валюте.
@@ -38,7 +38,7 @@
 ## 2. Формула урожая
 
 ```
-daily_yield = base_yield (6 🥔)
+daily_yield = base_yield (10 🥔)
             × type_mult      (0.35 | 1.00 | 2.10)
             × level_mult     (1.00, 1.57, 2.04, 2.46, 2.86, затем +0.40/уровень → 20.86 на 50)
             × durability     (0.2 + 0.8 × durability/100)
@@ -121,7 +121,7 @@ accrued = daily_yield × min(elapsed, 7 суток) / 86 400
 | Округление | Integer atoms only. Gross quote округляется вверх; gross по tier-сегментам раскладывается разностями cumulative-ceil, чтобы сумма была равна фактическому gross. Fee округляется вверх по сегменту, net продавца + fee = gross. Применение должно быть одинаковым on-chain и в клиенте. |
 | Текущий статус | TypeScript fee-policy helper и off-chain tests добавлены; Anchor V2, SKR settlement, IDL и devnet fill tests отсутствуют. V2 не доступна для реальных сделок. |
 
-Referral discounts/rebates не включены в принятую V2-спецификацию: их влияние на минимальные 9–12% требует отдельного решения.
+Referral discounts/rebates не включены в принятую V2-спецификацию: их влияние на минимальные 5–8% требует отдельного решения.
 
 Limit orders, сортировка по цене на клиенте, TTL 24 ч, self-trade rejection и кулдаун отмены относятся к текущим V1-инструкциям. Не переносить их в V2 без проверки account layout, UX и тестов.
 

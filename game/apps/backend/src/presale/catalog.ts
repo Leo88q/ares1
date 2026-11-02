@@ -23,7 +23,7 @@ export const BASE_FIELD_PRICE_MICRO = 250_000_000n;
 /** lib.rs:66 — кап эмиссии за эпоху. */
 export const MAX_DAILY_CAP_MICRO = 250_000_000_000n;
 /** lib.rs:71 — доля капа эпохи, доступная ручным грантам (10 %). */
-export const GRANT_QUOTA_SHARE_BPS = 1_000n;
+export const GRANT_QUOTA_SHARE_BPS = 2_500n;
 /** lib.rs:76 — окно клейма: 15 минут. */
 export const MAX_REWARD_EXPIRY_SECONDS = 900n;
 const BPS = 10_000n;
@@ -57,7 +57,7 @@ export function fieldPriceMicro(fieldType: number): bigint {
 }
 
 /**
- * Дневная квота ручных грантов = 10 % капа эпохи.
+ * Дневная квота ручных грантов = 25 % капа эпохи.
  * Это ГЛАВНОЕ узкое место Phase 1: через grant_reward_once физически нельзя
  * выдать больше, даже если продали больше.
  */
@@ -150,7 +150,7 @@ export function validatePackDeliverability(pack: PackContents): string[] {
 
 /**
  * Сколько паков в сутки рельса способна выдать при заданном составе.
- * 25 000 POTATO/сутки ÷ 1000 POTATO на пак = 25 паков в сутки. Это не
+ * 62 500 POTATO/сутки ÷ 1000 POTATO на пак = 62 пака в сутки. Это не
  * маркетинговое ограничение, а физика charge_epoch_grant.
  */
 export function packsPerDay(pack: PackContents, epochCapMicro: bigint = MAX_DAILY_CAP_MICRO): number {

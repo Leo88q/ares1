@@ -67,8 +67,15 @@ pub const MAX_DAILY_CAP_MICRO: u64 = 250_000_000_000;
 /// Hard ceiling for a single off-chain reward: 1 000 $POTATO.
 pub const MAX_REWARD_MICRO: u64 = 1_000_000_000;
 /// Manual `grant_reward` mints may consume at most this share (bps) of an
-/// epoch cap: 10 %. Gameplay harvests keep the rest.
-pub const GRANT_QUOTA_SHARE_BPS: u64 = 1_000;
+/// epoch cap: 25 %. Gameplay harvests keep the rest.
+///
+/// 10 % was the binding constraint on the whole store: the grant rail is the
+/// only way an off-chain purchase turns into POTATO, so a 10 % quota capped
+/// revenue at 25 000 POTATO/day regardless of demand. 25 % keeps a hard,
+/// auditable ceiling (a compromised reward key can still burn at most a
+/// quarter of one day's emission) while leaving room for packs and the
+/// starter grant.
+pub const GRANT_QUOTA_SHARE_BPS: u64 = 2_500;
 /// G-1b (Drift, апрель 2026): заранее подписанная durable-nonce транзакция не
 /// истекает сама. Заявка на награду обязана нести собственный дедлайн, и он не
 /// может быть отодвинут дальше этого окна — подпись, пролежавшая у атакующего
@@ -76,8 +83,14 @@ pub const GRANT_QUOTA_SHARE_BPS: u64 = 1_000;
 pub const MAX_REWARD_EXPIRY_SECONDS: i64 = 900; // 15 минут
 /// Default total supply ceiling: 1 000 000 000 $POTATO.
 pub const DEFAULT_MAX_SUPPLY_MICRO: u64 = 1_000_000_000_000_000;
-/// Default base yield of a level-1, 1.0× field: 6 $POTATO / day.
-pub const DEFAULT_BASE_YIELD_MICRO_PER_DAY: u64 = 6_000_000;
+/// Default base yield of a level-1, 1.0× field: 10 $POTATO / day.
+///
+/// At 6 a meadow returned ~4.4 POTATO/day after tax and upkeep, i.e. a 56-day
+/// payback for the 250 POTATO field and a 300-day payback for mid-level
+/// upgrades: nobody plays a game whose first purchase returns in two months.
+/// 10 puts the field at ~22 days and keeps emission at ~2 % of the daily cap
+/// even with 500 fields online.
+pub const DEFAULT_BASE_YIELD_MICRO_PER_DAY: u64 = 10_000_000;
 /// `global_multiplier_bps` can never exceed 2.0×.
 pub const MAX_GLOBAL_MULTIPLIER_BPS: u16 = 20_000;
 /// Ceiling for `update_config(base_yield_micro_per_day)`: 100 🥔/day per
@@ -178,17 +191,32 @@ pub const EXPORT_LICENSE_PRICE_SKR_ATOMS: u64 = 500_000_000; // 500 SKR / 30 д�
 /// Клиент обязан держать поля в LUT, иначе лимит 30 недостижим физически.
 pub const BATCH_LIMIT_BASE: usize = 10;
 pub const BATCH_LIMIT_LICENSED: usize = 30;
-/// One-time referral registration cost, confirmed by the game owner: 5 POTATO.
-pub const REFERRAL_REGISTRATION_COST_MICRO: u64 = 5_000_000;
+/// One-time referral registration cost. FREE on purpose: a newcomer has no
+/// POTATO before his first field, so any entry fee here blocks the only growth
+/// loop the game has. The burner is skipped entirely at zero (see
+/// `register_referrer`), so the instruction cannot fail on an empty wallet.
+pub const REFERRAL_REGISTRATION_COST_MICRO: u64 = 0;
 pub const BASE_TAX_MICRO: u64 = 6_000_000; // 6 $POTATO / week
 pub const BASE_REPAIR_MICRO: u64 = 15_000_000; // 15 $POTATO
-pub const BASE_FERTILIZER_MICRO: u64 = 10_000_000; // 10 $POTATO / 24h
+/// 2 POTATO per 24 h. At the old 10 the perk was strictly unprofitable: +50 %
+/// of a level-1 meadow is 3 POTATO, i.e. the fertilizer cost three times what
+/// it added, so nobody ever bought it. At 2 it pays for itself on a meadow
+/// (~1.5 POTATO of extra yield per 24 h) and stays a sink, not a trap.
+pub const BASE_FERTILIZER_MICRO: u64 = 2_000_000; // 2 $POTATO / 24h
 /// Upgrade from level L to L+1 costs `BASE_UPGRADE_MICRO × L × type_cost`.
-pub const BASE_UPGRADE_MICRO: u64 = 100_000_000; // 100 $POTATO × level
+///
+/// 30, not 100: the level multiplier is flat past L5 (+0.40× per level) while
+/// the price grew linearly, so the payback of an upgrade reached ~300 days and
+/// the whole upgrade mechanic was dead content. At 30 the first levels pay back
+/// in days and only the deep levels stay a deliberate long-term investment.
+pub const BASE_UPGRADE_MICRO: u64 = 30_000_000; // 30 $POTATO × level
 
 // ───────────────────────── Marketplace ───────────────────────────
 
-pub const ORDER_TTL: i64 = 24 * 3600;
+/// 7 days, not 24 h: a 24 h listing forced a daily on-chain action from every
+/// seller, and a missed expiry silently removed the order from the book. A
+/// weekly TTL keeps the maker side usable without removing the expiry guard.
+pub const ORDER_TTL: i64 = 7 * 24 * 3600;
 /// After cancelling an order a seller must wait this long before listing again.
 pub const CANCEL_COOLDOWN: i64 = 3 * 3600;
 /// Minimum order size: 10 $POTATO.
@@ -205,7 +233,10 @@ pub const V2_MIN_GROSS_QUOTE_ATOMS: u64 = 1_000_000;
 /// defaults and MUST receive owner approval before a V2 release.
 pub const V2_SELLER_VOLUME_THRESHOLDS_MICRO: [u64; 3] =
     [1_000_000_000, 10_000_000_000, 100_000_000_000];
-pub const V2_SETTLEMENT_FEE_BPS: [u16; 4] = [900, 1_000, 1_100, 1_200];
+/// 5 / 6 / 7 / 8 %, down from 9-12 %. At 9 % the taker paid more than any
+/// realistic spread, so a market could not exist: every fill was a loss for
+/// whoever crossed it. The marginal tiers still reward small sellers.
+pub const V2_SETTLEMENT_FEE_BPS: [u16; 4] = [500, 600, 700, 800];
 pub const V2_FEE_POLICY_VERSION: u8 = 1;
 /// Адрес SPL Token. Нужен, чтобы проверить владельца «сырого» аккаунта минта,
 /// переданного в `remaining_accounts` (типизированный `Account<Mint>` там
@@ -1596,8 +1627,8 @@ pub mod solana_potato {
         stats.roll_window(now);
         stats.total_trades = stats.total_trades.saturating_add(1);
         stats.total_sol_volume = stats.total_sol_volume.saturating_add(total_lamports);
-        stats.sell_volume_24h_micro = stats.sell_volume_24h_micro.saturating_add(amount_micro);
-        stats.buy_volume_24h_micro = stats.buy_volume_24h_micro.saturating_add(amount_micro);
+        // P5: one fill, one side. The taker of a sell order is the buyer.
+        stats.record_taker_fill(true, amount_micro);
 
         // ── Interactions ──
         anchor_lang::solana_program::program::invoke(
@@ -2379,13 +2410,29 @@ pub mod solana_potato {
         )
     }
 
-    pub fn migrate_field(ctx: Context<MigrateField>) -> Result<()> {
+    /// P7: migrates one Field account to the current layout.
+    ///
+    /// Field carries no `id` in its layout, so — unlike `migrate_epoch` — the
+    /// handler cannot derive the PDA from the account itself. It therefore
+    /// takes `field_id` from the caller and requires the account to be the
+    /// **canonical** `[b"field", field_id]` PDA, both by address and by the
+    /// stored bump. Without this the authority could point a migration at any
+    /// program-owned, 69/70-byte, Field-discriminated account; the layout
+    /// check alone only guarantees "it looks like a field", not "it is one".
+    pub fn migrate_field(ctx: Context<MigrateField>, field_id: u64) -> Result<()> {
         migrations::authority(
             &ctx.accounts.config.try_borrow_data()?,
             &ctx.accounts.authority.key(),
         )?;
         let info = ctx.accounts.field.to_account_info();
         let updated = migrations::field(&info.try_borrow_data()?)?;
+        let field = Field::try_deserialize(&mut &updated[..])?;
+        let (expected, canonical_bump) = Pubkey::find_program_address(
+            &[b"field", &field_id.to_le_bytes()],
+            ctx.program_id,
+        );
+        require_keys_eq!(info.key(), expected, GameError::BadProof);
+        require!(field.bump == canonical_bump, GameError::BadProof);
         write_migrated_account(
             &info,
             &ctx.accounts.authority,
@@ -2430,10 +2477,16 @@ pub mod solana_potato {
         )
     }
 
-    /// Registers a one-time referral relationship; burns the registration cost.
+    /// Registers a one-time referral relationship.
+    ///
+    /// Registration is free (`REFERRAL_REGISTRATION_COST_MICRO == 0`). The
+    /// entry fee used to burn 5 POTATO from a wallet that has not earned a
+    /// single token yet, so the invite loop only worked for players who had
+    /// already bought in — the opposite of a referral program. The burn is
+    /// skipped entirely at zero instead of being executed with amount 0, so
+    /// the instruction cannot be used to probe an empty ATA either.
     pub fn register_referrer(ctx: Context<RegisterReferrer>, referrer: Pubkey) -> Result<()> {
-        // F-17: снятие 5 POTATO за регистрацию — трата, гейтим паузой как
-        // остальные расходные инструкции.
+        // F-17: гейтим паузой как остальные мутации состояния.
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(
             referrer != ctx.accounts.owner.key(),
@@ -2441,18 +2494,22 @@ pub mod solana_potato {
         );
         require!(referrer != Pubkey::default(), GameError::Unauthorized);
 
-        // One-time registration burns 5 POTATO; market referral rewards are unchanged.
-        token::burn(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                Burn {
-                    mint: ctx.accounts.potato_mint.to_account_info(),
-                    from: ctx.accounts.user_potato.to_account_info(),
-                    authority: ctx.accounts.owner.to_account_info(),
-                },
-            ),
-            REFERRAL_REGISTRATION_COST_MICRO,
-        )?;
+        // Market referral rewards (0.5 % of a fill) are unchanged; only the
+        // registration fee is gone. Kept as a guarded branch rather than a
+        // deleted call so re-introducing a price is a one-line constant change.
+        if REFERRAL_REGISTRATION_COST_MICRO > 0 {
+            token::burn(
+                CpiContext::new(
+                    ctx.accounts.token_program.to_account_info(),
+                    Burn {
+                        mint: ctx.accounts.potato_mint.to_account_info(),
+                        from: ctx.accounts.user_potato.to_account_info(),
+                        authority: ctx.accounts.owner.to_account_info(),
+                    },
+                ),
+                REFERRAL_REGISTRATION_COST_MICRO,
+            )?;
+        }
 
         ctx.accounts.referral.owner = ctx.accounts.owner.key();
         ctx.accounts.referral.referrer = referrer;
@@ -2803,17 +2860,21 @@ pub fn durability_mult_bps(durability: u8) -> u128 {
     DURABILITY_FLOOR_BPS + (durability.min(MAX_DURABILITY) as u128) * DURABILITY_SLOPE_BPS_PER_POINT
 }
 
-/// Marketplace fee tier by order size (progressive: 9 % → 12 %).
+/// Marketplace fee tier by order size (progressive: 5 % → 8 %).
+///
+/// Kept identical to `V2_SETTLEMENT_FEE_BPS`: the legacy rail is still
+/// selectable in the UI, and two different price lists for the same trade is
+/// how a player learns not to trust either one.
 pub fn calculate_fee_bps(amount_micro: u64) -> u16 {
-    // Прогрессивная комиссия 9% – 12% (от объёма ордера)
+    // Прогрессивная комиссия 5% – 8% (от объёма ордера)
     if amount_micro < 1_000_000_000 {
-        900 // < 1k POTATO:   9%
+        500 // < 1k POTATO:   5%
     } else if amount_micro < 10_000_000_000 {
-        1_000 // < 10k POTATO:  10%
+        600 // < 10k POTATO:   6%
     } else if amount_micro < 100_000_000_000 {
-        1_100 // < 100k POTATO: 11%
+        700 // < 100k POTATO:  7%
     } else {
-        1_200 // >= 100k POTATO: 12%
+        800 // >= 100k POTATO: 8%
     }
 }
 
@@ -4523,6 +4584,23 @@ impl MarketStats {
         }
         self.last_update = now;
     }
+
+    /// Books a fill against the **taker** side only.
+    ///
+    /// Every order on this market is a sell order, so the taker is always the
+    /// buyer: one fill is one buy of `amount_micro`. The old code incremented
+    /// both `sell_volume_24h_micro` and `buy_volume_24h_micro` with the same
+    /// amount, which made `sell + buy` — the only way a consumer can compute
+    /// turnover from these counters — exactly double the real volume (P5).
+    /// `sell_volume_24h_micro` is kept for a future buy-order instruction
+    /// where the taker sells; it stays zero on this rail by construction.
+    pub fn record_taker_fill(&mut self, taker_is_buyer: bool, amount_micro: u64) {
+        if taker_is_buyer {
+            self.buy_volume_24h_micro = self.buy_volume_24h_micro.saturating_add(amount_micro);
+        } else {
+            self.sell_volume_24h_micro = self.sell_volume_24h_micro.saturating_add(amount_micro);
+        }
+    }
 }
 
 /// V2 aggregate volumes, kept in a new PDA so legacy stats keep their layout.
@@ -5042,10 +5120,10 @@ mod tests {
 
     #[test]
     fn upgrade_cost_scales_with_level_and_type() {
-        assert_eq!(upgrade_cost_micro(1, 1).unwrap(), 100_000_000);
-        assert_eq!(upgrade_cost_micro(10, 1).unwrap(), 1_000_000_000);
-        assert_eq!(upgrade_cost_micro(1, 0).unwrap(), 40_000_000);
-        assert_eq!(upgrade_cost_micro(1, 2).unwrap(), 200_000_000);
+        assert_eq!(upgrade_cost_micro(1, 1).unwrap(), 30_000_000);
+        assert_eq!(upgrade_cost_micro(10, 1).unwrap(), 300_000_000);
+        assert_eq!(upgrade_cost_micro(1, 0).unwrap(), 12_000_000);
+        assert_eq!(upgrade_cost_micro(1, 2).unwrap(), 60_000_000);
     }
 
     #[test]
@@ -5165,20 +5243,20 @@ mod tests {
 
     #[test]
     fn fee_tiers_are_progressive() {
-        // Прогрессивная комиссия 9% – 12%
-        assert_eq!(calculate_fee_bps(999_999_999), 900);
-        assert_eq!(calculate_fee_bps(1_000_000_000), 1_000);
-        assert_eq!(calculate_fee_bps(10_000_000_000), 1_100);
-        assert_eq!(calculate_fee_bps(100_000_000_000), 1_200);
-        assert_eq!(order_fee_micro(1_000_000).unwrap(), 90_000); // 1 POTATO × 9%
+        // Прогрессивная комиссия 5% – 8%
+        assert_eq!(calculate_fee_bps(999_999_999), 500);
+        assert_eq!(calculate_fee_bps(1_000_000_000), 600);
+        assert_eq!(calculate_fee_bps(10_000_000_000), 700);
+        assert_eq!(calculate_fee_bps(100_000_000_000), 800);
+        assert_eq!(order_fee_micro(1_000_000).unwrap(), 50_000); // 1 POTATO × 5%
     }
 
     #[test]
     fn v2_settlement_fee_is_quote_denominated_and_seller_paid() {
         let result = calculate_settlement_fee_v2(10 * MICRO as u64, 1_000_000, 0).unwrap();
         assert_eq!(result.gross_quote_atoms, 10_000_000);
-        assert_eq!(result.fee_quote_atoms, 900_000);
-        assert_eq!(result.seller_net_quote_atoms, 9_100_000);
+        assert_eq!(result.fee_quote_atoms, 500_000);
+        assert_eq!(result.seller_net_quote_atoms, 9_500_000);
         assert_eq!(
             result.gross_quote_atoms,
             result.fee_quote_atoms + result.seller_net_quote_atoms
@@ -5195,10 +5273,10 @@ mod tests {
             999 * MICRO as u64 + 500_000,
         )
         .unwrap();
-        // 0.5 POTATO at 9%, then 99.5 POTATO at 10%.
+        // 0.5 POTATO at 5%, then 99.5 POTATO at 6%.
         assert_eq!(result.gross_quote_atoms, 1_000_000_000);
-        assert_eq!(result.fee_quote_atoms, 99_950_000);
-        assert_eq!(result.seller_net_quote_atoms, 900_050_000);
+        assert_eq!(result.fee_quote_atoms, 59_950_000);
+        assert_eq!(result.seller_net_quote_atoms, 940_050_000);
         assert_eq!(
             result.seller_volume_after_micro,
             1_099 * MICRO as u64 + 500_000
@@ -5209,7 +5287,7 @@ mod tests {
     fn v2_fill_crosses_all_draft_tiers_and_quote_rounding_is_upward() {
         let result = calculate_settlement_fee_v2(120_000 * MICRO as u64, 1_000_000, 0).unwrap();
         assert_eq!(result.gross_quote_atoms, 120_000_000_000);
-        assert_eq!(result.fee_quote_atoms, 13_290_000_000);
+        assert_eq!(result.fee_quote_atoms, 8_490_000_000);
         assert_eq!(
             result.gross_quote_atoms,
             result.fee_quote_atoms + result.seller_net_quote_atoms
@@ -5303,6 +5381,40 @@ mod tests {
         s.roll_window(SECONDS_PER_DAY + 1);
         assert_eq!(s.sell_volume_24h_micro, 0);
         assert_eq!(s.total_sol_volume, 9);
+    }
+
+    #[test]
+    fn one_fill_books_exactly_one_side_of_the_volume() {
+        // P5: sell + buy должны давать реальный оборот, а не удвоенный.
+        let mut s = MarketStats {
+            sell_volume_24h_micro: 0,
+            buy_volume_24h_micro: 0,
+            total_sol_volume: 0,
+            total_trades: 0,
+            last_update: 1,
+            bump: 0,
+        };
+        s.record_taker_fill(true, 10_000_000);
+        s.record_taker_fill(true, 5_000_000);
+        assert_eq!(s.buy_volume_24h_micro, 15_000_000);
+        assert_eq!(s.sell_volume_24h_micro, 0);
+        assert_eq!(
+            s.buy_volume_24h_micro + s.sell_volume_24h_micro,
+            15_000_000,
+            "sell + buy must equal the traded volume, not twice it"
+        );
+        // Ветка тейкера-продавца существует для будущего buy-ордера и не
+        // должна незаметно писать в buy-счётчик.
+        s.record_taker_fill(false, 7_000_000);
+        assert_eq!(s.sell_volume_24h_micro, 7_000_000);
+        assert_eq!(s.buy_volume_24h_micro, 15_000_000);
+    }
+
+    #[test]
+    fn referral_registration_is_free_and_costs_no_burn_rail() {
+        // Новичок приходит без POTATO: плата за реферал не должна требовать
+        // токенов, которых у него ещё нет.
+        assert_eq!(REFERRAL_REGISTRATION_COST_MICRO, 0);
     }
 
     #[test]
@@ -5435,7 +5547,7 @@ mod tests {
                 assert!(cost > 0);
             }
         }
-        assert_eq!(upgrade_cost_micro(u8::MAX, 2).unwrap(), 51_000_000_000);
+        assert_eq!(upgrade_cost_micro(u8::MAX, 2).unwrap(), 15_300_000_000);
     }
 
     #[test]

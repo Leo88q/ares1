@@ -34,7 +34,7 @@ const BPS = 10_000n
 /** lib.rs: `pub const MAX_REWARD_MICRO: u64 = 1_000_000_000` — потолок одной выдачи (1 000 POTATO). */
 export const MAX_REWARD_MICRO = 1_000n * POTATO_MICRO
 /** lib.rs: `pub const GRANT_QUOTA_SHARE_BPS: u64 = 1_000` — ручным грантам доступно 10 % капа эпохи. */
-export const GRANT_QUOTA_SHARE_BPS = 1_000n
+export const GRANT_QUOTA_SHARE_BPS = 2_500n
 /** lib.rs: `pub const MAX_REWARD_EXPIRY_SECONDS: i64 = 900` — подпись гранта живёт не дольше 15 минут. */
 export const MAX_REWARD_EXPIRY_SECONDS = 900n
 /** Срок, который CLI ставит свежему гранту: внутри лимита программы и с запасом на подтверждение. */

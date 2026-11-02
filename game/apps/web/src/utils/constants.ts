@@ -17,7 +17,7 @@ export const TAX_PERIOD_DAYS = 7
 export const MAX_TAX_PREPAY_DAYS = 28
 export const FERTILIZER_HOURS = 24
 export const MAX_FERTILIZER_PREPAY_DAYS = 7
-export const ORDER_TTL_HOURS = 24
+export const ORDER_TTL_HOURS = 168
 export const CANCEL_COOLDOWN_HOURS = 3
 export const MIN_ORDER_AMOUNT_POTATO = 10
 export const FEE_BURN_PERCENT = 60
@@ -77,8 +77,8 @@ const BASE_COST_MICRO = {
  field: 250 * MICRO,
  tax: 6 * MICRO,
  repair: 15 * MICRO,
- fertilizer: 10 * MICRO,
- upgrade: 100 * MICRO,
+ fertilizer: 2 * MICRO,
+ upgrade: 30 * MICRO,
 } as const
 
 export function scaledCostMicro(baseMicro: number, fieldType: number): number {
@@ -113,11 +113,11 @@ export function durabilityMultBps(durability: number): number {
 
 /** Marketplace fee tier in bps for an order of `amountMicro`. */
 export function feeBps(amountMicro: number): number {
- // Прогрессивная комиссия 9% – 12%
- if (amountMicro < 1_000 * MICRO) return 900    // < 1k:   9%
- if (amountMicro < 10_000 * MICRO) return 1_000 // < 10k:  10%
- if (amountMicro < 100_000 * MICRO) return 1_100 // < 100k: 11%
- return 1_200                                    // >= 100k: 12%
+ // Прогрессивная комиссия 5% – 8%
+ if (amountMicro < 1_000 * MICRO) return 500    // < 1k:   5%
+ if (amountMicro < 10_000 * MICRO) return 600   // < 10k:  6%
+ if (amountMicro < 100_000 * MICRO) return 700  // < 100k: 7%
+ return 800                                     // >= 100k: 8%
 }
 
 export interface YieldInputs {

@@ -96,9 +96,9 @@ export const ECONOMY = Object.freeze({
   baseFieldPriceMicro: 250_000_000,       // BASE_FIELD_PRICE_MICRO (250 POTATO)
   baseTaxMicro: 6_000_000,                // BASE_TAX_MICRO (6 POTATO / week)
   baseRepairMicro: 15_000_000,            // BASE_REPAIR_MICRO
-  baseFertilizerMicro: 10_000_000,        // BASE_FERTILIZER_MICRO
-  baseUpgradeMicro: 100_000_000,          // BASE_UPGRADE_MICRO (× level)
-  baseYieldMicroPerDay: 6_000_000,        // DEFAULT_BASE_YIELD_MICRO_PER_DAY
+  baseFertilizerMicro: 2_000_000,         // BASE_FERTILIZER_MICRO (2 POTATO / 24h)
+  baseUpgradeMicro: 30_000_000,           // BASE_UPGRADE_MICRO (× level)
+  baseYieldMicroPerDay: 10_000_000,       // DEFAULT_BASE_YIELD_MICRO_PER_DAY
   exportLicenseSkrAtoms: 500_000_000n,    // EXPORT_LICENSE_PRICE_SKR_ATOMS
   presaleSkrAtoms: 1_053_000_000n,        // PRESALE_PRICE_SKR_ATOMS
   feeBurnPercent: 60,                     // FEE_BURN_PERCENT

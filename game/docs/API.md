@@ -25,10 +25,10 @@ retain their original **POTATO** payments/burns. The attempted generalized SKR
 service-pricing rewrite has been withdrawn; it is not the approved game economy.
 The current source still has the restored V1 SOL-only market described below. On
 11 October 2026 the owner separately approved a V2 POTATO/SKR market and a seller-paid
-9–12% settlement fee in the quote asset, retained from successful fills and routed
+5–8% settlement fee in the quote asset, retained from successful fills and routed
 to the treasury in that same asset. The V2 fee is intended to use cumulative UTC-day
 POTATO volume per seller address across both quote pairs; it is not part of this ABI.
-The draft source path is not represented in the committed IDL and the rollout flag is off, so the legacy market remains the only default user path. The V2 fee tiers (1k/10k/100k POTATO) are draft values, not final approved release configuration.
+The draft source path is not represented in the committed IDL and the rollout flag is off, so the legacy market remains the only default user path. The V2 marginal tiers are 5/6/7/8 % at 1k/10k/100k POTATO of a seller's rolling UTC-day volume.
 
 ## Draft V2 market (not deploy-verified)
 
@@ -100,7 +100,7 @@ builders in web/backend must match the generated IDL, not just its address.
 | `propose_withdrawal`, `cancel_withdrawal` | Authority; two-step gate for `withdraw_*`: proposal stores the destination/amount, execution allowed after `WITHDRAW_TIMELOCK_SECONDS` (30 s), cancelable while pending |
 | `update_guardian` | Authority; set/clear the emergency-pause guardian key in `GameConfig` (260-byte layout) |
 | `migrate_admin_state` | Authority; migrates `AdminState` 97 → 145 (proposed withdrawal fields appended), exact-size/discriminator checks like other migrations |
-| `migrate_config`, `migrate_epoch`, `migrate_field` | Authority; exact legacy/current layouts, discriminator/owner/PDA checks; rent shortfall paid to target; current data preserved on retry |
+| `migrate_config`, `migrate_epoch`, `migrate_field` | Authority; exact legacy/current layouts, discriminator/owner/PDA checks; `migrate_field(field_id)` additionally requires the canonical `[b"field", field_id]` PDA; rent shortfall paid to target; current data preserved on retry |
 | `migrate_presale_authority` | New game authority synchronizes presale authority after transfer |
 
 The three `withdraw_*` instructions lazily create the `AdminState` PDA
@@ -148,7 +148,7 @@ harvests.
   `fill_order` validates license/referral remaining accounts by **owner = program**
   and fully deserializes the referrer ATA (`spl TokenAccount`), rejecting forged
   discount/referral accounts.
-- `register_referrer`: one-time link, burn 5 POTATO (owner-confirmed registration price), self-referral rejected.
+- `register_referrer`: one-time link, **free** (registration cost is 0 POTATO), self-referral rejected.
 - `claim_achievement`: on-chain proofs and bitmap, quest IDs 0–5; transfers existing
   tokens from quest treasury (does not mint new rewards). Duplicate field proofs
   rejected; proof count per call capped at `MAX_CLAIM_PROOFS` = 12 to keep the

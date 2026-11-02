@@ -11,11 +11,11 @@ import {
 } from '../../apps/web/src/utils/marketFeePolicy'
 
 test('progressive marginal tiers use cumulative daily seller POTATO volume', () => {
-  assert.equal(feeBpsAtDailySellerVolume(0n), 900n)
-  assert.equal(feeBpsAtDailySellerVolume(SELLER_VOLUME_THRESHOLDS_MICRO[0] - 1n), 900n)
-  assert.equal(feeBpsAtDailySellerVolume(SELLER_VOLUME_THRESHOLDS_MICRO[0]), 1_000n)
-  assert.equal(feeBpsAtDailySellerVolume(SELLER_VOLUME_THRESHOLDS_MICRO[1]), 1_100n)
-  assert.equal(feeBpsAtDailySellerVolume(SELLER_VOLUME_THRESHOLDS_MICRO[2]), 1_200n)
+  assert.equal(feeBpsAtDailySellerVolume(0n), 500n)
+  assert.equal(feeBpsAtDailySellerVolume(SELLER_VOLUME_THRESHOLDS_MICRO[0] - 1n), 500n)
+  assert.equal(feeBpsAtDailySellerVolume(SELLER_VOLUME_THRESHOLDS_MICRO[0]), 600n)
+  assert.equal(feeBpsAtDailySellerVolume(SELLER_VOLUME_THRESHOLDS_MICRO[1]), 700n)
+  assert.equal(feeBpsAtDailySellerVolume(SELLER_VOLUME_THRESHOLDS_MICRO[2]), 800n)
 })
 
 test('crossing a tier inside a fill splits gross exactly and pays each marginal rate', () => {
@@ -25,7 +25,7 @@ test('crossing a tier inside a fill splits gross exactly and pays each marginal 
     sellerVolumeBeforeMicro: 999n * POTATO_MICRO + 500_000n,
   })
 
-  assert.deepEqual(result.segments.map((segment) => segment.feeBps), [900n, 1_000n])
+  assert.deepEqual(result.segments.map((segment) => segment.feeBps), [500n, 600n])
   assert.deepEqual(result.segments.map((segment) => segment.potatoMicro), [500_000n, 99_500_000n])
   assert.equal(result.segments.reduce((sum, segment) => sum + segment.grossQuoteAtoms, 0n), result.grossQuoteAtoms)
   assert.equal(result.grossQuoteAtoms, result.feeQuoteAtoms + result.sellerNetQuoteAtoms)
@@ -38,7 +38,7 @@ test('a large fill crosses all tiers and keeps seller net plus fee equal to gros
     priceQuoteAtomsPerPotato: 1_000_000n,
     sellerVolumeBeforeMicro: 0n,
   })
-  assert.deepEqual(result.segments.map((segment) => segment.feeBps), [900n, 1_000n, 1_100n, 1_200n])
+  assert.deepEqual(result.segments.map((segment) => segment.feeBps), [500n, 600n, 700n, 800n])
   assert.deepEqual(result.segments.map((segment) => segment.potatoMicro), [1_000n * POTATO_MICRO, 9_000n * POTATO_MICRO, 90_000n * POTATO_MICRO, 20_000n * POTATO_MICRO])
   assert.equal(result.grossQuoteAtoms, 120_000n * 1_000_000n)
   assert.equal(result.grossQuoteAtoms, result.feeQuoteAtoms + result.sellerNetQuoteAtoms)

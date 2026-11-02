@@ -577,9 +577,11 @@ export async function ixMigrateConfig(programId: PublicKey, params: {
 }
 
 export async function ixMigrateField(programId: PublicKey, params: {
- field: PublicKey; config: PublicKey; authority: PublicKey;
+ field: PublicKey; config: PublicKey; authority: PublicKey; fieldId: bigint;
 }): Promise<TransactionInstruction> {
- const data = Buffer.from(await ixDiscriminator('migrate_field'))
+ // P7: программа требует canonical PDA [b"field", field_id] — без аргумента
+ // миграцию не к чему привязать, поэтому id обязателен на уровне ABI.
+ const data = concatBytes(await ixDiscriminator('migrate_field'), u64LE(params.fieldId))
  return new TransactionInstruction({
   programId,
   data,

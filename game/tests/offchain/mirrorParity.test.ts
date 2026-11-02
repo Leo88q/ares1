@@ -149,15 +149,15 @@ test('комиссия рынка совпадает с calculate_fee_bps на �
   )
   assert.deepEqual(thresholds, [1_000_000_000, 10_000_000_000, 100_000_000_000])
   const rustFees = rustReturnedNumbers('calculate_fee_bps')
-  assert.deepEqual(rustFees, [900, 1_000, 1_100, 1_200])
+  assert.deepEqual(rustFees, [500, 600, 700, 800])
   for (const [i, threshold] of thresholds.entries()) {
     assert.equal(feeBps(threshold - 1), rustFees[i], `ниже ${threshold}`)
     assert.equal(feeBps(threshold), rustFees[i + 1], `на ${threshold}`)
   }
-  // Golden-литералы по объёму ордера (9 % → 12 %).
+  // Golden-литералы по объёму ордера (5 % → 8 %).
   assert.deepEqual(
     [1_000, 999_999_999, 1_000_000_000, 9_999_999_999, 10_000_000_000, 99_999_999_999, 100_000_000_000].map(feeBps),
-    [900, 900, 1_000, 1_000, 1_100, 1_100, 1_200],
+    [500, 500, 600, 600, 700, 700, 800],
   )
 })
 

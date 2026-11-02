@@ -1,5 +1,5 @@
 import { PublicKey, SystemProgram, TransactionInstruction, type AccountInfo } from '@solana/web3.js';
-import { anchorDiscriminator } from '../apps/backend/src/anchorRaw';
+import { anchorDiscriminator, u64LE } from '../apps/backend/src/anchorRaw';
 
 export const migrationLayouts = {
   config: { name: 'GameConfig', legacy: [156, 164, 228], current: 260 },
@@ -19,12 +19,35 @@ export function validateMigrationAccount(kind: MigrationKind, info: Pick<Account
   }
 }
 
-export function migrationInstruction(kind: MigrationKind, programId: PublicKey, target: PublicKey, authority: PublicKey): TransactionInstruction {
+/** Canonical `[b"field", field_id]` PDA — the address the program accepts. */
+export function fieldPda(programId: PublicKey, fieldId: bigint): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from('field'), u64LE(fieldId)], programId)[0];
+}
+
+/**
+ * P7: `migrate_field` carries `field_id` in its data and the program refuses
+ * any address but the canonical `[b"field", field_id]` PDA. The script mirrors
+ * that rule locally, so the operator cannot sign a transaction the chain would
+ * reject (or, worse, migrate an account whose id they guessed).
+ */
+export function migrationInstruction(
+  kind: MigrationKind,
+  programId: PublicKey,
+  target: PublicKey,
+  authority: PublicKey,
+  fieldId?: bigint,
+): TransactionInstruction {
   const config = PublicKey.findProgramAddressSync([Buffer.from('config')], programId)[0];
   if (kind === 'config' && !target.equals(config)) throw new Error('Config must be the canonical PDA');
+  let data = anchorDiscriminator('global', `migrate_${kind}`);
+  if (kind === 'field') {
+    if (fieldId === undefined) throw new Error('Field migration requires the field id (field_id argument)');
+    if (!target.equals(fieldPda(programId, fieldId))) throw new Error('Field must be the canonical [field, field_id] PDA');
+    data = Buffer.concat([data, u64LE(fieldId)]);
+  }
   return new TransactionInstruction({
     programId,
-    data: anchorDiscriminator('global', `migrate_${kind}`),
+    data,
     keys: [
       { pubkey: target, isSigner: false, isWritable: true },
       ...(kind === 'config' ? [] : [{ pubkey: config, isSigner: false, isWritable: false }]),

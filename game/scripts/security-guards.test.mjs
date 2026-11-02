@@ -167,7 +167,7 @@ test('C20: админ-рычаги под тимлоком/потолками/д
   assert.ok(libRs.includes('MAX_BASE_YIELD_MICRO_PER_DAY') && libRs.includes('GameError::BaseYieldTooHigh'));
   assert.ok(libRs.includes('MAX_GLOBAL_MULTIPLIER_BPS, GameError::MultiplierTooHigh'));
   assert.ok(libRs.includes('GameError::GrantQuotaExceeded'));
-  assert.ok(libRs.includes('GRANT_QUOTA_SHARE_BPS: u64 = 1_000'));
+  assert.ok(libRs.includes('GRANT_QUOTA_SHARE_BPS: u64 = 2_500'));
   assert.ok(libRs.includes('MAX_REWARD_MICRO: u64 = 1_000_000_000'));
 });
 
@@ -228,22 +228,21 @@ test('D25: пороги квестов выполнимы — «полевые»
   assert.equal(count(libRs, 'user_potato_ata.amount'), 0);
 });
 
-test('D27: migrate_field без PDA-проверки — долг P7 запинен вместе с обоснованием', () => {
-  // migrate_epoch выводит PDA из данных самого аккаунта (id лежит в Epoch) и
-  // отказывает чужому адресу. У Field своего id в раскладке нет — вывести PDA в
-  // обработчике нечем, проверка отсутствует. Это не дыра ровно до тех пор, пока
-  // КАЖДЫЙ Field-аккаунт создаётся программой по каноническим seeds: тогда
-  // адресное пространство Field целиком под контролем программы, и направить
-  // migrate_field на «чужой» аккаунт некуда (владелец обязан быть программой,
-  // раскладка и дискриминатор проверяются, пишет только authority).
-  // Оба факта держим пинами: если появится init без seeds или кто-то добавит
-  // проверку в migrate_field, тест упадёт и заставит пересмотреть P7 явно.
+test('D27/P7: migrate_field принимает только canonical PDA поля', () => {
+  // Долг P7 закрыт: у Field в раскладке нет id, поэтому migrate_field берёт
+  // field_id аргументом и обязан сверить адрес с [b"field", field_id] и
+  // сохранённый bump с каноническим. Иначе authority мог бы направить
+  // миграцию на любой program-owned аккаунт с раскладкой поля.
+  // Пин держит оба свойства: проверку PDA в migrate_field и канонические seeds
+  // у каждого места создания Field.
   const body = (name) => {
     const start = libRs.indexOf(`pub fn ${name}`);
     assert.ok(start > 0, `${name} не найден`);
     return libRs.slice(start, libRs.indexOf('pub fn ', start + 10));
   };
-  assert.equal(count(body('migrate_field'), 'find_program_address'), 0);
+  assert.equal(count(body('migrate_field'), 'find_program_address'), 1);
+  assert.match(body('migrate_field'), /require_keys_eq!\(info\.key\(\), expected/);
+  assert.match(body('migrate_field'), /field\.bump == canonical_bump/);
   assert.equal(count(body('migrate_epoch'), 'find_program_address'), 1);
   const fieldInits = blocks.filter(b => b.includes('Field::INIT_SPACE'));
   assert.equal(fieldInits.length, 3, 'Field создаётся в трёх местах — сверьте пины');

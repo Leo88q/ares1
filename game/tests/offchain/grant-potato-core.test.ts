@@ -89,10 +89,10 @@ test('parsePotatoAmount: точный bigint-парсинг и потолок о
 
 test('квота эпохи повторяет charge_epoch_grant: минимум из квоты грантов и общего капа', () => {
   const cap = 250_000n * 1_000_000n // максимальный дневной кап программы
-  assert.equal(epochGrantQuotaMicro(cap), 25_000n * 1_000_000n)
+  assert.equal(epochGrantQuotaMicro(cap), 62_500n * 1_000_000n)
 
-  // Свободная эпоха: ограничивает квота грантов (10 %), а не общий кап.
-  assert.equal(remainingGrantQuotaMicro({ mintCapMicro: cap, mintedMicro: 0n, grantedMicro: 0n }), 25_000n * 1_000_000n)
+  // Свободная эпоха: ограничивает квота грантов (25 %), а не общий кап.
+  assert.equal(remainingGrantQuotaMicro({ mintCapMicro: cap, mintedMicro: 0n, grantedMicro: 0n }), 62_500n * 1_000_000n)
   // Харвесты почти выбрали кап: ограничивает общий кап.
   assert.equal(
     remainingGrantQuotaMicro({ mintCapMicro: cap, mintedMicro: cap - 5_000_000n, grantedMicro: 0n }),
@@ -100,11 +100,11 @@ test('квота эпохи повторяет charge_epoch_grant: миниму�
   )
   // Квота выбрана грантами целиком.
   assert.equal(
-    remainingGrantQuotaMicro({ mintCapMicro: cap, mintedMicro: 25_000n * 1_000_000n, grantedMicro: 25_000n * 1_000_000n }),
+    remainingGrantQuotaMicro({ mintCapMicro: cap, mintedMicro: 62_500n * 1_000_000n, grantedMicro: 62_500n * 1_000_000n }),
     0n,
   )
 
-  const epoch = { mintCapMicro: cap, mintedMicro: 0n, grantedMicro: 24_950n * 1_000_000n }
+  const epoch = { mintCapMicro: cap, mintedMicro: 0n, grantedMicro: 62_450n * 1_000_000n }
   assert.doesNotThrow(() => assertGrantWithinLimits(50n * 1_000_000n, epoch))
   assert.throws(() => assertGrantWithinLimits(51n * 1_000_000n, epoch), /remaining epoch grant quota/)
   assert.throws(() => assertGrantWithinLimits(MAX_REWARD_MICRO + 1n, epoch), /one-grant cap/)

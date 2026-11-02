@@ -45,11 +45,14 @@ test('unapproved SKR service pricing rail is absent from contract and active cli
 });
 
 
-test('owner-confirmed referral registration costs 5 POTATO, matching the UI', () => {
-  assert.equal(constant('REFERRAL_REGISTRATION_COST_MICRO'), 5n * 1_000_000n);
-  assert.match(handler('register_referrer'), /token::burn\(/);
+test('referral registration is free: no entry fee before the first field', () => {
+  // Новичок приходит с пустым кошельком. Плата за регистрацию делала реферал
+  // доступным только тем, кто уже купил POTATO, — то есть убивала единственную
+  // петлю роста. Ставка обязана остаться нулевой.
+  assert.equal(constant('REFERRAL_REGISTRATION_COST_MICRO'), 0n);
+  assert.match(handler('register_referrer'), /if REFERRAL_REGISTRATION_COST_MICRO > 0/);
   assert.match(handler('register_referrer'), /REFERRAL_REGISTRATION_COST_MICRO/);
   assert.doesNotMatch(handler('register_referrer'), /50_000_000/);
   const ui = fs.readFileSync('apps/web/src/components/ReferralSection.tsx', 'utf8');
-  assert.match(ui, /Антиспам: 5 🥔 сгорает с баланса приглашённого, разово/);
+  assert.match(ui, /Регистрация бесплатна: 0 🥔, антиспам — одна запись на кошелёк/);
 });
