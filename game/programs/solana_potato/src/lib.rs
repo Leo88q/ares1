@@ -2427,10 +2427,8 @@ pub mod solana_potato {
         let info = ctx.accounts.field.to_account_info();
         let updated = migrations::field(&info.try_borrow_data()?)?;
         let field = Field::try_deserialize(&mut &updated[..])?;
-        let (expected, canonical_bump) = Pubkey::find_program_address(
-            &[b"field", &field_id.to_le_bytes()],
-            ctx.program_id,
-        );
+        let (expected, canonical_bump) =
+            Pubkey::find_program_address(&[b"field", &field_id.to_le_bytes()], ctx.program_id);
         require_keys_eq!(info.key(), expected, GameError::BadProof);
         require!(field.bump == canonical_bump, GameError::BadProof);
         write_migrated_account(
@@ -5505,12 +5503,12 @@ mod tests {
     }
 
     #[test]
-    fn fee_bps_stay_within_nine_and_twelve_percent() {
-        // П. 15: прогрессия тиров 9–12 % без выбросов на границах диапазона.
+    fn fee_bps_stay_within_five_and_eight_percent() {
+        // П. 15: прогрессия тиров 5–8 % без выбросов на границах диапазона.
         for amount in [0u64, 1, MIN_ORDER_AMOUNT_MICRO, u64::MAX] {
             let bps = calculate_fee_bps(amount);
             assert!(
-                (900u16..=1_200).contains(&bps),
+                (500u16..=800).contains(&bps),
                 "tier {bps} out of range at {amount}"
             );
         }
@@ -5689,7 +5687,7 @@ mod tests {
                 "rounding at {amount}"
             );
             assert!(
-                (900..=1_200).contains(&(bps as u16)),
+                (500..=800).contains(&(bps as u16)),
                 "tier {bps} at {amount}"
             );
         }
