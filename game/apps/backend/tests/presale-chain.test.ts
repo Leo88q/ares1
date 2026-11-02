@@ -116,3 +116,50 @@ test('казначейство исключено из кандидатов, а 
     postBalances: [5n],
   }, treasuryKey), null);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Preflight SKR-казны перед открытием тиража (P2-1).
+//
+// `treasury_skr_ata` создаётся только BOOTSTRAP_PROFILE=full. Тиражи, открытые
+// без него, собирали бы SKR в несуществующий аккаунт: платёж не проходит, заказ
+// истекает, покупатель теряет комиссию сети.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { assertSkrTreasuryReady } from '../src/presale/chain.js';
+
+const SKR = 'Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o';
+const TREASURY_ATA = Keypair.generate().publicKey.toBase58();
+
+function parsedAccount(mint: string) {
+  return { value: { data: { parsed: { type: 'account', info: { mint, owner: 'X'.repeat(40) } } } } };
+}
+
+test('SKR-казна: отсутствующий ATA отклоняется до открытия тиража', async () => {
+  const connection = { getParsedAccountInfo: async () => ({ value: null }) } as any;
+  await assert.rejects(
+    assertSkrTreasuryReady(connection, treasury.toBase58(), SKR),
+    /не существует/,
+  );
+});
+
+test('SKR-казна: аккаунт другого минта отклоняется', async () => {
+  const connection = { getParsedAccountInfo: async () => parsedAccount('So11111111111111111111111111111111111111112') } as any;
+  await assert.rejects(assertSkrTreasuryReady(connection, treasury.toBase58(), SKR), /держит минт/);
+});
+
+test('SKR-казна: не токен-аккаунт (например, кошелёк) отклоняется', async () => {
+  const connection = { getParsedAccountInfo: async () => ({ value: { data: Buffer.alloc(0) } }) } as any;
+  await assert.rejects(assertSkrTreasuryReady(connection, treasury.toBase58(), SKR), /не является токен-аккаунтом/);
+});
+
+test('SKR-казна: корректный ATA пропускает тираж', async () => {
+  const connection = { getParsedAccountInfo: async () => parsedAccount(SKR) } as any;
+  await assert.doesNotReject(assertSkrTreasuryReady(connection, treasury.toBase58(), SKR));
+});
+
+test('SKR-казна: мусорный адрес отклоняется до RPC', async () => {
+  let called = false;
+  const connection = { getParsedAccountInfo: async () => { called = true; return { value: null }; } } as any;
+  await assert.rejects(assertSkrTreasuryReady(connection, 'not-a-key', SKR), /base58/);
+  assert.equal(called, false, 'невалидный адрес не должен доходить до RPC');
+});

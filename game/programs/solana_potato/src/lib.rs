@@ -1919,6 +1919,16 @@ pub mod solana_potato {
             amount_micro > 0 && amount_micro <= MAX_REWARD_MICRO,
             GameError::RewardTooLarge
         );
+        // Грант обязан идти в каноническую ATA получателя: иначе «тот же
+        // получатель» определяется вызывающим, а не (owner, mint).
+        if !is_canonical_ata(
+            &ctx.accounts.user_potato.key(),
+            &ctx.accounts.user_potato.owner,
+            &ctx.accounts.potato_mint.key(),
+        ) {
+            msg!("user_potato must be the canonical ATA of (owner, mint)");
+            return Err(GameError::InvalidAuthority.into());
+        }
         let supply_left = ctx
             .accounts
             .config
@@ -1977,6 +1987,17 @@ pub mod solana_potato {
             GameError::RewardTooLarge
         );
 
+        // Маркер повтора `[b"reward", user_potato, nonce]` привязан к ATA.
+        // Без этой проверки тот же nonce для того же кошелька проходил бы через
+        // второй токен-аккаунт и создавал вторую выплату (см. is_canonical_ata).
+        if !is_canonical_ata(
+            &ctx.accounts.user_potato.key(),
+            &ctx.accounts.user_potato.owner,
+            &ctx.accounts.potato_mint.key(),
+        ) {
+            msg!("user_potato must be the canonical ATA of (owner, mint)");
+            return Err(GameError::InvalidAuthority.into());
+        }
         let now = Clock::get()?.unix_timestamp;
         require!(now <= expires_at, GameError::RewardClaimExpired);
         require!(
@@ -2803,6 +2824,33 @@ pub fn charge_epoch_grant(epoch: &mut Epoch, amount_micro: u64) -> Result<()> {
     Ok(())
 }
 // Kept free of account types so they can be unit-tested on the host.
+
+/// Program id of the SPL Associated Token Account program.
+pub const ATA_PROGRAM_ID: Pubkey = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+/// Program id of the SPL Token program, used in the ATA derivation seeds.
+pub const SPL_TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+
+/// Является ли `account` канонической ATA для пары (owner, mint).
+///
+/// Грантовые инструкции минтят в `user_potato`, а маркер повтора
+/// `[b"reward", user_potato, nonce]` привязан именно к этому аккаунту. Пока
+/// проверки не было, POD «одна выплата на (nonce, получатель)» означал «одна
+/// выплата на (токен-аккаунт, nonce)»: второй токен-аккаунт того же минта у того
+/// же владельца (или аккаунт с другим владельцем) создавал второй маркер и
+/// второй минт по тому же nonce. ATA выводится из (owner, mint) однозначно,
+/// поэтому проверка возвращает исходный инвариант «один кошелёк — один маркер
+/// на nonce» без изменения аккаунтов инструкции.
+pub fn is_canonical_ata(account: &Pubkey, owner: &Pubkey, mint: &Pubkey) -> bool {
+    let (expected, _) = Pubkey::find_program_address(
+        &[
+            owner.as_ref(),
+            SPL_TOKEN_PROGRAM_ID.as_ref(),
+            mint.as_ref(),
+        ],
+        &ATA_PROGRAM_ID,
+    );
+    expected == *account
+}
 
 /// Yield multiplier for a field type, in bps.
 pub fn type_yield_bps(field_type: u8) -> u128 {
@@ -5089,6 +5137,42 @@ mod tests {
             bump: 0,
             mutation_type: 0,
         }
+    }
+
+    #[test]
+    fn canonical_ata_check_binds_replay_marker_to_wallet() {
+        // ATA выводится из (owner, mint) однозначно: тот же кошелёк и минт дают
+        // ровно один допустимый аккаунт, поэтому один nonce не может создать
+        // второй маркер через «другой токен-аккаунт того же владельца».
+        let owner = Pubkey::new_from_array([3u8; 32]);
+        let mint = Pubkey::new_from_array([9u8; 32]);
+        let (ata, _) = Pubkey::find_program_address(
+            &[
+                owner.as_ref(),
+                SPL_TOKEN_PROGRAM_ID.as_ref(),
+                mint.as_ref(),
+            ],
+            &ATA_PROGRAM_ID,
+        );
+        assert!(is_canonical_ata(&ata, &owner, &mint));
+
+        // Любой другой аккаунт (второй токен-аккаунт) — не ATA.
+        let other = Pubkey::new_from_array([1u8; 32]);
+        assert!(!is_canonical_ata(&other, &owner, &mint));
+        // Тот же аккаунт, но другой владелец или минт — тоже нет.
+        assert!(!is_canonical_ata(&ata, &other, &mint));
+        assert!(!is_canonical_ata(&ata, &owner, &other));
+        // Проверка идёт по (owner, mint), а не по самому адресу: адрес ATA
+        // чужого кошелька для этой пары не подходит.
+        let (foreign, _) = Pubkey::find_program_address(
+            &[
+                other.as_ref(),
+                SPL_TOKEN_PROGRAM_ID.as_ref(),
+                mint.as_ref(),
+            ],
+            &ATA_PROGRAM_ID,
+        );
+        assert!(!is_canonical_ata(&foreign, &owner, &mint));
     }
 
     #[test]

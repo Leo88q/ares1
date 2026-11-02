@@ -5,6 +5,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   AuthorityType,
   TOKEN_PROGRAM_ID,
+  createAccount,
   createMint,
   createMintToInstruction,
   getAccount,
@@ -328,6 +329,32 @@ describe("solana_potato", () => {
           systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID,
         }).rpc(),
       );
+    });
+
+    it("rejects a non-canonical token account: маркер повтора привязан к ATA", async () => {
+      // Второй токен-аккаунт того же владельца и минта — не ATA. Пока проверки
+      // не было, POD «одна выплата на (nonce, получатель)» означал «одна выплата
+      // на (аккаунт, nonce)»: тот же nonce создавал второй маркер и второй минт.
+      // createAccount в @solana/spl-token 0.4 возвращает адрес нового аккаунта.
+      const nonCanonical = await createAccount(connection, admin, mint, player.publicKey);
+      const before = await ataBalance(playerAta);
+      await expectFail(
+        program.methods.grantRewardOnce(new BN(16), new BN(1_000_000), soon()).accountsPartial({
+          config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint,
+          userPotato: nonCanonical, rewardClaim: rewardClaimPda(nonCanonical, 16n),
+          systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID,
+        }).rpc(),
+        "InvalidAuthority",
+      );
+      // Легаси-рельса проверяет то же самое: иначе слабая ветка стала бы обходом.
+      await expectFail(
+        program.methods.grantReward(new BN(1_000_000)).accountsPartial({
+          config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint,
+          userPotato: nonCanonical, tokenProgram: TOKEN_PROGRAM_ID,
+        }).rpc(),
+        "InvalidAuthority",
+      );
+      expect(await ataBalance(playerAta)).to.eq(before);
     });
 
     it("counts toward the same epoch grant quota as grant_reward", async () => {

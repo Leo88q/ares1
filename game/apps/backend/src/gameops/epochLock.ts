@@ -27,7 +27,19 @@ export function createPgRollLock(pool: Pool) {
 
   return {
     async acquire(): Promise<boolean> {
-      if (held) return true; // повторный вход в одном процессе — блокировка уже наша
+      // Повторный вход в одном процессе — блокировка уже наша, НО только пока
+      // живо соединение, которое её держит. Если оно умерло (сеть, рестарт
+      // пула, evict контейнера), сервер уже снял лок: вернуть true без проверки
+      // значит пустить второй инстанс в тот же ролл параллельно первому.
+      if (held) {
+        try {
+          await held.query("SELECT 1");
+          return true;
+        } catch {
+          held.release(true);
+          held = null;
+        }
+      }
       const client = await pool.connect();
       try {
         const res = await client.query<{ locked: boolean }>(

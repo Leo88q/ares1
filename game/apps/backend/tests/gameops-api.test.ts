@@ -27,19 +27,28 @@ const config: GameOpsConfig = {
   expectedSchemaVersion: 16,
 };
 
-/** Заглушка пула: любая операция падает так, как это делает недоступная БД. */
+/**
+ * Заглушка пула: содержательные запросы падают так, как это делает недоступная
+ * БД, а протокол транзакции (BEGIN/COMMIT/ROLLBACK/set_config) проходит —
+ * иначе нельзя проверить, что действие внутри транзакции пишет аудит тем же
+ * соединением (recordAuditTx), а не отдельным.
+ */
 function brokenPool(): { pool: Pool; queries: string[] } {
   const queries: string[] = [];
+  const connectionError = () => {
+    const error = new Error('connection refused') as Error & { code?: string };
+    error.code = 'ECONNREFUSED';
+    return error;
+  };
+  const run = async (text: string) => {
+    queries.push(text);
+    if (/^\s*(BEGIN|COMMIT|ROLLBACK|SELECT set_config)/i.test(text)) return { rows: [], rowCount: 0 };
+    throw connectionError();
+  };
+  const client = { query: run, release: () => undefined };
   const pool = {
-    query: async (text: string) => {
-      queries.push(text);
-      const error = new Error('connection refused') as Error & { code?: string };
-      error.code = 'ECONNREFUSED';
-      throw error;
-    },
-    connect: async () => {
-      throw new Error('connection refused');
-    },
+    query: run,
+    connect: async () => client,
     on: () => pool,
     end: async () => undefined,
   } as unknown as Pool;

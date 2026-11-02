@@ -107,7 +107,12 @@ export async function migrate(options: MigrateOptions): Promise<MigrateResult> {
   try {
     // Advisory-lock: реестр версий всё равно защищает от повторного применения,
     // но при выкатке в нескольких репликах лок экономит время и нервы.
-    await client.query('SELECT pg_advisory_lock(hashtext($1))', [LOCK_KEY]).catch(() => undefined);
+    //
+    // Ошибку лока НЕ проглатываем: раньше здесь стоял `.catch(() => undefined)`,
+    // и при недоступном advisory-локе два раннера применяли один файл
+    // одновременно, а `ON CONFLICT DO NOTHING` в schema_version скрывал, что
+    // второй ничего не записал. Лучше явный отказ миграции, чем тихая гонка.
+    await client.query('SELECT pg_advisory_lock(hashtext($1))', [LOCK_KEY]);
 
     const hasRegistry = await client
       .query<{ exists: boolean }>("SELECT to_regclass('game_ops.schema_version') IS NOT NULL AS exists")
@@ -163,10 +168,12 @@ async function applyOne(client: pg.Client, file: MigrationFile, logger: MigrateL
     // Актор для триггеров аудита: миграции тоже оставляют след.
     await client.query("SELECT set_config('game_ops.actor', 'cli:db-migrate', true)");
     await client.query(file.sql);
+    // Без ON CONFLICT: к этому месту версия гарантированно не зарегистрирована
+    // (см. проверку реестра выше). Конфликт означает, что файл применился
+    // дважды — это должно падать, а не «пройти» с неприменённой отметкой.
     await client.query(
       `INSERT INTO game_ops.schema_version (version, file_name, checksum, note)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (version) DO NOTHING`,
+       VALUES ($1, $2, $3, $4)`,
       [file.version, file.fileName, checksumOf(file.sql), 'applied by scripts/db-migrate.ts'],
     );
     await client.query('COMMIT');

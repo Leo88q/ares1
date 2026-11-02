@@ -342,3 +342,33 @@ test('лимит броней: после пяти за час шестая — 
     false,
   );
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SKR-тираж нельзя открыть без существующего казначейского ATA (P2-1).
+// ─────────────────────────────────────────────────────────────────────────────
+test('открытие SKR-тиража без казначейского ATA — 409, а не тираж без кассы', async () => {
+  const pool = {} as unknown as Pool; // до БД дело не доходит: отказ раньше
+  const injected: PresaleDeps = {
+    connection: {
+      getParsedAccountInfo: async () => ({ value: null }),
+      getSlot: async () => 1,
+    } as unknown as PresaleDeps['connection'],
+    cluster: 'devnet',
+    paymentsEnabled: true,
+    potatoMint: TREASURY,
+  };
+  await withServer(pool, injected, async baseUrl => {
+    const response = await fetch(`${baseUrl}/api/presale/admin/runs`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        runId: 'wave-skr', packId: 'meadow-4', currency: 'skr',
+        priceUnits: '100000000', cap: 10, treasury: 'AtokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL',
+      }),
+    });
+    assert.equal(response.status, 409);
+    const body = (await response.json()) as { error: string; message: string };
+    assert.equal(body.error, 'VALIDATION');
+    assert.match(body.message, /не существует/);
+  });
+});

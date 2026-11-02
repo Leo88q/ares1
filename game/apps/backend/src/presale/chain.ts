@@ -158,6 +158,54 @@ export function sourceWalletOf(
 }
 
 /**
+ * Preflight казначейского ATA для SKR-тиража.
+ *
+ * Почему это отдельная проверка перед открытием тиража. Для SKR поле
+ * `presale_runs.treasury` — не кошелёк, а ТОКЕН-аккаунт (ATA) казны. Его
+ * создаёт только `BOOTSTRAP_PROFILE=full` в `scripts/init-onchain.ts:292-296`,
+ * то есть существование ATA — договорённость между оператором и бутстрапом, а
+ * не инвариант программы. Если открыть SKR-тираж без этого ATA, покупатель
+ * отправит перевод на несуществующий аккаунт: транзакция не пройдёт, деньги не
+ * придут, а заказ останется `reserved` и истечёт. Отказ обязан случиться на шаге
+ * оператора — до того, как покупателю что-то пообещали.
+ *
+ * Проверяем три вещи, которые можно проверить до тиража: аккаунт существует,
+ * он токен-аккаунт, и его минт — именно SKR. Владельца здесь не сверяем: ATA
+ * казны — это адрес, который оператор указывает в тираже; кому он принадлежит,
+ * решает бутстрап.
+ */
+export async function assertSkrTreasuryReady(
+  connection: Connection,
+  treasury: string,
+  skrMint: string,
+): Promise<void> {
+  let key: PublicKey;
+  try {
+    key = new PublicKey(treasury);
+  } catch {
+    throw new Error(`treasury ${treasury || '(пусто)'} не является base58-адресом токен-аккаунта SKR`);
+  }
+  const info = await connection.getParsedAccountInfo(key, 'confirmed');
+  const value = info.value;
+  if (!value) {
+    throw new Error(
+      `SKR-казна ${treasury} не существует: создайте ATA (BOOTSTRAP_PROFILE=full) до открытия тиража, иначе платежи покупателей не пройдут`,
+    );
+  }
+  const data = value.data;
+  const parsed = typeof data === 'object' && data !== null && 'parsed' in data
+    ? (data as { parsed?: { type?: string; info?: { mint?: unknown } } }).parsed
+    : undefined;
+  const mint = parsed?.info?.mint;
+  if (typeof mint !== 'string') {
+    throw new Error(`SKR-казна ${treasury} не является токен-аккаунтом: переводы SKR на него невозможны`);
+  }
+  if (mint !== skrMint) {
+    throw new Error(`SKR-казна ${treasury} держит минт ${mint}, а тираж принимает ${skrMint}`);
+  }
+}
+
+/**
  * История притоков к кошельку-казначейству для сверки. Строится ТОЛЬКО из
  * истории кошелька — из неё же восстанавливается список плательщиков, поэтому
  * сверка не зависит от БД.

@@ -26,7 +26,7 @@ import {
   listPendingDelivery, listNeedsAttention, listPendingRefundSettlement,
 } from '../presale/orders.js';
 import { verifyPayment, verifyTokenPayment } from '../presale/verify.js';
-import { fetchPaymentView, fetchTokenPaymentView, fetchTreasuryTransfers } from '../presale/chain.js';
+import { assertSkrTreasuryReady, fetchPaymentView, fetchTokenPaymentView, fetchTreasuryTransfers } from '../presale/chain.js';
 import { buildPaymentExpectation, PaymentExpectationError } from '../presale/paymentExpectation.js';
 import { settleRefund, verifySolRefund, verifyTokenRefund } from '../presale/refunds.js';
 import { reconcile, payersFromChain } from '../presale/reconcile.js';
@@ -191,6 +191,21 @@ export function presaleRouter(pool: Pool, config: GameOpsConfig, deps: PresaleDe
       // never accept it as payment, even if an operator sends a malformed admin request.
       if (deps.cluster === 'mainnet-beta' && currency !== 'sol') {
         throw new GameOpsError('VALIDATION', 'Mainnet Phase 1 currently accepts native SOL only; SKR is not deployed on mainnet.', undefined, 400);
+      }
+      // SKR-тираж принимает платежи на ТОКЕН-аккаунт казны. Его существование —
+      // не инвариант программы (создаётся бутстрапом), поэтому проверяем до
+      // открытия: иначе покупатель отправит SKR в никуда и заказ истечёт.
+      if (currency === 'skr') {
+        try {
+          await assertSkrTreasuryReady(deps.connection, String(body.treasury ?? ''), skrMintOf({ currency }));
+        } catch (error) {
+          throw new GameOpsError(
+            'VALIDATION',
+            error instanceof Error ? error.message : String(error),
+            'SKR_TREASURY_NOT_READY',
+            409,
+          );
+        }
       }
       const startedSlot = BigInt(await deps.connection.getSlot('finalized')) + 1n;
       return openRun(pool, {

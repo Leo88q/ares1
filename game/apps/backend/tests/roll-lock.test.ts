@@ -4,6 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { RollLock, withEpochRollLock } from '../src/rollLock.js';
+import { createPgRollLock } from '../src/gameops/epochLock.js';
+import type { Pool } from '../src/gameops/pool.js';
 
 function fakeLock(overrides: Partial<RollLock> = {}): RollLock & { acquired: number; released: number } {
   const lock = {
@@ -106,4 +108,69 @@ test('a failing release is logged and does not mask the tick result', async () =
   const outcome = await withEpochRollLock(lock, async () => 'sig', (m) => logs.push(m));
   assert.deepEqual(outcome, { ran: true, value: 'sig' });
   assert.ok(logs.some((m) => /release failed/.test(m)), `expected a release log, got: ${logs.join('|')}`);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Postgres-реализация (gameops/epochLock.ts).
+//
+// Регресс: если соединение, державшее advisory-лок, умерло, сервер лок уже
+// снял, а `held` оставался непустым — `acquire()` возвращал true без проверки,
+// и два инстанса считали себя роллером одновременно.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fakePool(initialHealthy = true) {
+  const state = { connects: 0, destroyed: [] as boolean[], healthy: initialHealthy, lastClient: null as null | { query: (text: string) => Promise<unknown> } };
+  const makeClient = () => {
+    const client = {
+      async query(text: string) {
+        if (text.includes('pg_try_advisory_lock')) return { rows: [{ locked: true }] };
+        if (!state.healthy) throw new Error('connection terminated');
+        return { rows: [{ '?column?': 1 }] };
+      },
+      release(destroy?: boolean) {
+        state.destroyed.push(destroy === true);
+      },
+    };
+    state.lastClient = client;
+    return client;
+  };
+  const pool = {
+    connect: async () => {
+      state.connects += 1;
+      return makeClient();
+    },
+  } as unknown as Pool;
+  return { pool, state };
+}
+
+test('postgres lock: живое соединение переиспользуется без повторного connect', async () => {
+  const { pool, state } = fakePool();
+  const lock = createPgRollLock(pool);
+  assert.equal(await lock.acquire(), true);
+  assert.equal(await lock.acquire(), true);
+  assert.equal(state.connects, 1, 'повторный вход не должен брать новое соединение');
+  await lock.release();
+  assert.deepEqual(state.destroyed, [false]);
+});
+
+test('postgres lock: мёртвое соединение не считается удерживающим блокировку', async () => {
+  const { pool, state } = fakePool();
+  const lock = createPgRollLock(pool);
+  assert.equal(await lock.acquire(), true);
+  // Соединение умерло: сервер снял лок, локальный «held» больше ничего не значит.
+  state.healthy = false;
+  assert.equal(await lock.acquire(), true, 'лок должен быть перевзят на новом соединении');
+  assert.equal(state.connects, 2);
+  assert.deepEqual(state.destroyed, [true], 'мёртвое соединение уничтожается, а не возвращается в пул');
+  state.healthy = true;
+  await lock.release();
+});
+
+test('postgres lock: неудачный захват освобождает соединение без уничтожения', async () => {
+  const { pool, state } = fakePool();
+  const client = { async query() { return { rows: [{ locked: false }] }; }, release(destroy?: boolean) { state.destroyed.push(destroy === true); } };
+  (pool as unknown as { connect: () => Promise<typeof client> }).connect = async () => { state.connects += 1; return client; };
+  const lock = createPgRollLock(pool);
+  assert.equal(await lock.acquire(), false);
+  assert.deepEqual(state.destroyed, [false]);
 });
