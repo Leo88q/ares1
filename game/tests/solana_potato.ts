@@ -335,8 +335,10 @@ describe("solana_potato", () => {
       // Второй токен-аккаунт того же владельца и минта — не ATA. Пока проверки
       // не было, POD «одна выплата на (nonce, получатель)» означал «одна выплата
       // на (аккаунт, nonce)»: тот же nonce создавал второй маркер и второй минт.
-      // createAccount в @solana/spl-token 0.4 возвращает адрес нового аккаунта.
-      const nonCanonical = await createAccount(connection, admin, mint, player.publicKey);
+      // createAccount БЕЗ keypair в @solana/spl-token 0.4 создаёт именно ATA
+      // (createAccount.js:21-23), поэтому передаём свежий keypair: нужен обычный
+      // токен-аккаунт того же минта на player, то есть заведомо не канонический.
+      const nonCanonical = await createAccount(connection, admin, mint, player.publicKey, Keypair.generate());
       const before = await ataBalance(playerAta);
       await expectFail(
         program.methods.grantRewardOnce(new BN(16), new BN(1_000_000), soon()).accountsPartial({
