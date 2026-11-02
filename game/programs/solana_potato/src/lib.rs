@@ -111,6 +111,11 @@ pub const MAX_WITHDRAW_POTATO_MICRO_PER_WINDOW: u64 = 250_000_000_000;
 pub const MAX_WITHDRAW_SOL_LAMPORTS_PER_WINDOW: u64 = 25_000_000_000;
 /// 100 000 SKR per window.
 pub const MAX_WITHDRAW_SKR_ATOMS_PER_WINDOW: u64 = 100_000_000_000;
+/// P1-4: доля текущего баланса казны, которую разрешено забрать одной
+/// выплатой. Окно ограничивает эмиссию (250 000 🥔 — ровно дневной кап), а не
+/// размер казны: без доли один ключ `authority` выносит всю казну одним
+/// предложением. 10 % за вызов, окно остаётся сверху.
+pub const MAX_WITHDRAW_BALANCE_SHARE_BPS: u16 = 1_000;
 
 /// F-02: исполнение предложенного вывода (`propose_withdrawal` → `withdraw_*`)
 /// разрешено не раньше чем через эту задержку. Окно — минуты, а не часы: главный
@@ -2113,6 +2118,15 @@ pub mod solana_potato {
         let (pending, proposed_at) = state.pending_withdraw(0)?;
         require!(pending > 0, GameError::NoPendingWithdrawal);
         require!(pending == amount_micro, GameError::WithdrawAmountMismatch);
+        // P1-4: окно 250 000 🥔 равно дневному капу эмиссии, то есть казну
+        // целиком. Одна выплата дополнительно ограничена долей текущего
+        // баланса — сумма проверяется на исполнении, где баланс доступен.
+        // Проверка дешёвая и стоит до таймлока: отказ не должен зависеть от
+        // того, истекло ли время.
+        require!(
+            amount_micro <= single_withdraw_cap(ctx.accounts.treasury_potato.amount),
+            GameError::WithdrawShareExceeded
+        );
         let now = Clock::get()?.unix_timestamp;
         require!(
             now >= proposed_at
@@ -2840,6 +2854,13 @@ pub const SPL_TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuB
 /// второй минт по тому же nonce. ATA выводится из (owner, mint) однозначно,
 /// поэтому проверка возвращает исходный инвариант «один кошелёк — один маркер
 /// на nonce» без изменения аккаунтов инструкции.
+/// P1-4: потолок одной выплаты — доля текущего баланса казны.
+/// `saturating_mul`: баланс ограничен supply и не переполняет u64, но паника
+/// в on-chain коде дороже нулевого потолка.
+pub fn single_withdraw_cap(balance: u64) -> u64 {
+    balance.saturating_mul(MAX_WITHDRAW_BALANCE_SHARE_BPS as u64) / 10_000
+}
+
 pub fn is_canonical_ata(account: &Pubkey, owner: &Pubkey, mint: &Pubkey) -> bool {
     let (expected, _) = Pubkey::find_program_address(
         &[owner.as_ref(), SPL_TOKEN_PROGRAM_ID.as_ref(), mint.as_ref()],
@@ -5112,6 +5133,8 @@ pub enum GameError {
     V2FeeConsumesProceeds, // 6054
     #[msg("Seller daily volume account does not match the order seller")]
     InvalidSellerVolumeAccount, // 6055
+    #[msg("Withdrawal exceeds the share of the treasury balance allowed per call (10 %)")]
+    WithdrawShareExceeded, // 6056
 }
 
 // ──────────────────────────── Tests ──────────────────────────────
@@ -5274,6 +5297,20 @@ mod tests {
         assert_eq!(lunar_weighted_bps(SECONDS_PER_DAY * 3 / 2, 0), w);
         // Семь суток (MAX_ACCRUAL) не выходят за границы таблицы.
         let _ = lunar_weighted_bps(MAX_ACCRUAL_SECONDS, 5);
+    }
+
+    #[test]
+    fn single_withdraw_cap_is_a_share_of_the_treasury_balance() {
+        // P1-4: окно вывода (250 000 🥔) равно дневному капу эмиссии, то есть
+        // размеру всей казны. Одна выплата дополнительно ограничена долей
+        // текущего баланса.
+        assert_eq!(MAX_WITHDRAW_BALANCE_SHARE_BPS, 1_000);
+        assert_eq!(single_withdraw_cap(0), 0);
+        assert_eq!(single_withdraw_cap(9), 0, "пыль не выводится вовсе");
+        assert_eq!(single_withdraw_cap(1_000_000), 100_000);
+        assert_eq!(single_withdraw_cap(250_000_000_000), 25_000_000_000);
+        // Насыщение вместо паники: баланс у предела u64 не должен ронять IX.
+        assert_eq!(single_withdraw_cap(u64::MAX), u64::MAX / 10_000);
     }
 
     #[test]

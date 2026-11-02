@@ -6895,6 +6895,11 @@
       "code": 6055,
       "name": "InvalidSellerVolumeAccount",
       "msg": "Seller daily volume account does not match the order seller"
+    },
+    {
+      "code": 6056,
+      "name": "WithdrawShareExceeded",
+      "msg": "Withdrawal exceeds the share of the treasury balance allowed per call (10 %)"
     }
   ],
   "types": [

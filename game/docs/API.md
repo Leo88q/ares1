@@ -111,6 +111,15 @@ window (`WITHDRAW_WINDOW_SECONDS`); exceeding a limit fails with
 `propose_withdrawal` and observe the 30 s on-chain timelock (`CanceledBeforeTimelock`
 6041 if earlier); the proposal is cancellable via `cancel_withdrawal`.
 
+**POTATO share cap (P1-4):** the POTATO window (250 000 🥔) equals the default
+daily mint cap, i.e. the size of the whole treasury. `withdraw_treasury`
+therefore also requires `amount_micro <= 10 %` of the current `treasury_potato`
+balance (`MAX_WITHDRAW_BALANCE_SHARE_BPS = 1_000`, helper
+`single_withdraw_cap`), failing with `WithdrawShareExceeded` (6056) before the
+timelock is checked. Repeated executions of the same window geometrically decay,
+so a single compromised `authority` key cannot drain the treasury in one call.
+Smaller balances yield a zero cap (dust is not withdrawable).
+
 **Cap semantics:** `daily_mint_cap_micro` is now respected by `roll_epoch` as the
 floor of the dynamic clamp (upper bound = 3× the configured cap). Lowering it via
 `update_config` tightens emission at the next roll. Manual grants additionally
@@ -187,7 +196,8 @@ a program log; watch the transaction log if you need crank activity.)
 Error codes start with `AlreadyClaimed=6000`, `BadProof=6001`, `Paused=6002`.
 New codes from the 2026-09-21 remediation: `GrantQuotaExceeded=6035`,
 `WithdrawWindowLimitExceeded=6036`, `BaseYieldTooHigh=6037`,
-`TimelockNotExpired=6038`, `NothingPending=6039`, `EpochTooRecent=6040`.
+`TimelockNotExpired=6038`, `NothingPending=6039`, `EpochTooRecent=6040`,
+`WithdrawShareExceeded=6056` (10 % of the treasury balance per withdrawal).
 Frontend translations look up error **names** from the IDL instead of assuming
 numeric offsets. Do not reorder enum variants on upgrade.
 

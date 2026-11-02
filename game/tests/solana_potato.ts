@@ -1599,8 +1599,10 @@ describe("solana_potato", () => {
 
     it("withdraw_treasury is two-step, authority-only and window-capped", async function () {
       this.timeout(90_000);
-      // Финансируем казну: grant_reward минтит в treasury ATA (владелец митта — config PDA)
-      await program.methods.grantReward(new BN(500_000)).accountsPartial({
+      // Финансируем казну: grant_reward минтит в treasury ATA (владелец митта — config PDA).
+      // 5 POTATO, а не 0.5: одна выплата ограничена 10 % баланса (P1-4),
+      // иначе предложенные ниже 100 000 micro не проходят проверку доли.
+      await program.methods.grantReward(new BN(5_000_000)).accountsPartial({
         config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: treasuryAta, tokenProgram: TOKEN_PROGRAM_ID,
       }).rpc();
       const proposePotato = (micro: string) => program.methods.proposeWithdrawal(0, new BN(micro)).accountsPartial({
@@ -1629,6 +1631,17 @@ describe("solana_potato", () => {
       await expectFail(proposePotato("251000000000"), "WithdrawWindowLimitExceeded");
       await proposePotato("100000");
       await expectFail(proposePotato("100000"), "WithdrawalAlreadyProposed");
+      // P1-4: предложение на 4 POTATO проходит окно (250 000), но упирается в
+      // долю баланса на исполнении: 10 % от 5 POTATO = 0.5 POTATO. Проверка
+      // стоит до таймлока, поэтому ждать 32 с не нужно.
+      const cancel = () => program.methods.cancelWithdrawal().accountsPartial({
+        config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+      }).rpc();
+      await cancel();
+      await proposePotato("4000000");
+      await expectFail(execPotato("4000000"), "WithdrawShareExceeded");
+      await cancel();
+      await proposePotato("100000");
       // Очередь SKR: propose пишет только окно/счётчик (исполнение требует митта).
       await program.methods.proposeWithdrawal(2, new BN(1000)).accountsPartial({
         config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,

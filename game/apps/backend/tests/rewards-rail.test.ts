@@ -344,3 +344,49 @@ test('неудачная выдача не съедает суточный бю�
     await new Promise<void>(resolve => server.close(() => resolve()));
   }
 });
+
+test('поток новых адресов не сбрасывает живой кулдаун: карта чистится только от истёкших', async () => {
+  // P2-10: раньше при переполнении карты удалялся самый старый вставленный
+  // ключ — поток запросов с новыми адресами обнулял чужой 15-секундный кулдаун.
+  // base58 без 0/O/I/l: isWalletAddress пропускает только валидный base58.
+  const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  const walletAt = (i: number): string =>
+    'W' + ALPHABET[i % 58] + ALPHABET[Math.floor(i / 58) % 58] + '1'.repeat(41);
+  let now = 1_900_000_000n;
+  const app = express();
+  app.use('/api/rewards', rewardsRouter({
+    enabled: true,
+    rewardSigner: null,
+    now: () => now,
+    maxTrackedWallets: 2,
+    sendGrant: async () => 'sig-test',
+  }));
+  const server: Server = app.listen(0, '127.0.0.1');
+  await new Promise<void>(resolve => server.once('listening', () => resolve()));
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/rewards`;
+  const ask = (wallet: string): Promise<Response> =>
+    fetch(`${base}/starter`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ wallet }),
+    });
+  try {
+    assert.equal((await ask(walletAt(0))).status, 201);
+    assert.equal((await ask(walletAt(0))).status, 429, 'второй запрос того же кошелька — кулдаун');
+
+    assert.equal((await ask(walletAt(1))).status, 201, 'второй адрес влезает');
+    // Третий адрес переполняет карту: живые кулдауны вытеснять нельзя.
+    const full = await ask(walletAt(2));
+    assert.equal(full.status, 503);
+    assert.equal(((await full.json()) as Record<string, unknown>).error, 'WALLET_LEDGER_FULL');
+    // Главное: кулдаун первого кошелька не сброшен вытеснением.
+    assert.equal((await ask(walletAt(0))).status, 429);
+
+    // Через 15 с записи истекают и освобождаются, новый адрес снова влезает.
+    now += 15n;
+    assert.equal((await ask(walletAt(0))).status, 201, 'истёкший кулдаун отпускает кошелёк');
+    assert.equal((await ask(walletAt(2))).status, 201, 'истёкшие записи освободили место');
+  } finally {
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+});

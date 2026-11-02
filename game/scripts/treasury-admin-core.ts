@@ -75,6 +75,22 @@ export function decodeAdminState(data: Buffer): DecodedAdminState {
   }
 }
 
+/**
+ * P1-4: доля текущего баланса казны, которую разрешено забрать одной выплатой
+ * POTATO. Зеркалит `MAX_WITHDRAW_BALANCE_SHARE_BPS` в lib.rs.
+ */
+export const MAX_WITHDRAW_BALANCE_SHARE_BPS = 1_000n
+
+/**
+ * Потолок одной POTATO-выплаты (10 % баланса). Окно ограничивает эмиссию, а не
+ * размер казны, поэтому on-chain проверка доли (`single_withdraw_cap`) стоит
+ * до таймлока; CLI повторяет её, чтобы не отправлять заведомо падающую tx.
+ */
+export function maxSinglePotatoWithdrawal(balanceMicro: bigint): bigint {
+  if (balanceMicro <= 0n) return 0n
+  return (balanceMicro * MAX_WITHDRAW_BALANCE_SHARE_BPS) / 10_000n
+}
+
 export function remainingWindowBudget(state: DecodedAdminState, asset: TreasuryAsset, nowUnixSeconds: bigint): bigint {
   const alreadyWithdrawn = nowUnixSeconds - state.windowStart >= WITHDRAW_WINDOW_SECONDS
     ? 0n

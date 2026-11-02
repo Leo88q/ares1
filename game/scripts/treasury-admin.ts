@@ -45,6 +45,7 @@ import {
   buildWithdrawalExecutionInstruction,
   decodeAdminState,
   formatAssetAmount,
+  maxSinglePotatoWithdrawal,
   parseAssetAmount,
   remainingWindowBudget,
   type DecodedAdminState,
@@ -268,6 +269,16 @@ async function runWrite(runtime: Runtime, command: ReturnType<typeof parseComman
     const remaining = remainingWindowBudget(stateNow, asset, now)
     if (amount > remaining) {
       throw new Error(`Amount exceeds remaining ${asset.toUpperCase()} rolling-24h allowance (${formatAssetAmount(asset, remaining)})`)
+    }
+    if (asset === 'potato') {
+      // P1-4: одна выплата ограничена 10 % текущего баланса казны (on-chain
+      // проверка стоит до таймлока). Предупреждаем до подписи, а не после.
+      const treasuryPotato = getAssociatedTokenAddressSync(config.potatoMint, runtime.configAddress, true)
+      const balance = await runtime.connection.getTokenAccountBalance(treasuryPotato, 'confirmed')
+      const cap = maxSinglePotatoWithdrawal(BigInt(balance.value.amount))
+      if (amount > cap) {
+        throw new Error(`Amount exceeds 10 % of the treasury POTATO balance (max ${formatAssetAmount('potato', cap)} POTATO per withdrawal)`)
+      }
     }
     console.log(`Propose ${formatAssetAmount(asset, amount)} ${asset.toUpperCase()} to the authority's own destination.`)
     console.log('The rolling 24h allowance is consumed now. Cancellation does not refund it.')

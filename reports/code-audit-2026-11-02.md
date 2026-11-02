@@ -17,17 +17,24 @@
 | `game/apps/backend/src/presale/{verify,refunds,paymentExpectation,orders,chain,reconcile,delivery,catalog}.ts` | полностью | прочитаны |
 | `game/apps/backend/src/gameops/*.ts` (13 файлов) | 1 727 строк | прочитаны полностью |
 | `game/migrations/game_ops/*.sql` | 0001–0016 | прочитаны 0001, 0002 (машина состояний), 0004, 0005, 0015, 0016; 0003/0006–0014 — по требующимся фрагментам |
-| `game/apps/web/src/**` | — | читались только точки сборки транзакций (`anchorClient.ts`, `solana.ts`) |
-| `game/{landing,watchtower,scripts}/**` | — | не аудировались (кроме запускаемых гейтов) |
-| `game/apps/web/src/**` | — | читались только точки сборки транзакций (`anchorClient.ts`, `solana.ts`) |
-| `game/scripts/**`, `watchtower/**`, `landing/**` | — | не аудировались |
+| `game/apps/web/src/**` | — | читались только точки сборки транзакций (`anchorClient.ts`, `solana.ts`) и экраны, которые правились (`OperationScreen.tsx`, `seeker-touch.css`, `PageTransition.tsx`) |
+| `game/scripts/{treasury-admin,treasury-admin-core,audit-init-if-needed}.ts/.mjs` | полностью | прочитаны |
+| `game/apps/backend/src/index.ts` | 1–495 | прочитан (проводка роутов, рельсы наград, воркера доставки и readiness) |
+| `game/migrations/game_ops/*.sql` | 0001–0016 | см. строку выше (0003/0006–0014 — по фрагментам; 0016 добавлен в этом проходе) |
+| `game/{landing,watchtower}/**` | — | не аудировались (кроме запускаемых гейтов: `npm test`, `test:os`, `build`) |
 
 Вывод по охвату: **on-chain программа проверена целиком**, off-chain —
 слой `game_ops` целиком (пул/транзакции, права, интенты, журнал, сверка,
 readiness, миграции) и все денежные пути бэкенда (пресейл, возвраты, рельса
-наград, авто-доставка, квест-бюджет). Не аудировались: `apps/web/src`,
-`landing/`, `watchtower/`, `game/scripts/` — отсутствие находок там не
-утверждается.
+наград, авто-доставка, квест-бюджет). Не аудировались: `apps/web/src` (кроме
+правленых экранов), `landing/`, `watchtower/`, остальной `game/scripts/` —
+отсутствие находок там не утверждается.
+
+Повторная вычитка в проходе 2026-11-03: `rewards/router.ts`,
+`presale/catalog.ts`, `presale/verify.ts`, `rewards/{worker,chain,send,policy}.ts`,
+`gameops/{audit,epochLock,migrate,intents}.ts`, `scripts/treasury-admin*.ts`,
+`apps/backend/src/index.ts`. Находки этого прохода — P1-4 и
+P2-10 (исправлены), плюс уточнение P1-3 (см. ниже).
 
 Severity: **P1** — деньги/контроль, **P2** — экономика/живучесть,
 **P3** — гигиена.
@@ -82,20 +89,40 @@ ATA_PROGRAM)`); `grant_reward` (`lib.rs:1941-1949`) и `grant_reward_once`
 «поле», записанное миграцией по чужому адресу, считалось бы доказательством
 квеста и источником урожая.
 
-Исправление: (1) задеплоить ветку; (2) добавить `seeds = [b"field", ...]`
-в `Harvest`, `RepairField/PayTax/ApplyFertilizer/UpgradeField`, `CloseField` —
-сейчас они полагаются на инвариант «Field бывает только PDA», который
-нарушался. Это defense-in-depth, а не смена ABI: адреса не меняются.
+Исправление: (1) задеплоить ветку — обязательный шаг, без него дыра в
+`migrate_field` остаётся; (2) defense-in-depth через `seeds` **невозможен без
+смены layout**: PDA поля выводится как `[b"field", field_id.to_le_bytes()]`
+(`lib.rs:3469`), но `Field` (`lib.rs:4462-4473`) не хранит `field_id` — в
+аккаунте есть `owner/level/durability/last_harvest/tax_paid_until/
+fertilizer_until/is_active/field_type/bump/mutation_type`, индекса нет. Значит
+`seeds = [b"field", field.field_id…]` в `Harvest`/`CloseField` вывести не из
+чего, а `address = …` без индекса — тавтология. Реальный путь — добавить
+`field_id: u64` в `Field` миграцией (новый layout + `migrate_field_v3`,
++8 байт, IDL/тесты), после чего `seeds` станут выразимыми. Пока это
+**defense-in-depth с ценой смены layout**, поэтому очередь: сначала деплой,
+потом решить, нужен ли v3-миграционный проход. Практический остаточный риск
+низкий: после фикса `migrate_field` единственный создатель `Field` —
+`CreateField` с каноническим PDA (`lib.rs:3462-3475`).
 
-### P1-4. Казна: окно вывода POTATO равно всему дневному капу
+### P1-4. Казна: окно вывода POTATO равно всему дневному капу — **исправлено**
 `lib.rs:109` — `MAX_WITHDRAW_POTATO_MICRO_PER_WINDOW = 250_000_000_000`
 (= 250 000 POTATO, ровно `MAX_DAILY_CAP_MICRO`). Один ключ `authority` за одно
-окно может вывести всю накопленную казну (защита — 30-секундный таймлок
-`WITHDRAW_TIMELOCK_SECONDS`, `lib.rs:119`, и мультисиг).
+окно мог вывести всю накопленную казну (единственная защита — 30-секундный
+таймлок `WITHDRAW_TIMELOCK_SECONDS` и мультисиг).
 
-Риск: «30 секунд» — это не защита от компрометации, а окно на
-`cancel_withdrawal`. Для mainnet лимит стоит привязать к доле казны
-(например, 10 % баланса за окно), а не к эмиссии.
+**Исправлено:** `lib.rs:118` — `MAX_WITHDRAW_BALANCE_SHARE_BPS = 1_000`
+(10 %), `single_withdraw_cap(balance)` (`lib.rs:2860-2861`),
+`withdraw_treasury` (`lib.rs:2124-2129`) требует
+`amount_micro <= 10 %` текущего баланса `treasury_potato`. Проверка стоит **до**
+таймлока (дешёвая, не зависит от времени), ошибка — `WithdrawShareExceeded`
+(6056, добавлен в конец `GameError`, коды не перенумерованы). Повторные
+исполнения в одном окне убывают геометрически, поэтому одним вызовом казну не
+вынести; пыль (<10 micro) не выводится вовсе. ABI/аккаунты не менялись —
+`treasury_potato` уже был в `WithdrawTreasury`. Тесты: host
+`single_withdraw_cap_is_a_share_of_the_treasury_balance`, Anchor
+`withdraw_treasury is two-step…` (4 POTATO при 5 POTATO в казне →
+`WithdrawShareExceeded`), `tests/offchain/treasury-admin-core.test.ts`
+(CLI-зеркало + сверка с исходником), `docs/API.md`.
 
 ### P1-5. `CONFIRM_TIMEOUT` помечается терминальным `failed` — возможна двойная выплата
 `rewards/worker.ts:70-78` (`failureCodeFrom`), `:93-104` (`recordFailure` →
@@ -236,15 +263,22 @@ total_gross`), а применяется к каждому полю по его 
 Исправление: требовать в `accountKeys` аккаунт казны (SOL — `treasury_sol`
 PDA/кошелёк, SKR — `treasury_skr_ata`) с падением баланса не меньше суммы.
 
-### P2-10. Кулдаун кошелька обходится вытеснением из карты
-`rewards/router.ts:66-78`. `wallets` — `Map` на 10 000 адресов; при
-переполнении удаляется **самый старый вставленный** ключ. Поток запросов с
-новыми адресами вытесняет легитимные, после чего их 15-секундный кулдаун
-сбрасывается. Ущерб ограничен суточным бюджетом (`rail.ts:92-99`) и ончейн-
+### P2-10. Кулдаун кошелька обходится вытеснением из карты — **исправлено**
+Было: `rewards/router.ts` — `wallets` (`Map` на 10 000 адресов); при
+переполнении удалялся **самый старый вставленный** ключ. Поток запросов с
+новыми адресами вытеснял легитимные, после чего их 15-секундный кулдаун
+сбрасывался. Ущерб ограничен суточным бюджетом (`rail.ts:92-99`) и ончейн-
 nonce, поэтому P2, а не P1.
 
-Исправление: чистить по `lastRequestAt < now - окно` (сейчас чистится по
-порядку вставки), либо брать `Map` c LRU-обновлением.
+**Исправлено:** `rewards/router.ts:75-100` — `coinCooledDown` возвращает
+`'ok' | 'cooldown' | 'full'`; при заполнении карты удаляются только записи с
+`now - lastRequestAt >= WALLET_COOLDOWN_SECONDS`, живые кулдауны не
+вытесняются. Если места всё равно нет, новый адрес получает
+`503 WALLET_LEDGER_FULL` (fail-closed), а не сброс чужого кулдауна. Потолок
+карты вынесен в `deps.maxTrackedWallets` (по умолчанию
+`DEFAULT_MAX_TRACKED_WALLETS = 10_000`), чтобы правило было тестируемым.
+Тест `tests/rewards-rail.test.ts` («поток новых адресов не сбрасывает живой
+кулдаун») проверяет и отказ, и освобождение по истечении окна.
 
 ### P2-11. `submitted`-интент без слота выпадал из обработки навсегда
 `gameops/intents.ts:198` (`reward_intents_actionable` = только `pending`,
@@ -433,6 +467,10 @@ RPC — `index.ts:348-355`), интент остаётся `submitted`, а:
 
 ## Приоритет исправлений
 
+0. ~~Лимит вывода казны от доли баланса (P1-4)~~ и ~~вытеснение кулдауна
+   (P2-10)~~ — **исправлено в этом проходе**: `single_withdraw_cap` +
+   `WithdrawShareExceeded` (6056) на исполнении; карта кулдаунов чистится только
+   от истёкших записей, переполнение отдаёт 503, а не сбрасывает чужой кулдаун.
 1. ~~`CONFIRM_TIMEOUT` терминален в воркере (P1-5)~~ — **исправлено**:
    `rewards/worker.ts:80-113` (`RETRYABLE_FAILURE_CODES`/`isTerminalFailure`),
    `retryable` в результате такта, 6 новых тестов в
@@ -454,6 +492,13 @@ RPC — `index.ts:348-355`), интент остаётся `submitted`, а:
     (`presale/chain.ts:137-183`, отказ 409 на `POST /admin/runs` для SKR).
 12. ~~Залипший advisory-лок (P3-11)~~, ~~аудит вне транзакции (P3-12)~~,
     ~~двойное применение миграций (P3-13)~~ — **исправлено**.
-13. Открыто: база комиссии легаси/V2 (P2-2 — это решение по политике, а не
-    дефект кода), вытеснение кулдауна (P2-10), лимит вывода казны от доли
-    (P1-4), `seeds` в `Harvest`/`CloseField` как defense-in-depth (P1-3).
+13. Осталось открытым:
+    * P2-2 — база комиссии легаси/V2: это **решение по политике** (от чего
+      считать 5–8 %), а не дефект кода; до решения легаси-рынок числит процент
+      от размера ордера, V2 — от дневного объёма продавца;
+    * P1-1 — удаление `grant_reward` из программы после миграции фронтов:
+      CI-гард «никто не вызывает `buildGrantRewardIx`» уже стоит
+      (`apps/backend/tests/reward-rail.test.ts:4-27`), осталась сама инструкция
+      в IDL;
+    * P1-3 — `seeds` в `Harvest`/`CloseField`: выразимы только после добавления
+      `field_id` в `Field` (смена layout), см. раздел P1-3.

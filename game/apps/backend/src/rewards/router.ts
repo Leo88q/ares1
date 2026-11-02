@@ -39,11 +39,16 @@ export interface RewardsRouterDeps {
   now: () => bigint;
   /** Отправка гранта. Бросает при отказе цепи/симуляции. */
   sendGrant: (input: { wallet: string; amountMicro: bigint; nonce: bigint; expiresAt: bigint }) => Promise<string>;
+  /** Потолок карты кулдаунов (по умолчанию 10 000). Вынесен для тестов. */
+  maxTrackedWallets?: number;
 }
 
 interface WalletState {
   lastRequestAt: bigint;
 }
+
+/** Потолок карты кулдаунов: 10 000 адресов ≈ 240 КБ. */
+const DEFAULT_MAX_TRACKED_WALLETS = 10_000;
 
 export function rewardsRouter(deps: RewardsRouterDeps): Router {
   const router = Router();
@@ -52,6 +57,7 @@ export function rewardsRouter(deps: RewardsRouterDeps): Router {
     daily: { day: -1n, spentMicro: 0n },
   };
   const wallets = new Map<string, WalletState>();
+  const maxTrackedWallets = deps.maxTrackedWallets ?? DEFAULT_MAX_TRACKED_WALLETS;
 
   const claimBudget = (kind: GrantKind): boolean => {
     const result = chargeBudget(budgets[kind], kind, deps.now());
@@ -60,17 +66,31 @@ export function rewardsRouter(deps: RewardsRouterDeps): Router {
     return true;
   };
 
-  const coinCooledDown = (wallet: string): boolean => {
+  /**
+   * Итог проверки кулдауна:
+   *   'ok'       — запрос можно обслуживать;
+   *   'cooldown' — кошелёк уже просил меньше 15 с назад (429);
+   *   'full'     — карта заполнена живыми кулдаунами, новый адрес не пускаем (503).
+   */
+  const coinCooledDown = (wallet: string): 'ok' | 'cooldown' | 'full' => {
     const now = deps.now();
     const previous = wallets.get(wallet);
-    if (previous && now - previous.lastRequestAt < WALLET_COOLDOWN_SECONDS) return false;
-    wallets.set(wallet, { lastRequestAt: now });
-    // Простая защита от роста карты: держим не больше 10k адресов.
-    if (wallets.size > 10_000) {
-      const oldest = wallets.keys().next().value;
-      if (oldest) wallets.delete(oldest);
+    if (previous && now - previous.lastRequestAt < WALLET_COOLDOWN_SECONDS) return 'cooldown';
+    if (!previous) {
+      // Раньше самый старый ключ вытеснялся по порядку вставки: поток запросов
+      // с новыми адресами сбрасывал живой 15-секундный кулдаун чужого кошелька
+      // (P2-10). Теперь освобождаются только истёкшие записи, а живые не
+      // трогаются: при переполнении новый адрес получает отказ, а не сброс
+      // чужого кулдауна.
+      if (wallets.size >= maxTrackedWallets) {
+        for (const [tracked, state] of wallets) {
+          if (now - state.lastRequestAt >= WALLET_COOLDOWN_SECONDS) wallets.delete(tracked);
+        }
+      }
+      if (wallets.size >= maxTrackedWallets) return 'full';
     }
-    return true;
+    wallets.set(wallet, { lastRequestAt: now });
+    return 'ok';
   };
 
   router.get("/status", (_req, res) => {
@@ -102,8 +122,15 @@ export function rewardsRouter(deps: RewardsRouterDeps): Router {
       res.status(400).json({ error: "BAD_WALLET", message: "wallet must be a base58 address" });
       return;
     }
-    if (!coinCooledDown(wallet)) {
+    const cooldown = coinCooledDown(wallet);
+    if (cooldown === 'cooldown') {
       res.status(429).json({ error: "COOLDOWN", message: "one request per wallet per 15 s" });
+      return;
+    }
+    if (cooldown === 'full') {
+      // Осознанно fail-closed: пустить новый адрес можно только вытеснив живой
+      // кулдаун, а это и есть обход из P2-10. Карта чистится сама через 15 с.
+      res.status(503).json({ error: "WALLET_LEDGER_FULL", message: "wallet cooldown ledger is full" });
       return;
     }
     if (!claimBudget(kind)) {

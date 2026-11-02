@@ -15,7 +15,9 @@ import {
   buildProposeWithdrawalInstruction,
   buildWithdrawalExecutionInstruction,
   decodeAdminState,
+  MAX_WITHDRAW_BALANCE_SHARE_BPS,
   formatAssetAmount,
+  maxSinglePotatoWithdrawal,
   parseAssetAmount,
   remainingWindowBudget,
 } from '../../scripts/treasury-admin-core.js'
@@ -80,6 +82,19 @@ test('CLI withdrawal limits and timelocks mirror the Rust source', () => {
   assert.match(rust, /pub const MAX_WITHDRAW_POTATO_MICRO_PER_WINDOW: u64 = 250_000_000_000;/)
   assert.match(rust, /pub const MAX_WITHDRAW_SOL_LAMPORTS_PER_WINDOW: u64 = 25_000_000_000;/)
   assert.match(rust, /pub const MAX_WITHDRAW_SKR_ATOMS_PER_WINDOW: u64 = 100_000_000_000;/)
+})
+
+test('POTATO withdrawal share cap mirrors lib.rs::single_withdraw_cap', () => {
+  const rust = fs.readFileSync('programs/solana_potato/src/lib.rs', 'utf8')
+  // Константа и формула обязаны совпадать с программой, иначе CLI пропустит
+  // транзакцию, которая упадёт на исполнении с WithdrawShareExceeded.
+  assert.match(rust, /pub const MAX_WITHDRAW_BALANCE_SHARE_BPS: u16 = 1_000;/)
+  assert.match(rust, /balance\.saturating_mul\(MAX_WITHDRAW_BALANCE_SHARE_BPS as u64\) \/ 10_000/)
+  assert.equal(MAX_WITHDRAW_BALANCE_SHARE_BPS, 1_000n)
+  assert.equal(maxSinglePotatoWithdrawal(0n), 0n)
+  assert.equal(maxSinglePotatoWithdrawal(9n), 0n)
+  assert.equal(maxSinglePotatoWithdrawal(1_000_000n), 100_000n)
+  assert.equal(maxSinglePotatoWithdrawal(250_000_000_000n), 25_000_000_000n)
 })
 
 test('rolling-window display resets only after 24h and never exceeds on-chain caps', () => {
