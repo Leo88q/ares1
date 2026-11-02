@@ -1048,7 +1048,7 @@ pub mod solana_potato {
             GameError::PrepayLimitReached
         );
         let base_cost = scaled_cost(BASE_TAX_MICRO, field.field_type);
-        // Прогрессивный множитель: L1 → 1×, L10 → 5.5×, L50 → 25.5×
+        // Прогрессивный множитель: L1 → 1×, L10 → 5.5×, L50 → 25×
         let level_mult = (field.level as u64).saturating_add(1) / 2;
         let cost = base_cost
             .checked_mul(level_mult)
@@ -1228,7 +1228,7 @@ pub mod solana_potato {
     }
 
     /// V2 listing: escrow only the POTATO principal. No fee is charged unless
-    /// the order fills; the eventual 9–12% commission is deducted from seller
+    /// the order fills; the closing 5–8% commission is deducted from seller
     /// proceeds and paid in the selected quote asset (SOL or SKR).
     pub fn create_sell_order_v2(
         ctx: Context<CreateSellOrderV2>,
@@ -4512,7 +4512,7 @@ pub struct RewardClaim {
 }
 
 /// Реферальная связь игрока. PDA seeds: `["referral", owner]`.
-/// Создаётся один раз через `register_referrer` (burn 5 POTATO).
+/// Создаётся один раз через `register_referrer`; регистрация бесплатна.
 #[account]
 #[derive(InitSpace)]
 pub struct Referral {

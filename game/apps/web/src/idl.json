@@ -2382,7 +2382,7 @@
       "name": "create_sell_order_v2",
       "docs": [
         "V2 listing: escrow only the POTATO principal. No fee is charged unless",
-        "the order fills; the eventual 9–12% commission is deducted from seller",
+        "the order fills; the closing 5–8% commission is deducted from seller",
         "proceeds and paid in the selected quote asset (SOL or SKR)."
       ],
       "discriminator": [

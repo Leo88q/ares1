@@ -243,12 +243,12 @@ nonce, поэтому P2, а не P1.
    реально 25 % (`lib.rs:77`).~~ **Исправлено**: сообщение теперь 25 %
    (номер ошибки 6035 не менялся), обновлены `idl.json`, `errors.ts` и 6
    локалей, `docs/{API,ECONOMY,MAINNET_LAUNCH_GATE}.md`.
-2. **`lib.rs:1231`** — «the eventual 9–12% commission» при
-   `V2_SETTLEMENT_FEE_BPS = [500,600,700,800]` (`lib.rs:225`).
-3. **`lib.rs:4515`** — `Referral` док-комментарий «creates via register_referrer
-   (burn 5 POTATO)» — регистрация бесплатна (`lib.rs:198-203`).
-4. **`lib.rs:1052`** — комментарий «L50 → 25.5×» при целочисленном
-   `(level + 1) / 2 = 25`.
+2. ~~**`lib.rs:1231`** — «the eventual 9–12% commission»~~ **исправлено** на
+   5–8 %; синхронно поправлен `docs` в `idl.json`.
+3. ~~**`lib.rs:4515`** — «burn 5 POTATO» в доке `Referral`~~ **исправлено**:
+   регистрация бесплатна.
+4. ~~**`lib.rs:1052`** — «L50 → 25.5×»~~ **исправлено** на 25× (целочисленное
+   `(level + 1) / 2`).
 5. **`anchorRaw.ts:157`** и **`anchorClient.ts:489`** — «10 % quota» при
    25 % (`lib.rs:77`).
 6. **`presale/catalog.ts:22`** (фрагмент `GRANT_QUOTA_SHARE_BPS`) — сверить
