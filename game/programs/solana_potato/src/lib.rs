@@ -2842,11 +2842,7 @@ pub const SPL_TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuB
 /// на nonce» без изменения аккаунтов инструкции.
 pub fn is_canonical_ata(account: &Pubkey, owner: &Pubkey, mint: &Pubkey) -> bool {
     let (expected, _) = Pubkey::find_program_address(
-        &[
-            owner.as_ref(),
-            SPL_TOKEN_PROGRAM_ID.as_ref(),
-            mint.as_ref(),
-        ],
+        &[owner.as_ref(), SPL_TOKEN_PROGRAM_ID.as_ref(), mint.as_ref()],
         &ATA_PROGRAM_ID,
     );
     expected == *account
@@ -5147,11 +5143,7 @@ mod tests {
         let owner = Pubkey::new_from_array([3u8; 32]);
         let mint = Pubkey::new_from_array([9u8; 32]);
         let (ata, _) = Pubkey::find_program_address(
-            &[
-                owner.as_ref(),
-                SPL_TOKEN_PROGRAM_ID.as_ref(),
-                mint.as_ref(),
-            ],
+            &[owner.as_ref(), SPL_TOKEN_PROGRAM_ID.as_ref(), mint.as_ref()],
             &ATA_PROGRAM_ID,
         );
         assert!(is_canonical_ata(&ata, &owner, &mint));
@@ -5165,11 +5157,7 @@ mod tests {
         // Проверка идёт по (owner, mint), а не по самому адресу: адрес ATA
         // чужого кошелька для этой пары не подходит.
         let (foreign, _) = Pubkey::find_program_address(
-            &[
-                other.as_ref(),
-                SPL_TOKEN_PROGRAM_ID.as_ref(),
-                mint.as_ref(),
-            ],
+            &[other.as_ref(), SPL_TOKEN_PROGRAM_ID.as_ref(), mint.as_ref()],
             &ATA_PROGRAM_ID,
         );
         assert!(!is_canonical_ata(&foreign, &owner, &mint));
