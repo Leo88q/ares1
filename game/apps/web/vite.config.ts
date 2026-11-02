@@ -145,6 +145,17 @@ export default defineConfig(({ mode }) => {
       port: 4173,
       host: true,
       allowedHosts: true,
+      /**
+       * Preview — статический сервер. По умолчанию Vite наследует сюда
+       * `server.proxy`, и любой фоновый запрос UI (`/api/features`,
+       * `/api/store`, `/api/config`) уходит на несуществующий бэкенд
+       * 127.0.0.1:8080: ответ 500 попадает в консоль браузера и валит
+       * smoke-тесты, которые обязаны видеть чистую консоль. Проксируем только
+       * при явно заданной цели — это осознанный локальный сценарий.
+       */
+      proxy: process.env.BACKEND_PROXY_TARGET
+        ? { '/api': { target: process.env.BACKEND_PROXY_TARGET, changeOrigin: false } }
+        : {},
     },
     build: {
       target: 'es2020',

@@ -193,9 +193,13 @@ pub const BATCH_LIMIT_BASE: usize = 10;
 pub const BATCH_LIMIT_LICENSED: usize = 30;
 /// One-time referral registration cost. FREE on purpose: a newcomer has no
 /// POTATO before his first field, so any entry fee here blocks the only growth
-/// loop the game has. The burner is skipped entirely at zero (see
-/// `register_referrer`), so the instruction cannot fail on an empty wallet.
+/// loop the game has.
 pub const REFERRAL_REGISTRATION_COST_MICRO: u64 = 0;
+/// Fee actually charged by `register_referrer`: `None` while registration is
+/// free. Kept as an `Option` instead of `if FEE > 0`: a constant comparison is
+/// flagged by clippy (`absurd_extreme_comparisons`), and a silently-dead branch
+/// is exactly the kind of thing that rots. Re-enabling the fee = `Some(x)` here.
+pub const REFERRAL_REGISTRATION_FEE_MICRO: Option<u64> = None;
 pub const BASE_TAX_MICRO: u64 = 6_000_000; // 6 $POTATO / week
 pub const BASE_REPAIR_MICRO: u64 = 15_000_000; // 15 $POTATO
 /// 2 POTATO per 24 h. At the old 10 the perk was strictly unprofitable: +50 %
@@ -2493,9 +2497,9 @@ pub mod solana_potato {
         require!(referrer != Pubkey::default(), GameError::Unauthorized);
 
         // Market referral rewards (0.5 % of a fill) are unchanged; only the
-        // registration fee is gone. Kept as a guarded branch rather than a
-        // deleted call so re-introducing a price is a one-line constant change.
-        if REFERRAL_REGISTRATION_COST_MICRO > 0 {
+        // registration fee is gone. Re-introducing a price is a one-constant
+        // change: set `REFERRAL_REGISTRATION_FEE_MICRO = Some(x)`.
+        if let Some(fee) = REFERRAL_REGISTRATION_FEE_MICRO {
             token::burn(
                 CpiContext::new(
                     ctx.accounts.token_program.to_account_info(),
@@ -2505,7 +2509,7 @@ pub mod solana_potato {
                         authority: ctx.accounts.owner.to_account_info(),
                     },
                 ),
-                REFERRAL_REGISTRATION_COST_MICRO,
+                fee,
             )?;
         }
 
@@ -5413,6 +5417,13 @@ mod tests {
         // Новичок приходит без POTATO: плата за реферал не должна требовать
         // токенов, которых у него ещё нет.
         assert_eq!(REFERRAL_REGISTRATION_COST_MICRO, 0);
+        // Числовое зеркало и рабочий переключатель обязаны совпадать, иначе
+        // документация и списание разъедутся.
+        assert_eq!(
+            REFERRAL_REGISTRATION_FEE_MICRO.unwrap_or(0),
+            REFERRAL_REGISTRATION_COST_MICRO
+        );
+        assert!(REFERRAL_REGISTRATION_FEE_MICRO.is_none());
     }
 
     #[test]
