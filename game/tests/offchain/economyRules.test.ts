@@ -50,8 +50,11 @@ test('referral registration is free: no entry fee before the first field', () =>
   // доступным только тем, кто уже купил POTATO, — то есть убивала единственную
   // петлю роста. Ставка обязана остаться нулевой.
   assert.equal(constant('REFERRAL_REGISTRATION_COST_MICRO'), 0n);
-  assert.match(handler('register_referrer'), /if REFERRAL_REGISTRATION_COST_MICRO > 0/);
-  assert.match(handler('register_referrer'), /REFERRAL_REGISTRATION_COST_MICRO/);
+  // Рабочий переключатель — Option-константа: сравнение вида `FEE > 0` clippy
+  // отклоняет как заведомо ложное, а мёртвая ветка тихо гниёт.
+  assert.match(rust, /pub const REFERRAL_REGISTRATION_FEE_MICRO: Option<u64> = None;/);
+  assert.match(handler('register_referrer'), /if let Some\(fee\) = REFERRAL_REGISTRATION_FEE_MICRO \{/);
+  assert.match(handler('register_referrer'), /REFERRAL_REGISTRATION_FEE_MICRO/);
   assert.doesNotMatch(handler('register_referrer'), /50_000_000/);
   const ui = fs.readFileSync('apps/web/src/components/ReferralSection.tsx', 'utf8');
   assert.match(ui, /Регистрация бесплатна: 0 🥔, антиспам — одна запись на кошелёк/);

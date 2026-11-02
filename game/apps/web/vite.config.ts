@@ -34,6 +34,40 @@ function localizeMobileWalletAdapterModal(): import('vite').Plugin {
 }
 
 /**
+ * В preview (и только в нём) нет бэкенда: статический сервер отвечает 404 на
+ * `/api/*`, и фоновые запросы UI (`/api/features`, `/api/store`) попадают в
+ * консоль браузера как ошибки сети — smoke-тесты требуют чистую консоль.
+ *
+ * Отвечаем теми же значениями, что UI использует при недоступном бэкенде:
+ * колонии доступны, продажи и рельса наград выключены. Это не «фейковый API»,
+ * а явное состояние стенда: ни одна операция по этим ответам не разрешается —
+ * гейты остаются на сервере. При заданном BACKEND_PROXY_TARGET прокси есть, и
+ * заглушка не включается.
+ */
+function previewApiStub(): import('vite').Plugin {
+  return {
+    name: 'preview-api-stub',
+    apply: 'serve',
+    configurePreviewServer(server) {
+      if (process.env.BACKEND_PROXY_TARGET) return
+      server.middlewares.use((req, res, next) => {
+        const url = req.url ?? ''
+        if (!url.startsWith('/api/')) return next()
+        const body = url.startsWith('/api/features')
+          ? { colonies: true, coloniesReleaseReady: false, rewardsRail: false, presalePayments: false }
+          : url.startsWith('/api/store')
+            ? { enabled: false, reason: 'preview has no backend', currency: 'POTATO', packs: [] }
+            : { error: 'NOT_AVAILABLE_IN_PREVIEW' }
+        res.statusCode = 200
+        res.setHeader('content-type', 'application/json')
+        res.setHeader('cache-control', 'no-store')
+        res.end(JSON.stringify(body))
+      })
+    },
+  }
+}
+
+/**
  * .env.example — единственный env-файл в git (политика .gitignore §1.3.1:
  * трекаются только credential-free примеры). Значения VITE_* по определению
  * публичны — они компилируются в браузерный бандл, — поэтому разобранный
@@ -129,7 +163,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), localizeMobileWalletAdapterModal(), assertProgramIdMatchesIdl()],
+    plugins: [react(), localizeMobileWalletAdapterModal(), assertProgramIdMatchesIdl(), previewApiStub()],
     server: {
       port: 5175,
       host: true,
