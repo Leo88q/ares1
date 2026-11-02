@@ -158,9 +158,13 @@ fertilizer_until/is_active/field_type/bump/mutation_type`, индекса нет
 **зависимость от процедуры деплоя**: `BOOTSTRAP_PROFILE=core` оставляет
 SKR-рельсы в состоянии «падают до первого покупателя лицензии».
 
-Исправление (процессное, без изменения ABI): в `deploy-budget.mjs`/runbook
-зафиксировать, что SKR-пресейл открывается только после `full`-бутстрапа, и
-проверять наличие ATA казны в preflight-скрипте перед анонсом продаж.
+Исправление (процессное, без изменения ABI): **сделано** —
+`presale/chain.ts::assertSkrTreasuryReady` (аккаунт существует, это
+токен-аккаунт, минт = SKR) вызывается из `POST /api/presale/admin/runs` при
+`currency = 'skr'` и отдаёт 409 `SKR_TREASURY_NOT_READY` (5 тестов в
+`tests/presale-chain.test.ts`, 1 в `tests/presale-route.test.ts`); требование
+«сначала `full`-бутстрап, потом SKR-тираж» зафиксировано в шапке
+`scripts/init-onchain.ts:12-23`.
 
 ### P2-2. Легаси-комиссия считается от размера ордера, V2 — от дневного объёма продавца
 `lib.rs:2870-2881` (`calculate_fee_bps`) против `lib.rs:3111-3185`

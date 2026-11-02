@@ -14,6 +14,12 @@
  * unavailable until a separate reviewed full bootstrap. Default remains `full`.
  * Idempotent: every step is guarded by an account-existence check, safe to re-run.
  *
+ * P2-1: под `core` нельзя объявлять SKR-тираж. `buy_field_skr` платит в ATA
+ * казны (`treasury_skr_ata`, шаг 7), и без него перевод покупателя падает, а
+ * заказ остаётся `reserved`. Админ-маршрут открытия тиража это проверяет
+ * (`presale/chain.ts::assertSkrTreasuryReady` → 409 SKR_TREASURY_NOT_READY),
+ * поэтому порядок такой: сначала `full`-бутстрап, потом открытие SKR-тиража.
+ *
  *   ADMIN_KEYPAIR_PATH=~/.config/solana/id.json RPC_URL=https://api.devnet.solana.com \
  *   PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf npm run init-onchain
  */

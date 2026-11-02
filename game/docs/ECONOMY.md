@@ -175,7 +175,7 @@ Limit orders, сортировка по цене на клиенте, TTL 24 ч,
 | Epoch manipulation | Clock sysvar, roll возможен только через 24 ч, permissionless | Нет |
 | Tax evasion | Неуплата = −50 % урожая на уровне формулы; обойти нельзя | Нет |
 | Fertilizer stacking | ≤ 7 дней вперёд | Нет |
-| Treasury withdrawal | Current source has authority-gated, two-step/timelocked withdrawals with per-asset daily limits and audit events | Production still requires cold multisig/authority custody, rehearsed limits, monitoring and owner-approved proposals; never place cold keys on VPS |
+| Treasury withdrawal | Current source has authority-gated, two-step/timelocked withdrawals with per-asset daily limits, an additional **10 % of the current treasury balance per POTATO withdrawal** (`MAX_WITHDRAW_BALANCE_SHARE_BPS`, `WithdrawShareExceeded` 6056) and audit events | Production still requires cold multisig/authority custody, rehearsed limits, monitoring and owner-approved proposals; never place cold keys on VPS |
 | V1 fee evasion | Per-order tiers can be bypassed by splitting orders | V2 target aggregates seller-address POTATO turnover across SOL/SKR pairs per UTC day; no claim of protection from Sybil wallets |
 
 ## 8. Рекомендации (в порядке приоритета)
