@@ -21,7 +21,7 @@ test('navigation uses real image icons, the same callback/route choices and reac
   assert.match(nav, /ship-nav-icon/)
   assert.doesNotMatch(nav, /<AresHullFrame|<svg/)
   assert.match(nav, /onChange\(item\.id\)/)
-  assert.match(nav, /\[t, lang\]/)
+  assert.match(nav, /\[t, lang, hidden\]/)
   for (const id of ['main', 'lab', 'colony', 'market', 'stats', 'profile', 'operation']) assert.ok(nav.includes(`id: '${id}'`))
   // Каждая клавиша — настоящий webp-артикль секции, без инлайновых svg-заглушек.
   for (const icon of ['sprout', 'gauge', 'gear', 'crate', 'clipboard', 'bunk', 'license']) {

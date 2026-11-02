@@ -198,7 +198,7 @@ Limit orders, сортировка по цене на клиенте, TTL 24 ч,
 | Урожай игрока (`harvest`, после налога) | ATA игрока | `token::mint_to` в `harvest` | **~95–98 %** — `simulate(1 000)` за год: доля treasury-минта 2.0 % от всего mint; `simulate(100 000)` — 4.6 % |
 | Налог с урожая, доля казны (½ прогрессивного налога) | ATA казны | `token::mint_to` в `harvest` (`treasury_share`) | 2–5 % (растёт вместе с supply — см. ниже) |
 | Ручные гранты (`grant_reward`) | ATA получателя | `token::mint_to` в `grant_reward` | ≤ **25 %** дневного капа эпохи (`GRANT_QUOTA_SHARE_BPS = 2 500`, счётчик `Epoch.granted_micro`); при капе 250 000 🥔 — 62 500 🥔/сутки, ~62 пака по 1 000 🥔 |
-| Квесты (`claim_achievement`) | ATA игрока | **не минт**: `token::transfer` из предфинансированного `quest_ata` (пул 550 🥔, `QUEST_REWARD_MICRO`) | 0 % эмиссии |
+| Квесты (`claim_achievement`) | ATA игрока | **не минт**: `token::transfer` из предфинансированного `quest_ata` (пул 550 🥔, `QUEST_REWARD_MICRO`); крон `QUEST_BUDGET_INTERVAL_SECONDS` доливает пул через `grant_reward_once` ниже low-water 100 🥔, не больше одного пула в UTC-сутки | 0 % собственной эмиссии; доливка входит в квоту ручных грантов |
 
 Источник доли > 40 % (урожай) — вынесен отдельно, как требует паттерн §3.4-1.
 Прочих минтов в ABI нет (скрытых кошельков/фаусетов нет; TG-кран удалён

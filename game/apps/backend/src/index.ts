@@ -14,11 +14,14 @@ import { resolveSlotsConfig } from "./slots/config.js";
 import { COLONY_V1_RELEASE_READY, REWARDS_RAIL_ENABLED, USER_PRESALE_PAYMENTS_ENABLED } from "./launchGates.js";
 import { rewardsRouter } from "./rewards/router.js";
 import { storeRouter } from "./routes/store.js";
+import { defaultFeatureFlags, featuresRouter } from "./routes/features.js";
 import { loadRewardKeypair, sendGrant as sendRewardGrant } from "./rewards/send.js";
 import { startDeliveryWorker } from "./rewards/worker.js";
 import { claimPda, findExistingGrant, resolveAtaOwner } from "./rewards/chain.js";
+import { startQuestBudgetWorker } from "./rewards/questBudget.js";
 import { listActionable, markConfirmed, markFailed, markSubmitted } from "./gameops/intents.js";
-import { configPda, epochPda } from "./solana.js";
+import { configPda, epochPda, questTreasuryPda } from "./solana.js";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { colonyPackageCatalogResponse } from "./colonies/catalog.js";
 import { colonyAuthRouter } from "./colonies/routes.js";
 import { ColonyService } from "./colonies/service.js";
@@ -261,6 +264,10 @@ async function main() {
   } else {
     console.log(`[startup] slots router off: ${slotsCfg.reason}${"detail" in slotsCfg ? ` (${slotsCfg.detail})` : ""}`);
   }
+  // Публичные фича-флаги: клиент скрывает выключенные разделы, но ни одно
+  // действие не разрешается здесь — гейты остаются на сервере.
+  app.use("/api/features", featuresRouter(defaultFeatureFlags({ coloniesEnabled: env.coloniesEnabled })));
+
   // Витрина: каталог паков и честное состояние продаж. Не требует БД и цепи,
   // поэтому игрок видит, что можно купить, даже когда платежи ещё закрыты.
   app.use("/api/store", storeRouter({
@@ -358,6 +365,44 @@ async function main() {
     console.log("[startup] reward delivery off: set REWARD_DELIVERY_INTERVAL_SECONDS and game_ops to drain intents");
   }
 
+  // Крон квест-бюджета: пул ачивок (quest_ata) пополняется через
+  // grant_reward_once с nonce на UTC-сутки. Работает только при живой рельсе и
+  // явно заданном такте; доливка — не больше одного пула в сутки и только ниже
+  // low-water, чтобы крон не вычерпал квоту грантов.
+  const questBudgetWorker = rewardsEnabled && rewardKeypair && env.questBudgetIntervalSeconds > 0
+    ? startQuestBudgetWorker({
+        now: () => BigInt(Math.floor(Date.now() / 1000)),
+        readBalance: async () => {
+          const chainCfg = await fetchConfig();
+          const ata = getAssociatedTokenAddressSync(chainCfg.potatoMint, questTreasuryPda(), true);
+          try {
+            const balance = await connection.getTokenAccountBalance(ata, "confirmed");
+            return BigInt(balance.value.amount);
+          } catch {
+            // ATA ещё не создан — считаем пул пустым, доливка создаст его.
+            return 0n;
+          }
+        },
+        refill: async ({ amountMicro, nonce, expiresAt }) => {
+          const chainCfg = await fetchConfig();
+          return sendRewardGrant({
+            connection,
+            signer: rewardKeypair,
+            programId,
+            config: configPda(),
+            epoch: epochPda(chainCfg.epochId),
+            potatoMint: chainCfg.potatoMint,
+            wallet: questTreasuryPda(),
+            allowOwnerOffcurve: true,
+            amountMicro,
+            nonce,
+            expiresAt,
+          }, { gameConfig: chainCfg, payer: payerKeypair.publicKey });
+        },
+      }, env.questBudgetIntervalSeconds)
+    : null;
+  if (questBudgetWorker) console.log(`[startup] quest budget on: every ${env.questBudgetIntervalSeconds}s`);
+
   app.use("/api/config", configRouter);
 
   // 404
@@ -422,7 +467,7 @@ async function main() {
   // пул — чтобы «полуоткрытая» транзакция выплаты не осталась в соединении
   // с ролью-писателем, а roll_epoch не потерял advisory lock посреди такта.
   const shutdown = createShutdown({
-    stopRoller: () => { roller.stop(); deliveryWorker?.stop(); },
+    stopRoller: () => { roller.stop(); deliveryWorker?.stop(); questBudgetWorker?.stop(); },
     server,
     closePool: gameOpsPool ? () => closePool(gameOpsPool) : undefined,
   });

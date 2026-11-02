@@ -17,7 +17,10 @@ import PresaleSection from './PresaleSection'
  *    не засорять консоль в smoke-прогонах.
  */
 
-const BACKEND = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '')
+// esbuild-фикстуры не подставляют import.meta.env: без optional chaining
+// модуль падал бы при загрузке ещё до первого запроса.
+const ENV = (import.meta as ImportMeta & { env?: ImportMetaEnv }).env
+const BACKEND = (ENV?.VITE_BACKEND_URL || '').replace(/\/$/, '')
 
 interface StorePack {
   id: string

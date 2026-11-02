@@ -54,6 +54,9 @@ export const env = {
   /** Такт авто-доставки reward_intents, в секундах. 0 = выключено (до
    *  включения рельсы наград): никакого таймера и никаких тлеющих RPC-вызовов. */
   rewardDeliveryIntervalSeconds: parseInt(process.env.REWARD_DELIVERY_INTERVAL_SECONDS || "0", 10),
+
+  /** Такт крона квест-бюджета (доливка пула ачивок), в секундах. 0 = выключено. */
+  questBudgetIntervalSeconds: parseInt(process.env.QUEST_BUDGET_INTERVAL_SECONDS || "0", 10),
   /** Express "trust proxy" setting.
    *
    *  Раньше по умолчанию возвращалось 1 — и прямой доступ к API позволял

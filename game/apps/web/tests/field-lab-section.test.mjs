@@ -17,8 +17,10 @@ test('navigation opens the real Lab and preserves seven unique section keys', ()
 test('legacy URLs cannot enter a local colony simulator or training route', () => {
   const app = source('App.tsx')
   assert.match(app, /<Route path="\/lab" element=\{<FieldLabScreen \/>} \/>/)
-  assert.match(app, /<Route path="\/base" element=\{<ColonyStatusScreen \/>} \/>/)
-  assert.match(app, /<Route path="\/colony" element=\{<Navigate to="\/base" replace \/>} \/>/)
+  // /base остаётся статусом колонии, но только когда сервер не выключил раздел:
+  // при colonies:false оба URL уводят на главный экран.
+  assert.match(app, /<Route path="\/base" element=\{features\.colonies \? <ColonyStatusScreen \/> : <Navigate to="\/" replace \/>} \/>/)
+  assert.match(app, /<Route path="\/colony" element=\{<Navigate to=\{features\.colonies \? '\/base' : '\/'\} replace \/>} \/>/)
   assert.match(app, /<Route path="\/demo" element=\{<Navigate to="\/lab" replace \/>} \/>/)
   assert.doesNotMatch(app, /ColonyProvider|<ColonyScreen|TutorialProvider|TutorialScreen/)
   assert.doesNotMatch(app, /FarmTab|DemoScreen/)

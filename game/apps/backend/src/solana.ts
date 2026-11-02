@@ -40,6 +40,11 @@ export function treasuryAuthority(): PublicKey {
   return configPda();
 }
 
+/** PDA ["quest_treasury"]: владелец пула наград за ачивки. */
+export function questTreasuryPda(): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from("quest_treasury")], programId)[0];
+}
+
 /** AdminState singleton PDA: withdrawal rate limits + timelocked proposals. */
 export function adminStatePda(): PublicKey {
   return PublicKey.findProgramAddressSync([Buffer.from("admin_state")], programId)[0];

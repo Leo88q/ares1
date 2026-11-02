@@ -10,6 +10,7 @@ import { GameProvider } from './contexts/GameContext'
 import { t, useI18n } from './i18n'
 import { ambientMusic } from './utils/ambientMusic'
 import { useReferralRegistration } from './hooks/useReferralRegistration'
+import { useFeatures } from './hooks/useFeatures'
 import { AresBottomNav } from './components/ares/AresBottomNav'
 import { SectionFrame } from './components/ares/SectionFrame'
 import type { AresTab } from './components/ares/AresBottomNav'
@@ -83,6 +84,10 @@ function ScreenFallback() {
 function AppRoutes() {
  const navigate = useNavigate()
  const location = useLocation()
+ // Колонии скрываются, когда сервер выключает COLONIES_ENABLED. Флаг не
+ // разрешает операции: это только видимость раздела, гейты остаются на сервере.
+ const features = useFeatures()
+ const hiddenTabs: AresTab[] = features.colonies ? [] : ['colony']
 
  const currentScreen: Screen =
   location.pathname === '/lab' ? 'lab'
@@ -103,8 +108,8 @@ function AppRoutes() {
       <Routes location={location}>
        <Route path="/" element={<MainScreen />} />
        <Route path="/lab" element={<FieldLabScreen />} />
-       <Route path="/base" element={<ColonyStatusScreen />} />
-       <Route path="/colony" element={<Navigate to="/base" replace />} />
+       <Route path="/base" element={features.colonies ? <ColonyStatusScreen /> : <Navigate to="/" replace />} />
+       <Route path="/colony" element={<Navigate to={features.colonies ? '/base' : '/'} replace />} />
        <Route path="/market" element={<MarketScreen />} />
        <Route path="/stats" element={<StatsScreen />} />
        <Route path="/profile" element={<ProfileScreen />} />
@@ -119,6 +124,7 @@ function AppRoutes() {
    <AresBottomNav
     active={currentScreen === 'farm' ? 'main' : currentScreen}
     onChange={(tab: AresTab) => handleNavigate(tab === 'main' ? 'farm' : tab)}
+    hidden={hiddenTabs}
    />
   </>
  )

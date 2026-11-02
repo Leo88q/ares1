@@ -50,6 +50,13 @@ export interface GrantInput {
   potatoMint: PublicKey;
   /** Кошелёк получателя; его ATA создаётся идемпотентно при необходимости. */
   wallet: PublicKey;
+  /**
+   * Владелец — PDA (квест-касса), а не обычный кошелёк. SPL допускает такое
+   * владение, но вывод ATA по умолчанию запрещает off-curve owner. Флаг
+   * включается только там, где адрес владельца — известный PDA программы,
+   * а не пользовательский ввод.
+   */
+  allowOwnerOffcurve?: boolean;
   amountMicro: bigint;
   nonce: bigint;
   expiresAt: bigint;
@@ -66,7 +73,11 @@ export function buildGrantInstructions(
   input: Omit<GrantInput, "connection" | "signer">,
   signer: PublicKey,
 ): TransactionInstruction[] {
-  const userAta = getAssociatedTokenAddressSync(input.potatoMint, input.wallet, false);
+  const userAta = getAssociatedTokenAddressSync(
+    input.potatoMint,
+    input.wallet,
+    input.allowOwnerOffcurve === true,
+  );
   const createAta = createAssociatedTokenAccountIdempotentInstruction(
     signer,
     userAta,

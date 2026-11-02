@@ -203,6 +203,7 @@ permissionless epoch roller, signed by a dedicated payer. HTTP responses are JSO
 | `GET /health` | `{ok,slot,epochId,paused,payer,payerSol,uptime}` | 503 with generic dependency error |
 | `GET /api/config` | Config + current epoch snapshot; u64 amounts as decimal strings | 503 with generic error |
 | `GET /api/store` | `{enabled, reason, currency:"POTATO", packs[]}` — каталог паков из тех же данных, что и выдача | Никогда не 5xx: при закрытых продажах `enabled:false` + `reason` |
+| `GET /api/features` | `{colonies, coloniesReleaseReady, rewardsRail, presalePayments}` — публичные гейты UI | 200 без чтения цепи: при недоступном RPC эндпоинт обязан отвечать |
 | `GET /api/rewards/status` | `{enabled, reason, rewardSigner, starter, daily}` | 200 всегда: состояние, а не действие |
 | `POST /api/rewards/starter` | `201 {ok,kind,wallet,amountMicro,signature}` (250 POTATO, один раз на кошелёк) | `400 BAD_WALLET`, `409 ALREADY_GRANTED`, `429 COOLDOWN`, `503 NOT_ENABLED`, `503 BUDGET_EXHAUSTED`, `502 GRANT_FAILED` |
 | `POST /api/rewards/daily` | `201` — 7 POTATO, один раз в UTC-сутки | те же коды, что у `starter` |
@@ -215,6 +216,11 @@ permissionless epoch roller, signed by a dedicated payer. HTTP responses are JSO
 поэтому повтор запроса не создаёт второй грант: PDA `[b"reward", ata, nonce]`
 уже существует, и клиент получает `409`. Мягкие бюджеты — 20 000 POTATO в сутки
 на каждый вид гранта, кулдаун 15 с на кошелёк.
+
+`/api/features` — только видимость разделов: клиент скрывает «Колонию», когда
+сервер отдаёт `colonies:false`, но ни одно действие этими флагами не
+разрешается — гейты остаются на сервере (`COLONIES_ENABLED`,
+`USER_PRESALE_PAYMENTS_ENABLED`, `REWARDS_RAIL_ENABLED`).
 
 `/api/store` — витрина без БД. `packs[].fields` содержит `{type,count,name}`,
 `potatoMicro` — строка микро-POTATO, `potato` — целая часть. `enabled` — тот же
@@ -245,5 +251,9 @@ absent, and on mainnet unless `NODE_ENV=production` and
 `REWARDS_MAINNET_APPROVED=true`. `REWARD_DELIVERY_INTERVAL_SECONDS` (default `0`
 = worker off) starts the `reward_intents` delivery worker; it needs `game_ops`
 and recovers an already-sent grant from the claim PDA instead of re-sending it.
+`QUEST_BUDGET_INTERVAL_SECONDS` (default `0` = off) starts the quest-pool cron:
+it tops `quest_ata` up through `grant_reward_once` only below the low-water mark
+(100 POTATO), at most one full pool (550 POTATO) per UTC day, with a nonce bound
+to the UTC day so a restart cannot double-fund it.
 See [OPERATIONS.md](OPERATIONS.md) for deployment, key inventory and incident response.
 Watchtower endpoints and persistent analytics are **not implemented** in this package.
