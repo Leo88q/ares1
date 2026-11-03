@@ -323,7 +323,7 @@ All amounts cross the wire as decimal **strings** (u64/bigint), never as numbers
 | `GET /api/presale/admin/pending` | заказы, оплаченные но не выданные |
 | `GET /api/presale/admin/refunds` | решения о возврате без подтверждённой выплаты |
 | `GET /api/presale/admin/attention` | очередь «требует внимания» |
-| `GET /api/presale/admin/reconcile?since=…` | сверка платежей с цепью (плательщик — по дельте баланса, см. P2-12) |
+| `GET /api/presale/admin/reconcile` | сверка платежей с цепью (`?since=…`; плательщик — по дельте баланса, см. P2-12) |
 
 `refund-settled` отвечает `400 VALIDATION` с машинным `detail`, когда перевод не
 доказывает возврат: `NOT_FINALIZED`, `TX_FAILED`, `WALLET_NOT_INVOLVED`,
