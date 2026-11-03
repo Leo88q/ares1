@@ -48,6 +48,7 @@ import { safeError } from '../apps/backend/src/security.js'
 import { expectedGenesisHash } from '../apps/backend/src/cluster.js'
 import {
   FIELD_ACCOUNT_SIZE,
+  FIELD_ACCOUNT_SIZE_V2,
   assertGrantWithinLimits,
   buildGrantPotatoInstruction,
   computeExpiresAt,
@@ -155,14 +156,18 @@ async function currentChainTime(connection: Connection): Promise<bigint> {
 }
 
 async function countWalletFields(runtime: Runtime, wallet: PublicKey): Promise<number> {
-  const accounts = await runtime.connection.getProgramAccounts(runtime.programId, {
-    commitment: 'confirmed',
-    filters: [
-      { dataSize: FIELD_ACCOUNT_SIZE },
-      { memcmp: { offset: 8, bytes: wallet.toBase58() } },
-    ],
-  })
-  return accounts.length
+  // P1-3: смотрим обе версии layout. Пока кластер не мигрирован, v2-поле
+  // (70 байт) — тоже поле: пропустить его значило бы признать игрока
+  // новичком и выдать стартовый грант поверх уже купленного им поля.
+  const counts = await Promise.all(
+    [FIELD_ACCOUNT_SIZE, FIELD_ACCOUNT_SIZE_V2].map(dataSize =>
+      runtime.connection.getProgramAccounts(runtime.programId, {
+        commitment: 'confirmed',
+        filters: [{ dataSize }, { memcmp: { offset: 8, bytes: wallet.toBase58() } }],
+      }),
+    ),
+  )
+  return counts.reduce((sum, accounts) => sum + accounts.length, 0)
 }
 
 async function readPotatoAta(

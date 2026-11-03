@@ -98,29 +98,58 @@ ATA_PROGRAM)`); `grant_reward` (`lib.rs:1941-1949`) и `grant_reward_once`
 `tests/solana_potato.ts:336-362` (второй аккаунт того же владельца → отказ на
 обеих рельсах). Требуется redeploy программы.
 
-### P1-3. `migrate_field` до этой ветки писал Field по произвольному адресу
-`lib.rs:2426-2446` — сейчас проверка канонического PDA и bump есть (P7
-закрыт в этой ветке). **Но** на задеплоенной версии проверки нет, а от неё
-зависят `verify_fields` (`lib.rs:5842-5871`) и `harvest`
-(`lib.rs:3425`: `pub field: Account<'info, Field>` без `seeds`): оба принимают
-любой program-owned аккаунт с дискриминатором Field. То есть до пере redeploy
-«поле», записанное миграцией по чужому адресу, считалось бы доказательством
-квеста и источником урожая.
+### P1-3. Field не знал своего id — `seeds` и квестовые доказательства были невыразимы — **исправлено (layout v3)**
 
-Исправление: (1) задеплоить ветку — обязательный шаг, без него дыра в
-`migrate_field` остаётся; (2) defense-in-depth через `seeds` **невозможен без
-смены layout**: PDA поля выводится как `[b"field", field_id.to_le_bytes()]`
-(`lib.rs:3469`), но `Field` (`lib.rs:4462-4473`) не хранит `field_id` — в
-аккаунте есть `owner/level/durability/last_harvest/tax_paid_until/
-fertilizer_until/is_active/field_type/bump/mutation_type`, индекса нет. Значит
-`seeds = [b"field", field.field_id…]` в `Harvest`/`CloseField` вывести не из
-чего, а `address = …` без индекса — тавтология. Реальный путь — добавить
-`field_id: u64` в `Field` миграцией (новый layout + `migrate_field_v3`,
-+8 байт, IDL/тесты), после чего `seeds` станут выразимыми. Пока это
-**defense-in-depth с ценой смены layout**, поэтому очередь: сначала деплой,
-потом решить, нужен ли v3-миграционный проход. Практический остаточный риск
-низкий: после фикса `migrate_field` единственный создатель `Field` —
-`CreateField` с каноническим PDA (`lib.rs:3462-3475`).
+`migrate_field` до этой ветки писал Field по произвольному адресу (проверка
+канонического PDA добавлена в P7). Но оставался корень: `Field`
+(`lib.rs:4462-4473`) не хранил `field_id`, поэтому
+   • `harvest`, `repair_field`, `pay_tax`, `apply_fertilizer`, `upgrade_field`,
+     `close_field` принимали `Account<'info, Field>` **без `seeds`** — годился
+     любой program-owned аккаунт с дискриминатором Field и нужным `owner`;
+   • `verify_fields` (доказательства квестов) и `batch_harvest` разбирали
+     `remaining_accounts` вручную и проверяли только `acc.owner == program`
+     и `f.owner == user`.
+
+**Исправлено** без изменения ABI (набор и порядок аккаунтов, аргументы и
+дискриминаторы те же; IDL меняется только описанием PDA у `field`):
+
+* `Field` v3: `field_id: u64` **в конец** layout (78 байт). Дописывание в конец
+  выбрано специально: миграция 69/70 → 78 не двигает ни одного существующего
+  байта, поэтому владелец, уровень, сроки и мутация не могут «съехать».
+* `create_field`, `buy_field_sol`, `buy_field_skr` записывают `field_id` при
+  создании.
+* Все инструкции с существующим Field: `seeds = [b"field",
+  field.field_id.to_le_bytes()], bump = field.bump` — адрес выводится из
+  данных самого аккаунта, а не из аргумента вызывающего.
+* `verify_fields` и `batch_harvest` сверяют `find_program_address([b"field",
+  f.field_id])` с ключом аккаунта и `f.bump` с каноническим bump.
+* `migrations::field(data, field_id)` принимает 69/70/78; для v3 повторный
+  вызов с другим id отвергается (`BadProof`) — иначе authority «переименовало»
+  бы поле, не меняя адреса.
+* Клиенты: `decodeField` (backend и web) читает обе раскладки и помечает
+  наследие `fieldId === null`; фильтры `getProgramAccounts` в web,
+  `scripts/grant-potato*` и `migrationClient` знают 78 и 70 (иначе во время
+  миграции UI терял бы половину полей, а CLI считал бы игрока с v2-полем
+  новичком и выдал бы ему стартовый грант).
+
+**Цена и порядок.** Любое поле, не прошедшее миграцию, программа больше не
+принимает (`AccountDidNotDeserialize`), поэтому `migrate_field` по каждому id
+идёт в том же окне, что и upgrade, — скрипт `scripts/migrate-v2.ts` с
+`FIELD_MIGRATION_IDS`. Это осознанная плата за структурную проверку:
+альтернативой было `field_id` аргументом, что даёт ту же защиту для мутаций,
+но не даёт её для `verify_fields` (id аккаунта из доказательства ничем не
+связан). Гейты: `tests/offchain/fieldLayoutV3.test.ts` (layout в Rust ↔ IDL ↔
+клиенты побайтово; каждый существующий Field обязан объявлять seeds+bump;
+ручные разборы обязаны сверять адрес), пин размера в
+`account_sizes_match_client_decoders` (78) и в `security-guards.test.mjs`
+(112 seeds-блоков, белый список `&[69, 70, 78]`), хостовый тест миграции
+(`field_v3_migration_appends_id_without_moving_existing_bytes`) и тест
+look-alike аккаунта в `achievement_proofs_reject_duplicate_and_foreign_fields`.
+
+Остаётся операционным шагом: **redeploy программы и миграция полей**; без них
+дыра в задеплоенной версии живёт. Клиентские декодеры терпимы к обеим
+раскладкам на чтение, поэтому окно миграции не ломает отображение, но
+ончейн-действия с не мигрированным полем невозможны.
 
 ### P1-4. Казна: окно вывода POTATO равно всему дневному капу — **исправлено**
 `lib.rs:109` — `MAX_WITHDRAW_POTATO_MICRO_PER_WINDOW = 250_000_000_000`

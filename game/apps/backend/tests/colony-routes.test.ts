@@ -60,12 +60,13 @@ test('colony auth routes issue an origin-bound one-time session from a wallet si
   app.use(express.json());
   const programId = new PublicKey(new Uint8Array(32).fill(5));
   const fieldAddress = new PublicKey(new Uint8Array(32).fill(6));
-  const fieldData = Buffer.alloc(70);
+  const fieldData = Buffer.alloc(78); // P1-3: layout v3 (+field_id)
   anchorDiscriminator('account', 'Field').copy(fieldData);
   new PublicKey(wallet).toBuffer().copy(fieldData, 8);
   fieldData.writeUInt8(1, 40); fieldData.writeUInt8(5, 41);
   fieldData.writeBigInt64LE(0n, 42); fieldData.writeBigInt64LE(0n, 50); fieldData.writeBigInt64LE(0n, 58);
   fieldData.writeUInt8(1, 66); fieldData.writeUInt8(0, 67); fieldData.writeUInt8(255, 68); fieldData.writeUInt8(0, 69);
+  fieldData.writeBigUInt64LE(0n, 70); // field_id
   const fieldRpc = {
     async getAccountInfoAndContext() {
       return { context: { slot: 456 }, value: { data: fieldData, owner: programId } };

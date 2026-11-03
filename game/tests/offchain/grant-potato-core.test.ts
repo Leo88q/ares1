@@ -59,7 +59,7 @@ test('grant constants mirror the Rust program (caps, quota share, expiry, first-
   // 250 POTATO × 0.4 = 100 POTATO ровно.
   assert.equal(firstFieldPriceMicro(), 100_000_000n)
   assert.equal(starterAmountMicro(), firstFieldPriceMicro())
-  assert.equal(FIELD_ACCOUNT_SIZE, 70)
+  assert.equal(FIELD_ACCOUNT_SIZE, 78) // P1-3: layout v3 (+field_id u64)
   assert.match(rust, /space\s*=\s*8\s*\+\s*Field::INIT_SPACE/)
 })
 

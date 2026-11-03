@@ -99,7 +99,7 @@ test('размеры аккаунтов в docs/API.md совпадают с п�
   const expected: Record<string, number> = {
     GameConfig: 260,
     Epoch: 49,
-    Field: 70,
+    Field: 78,
     SellerProfile: 49,
     PresaleState: 57,
     Achievements: 17,

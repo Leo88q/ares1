@@ -22,7 +22,14 @@ import { randomU64, withRetry } from '../utils/rpc'
 
 import { usePolling } from '../hooks/usePolling'
 
-const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1 // 70: +mutation_type (v2)
+/**
+ * P1-3: Field v3 (78 байт) = v2 (70) + field_id u64. Пока кластер не
+ * мигрирован, в нём лежат аккаунты обеих версий: фильтр по одному размеру
+ * просто «терял» бы половину полей. Программа принимает только v3 (адрес
+ * проверяется против field_id), поэтому v2-поле всё равно не собрать —
+ * но показать его состояние честнее, чем молча спрятать.
+ */
+const FIELD_ACCOUNT_SIZES = [78, 70] as const
 const FIELDS_POLL_MS = 20_000
 
 /**
@@ -128,9 +135,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
    const licensePda = pdas(programId).exportLicense(publicKey)
    const [accounts, infos] = await Promise.all([
     withRetry(() =>
-     connection.getProgramAccounts(programId, {
-      filters: [{ dataSize: FIELD_ACCOUNT_SIZE }, { memcmp: { offset: 8, bytes: publicKey.toBase58() } }],
-     }),
+     Promise.all(
+      FIELD_ACCOUNT_SIZES.map(dataSize =>
+       connection.getProgramAccounts(programId, {
+        filters: [{ dataSize }, { memcmp: { offset: 8, bytes: publicKey.toBase58() } }],
+       }),
+      ),
+     ).then(groups => groups.flat()),
     ),
     withRetry(() => connection.getMultipleAccountsInfo([publicKey, ata, skrAta, licensePda])),
    ])

@@ -333,6 +333,8 @@ export interface DecodedField {
  owner: PublicKey; level: number; durability: number; lastHarvest: bigint
  taxPaidUntil: bigint; fertilizerUntil: bigint; isActive: boolean; fieldType: number
  bump: number; mutationType: number
+ /** P1-3 (layout v3): id поля; `null` — аккаунт ещё не мигрирован с v2 (70 байт). */
+ fieldId: bigint | null
 }
 
 export function decodeField(data: Buffer): DecodedField {
@@ -346,12 +348,14 @@ export function decodeField(data: Buffer): DecodedField {
  const isActive = readBool(data, o); o = isActive.next
  const fieldType = readU8(data, o); o = fieldType.next
  const bump = readU8(data, o); o = bump.next
- const mutationType = readU8(data, o)
+ const mutationType = readU8(data, o); o = mutationType.next
+ // v3 (78 байт) хранит field_id в конце; 70-байтные аккаунты — ещё v2.
+ const fieldId = data.length === 70 ? { value: null } : readU64(data, o)
  return {
   owner: owner.value, level: level.value, durability: durability.value,
   lastHarvest: lastHarvest.value, taxPaidUntil: taxPaidUntil.value,
   fertilizerUntil: fertilizerUntil.value, isActive: isActive.value, fieldType: fieldType.value,
-  bump: bump.value, mutationType: mutationType.value,
+  bump: bump.value, mutationType: mutationType.value, fieldId: fieldId.value,
  }
 }
 

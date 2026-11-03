@@ -71,7 +71,9 @@ test('A1/A5/A6/D21-D22: каждый init платит ренту; data-акка
 test('A1: каждый seeds-констрейнт спарен с bump', () => {
   const seeded = blocks.filter((b) => /seeds\s*=/.test(b));
   // Count is pinned to the current source; review each new account context before changing it.
-  assert.equal(seeded.length, 108, `seeds-блоков: ${seeded.length}, ожидалось 108`);
+  // +4 (P1-3, layout v3): Harvest, field_spend_accounts!, UpgradeField,
+  // CloseField привязывают Field к `field.field_id` вместо одного has_one.
+  assert.equal(seeded.length, 112, `seeds-блоков: ${seeded.length}, ожидалось 112`);
   for (const b of seeded) {
     assert.ok(/\bbump\b/.test(b), `seeds без bump: ${b.slice(0, 120)}`);
   }
@@ -205,7 +207,8 @@ test('C17/D30: энтропия SlotHashes спинована по адресу 
 
 test('D24: миграции валидируют раскладки и authority', () => {
   assert.equal(count(libRs, 'migrations::authority('), 4);
-  for (const whitelist of ['&[156, 164, 228, 260]', '&[97, 145]', '&[69, 70]', '&[41, 49]']) {
+  // Field: 69 (v1) / 70 (v2) → 78 (v3, +field_id u64).
+  for (const whitelist of ['&[156, 164, 228, 260]', '&[97, 145]', '&[69, 70, 78]', '&[41, 49]']) {
     assert.ok(migrationsRs.includes(whitelist), `белый список размеров ${whitelist} отсутствует`);
   }
   assert.ok(migrationsRs.includes('fn check_layout('));

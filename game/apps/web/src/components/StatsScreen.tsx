@@ -47,7 +47,8 @@ interface EconomyData {
  taxBps: number
 }
 
-const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1
+/** P1-3: v3 78 байт + ещё не мигрированные v2 70 байт — см. GameContext. */
+const FIELD_ACCOUNT_SIZES = [78, 70] as const
 const STATS_POLL_MS = 30_000
 
 /** Консольная строка-прибор: моно-лейбл, янтарное значение, светящийся бар (без смайлов и иконок) */
@@ -278,10 +279,14 @@ function StatsScreenInner() {
   const [mintInfo, fieldAccounts] = await Promise.all([
    withRetry(() => getMint(connection, config.potatoMint)),
    withRetry(() =>
-    connection.getProgramAccounts(programId, {
-     filters: [{ dataSize: FIELD_ACCOUNT_SIZE }],
-     dataSlice: { offset: 8, length: 33 },
-    }),
+    Promise.all(
+     FIELD_ACCOUNT_SIZES.map(dataSize =>
+      connection.getProgramAccounts(programId, {
+       filters: [{ dataSize }],
+       dataSlice: { offset: 8, length: 33 },
+      }),
+     ),
+    ).then(groups => groups.flat()),
    ),
   ])
   const byOwner = new Map<string, { fields: number; totalLevel: number }>()

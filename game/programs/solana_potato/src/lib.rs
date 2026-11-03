@@ -453,6 +453,7 @@ pub mod solana_potato {
         field.is_active = true;
         field.field_type = field_type;
         field.bump = ctx.bumps.field;
+        field.field_id = field_id;
 
         emit!(FieldCreated {
             owner: field.owner,
@@ -703,6 +704,7 @@ pub mod solana_potato {
         field.is_active = true;
         field.field_type = field_type;
         field.bump = ctx.bumps.field;
+        field.field_id = field_id;
 
         // Обновляем счётчики
         presale.sold = presale.sold.checked_add(1).ok_or(GameError::MathOverflow)?;
@@ -742,8 +744,7 @@ pub mod solana_potato {
     /// type 2 pays 2× of `presale.price_lamports`. `max_total_lamports` is the
     /// buyer's slippage guard: the transaction reverts with InvalidPrice if the
     /// authority raised the price after the buyer signed.
-    // `field_id` связывает PDA поля через seeds, в теле не читается.
-    #[allow(unused_variables)]
+    // `field_id` связывает PDA поля через seeds и записывается в layout v3.
     pub fn buy_field_sol(
         ctx: Context<BuyFieldSol>,
         field_id: u64,
@@ -803,6 +804,7 @@ pub mod solana_potato {
         field.is_active = true;
         field.field_type = field_type;
         field.bump = ctx.bumps.field;
+        field.field_id = field_id;
 
         // Обновляем счётчики
         presale.sold = presale.sold.checked_add(1).ok_or(GameError::MathOverflow)?;
@@ -2466,22 +2468,25 @@ pub mod solana_potato {
         )
     }
 
-    /// P7: migrates one Field account to the current layout.
+    /// P7 + P1-3: migrates one Field account to the current (v3) layout.
     ///
-    /// Field carries no `id` in its layout, so — unlike `migrate_epoch` — the
-    /// handler cannot derive the PDA from the account itself. It therefore
-    /// takes `field_id` from the caller and requires the account to be the
-    /// **canonical** `[b"field", field_id]` PDA, both by address and by the
-    /// stored bump. Without this the authority could point a migration at any
-    /// program-owned, 69/70-byte, Field-discriminated account; the layout
-    /// check alone only guarantees "it looks like a field", not "it is one".
+    /// On the legacy layouts (69/70 bytes) the account does not carry its id,
+    /// so — unlike `migrate_epoch` — the handler cannot derive the PDA from
+    /// the account itself. It therefore takes `field_id` from the caller and
+    /// requires the account to be the **canonical** `[b"field", field_id]` PDA,
+    /// both by address and by the stored bump. Without this the authority
+    /// could point a migration at any program-owned, 69/70-byte,
+    /// Field-discriminated account; the layout check alone only guarantees
+    /// "it looks like a field", not "it is one". The id is then written into
+    /// the account, after which every instruction verifies it structurally
+    /// (`seeds`, `verify_fields`) and no caller-supplied id is trusted at all.
     pub fn migrate_field(ctx: Context<MigrateField>, field_id: u64) -> Result<()> {
         migrations::authority(
             &ctx.accounts.config.try_borrow_data()?,
             &ctx.accounts.authority.key(),
         )?;
         let info = ctx.accounts.field.to_account_info();
-        let updated = migrations::field(&info.try_borrow_data()?)?;
+        let updated = migrations::field(&info.try_borrow_data()?, field_id)?;
         let field = Field::try_deserialize(&mut &updated[..])?;
         let (expected, canonical_bump) =
             Pubkey::find_program_address(&[b"field", &field_id.to_le_bytes()], ctx.program_id);
@@ -2667,6 +2672,13 @@ pub mod solana_potato {
             let mut slice: &[u8] = &acc.try_borrow_data()?[..];
             let f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
             require!(f.owner == ctx.accounts.owner.key(), GameError::Unauthorized);
+            // P1-3: адрес обязан выводиться из field_id внутри аккаунта. До
+            // layout v3 батч принимал любой program-owned аккаунт с
+            // дискриминатором Field, лишь бы owner совпал.
+            let (expected_field, canonical_bump) =
+                Pubkey::find_program_address(&[b"field", &f.field_id.to_le_bytes()], ctx.program_id);
+            require_keys_eq!(acc.key(), expected_field, GameError::BadProof);
+            require!(f.bump == canonical_bump, GameError::BadProof);
             require!(f.is_active, GameError::FieldInactive);
             let elapsed = now.saturating_sub(f.last_harvest).min(MAX_ACCRUAL_SECONDS);
             require!(elapsed >= MIN_HARVEST_INTERVAL, GameError::HarvestTooSoon);
@@ -3503,7 +3515,13 @@ pub struct Harvest<'info> {
     pub config: Account<'info, GameConfig>,
     #[account(mut, seeds = [b"epoch", config.epoch_id.to_le_bytes().as_ref()], bump = epoch.bump)]
     pub epoch: Account<'info, Epoch>,
-    #[account(mut, has_one = owner)]
+    /// P1-3: field обязан быть каноническим PDA от собственного field_id.
+    #[account(
+        mut,
+        has_one = owner,
+        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+        bump = field.bump
+    )]
     pub field: Account<'info, Field>,
     #[account(mut)]
     pub potato_mint: Account<'info, Mint>,
@@ -3528,7 +3546,13 @@ macro_rules! field_spend_accounts {
     ($name:ident) => {
         #[derive(Accounts)]
         pub struct $name<'info> {
-            #[account(mut, has_one = owner)]
+            /// P1-3: field обязан быть каноническим PDA от собственного field_id.
+            #[account(
+                mut,
+                has_one = owner,
+                seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+                bump = field.bump
+            )]
             pub field: Account<'info, Field>,
             #[account(mut)]
             pub potato_mint: Account<'info, Mint>,
@@ -3549,7 +3573,13 @@ field_spend_accounts!(ApplyFertilizer);
 /// роллится с примесью хеша последнего слота (непредсказуемо в момент подписания).
 #[derive(Accounts)]
 pub struct UpgradeField<'info> {
-    #[account(mut, has_one = owner)]
+    /// P1-3: field обязан быть каноническим PDA от собственного field_id.
+    #[account(
+        mut,
+        has_one = owner,
+        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+        bump = field.bump
+    )]
     pub field: Account<'info, Field>,
     #[account(mut)]
     pub potato_mint: Account<'info, Mint>,
@@ -4405,7 +4435,14 @@ pub struct BatchHarvest<'info> {
 pub struct CloseField<'info> {
     #[account(mut, seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, GameConfig>,
-    #[account(mut, has_one = owner, close = owner)]
+    /// P1-3: канонический PDA проверяется до закрытия аккаунта.
+    #[account(
+        mut,
+        has_one = owner,
+        close = owner,
+        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+        bump = field.bump
+    )]
     pub field: Account<'info, Field>,
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -4487,6 +4524,17 @@ pub struct Field {
     pub field_type: u8,
     pub bump: u8,
     pub mutation_type: u8, // 0=None, 1=Golden (+25% yield), 2=Silicon (decay ÷2)
+    /// P1-3 (layout v3): id, из которого выведен PDA `[b"field", id]`.
+    ///
+    /// До v3 аккаунт не знал своего id, поэтому `seeds` в инструкциях,
+    /// принимающих Field (`harvest`, ремонт/налог/удобрение, апгрейд,
+    /// `close_field`), были невыразимы, а квестовые доказательства
+    /// (`verify_fields`) принимали любой program-owned аккаунт с
+    /// дискриминатором Field. Теперь аккаунт самоописывается: адрес всегда
+    /// проверяется против id внутри него. Поле добавлено в конец layout
+    /// (78 байт), поэтому миграция 69/70 → 78 — это дописывание id, без
+    /// сдвига существующих байт.
+    pub field_id: u64,
 }
 
 /// One 24h emission window. PDA seeds: `["epoch", id.to_le_bytes()]`.
@@ -5174,6 +5222,7 @@ mod tests {
             field_type,
             bump: 0,
             mutation_type: 0,
+            field_id: 0,
         }
     }
 
@@ -5572,11 +5621,19 @@ mod tests {
     fn achievement_proofs_reject_duplicate_and_foreign_fields() {
         let user = Pubkey::new_unique();
         let program = crate::ID;
-        let key = Pubkey::new_unique();
+        let field_id: u64 = 41;
+        let (key, bump) =
+            Pubkey::find_program_address(&[b"field", &field_id.to_le_bytes()], &program);
         let mut f = field(3, 100, 1);
         f.owner = user;
+        f.field_id = field_id;
+        f.bump = bump;
         let mut data = vec![0; 8 + Field::INIT_SPACE];
         write_field_account(&f, &mut data).unwrap();
+        // P1-3: тот же байт-в-байт аккаунт по адресу, выведенному из ДРУГОГО id.
+        let mut lookalike_data = data.clone();
+        let (other_key, _) =
+            Pubkey::find_program_address(&[b"field", &(field_id + 1).to_le_bytes()], &program);
         let mut lamports = 1;
         let account = AccountInfo::new(
             &key,
@@ -5588,8 +5645,20 @@ mod tests {
             false,
             0,
         );
+        let mut lookalike_lamports = 1;
+        let lookalike = AccountInfo::new(
+            &other_key,
+            false,
+            false,
+            &mut lookalike_lamports,
+            &mut lookalike_data,
+            &program,
+            false,
+            0,
+        );
         let accounts = [account.clone()];
         assert!(verify_fields(&accounts, &user, &program, 1, 3).is_ok());
+        assert!(verify_fields(&[lookalike], &user, &program, 1, 0).is_err());
         assert!(verify_fields(&[account.clone(), account.clone()], &user, &program, 2, 0).is_err());
         assert!(verify_fields(&accounts, &Pubkey::new_unique(), &program, 1, 0).is_err());
         assert!(verify_fields(&[account], &user, &Pubkey::new_unique(), 1, 0).is_err());
@@ -5597,7 +5666,9 @@ mod tests {
 
     #[test]
     fn account_sizes_match_client_decoders() {
-        assert_eq!(8 + Field::INIT_SPACE, 70);
+        // Field v3 (P1-3): v2 62 байта payload + field_id u64 (см. table in
+        // docs/API.md; размер обязан совпадать с FIELD_ACCOUNT_SIZE клиентов).
+        assert_eq!(8 + Field::INIT_SPACE, 78);
         assert_eq!(8 + MarketOrder::INIT_SPACE, 83);
         // Versioned market accounts are additive; legacy layout remains 83 bytes.
         assert_eq!(8 + MarketOrderV2::INIT_SPACE, 85);
@@ -5924,6 +5995,7 @@ mod tests {
                 field_type: rng.below(FIELD_TYPE_COUNT as u64) as u8,
                 bump: 0,
                 mutation_type: rng.below(3) as u8,
+                field_id: 0,
             };
             let base = rng.below(MAX_BASE_YIELD_MICRO_PER_DAY) + 1;
             let global = rng.below(MAX_GLOBAL_MULTIPLIER_BPS as u64 + 1) as u16;
@@ -5969,7 +6041,7 @@ mod tests {
         // принимает только размеры из белого списка и дополняет до текущего —
         // эти числа обязаны быть ПОСЛЕДНИМИ элементами списков, иначе миграция
         // «улучшит» актуальный аккаунт до устаревшего размера.
-        assert_eq!(8 + Field::INIT_SPACE, 70);
+        assert_eq!(8 + Field::INIT_SPACE, 78);
         assert_eq!(8 + Epoch::INIT_SPACE, 49);
         assert_eq!(8 + AdminState::INIT_SPACE, 145);
         assert_eq!(8 + GameConfig::INIT_SPACE, 260);
@@ -6006,6 +6078,14 @@ fn verify_fields(
         let mut slice: &[u8] = &data;
         let f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
         require!(f.owner == *user, GameError::BadProof);
+        // P1-3: одного дискриминатора мало. До layout v3 доказательством
+        // «поля» был любой program-owned аккаунт с дискриминатором Field;
+        // теперь id лежит внутри, поэтому адрес можно проверить на
+        // каноничность: тот же аргумент, что и в seeds мутаций.
+        let (expected, canonical_bump) =
+            Pubkey::find_program_address(&[b"field", &f.field_id.to_le_bytes()], program);
+        require_keys_eq!(acc.key(), expected, GameError::BadProof);
+        require!(f.bump == canonical_bump, GameError::BadProof);
         if f.level >= min_level {
             saw_level = true;
         }

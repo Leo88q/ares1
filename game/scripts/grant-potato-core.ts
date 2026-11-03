@@ -43,8 +43,14 @@ export const GRANT_EXPIRY_TTL_SECONDS = 600n
 export const BASE_FIELD_PRICE_MICRO = 250n * POTATO_MICRO
 /** lib.rs: type_cost_bps(0) = 4_000 (0.4×) — самое дешёвое первое поле («Грядка»). */
 export const FIRST_FIELD_COST_BPS = 4_000n
-/** Размер аккаунта Field (Rust `8 + Field::INIT_SPACE` = 70) для фильтра getProgramAccounts. */
-export const FIELD_ACCOUNT_SIZE = 70
+/**
+ * Размер аккаунта Field (Rust `8 + Field::INIT_SPACE` = 78, layout v3) для
+ * фильтра getProgramAccounts. P1-3 дописал `field_id` в конец layout: пока
+ * кластер не мигрирован, фильтр обязан смотреть и на 70-байтную v2.
+ */
+export const FIELD_ACCOUNT_SIZE = 78
+/** v2 (70 байт) — до миграции P1-3; нужен, чтобы CLI видел ещё не мигрированные поля. */
+export const FIELD_ACCOUNT_SIZE_V2 = 70
 
 /** Цена первого (самого дешёвого) поля: scaled_cost(BASE, 0) = 100 POTATO. */
 export function firstFieldPriceMicro(): bigint {

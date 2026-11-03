@@ -3,8 +3,10 @@ import { test } from 'node:test';
 import { PublicKey } from '@solana/web3.js';
 import { anchorDiscriminator, decodeField } from '../src/anchorRaw.js';
 
-function fieldData(owner: PublicKey, active = true, durability = 7): Buffer {
-  const data = Buffer.alloc(70);
+function fieldData(owner: PublicKey, active = true, durability = 7, fieldId: bigint | null = 9n): Buffer {
+  // P1-3: v3 = 78 байт (+field_id u64 в конце). `null` — фикстура layout v2.
+  const legacy = fieldId === null;
+  const data = Buffer.alloc(legacy ? 70 : 78);
   anchorDiscriminator('account', 'Field').copy(data, 0);
   owner.toBuffer().copy(data, 8);
   data.writeUInt8(2, 40); // level
@@ -16,6 +18,7 @@ function fieldData(owner: PublicKey, active = true, durability = 7): Buffer {
   data.writeUInt8(1, 67); // field type
   data.writeUInt8(254, 68); // bump
   data.writeUInt8(2, 69); // silicon mutation
+  if (!legacy) data.writeBigUInt64LE(fieldId, 70); // field_id (v3)
   return data;
 }
 
@@ -27,6 +30,10 @@ test('backend decodes the deployed Field layout and verifies its discriminator a
   assert.equal(field.durability, 7);
   assert.equal(field.isActive, true);
   assert.equal(field.mutationType, 2);
+  assert.equal(field.fieldId, 9n);
+  // v2 (70 байт) читается, но помечен как не мигрированный — иначе бэкенд
+  // не смог бы ни показать состояние поля, ни спланировать миграцию.
+  assert.equal(decodeField(fieldData(owner, true, 7, null)).fieldId, null);
   assert.throws(() => decodeField(Buffer.alloc(70)), /Invalid Field account layout/);
   assert.throws(() => decodeField(Buffer.concat([fieldData(owner), Buffer.alloc(1)])), /Invalid Field account layout/);
 });

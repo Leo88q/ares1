@@ -51,7 +51,7 @@ Sizes include the 8-byte Anchor discriminator:
 |---|---|---:|
 | GameConfig | `config` | 260 (legacy: 156/164/228) |
 | Epoch | `epoch`, epoch ID u64 LE | 49 |
-| Field | `field`, field ID u64 LE | 70 |
+| Field | `field`, field ID u64 LE | 78 (legacy: 70/69) |
 | MarketOrder | `order`, order ID u64 LE | 83 |
 | MarketStats | `market_stats` | 49 |
 | MarketOrderV2 | `order_v2`, order ID u64 LE | 85 (draft) |
@@ -81,6 +81,19 @@ Config legacy layouts 156/164/228 and epoch legacy layout 41 are recognized by r
 clients for reads. That does **not** certify on-chain migration safety. Field migration
 and legacy config migration have separate fixture tests; see [MIGRATIONS.md](MIGRATIONS.md)
 and the stabilization report for execution status.
+
+**Field layout v3 (P1-3).** `field_id: u64` was appended, so the account now
+carries the id its PDA was derived from (78 bytes; 70/69 are legacy). Every
+instruction that takes an existing Field (`harvest`, `batch_harvest`,
+`repair_field`, `pay_tax`, `apply_fertilizer`, `upgrade_field`, `close_field`)
+verifies `seeds = [b"field", field.field_id]` plus the stored bump, and the
+quest proofs in `verify_fields` do the same for the remaining accounts — a
+program-owned account with a Field discriminator but a non-canonical address is
+no longer evidence of anything. Consequence: **a Field that has not been
+migrated cannot be harvested or used in a proof.** Migrate all fields
+(`migrate_field` per id, `scripts/migrate-v2.ts`) in the same window as the
+program upgrade; raw clients accept both layouts for reads and mark the legacy
+one with `fieldId === null`.
 Account order, writable/signer flags and discriminators are an ABI. Raw instruction
 builders in web/backend must match the generated IDL, not just its address.
 
