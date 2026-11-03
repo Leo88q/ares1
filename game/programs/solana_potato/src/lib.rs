@@ -2976,7 +2976,7 @@ pub fn repair_cost_micro(
     let missing = MAX_DURABILITY.saturating_sub(durability.min(MAX_DURABILITY)) as u128;
     // Прогрессивный множитель ремонта: L1-2 → 1×, L30 → 10×, L50 → 16×
     let level_mult = ((level as u128) / 3).max(1);
-    let per_point = (scaled_cost(base_micro, field_type)? as u128)
+    let per_point = (scaled_cost(base_micro, field_type) as u128)
         .checked_mul(level_mult)
         .ok_or(GameError::MathOverflow)?;
     let max_durability = MAX_DURABILITY as u128;
@@ -5569,14 +5569,9 @@ mod tests {
     fn weekly_yield_covers_tax_at_level_one() {
         for t in 0..FIELD_TYPE_COUNT {
             let f = field(1, 100, t);
-            let weekly = compute_pending_yield(
-                DEFAULT_BASE_YIELD_MICRO_PER_DAY,
-                10_000,
-                &f,
-                TAX_PERIOD,
-                1,
-            )
-            .unwrap();
+            let weekly =
+                compute_pending_yield(DEFAULT_BASE_YIELD_MICRO_PER_DAY, 10_000, &f, TAX_PERIOD, 1)
+                    .unwrap();
             let tax = scaled_cost(BASE_TAX_MICRO, t);
             assert!(weekly > tax * 3, "type {t}: weekly {weekly} vs tax {tax}");
         }
@@ -5586,7 +5581,10 @@ mod tests {
     fn lunar_weight_is_segment_weighted_over_trailing_days() {
         // P2-6: индекс дня берётся из времени, а не из epoch_id.
         // Ровно сутки назад = ровно табличное значение текущего дня.
-        assert_eq!(lunar_weighted_bps(SECONDS_PER_DAY, 0), LUNAR_TABLE[0] as u128);
+        assert_eq!(
+            lunar_weighted_bps(SECONDS_PER_DAY, 0),
+            LUNAR_TABLE[0] as u128
+        );
         assert_eq!(
             lunar_weighted_bps(SECONDS_PER_DAY, 3 * SECONDS_PER_DAY),
             LUNAR_TABLE[3] as u128
