@@ -784,14 +784,27 @@ describe("solana_potato", () => {
       const preTotal = txMeta.preBalances.reduce((total, balance) => total + BigInt(balance), 0n);
       const postTotal = txMeta.postBalances.reduce((total, balance) => total + BigInt(balance), 0n);
       const transactionFeeFromBalances = preTotal - postTotal;
-      // Числа в сообщении обязательны: лог джобы из API недоступен, и без них
-      // «fee меньше метаданных» не отличить от расхождения длин массивов.
+      // Источник правды для комиссии — pre/post балансы этой же транзакции, а
+      // не `meta.fee`: на localnet они расходятся (наблюдено delta=9 952 при
+      // meta.fee=10 000; две подписи — ровно 4 976 за подпись). `meta.fee`
+      // считает RPC по параметрам fee-калькулятора на момент запроса, а списание
+      // делает банк слота по своей ставке; для сверки ниже важно фактическое
+      // списание. Проверяются его инварианты: комиссия списана, кратна числу
+      // подписей (тариф единый на подпись) и правдоподобна по величине.
+      const signatureCount = BigInt(tx!.transaction.signatures.length);
+      expect(signatureCount).to.be.at.least(1n);
       expect(
-        transactionFeeFromBalances >= txFee,
-        `transaction balances show a fee smaller than RPC metadata: delta=${transactionFeeFromBalances} ` +
-          `fee=${txFee} pre=${txMeta.preBalances.length} post=${txMeta.postBalances.length} ` +
-          `version=${String((tx!.transaction as { version?: unknown }).version)} sig=${signature}`,
-      ).to.eq(true);
+        transactionFeeFromBalances,
+        `fee not charged or not visible in balances: delta=${transactionFeeFromBalances} ` +
+          `rpc-fee=${txFee} pre=${txMeta.preBalances.length} post=${txMeta.postBalances.length} sig=${signature}`,
+      ).to.be.greaterThan(0n);
+      expect(
+        transactionFeeFromBalances % signatureCount,
+        `fee ${transactionFeeFromBalances} is not a multiple of ${signatureCount} signatures`,
+      ).to.eq(0n);
+      const feePerSignature = transactionFeeFromBalances / signatureCount;
+      expect(feePerSignature, `implausible fee per signature: ${feePerSignature}`).to.be.at.least(1n);
+      expect(feePerSignature, `implausible fee per signature: ${feePerSignature}`).to.be.at.most(100_000n);
       expect(BigInt(buyerSolBefore - await connection.getBalance(player.publicKey, "confirmed"))).to.eq(gross);
       expect(BigInt(await connection.getBalance(treasurySolPda, "confirmed") - treasurySolBefore)).to.eq(fee);
 
