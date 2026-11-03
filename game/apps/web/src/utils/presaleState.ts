@@ -1,5 +1,5 @@
 /**
- * PresaleState (lib.rs:3265) — чтение sold/cap тиража из аккаунта цепи.
+ * PresaleState (`PresaleState` в lib.rs) — чтение sold/cap тиража из аккаунта цепи.
  *
  * Layout: 8 (Anchor discriminator) + 32 (authority) + 4 (sold, u32 LE)
  *         + 4 (cap, u32 LE) + 8 (price_lamports, u64 LE) + 1 (bump) = 57 байт

@@ -5613,6 +5613,20 @@ mod tests {
             8 + AdminState::INIT_SPACE,
             8 + 8 + 24 + 32 + 8 + 8 + 8 + 1 + 8 * 6
         );
+        // RewardClaim — маркер реплея (P1-2): его layout не должен меняться
+        // незаметно, иначе повторная выплата снова станет возможной.
+        // recipient 32 + nonce 8 + amount 8 + claimed_at 8 + bump 1
+        assert_eq!(8 + RewardClaim::INIT_SPACE, 65);
+        // Referral: owner 32 + referrer 32 + bump 1
+        assert_eq!(8 + Referral::INIT_SPACE, 73);
+        // PresaleState: authority 32 + sold u32 + cap u32 + price u64 + bump 1
+        assert_eq!(8 + PresaleState::INIT_SPACE, 57);
+        // ExportLicense: owner 32 + expires_at 8 + bump 1
+        assert_eq!(8 + ExportLicense::INIT_SPACE, 49);
+        // Achievements: bitmap u64 + bump
+        assert_eq!(8 + Achievements::INIT_SPACE, 17);
+        // SellerProfile: seller 32 + last_cancel_at 8 + bump 1
+        assert_eq!(8 + SellerProfile::INIT_SPACE, 49);
     }
 
     // ─────────────── Security checklist 2026-09-25 ───────────────

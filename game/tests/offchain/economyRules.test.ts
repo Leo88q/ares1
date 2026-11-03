@@ -11,6 +11,31 @@ function handler(name: string): string {
   const next = rust.indexOf('    pub fn ', start + 12);
   return rust.slice(start, next < 0 ? undefined : next);
 }
+/**
+ * Тело ветки, открывающейся строкой `if let Some(fee) = NAME {`, с балансом
+ * скобок. Вырезать её нужно, чтобы проверить свойство «больше НИГДЕ деньги не
+ * двигаются»: точное совпадение синтаксиса (прежняя версия теста) валилось от
+ * любого рефакторинга с сохранением поведения и всё равно ничего не говорило о
+ * том, что плата не списывается.
+ */
+function gatedBranch(body: string, marker: string): string {
+  const start = body.indexOf(marker);
+  assert(start >= 0, `нет ветки ${marker}`);
+  let depth = 0;
+  let seen = false;
+  for (let i = start; i < body.length; i += 1) {
+    const ch = body[i];
+    if (ch === '{') {
+      depth += 1;
+      seen = true;
+    } else if (ch === '}') {
+      depth -= 1;
+      if (seen && depth === 0) return body.slice(start, i + 1);
+    }
+  }
+  assert.fail(`незакрытая ветка ${marker}`);
+}
+
 function constant(name: string): bigint {
   const match = new RegExp(`pub const ${name}: u64 = ([0-9_]+);`).exec(rust);
   assert(match, `Missing constant ${name}`);
@@ -53,9 +78,17 @@ test('referral registration is free: no entry fee before the first field', () =>
   // Рабочий переключатель — Option-константа: сравнение вида `FEE > 0` clippy
   // отклоняет как заведомо ложное, а мёртвая ветка тихо гниёт.
   assert.match(rust, /pub const REFERRAL_REGISTRATION_FEE_MICRO: Option<u64> = None;/);
-  assert.match(handler('register_referrer'), /if let Some\(fee\) = REFERRAL_REGISTRATION_FEE_MICRO \{/);
-  assert.match(handler('register_referrer'), /REFERRAL_REGISTRATION_FEE_MICRO/);
-  assert.doesNotMatch(handler('register_referrer'), /50_000_000/);
+
+  // Свойство, которое действительно важно: единственное место, где
+  // `register_referrer` может двинуть токены, — ветка, включаемая этой
+  // константой. Любая плата вне ветки (или плата при `None`) — регресс.
+  const body = handler('register_referrer');
+  const gated = gatedBranch(body, 'if let Some(fee) = REFERRAL_REGISTRATION_FEE_MICRO {');
+  const outside = body.replace(gated, '');
+  assert.doesNotMatch(outside, /token::(burn|transfer)\(|burn_from_user\(/, 'плата за реферал вне fee-ветки');
+  assert.doesNotMatch(gated, /50_000_000/, 'жёстко зашитая цена регистрации');
+  assert.match(gated, /token::burn\(/, 'fee-ветка должна сжигать POTATO, а не переводить их');
+
   const ui = fs.readFileSync('apps/web/src/components/ReferralSection.tsx', 'utf8');
   assert.match(ui, /Регистрация бесплатна: 0 🥔, антиспам — одна запись на кошелёк/);
 });

@@ -16,20 +16,20 @@
 // покупателю выдачу, которую программа отклонит, поэтому значения закреплены
 // тестом presale-catalog.test.ts, сверяющим их с текстом lib.rs.
 export const POTATO_DECIMALS = 6;
-/** lib.rs:68 — потолок одной выдачи grant_reward/grant_reward_once. */
+/** `MAX_REWARD_MICRO` в lib.rs — потолок одной выдачи grant_reward/grant_reward_once. */
 export const MAX_REWARD_MICRO = 1_000_000_000n;
-/** lib.rs:158 — цена эталонного поля типа 1 («Луг», 1.0×). */
+/** `BASE_FIELD_PRICE_MICRO` в lib.rs — цена эталонного поля типа 1 («Луг», 1.0×). */
 export const BASE_FIELD_PRICE_MICRO = 250_000_000n;
-/** lib.rs:66 — кап эмиссии за эпоху. */
+/** `MAX_DAILY_CAP_MICRO` в lib.rs — кап эмиссии за эпоху. */
 export const MAX_DAILY_CAP_MICRO = 250_000_000_000n;
-/** lib.rs:78 — доля капа эпохи, доступная ручным грантам (25 %). */
+/** `GRANT_QUOTA_SHARE_BPS` в lib.rs — доля капа эпохи для ручных грантов (25 %). */
 export const GRANT_QUOTA_SHARE_BPS = 2_500n;
-/** lib.rs:76 — окно клейма: 15 минут. */
+/** `MAX_REWARD_EXPIRY_SECONDS` в lib.rs — окно клейма: 15 минут. */
 export const MAX_REWARD_EXPIRY_SECONDS = 900n;
 const BPS = 10_000n;
 
 /**
- * lib.rs:2121 type_cost_bps — множитель цены по типу поля.
+ * `type_cost_bps` в lib.rs — множитель цены по типу поля.
  *
  * Расхождение с программой НАМЕРЕННОЕ и в безопасную сторону: в Rust тип 2 —
  * это catch-all `_ => 20_000`, то есть любой field_type ≥ 2 оценивается как 2×.
@@ -49,7 +49,7 @@ export const FIELD_TYPE_NAMES: Readonly<Record<number, string>> = {
   2: 'Поле',
 };
 
-/** lib.rs:2135 scaled_cost(base, type) = base * type_cost_bps / 10000. */
+/** `scaled_cost(base, type)` в lib.rs = base * type_cost_bps / 10000. */
 export function fieldPriceMicro(fieldType: number): bigint {
   const bps = TYPE_COST_BPS[fieldType];
   if (bps === undefined) throw new Error(`Неизвестный тип поля: ${fieldType}`);
@@ -176,11 +176,11 @@ export function deliveryDays(pack: PackContents, totalPacks: number, epochCapMic
 export type Currency = 'sol' | 'skr';
 
 /**
- * lib.rs:159 — минт SKR, в котором программа принимает платежи.
- * lib.rs:167 — SKR_DECIMALS = 6, то есть 1 SKR = 1_000_000 атомов.
+ * `SKR_MINT` в lib.rs — минт SKR, в котором программа принимает платежи.
+ * `SKR_DECIMALS` в lib.rs = 6, то есть 1 SKR = 1_000_000 атомов.
  *
  * Зачем это здесь: у SOL 9 знаков, у SKR 6. Ошибка в разрядности — это ровно
- * тот класс бага, про который в lib.rs:220 написано «иначе все SKR-цены
+ * тот класс бага, про который в комментарии к `SKR_DECIMALS` в lib.rs написано «иначе все SKR-цены
  * съехали бы на 10^k». Поэтому пересчёт всегда идёт через эти константы.
  */
 export const SKR_MINT = 'Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o';

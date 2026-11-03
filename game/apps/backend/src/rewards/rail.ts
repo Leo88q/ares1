@@ -30,11 +30,11 @@ import { MAX_REWARD_EXPIRY_SECONDS } from '../presale/catalog.js';
 
 export { MAX_REWARD_EXPIRY_SECONDS };
 
-/** Зеркало lib.rs:68 — потолок одной выдачи `grant_reward_once`. */
+/** Зеркало `MAX_REWARD_MICRO` (lib.rs) — потолок одной выдачи `grant_reward_once`. */
 export const MAX_REWARD_MICRO = 1_000_000_000n;
-/** Зеркало lib.rs:158 — цена эталонного поля (Луг, 1.0×). */
+/** Зеркало `BASE_FIELD_PRICE_MICRO` (lib.rs) — цена эталонного поля (Луг, 1.0×). */
 export const BASE_FIELD_PRICE_MICRO = 250_000_000n;
-/** lib.rs:76 — окно клейма 15 минут; берём половину, чтобы подпись не жила долго. */
+/** `MAX_REWARD_EXPIRY_SECONDS` в lib.rs — окно клейма 15 минут; берём половину. */
 export const GRANT_EXPIRY_SECONDS = 300n;
 
 /**

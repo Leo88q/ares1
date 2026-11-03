@@ -434,7 +434,7 @@ async function verifyOrderPayment(pool: Pool, deps: PresaleDeps, orderId: string
 }
 
 function skrMintOf(_run: { currency: string }): string {
-  // Минт SKR — константа программы (lib.rs:159). Хранить его в тираже значило бы
+  // Минт SKR — константа программы (`SKR_MINT` в lib.rs). Хранить его в тираже значило бы
   // допустить «другой SKR», а это ровно ошибка «деньги в бесполезный токен».
   return 'Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o';
 }

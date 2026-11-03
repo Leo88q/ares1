@@ -62,8 +62,15 @@ Sizes include the 8-byte Anchor discriminator:
 | BuyerPresaleCounter | `buyer_presale`, buyer pubkey | 42 |
 | Achievements | `achv`, user pubkey | 17 |
 | AdminState | `admin_state` | 145 (legacy: 97) |
-| ExportLicense | `license`, holder pubkey | — |
-| Referral | `referral`, buyer pubkey | — |
+| ExportLicense | `license`, holder pubkey | 49 |
+| Referral | `referral`, owner pubkey | 73 |
+| RewardClaim | `reward`, recipient ATA + nonce u64 LE | 65 |
+
+`RewardClaim` is the replay marker of `grant_reward_once` (P1-2): its size is
+pinned by a host test, because a layout change must never make a second payout
+with the same nonce possible. Every size in the table is asserted by
+`account_sizes_match_client_decoders` (`lib.rs`), which is the single source of
+truth for client decoders.
 
 `Epoch` byte 41..49 was `burned_micro` (never incremented) and is now
 `granted_micro` — the per-epoch manual-grant quota counter. Layout size is
