@@ -5680,7 +5680,11 @@ mod tests {
         let order = 10 * MICRO as u64;
         let legacy = order_fee_micro(order).unwrap();
         let v2 = calculate_settlement_fee_v2(order, price, 0).unwrap();
-        assert_eq!(bps_of(legacy, order), 500, "legacy берёт 5 % от суммы ордера");
+        assert_eq!(
+            bps_of(legacy, order),
+            500,
+            "legacy берёт 5 % от суммы ордера"
+        );
         assert_eq!(
             bps_of(v2.fee_quote_atoms, v2.gross_quote_atoms),
             500,
@@ -5690,7 +5694,10 @@ mod tests {
         // Строка 2: крупный продавец (200k за сутки), ордер 10 POTATO → 5 % против 8 %.
         let v2_big = calculate_settlement_fee_v2(order, price, 200_000 * MICRO as u64).unwrap();
         assert_eq!(bps_of(legacy, order), 500);
-        assert_eq!(bps_of(v2_big.fee_quote_atoms, v2_big.gross_quote_atoms), 800);
+        assert_eq!(
+            bps_of(v2_big.fee_quote_atoms, v2_big.gross_quote_atoms),
+            800
+        );
 
         // Строка 3: один ордер 1.5k POTATO → legacy 6 %, V2 5.33 % (маржинально).
         let single = 1_500 * MICRO as u64;
