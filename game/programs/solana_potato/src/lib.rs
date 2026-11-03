@@ -5666,6 +5666,54 @@ mod tests {
     }
 
     #[test]
+    fn fee_base_divergence_examples_match_documented_table() {
+        // Числа этой таблицы опубликованы в `docs/ECONOMY.md` §5 («Сколько это
+        // в деньгах»). Документ, который никто не сверяет, устаревает молча:
+        // здесь каждая строка пересчитана по тем же функциям, что и на цепи,
+        // поэтому смена ставок или порогов уронит тест, а не оставит в доке
+        // неверные проценты. Проценты печатаются как floor(bps), ровно как в
+        // таблице (5.33 % = 533 bps, 7.26 % = 726 bps).
+        let price = 1_000_000; // atoms за 1 POTATO: проценты от цены не зависят
+        let bps_of = |fee: u64, base: u64| ((fee as u128 * BPS) / base as u128) as u64;
+
+        // Строка 1: новичок, 10 POTATO, суточный объём 0 → обе рельсы 5 %.
+        let order = 10 * MICRO as u64;
+        let legacy = order_fee_micro(order).unwrap();
+        let v2 = calculate_settlement_fee_v2(order, price, 0).unwrap();
+        assert_eq!(bps_of(legacy, order), 500, "legacy берёт 5 % от суммы ордера");
+        assert_eq!(
+            bps_of(v2.fee_quote_atoms, v2.gross_quote_atoms),
+            500,
+            "V2 берёт 5 % от gross-выручки"
+        );
+
+        // Строка 2: крупный продавец (200k за сутки), ордер 10 POTATO → 5 % против 8 %.
+        let v2_big = calculate_settlement_fee_v2(order, price, 200_000 * MICRO as u64).unwrap();
+        assert_eq!(bps_of(legacy, order), 500);
+        assert_eq!(bps_of(v2_big.fee_quote_atoms, v2_big.gross_quote_atoms), 800);
+
+        // Строка 3: один ордер 1.5k POTATO → legacy 6 %, V2 5.33 % (маржинально).
+        let single = 1_500 * MICRO as u64;
+        let legacy_single = order_fee_micro(single).unwrap();
+        let v2_single = calculate_settlement_fee_v2(single, price, 0).unwrap();
+        assert_eq!(bps_of(legacy_single, single), 600);
+        assert_eq!(
+            bps_of(v2_single.fee_quote_atoms, v2_single.gross_quote_atoms),
+            533
+        );
+
+        // Строка 4: один ордер 150k POTATO → legacy 8 %, V2 7.26 %.
+        let huge = 150_000 * MICRO as u64;
+        let legacy_huge = order_fee_micro(huge).unwrap();
+        let v2_huge = calculate_settlement_fee_v2(huge, price, 0).unwrap();
+        assert_eq!(bps_of(legacy_huge, huge), 800);
+        assert_eq!(
+            bps_of(v2_huge.fee_quote_atoms, v2_huge.gross_quote_atoms),
+            726
+        );
+    }
+
+    #[test]
     fn v2_settlement_fee_is_quote_denominated_and_seller_paid() {
         let result = calculate_settlement_fee_v2(10 * MICRO as u64, 1_000_000, 0).unwrap();
         assert_eq!(result.gross_quote_atoms, 10_000_000);
