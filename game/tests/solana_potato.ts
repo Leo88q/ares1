@@ -781,9 +781,17 @@ describe("solana_potato", () => {
       const txFee = BigInt(txMeta.fee ?? 0);
       // The aggregate pre/post balance delta captures the full runtime charge,
       // while `meta.fee` is retained as an RPC sanity check below.
-      const transactionFeeFromBalances = txMeta.preBalances.reduce((total, balance) => total + BigInt(balance), 0n)
-        - txMeta.postBalances.reduce((total, balance) => total + BigInt(balance), 0n);
-      expect(transactionFeeFromBalances >= txFee, "transaction balances show a fee smaller than RPC metadata").to.eq(true);
+      const preTotal = txMeta.preBalances.reduce((total, balance) => total + BigInt(balance), 0n);
+      const postTotal = txMeta.postBalances.reduce((total, balance) => total + BigInt(balance), 0n);
+      const transactionFeeFromBalances = preTotal - postTotal;
+      // Числа в сообщении обязательны: лог джобы из API недоступен, и без них
+      // «fee меньше метаданных» не отличить от расхождения длин массивов.
+      expect(
+        transactionFeeFromBalances >= txFee,
+        `transaction balances show a fee smaller than RPC metadata: delta=${transactionFeeFromBalances} ` +
+          `fee=${txFee} pre=${txMeta.preBalances.length} post=${txMeta.postBalances.length} ` +
+          `version=${String((tx!.transaction as { version?: unknown }).version)} sig=${signature}`,
+      ).to.eq(true);
       expect(BigInt(buyerSolBefore - await connection.getBalance(player.publicKey, "confirmed"))).to.eq(gross);
       expect(BigInt(await connection.getBalance(treasurySolPda, "confirmed") - treasurySolBefore)).to.eq(fee);
 
