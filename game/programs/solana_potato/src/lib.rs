@@ -235,6 +235,15 @@ pub const CANCEL_COOLDOWN: i64 = 3 * 3600;
 pub const MIN_ORDER_AMOUNT_MICRO: u64 = 10_000_000; // 10 POTATO
 /// Minimum SOL an order must be worth so that rounding can never make it free.
 pub const MIN_ORDER_TOTAL_LAMPORTS: u64 = 1_000_000; // 0.001 SOL
+/// P2-2: легаси-рынок закрыт на запись. Новые листинги `create_sell_order`
+/// отклоняются `LegacyMarketClosed`, а уже созданные ордера доигрываются
+/// `fill_order` / `cancel_order` / `close_expired_order` — escrow не застревает,
+/// книга опустошается за `ORDER_TTL`. Причина закрытия: база комиссии легаси
+/// — размер **ордера**, а не суточный объём продавца (`calculate_fee_bps`),
+/// поэтому сплит на ордера <1 000 POTATO платит 5 % там, где V2 взял бы
+/// 5–8 % (docs/ECONOMY.md §5). Открывать обратно — только осознанным релизом:
+/// инвариант держат хост-тест и offchain-страж, а не комментарий.
+pub const LEGACY_MARKET_WRITES_ENABLED: bool = false;
 /// Share of the legacy marketplace fee that is burned; the rest goes to the treasury.
 /// V2 settlement fees are paid wholly to the treasury in the quote asset.
 pub const FEE_BURN_PERCENT: u64 = 60;
@@ -1184,6 +1193,12 @@ pub mod solana_potato {
 
     /// Lists `amount_micro` $POTATO for sale at `price_lamports_per_potato`
     /// (lamports per whole $POTATO). Amount + fee move into an escrow PDA.
+    ///
+    /// P2-2: новых листингов нет — инструкция сохранена в ABI, но всегда
+    /// отвечает `LegacyMarketClosed` (`LEGACY_MARKET_WRITES_ENABLED = false`).
+    /// Так книга V1 закрывается без апгрейда layout'ов аккаунтов, а старые
+    /// ордера продолжают обслуживать `fill_order` / `cancel_order` /
+    /// `close_expired_order`.
     // `order_id` связывает PDA ордера через `seeds = [b"order", order_id...]`
     // и в теле не читается; переименование изменило бы имя аргумента в IDL.
     #[allow(unused_variables)]
@@ -1207,6 +1222,12 @@ pub mod solana_potato {
             total_lamports >= MIN_ORDER_TOTAL_LAMPORTS,
             GameError::OrderTotalTooSmall
         );
+        // P2-2: рынок закрыт на запись (см. `LEGACY_MARKET_WRITES_ENABLED`).
+        // Гейт стоит после валидации аргументов — отказ по некорректному ордеру
+        // остаётся диагностируемым — и до любых списаний: seller_profile,
+        // market_stats, escrow и токены продавца не трогаются. Уже созданные
+        // ордера доигрываются fill_order / cancel_order / close_expired_order.
+        require!(legacy_market_writes_enabled(), GameError::LegacyMarketClosed);
 
         let now = Clock::get()?.unix_timestamp;
 
@@ -3037,6 +3058,14 @@ pub fn order_fee_micro(amount_micro: u64) -> Result<u64> {
         .ok_or(GameError::MathOverflow)?
         / BPS;
     u64::try_from(fee).map_err(|_| GameError::MathOverflow.into())
+}
+
+/// P2-2: единственная точка, читающая `LEGACY_MARKET_WRITES_ENABLED`.
+/// Отдельная функция, а не константа прямо в `require!`: хост-тест проверяет
+/// её же, поэтому инвариант «легаси закрыт» не может тихо разойтись с кодом
+/// инструкции.
+pub fn legacy_market_writes_enabled() -> bool {
+    LEGACY_MARKET_WRITES_ENABLED
 }
 
 /// SOL (lamports) a buyer pays for an order. `price` is lamports per whole $POTATO.
@@ -5310,6 +5339,8 @@ pub enum GameError {
     WithdrawShareExceeded, // 6056
     #[msg("Quest pool is empty: the achievement reward cannot be paid right now")]
     QuestPoolEmpty, // 6057
+    #[msg("Legacy marketplace is closed for new listings: use create_sell_order_v2")]
+    LegacyMarketClosed, // 6058
 }
 
 // ──────────────────────────── Tests ──────────────────────────────
@@ -6164,6 +6195,20 @@ mod tests {
         assert_eq!(EPOCH_DURATION, SECONDS_PER_DAY);
         assert_eq!(MAX_ACCRUAL_SECONDS, 7 * SECONDS_PER_DAY);
         assert_eq!(LUNAR_TABLE.len(), 28);
+    }
+
+    #[test]
+    fn legacy_market_write_gate_stays_shut() {
+        // P2-2: закрытие легаси-рынка — явный инвариант, а не «вызовов больше
+        // нет». Открытие обратно меняет базу комиссии (размер ордера вместо
+        // суточного объёма продавца, docs/ECONOMY.md §5) и требует отдельного
+        // решения владельца экономики, поэтому тест падает на любой правке
+        // константы. Доигрывание книги (fill/cancel/close_expired) намеренно
+        // не гейтится: чужие escrow не должны застревать.
+        assert!(
+            !legacy_market_writes_enabled(),
+            "P2-2: create_sell_order обязан отклонять новые листинги"
+        );
     }
 
     // ─────────────── Extended checklist 2026-09-26 (пп. 31-70) ───────────────

@@ -1,9 +1,15 @@
 # ARES-1 API — source reference, 21 September 2026 (post-audit remediation)
 
-**Not a statement about the deployed binary.** The checked-in IDL and default live UI remain legacy V1. A draft V2 instruction/account set and raw browser builders/decoders now exist on this branch, but the generated IDL has not been refreshed, Rust/Anchor has not been compiled here, and V2 is not deployed or enabled by default. `VITE_MARKET_V2_ENABLED` must remain `false` until the matching program is deployed to the selected cluster and tier limits are owner-approved. Anchor CLI/crates 0.31.2; source:
+**Not a statement about the deployed binary.** The checked-in IDL describes the
+remediated source; deploying it is a separate, reviewed step (see the launch gate).
+The V2 market is the default screen — `/market` renders it — and the legacy V1 rail
+is **closed for new listings** in the program (P2-2: `create_sell_order` always
+answers `LegacyMarketClosed`, 6058). The V1 book stays reachable in its own tab so
+open legacy escrow can still be filled, canceled or closed. Anchor CLI/crates
+0.31.2; source:
 `programs/solana_potato/src/lib.rs`. Committed `apps/web/src/idl.json` describes
-the remediated source (**44 instructions, 13 accounts, 31 events, 51 errors** —
-counts re-checked against the committed IDL on 2026-10-02; `yarn check:contract`
+the remediated source (**48 instructions, 16 accounts, 35 events, 59 errors** —
+counts re-checked against the committed IDL on 2026-11-04; `yarn check:contract`
 fails if this file is regenerated without updating the client ABI);
 it was rebuilt together with the 2026-09-21 security fixes and must be
 re-verified against a real pinned-Anchor build before deploy: run `anchor build`,
@@ -28,29 +34,36 @@ The current source still has the restored V1 SOL-only market described below. On
 5–8% settlement fee in the quote asset, retained from successful fills and routed
 to the treasury in that same asset. The V2 fee is intended to use cumulative UTC-day
 POTATO volume per seller address across both quote pairs; it is not part of this ABI.
-The V2 handlers **are** in the committed IDL (`create_sell_order_v2`, `fill_order_v2`,
-`fill_order_v2_skr`, `cancel_order_v2`, `close_expired_order_v2`), but the UI rollout flag
-`VITE_MARKET_V2_ENABLED` is off and `/market` renders the legacy screen, so the legacy
-rail is the only default user path. The V2 marginal tiers are 5/6/7/8 % at
-1k/10k/100k POTATO of a seller's rolling UTC-day volume.
+The V2 handlers are in the committed IDL (`create_sell_order_v2`, `fill_order_v2`,
+`fill_order_v2_skr`, `cancel_order_v2`, `close_expired_order_v2`) and are the only
+place where a new order can be created: `/market` renders V2 by default
+(`VITE_MARKET_V2_ENABLED=true` in `.env.example`), and the legacy screen keeps only
+the settle/cancel path. The V2 marginal tiers are 5/6/7/8 % at 1k/10k/100k POTATO
+of a seller's rolling UTC-day volume.
 
-**Two fee bases, deliberately documented (P2-2).** Both rails charge the same ladder
-(500/600/700/800 bps at 1k/10k/100k POTATO), but they select the tier from different
-numbers: the legacy `create_sell_order`/`fill_order` pair prices the **order size**
+**Legacy fee base closed instead of documented away (P2-2).** Both rails charge the
+same ladder (500/600/700/800 bps at 1k/10k/100k POTATO), but they select the tier from
+different numbers: the legacy pair priced the **order size**
 (`calculate_fee_bps(amount_micro)`), while V2 prices the **seller's cumulative UTC-day
 volume** and cuts the rate at the tier boundaries inside a single fill
-(`calculate_settlement_fee_v2`). Until the rails are unified, a seller with a large daily
-volume can list many small legacy orders and pay 5 % where V2 would charge 8 %; that
-arbitrage is pinned by the host test `legacy_and_v2_fee_bases_differ_by_design`. Do not
-describe the two rails as "the same fee" in UI copy or docs.
+(`calculate_settlement_fee_v2`). The table in `docs/ECONOMY.md` §5 shows that leaving
+both rails open was not neutral: splitting into <1k POTATO orders paid 5 % where V2
+would charge 8 %, while one 150k POTATO order overpaid 8 % against V2's marginal
+7.26 %. Therefore `LEGACY_MARKET_WRITES_ENABLED = false`: every new listing is rejected
+with `LegacyMarketClosed` (6058) while `fill_order` / `cancel_order` /
+`close_expired_order` stay ungated, so pre-existing escrow is never stuck and the book
+drains within `ORDER_TTL` (7 days). The divergence itself remains pinned by
+`legacy_and_v2_fee_bases_differ_by_design` and
+`fee_base_divergence_examples_match_documented_table` — do not describe the rails as
+"the same fee" in UI copy or docs.
 
 ## Draft V2 market (not deploy-verified)
 
-- Versioned handlers use separate `MarketOrderV2`, `SellerVolumeV2`, `MarketStatsV2`, and V2 escrow seeds; they do not reinterpret the legacy `MarketOrder` layout or `fill_order` behavior. When the rollout flag is enabled, the UI keeps the V1 book accessible in its own tab so open legacy escrow remains reachable.
+- Versioned handlers use separate `MarketOrderV2`, `SellerVolumeV2`, `MarketStatsV2`, and V2 escrow seeds; they do not reinterpret the legacy `MarketOrder` layout or `fill_order` behavior. The UI keeps the V1 book in its own tab (view, buy, cancel, close-expired only — no create) so open legacy escrow remains reachable.
 - Listings escrow only POTATO principal. Successful SOL/SKR fills atomically transfer the buyer's gross quote amount between seller net and the same-asset treasury fee, deliver POTATO, then update seller daily volume and global market stats. Cancel/expiry return the whole POTATO deposit without fee.
 - The seller-volume counter is keyed by seller address, uses UTC-day windows, and is shared between quote pairs. The progressive 9/10/11/12% marginal breakpoints are draft thresholds; same-address splitting should not lower the marginal fee, but Sybil wallets are not prevented.
 - SKR fill is permitted only against `GameConfig.skr_mint` with the classic SPL Token Program and six decimals. The browser blocks new SKR listings/fills until the configured mint passes verification; the pair remains viewable so users can cancel their active orders or return expired escrow if verification fails. On-chain validation remains authoritative.
-- `VITE_MARKET_V2_ENABLED=false` is the shipped default. Enabling it before the matching binary is deployed and final thresholds are approved produces a UI that cannot safely transact; do not enable it for a release yet.
+- `VITE_MARKET_V2_ENABLED=true` is the shipped default because V1 listings are closed in the program. `VITE_MARKET_V2_ENABLED=false` survives only as an emergency UI rollback: it hides V2 and does **not** reopen V1 writes. Final tier thresholds still need owner approval before a V2 release on a new cluster.
 
 ## Units and accounts
 

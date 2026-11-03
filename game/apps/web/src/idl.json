@@ -6956,6 +6956,11 @@
       "code": 6057,
       "name": "QuestPoolEmpty",
       "msg": "Quest pool is empty: the achievement reward cannot be paid right now"
+    },
+    {
+      "code": 6058,
+      "name": "LegacyMarketClosed",
+      "msg": "Legacy marketplace is closed for new listings: use create_sell_order_v2"
     }
   ],
   "types": [

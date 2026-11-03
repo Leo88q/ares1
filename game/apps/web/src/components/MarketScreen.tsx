@@ -2,24 +2,20 @@ import { ReactNode, useState, useMemo } from 'react'
 import { t } from '../i18n'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, X, Clock, User, Loader2 } from 'lucide-react'
+import { X, Clock, User, Loader2 } from 'lucide-react'
 import BigPurchaseEffect from './BigPurchaseEffect'
-import CreateOrderModal from './CreateOrderModal'
 import { haptics } from '../utils/haptic'
 import { useMarketplace, MarketOrder } from '../hooks/useMarketplace'
 import MarketScreenV2 from './MarketScreenV2'
 import { MARKET_V2_ENABLED } from '../utils/marketFeature'
-import { useGame } from '../contexts/GameContext'
 import { fmtPotato, fmtSol, MICRO, CANCEL_COOLDOWN_HOURS } from '../utils/constants'
 import { SupplyBay } from './ares/SupplyBay';
 import { HullPanel } from '../ui/HullPanel';
 import { ErrorState, LoadingState } from '../ui/states'
 function MarketScreenInner() {
- const { orders, myOrders, stats, loading, actionLoading, error, createOrder, fillOrder, cancelOrder, reload } = useMarketplace()
- const { stats: gameStats } = useGame()
+ const { orders, myOrders, stats, loading, actionLoading, error, fillOrder, cancelOrder, reload } = useMarketplace()
 
 
- const [showCreate, setShowCreate] = useState(false)
  const [filter, setFilter] = useState<'all' | 'mine'>('all')
  const [cancelTarget, setCancelTarget] = useState<MarketOrder | null>(null)
  const [cancelInfo, setCancelInfo] = useState(false)
@@ -64,19 +60,20 @@ function MarketScreenInner() {
       <p className="pf-subtitle" style={{ marginTop: 4 }}>{t("Приём и отгрузка грузов колонии")}</p>
      </div>
     </div>
-    <motion.button
-     whileTap={{ y: 2 }}
-     transition={{ type: 'spring', stiffness: 520, damping: 26 }}
-     onClick={() => { haptics.tap(); setShowCreate(true) }}
-     className="mk-key mk-key--paint"
-     style={{ padding: '9px 16px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}
+    <div
+     role="note"
+     className="ares-mono"
+     style={{ padding: '9px 12px', maxWidth: 340, fontSize: 10, lineHeight: 1.5, letterSpacing: '0.08em', color: 'var(--pf-gold)', border: '1px solid rgba(255,179,71,0.28)', borderRadius: 8 }}
     >
-     <Plus size={16} aria-hidden="true" /> {t('Отгрузить')}
-    </motion.button>
+     {t('V1 закрыт на запись: новые ордера создаются только в рынке V2. Уже выставленные ордера можно купить или отозвать.')}
+    </div>
    </div>
 
    <div role="status" style={{ padding: '12px 14px', marginBottom: 14, border: '1px solid rgba(255,179,71,0.28)', borderRadius: 8, background: 'linear-gradient(180deg, rgba(37,24,14,0.94), rgba(17,11,7,0.96))' }}>
     <div className="ares-mono" style={{ color: '#FFC94A', fontSize: 9, letterSpacing: '0.13em', marginBottom: 6 }}>{t('РЫНОК DEVNET · ВЕРСИЯ V1')}</div>
+    <p style={{ color: 'var(--pf-gold)', fontSize: 11, lineHeight: 1.55, margin: '0 0 6px' }}>
+     {t('V1 закрыт на запись: новые ордера создаются только в рынке V2. Уже выставленные ордера можно купить или отозвать.')}
+    </p>
     <p style={{ color: 'var(--pf-text-secondary)', fontSize: 11, lineHeight: 1.55, margin: 0 }}>
      {t('V1 удерживает 5–8% в POTATO при создании ордера. V2: 5–8% из выплаты продавцу при успешной сделке, в валюте расчёта и в казну; пороги 1 000 / 10 000 / 100 000 POTATO суточного объёма продавца действуют для пар SOL и SKR. Devnet-активы тестовые.')}
     </p>
@@ -190,14 +187,13 @@ function MarketScreenInner() {
          ? t('Отгрузи собранный марсианский картофель со склада, чтобы получить SOL.')
          : t('Стань первым поставщиком пайка в колонии и отгрузи партию на P2P биржу!')}
        </p>
-       <motion.button
-        whileTap={{ scale: 0.96 }}
-        onClick={() => { haptics.tap(); setShowCreate(true) }}
-        className="mk-key mk-key--paint"
-        style={{ padding: '12px 24px', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+       <div
+        role="note"
+        className="ares-mono"
+        style={{ display: 'inline-block', padding: '10px 14px', maxWidth: 360, fontSize: 10, lineHeight: 1.6, letterSpacing: '0.08em', color: 'var(--pf-gold)', border: '1px solid rgba(255,179,71,0.28)', borderRadius: 8 }}
        >
-        <Plus size={16} aria-hidden="true" /> {t('Отгрузить на биржу')}
-       </motion.button>
+        {t('V1 закрыт на запись: новые ордера создаются только в рынке V2. Уже выставленные ордера можно купить или отозвать.')}
+       </div>
       </div>
      ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -217,13 +213,6 @@ function MarketScreenInner() {
    )}
 
    <BigPurchaseEffect show={bigPurchase !== null} amount={bigPurchase ?? 0} />
-
-   <CreateOrderModal
-    open={showCreate}
-    onClose={() => setShowCreate(false)}
-    onCreate={(a, p) => createOrder(a, p)}
-    balanceMicro={gameStats.potatoBalance}
-   />
 
    <AnimatePresence>
     {cancelTarget && (
