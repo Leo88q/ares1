@@ -282,5 +282,67 @@ and recovers an already-sent grant from the claim PDA instead of re-sending it.
 it tops `quest_ata` up through `grant_reward_once` only below the low-water mark
 (100 POTATO), at most one full pool (550 POTATO) per UTC day, with a nonce bound
 to the UTC day so a restart cannot double-fund it.
+### Presale: public endpoints
+
+Prices are not in code: a run stores `price_units`, so every sale is auditable.
+All amounts cross the wire as decimal **strings** (u64/bigint), never as numbers.
+
+| Method / path | Success | Failure |
+|---|---|---|
+| `GET /api/presale/packs` | `{packs:[{id,titleRu,titleEn,fields,potatoMicro}]}` — каталог паков | — |
+| `GET /api/presale/runs/:runId` | `{run:{...,isOpen,cluster,paymentsEnabled}}`; `isOpen` уже учитывает гейт запуска и кластер | 404 `RUN_NOT_FOUND` |
+| `POST /api/presale/runs/:runId/reserve` | `201 {orderNo,state,currency,payUnits,treasury,reserveSecondsLeft,remaining,instruction}` | 503 `NOT_CONFIGURED` (гейт закрыт, devnet), 404 `RUN_NOT_FOUND`, 409 при закрытом тираже/исчерпанном cap |
+| `POST /api/presale/runs/:runId/orders/:orderNo/payment` | `200 {state,needsManualReview,message}` — подпись принята, проверка отдельно | 503 `NOT_CONFIGURED`, 404 `ORDER_NOT_FOUND` |
+| `GET /api/presale/runs/:runId/orders/:orderNo` | `{order}` — публичное представление (`presale_orders_public`) | 404 `ORDER_NOT_FOUND` |
+
+Пресейл монтируется **только** при настроенном `game_ops` и читаемой
+ончейн-конфигурации: без БД нет учёта заказов, без цепи нет верификации
+платежа. Если префикс `/api/presale` отвечает 404 на всё — это fail-closed
+режим, а не ошибка маршрутизации (`apps/backend/src/index.ts:231-247`).
+
+`payUnits = price_units + order_no`: сумма счёта уникальна, поэтому платёж
+привязывается арифметикой без платёжного процессора. Покупатель обязан
+перевести ровно эту сумму — пыль и есть номер заказа.
+
+### Presale: admin endpoints
+
+Требуют `Authorization: Bearer <ADMIN_API_TOKEN>` (≥32 символа, иначе сервис не
+стартует). Отказ пишется в аудит `admin.access` (`missing_token`/`bad_token`) с
+адресом запроса, но ошибка аудита не меняет ответ клиенту: `401 UNAUTHORIZED`.
+
+| Method / path | Назначение |
+|---|---|
+| `POST /api/presale/admin/runs` | открыть тираж (`runId,packId,currency,priceUnits,cap,treasury,reserveMinutes`) → 201. Mainnet принимает только `sol` (400); для `skr` — preflight ATA казны → **409 `VALIDATION` / `SKR_TREASURY_NOT_READY`** (P2-1) |
+| `POST /api/presale/admin/runs/:runId/close` | аварийное закрытие — работает и при выключенном гейте платежей |
+| `POST /api/presale/admin/expire` | истечь просроченные резервы |
+| `POST /api/presale/admin/orders/:id/verify` | сверить платёж по цепи |
+| `POST /api/presale/admin/orders/:id/deliver` | создать идемпотентный `reward_intents` → `{intentId,reused,plan}` |
+| `POST /api/presale/admin/orders/:id/delivered` | `{intentId}` → заказ `delivered`; **409 `INVALID_TRANSITION`**, если интент ещё не `confirmed`: выдача фиксируется только после ончейн-подтверждения |
+| `POST /api/presale/admin/orders/:id/refund` | `{reason}` (3..500 символов) → **решение** о возврате; текст причины неизменяем (миграция 0016). Работает при закрытом гейте |
+| `POST /api/presale/admin/orders/:id/refund-settled` | `{signature}` → факт выплаты, **только после проверки цепи** (ниже) |
+| `GET /api/presale/admin/pending` | заказы, оплаченные но не выданные |
+| `GET /api/presale/admin/refunds` | решения о возврате без подтверждённой выплаты |
+| `GET /api/presale/admin/attention` | очередь «требует внимания» |
+| `GET /api/presale/admin/reconcile?since=…` | сверка платежей с цепью (плательщик — по дельте баланса, см. P2-12) |
+
+`refund-settled` отвечает `400 VALIDATION` с машинным `detail`, когда перевод не
+доказывает возврат: `NOT_FINALIZED`, `TX_FAILED`, `WALLET_NOT_INVOLVED`,
+`AMOUNT_MISMATCH`, `TOO_EARLY`, **`SOURCE_NOT_TREASURY`** (P2-9: казна обязана
+участвовать в транзакции и потерять не меньше суммы возврата — иначе подошёл бы
+любой входящий перевод той же суммы от третьего лица). Повтор с той же подписью
+идемпотентен; другая подпись после закрытия — конфликт.
+
+### game_ops admin endpoints
+
+Тот же `ADMIN_API_TOKEN`, та же fail-closed схема: без `game_ops` префикс
+`/api/gameops` не монтируется. Актор берётся из заголовка `X-Actor` (по
+умолчанию `admin:api`), а не из тела. Основные группы: `GET /api/gameops/readiness`
+(5 проверок → 503), `POST /api/gameops/intents[/batch]` и переходы
+`submitted → confirmed|failed`, `POST /api/gameops/ledger/append` +
+`GET /api/gameops/ledger/{tail,verify,anchor}` (журнал с хеш-цепочкой),
+`/reconciliation`, `/audit`, `/cursors/:stream`. Полный список — в
+`apps/backend/src/routes/gameops.ts`; ни один маршрут не двигает деньги:
+выплаты идут через интенты и подтверждаются цепью.
+
 See [OPERATIONS.md](OPERATIONS.md) for deployment, key inventory and incident response.
 Watchtower endpoints and persistent analytics are **not implemented** in this package.
