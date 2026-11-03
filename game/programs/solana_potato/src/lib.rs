@@ -2675,8 +2675,10 @@ pub mod solana_potato {
             // P1-3: адрес обязан выводиться из field_id внутри аккаунта. До
             // layout v3 батч принимал любой program-owned аккаунт с
             // дискриминатором Field, лишь бы owner совпал.
-            let (expected_field, canonical_bump) =
-                Pubkey::find_program_address(&[b"field", &f.field_id.to_le_bytes()], ctx.program_id);
+            let (expected_field, canonical_bump) = Pubkey::find_program_address(
+                &[b"field", &f.field_id.to_le_bytes()],
+                ctx.program_id,
+            );
             require_keys_eq!(acc.key(), expected_field, GameError::BadProof);
             require!(f.bump == canonical_bump, GameError::BadProof);
             require!(f.is_active, GameError::FieldInactive);
@@ -3548,11 +3550,11 @@ macro_rules! field_spend_accounts {
         pub struct $name<'info> {
             /// P1-3: field обязан быть каноническим PDA от собственного field_id.
             #[account(
-                mut,
-                has_one = owner,
-                seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
-                bump = field.bump
-            )]
+                        mut,
+                        has_one = owner,
+                        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+                        bump = field.bump
+                    )]
             pub field: Account<'info, Field>,
             #[account(mut)]
             pub potato_mint: Account<'info, Mint>,
