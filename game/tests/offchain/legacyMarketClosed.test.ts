@@ -55,8 +55,11 @@ test('P2-2: константа закрытия легаси-записи рав
 
 test('P2-2: create_sell_order гейтится после валидации и до любых списаний', () => {
   const body = rustBody('create_sell_order')
-  const gate = body.indexOf('require!(legacy_market_writes_enabled(), GameError::LegacyMarketClosed);')
-  assert.ok(gate >= 0, 'в create_sell_order нет гейта `legacy_market_writes_enabled()`')
+  // Раскладку задаёт rustfmt (одна строка или вертикальный блок), поэтому
+  // проверяем вызов, а не конкретный перенос: иначе `cargo fmt` валит страж.
+  const gateMatch = /require!\(\s*legacy_market_writes_enabled\(\),\s*GameError::LegacyMarketClosed\s*\)/.exec(body)
+  assert.ok(gateMatch, 'в create_sell_order нет гейта `legacy_market_writes_enabled()`')
+  const gate = gateMatch.index
   const validation = body.indexOf('GameError::OrderTotalTooSmall')
   assert.ok(validation >= 0 && validation < gate, 'гейт должен стоять после валидации аргументов')
   // До гейта не должно быть ни CPI-перевода, ни записи в профиль/статистику:

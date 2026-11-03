@@ -1193,12 +1193,13 @@ pub mod solana_potato {
 
     /// Lists `amount_micro` $POTATO for sale at `price_lamports_per_potato`
     /// (lamports per whole $POTATO). Amount + fee move into an escrow PDA.
-    ///
-    /// P2-2: новых листингов нет — инструкция сохранена в ABI, но всегда
-    /// отвечает `LegacyMarketClosed` (`LEGACY_MARKET_WRITES_ENABLED = false`).
-    /// Так книга V1 закрывается без апгрейда layout'ов аккаунтов, а старые
-    /// ордера продолжают обслуживать `fill_order` / `cancel_order` /
-    /// `close_expired_order`.
+    //
+    // P2-2: новых листингов нет — инструкция сохранена в ABI, но всегда
+    // отвечает `LegacyMarketClosed` (`LEGACY_MARKET_WRITES_ENABLED = false`).
+    // Так книга V1 закрывается без апгрейда layout'ов аккаунтов, а старые
+    // ордера продолжают обслуживать `fill_order` / `cancel_order` /
+    // `close_expired_order`. Обычные `//`, а не `///`: doc-комментарий попал бы
+    // в `docs[]` IDL и разошёлся бы с закоммиченным артефактом.
     // `order_id` связывает PDA ордера через `seeds = [b"order", order_id...]`
     // и в теле не читается; переименование изменило бы имя аргумента в IDL.
     #[allow(unused_variables)]
