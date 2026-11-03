@@ -18,6 +18,14 @@ import {
 } from "@solana/spl-token";
 import { assert, expect } from "chai";
 import { SolanaPotato } from "../target/types/solana_potato";
+import {
+  EXPORT_LICENSE_PRICE_SKR_ATOMS,
+  GRANT_QUOTA_SHARE_BPS,
+  MAX_REWARD_EXPIRY_SECONDS,
+  MAX_REWARD_MICRO,
+  ORDER_TTL,
+  V2_SETTLEMENT_FEE_BPS,
+} from "./rustConstants";
 import fs from "node:fs";
 
 /**
@@ -262,19 +270,20 @@ describe("solana_potato", () => {
       const adminBefore = await ataBalance(adminAta);
       const playerBefore = await ataBalance(playerAta);
       const epochBefore = await program.account.epoch.fetch(epochPda(0));
-      await once(1n, 1_000_000_000, undefined, adminAta).rpc();
-      await once(2n, 1_000_000_000, undefined, playerAta).rpc();
+      // MAX_REWARD_MICRO — потолок одной выплаты из lib.rs, а не «1000» из головы.
+      await once(1n, MAX_REWARD_MICRO, undefined, adminAta).rpc();
+      await once(2n, MAX_REWARD_MICRO, undefined, playerAta).rpc();
       expect((await ataBalance(adminAta)) - adminBefore).to.eq(1000n * MICRO);
       expect((await ataBalance(playerAta)) - playerBefore).to.eq(1000n * MICRO);
       const epochAfter = await program.account.epoch.fetch(epochPda(0));
       // Оба счётчика двигаются на сумму выплаты — рельса не обходит ни кап
       // минтинга, ни квоту грантов.
-      expect(epochAfter.mintedMicro.sub(epochBefore.mintedMicro).toNumber()).to.eq(2_000_000_000);
-      expect(epochAfter.grantedMicro.sub(epochBefore.grantedMicro).toNumber()).to.eq(2_000_000_000);
+      expect(epochAfter.mintedMicro.sub(epochBefore.mintedMicro).toString()).to.eq((MAX_REWARD_MICRO * 2n).toString());
+      expect(epochAfter.grantedMicro.sub(epochBefore.grantedMicro).toString()).to.eq((MAX_REWARD_MICRO * 2n).toString());
     });
 
-    it("rejects rewards above 1000 POTATO", async () => {
-      await expectFail(once(3n, 1_000_000_001, undefined, adminAta).rpc(), "RewardTooLarge");
+    it("rejects rewards above the per-call cap", async () => {
+      await expectFail(once(3n, MAX_REWARD_MICRO + 1n, undefined, adminAta).rpc(), "RewardTooLarge");
     });
 
     it("rejects a non-authority signer", async () => {
@@ -315,15 +324,16 @@ describe("solana_potato", () => {
       );
     });
 
-    it("rejects an expiry beyond the 15-minute window", async () => {
+    it("rejects an expiry beyond MAX_REWARD_EXPIRY_SECONDS", async () => {
       await expectFail(
-        once(10n, 1_000_000, new BN(Math.floor(Date.now() / 1000) + 86_400)).rpc(),
+        // На секунду дальше ончейн-окна: проверяется сама граница, а не «сутки».
+        once(10n, 1_000_000, new BN(Math.floor(Date.now() / 1000) + Number(MAX_REWARD_EXPIRY_SECONDS) + 1)).rpc(),
         "RewardExpiryTooFar",
       );
     });
 
     it("rejects amounts above the per-reward bound", async () => {
-      await expectFail(once(11n, 1_000_000_001).rpc(), "RewardTooLarge");
+      await expectFail(once(11n, MAX_REWARD_MICRO + 1n).rpc(), "RewardTooLarge");
     });
 
     it("rejects a non-authority signer", async () => {
@@ -407,7 +417,7 @@ describe("solana_potato", () => {
         expect(await ataBalance(rewardAta)).to.eq(1n);
         expect((await program.account.epoch.fetch(epochPda(0))).mintedMicro.sub(before).toNumber()).to.eq(1);
         await expectFail(reward(0), "RewardTooLarge");
-        await expectFail(reward(1_000_000_001), "RewardTooLarge");
+        await expectFail(reward(Number(MAX_REWARD_MICRO + 1n)), "RewardTooLarge");
         await expectFail(program.methods.setPaused(true).accountsPartial({ config: configPda, authority: rewardSigner.publicKey }).signers([rewardSigner]).rpc(), "Unauthorized");
         await expectFail(program.methods.updateRewardSigner(player.publicKey).accountsPartial({ config: configPda, authority: rewardSigner.publicKey }).signers([rewardSigner]).rpc(), "ConstraintHasOne");
       } finally {
@@ -663,7 +673,7 @@ describe("solana_potato", () => {
       const o = await program.account.marketOrder.fetch(order);
       expect(o.feeMicro.toNumber()).to.eq(500_000);
       // ORDER_TTL = 7 суток: суточный TTL молча выкидывал ордера из книги.
-      expect(o.expiresAt.toNumber() - o.createdAt.toNumber()).to.eq(7 * 86_400);
+      expect(o.expiresAt.toNumber() - o.createdAt.toNumber()).to.eq(Number(ORDER_TTL));
     });
 
     it("self-trade is blocked", async () => {
@@ -741,7 +751,8 @@ describe("solana_potato", () => {
       const amountMicro = 10_000_000n;
       const priceLamportsPerPotato = 10_000_000n;
       const gross = 100_000_000n;
-      const fee = 5_000_000n; // 5 % первого тира (V2_SETTLEMENT_FEE_BPS[0])
+      // Первый тир лестницы из lib.rs: 500 bps от gross.
+      const fee = (gross * (V2_SETTLEMENT_FEE_BPS[0] ?? 0n)) / 10_000n;
       const sellerNet = gross - fee;
       const sellerTokenBefore = await ataBalance(adminAta);
 
@@ -1796,17 +1807,21 @@ describe("solana_potato", () => {
     // поэтому все остальные сценарии с минтом наград идут выше по файлу.
     it("grant_reward_once is capped at 25% of the epoch cap", async function () {
       this.timeout(240_000);
-      // GRANT_QUOTA_SHARE_BPS = 2_500 -> 25 % капа эпохи.
-      const quota = (await program.account.epoch.fetch(epochPda(0))).mintCapMicro.muln(25).divn(100);
+      // Квота берётся из той же константы, которой пользуется программа:
+      // дублировать 2_500 руками — значит проверять тест против самого себя.
+      const quota = (await program.account.epoch.fetch(epochPda(0))).mintCapMicro
+        .mul(new BN(GRANT_QUOTA_SHARE_BPS.toString()))
+        .div(new BN(10_000));
+      const perGrant = MAX_REWARD_MICRO;
       // Каждая выплата — новый nonce (маркер `reward_claim` создаётся `init`).
       let nonce = 900n;
-      const grant = () => once(nonce++, 1_000_000_000, undefined, adminAta).rpc();
+      const grant = () => once(nonce++, perGrant, undefined, adminAta).rpc();
       for (let i = 0; i < 100; i++) {
         const ep = await program.account.epoch.fetch(epochPda(0));
-        if (ep.grantedMicro.add(new BN(1_000_000_000)).gt(quota)) break;
+        if (ep.grantedMicro.add(new BN(perGrant.toString())).gt(quota)) break;
         await grant();
       }
-      await expectFail(once(nonce, 1_000_000_000, undefined, adminAta).rpc(), "GrantQuotaExceeded");
+      await expectFail(once(nonce, perGrant, undefined, adminAta).rpc(), "GrantQuotaExceeded");
       const ep = await program.account.epoch.fetch(epochPda(0));
       expect(ep.grantedMicro.lte(quota)).to.be.true;
     });
@@ -2082,10 +2097,11 @@ describe("solana_potato", () => {
       await expectFail(batch(11, true), "InvalidAmount");
     });
 
-    it("buy_export_license создаёт лицензию и забирает 500 SKR в казну", async () => {
+    it("buy_export_license создаёт лицензию и забирает цену лицензии в казну", async () => {
       const userSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, holder.publicKey)).address;
       const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, treasurySolPda, true)).address;
-      await mintTo(connection, admin, skrMint, userSkrAta, admin, 500_000_000);
+      // Цена лицензии — EXPORT_LICENSE_PRICE_SKR_ATOMS из lib.rs (500 SKR).
+      await mintTo(connection, admin, skrMint, userSkrAta, admin, Number(EXPORT_LICENSE_PRICE_SKR_ATOMS));
       const treasuryBefore = await ataBalance(treasurySkrAta);
 
       await program.methods.buyExportLicense().accountsPartial({
@@ -2098,7 +2114,7 @@ describe("solana_potato", () => {
       const lic = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
       expect(lic.owner.equals(holder.publicKey)).to.be.true;
       expect(lic.expiresAt.gt(new BN(Math.floor(Date.now() / 1000)))).to.be.true;
-      expect(await ataBalance(treasurySkrAta) - treasuryBefore).to.eq(500_000_000n);
+      expect(await ataBalance(treasurySkrAta) - treasuryBefore).to.eq(EXPORT_LICENSE_PRICE_SKR_ATOMS);
       expect(await ataBalance(userSkrAta)).to.eq(0n);
     });
 
@@ -2131,7 +2147,7 @@ describe("solana_potato", () => {
       // ранняя повторная покупка сжигала бы ещё не нажитые дни.
       const userSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, holder.publicKey)).address;
       const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, treasurySolPda, true)).address;
-      await mintTo(connection, admin, skrMint, userSkrAta, admin, 500_000_000);
+      await mintTo(connection, admin, skrMint, userSkrAta, admin, Number(EXPORT_LICENSE_PRICE_SKR_ATOMS));
       const lic1 = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
       const treasuryBefore = await ataBalance(treasurySkrAta);
 
@@ -2144,7 +2160,7 @@ describe("solana_potato", () => {
 
       const lic2 = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
       expect(lic2.expiresAt.sub(lic1.expiresAt).toNumber()).to.eq(30 * 86400);
-      expect(await ataBalance(treasurySkrAta) - treasuryBefore).to.eq(500_000_000n);
+      expect(await ataBalance(treasurySkrAta) - treasuryBefore).to.eq(EXPORT_LICENSE_PRICE_SKR_ATOMS);
       expect(await ataBalance(userSkrAta)).to.eq(0n);
     });
 

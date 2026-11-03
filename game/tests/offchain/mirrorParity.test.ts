@@ -34,6 +34,7 @@ import {
   SETTLEMENT_FEE_BPS,
   SELLER_VOLUME_THRESHOLDS_MICRO,
 } from '../../apps/web/src/utils/marketFeePolicy'
+import { RUST_SOURCE, rustConstArray, rustConstNumber } from '../rustConstants.js'
 
 // Зеркала ончейн-констант: клиент печатает цены, комиссии и доходность по
 // своей копии значений из `programs/solana_potato/src/lib.rs`. Тест держит
@@ -45,28 +46,15 @@ import {
 // economics-константах не ловится ни одним набором тестов — тесты сравнивали
 // константу саму с собой (`expected` считался из той же константы).
 
-const rust = fs.readFileSync('programs/solana_potato/src/lib.rs', 'utf8')
+const rust = RUST_SOURCE
 
-/** Подстановки для выражений Rust (только те, что встречаются в lib.rs). */
-const RUST_CONSTS: Record<string, number> = { SECONDS_PER_DAY: 86_400, MICRO: 1_000_000, BPS: 10_000 }
-
-/** Число из `pub const NAME: u64 = <expr>;` с подстановкой простых констант. */
-function rustExpr(name: string): number {
-  const match = new RegExp(
-    `pub const ${name}\\s*:\\s*(?:u8|u16|u32|u64|u128|i64|usize)\\s*=\\s*([^;]+);`,
-  ).exec(rust)
-  assert(match, `в lib.rs нет константы ${name}`)
-  const raw = match[1].replace(/\/\/.*/, '').trim()
-  const substituted = raw.replace(/[A-Z][A-Z_]*/g, ident => {
-    assert(ident in RUST_CONSTS, `неизвестный идентификатор ${ident} в ${name}`)
-    return String(RUST_CONSTS[ident])
-  })
-  const normalized = substituted.replaceAll('_', '')
-  assert.match(normalized, /^[0-9\s*+/()-]+$/, `выражение ${name} не сводится к арифметике: ${raw}`)
-  const value = Number(new Function(`return (${normalized})`)())
-  assert(Number.isInteger(value), `${name} не целое: ${raw}`)
-  return value
-}
+/**
+ * Число из `pub const NAME` программы — через общий парсер
+ * (`tests/rustConstants.ts`). Локальная копия разбора удалена: она знала только
+ * три идентификатора и падала на новых выражениях, а «зеркало» тем самым
+ * проверялось по своей же реализации разбора.
+ */
+const rustExpr = rustConstNumber
 
 function rustBody(name: string): string {
   const start = rust.indexOf(`pub fn ${name}(`)
@@ -164,16 +152,13 @@ test('комиссия рынка совпадает с calculate_fee_bps на �
 })
 
 test('V2 progressive settlement policy mirrors Rust draft tiers and uses separate versioned rails', () => {
-  const rustArray = (name: string): number[] => {
-    const declaration = rust.indexOf(`pub const ${name}:`)
-    assert(declaration >= 0, `в lib.rs нет массива ${name}`)
-    const open = rust.indexOf('[', rust.indexOf('=', declaration))
-    const close = rust.indexOf('];', open)
-    assert(open >= 0 && close > open, `массив ${name} повреждён`)
-    return [...rust.slice(open + 1, close).matchAll(/[0-9][0-9_]*/g)].map(m => Number(m[0].replaceAll('_', '')))
-  }
-  assert.deepEqual(rustArray('V2_SELLER_VOLUME_THRESHOLDS_MICRO'), SELLER_VOLUME_THRESHOLDS_MICRO.map(Number))
-  assert.deepEqual(rustArray('V2_SETTLEMENT_FEE_BPS'), SETTLEMENT_FEE_BPS.map(Number))
+  // Массивы читает общий парсер (tests/rustConstants.ts), а не локальная
+  // регулярка на каждый тест: иначе «зеркало» проверяется по своей же копии.
+  assert.deepEqual(
+    rustConstArray('V2_SELLER_VOLUME_THRESHOLDS_MICRO').map(Number),
+    SELLER_VOLUME_THRESHOLDS_MICRO.map(Number),
+  )
+  assert.deepEqual(rustConstArray('V2_SETTLEMENT_FEE_BPS').map(Number), SETTLEMENT_FEE_BPS.map(Number))
   assert.match(rust, /pub const V2_MIN_GROSS_QUOTE_ATOMS: u64 = 1_000_000;/)
   assert.match(rust, /pub const V2_FEE_POLICY_VERSION: u8 = 1;/)
   for (const instruction of [

@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { RUST_SOURCE as rust, rustConst as constant } from '../rustConstants.js';
 
 // Source-level regression guards, not a substitute for localnet execution.
 // The owner's confirmed denomination split must not be changed incidentally.
-const rust = fs.readFileSync('programs/solana_potato/src/lib.rs', 'utf8');
 function handler(name: string): string {
   const start = rust.indexOf(`    pub fn ${name}(`);
   assert(start >= 0, `Missing handler ${name}`);
@@ -34,12 +34,6 @@ function gatedBranch(body: string, marker: string): string {
     }
   }
   assert.fail(`незакрытая ветка ${marker}`);
-}
-
-function constant(name: string): bigint {
-  const match = new RegExp(`pub const ${name}: u64 = ([0-9_]+);`).exec(rust);
-  assert(match, `Missing constant ${name}`);
-  return BigInt(match[1].replaceAll('_', ''));
 }
 
 test('confirmed SKR prices: presale 1053 and export license 500', () => {

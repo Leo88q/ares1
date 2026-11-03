@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import { Keypair, PublicKey, SystemProgram } from '@solana/web3.js'
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { anchorDiscriminator } from '../../apps/backend/src/anchorRaw.js'
+import { RUST_SOURCE as rust, rustConst } from '../rustConstants.js'
 import {
   BASE_FIELD_PRICE_MICRO,
   FIELD_ACCOUNT_SIZE,
@@ -30,7 +31,6 @@ import {
 } from '../../scripts/grant-potato-core.js'
 
 const randomKey = () => Keypair.generate().publicKey
-const rust = fs.readFileSync('programs/solana_potato/src/lib.rs', 'utf8')
 const idl = JSON.parse(fs.readFileSync('apps/web/src/idl.json', 'utf8')) as {
   instructions: Array<{
     name: string
@@ -38,12 +38,6 @@ const idl = JSON.parse(fs.readFileSync('apps/web/src/idl.json', 'utf8')) as {
     accounts: Array<{ name: string; writable?: boolean; signer?: boolean }>
     args: Array<{ name: string; type: string }>
   }>
-}
-
-function rustConst(name: string): bigint {
-  const match = rust.match(new RegExp(`pub const ${name}: (?:u64|i64|u128) = ([\\d_]+)`))
-  assert.ok(match, `Rust const ${name} must exist`)
-  return BigInt(match[1]!.replaceAll('_', ''))
 }
 
 test('grant constants mirror the Rust program (caps, quota share, expiry, first-field price)', () => {
