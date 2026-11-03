@@ -129,6 +129,8 @@ test('Field v3: layout в Rust, IDL и клиентах совпадает по�
     ['apps/backend/src/anchorRaw.ts', /validateAccount\(data, "Field", \[70, 78\]\)/],
     ['apps/web/src/contexts/GameContext.tsx', /const FIELD_ACCOUNT_SIZES = \[78, 70\] as const/],
     ['apps/web/src/components/StatsScreen.tsx', /const FIELD_ACCOUNT_SIZES = \[78, 70\] as const/],
+    ['apps/web/src/components/MainScreen.tsx', /const FIELD_ACCOUNT_DATA_BYTES = 78/],
+    ['scripts/estimate-game-rent.ts', /const FIELD_ACCOUNT_BYTES = 78;/],
     ['docs/API.md', /^\| Field \| `field`, field ID u64 LE \| 78 /m],
   ]
   for (const [file, pattern] of consumers) {
@@ -178,7 +180,7 @@ test('каждая инструкция с существующим Field при
 test('ручные разборы remaining_accounts сверяют адрес с field_id', () => {
   // verify_fields (доказательства квестов) и batch_harvest не проходят через
   // Anchor-констрейнты, поэтому каноничность адреса проверяется в коде.
-  const checks = rust.match(/find_program_address\(&\[b"field", &f\.field_id\.to_le_bytes\(\)\]/g) ?? []
+  const checks = rust.match(/find_program_address\(\s*&\[b"field", &f\.field_id\.to_le_bytes\(\)\]/g) ?? []
   assert.ok(
     checks.length >= 2,
     `ожидались проверки в verify_fields и batch_harvest, найдено ${checks.length}`,

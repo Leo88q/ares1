@@ -2,7 +2,8 @@ import { Connection } from '@solana/web3.js';
 import { expectedGenesisHash, type SolanaCluster } from '../apps/backend/src/cluster.js';
 
 const LAMPORTS_PER_SOL = 1_000_000_000;
-const FIELD_ACCOUNT_BYTES = 70; // 8-byte Anchor discriminator + Field::INIT_SPACE (62)
+// P1-3: layout v3 — 8-байтный дискриминатор + Field::INIT_SPACE (70, с field_id u64).
+const FIELD_ACCOUNT_BYTES = 78;
 const SPL_TOKEN_ACCOUNT_BYTES = 165;
 
 function positiveInteger(value: string | undefined, name: string, fallback?: number): number {

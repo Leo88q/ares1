@@ -112,7 +112,7 @@ async function ixFieldAction(name: string, programId: PublicKey, params: {
 
 export const ixRepairField = (programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]) =>
  ixFieldAction('repair_field', programId, params)
-/** upgrade_field = field_spend_accounts + SlotHashes (энтропия мутаций). */
+/** upgrade_field = repair/pay_tax/apply_fertilizer-форма + SlotHashes (энтропия мутаций). */
 export async function ixUpgradeField(programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]): Promise<TransactionInstruction> {
  const data = concatBytes(await ixDiscriminator('upgrade_field'))
  const keys = [

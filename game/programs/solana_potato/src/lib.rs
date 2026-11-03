@@ -3543,35 +3543,75 @@ pub struct Harvest<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
-/// Shared shape for repair / upgrade / tax / fertilizer.
-macro_rules! field_spend_accounts {
-    ($name:ident) => {
-        #[derive(Accounts)]
-        pub struct $name<'info> {
-            /// P1-3: field обязан быть каноническим PDA от собственного field_id.
-            #[account(
-                        mut,
-                        has_one = owner,
-                        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
-                        bump = field.bump
-                    )]
-            pub field: Account<'info, Field>,
-            #[account(mut)]
-            pub potato_mint: Account<'info, Mint>,
-            #[account(mut, token::mint = potato_mint, token::authority = owner)]
-            pub user_potato: Account<'info, TokenAccount>,
-            #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
-            pub config: Account<'info, GameConfig>,
-            pub owner: Signer<'info>,
-            pub token_program: Program<'info, Token>,
-        }
-    };
+// Форма repair / pay_tax / apply_fertilizer одинаковая, но описана тремя
+// структурами, а не макросом: rustfmt не сходится на многострочном
+// `#[account(...)]` внутри `macro_rules!` (каждый прогон добавляет отступ),
+// а `cargo fmt --check` в CI обязан быть идемпотентным.
+/// Repair: восстанавливает durability за POTATO.
+#[derive(Accounts)]
+pub struct RepairField<'info> {
+    /// P1-3: field обязан быть каноническим PDA от собственного field_id.
+    #[account(
+        mut,
+        has_one = owner,
+        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+        bump = field.bump
+    )]
+    pub field: Account<'info, Field>,
+    #[account(mut)]
+    pub potato_mint: Account<'info, Mint>,
+    #[account(mut, token::mint = potato_mint, token::authority = owner)]
+    pub user_potato: Account<'info, TokenAccount>,
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
+    pub config: Account<'info, GameConfig>,
+    pub owner: Signer<'info>,
+    pub token_program: Program<'info, Token>,
 }
-field_spend_accounts!(RepairField);
-field_spend_accounts!(PayTax);
-field_spend_accounts!(ApplyFertilizer);
 
-/// UpgradeField = field_spend_accounts + SlotHashes: мутация при апгрейде
+/// PayTax: продлевает tax_paid_until за POTATO.
+#[derive(Accounts)]
+pub struct PayTax<'info> {
+    /// P1-3: field обязан быть каноническим PDA от собственного field_id.
+    #[account(
+        mut,
+        has_one = owner,
+        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+        bump = field.bump
+    )]
+    pub field: Account<'info, Field>,
+    #[account(mut)]
+    pub potato_mint: Account<'info, Mint>,
+    #[account(mut, token::mint = potato_mint, token::authority = owner)]
+    pub user_potato: Account<'info, TokenAccount>,
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
+    pub config: Account<'info, GameConfig>,
+    pub owner: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+/// ApplyFertilizer: ускоряет рост на 24 ч за POTATO.
+#[derive(Accounts)]
+pub struct ApplyFertilizer<'info> {
+    /// P1-3: field обязан быть каноническим PDA от собственного field_id.
+    #[account(
+        mut,
+        has_one = owner,
+        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+        bump = field.bump
+    )]
+    pub field: Account<'info, Field>,
+    #[account(mut)]
+    pub potato_mint: Account<'info, Mint>,
+    #[account(mut, token::mint = potato_mint, token::authority = owner)]
+    pub user_potato: Account<'info, TokenAccount>,
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
+    pub config: Account<'info, GameConfig>,
+    pub owner: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+
+/// UpgradeField = форма repair/pay_tax/apply_fertilizer + SlotHashes: мутация при апгрейде
 /// роллится с примесью хеша последнего слота (непредсказуемо в момент подписания).
 #[derive(Accounts)]
 pub struct UpgradeField<'info> {
@@ -5833,15 +5873,21 @@ mod tests {
         // до O(n²)-проверки; ровно кап проходит.
         let user = Pubkey::new_unique();
         let program = crate::ID;
-        let mut f = field(1, 100, 1);
-        f.owner = user;
-        let mut data = vec![0; 8 + Field::INIT_SPACE];
-        write_field_account(&f, &mut data).unwrap();
         let mut accounts: Vec<AccountInfo> = Vec::new();
-        for _ in 0..(MAX_CLAIM_PROOFS + 1) {
-            let key: &'static Pubkey = Box::leak(Box::new(Pubkey::new_unique()));
+        for id in 0..(MAX_CLAIM_PROOFS as u64 + 1) {
+            // P1-3: доказательство — только канонический PDA своего field_id,
+            // поэтому адрес выводится из id, а не берётся случайным.
+            let (key, bump) =
+                Pubkey::find_program_address(&[b"field", &id.to_le_bytes()], &program);
+            let mut f = field(1, 100, 1);
+            f.owner = user;
+            f.field_id = id;
+            f.bump = bump;
+            let mut data = vec![0; 8 + Field::INIT_SPACE];
+            write_field_account(&f, &mut data).unwrap();
+            let key: &'static Pubkey = Box::leak(Box::new(key));
             let lamports: &'static mut u64 = Box::leak(Box::new(1u64));
-            let acc_data: &'static mut Vec<u8> = Box::leak(Box::new(data.clone()));
+            let acc_data: &'static mut Vec<u8> = Box::leak(Box::new(data));
             accounts.push(AccountInfo::new(
                 key, false, false, lamports, acc_data, &program, false, 0,
             ));

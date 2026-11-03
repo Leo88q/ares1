@@ -71,9 +71,11 @@ test('A1/A5/A6/D21-D22: каждый init платит ренту; data-акка
 test('A1: каждый seeds-констрейнт спарен с bump', () => {
   const seeded = blocks.filter((b) => /seeds\s*=/.test(b));
   // Count is pinned to the current source; review each new account context before changing it.
-  // +4 (P1-3, layout v3): Harvest, field_spend_accounts!, UpgradeField,
-  // CloseField привязывают Field к `field.field_id` вместо одного has_one.
-  assert.equal(seeded.length, 112, `seeds-блоков: ${seeded.length}, ожидалось 112`);
+  // +4 и +4 (P1-3, layout v3): Harvest, UpgradeField, CloseField и три
+  // структуры repair/pay_tax/apply_fertilizer привязывают Field к
+  // `field.field_id`; последние три раньше жили в одном макросе и давали
+  // два seeds-блока на троих, теперь — по два на каждую.
+  assert.equal(seeded.length, 116, `seeds-блоков: ${seeded.length}, ожидалось 116`);
   for (const b of seeded) {
     assert.ok(/\bbump\b/.test(b), `seeds без bump: ${b.slice(0, 120)}`);
   }
@@ -81,9 +83,11 @@ test('A1: каждый seeds-констрейнт спарен с bump', () => {
 
 test('A2: пины has_one для текущих account contexts', () => {
   // Нарочно зафиксированные счётчики: новый контекст = осознанный diff пина.
-  assert.equal(count(libRs, 'has_one = potato_mint'), 14);
+  // +2 (P1-3): макрос field_spend_accounts! развёрнут в три явные структуры
+  // (rustfmt не сходится на многострочном #[account(...)] внутри macro_rules!).
+  assert.equal(count(libRs, 'has_one = potato_mint'), 16);
   assert.equal(count(libRs, 'has_one = authority'), 17); // 18-й — в doc-комментарии, срезан
-  assert.equal(count(libRs, 'has_one = owner'), 4);
+  assert.equal(count(libRs, 'has_one = owner'), 6); // +2: три структуры вместо макроса
   assert.equal(count(libRs, 'has_one = seller'), 7);
 });
 
@@ -94,7 +98,7 @@ test('E28: close-назначения pinned для текущих account conte
 });
 
 test('A2: платежные ATA привязаны к подписанту (token::mint/authority)', () => {
-  assert.equal(count(libRs, 'token::mint = potato_mint, token::authority = owner'), 6);
+  assert.equal(count(libRs, 'token::mint = potato_mint, token::authority = owner'), 8); // +2: макрос → три структуры
   assert.equal(count(libRs, 'token::authority = seller'), 8);
   assert.ok(count(libRs, 'token::authority = buyer') >= 1);
 });

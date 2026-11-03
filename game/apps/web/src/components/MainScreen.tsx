@@ -256,7 +256,10 @@ function ConnectHint() {
  )
 }
 
-const FIELD_ACCOUNT_DATA_BYTES = 70 // Anchor discriminator (8) + Field::INIT_SPACE (62)
+// P1-3 (layout v3): Anchor discriminator (8) + Field::INIT_SPACE (70, включая field_id u64).
+// Оценка rent берётся из RPC по этому размеру — занизить его значит показать игроку
+// меньше SOL, чем спишет создание поля.
+const FIELD_ACCOUNT_DATA_BYTES = 78
 
 function FreeStartNotice(): JSX.Element {
  const { t } = useI18n()
