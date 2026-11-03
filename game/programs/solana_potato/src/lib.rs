@@ -3610,7 +3610,6 @@ pub struct ApplyFertilizer<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-
 /// UpgradeField = форма repair/pay_tax/apply_fertilizer + SlotHashes: мутация при апгрейде
 /// роллится с примесью хеша последнего слота (непредсказуемо в момент подписания).
 #[derive(Accounts)]
