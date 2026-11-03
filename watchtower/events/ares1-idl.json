@@ -6,7 +6,7 @@
     "spec": "0.1.0",
     "description": "Solana Potato game program"
   },
-  "sourceIdlSha256": "9ae345e072655dcfa647435dd36a5435d96fb7fb716fdc783599e11b6b9692b7",
+  "sourceIdlSha256": "b44750a3f3f977253a9b23af70db23c89a77dce1f0abd03a4a36b5d3c4e12b58",
   "events": [
     {
       "name": "AchievementClaimed",
@@ -533,6 +533,20 @@
           {
             "name": "treasury_micro",
             "type": "u64"
+          },
+          {
+            "name": "requested_micro",
+            "docs": [
+              "Сумма, причитавшаяся всем полям до урезания капом (P3-19)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "truncated",
+            "docs": [
+              "`true`, если кап эпохи / max_supply урезали выплату."
+            ],
+            "type": "bool"
           }
         ]
       }
@@ -701,6 +715,20 @@
           {
             "name": "amount_micro",
             "type": "u64"
+          },
+          {
+            "name": "pending_micro",
+            "docs": [
+              "Начислено до урезания капом эпохи / max_supply (P3-19)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "truncated",
+            "docs": [
+              "`true`, если выплата урезана: `amount_micro` не отражает всё начисление."
+            ],
+            "type": "bool"
           }
         ]
       }
