@@ -28,7 +28,21 @@ The current source still has the restored V1 SOL-only market described below. On
 5–8% settlement fee in the quote asset, retained from successful fills and routed
 to the treasury in that same asset. The V2 fee is intended to use cumulative UTC-day
 POTATO volume per seller address across both quote pairs; it is not part of this ABI.
-The draft source path is not represented in the committed IDL and the rollout flag is off, so the legacy market remains the only default user path. The V2 marginal tiers are 5/6/7/8 % at 1k/10k/100k POTATO of a seller's rolling UTC-day volume.
+The V2 handlers **are** in the committed IDL (`create_sell_order_v2`, `fill_order_v2`,
+`fill_order_v2_skr`, `cancel_order_v2`, `close_expired_order_v2`), but the UI rollout flag
+`VITE_MARKET_V2_ENABLED` is off and `/market` renders the legacy screen, so the legacy
+rail is the only default user path. The V2 marginal tiers are 5/6/7/8 % at
+1k/10k/100k POTATO of a seller's rolling UTC-day volume.
+
+**Two fee bases, deliberately documented (P2-2).** Both rails charge the same ladder
+(500/600/700/800 bps at 1k/10k/100k POTATO), but they select the tier from different
+numbers: the legacy `create_sell_order`/`fill_order` pair prices the **order size**
+(`calculate_fee_bps(amount_micro)`), while V2 prices the **seller's cumulative UTC-day
+volume** and cuts the rate at the tier boundaries inside a single fill
+(`calculate_settlement_fee_v2`). Until the rails are unified, a seller with a large daily
+volume can list many small legacy orders and pay 5 % where V2 would charge 8 %; that
+arbitrage is pinned by the host test `legacy_and_v2_fee_bases_differ_by_design`. Do not
+describe the two rails as "the same fee" in UI copy or docs.
 
 ## Draft V2 market (not deploy-verified)
 

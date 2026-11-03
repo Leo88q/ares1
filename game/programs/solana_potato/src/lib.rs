@@ -2958,11 +2958,19 @@ pub fn durability_mult_bps(durability: u8) -> u128 {
     DURABILITY_FLOOR_BPS + (durability.min(MAX_DURABILITY) as u128) * DURABILITY_SLOPE_BPS_PER_POINT
 }
 
-/// Marketplace fee tier by order size (progressive: 5 % → 8 %).
+/// Marketplace fee tier of the **legacy** rail: by order size (5 % → 8 %).
 ///
-/// Kept identical to `V2_SETTLEMENT_FEE_BPS`: the legacy rail is still
-/// selectable in the UI, and two different price lists for the same trade is
-/// how a player learns not to trust either one.
+/// Совпадает с `V2_SETTLEMENT_FEE_BPS` только **лестница ставок** (500/600/700/
+/// 800 bps и те же границы 1k/10k/100k POTATO). База другая и это не опечатка:
+///   • здесь tier выбирается по `amount_micro` — размеру **самого ордера**;
+///   • в V2 (`calculate_settlement_fee_v2`) — по накопленному UTC-объёму
+///     **продавца** (`SellerVolumeV2`), причём внутри одной сделки ставка
+///     режется по границам маржинально.
+/// Из-за этого крупный продавец платит на легаси-рельсе 5 % за ордер в 999
+/// POTATO, хотя на V2 с его дневным объёмом заплатил бы 8 %. Расхождение
+/// зафиксировано тестом `legacy_and_v2_fee_bases_differ_by_design`; убрать его
+/// можно только решением владельца экономики — либо перевести легаси-рельс на
+/// `SellerVolumeV2` (меняет ABI), либо закрыть `create_sell_order` на запись.
 pub fn calculate_fee_bps(amount_micro: u64) -> u16 {
     // Прогрессивная комиссия 5% – 8% (от объёма ордера)
     if amount_micro < 1_000_000_000 {
@@ -5469,6 +5477,43 @@ mod tests {
         assert_eq!(calculate_fee_bps(10_000_000_000), 700);
         assert_eq!(calculate_fee_bps(100_000_000_000), 800);
         assert_eq!(order_fee_micro(1_000_000).unwrap(), 50_000); // 1 POTATO × 5%
+    }
+
+    #[test]
+    fn legacy_and_v2_fee_bases_differ_by_design() {
+        // P2-2: лестница ставок одна, база — разная. Тест держит ФАКТ, а не
+        // пожелание: пока легаси-рельс жив, крупный продавец платит на нём
+        // меньше, дробя объём. Если кто-то «исправит» любую из сторон, тест
+        // упадёт и заставит обновить этот разбор вместе с экономикой.
+        assert_eq!(V2_SETTLEMENT_FEE_BPS, [500, 600, 700, 800]);
+        for (amount, legacy_bps) in [
+            (999 * MICRO as u64, 500u16),
+            (1_000 * MICRO as u64, 600),
+            (10_000 * MICRO as u64, 700),
+            (100_000 * MICRO as u64, 800),
+        ] {
+            assert_eq!(calculate_fee_bps(amount), legacy_bps);
+        }
+
+        // Продавец с 200k POTATO дневного объёма выставляет ордер на 10 POTATO:
+        // обе сделки — одна и та же экономическая операция, ставки разные.
+        let order_micro = 10 * MICRO as u64;
+        let big_seller_volume = 200_000 * MICRO as u64;
+        let legacy = order_fee_micro(order_micro).unwrap();
+        let v2 = calculate_settlement_fee_v2(order_micro, 1_000_000, big_seller_volume).unwrap();
+        assert_eq!(calculate_fee_bps(order_micro), 500, "легаси смотрит только на ордер");
+        assert_eq!(
+            legacy, 500_000,
+            "10 POTATO на легаси-рельсе: 5 %, независимо от объёма продавца"
+        );
+        assert_eq!(
+            v2.fee_quote_atoms, 800_000,
+            "10 POTATO на V2 при объёме 200k: 8 %"
+        );
+        assert!(
+            v2.fee_quote_atoms > legacy,
+            "расхождение баз — известный арбитраж P2-2, а не равенство"
+        );
     }
 
     #[test]
