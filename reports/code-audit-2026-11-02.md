@@ -171,9 +171,8 @@ look-alike аккаунта в `achievement_proofs_reject_duplicate_and_foreign_
 `WithdrawShareExceeded`), `tests/offchain/treasury-admin-core.test.ts`
 (CLI-зеркало + сверка с исходником), `docs/API.md`.
 
-### P1-5. `CONFIRM_TIMEOUT` помечается терминальным `failed` — возможна двойная выплата
-`rewards/worker.ts:70-78` (`failureCodeFrom`), `:93-104` (`recordFailure` →
-`markFailed`).
+### P1-5. `CONFIRM_TIMEOUT` помечался терминальным `failed` — **исправлено**
+Было: `rewards/worker.ts` (`failureCodeFrom` → `recordFailure` → `markFailed`).
 
 Если `sendGrant` (`rewards/send.ts:140-150`) отвалился по таймауту
 подтверждения, транзакция **уже отправлена** и может подтвердиться позже.
@@ -183,11 +182,16 @@ look-alike аккаунта в `achievement_proofs_reject_duplicate_and_foreign_
 * повторная выдача того же заказа создаст новый интент; если он получит другой
   nonce — пользователь получит POTATO дважды.
 
-Исправление: `CONFIRM_TIMEOUT` и `BLOCKHASH_EXPIRED` — не терминальные.
-Воркер должен оставлять интент в `submitted` и на следующем такте разрешать его
-через `lookupExistingGrant` (PDA `[reward, ata, nonce]` уже даёт ответ), а
-`failed` ставить только для детерминированных отказов (`SIMULATION_FAILED`,
-`BAD_INTENT_ROW`, `SIGNER_UNFUNDED`).
+**Исправлено:** `CONFIRM_TIMEOUT` и `BLOCKHASH_EXPIRED` (плюс `LOOKUP_FAILED`,
+`GRANT_FAILED`) входят в `RETRYABLE_FAILURE_CODES` (`rewards/worker.ts:103-114`),
+`isTerminalFailure` закрывает интент только для детерминированных отказов
+(`SIMULATION_FAILED`, `BAD_INTENT_ROW`, `SIGNER_UNFUNDED`, …). Повтор не минтит
+второй грант: `ALREADY_ON_CHAIN` восстанавливает подпись через
+`lookupExistingGrant`, а nonce детерминирован. Плюс фаза
+`reconcileSubmitted` (P2-11) добирает `submitted`-интенты без слота по истории
+PDA `[reward, ata, nonce]`. Тесты: `tests/rewards-worker.test.ts:172-177`
+(наборы терминальных/повторяемых кодов), `:144` (`CONFIRM_TIMEOUT` не закрывает
+интент), `:201` (распознавание таймаута).
 
 ---
 
