@@ -1227,7 +1227,10 @@ pub mod solana_potato {
         // остаётся диагностируемым — и до любых списаний: seller_profile,
         // market_stats, escrow и токены продавца не трогаются. Уже созданные
         // ордера доигрываются fill_order / cancel_order / close_expired_order.
-        require!(legacy_market_writes_enabled(), GameError::LegacyMarketClosed);
+        require!(
+            legacy_market_writes_enabled(),
+            GameError::LegacyMarketClosed
+        );
 
         let now = Clock::get()?.unix_timestamp;
 
