@@ -67,7 +67,29 @@
       "accounts": [
         {
           "name": "field",
-          "writable": true
+          "docs": [
+            "P1-3: field обязан быть каноническим PDA от собственного field_id."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "field.field_id",
+                "account": "Field"
+              }
+            ]
+          }
         },
         {
           "name": "potato_mint",
@@ -2033,7 +2055,29 @@
         },
         {
           "name": "field",
-          "writable": true
+          "docs": [
+            "P1-3: канонический PDA проверяется до закрытия аккаунта."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "field.field_id",
+                "account": "Field"
+              }
+            ]
+          }
         },
         {
           "name": "owner",
@@ -3731,7 +3775,29 @@
         },
         {
           "name": "field",
-          "writable": true
+          "docs": [
+            "P1-3: field обязан быть каноническим PDA от собственного field_id."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "field.field_id",
+                "account": "Field"
+              }
+            ]
+          }
         },
         {
           "name": "potato_mint",
@@ -4242,15 +4308,18 @@
     {
       "name": "migrate_field",
       "docs": [
-        "P7: migrates one Field account to the current layout.",
+        "P7 + P1-3: migrates one Field account to the current (v3) layout.",
         "",
-        "Field carries no `id` in its layout, so — unlike `migrate_epoch` — the",
-        "handler cannot derive the PDA from the account itself. It therefore",
-        "takes `field_id` from the caller and requires the account to be the",
-        "**canonical** `[b\"field\", field_id]` PDA, both by address and by the",
-        "stored bump. Without this the authority could point a migration at any",
-        "program-owned, 69/70-byte, Field-discriminated account; the layout",
-        "check alone only guarantees \"it looks like a field\", not \"it is one\"."
+        "On the legacy layouts (69/70 bytes) the account does not carry its id,",
+        "so — unlike `migrate_epoch` — the handler cannot derive the PDA from",
+        "the account itself. It therefore takes `field_id` from the caller and",
+        "requires the account to be the **canonical** `[b\"field\", field_id]` PDA,",
+        "both by address and by the stored bump. Without this the authority",
+        "could point a migration at any program-owned, 69/70-byte,",
+        "Field-discriminated account; the layout check alone only guarantees",
+        "\"it looks like a field\", not \"it is one\". The id is then written into",
+        "the account, after which every instruction verifies it structurally",
+        "(`seeds`, `verify_fields`) and no caller-supplied id is trusted at all."
       ],
       "discriminator": [
         65,
@@ -4387,7 +4456,29 @@
       "accounts": [
         {
           "name": "field",
-          "writable": true
+          "docs": [
+            "P1-3: field обязан быть каноническим PDA от собственного field_id."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "field.field_id",
+                "account": "Field"
+              }
+            ]
+          }
         },
         {
           "name": "potato_mint",
@@ -4685,7 +4776,29 @@
       "accounts": [
         {
           "name": "field",
-          "writable": true
+          "docs": [
+            "P1-3: field обязан быть каноническим PDA от собственного field_id."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "field.field_id",
+                "account": "Field"
+              }
+            ]
+          }
         },
         {
           "name": "potato_mint",
@@ -5231,7 +5344,29 @@
       "accounts": [
         {
           "name": "field",
-          "writable": true
+          "docs": [
+            "P1-3: field обязан быть каноническим PDA от собственного field_id."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "field.field_id",
+                "account": "Field"
+              }
+            ]
+          }
         },
         {
           "name": "potato_mint",
@@ -7290,7 +7425,6 @@
           },
           {
             "name": "field_id",
-            "type": "u64",
             "docs": [
               "P1-3 (layout v3): id, из которого выведен PDA `[b\"field\", id]`.",
               "",
@@ -7302,7 +7436,8 @@
               "проверяется против id внутри него. Поле добавлено в конец layout",
               "(78 байт), поэтому миграция 69/70 → 78 — это дописывание id, без",
               "сдвига существующих байт."
-            ]
+            ],
+            "type": "u64"
           }
         ]
       }

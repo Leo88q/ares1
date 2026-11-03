@@ -56,7 +56,9 @@ async function run(configSize: 156 | 164) {
   field.writeBigInt64LE(100n, 42); field.writeBigInt64LE(200n, 50); field.writeBigInt64LE(150n, 58);
   field[66] = 1; field[67] = 2;
   field[68] = PublicKey.findProgramAddressSync([Buffer.from('field'), u64(100n)], programId)[1];
-  const currentField = Buffer.concat([field, Buffer.from([2])]);
+  // P1-3: текущая раскладка Field — v3 (78 байт): 69 байт v1 + mutation_type
+  // в 69 + field_id u64 в 70..78. Id обязан совпадать с адресом PDA.
+  const currentField = Buffer.concat([field, Buffer.from([2]), u64(101n)]);
   currentField[68] = PublicKey.findProgramAddressSync([Buffer.from('field'), u64(101n)], programId)[1];
   const epoch = Buffer.alloc(41);
   anchorDiscriminator('account', 'Epoch').copy(epoch);
@@ -193,6 +195,10 @@ async function run(configSize: 156 | 164) {
 
     // Migrate a Field while config is still legacy, then normalize the config.
     await send('field', fieldPda(100n), admin, 100n);
+    // P1-3: у уже-мигрированного (78 байт) поля id лежит внутри аккаунта, и
+    // повторная миграция с другим id обязана быть отвергнута в migrations::field —
+    // иначе authority «переименовало» бы поле, не меняя адреса.
+    await reject(() => sendRawField(fieldPda(100n), 101n), 'BadProof', fieldPda(100n));
     await send('config', configPda);
     await send('epoch', epochPda(42n));
     await send('admin_state', adminStatePda);
@@ -207,15 +213,19 @@ async function run(configSize: 156 | 164) {
     assert.equal(c.guardian.toBase58(), PublicKey.default.toBase58()); // F-02 default = disabled
     assert.equal(migrated.length, 260);
     assert.deepEqual(migrated.subarray(168, 218), config.subarray(104, 154));
-    assert.deepEqual((await connection.getAccountInfo(fieldPda(100n)))!.data, Buffer.concat([field, Buffer.from([0])]));
+    // v1 (69) → v3 (78): байты v1 не двигаются, mutation_type = 0, id дописан.
+    assert.deepEqual(
+      (await connection.getAccountInfo(fieldPda(100n)))!.data,
+      Buffer.concat([field, Buffer.from([0]), u64(100n)]),
+    );
     assert.equal(decodeEpoch((await connection.getAccountInfo(epochPda(42n)))!.data).grantedMicro, 0n);
     const migratedAdmin = (await connection.getAccountInfo(adminStatePda))!.data;
     assert.equal(migratedAdmin.length, 145);
     assert.equal(migratedAdmin.readBigInt64LE(8), 1_700_000_000n); // legacy fields preserved
     assert.equal(migratedAdmin.readBigUInt64LE(16), 11n);
 
-    for (const [kind, key, size, fieldId] of [['config', configPda, 260, undefined], ['field', fieldPda(100n), 70, 100n],
-      ['field', fieldPda(101n), 70, 101n], ['epoch', epochPda(42n), 49, undefined], ['epoch', epochPda(43n), 49, undefined],
+    for (const [kind, key, size, fieldId] of [['config', configPda, 260, undefined], ['field', fieldPda(100n), 78, 100n],
+      ['field', fieldPda(101n), 78, 101n], ['epoch', epochPda(42n), 49, undefined], ['epoch', epochPda(43n), 49, undefined],
       ['admin_state', adminStatePda, 145, undefined]] as const) {
       const before = (await connection.getAccountInfo(key))!;
       assert.equal(before.lamports, await connection.getMinimumBalanceForRentExemption(size));
@@ -225,7 +235,7 @@ async function run(configSize: 156 | 164) {
     }
     assert.deepEqual((await connection.getAccountInfo(fieldPda(101n)))!.data, currentField);
     assert.deepEqual((await connection.getAccountInfo(epochPda(43n)))!.data, currentEpoch);
-    console.log(`PASS: Config ${configSize}->260, Field 69->70, Epoch 41->49, AdminState 97->145; rent, flags, idempotency and negative cases`);
+    console.log(`PASS: Config ${configSize}->260, Field 69->78, Epoch 41->49, AdminState 97->145; rent, flags, idempotency and negative cases`);
   } catch (error) {
     console.error(`Migration fixture ${configSize} failed:`, error);
     console.error('Validator output:', output);
