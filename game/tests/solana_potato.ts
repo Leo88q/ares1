@@ -382,6 +382,11 @@ describe("solana_potato", () => {
   describe("reward signer separation", () => {
     it("delegates mint only, rejects admin actions, and revokes the old signer", async () => {
       const rewardSigner = Keypair.generate();
+      // once-рельса делает подписанта плательщиком ренты за маркер `reward_claim`
+      // (1 343 280 lamports на аккаунт). Свежий ключ без баланса падал бы на
+      // `Transfer: insufficient lamports` до проверки прав, и тест проверял бы
+      // не разделение ключей, а отсутствие денег у подписанта.
+      await connection.confirmTransaction(await connection.requestAirdrop(rewardSigner.publicKey, 1 * LAMPORTS_PER_SOL));
       const rewardAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, rewardSigner.publicKey)).address;
       // Каждая выплата — свой nonce: маркер создаётся через `init`, иначе
       // вторая попытка упала бы на уже существующем `reward_claim`, а тест

@@ -251,10 +251,13 @@ limit, `buy_field_sol` checks `PresaleNotActive` before the cap.
 
 Use events from the **generated, verified** IDL. At minimum, monitoring/indexing
 should cover `FieldCreated`, `Harvested`, `BatchHarvested`, `FieldClosed`,
-`OrderCreated`, `OrderFilled`, `PresalePurchase`, `AchievementClaimed`, `RewardGranted`,
+`OrderCreated`, `OrderFilled`, `PresalePurchase`, `AchievementClaimed`, `RewardGrantedOnce`,
 `TreasuryWithdrawn`, `TreasurySolWithdrawn`, `TreasurySkrWithdrawn`, `EpochRolled`,
 `PausedToggled`, `ConfigUpdated`, `AuthorityProposed`, `AuthorityAccepted`,
-`SkrMintUpdated`, `RewardSignerUpdated`. (`close_old_epoch` emits no event, only
+`SkrMintUpdated`, `RewardSignerUpdated`. The legacy `RewardGranted` struct is still
+in the ABI (the hub adapter allowlist references the name) but **no instruction
+emits it** since `grant_reward` was removed on 2026-11-03; every reward mint
+surfaces as `RewardGrantedOnce`. (`close_old_epoch` emits no event, only
 a program log; watch the transaction log if you need crank activity.)
 
 Error codes start with `AlreadyClaimed=6000`, `BadProof=6001`, `Paused=6002`.

@@ -6,7 +6,7 @@
     "spec": "0.1.0",
     "description": "Solana Potato game program"
   },
-  "sourceIdlSha256": "b44750a3f3f977253a9b23af70db23c89a77dce1f0abd03a4a36b5d3c4e12b58",
+  "sourceIdlSha256": "00cc3a6cd9cfdbae603f82a9a3d654e10d3c1755ad4a7df6b3800f3d74a94584",
   "events": [
     {
       "name": "AchievementClaimed",
@@ -1035,6 +1035,13 @@
     },
     {
       "name": "RewardGranted",
+      "docs": [
+        "Легаси-событие рельсы `grant_reward`, удалённой в апгрейде 2026-11-03",
+        "(P1-1). **Ни одна инструкция его больше не эмитит** — структура оставлена",
+        "только потому, что имя входит в allowlist хаба-индексатора и в карту",
+        "watchtower: удаление события сломало бы внешний контракт интеграции.",
+        "Все реальные выплаты идут через `RewardGrantedOnce`."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1409,16 +1416,6 @@
       204,
       178,
       162
-    ],
-    "grant_reward": [
-      202,
-      133,
-      123,
-      208,
-      124,
-      131,
-      147,
-      235
     ],
     "grant_reward_once": [
       90,
