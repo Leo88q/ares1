@@ -792,19 +792,25 @@ describe("solana_potato", () => {
       // списание. Проверяются его инварианты: комиссия списана, кратна числу
       // подписей (тариф единый на подпись) и правдоподобна по величине.
       const signatureCount = BigInt(tx!.transaction.signatures.length);
-      expect(signatureCount).to.be.at.least(1n);
+      // Сравнения bigint пишем явно: chai-компараторы `at.least`/`at.most`
+      // принимают только number/date и падают на 2n.
+      const feeDiagnostics =
+        `delta=${transactionFeeFromBalances} rpc-fee=${txFee} signatures=${signatureCount} ` +
+        `pre=${txMeta.preBalances.length} post=${txMeta.postBalances.length} sig=${signature}`;
+      expect(signatureCount > 0n, `no signatures in transaction metadata: ${feeDiagnostics}`).to.eq(true);
       expect(
-        transactionFeeFromBalances,
-        `fee not charged or not visible in balances: delta=${transactionFeeFromBalances} ` +
-          `rpc-fee=${txFee} pre=${txMeta.preBalances.length} post=${txMeta.postBalances.length} sig=${signature}`,
-      ).to.be.greaterThan(0n);
+        transactionFeeFromBalances > 0n,
+        `fee not charged or not visible in balances: ${feeDiagnostics}`,
+      ).to.eq(true);
       expect(
         transactionFeeFromBalances % signatureCount,
-        `fee ${transactionFeeFromBalances} is not a multiple of ${signatureCount} signatures`,
+        `fee is not a multiple of the signature count: ${feeDiagnostics}`,
       ).to.eq(0n);
       const feePerSignature = transactionFeeFromBalances / signatureCount;
-      expect(feePerSignature, `implausible fee per signature: ${feePerSignature}`).to.be.at.least(1n);
-      expect(feePerSignature, `implausible fee per signature: ${feePerSignature}`).to.be.at.most(100_000n);
+      expect(
+        feePerSignature >= 1n && feePerSignature <= 100_000n,
+        `implausible fee per signature: ${feeDiagnostics} per-signature=${feePerSignature}`,
+      ).to.eq(true);
       expect(BigInt(buyerSolBefore - await connection.getBalance(player.publicKey, "confirmed"))).to.eq(gross);
       expect(BigInt(await connection.getBalance(treasurySolPda, "confirmed") - treasurySolBefore)).to.eq(fee);
 
