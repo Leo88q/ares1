@@ -7,7 +7,8 @@ import { PublicKey } from '@solana/web3.js'
 import AnimatedNumber from './AnimatedNumber'
 import { Field } from '../contexts/GameContext'
 import {
- fieldTypeInfo, MICRO, HARVEST_THRESHOLD_MICRO, MAX_DURABILITY,
+ fieldTypeInfo, MICRO, HARVEST_THRESHOLD_MICRO, MAX_DURABILITY, BPS, FERTILIZER_YIELD_BPS,
+ DURABILITY_SLOPE_BPS_PER_POINT,
  upgradeCostMicro, repairCostMicro, taxCostMicro, fertilizerCostMicro, fmtPotatoExact,
 } from '../utils/constants'
 import { sounds } from '../utils/sounds'
@@ -18,6 +19,8 @@ type FieldAction = (field: PublicKey) => Promise<boolean>
 interface Props {
  field: Field
  index: number
+ /** Суточный урожай поля в микро-POTATO — для подписи «окупится за N суток» (P2-4). */
+ dailyYieldMicro?: number
  onHarvest: FieldAction
  onUpgrade?: FieldAction
  onRepair?: FieldAction
@@ -34,7 +37,7 @@ const RARE_COLOR: Record<'basic' | 'meadow' | 'gold', string> = { basic: '#C9A17
  * Карточка поля в стиле Vice Potato.
  * Тир редкости: 0 (Грядка) → basic, 1 (Луг) → meadow, 2 (Поле) → gold.
  */
-export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRepair, onPayTax, onApplyFertilizer }: Props) {
+export default function FieldCardVice({ field, index, dailyYieldMicro, onHarvest, onUpgrade, onRepair, onPayTax, onApplyFertilizer }: Props) {
  const [busy, setBusy] = useState<string | null>(null)
 
  const now = Math.floor(Date.now() / 1000)
@@ -45,6 +48,20 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
  const durability = field.durability
  const needsRepair = durability < MAX_DURABILITY
  const fertActive = field.fertilizerUntil > now
+ const repairCost = repairCostMicro(field.level, field.fieldType, field.durability)
+ const fertilizerCost = fertilizerCostMicro(field.level, field.fieldType, field.durability)
+ // P2-4: механики были «чёрным ящиком» — показываем, за сколько суток цена
+ // вернётся приростом урожая. Считаем от суточного урожая поля, если он известен.
+ const repairReturnDays = dailyYieldMicro && repairCost > 0 && needsRepair
+  ? repairCost / Math.max(1, (dailyYieldMicro * ((MAX_DURABILITY - durability) * DURABILITY_SLOPE_BPS_PER_POINT)) / BPS)
+  : null
+ const fertilizerReturnDays = dailyYieldMicro && fertilizerCost > 0 && !fertActive
+  ? fertilizerCost / Math.max(1, (dailyYieldMicro * (FERTILIZER_YIELD_BPS - BPS)) / BPS)
+  : null
+ const returnLabel = (days: number | null) => days === null ? null
+  : days < 1 ? t('окупится < 1 сут')
+  : days < 10 ? t('окупится за {n} сут', { n: Math.ceil(days) })
+  : t('окупится за {n} сут', { n: Math.round(days) })
  const taxExpired = now > field.taxPaidUntil
  const taxDaysLeft = Math.max(0, Math.ceil((field.taxPaidUntil - now) / 86400))
  const taxHoursLeft = Math.max(1, Math.ceil((field.taxPaidUntil - now) / 3600))
@@ -192,7 +209,12 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
        {t('Полив')}
       </span>
       <span className="field-action-btn__badge">
-       {fmtPotatoExact(repairCostMicro(field.level, field.fieldType))} POTATO
+       {fmtPotatoExact(repairCost)} POTATO
+       {returnLabel(repairReturnDays) && (
+        <span className="field-action-btn__hint" style={{ display: 'block', opacity: 0.65, fontSize: 9 }}>
+         {returnLabel(repairReturnDays)}
+        </span>
+       )}
       </span>
      </button>
 
@@ -221,7 +243,12 @@ export default function FieldCardVice({ field, index, onHarvest, onUpgrade, onRe
        {fertActive ? t('Удобрено ') : t('Питание +50% · 24ч')}
       </span>
       <span className="field-action-btn__badge">
-       {fmtPotatoExact(fertilizerCostMicro(field.fieldType))} POTATO
+       {fmtPotatoExact(fertilizerCost)} POTATO
+       {returnLabel(fertilizerReturnDays) && (
+        <span className="field-action-btn__hint" style={{ display: 'block', opacity: 0.65, fontSize: 9 }}>
+         {returnLabel(fertilizerReturnDays)}
+        </span>
+       )}
       </span>
      </button>
     </div>

@@ -169,10 +169,25 @@ harvests.
   instruction.
 - `harvest`: owned active field, ≥60s interval, ≤**7 days** accrual
   (`MAX_ACCRUAL_SECONDS`), epoch/supply limits; lunar multiplier is **time-weighted**
-  across the accrual window (`lunar_weighted_bps`), so harvesting right before
-  `roll_epoch` no longer arbitrages the lunar phase.
+  across the accrual window (`lunar_weighted_bps`). Since P2-6 the lunar phase is
+  derived from the **UTC day** (`lunar_day_index(now) = floor(now / 86400) mod 28`),
+  not from `config.epoch_id`: a late or missing `roll_epoch` no longer shifts the
+  phase, so harvesting cannot be timed against the peak and the phase matches the
+  client's clock-based display.
+  When the epoch cap or `max_supply` truncates the payout, `last_harvest` advances
+  only by the paid share of the window and the unpaid remainder keeps accruing.
+  The `Harvested` event carries `pending_micro` (the full accrual) and `truncated`
+  so a client can tell a partial payout apart from a full one; durability is
+  charged proportionally to the paid time (`harvest_decay`), so a truncated
+  harvest no longer costs a point of durability for ~zero payout.
 - `batch_harvest`: 1–10 unique writable owned Field accounts in remaining accounts;
   aggregate mint limits; updates field timestamps/durability. Covered by localnet CI.
+  A cap shortfall scales **every** field by the same ratio (`available / total_gross`):
+  each field is paid `pending_i × scale` and its `last_harvest` advances by
+  `elapsed_i × scale`. `BatchHarvested` reports `requested_micro` and `truncated`
+  alongside the paid totals. If the available cap rounds the player's share down to
+  zero the instruction fails with `EpochCapExceeded` — no field is touched and no
+  durability is spent, because the cap check happens before any state mutation.
   The cap rises to **1–30** (`BATCH_LIMIT_BASE` → `BATCH_LIMIT_LICENSED`) when the
   caller's export-license PDA `[b"license", owner]` is passed as the **first**
   remaining account (read-only) and `expires_at` is still in the future. The key is
@@ -185,6 +200,13 @@ harvests.
   Closing still does not guarantee a field ID can never be reused.
 - `repair_field`, `upgrade_field`, `pay_tax`, `apply_fertilizer`: burn-based upkeep;
   level/type scaling, tax prepay ≤28 days, fertilizer ≤7 days.
+  `repair_field` prices **only the missing durability**:
+  `BASE_REPAIR_MICRO × type_cost × max(level/3, 1) × (100 − durability) / 100`
+  (minimum 1 micro), so repairing at 96 durability costs 4 % of a full repair
+  instead of 100 %. `apply_fertilizer` is priced against the yield it multiplies:
+  `BASE_FERTILIZER_MICRO × type_yield × level_mult × durability_mult`
+  (minimum 1 micro) — +50 % of daily yield always costs 40 % of that gain, at any
+  level and any durability.
 - `upgrade_field`: the 5 % mutation roll mixes in the latest `SlotHashes` entry —
   the hash of the inclusion slot is unknown when the player signs, so slot
   grinding for a guaranteed Golden/Silicon mutation does not work. Requires the

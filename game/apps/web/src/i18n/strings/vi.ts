@@ -497,6 +497,8 @@ export default {
   'Покупка лицензии за SKR закрыта до отдельного одобрения запуска.': 'Việc mua giấy phép bằng SKR bị đóng cho đến khi có phê duyệt ra mắt riêng.',
   'Поле неактивно.': 'Mảnh đất đang bất hoạt.',
   'Полив': 'Tưới nước',
+  'окупится < 1 сут': 'hoàn vốn sau < 1 ngày',
+  'окупится за {n} сут': 'hoàn vốn sau {n} ngày',
   'Полнолуние (пик)': 'Trăng tròn (đỉnh)',
   'Получено': 'Đã nhận',
   'Понятно': 'Rõ rồi',

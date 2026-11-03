@@ -497,6 +497,8 @@ export default {
   'Покупка лицензии за SKR закрыта до отдельного одобрения запуска.': 'Sarado ang pagbili ng lisensya gamit ang SKR hanggang magkaroon ng hiwalay na pag-apruba sa paglulunsad.',
   'Поле неактивно.': 'Hindi aktibo ang hilaw.',
   'Полив': 'Paglalagyan ng tubig',
+  'окупится < 1 сут': 'babalik sa < 1 araw',
+  'окупится за {n} сут': 'babalik sa {n} araw',
   'Полнолуние (пик)': 'Puno ng buwan (peak)',
   'Получено': 'Nakuha',
   'Понятно': 'Sobrang malinaw',

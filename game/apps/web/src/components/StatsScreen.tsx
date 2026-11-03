@@ -7,7 +7,7 @@ import { getMint } from '@solana/spl-token'
 import { useSolana } from '../contexts/SolanaContext'
 import { usePolling } from '../hooks/usePolling'
 import { withRetry } from '../utils/rpc'
-import { LUNAR_TABLE, MAX_DURABILITY, MICRO, fieldTypeInfo, mutationInfo } from '../utils/constants'
+import { LUNAR_TABLE, MAX_DURABILITY, MICRO, fieldTypeInfo, lunarDayIndex, mutationInfo } from '../utils/constants'
 import { useGame, type Field } from '../contexts/GameContext'
 import {
   getLunarMultiplier,
@@ -40,8 +40,8 @@ interface EconomyData {
  elasticCap: number
  fieldCount: number
  players: number
- // Значения лунного цикла доступны только если текущая on-chain эпоха загружена.
- epochId: number | null
+ // P2-6: фаза луны — функция UTC-дня, а не номера эпохи.
+ lunarDay: number
  lunarMultiplier: number | null
  lunarPhase: string | null
  taxBps: number
@@ -142,9 +142,9 @@ function EconomySection({ data }: { data: EconomyData }) {
  )
 }
 
-function LunarWeather({ epochId, lunarMultiplier, lunarPhase }: Pick<EconomyData, 'epochId' | 'lunarMultiplier' | 'lunarPhase'>) {
+function LunarWeather({ lunarDay, lunarMultiplier, lunarPhase }: { lunarDay: number | null; lunarMultiplier: number | null; lunarPhase: string | null }) {
  const { t } = useI18n()
- if (epochId === null || lunarMultiplier === null || lunarPhase === null) {
+ if (lunarDay === null || lunarMultiplier === null || lunarPhase === null) {
   return (
    <ConsolePanel title={t('ЛУННОЕ ОКНО · 28 ЭПОХ')} tone="magenta">
     <EmptyState title={t('Нет данных текущей on-chain эпохи.')} hint={t('Ожидаем ответ Solana RPC…')} />
@@ -152,7 +152,8 @@ function LunarWeather({ epochId, lunarMultiplier, lunarPhase }: Pick<EconomyData
   )
  }
 
- const day = ((epochId % 28) + 28) % 28 + 1
+ // P2-6: фаза считается от UTC-дня, как в программе, а не от номера эпохи.
+ const day = lunarDay + 1
  const minBps = Math.min(...LUNAR_TABLE)
  const maxBps = Math.max(...LUNAR_TABLE)
  const range = Math.max(1, maxBps - minBps)
@@ -311,9 +312,10 @@ function StatsScreenInner() {
   const currentSupply = Number(mintInfo.supply) / MICRO
   const maxSupply = Number(config.maxSupplyMicro) / MICRO
   const elasticCap = getElasticCap(prevBurned, lastCap, lastMinted)
-  const epochId = epoch ? Number(epoch.id) : null
-  const lunarMultiplier = epochId === null ? null : getLunarMultiplier(epochId)
-  const lunarPhase = epochId === null ? null : getLunarPhase(epochId)
+  // P2-6: лунная фаза больше не зависит от epoch.id — только от UTC-дня.
+  const lunarDay = lunarDayIndex(Math.floor(Date.now() / 1000))
+  const lunarMultiplier = getLunarMultiplier(lunarDay)
+  const lunarPhase = getLunarPhase(lunarDay)
   const taxBps = getBaseTaxBps(currentSupply * MICRO, maxSupply * MICRO)
 
   setData({
@@ -325,7 +327,7 @@ function StatsScreenInner() {
    elasticCap,
    fieldCount: Number(config.fieldCount),
    players: byOwner.size,
-   epochId,
+   lunarDay,
    lunarMultiplier,
    lunarPhase,
    taxBps,
@@ -358,7 +360,7 @@ function StatsScreenInner() {
 
    <div style={{ display: 'grid', gap: 14, marginBottom: 24 }}>
     <EconomySection data={data} />
-    <LunarWeather epochId={data.epochId} lunarMultiplier={data.lunarMultiplier} lunarPhase={data.lunarPhase} />
+    <LunarWeather lunarDay={data.lunarDay} lunarMultiplier={data.lunarMultiplier} lunarPhase={data.lunarPhase} />
     <MutationArchive fields={fields} connected={connected} loading={fieldsLoading} error={fieldsError} onRetry={() => void reloadFields()} />
    </div>
 

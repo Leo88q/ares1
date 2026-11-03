@@ -24,6 +24,9 @@ export const FEE_BURN_PERCENT = 60
 export const EXPORT_LICENSE_PRICE_SKR_ATOMS = 500_000_000n // 500 SKR (6 decimals)
 export const UNPAID_TAX_YIELD_BPS = 5_000
 export const FERTILIZER_YIELD_BPS = 15_000
+/** Mirror of Rust DURABILITY_*: 0.2× при 0, +0.008× за пункт (1.0× при 100). */
+export const DURABILITY_FLOOR_BPS = 2_000
+export const DURABILITY_SLOPE_BPS_PER_POINT = 80
 /** Harvest button becomes active above this amount (0.1 POTATO). */
 export const HARVEST_THRESHOLD_MICRO = 100_000
 /**
@@ -90,10 +93,48 @@ export const fieldPriceMicro = (fieldType: number) => scaledCostMicro(BASE_COST_
 export const taxCostMicro = (level: number, fieldType: number) =>
  scaledCostMicro(BASE_COST_MICRO.tax, fieldType) * Math.floor((level + 1) / 2)
 
-/** Rust floors level / 3, then clamps to 1: L1–5 → 1×, L6–8 → 2×. */
-export const repairCostMicro = (level: number, fieldType: number) =>
- scaledCostMicro(BASE_COST_MICRO.repair, fieldType) * Math.max(Math.floor(level / 3), 1)
-export const fertilizerCostMicro = (fieldType: number) => scaledCostMicro(BASE_COST_MICRO.fertilizer, fieldType)
+/**
+ * P2-4: ремонт стоит пропорционально **недостающей** прочности — зеркало
+ * `repair_cost_micro` в Rust: `BASE × type_cost × max(level/3, 1) × missing/100`,
+ * минимум 1 микро-атом. Rust floor'ит level / 3 и зажимает в 1: L1–5 → 1×, L6–8 → 2×.
+ */
+export const repairCostMicro = (level: number, fieldType: number, durability: number) => {
+ const missing = MAX_DURABILITY - Math.min(Math.max(durability, 0), MAX_DURABILITY)
+ const perPoint = scaledCostMicro(BASE_COST_MICRO.repair, fieldType) * Math.max(Math.floor(level / 3), 1)
+ return Math.max(1, Math.floor((perPoint * missing) / MAX_DURABILITY))
+}
+
+/**
+ * P2-4: удобрение стоит пропорционально доходности поля — зеркало
+ * `fertilizer_cost_micro`: `BASE × type_yield × level_mult × durability_mult`
+ * (целочисленное деление на каждом шаге, как в Rust), минимум 1 микро-атом.
+ */
+export const fertilizerCostMicro = (level: number, fieldType: number, durability: number) => {
+ const typed = Math.floor((BASE_COST_MICRO.fertilizer * fieldTypeInfo(fieldType).yieldBps) / BPS)
+ const leveled = Math.floor((typed * levelMultBps(level)) / BPS)
+ return Math.max(1, Math.floor((leveled * durabilityMultBps(durability)) / BPS))
+}
+
+/**
+ * Срок окупаемости ремонта в сутках (P2-4): сколько дней поле должно отдавать
+ * прирост урожая, чтобы цена ремонта вернулась. Нужен для честной подписи у
+ * кнопки: при пропорциональной цене он почти не зависит от прочности.
+ */
+export function repairPaybackDays(dailyYieldMicro: number, costMicro: number, durability: number): number {
+ const perDayGain = dailyYieldMicro * (DURABILITY_SLOPE_BPS_PER_POINT / BPS) * (MAX_DURABILITY - durability)
+ if (perDayGain <= 0) return 0
+ return costMicro / perDayGain
+}
+
+/**
+ * Срок окупаемости удобрения в сутках (P2-4): за 24 ч оно добавляет
+ * `FERTILIZER_YIELD_BPS/BPS − 1` суточного урожая поля.
+ */
+export function fertilizerPaybackDays(dailyYieldMicro: number, costMicro: number): number {
+ const perDayGain = dailyYieldMicro * ((FERTILIZER_YIELD_BPS - BPS) / BPS)
+ if (perDayGain <= 0) return 0
+ return costMicro / perDayGain
+}
 
 /** Cost of upgrading from `level` to `level + 1`. */
 export function upgradeCostMicro(level: number, fieldType: number): number {
@@ -108,7 +149,7 @@ export function levelMultBps(level: number): number {
 }
 
 export function durabilityMultBps(durability: number): number {
- return 2_000 + Math.min(durability, MAX_DURABILITY) * 80
+ return DURABILITY_FLOOR_BPS + Math.min(durability, MAX_DURABILITY) * DURABILITY_SLOPE_BPS_PER_POINT
 }
 
 /** Marketplace fee tier in bps for an order of `amountMicro`. */
@@ -127,7 +168,6 @@ export interface YieldInputs {
  taxPaidUntil: number
  fertilizerUntil: number
  mutationType?: number
- epochId?: number
 }
 
 export interface YieldConfig {
@@ -136,7 +176,7 @@ export interface YieldConfig {
 }
 
 /** Yield per day at the current state of the field, in micro POTATO. */
-/** Лунный цикл: 28 эпох, множитель yield в bps (8500–11500) — MUST match LUNAR_TABLE in programs/solana_potato/src/lib.rs */
+/** Лунный цикл: 28 дней, множитель yield в bps (8500–11500) — MUST match LUNAR_TABLE in programs/solana_potato/src/lib.rs */
 export const LUNAR_TABLE = [
  10_000, 10_334, 10_651, 10_935, 11_173, 11_352, 11_462, 11_500, // дни 0-7 (пик 1.15×)
  11_462, 11_352, 11_173, 10_935, 10_651, 10_334, 10_000, 9_666,  // дни 8-15
@@ -160,28 +200,37 @@ function dailyYieldMicroNoLunar(f: YieldInputs, cfg: YieldConfig, nowSec: number
  return mults.reduce((v, m) => (v * m) / BPS, cfg.baseYieldMicroPerDay)
 }
 
+/**
+ * Индекс дня лунного цикла по абсолютному UTC-времени — тот же, что
+ * `lunar_day_index` в программе (P2-6). Раньше фаза бралась из `epoch_id`, то
+ * есть молча предполагала «эпоха = ровно сутки»; при опоздавших роллах фаза
+ * уезжала на 1–2 дня и клиент показывал не тот множитель, по которому платит
+ * программа.
+ */
+export function lunarDayIndex(nowSec: number): number {
+ return ((Math.floor(nowSec / SECONDS_PER_DAY) % 28) + 28) % 28
+}
+
 export function dailyYieldMicro(f: YieldInputs, cfg: YieldConfig, nowSec: number): number {
- // Лунный цикл: детерминированный множитель по epoch_id (28 эпох)
- const lunar_bps = typeof f.epochId === 'number' && LUNAR_TABLE
-  ? LUNAR_TABLE[f.epochId % 28]
-  : BPS
+ const lunar_bps = LUNAR_TABLE[lunarDayIndex(nowSec)]
  return Math.floor((dailyYieldMicroNoLunar(f, cfg, nowSec) * lunar_bps) / BPS)
 }
 
 /**
  * Mirror of the on-chain `lunar_weighted_bps`: each trailing 86400s segment of
- * the accrual window is weighted by the lunar bps of its own epoch, so a
- * multi-day accrual spanning roll_epoch cannot be farmed at the peak rate.
+ * the accrual window is weighted by the lunar bps of its own **calendar day**,
+ * so a multi-day accrual cannot be farmed at the peak rate and the phase does
+ * not depend on when `roll_epoch` happened to run (P2-6).
  */
-export function lunarWeightedBps(elapsedSec: number, epochId: number): number {
- const current = LUNAR_TABLE[((epochId % 28) + 28) % 28]
- if (elapsedSec <= 0) return current
+export function lunarWeightedBps(elapsedSec: number, nowSec: number): number {
+ const today = lunarDayIndex(nowSec)
+ if (elapsedSec <= 0) return LUNAR_TABLE[today]
  let weighted = 0
  let remaining = elapsedSec
  let ageDays = 0
  while (remaining > 0) {
   const chunk = Math.min(remaining, SECONDS_PER_DAY)
-  const idx = ((((epochId - ageDays) % 28) + 28) % 28)
+  const idx = ((((today - ageDays) % 28) + 28) % 28)
   weighted += LUNAR_TABLE[idx] * chunk
   remaining -= chunk
   ageDays += 1
@@ -196,7 +245,7 @@ export function accumulatedMicro(
  nowSec: number,
 ): number {
  const elapsed = Math.min(Math.max(nowSec - f.lastHarvest, 0), MAX_ACCRUAL_SECONDS)
- const lunar = typeof f.epochId === 'number' ? lunarWeightedBps(elapsed, f.epochId) : BPS
+ const lunar = lunarWeightedBps(elapsed, nowSec)
  const perDay = dailyYieldMicroNoLunar(f, cfg, nowSec)
  return Math.floor((perDay * lunar * elapsed) / (BPS * SECONDS_PER_DAY))
 }

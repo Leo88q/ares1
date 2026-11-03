@@ -200,10 +200,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const fields = useMemo<Field[]>(() => {
   if (!config) return []
   const cfg = { baseYieldMicroPerDay: Number(config.baseYieldMicroPerDay), globalMultiplierBps: config.globalMultiplierBps }
-  const currentEpoch = Number(config.epochId)
+  // P2-6: лунная фаза теперь считается от времени внутри accumulatedMicro,
+  // поэтому epoch_id в расчёт не передаётся (и не может разъехаться с цепью).
   return rawFields.map((f) => ({
    ...f,
-   accumulated: accumulatedMicro({ ...f, epochId: currentEpoch }, cfg, nowSec),
+   accumulated: accumulatedMicro(f, cfg, nowSec),
   }))
  }, [rawFields, config, nowSec])
 
@@ -420,7 +421,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   [fieldSpend],
  )
  const repairField = useMemo(
-  () => fieldSpend(ixRepairField, (f) => repairCostMicro(f.level, f.fieldType), t('Не удалось отремонтировать поле')),
+  // P2-4: цена ремонта зависит от недостающей прочности — зеркало цены на цепи.
+  () => fieldSpend(ixRepairField, (f) => repairCostMicro(f.level, f.fieldType, f.durability), t('Не удалось отремонтировать поле')),
   [fieldSpend],
  )
  const payTax = useMemo(
@@ -428,7 +430,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   [fieldSpend],
  )
  const applyFertilizer = useMemo(
-  () => fieldSpend(ixApplyFertilizer, (f) => fertilizerCostMicro(f.fieldType), t('Не удалось удобрить поле')),
+  // P2-4: цена удобрения зависит от уровня и прочности — зеркало цены на цепи.
+  () => fieldSpend(ixApplyFertilizer, (f) => fertilizerCostMicro(f.level, f.fieldType, f.durability), t('Не удалось удобрить поле')),
   [fieldSpend],
  )
 

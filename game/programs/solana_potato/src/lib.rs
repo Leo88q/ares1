@@ -861,7 +861,6 @@ pub mod solana_potato {
             field,
             elapsed,
             now,
-            config.epoch_id,
         )?;
         require!(pending > 0, GameError::NothingToHarvest);
 
@@ -883,6 +882,9 @@ pub mod solana_potato {
         let supply_left = max_supply.saturating_sub(total_supply);
         let gross_mint = pending.min(epoch_cap_left).min(supply_left);
         require!(gross_mint > 0, GameError::EpochCapExceeded);
+        // P3-19: кап или max_supply урезали выплату — сообщаем это событием,
+        // чтобы UI мог предупредить игрока вместо тихого недоплата.
+        let truncated = gross_mint < pending;
 
         // Применяем налог: игрок получает (1 - tax), treasury получает tax/2, остальное burn
         let (player_yield, treasury_share) = split_harvest(gross_mint, base_tax_bps)?;
@@ -914,9 +916,7 @@ pub mod solana_potato {
         } else {
             DURABILITY_DECAY_INTERVAL
         };
-        let decay = (consumed / decay_interval)
-            .max(1)
-            .min(MAX_DURABILITY as i64) as u8;
+        let decay = harvest_decay(consumed, decay_interval, truncated);
         field.durability = field.durability.saturating_sub(decay);
 
         // ── Interaction ──
@@ -958,6 +958,8 @@ pub mod solana_potato {
             owner: ctx.accounts.field.owner,
             field: ctx.accounts.field.key(),
             amount_micro: player_yield,
+            pending_micro: pending,
+            truncated,
         });
 
         if treasury_share > 0 {
@@ -978,12 +980,12 @@ pub mod solana_potato {
             ctx.accounts.field.durability < MAX_DURABILITY,
             GameError::NothingToRepair
         );
-        let base_cost = scaled_cost(BASE_REPAIR_MICRO, ctx.accounts.field.field_type);
-        // Прогрессивный множитель ремонта: L1-2 → 1×, L30 → 10×, L50 → 16×
-        let level_mult = ((ctx.accounts.field.level as u64) / 3).max(1);
-        let cost = base_cost
-            .checked_mul(level_mult)
-            .ok_or(GameError::MathOverflow)?;
+        let cost = repair_cost_micro(
+            BASE_REPAIR_MICRO,
+            ctx.accounts.field.field_type,
+            ctx.accounts.field.durability,
+            ctx.accounts.field.level,
+        )?;
         burn_from_user(
             &ctx.accounts.token_program,
             &ctx.accounts.potato_mint,
@@ -1101,7 +1103,12 @@ pub mod solana_potato {
             new_until <= now.saturating_add(MAX_FERTILIZER_PREPAY),
             GameError::PrepayLimitReached
         );
-        let cost = scaled_cost(BASE_FERTILIZER_MICRO, field.field_type);
+        let cost = fertilizer_cost_micro(
+            BASE_FERTILIZER_MICRO,
+            field.field_type,
+            field.level,
+            field.durability,
+        )?;
         burn_from_user(
             &ctx.accounts.token_program,
             &ctx.accounts.potato_mint,
@@ -2637,7 +2644,6 @@ pub mod solana_potato {
         require!(!fields.is_empty(), GameError::NothingToHarvest);
         require!(fields.len() <= limit, GameError::InvalidAmount); // лимит полей/батч зависит от лицензии
 
-        let epoch_id = ctx.accounts.config.epoch_id;
         let base_yield = ctx.accounts.config.base_yield_micro_per_day;
         let global_bps = ctx.accounts.config.global_multiplier_bps;
         let total_supply = ctx.accounts.potato_mint.supply;
@@ -2684,8 +2690,7 @@ pub mod solana_potato {
             require!(f.is_active, GameError::FieldInactive);
             let elapsed = now.saturating_sub(f.last_harvest).min(MAX_ACCRUAL_SECONDS);
             require!(elapsed >= MIN_HARVEST_INTERVAL, GameError::HarvestTooSoon);
-            let pending =
-                compute_pending_yield(base_yield, global_bps, &f, elapsed, now, epoch_id)?;
+            let pending = compute_pending_yield(base_yield, global_bps, &f, elapsed, now)?;
             require!(pending > 0, GameError::NothingToHarvest);
             // Тот же split, что и в одиночном harvest (инвариант чек-листа п. 53).
             let (player_yield, treasury_share) = split_harvest(pending, base_tax_bps)?;
@@ -2714,7 +2719,12 @@ pub mod solana_potato {
 
         let scaled_player = (total_player as u128 * scale_num / scale_den) as u64;
         let scaled_treasury = (total_treasury as u128 * scale_num / scale_den) as u64;
-        require!(scaled_player > 0, GameError::NothingToHarvest);
+        // P3-19: раньше здесь стоял `NothingToHarvest`, хотя причина —
+        // исчерпанный кап. Ошибка сбивала с толку: игрок видел «собирать
+        // нечего» при полном поле урожая.
+        require!(scaled_player > 0, GameError::EpochCapExceeded);
+        // Урезание: общий множитель на весь батч, одинаковый для всех полей.
+        let scaled_truncated = scale_num != scale_den;
 
         // Эффекты: обновляем epoch и каждое поле
         ctx.accounts.epoch.minted_micro = ctx
@@ -2744,9 +2754,7 @@ pub mod solana_potato {
             } else {
                 DURABILITY_DECAY_INTERVAL
             };
-            let decay = (consumed / decay_interval)
-                .max(1)
-                .min(MAX_DURABILITY as i64) as u8;
+            let decay = harvest_decay(consumed, decay_interval, scaled_truncated);
             f.durability = f.durability.saturating_sub(decay);
             write_field_account(&f, &mut data)?;
         }
@@ -2787,6 +2795,8 @@ pub mod solana_potato {
             field_count: fields.len() as u8,
             total_micro: scaled_player,
             treasury_micro: scaled_treasury,
+            requested_micro: total_player,
+            truncated: scaled_truncated,
         });
         Ok(())
     }
@@ -2926,6 +2936,89 @@ pub fn field_price_micro(field_type: u8) -> u64 {
 /// Scales a type-1 base cost by the field type cost multiplier.
 pub fn scaled_cost(base_micro: u64, field_type: u8) -> u64 {
     ((base_micro as u128) * type_cost_bps(field_type) / BPS) as u64
+}
+
+/// Сколько пунктов прочности списывает сбор урожая (P3-19).
+///
+/// Износ пропорционален **оплаченному** времени (`consumed`), а не числу
+/// нажатий: сбор, урезанный капом эпохи до почти нулевой выплаты, больше не
+/// стоит пункта прочности. Минимум 1 пункт берётся только за сбор, закрывший
+/// окно целиком (`truncated == false`), иначе harvest раз в час был бы
+/// бесплатным по износу и поле никогда не пришлось бы ремонтировать.
+pub fn harvest_decay(consumed: i64, interval: i64, truncated: bool) -> u8 {
+    if interval <= 0 {
+        return 0;
+    }
+    let decay = (consumed.max(0) / interval).min(MAX_DURABILITY as i64) as u8;
+    if truncated {
+        decay
+    } else {
+        decay.max(1)
+    }
+}
+
+/// Стоимость ремонта поля: пропорциональна **недостающей** прочности.
+///
+/// Раньше ремонт стоил фиксированно `BASE_REPAIR × type × level_mult` независимо
+/// от того, 4 пункта нужно восстановить или все 100. При цене 6 POTATO за
+/// грядку ремонт с D = 96 окупался ~53 суток (прирост 0.008 × 4 × 3.5 POTATO/сут),
+/// то есть был заведомо убыточен, а с D = 0 — за 2 суток. Теперь игрок платит за
+/// каждый восстановленный пункт, и срок окупаемости почти не зависит от текущей
+/// прочности: `BASE × type × max(level/3, 1) × (100 − durability) / 100`.
+/// Минимум 1 микро-атом: ремонт не может быть бесплатным (иначе кнопку жмут
+/// ради события).
+pub fn repair_cost_micro(
+    base_micro: u64,
+    field_type: u8,
+    durability: u8,
+    level: u8,
+) -> Result<u64> {
+    let missing = MAX_DURABILITY.saturating_sub(durability.min(MAX_DURABILITY)) as u128;
+    // Прогрессивный множитель ремонта: L1-2 → 1×, L30 → 10×, L50 → 16×
+    let level_mult = ((level as u128) / 3).max(1);
+    let per_point = (scaled_cost(base_micro, field_type)? as u128)
+        .checked_mul(level_mult)
+        .ok_or(GameError::MathOverflow)?;
+    let max_durability = MAX_DURABILITY as u128;
+    let cost = per_point
+        .checked_mul(missing)
+        .ok_or(GameError::MathOverflow)?
+        / max_durability;
+    Ok(u64::try_from(cost).unwrap_or(u64::MAX).max(1))
+}
+
+/// Стоимость удобрения на 24 ч: пропорциональна доходности поля.
+///
+/// Раньше цена зависела только от типа (`BASE × type_cost`) и не зависела от
+/// уровня и прочности, хотя прибавка `FERTILIZER_YIELD_BPS` умножается на
+/// `get_level_mult` и `durability_mult_bps`. На грядке L1 с полной прочностью
+/// цена 0.8 POTATO окупалась, на грядке с прочностью 20 — нет, а на L30 та же
+/// цена 0.8 POTATO покупала +50 % к ~100 POTATO/сут.
+///
+/// Теперь цена = `BASE × type_yield × level_mult × durability_mult`, то есть
+/// 40 % от прибавки, которую удобрение даёт за свои 24 ч, при любом уровне и
+/// типе поля (`BASE_FERTILIZER_MICRO` откалиброван по базовому полю: 2 POTATO
+/// против 10 POTATO суточного урожая при 1.0×). Соотношение «прибавка / цена»
+/// остаётся 2.5× и не превращается ни в ловушку, ни в печатный станок.
+pub fn fertilizer_cost_micro(
+    base_micro: u64,
+    field_type: u8,
+    level: u8,
+    durability: u8,
+) -> Result<u64> {
+    let typed = (base_micro as u128)
+        .checked_mul(type_yield_bps(field_type))
+        .ok_or(GameError::MathOverflow)?
+        / BPS;
+    let scaled = typed
+        .checked_mul(get_level_mult(level))
+        .ok_or(GameError::MathOverflow)?
+        / BPS;
+    let scaled = scaled
+        .checked_mul(durability_mult_bps(durability))
+        .ok_or(GameError::MathOverflow)?
+        / BPS;
+    Ok(u64::try_from(scaled).unwrap_or(u64::MAX).max(1))
 }
 
 /// Cost of upgrading from `level` to `level + 1`.
@@ -3164,13 +3257,28 @@ fn extend_timer(current: i64, now: i64, period: i64) -> Result<i64> {
         .ok_or(GameError::MathOverflow.into())
 }
 
+/// P2-6: индекс дня лунного цикла по абсолютному UTC-времени:
+/// `floor(now / 86400) mod 28` (для отрицательных `now` — `rem_euclid`, чтобы
+/// индекс всегда попадал в `0..28`).
+///
+/// Раньше фаза бралась из `config.epoch_id` (`LUNAR_TABLE[epoch_id % 28]`), то
+/// есть код молча предполагал, что эпоха — ровно сутки. `roll_epoch` может
+/// опаздывать или не вызываться вовсе: тогда фаза уезжала относительно
+/// календаря, игрок мог подгадать сбор под пик, а кап эпохи при этом замирал.
+/// Время — общий источник правды и для программы, и для клиента.
+pub fn lunar_day_index(now: i64) -> i128 {
+    (now.div_euclid(SECONDS_PER_DAY) as i128).rem_euclid(28)
+}
+
 /// Time-weighted lunar multiplier (bps) for an accrual window of `elapsed`
-/// seconds ending in `epoch_id`. The window is split into trailing 86 400 s
-/// segments; segment `k` (0 = most recent) is weighted by
-/// `LUNAR_TABLE[(epoch_id - k) mod 28]`. For `elapsed <= 86400` this is
-/// exactly `LUNAR_TABLE[epoch_id % 28]`, so single-day behaviour is unchanged.
-pub fn lunar_weighted_bps(elapsed: i64, epoch_id: u64) -> u128 {
-    let current = LUNAR_TABLE[(epoch_id % 28) as usize] as u128;
+/// seconds ending at `now`. The window is split into trailing 86 400 s
+/// segments; segment `k` (0 = most recent) is weighted by the lunar bps of the
+/// calendar day it covers: `LUNAR_TABLE[(lunar_day_index(now) - k) mod 28]`.
+/// For `elapsed <= 86400` this is exactly today's table value, so single-day
+/// behaviour is unchanged.
+pub fn lunar_weighted_bps(elapsed: i64, now: i64) -> u128 {
+    let today = lunar_day_index(now);
+    let current = LUNAR_TABLE[today as usize] as u128;
     if elapsed <= 0 {
         return current;
     }
@@ -3179,7 +3287,7 @@ pub fn lunar_weighted_bps(elapsed: i64, epoch_id: u64) -> u128 {
     let mut age_days: i128 = 0;
     while remaining > 0 {
         let chunk = remaining.min(SECONDS_PER_DAY);
-        let idx = ((epoch_id as i128 - age_days).rem_euclid(28)) as usize;
+        let idx = (today - age_days).rem_euclid(28) as usize;
         weighted =
             weighted.saturating_add((LUNAR_TABLE[idx] as u128).saturating_mul(chunk as u128));
         remaining -= chunk;
@@ -3196,7 +3304,6 @@ pub fn compute_pending_yield(
     field: &Field,
     elapsed: i64,
     now: i64,
-    epoch_id: u64,
 ) -> Result<u64> {
     let tax_bps = if now > field.tax_paid_until {
         UNPAID_TAX_YIELD_BPS
@@ -3214,10 +3321,10 @@ pub fn compute_pending_yield(
         _ => BPS,
     };
     // Лунный цикл: взвешенный по сегментам множитель. Начисление может
-    // охватывать до 7 суток (MAX_ACCRUAL_SECONDS) = до 7 эпох; каждая
-    // trailing-сутка оценивается по лунному bps СВОЕЙ эпохи, а не только
-    // текущей (иначе harvest прямо перед roll_epoch давал бесплатный арбитраж).
-    let lunar_bps: u128 = lunar_weighted_bps(elapsed, epoch_id);
+    // охватывать до 7 суток (MAX_ACCRUAL_SECONDS); каждая trailing-сутка
+    // оценивается по лунному bps СВОЕГО календарного дня, а не только текущего
+    // (иначе сбор на стыке суток давал бы бесплатный арбитраж).
+    let lunar_bps: u128 = lunar_weighted_bps(elapsed, now);
     let multipliers = [
         get_level_mult(field.level),
         durability_mult_bps(field.durability),
@@ -4944,6 +5051,10 @@ pub struct Harvested {
     pub owner: Pubkey,
     pub field: Pubkey,
     pub amount_micro: u64,
+    /// Начислено до урезания капом эпохи / max_supply (P3-19).
+    pub pending_micro: u64,
+    /// `true`, если выплата урезана: `amount_micro` не отражает всё начисление.
+    pub truncated: bool,
 }
 
 #[event]
@@ -5107,6 +5218,10 @@ pub struct BatchHarvested {
     pub field_count: u8,
     pub total_micro: u64,
     pub treasury_micro: u64,
+    /// Сумма, причитавшаяся всем полям до урезания капом (P3-19).
+    pub requested_micro: u64,
+    /// `true`, если кап эпохи / max_supply урезали выплату.
+    pub truncated: bool,
 }
 
 #[event]
@@ -5333,6 +5448,83 @@ mod tests {
     }
 
     #[test]
+    fn repair_cost_is_proportional_to_missing_durability() {
+        // Полная цена — только когда восстанавливать нужно все 100 пунктов.
+        assert_eq!(
+            repair_cost_micro(BASE_REPAIR_MICRO, 1, 0, 1).unwrap(),
+            15_000_000
+        );
+        // Грядка дешевле луга (type_cost 0.4×): 6 POTATO за полный ремонт.
+        assert_eq!(
+            repair_cost_micro(BASE_REPAIR_MICRO, 0, 0, 1).unwrap(),
+            6_000_000
+        );
+        // Пропорциональность: половина прочности — половина цены.
+        assert_eq!(
+            repair_cost_micro(BASE_REPAIR_MICRO, 1, 50, 1).unwrap(),
+            7_500_000
+        );
+        assert_eq!(
+            repair_cost_micro(BASE_REPAIR_MICRO, 1, 96, 1).unwrap(),
+            600_000
+        );
+        // Уровень масштабирует цену (L30 = 10×), как и прежний level_mult.
+        assert_eq!(
+            repair_cost_micro(BASE_REPAIR_MICRO, 1, 0, 30).unwrap(),
+            150_000_000
+        );
+        // Ремонт никогда не бесплатен: минимум 1 микро-атом.
+        assert_eq!(repair_cost_micro(BASE_REPAIR_MICRO, 1, 100, 1).unwrap(), 1);
+        // Прочность выше максимума не делает цену отрицательной.
+        assert_eq!(repair_cost_micro(BASE_REPAIR_MICRO, 1, 200, 1).unwrap(), 1);
+    }
+
+    #[test]
+    fn fertilizer_cost_tracks_the_yield_it_multiplies() {
+        // База: луг L1 с полной прочностью — 2 POTATO, как и раньше.
+        assert_eq!(
+            fertilizer_cost_micro(BASE_FERTILIZER_MICRO, 1, 1, 100).unwrap(),
+            2_000_000
+        );
+        // Грядка даёт 0.35× урожая — и стоит 0.35× (было 0.8: убыток).
+        assert_eq!(
+            fertilizer_cost_micro(BASE_FERTILIZER_MICRO, 0, 1, 100).unwrap(),
+            700_000
+        );
+        assert_eq!(
+            fertilizer_cost_micro(BASE_FERTILIZER_MICRO, 2, 1, 100).unwrap(),
+            4_200_000
+        );
+        // Изношенное поле даёт меньше — цена падает пропорционально.
+        assert_eq!(
+            fertilizer_cost_micro(BASE_FERTILIZER_MICRO, 1, 1, 50).unwrap(),
+            1_200_000
+        );
+        // Уровень масштабирует цену вместе с прибавкой (L30 = 12.86×).
+        assert_eq!(
+            fertilizer_cost_micro(BASE_FERTILIZER_MICRO, 1, 30, 100).unwrap(),
+            25_720_000
+        );
+    }
+
+    #[test]
+    fn harvest_decay_charges_only_for_paid_time() {
+        let interval = DURABILITY_DECAY_INTERVAL;
+        // Сбор, закрывший сутки, изнашивает поле на 4 пункта.
+        assert_eq!(harvest_decay(SECONDS_PER_DAY, interval, false), 4);
+        // Частый сбор всё равно стоит минимум 1 пункт (иначе износ бесплатен).
+        assert_eq!(harvest_decay(60, interval, false), 1);
+        // Урезанный капом сбор, которому зачли почти ноль времени, бесплатен.
+        assert_eq!(harvest_decay(0, interval, true), 0);
+        assert_eq!(harvest_decay(interval - 1, interval, true), 0);
+        assert_eq!(harvest_decay(interval, interval, true), 1);
+        // Износ не может превысить всю прочность и не паникует на мусоре.
+        assert_eq!(harvest_decay(i64::MAX, interval, false), MAX_DURABILITY);
+        assert_eq!(harvest_decay(-5, interval, false), 1);
+        assert_eq!(harvest_decay(100, 0, false), 0);
+    }
+
+    #[test]
     fn upgrade_cost_scales_with_level_and_type() {
         assert_eq!(upgrade_cost_micro(1, 1).unwrap(), 30_000_000);
         assert_eq!(upgrade_cost_micro(10, 1).unwrap(), 300_000_000);
@@ -5349,7 +5541,6 @@ mod tests {
             &f,
             SECONDS_PER_DAY,
             1,
-            0,
         )
         .unwrap();
         assert_eq!(y, DEFAULT_BASE_YIELD_MICRO_PER_DAY);
@@ -5359,11 +5550,11 @@ mod tests {
     fn unpaid_tax_halves_yield_and_fertilizer_adds_half() {
         let mut f = field(1, 100, 1);
         f.tax_paid_until = 0; // overdue at now = 10
-        let y = compute_pending_yield(6_000_000, 10_000, &f, SECONDS_PER_DAY, 10, 0).unwrap();
+        let y = compute_pending_yield(6_000_000, 10_000, &f, SECONDS_PER_DAY, 10).unwrap();
         assert_eq!(y, 3_000_000);
         f.tax_paid_until = i64::MAX;
         f.fertilizer_until = i64::MAX;
-        let y = compute_pending_yield(6_000_000, 10_000, &f, SECONDS_PER_DAY, 10, 0).unwrap();
+        let y = compute_pending_yield(6_000_000, 10_000, &f, SECONDS_PER_DAY, 10).unwrap();
         assert_eq!(y, 9_000_000);
     }
 
@@ -5384,7 +5575,6 @@ mod tests {
                 &f,
                 TAX_PERIOD,
                 1,
-                0,
             )
             .unwrap();
             let tax = scaled_cost(BASE_TAX_MICRO, t);
@@ -5394,26 +5584,39 @@ mod tests {
 
     #[test]
     fn lunar_weight_is_segment_weighted_over_trailing_days() {
-        // Одна эпоха назад = ровно табличное значение текущей эпохи.
+        // P2-6: индекс дня берётся из времени, а не из epoch_id.
+        // Ровно сутки назад = ровно табличное значение текущего дня.
+        assert_eq!(lunar_weighted_bps(SECONDS_PER_DAY, 0), LUNAR_TABLE[0] as u128);
         assert_eq!(
-            lunar_weighted_bps(SECONDS_PER_DAY, 0),
-            LUNAR_TABLE[0] as u128
-        );
-        assert_eq!(
-            lunar_weighted_bps(SECONDS_PER_DAY, 3),
+            lunar_weighted_bps(SECONDS_PER_DAY, 3 * SECONDS_PER_DAY),
             LUNAR_TABLE[3] as u128
         );
-        // elapsed = 0 → текущая эпоха.
-        assert_eq!(lunar_weighted_bps(0, 27), LUNAR_TABLE[27] as u128);
-        // Двое суток, epoch_id = 0: средняя между LUNAR[0] и LUNAR[27].
+        // elapsed = 0 → текущий день.
+        assert_eq!(
+            lunar_weighted_bps(0, 27 * SECONDS_PER_DAY),
+            LUNAR_TABLE[27] as u128
+        );
+        // Двое суток в день 0: средняя между LUNAR[0] и LUNAR[27].
         let expected = (LUNAR_TABLE[0] as u128 + LUNAR_TABLE[27] as u128) / 2;
         assert_eq!(lunar_weighted_bps(2 * SECONDS_PER_DAY, 0), expected);
-        // Частичный сегмент взвешивается по своей длительности.
-        // 1.5 суток, epoch 0: 86400 s по LUNAR[0] + 43200 s по LUNAR[27].
+        // Частичный сегмент взвешивается по своей длительности:
+        // 1.5 суток в день 0 → 86400 s по LUNAR[0] + 43200 s по LUNAR[27].
         let w = (LUNAR_TABLE[0] as u128 * 86_400 + LUNAR_TABLE[27] as u128 * 43_200) / 129_600;
         assert_eq!(lunar_weighted_bps(SECONDS_PER_DAY * 3 / 2, 0), w);
         // Семь суток (MAX_ACCRUAL) не выходят за границы таблицы.
-        let _ = lunar_weighted_bps(MAX_ACCRUAL_SECONDS, 5);
+        let _ = lunar_weighted_bps(MAX_ACCRUAL_SECONDS, 5 * SECONDS_PER_DAY);
+        // Фаза следует за временем, а не за числом роллов: два «сейчас» с
+        // разницей в 28 суток дают одинаковый множитель, хотя epoch_id мог
+        // уехать куда угодно.
+        for now in [0i64, 1_700_000_000, SECONDS_PER_DAY * 3] {
+            assert_eq!(
+                lunar_weighted_bps(SECONDS_PER_DAY, now),
+                lunar_weighted_bps(SECONDS_PER_DAY, now + 28 * SECONDS_PER_DAY)
+            );
+        }
+        assert_eq!(lunar_day_index(-1), 27);
+        assert_eq!(lunar_day_index(0), 0);
+        assert_eq!(lunar_day_index(SECONDS_PER_DAY * 28), 0);
     }
 
     #[test]
@@ -5833,7 +6036,7 @@ mod tests {
         // Пп. 13–14: checked-цепочка + потолок u64; отрицательный elapsed
         // зажимается, а не паникует.
         let f = field(MAX_FIELD_LEVEL, MAX_DURABILITY, 2);
-        let y = compute_pending_yield(u64::MAX, u16::MAX, &f, MAX_ACCRUAL_SECONDS, 1, u64::MAX)
+        let y = compute_pending_yield(u64::MAX, u16::MAX, &f, MAX_ACCRUAL_SECONDS, 1)
             .expect("checked math must not overflow-panic");
         assert_eq!(
             y,
@@ -5841,11 +6044,11 @@ mod tests {
             "extreme yield is capped at u64::MAX, never panics"
         );
         assert_eq!(
-            compute_pending_yield(u64::MAX, u16::MAX, &f, 0, 0, 0).unwrap(),
+            compute_pending_yield(u64::MAX, u16::MAX, &f, 0, 0).unwrap(),
             0
         );
         assert_eq!(
-            compute_pending_yield(6_000_000, 10_000, &f, -1, 0, 0).unwrap(),
+            compute_pending_yield(6_000_000, 10_000, &f, -1, 0).unwrap(),
             0
         );
     }
@@ -5865,10 +6068,10 @@ mod tests {
     #[test]
     fn lunar_weighted_bps_stays_within_table_extremes() {
         // П. 10: взвешенный лунный множитель всегда внутри [8500, 11500] —
-        // межэпохальный арбитраж перед/после roll_epoch невозможен.
+        // арбитраж на стыке дней (и на отставании roll_epoch) невозможен.
         let mut min = u128::MAX;
         let mut max = 0u128;
-        for epoch in 0..2_000u64 {
+        for day in 0..2_000i64 {
             for elapsed in [
                 0i64,
                 1,
@@ -5877,7 +6080,7 @@ mod tests {
                 2 * SECONDS_PER_DAY,
                 MAX_ACCRUAL_SECONDS,
             ] {
-                let w = lunar_weighted_bps(elapsed, epoch);
+                let w = lunar_weighted_bps(elapsed, day * SECONDS_PER_DAY);
                 min = min.min(w);
                 max = max.max(w);
             }
@@ -6096,10 +6299,9 @@ mod tests {
             let base = rng.below(MAX_BASE_YIELD_MICRO_PER_DAY) + 1;
             let global = rng.below(MAX_GLOBAL_MULTIPLIER_BPS as u64 + 1) as u16;
             let now = rng.below(1_000_000_000) as i64;
-            let epoch = rng.next_u64();
             let mut previous = 0u64;
             for day in 1..=MAX_ACCRUAL_SECONDS / SECONDS_PER_DAY {
-                let y = compute_pending_yield(base, global, &f, day * SECONDS_PER_DAY, now, epoch)
+                let y = compute_pending_yield(base, global, &f, day * SECONDS_PER_DAY, now)
                     .expect("checked chain must not panic");
                 assert!(
                     y >= previous,

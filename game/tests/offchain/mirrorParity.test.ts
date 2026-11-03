@@ -27,6 +27,8 @@ import {
   durabilityMultBps,
   feeBps,
   levelMultBps,
+  lunarDayIndex,
+  lunarWeightedBps,
 } from '../../apps/web/src/utils/constants'
 import {
   SETTLEMENT_FEE_BPS,
@@ -197,6 +199,49 @@ test('LUNAR_TABLE побайтово совпадает с Rust-таблицей
     [LUNAR_TABLE[0], LUNAR_TABLE[7], LUNAR_TABLE[21], LUNAR_TABLE[27]],
     [10_000, 11_500, 8_500, 9_666],
   )
+})
+
+test('P2-6: лунная фаза считается от UTC-времени, а не от номера эпохи', () => {
+  // Rust-сигнатуры: второй аргумент — время, `epoch_id` в них больше нет.
+  assert.match(rust, /pub fn lunar_day_index\(now: i64\) -> i128 \{/)
+  assert.match(rust, /pub fn lunar_weighted_bps\(elapsed: i64, now: i64\) -> u128 \{/)
+  assert.match(rustBody('lunar_day_index'), /now\.div_euclid\(SECONDS_PER_DAY\)/)
+  assert.match(rustBody('lunar_weighted_bps'), /lunar_day_index\(now\)/)
+  // compute_pending_yield больше не принимает epoch_id — фаза выводится из now.
+  assert.match(rust, /pub fn compute_pending_yield\(\s*base_yield_micro_per_day: u64,[^)]*now: i64,\s*\) -> Result<u64>/)
+  // Лунный множитель внутри функции берётся от now, эпоха не передаётся.
+  const pendingBody = rustBody('compute_pending_yield').split('\n}\n')[0]
+  assert.match(pendingBody, /lunar_weighted_bps\(elapsed, now\)/)
+  assert.doesNotMatch(pendingBody, /epoch_id/)
+
+  // Golden-значения фазы: день 0 — база, день 7 — пик, день 21 — дно.
+  assert.equal(lunarDayIndex(0), 0)
+  assert.equal(lunarDayIndex(7 * 86_400 + 5), 7)
+  assert.equal(lunarDayIndex(21 * 86_400), 21)
+  assert.equal(lunarDayIndex(28 * 86_400), 0)
+  assert.equal(lunarDayIndex(-1), 27)
+  assert.equal(lunarWeightedBps(0, 7 * 86_400), 11_500)
+  assert.equal(lunarWeightedBps(0, 21 * 86_400), 8_500)
+  // Окно до суток = ровно значение текущего дня (как в Rust).
+  assert.equal(lunarWeightedBps(86_400, 12 * 3_600), LUNAR_TABLE[0])
+  // Двое суток в день 0 = средняя таблицы дня 0 и дня 27.
+  assert.equal(lunarWeightedBps(2 * 86_400, 0), Math.floor((LUNAR_TABLE[0] + LUNAR_TABLE[27]) / 2))
+  // 1.5 суток: 86 400 s по дню 0 + 43 200 s по дню 27.
+  assert.equal(
+    lunarWeightedBps(129_600, 0),
+    Math.floor((LUNAR_TABLE[0] * 86_400 + LUNAR_TABLE[27] * 43_200) / 129_600),
+  )
+  // Фаза повторяется с периодом 28 суток, сколько бы эпох ни прошло.
+  for (const now of [0, 1_700_000_000, 3 * 86_400]) {
+    assert.equal(lunarWeightedBps(86_400, now), lunarWeightedBps(86_400, now + 28 * 86_400))
+  }
+  // Множитель всегда внутри табличных экстремумов: подгадать пик нельзя.
+  for (let day = 0; day < 28; day += 1) {
+    for (const elapsed of [0, 1, 3_600, 86_400, 2 * 86_400, MAX_ACCRUAL_SECONDS]) {
+      const bps = lunarWeightedBps(elapsed, day * 86_400 + 1_234)
+      assert.ok(bps >= 8_500 && bps <= 11_500, `day ${day} elapsed ${elapsed}: ${bps}`)
+    }
+  }
 })
 
 test('порог кнопки сбора и цена лицензии — golden-литералы в понятных единицах', () => {

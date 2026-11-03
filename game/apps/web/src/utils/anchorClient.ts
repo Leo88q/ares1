@@ -645,13 +645,17 @@ export const LUNAR_TABLE: number[] = [
   8827,  9065,  9349,  9666,                               // дни 24-27
 ];
 
-export function getLunarMultiplier(epochId: number): number {
-  const idx = epochId % 28;
+/**
+ * P2-6: фаза луны — функция времени, а не номера эпохи. `lunarDay` — индекс
+ * дня (`floor(now / 86400) mod 28`), тот же, что в программе.
+ */
+export function getLunarMultiplier(lunarDay: number): number {
+  const idx = ((lunarDay % 28) + 28) % 28;
   return LUNAR_TABLE[idx] / 10000;
 }
 
-export function getLunarPhase(epochId: number): string {
-  const day = epochId % 28;
+export function getLunarPhase(lunarDay: number): string {
+  const day = ((lunarDay % 28) + 28) % 28;
   if (day <= 3) return t('Растущая луна');
   if (day <= 7) return t('Первая четверть');
   if (day <= 10) return t('Прибывающая луна');

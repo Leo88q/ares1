@@ -497,6 +497,8 @@ export default {
   'Покупка лицензии за SKR закрыта до отдельного одобрения запуска.': 'Pembelian lisensi dengan SKR ditutup sampai peluncuran disetujui secara terpisah.',
   'Поле неактивно.': 'Bedeng tidak aktif.',
   'Полив': 'Penyiraman',
+  'окупится < 1 сут': 'balik modal dalam < 1 hari',
+  'окупится за {n} сут': 'balik modal dalam {n} hari',
   'Полнолуние (пик)': 'Purnama (puncak)',
   'Получено': 'Diterima',
   'Понятно': 'Mengerti',

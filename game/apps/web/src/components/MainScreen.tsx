@@ -11,7 +11,7 @@ import { fieldVisual } from '../fields/model'
 import { fieldCopy } from '../fields/copy'
 import StoreSection from './StoreSection'
 import Header from './Header'
-import { FIELD_TYPES, fieldPriceMicro, fmtPotato, HARVEST_THRESHOLD_MICRO, BATCH_LIMIT_LICENSED } from '../utils/constants'
+import { FIELD_TYPES, fieldPriceMicro, fmtPotato, HARVEST_THRESHOLD_MICRO, BATCH_LIMIT_LICENSED, dailyYieldMicro } from '../utils/constants'
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 import { AgroBay } from './ares/AgroBay'
@@ -22,10 +22,17 @@ import { Tuber9 } from './ares/mascot'
 
 export default function MainScreen() {
  const { fields, stats, loading, fieldsError, reload, purchasing, harvest, purchaseField, upgradeField, repairField, payTax, applyFertilizer } = useGame()
- const { ready, rpcError, connected } = useSolana()
+ const { ready, rpcError, connected, config } = useSolana()
  const { lang } = useI18n()
  const fieldText = fieldCopy(lang)
- const visualFields = fields.map(field => fieldVisual(field, Math.floor(Date.now() / 1000)))
+ const nowSec = Math.floor(Date.now() / 1000)
+ const visualFields = fields.map(field => fieldVisual(field, nowSec))
+ // P2-4: суточный урожай поля нужен карточке, чтобы подписать окупаемость
+ // ремонта/удобрения. Без конфига карточка просто не показывает подпись.
+ const yieldCfg = config
+  ? { baseYieldMicroPerDay: Number(config.baseYieldMicroPerDay), globalMultiplierBps: config.globalMultiplierBps }
+  : null
+ const dailyYield = (field: typeof fields[number]) => yieldCfg ? dailyYieldMicro(field, yieldCfg, nowSec) : undefined
  return (
   <AgroBay>
    <div className="main-screen-container">
@@ -80,6 +87,7 @@ export default function MainScreen() {
             key={selected.id}
             field={field}
             index={index}
+            dailyYieldMicro={dailyYield(field)}
             onHarvest={harvest}
             onUpgrade={upgradeField}
             onRepair={repairField}
@@ -95,7 +103,7 @@ export default function MainScreen() {
             scanData={[{ label: 'LVL', value: String(field.level) }, { label: 'DUR', value: `${field.durability}%` }]}
            >
             <FieldCardVice
-             field={field} index={i}
+             field={field} index={i} dailyYieldMicro={dailyYield(field)}
              onHarvest={harvest} onUpgrade={upgradeField} onRepair={repairField}
              onPayTax={payTax} onApplyFertilizer={applyFertilizer}
             />

@@ -497,6 +497,8 @@ export default {
   'Покупка лицензии за SKR закрыта до отдельного одобрения запуска.': 'La compra de licencias con SKR está cerrada hasta que se apruebe un lanzamiento por separado.',
   'Поле неактивно.': 'La parcela está inactiva.',
   'Полив': 'Riego',
+  'окупится < 1 сут': 'se amortiza en < 1 día',
+  'окупится за {n} сут': 'se amortiza en {n} d',
   'Полнолуние (пик)': 'Luna llena (pico)',
   'Получено': 'Reclamado',
   'Понятно': 'Entendido',

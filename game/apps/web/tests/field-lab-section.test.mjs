@@ -38,7 +38,9 @@ test('Lab reads only connected wallet fields and reuses on-chain actions', () =>
   for (const callback of ['onHarvest={game.harvest}', 'onUpgrade={game.upgradeField}', 'onRepair={game.repairField}', 'onPayTax={game.payTax}', 'onApplyFertilizer={game.applyFertilizer}']) {
     assert.ok(lab.includes(callback), `Lab must reuse the existing callback: ${callback}`)
   }
-  assert.match(lab, /dailyYieldMicro\(\{ \.\.\.field, epochId \}, cfg, nowSec\)/)
+  // P2-6: лунная фаза считается от времени внутри dailyYieldMicro, epochId не нужен.
+  assert.match(lab, /dailyYieldMicro\(field, cfg, nowSec\)/)
+  assert.doesNotMatch(lab, /epochId/)
   assert.match(lab, /game\.stats\.potatoBalance/)
   assert.match(lab, /game\.stats\.skrBalance/)
   assert.match(lab, /\{connected && <MarketBook \/>}/)

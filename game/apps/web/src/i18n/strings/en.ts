@@ -497,6 +497,8 @@ export default {
   'Покупка лицензии за SKR закрыта до отдельного одобрения запуска.': 'License purchases with SKR are closed until separate launch approval.',
   'Поле неактивно.': 'The plot is inactive.',
   'Полив': 'Watering',
+  'окупится < 1 сут': 'pays back in < 1 day',
+  'окупится за {n} сут': 'pays back in {n} d',
   'Полнолуние (пик)': 'Full moon (peak)',
   'Получено': 'Claimed',
   'Понятно': 'Got it',
