@@ -6,11 +6,14 @@
 //! $POTATO for SOL on a built-in escrow marketplace.
 //!
 //! ## Economic guard rails
-//! * Emission through `harvest` / `batch_harvest` / `grant_reward` is bounded by
-//!   a per-epoch mint cap (`Epoch.mint_cap_micro`, dynamically clamped to
-//!   [daily_mint_cap_micro, 3×daily_mint_cap_micro] on every roll) and by
-//!   `GameConfig.max_supply_micro`. Manual `grant_reward` mints are additionally
-//!   capped at `GRANT_QUOTA_SHARE_BPS` (25 %) of the epoch cap.
+//! * Emission through `harvest` / `batch_harvest` / `grant_reward_once` is
+//!   bounded by a per-epoch mint cap (`Epoch.mint_cap_micro`, dynamically
+//!   clamped to [daily_mint_cap_micro, 3×daily_mint_cap_micro] on every roll)
+//!   and by `GameConfig.max_supply_micro`. Off-chain reward mints are
+//!   additionally capped at `GRANT_QUOTA_SHARE_BPS` (25 %) of the epoch cap.
+//! * The legacy `grant_reward` rail (signature-only, replayable) was **removed**
+//!   in the 2026-11-03 upgrade (P1-1); `grant_reward_once` is the only reward
+//!   mint, and it is replay-proof by construction.
 //! * Epochs are 24h long and are rolled permissionlessly via `roll_epoch`.
 //! * Every in-game spend is a burn; 60 % of marketplace fees are burned and the
 //!   remaining 40 % go to the treasury ATA owned by the config PDA.
@@ -66,8 +69,8 @@ pub const EPOCH_DURATION: i64 = SECONDS_PER_DAY;
 pub const MAX_DAILY_CAP_MICRO: u64 = 250_000_000_000;
 /// Hard ceiling for a single off-chain reward: 1 000 $POTATO.
 pub const MAX_REWARD_MICRO: u64 = 1_000_000_000;
-/// Manual `grant_reward` mints may consume at most this share (bps) of an
-/// epoch cap: 25 %. Gameplay harvests keep the rest.
+/// Off-chain reward mints (`grant_reward_once`) may consume at most this share
+/// (bps) of an epoch cap: 25 %. Gameplay harvests keep the rest.
 ///
 /// 10 % was the binding constraint on the whole store: the grant rail is the
 /// only way an off-chain purchase turns into POTATO, so a 10 % quota capped
@@ -1938,70 +1941,19 @@ pub mod solana_potato {
         Ok(())
     }
 
-    /// Authority-only (backend) reward mint, counted against the epoch cap.
-    pub fn grant_reward(ctx: Context<GrantReward>, amount_micro: u64) -> Result<()> {
-        require!(!ctx.accounts.config.paused, GameError::Paused);
-        // S-03: reward_signer отделён от authority — backend использует low-priv ключ (fallback к authority для совместимости)
-        let signer_key = ctx.accounts.authority.key();
-        let cfg = &ctx.accounts.config;
-        let authorized = signer_key == cfg.reward_signer || signer_key == cfg.authority;
-        require!(authorized, GameError::Unauthorized);
-        require!(
-            amount_micro > 0 && amount_micro <= MAX_REWARD_MICRO,
-            GameError::RewardTooLarge
-        );
-        // Грант обязан идти в каноническую ATA получателя: иначе «тот же
-        // получатель» определяется вызывающим, а не (owner, mint).
-        if !is_canonical_ata(
-            &ctx.accounts.user_potato.key(),
-            &ctx.accounts.user_potato.owner,
-            &ctx.accounts.potato_mint.key(),
-        ) {
-            msg!("user_potato must be the canonical ATA of (owner, mint)");
-            return Err(GameError::InvalidAuthority.into());
-        }
-        let supply_left = ctx
-            .accounts
-            .config
-            .max_supply_micro
-            .saturating_sub(ctx.accounts.potato_mint.supply);
-        require!(amount_micro <= supply_left, GameError::MaxSupplyReached);
-
-        charge_epoch_grant(&mut ctx.accounts.epoch, amount_micro)?;
-
-        let bump = ctx.accounts.config.bump;
-        let seeds: &[&[u8]] = &[b"config", &[bump]];
-        let signer: &[&[&[u8]]] = &[seeds];
-        token::mint_to(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                MintTo {
-                    mint: ctx.accounts.potato_mint.to_account_info(),
-                    to: ctx.accounts.user_potato.to_account_info(),
-                    authority: ctx.accounts.config.to_account_info(),
-                },
-                signer,
-            ),
-            amount_micro,
-        )?;
-        emit!(RewardGranted {
-            recipient: ctx.accounts.user_potato.owner,
-            amount_micro
-        });
-        Ok(())
-    }
-
-    /// Replay-proof reward rail (gate G-1, checklist item 41).
+    /// Replay-proof reward rail (gate G-1, checklist item 41) — **единственный**
+    /// способ минтить награды с 2026-11-03.
     ///
-    /// `grant_reward` above authorises by signature alone: the same signed
-    /// transaction can be submitted twice, and an off-chain "already paid"
-    /// check loses every race. That is the exact class of bug that cost Aurory
-    /// ~600k tokens. Here the payout is bound to a `reward_claim` PDA created
-    /// with `init`, so the second attempt with the same (recipient, nonce)
-    /// fails inside the runtime — no off-chain bookkeeping is trusted.
+    /// Раньше рядом жила `grant_reward`, авторизовавшаяся только подписью:
+    /// ту же подписанную транзакцию можно было провести дважды, а офчейн-флаг
+    /// «уже выплачено» проигрывал гонку. Именно этот класс бага стоил Aurory
+    /// ~600k токенов. Инструкция удалена целиком (P1-1, audited 2026-11-02):
+    /// здесь выплата привязана к `reward_claim` PDA, создаваемому через `init`,
+    /// поэтому повтор с тем же (recipient, nonce) падает в рантайме — никакой
+    /// офчейн-бухгалтерии не доверяем.
     ///
-    /// `expires_at` closes the durable-nonce window (G-1b): a signature that
-    /// sat in an attacker's pocket past its deadline mints nothing.
+    /// `expires_at` закрывает окно durable nonce (G-1b): подпись, пролежавшая
+    /// у атакующего дольше дедлайна, не минтит ничего.
     pub fn grant_reward_once(
         ctx: Context<GrantRewardOnce>,
         nonce: u64,
@@ -2449,7 +2401,9 @@ pub mod solana_potato {
         Ok(())
     }
 
-    /// S-03: обновляет reward_signer — только authority. Backend будет подписывать grant_reward этим ключом.
+    /// S-03: обновляет reward_signer — только authority. Backend подписывает
+    /// этим ключом `grant_reward_once` (replay-proof рельса); других минтов у
+    /// него нет.
     pub fn update_reward_signer(ctx: Context<UpdateConfig>, new_signer: Pubkey) -> Result<()> {
         require!(new_signer != Pubkey::default(), GameError::InvalidAuthority);
         ctx.accounts.config.reward_signer = new_signer;
@@ -2849,9 +2803,9 @@ fn write_field_account(field: &Field, data: &mut [u8]) -> Result<()> {
 
 // ────────────────────────── Pure helpers ─────────────────────────
 
-/// Списывает сумму гранта с квоты и капа эпохи. Один источник правды для
-/// `grant_reward` и `grant_reward_once`: если правило разъедется между двумя
-/// рельсами, более слабый станет обходным путём вокруг более строгого.
+/// Списывает сумму гранта с квоты и капа эпохи. Единственный источник правды
+/// для квоты: после удаления легаси-`grant_reward` (P1-1) остался один рельс
+/// (`grant_reward_once`), и правило не может разъехаться между двумя путями.
 pub fn charge_epoch_grant(epoch: &mut Epoch, amount_micro: u64) -> Result<()> {
     // Квота ручных грантов: суммарно не более GRANT_QUOTA_SHARE_BPS (25 %)
     // капа эпохи. Иначе скомпрометированный reward_signer мог бы вычерпать
@@ -4322,21 +4276,6 @@ pub struct BuyFieldSol<'info> {
     pub system_program: Program<'info, System>,
 }
 
-#[derive(Accounts)]
-pub struct GrantReward<'info> {
-    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
-    pub config: Account<'info, GameConfig>,
-    #[account(mut, seeds = [b"epoch", config.epoch_id.to_le_bytes().as_ref()], bump = epoch.bump)]
-    pub epoch: Account<'info, Epoch>,
-    /// S-03: может подписать как authority, так и reward_signer (low-priv backend)
-    pub authority: Signer<'info>,
-    #[account(mut)]
-    pub potato_mint: Account<'info, Mint>,
-    #[account(mut, token::mint = potato_mint)]
-    pub user_potato: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
-}
-
 /// Accounts for `grant_reward_once`. The replay protection is structural:
 /// `reward_claim` uses plain `init` (never the init-if-needed variant — SW016),
 /// so a repeat of
@@ -4630,7 +4569,7 @@ pub struct GameConfig {
     pub pending_authority: Pubkey,
     pub potato_mint: Pubkey,
     pub skr_mint: Pubkey, // S-01: конфигурируемый SKR mint (mainnet мигрируется без redeploy)
-    pub reward_signer: Pubkey, // S-03: low-priv ключ для grant_reward (backend), отделён от authority
+    pub reward_signer: Pubkey, // S-03: low-priv ключ для grant_reward_once (backend), отделён от authority
     pub max_supply_micro: u64,
     pub daily_mint_cap_micro: u64,
     pub base_yield_micro_per_day: u64,
@@ -4702,7 +4641,7 @@ pub struct Epoch {
     pub minted_micro: u64,
     pub start_time: i64,
     pub bump: u8,
-    /// micro-POTATO minted through `grant_reward` during this epoch.
+    /// micro-POTATO minted through `grant_reward_once` during this epoch.
     /// Counts toward the manual-grant quota (GRANT_QUOTA_SHARE_BPS of the cap).
     /// NOT a burn — the historical name was misleading; layout is unchanged.
     pub granted_micro: u64,
@@ -5166,6 +5105,11 @@ pub struct OrderExpiredEvent {
     pub order: Pubkey,
 }
 
+/// Легаси-событие рельсы `grant_reward`, удалённой в апгрейде 2026-11-03
+/// (P1-1). **Ни одна инструкция его больше не эмитит** — структура оставлена
+/// только потому, что имя входит в allowlist хаба-индексатора и в карту
+/// watchtower: удаление события сломало бы внешний контракт интеграции.
+/// Все реальные выплаты идут через `RewardGrantedOnce`.
 #[event]
 pub struct RewardGranted {
     /// Wallet that owns the receiving token account.

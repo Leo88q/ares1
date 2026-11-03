@@ -25,7 +25,7 @@
       "TokenBurned",
       "TreasuryChanged"
     ],
-    "reality": "Only RewardGranted exists on chain. The hub adapter list is a name allowlist, so real events (Harvested, FieldCreated, AchievementClaimed, ...) will not be recognized until the hub's list/mapping is updated or ARES-1 agrees to different event names. ARES-1 will not rename on-chain events without a coordinated program upgrade.",
+    "reality": "None of the names in that adapter list is a complete match for what the program emits: RewardGranted is a legacy struct that stays in the ABI only because the hub allowlist references it — since the 2026-11-03 upgrade no instruction emits it (the legacy grant_reward rail was removed), and reward mints surface as RewardGrantedOnce. The hub adapter list is a name allowlist, so real events (Harvested, FieldCreated, AchievementClaimed, RewardGrantedOnce, ...) will not be recognized until the hub's list/mapping is updated or ARES-1 agrees to different event names. ARES-1 will not rename on-chain events without a coordinated program upgrade.",
     "identityNote": "Hub projections prefer payload.playerKey; ARES-1 events carry real source field names (owner/recipient/buyer/user/seller/destination/referrer). Mapping must be agreed explicitly.",
     "offchainIdentityNote": "Hub offchainIdentity() uses provider + campaignId/pageId/sessionId/seq; ARES-1 has none of those identifiers today (no campaigns, pages, client sessions). Do not invent them."
   },
@@ -2305,12 +2305,10 @@
       "category": "economy",
       "resource": "POTATO",
       "emitter": {
-        "onchain": [
-          "grant_reward@lib.rs:1907"
-        ],
-        "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
+        "onchain": [],
+        "how": "No emitter since the 2026-11-03 upgrade: the legacy grant_reward instruction was removed (P1-1). The struct is still declared in lib.rs and therefore still present in the committed IDL, so the decoder keeps a type for old program logs; new logs are decoded only for RewardGrantedOnce."
       },
-      "meaning": "Legacy manual reward minted to a wallet (authority/reward-signer rail, capped, <=1000 POTATO per call). Signature-only rail, no on-chain nonce.",
+      "meaning": "Legacy manual reward minted to a wallet (authority/reward-signer rail, capped, <=1000 POTATO per call). Signature-only and replayable, therefore removed from the program; historical logs may still be decoded, no new emissions are possible.",
       "successVsAttempt": "success only (the instruction did not revert)",
       "payloadFields": [
         {
@@ -2386,7 +2384,7 @@
       "resource": "POTATO",
       "emitter": {
         "onchain": [
-          "grant_reward_once@lib.rs:1977"
+          "grant_reward_once@lib.rs:2020"
         ],
         "how": "Anchor emit! in game/programs/solana_potato/src/lib.rs; decoded from the program log line via the event discriminator in the committed IDL"
       },

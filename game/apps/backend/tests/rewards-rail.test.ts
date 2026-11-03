@@ -125,8 +125,9 @@ test('политика ключа: только grant_reward_once и идемп�
     keys: [],
     data: Buffer.concat([anchorDiscriminator('global', 'grant_reward_once'), Buffer.alloc(24)]),
   });
-  // P1-1: реплей-рельса остаётся в программе до миграции фронтов, но ключ
-  // наград не должен иметь возможности её подписать.
+  // P1-1: легаси-`grant_reward` удалён из программы 2026-11-03; политика
+  // обязана отклонить её дискриминатор, даже если кто-то соберёт его вручную
+  // из старого клиента — allowlist состоит ровно из одной инструкции.
   const legacyGrantIx = new TransactionInstruction({
     programId: game,
     keys: [],

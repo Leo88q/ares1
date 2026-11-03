@@ -17,9 +17,9 @@
 | Стандарт | SPL Token, 6 decimals | 1 🥔 = 1 000 000 micro |
 | Mint authority | PDA `["config"]` программы | Ни один человек не может минтить напрямую; `initialize` проверяет это на входе |
 | Freeze authority | отсутствует (проверяется в `initialize`) | Никто не может заморозить токены игроков |
-| `max_supply_micro` | 1 000 000 000 🥔 | Жёсткий потолок в `harvest` и `grant_reward` |
+| `max_supply_micro` | 1 000 000 000 🥔 | Жёсткий потолок в `harvest` и `grant_reward_once` |
 | `daily_mint_cap_micro` | 250 000 🥔/эпоху (24 ч) | Константа-потолок `MAX_DAILY_CAP_MICRO`; authority может только понижать |
-| Premine / team allocation | **нет** | Fair launch: 100 % supply появляется через `harvest` и `grant_reward` (≤ 1 000 🥔/tx, только backend; суммарно ручные гранты ≤ 25 % капа эпохи — `Epoch.granted_micro`) |
+| Premine / team allocation | **нет** | Fair launch: 100 % supply появляется через `harvest` и `grant_reward_once` (≤ 1 000 🥔/tx, только backend; суммарно ручные гранты ≤ 25 % капа эпохи — `Epoch.granted_micro`) |
 | Vesting | не применимо | Источники коммерческой выручки описаны отдельно; 40 % комиссии — только legacy V1, целевая V2-комиссия поступает в казну в валюте quote |
 
 **Оценка потолка.** При постоянном упоре в дневной кап 250 k 🥔 максимальный supply достигается за ~4 000 дней (11 лет). Реально кап не достигается на горизонте года при 1 000 игроков (см. симуляцию), поэтому реальным регулятором эмиссии является `base_yield_micro_per_day` (регулируется `update_config`).
@@ -202,7 +202,7 @@ Limit orders, сортировка по цене на клиенте, TTL 24 ч,
 |---|---|---|---|
 | Урожай игрока (`harvest`, после налога) | ATA игрока | `token::mint_to` в `harvest` | **~95–98 %** — `simulate(1 000)` за год: доля treasury-минта 2.0 % от всего mint; `simulate(100 000)` — 4.6 % |
 | Налог с урожая, доля казны (½ прогрессивного налога) | ATA казны | `token::mint_to` в `harvest` (`treasury_share`) | 2–5 % (растёт вместе с supply — см. ниже) |
-| Ручные гранты (`grant_reward_once`) | ATA получателя | `token::mint_to` в `grant_reward_once` (~же легаси `grant_reward` до удаления из программы) | ≤ **25 %** дневного капа эпохи (`GRANT_QUOTA_SHARE_BPS = 2 500`, счётчик `Epoch.granted_micro`); при капе 250 000 🥔 — 62 500 🥔/сутки, ~62 пака по 1 000 🥔 |
+| Ручные гранты (`grant_reward_once`) | ATA получателя | `token::mint_to` в `grant_reward_once` (единственный рельс наград; легаси `grant_reward` удалён из программы 2026-11-03) | ≤ **25 %** дневного капа эпохи (`GRANT_QUOTA_SHARE_BPS = 2 500`, счётчик `Epoch.granted_micro`); при капе 250 000 🥔 — 62 500 🥔/сутки, ~62 пака по 1 000 🥔 |
 | Квесты (`claim_achievement`) | ATA игрока | **не минт**: `token::transfer` из предфинансированного `quest_ata` (пул 550 🥔, `QUEST_REWARD_MICRO`); крон `QUEST_BUDGET_INTERVAL_SECONDS` доливает пул через `grant_reward_once` ниже low-water 100 🥔, не больше одного пула в UTC-сутки | 0 % собственной эмиссии; доливка входит в квоту ручных грантов |
 
 Источник доли > 40 % (урожай) — вынесен отдельно, как требует паттерн §3.4-1.

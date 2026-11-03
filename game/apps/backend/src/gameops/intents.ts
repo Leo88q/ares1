@@ -47,7 +47,7 @@ export function assertIntentInput(input: CreateIntentInput): void {
     throw new GameOpsError('VALIDATION', 'recipientAta не похож на Solana-адрес');
   }
   if (input.amountMicro <= 0n || input.amountMicro > 1_000_000_000n) {
-    throw new GameOpsError('VALIDATION', 'amountMicro должен быть больше 0 и не больше 1 000 000 000 (как в grant_reward)');
+    throw new GameOpsError('VALIDATION', 'amountMicro должен быть больше 0 и не больше 1 000 000 000 (как в grant_reward_once)');
   }
   if (input.nonce < 0n) throw new GameOpsError('VALIDATION', 'nonce не может быть отрицательным');
   const ttl = input.ttlSeconds ?? DEFAULT_TTL_SECONDS;
