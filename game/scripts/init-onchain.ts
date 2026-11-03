@@ -6,6 +6,7 @@
  *   4. initializes the presale (cap=500, SOL price=0.25 SOL; SKR price = 1053 SKR, program const)
  *   5. materializes the treasury_sol PDA vault (destination of buy_field_sol)
  *   6. materializes the quest_treasury PDA + ATA and funds the 550 🥔 achievement pool
+ *      through `grant_reward_once` with a fixed bootstrap nonce (replay-proof)
  *   7. creates the SKR treasury ATA for the SKR presale
  *   8. verifies the SKR mint exists on this cluster (SKR features need it)
  *
@@ -26,6 +27,7 @@
 import fs from "node:fs";
 import { decodeGameConfig } from "../apps/backend/src/anchorRaw";
 import { validateMigrationAccount } from "./migrationClient";
+import { buildGrantPotatoInstruction, computeExpiresAt } from "./grant-potato-core";
 import { safeError } from "../apps/backend/src/security";
 import crypto from "node:crypto";
 import {
@@ -56,6 +58,20 @@ const ADMIN_KEYPAIR_PATH = (process.env.ADMIN_KEYPAIR_PATH || `${process.env.HOM
 const QUEST_POOL_MICRO = 550_000_000n;
 const MICRO = 1_000_000n;
 
+/**
+ * Nonce единственного bootstrap-гранта квест-пула. Зафиксирован намеренно.
+ *
+ * Раньше пул финансировался replayable `grant_reward` (P1-1): повторный запуск
+ * бутстрапа или ретрай после таймаута минтил пул ещё раз, а число повторов
+ * ограничивала только квота эпохи. Теперь выплата идёт через
+ * `grant_reward_once`, где повтор защищён не бэкендом, а рантаймом: маркер
+ * `reward_claim` выводится из `(ATA пула, nonce)` и создаётся через `init`,
+ * поэтому второй такой грант падает. Фиксированный nonce превращает
+ * «пополнение» в осознанное действие оператора (свежий nonce в
+ * `scripts/grant-potato.ts`), а не в побочный эффект повторного запуска.
+ */
+const QUEST_POOL_BOOTSTRAP_NONCE = 1n;
+
 const connection = new Connection(RPC_URL, "confirmed");
 const admin = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(ADMIN_KEYPAIR_PATH, "utf-8"))));
 
@@ -67,6 +83,20 @@ const treasurySolPda = pda(Buffer.from("treasury_sol"));
 const questTreasuryPda = pda(Buffer.from("quest_treasury"));
 
 const disc = (name: string) => crypto.createHash("sha256").update(`global:${name}`).digest().subarray(0, 8);
+/** Маркер повтора `["reward", user_potato, nonce]` — тот же вывод, что в программе. */
+const rewardClaimPda = (userPotato: PublicKey, nonce: bigint) => pda(Buffer.from("reward"), userPotato.toBuffer(), u64LE(nonce));
+
+/**
+ * Цепное время для `expires_at`. Локальные часы не годятся: программа
+ * сравнивает `expires_at` с `Clock::unix_timestamp` и отвергает и просроченный
+ * грант, и слишком далёкий (MAX_REWARD_EXPIRY_SECONDS = 900 c).
+ */
+async function chainNow(): Promise<bigint> {
+  const slot = await connection.getSlot("confirmed");
+  const blockTime = await connection.getBlockTime(slot);
+  if (blockTime === null) throw new Error("RPC did not return a confirmed block time; refusing time-sensitive grant");
+  return BigInt(blockTime);
+}
 const u64LE = (v: bigint) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(v); return b; };
 const u32LE = (v: number) => { const b = Buffer.alloc(4); b.writeUInt32LE(v >>> 0); return b; };
 
@@ -268,23 +298,34 @@ async function main() {
     await ensurePdaVault(treasurySolPda, "treasury_sol");
     await ensurePdaVault(questTreasuryPda, "quest_treasury");
 
-    // ── Quest pool: ATA (owner = quest_treasury PDA) + grant_reward up to 550 🥔 ──
+    // ── Quest pool: ATA (owner = quest_treasury PDA) + grant_reward_once до 550 🥔 ──
     const questAta = await ensureAta(mint, questTreasuryPda);
     const questBal = (await getAccount(connection, questAta, "confirmed")).amount;
     if (questBal < QUEST_POOL_MICRO) {
       const grant = QUEST_POOL_MICRO - questBal;
-      console.log(`\nFunding quest treasury: granting ${grant / MICRO} 🥔 (one-time achievement pool)...`);
-      const ix = new TransactionInstruction({
+      const claim = rewardClaimPda(questAta, QUEST_POOL_BOOTSTRAP_NONCE);
+      if (await accountExists(claim)) {
+        // Маркер уже есть, значит грант с этим nonce когда-то прошёл. Догонять
+        // баланс тем же nonce нельзя (рантайм откажет), а новым — нельзя молча:
+        // это была бы вторая выплата в один пул. Решение принимает оператор.
+        throw new Error(
+          `Quest pool is ${questBal / MICRO} 🥔 (< ${QUEST_POOL_MICRO / MICRO}), but bootstrap nonce ` +
+            `${QUEST_POOL_BOOTSTRAP_NONCE} was already used (claim ${claim.toBase58()} exists). ` +
+            `A top-up is a deliberate action with a fresh nonce: scripts/grant-potato.ts, recipient = ${questAta.toBase58()}.`,
+        );
+      }
+      console.log(`\nFunding quest treasury: granting ${grant / MICRO} 🥔 (one-time achievement pool, grant_reward_once)...`);
+      const ix = buildGrantPotatoInstruction({
         programId: PROGRAM_ID,
-        keys: [
-          { pubkey: configPda, isSigner: false, isWritable: true },
-          { pubkey: epochPdaOf(epochId), isSigner: false, isWritable: true },
-          { pubkey: admin.publicKey, isSigner: true, isWritable: false },
-          { pubkey: mint, isSigner: false, isWritable: true },
-          { pubkey: questAta, isSigner: false, isWritable: true },
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        ],
-        data: Buffer.concat([disc("grant_reward"), u64LE(grant)]),
+        config: configPda,
+        epoch: epochPdaOf(epochId),
+        // authority платит rent маркера (в программе `init, payer = authority`).
+        authority: admin.publicKey,
+        potatoMint: mint,
+        userPotato: questAta,
+        nonce: QUEST_POOL_BOOTSTRAP_NONCE,
+        amountMicro: grant,
+        expiresAt: computeExpiresAt(await chainNow()),
       });
       const sig = await send(ix);
       console.log("Quest pool funded, tx:", sig);

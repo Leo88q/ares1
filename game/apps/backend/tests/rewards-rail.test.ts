@@ -125,6 +125,13 @@ test('политика ключа: только grant_reward_once и идемп�
     keys: [],
     data: Buffer.concat([anchorDiscriminator('global', 'grant_reward_once'), Buffer.alloc(24)]),
   });
+  // P1-1: реплей-рельса остаётся в программе до миграции фронтов, но ключ
+  // наград не должен иметь возможности её подписать.
+  const legacyGrantIx = new TransactionInstruction({
+    programId: game,
+    keys: [],
+    data: Buffer.concat([anchorDiscriminator('global', 'grant_reward'), Buffer.alloc(8)]),
+  });
   const rollIx = new TransactionInstruction({
     programId: game,
     keys: [],
@@ -140,6 +147,7 @@ test('политика ключа: только grant_reward_once и идемп�
   });
 
   assert.doesNotThrow(() => assertRewardInstructionsAllowed([ataOk, grantIx], game));
+  assert.throws(() => assertRewardInstructionsAllowed([legacyGrantIx], game), /REWARD_POLICY/);
   assert.throws(() => assertRewardInstructionsAllowed([rollIx], game), /REWARD_POLICY/);
   assert.throws(() => assertRewardInstructionsAllowed([ataCreate], game), /REWARD_POLICY/);
   assert.throws(() => assertRewardInstructionsAllowed([transfer], game), /REWARD_POLICY/);
