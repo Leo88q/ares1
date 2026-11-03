@@ -5501,7 +5501,11 @@ mod tests {
         let big_seller_volume = 200_000 * MICRO as u64;
         let legacy = order_fee_micro(order_micro).unwrap();
         let v2 = calculate_settlement_fee_v2(order_micro, 1_000_000, big_seller_volume).unwrap();
-        assert_eq!(calculate_fee_bps(order_micro), 500, "легаси смотрит только на ордер");
+        assert_eq!(
+            calculate_fee_bps(order_micro),
+            500,
+            "легаси смотрит только на ордер"
+        );
         assert_eq!(
             legacy, 500_000,
             "10 POTATO на легаси-рельсе: 5 %, независимо от объёма продавца"
