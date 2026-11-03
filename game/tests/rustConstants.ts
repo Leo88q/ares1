@@ -124,7 +124,7 @@ function evaluate(expression: string, name: string): bigint {
       if (take() !== ')') throw new Error(`rustConstants: несбалансированные скобки у ${name}`);
       return value;
     }
-    if (/^[0-9]/.test(token)) return BigInt(token.replaceAll('_', ''));
+    if (/^[0-9]/.test(token)) return BigInt(token.replace(/_/g, ''));
     if (/^[A-Za-z_]/.test(token)) return resolve(token);
     throw new Error(`rustConstants: неожиданный токен «${token}» у ${name}`);
   };
@@ -196,7 +196,7 @@ export function rustConstArray(name: string): bigint[] {
   // Комментарии внутри массива объясняют шаг лестницы («дни 0-7 (пик)») и
   // содержат числа: без срезки они попали бы в значения.
   const body = raw.slice(open + 1, close).replace(/\/\/[^\n]*/g, '');
-  const elements = [...body.matchAll(/[0-9][0-9_]*/g)].map((match) => BigInt(match[0].replaceAll('_', '')));
+  const elements = [...body.matchAll(/[0-9][0-9_]*/g)].map((match) => BigInt(match[0].replace(/_/g, '')));
   if (elements.length === 0) throw new Error(`rustConstants: массив ${name} пуст`);
   return elements;
 }
