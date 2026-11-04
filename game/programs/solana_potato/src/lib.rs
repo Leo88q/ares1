@@ -3244,10 +3244,31 @@ pub fn v2_gross_quote_atoms(amount_micro: u64, price_quote_atoms_per_potato: u64
     u64::try_from(gross).map_err(|_| GameError::MathOverflow.into())
 }
 
-/// Calculate V2 settlement fees using a seller's rolling UTC-day POTATO
-/// volume, shared between SOL and SKR pairs. Each fill is split at tier edges;
-/// quote rounding is cumulative-ceil and each marginal segment's fee rounds
-/// upward, so splitting one sale cannot reset the tier or reduce its fee.
+/// V2 settlement fee: progressive-marginal **on the trade itself**.
+///
+/// P0-5: раньше ставка выбиралась по накопленному UTC-суточному объёму
+/// **продавца** (`SellerVolumeV2`), то есть по личности, а не по сделке. Обход
+/// стоил ноль: Solana-ключи бесплатны, поэтому продавец с 500 000 POTATO в сутки
+/// просто заводил новый кошелёк на каждую сделку и платил 5 % вместо 8 % —
+/// 3 процентных пункта выручки казны уходили мимо неё без единого действия в
+/// игре. Обратная сторона была не лучше: ставка росла от объёма, то есть
+/// честный продавец платил больше за то, что продаёт больше.
+///
+/// Теперь лестница 5/6/7/8 % применяется маржинально к **объёму сделки**,
+/// начиная с нуля на каждую сделку. Кошелёк, день и история больше на цену не
+/// влияют; `seller_volume_before_micro` остаётся только для учёта и событий
+/// (и обновления `SellerVolumeV2`), но не участвует в выборе ставки.
+///
+/// Что этим НЕ решается, осознанно: дробление одной крупной сделки на мелкие
+/// по-прежнему держит каждую в нижней ступени. Это свойство любой нелинейной
+/// шкалы, и цена обхода здесь другая — реальные транзакции, комиссии сети,
+/// отдельный контрагент на каждый филл (self-trade запрещён) и потеря
+/// ликвидности, а не бесплатная генерация ключей. Инвариант «дробление не
+/// снижает комиссию» держать было нечем: он и раньше выполнялся только для
+/// честных продавцов, а противник платил 5 % одним новым кошельком.
+///
+/// Округление прежнее: gross считается кумулятивно-ceil по сегментам, комиссия
+/// каждого сегмента округляется вверх, сумма сегментов равна gross ровно.
 pub fn calculate_settlement_fee_v2(
     amount_micro: u64,
     price_quote_atoms_per_potato: u64,
@@ -3266,23 +3287,25 @@ pub fn calculate_settlement_fee_v2(
 
     let mut remaining_micro = amount_micro;
     let mut consumed_micro = 0u64;
-    let mut seller_volume_micro = seller_volume_before_micro;
+    // P0-5: ступень выбирается по объёму ТЕКУЩЕЙ сделки, а не по дневному
+    // объёму продавца. Ноль здесь — не забытый аргумент, а решение.
+    let mut priced_volume_micro = 0u64;
     let mut allocated_gross = 0u64;
     let mut fee_quote_atoms = 0u64;
 
     while remaining_micro > 0 {
-        let tier_index = if seller_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[0] {
+        let tier_index = if priced_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[0] {
             0
-        } else if seller_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[1] {
+        } else if priced_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[1] {
             1
-        } else if seller_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[2] {
+        } else if priced_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[2] {
             2
         } else {
             3
         };
         let capacity = V2_SELLER_VOLUME_THRESHOLDS_MICRO
             .get(tier_index)
-            .map(|threshold| threshold.saturating_sub(seller_volume_micro))
+            .map(|threshold| threshold.saturating_sub(priced_volume_micro))
             .unwrap_or(remaining_micro);
         let segment_micro = remaining_micro.min(capacity);
         require!(segment_micro > 0, GameError::MathOverflow);
@@ -3324,7 +3347,7 @@ pub fn calculate_settlement_fee_v2(
             .ok_or(GameError::MathOverflow)?;
         remaining_micro -= segment_micro;
         consumed_micro = next_consumed_micro;
-        seller_volume_micro = seller_volume_micro
+        priced_volume_micro = priced_volume_micro
             .checked_add(segment_micro)
             .ok_or(GameError::MathOverflow)?;
     }
@@ -5831,10 +5854,12 @@ mod tests {
 
     #[test]
     fn legacy_and_v2_fee_bases_differ_by_design() {
-        // P2-2: лестница ставок одна, база — разная. Тест держит ФАКТ, а не
-        // пожелание: пока легаси-рельс жив, крупный продавец платит на нём
-        // меньше, дробя объём. Если кто-то «исправит» любую из сторон, тест
-        // упадёт и заставит обновить этот разбор вместе с экономикой.
+        // Лестница ставок одна, база — разная:
+        //   • легаси `calculate_fee_bps` берёт ОДНУ ступень от суммы ордера;
+        //   • V2 делит сделку на маржинальные ступени.
+        // Обе базы теперь не зависят от личности продавца (V2 — P0-5), но для
+        // ордера ≥ 1 000 POTATO расхождение остаётся: 1 500 POTATO на легаси
+        // = 6 % целиком, на V2 = 5 % на первые 1 000 и 6 % на остаток.
         assert_eq!(V2_SETTLEMENT_FEE_BPS, [500, 600, 700, 800]);
         for (amount, legacy_bps) in [
             (999 * MICRO as u64, 500u16),
@@ -5845,28 +5870,21 @@ mod tests {
             assert_eq!(calculate_fee_bps(amount), legacy_bps);
         }
 
-        // Продавец с 200k POTATO дневного объёма выставляет ордер на 10 POTATO:
-        // обе сделки — одна и та же экономическая операция, ставки разные.
-        let order_micro = 10 * MICRO as u64;
-        let big_seller_volume = 200_000 * MICRO as u64;
+        let order_micro = 1_500 * MICRO as u64;
+        let price = 1_000_000;
         let legacy = order_fee_micro(order_micro).unwrap();
-        let v2 = calculate_settlement_fee_v2(order_micro, 1_000_000, big_seller_volume).unwrap();
+        let v2 = calculate_settlement_fee_v2(order_micro, price, 0).unwrap();
+        let bps_of = |fee: u64, base: u64| ((fee as u128 * BPS) / base as u128) as u64;
+        assert_eq!(calculate_fee_bps(order_micro), 600, "легаси: одна ступень");
+        assert_eq!(bps_of(legacy, order_micro), 600);
         assert_eq!(
-            calculate_fee_bps(order_micro),
-            500,
-            "легаси смотрит только на ордер"
-        );
-        assert_eq!(
-            legacy, 500_000,
-            "10 POTATO на легаси-рельсе: 5 %, независимо от объёма продавца"
-        );
-        assert_eq!(
-            v2.fee_quote_atoms, 800_000,
-            "10 POTATO на V2 при объёме 200k: 8 %"
+            bps_of(v2.fee_quote_atoms, v2.gross_quote_atoms),
+            533,
+            "V2: 5 % на 1 000 POTATO + 6 % на 500"
         );
         assert!(
-            v2.fee_quote_atoms > legacy,
-            "расхождение баз — известный арбитраж P2-2, а не равенство"
+            v2.fee_quote_atoms < legacy,
+            "маржинальная база V2 ниже пошаговой легаси на крупном ордере"
         );
     }
 
@@ -5896,14 +5914,15 @@ mod tests {
             "V2 берёт 5 % от gross-выручки"
         );
 
-        // Строка 2: крупный продавец (200k за сутки), ордер 10 POTATO → 5 % против 8 %.
+        // Строка 2: тот же ордер 10 POTATO, но дневной объём продавца 200k.
+        // P0-5: ставка от личности не зависит, поэтому на V2 остаётся 5 % —
+        // именно этого «бесплатного» понижения ставки сменой кошелька больше нет.
         let v2_big = calculate_settlement_fee_v2(order, price, 200_000 * MICRO as u64).unwrap();
-        assert_eq!(bps_of(legacy, order), 500);
         assert_eq!(
             bps_of(v2_big.fee_quote_atoms, v2_big.gross_quote_atoms),
-            800
+            500,
+            "V2 не смотрит на суточный объём продавца"
         );
-
         // Строка 3: один ордер 1.5k POTATO → legacy 6 %, V2 5.33 % (маржинально).
         let single = 1_500 * MICRO as u64;
         let legacy_single = order_fee_micro(single).unwrap();
@@ -5941,20 +5960,30 @@ mod tests {
 
     #[test]
     fn v2_fee_splits_a_fill_at_progressive_tier_edges() {
-        let result = calculate_settlement_fee_v2(
-            100 * MICRO as u64,
-            10_000_000,
-            999 * MICRO as u64 + 500_000,
-        )
-        .unwrap();
-        // 0.5 POTATO at 5%, then 99.5 POTATO at 6%.
-        assert_eq!(result.gross_quote_atoms, 1_000_000_000);
-        assert_eq!(result.fee_quote_atoms, 59_950_000);
-        assert_eq!(result.seller_net_quote_atoms, 940_050_000);
+        // P0-5: ступени считаются по объёму СДЕЛКИ. Один филл на 1 100 POTATO
+        // по цене 10 000 000 атомов за POTATO: 1 000 POTATO по 5 %, остаток
+        // 100 POTATO по 6 %.
+        let result = calculate_settlement_fee_v2(1_100 * MICRO as u64, 10_000_000, 0).unwrap();
+        let gross_first = 1_000 * MICRO as u64 * 10_000_000 / MICRO as u64;
+        let gross_rest = 100 * MICRO as u64 * 10_000_000 / MICRO as u64;
+        assert_eq!(result.gross_quote_atoms, gross_first + gross_rest);
         assert_eq!(
-            result.seller_volume_after_micro,
-            1_099 * MICRO as u64 + 500_000
+            result.fee_quote_atoms,
+            gross_first / 20 + gross_rest * 6 / 100,
+            "5 % на первой тысяче и 6 % на остатке"
         );
+        assert_eq!(
+            result.gross_quote_atoms,
+            result.fee_quote_atoms + result.seller_net_quote_atoms
+        );
+        // Дневной объём продавца — только учёт: та же сделка с любым «до»
+        // стоит ровно столько же.
+        for before in [0u64, 1, 999 * MICRO as u64, 1_000_000 * MICRO as u64] {
+            let same = calculate_settlement_fee_v2(1_100 * MICRO as u64, 10_000_000, before).unwrap();
+            assert_eq!(same.fee_quote_atoms, result.fee_quote_atoms);
+            assert_eq!(same.seller_volume_before_micro, before);
+            assert_eq!(same.seller_volume_after_micro, before + 1_100 * MICRO as u64);
+        }
     }
 
     #[test]
@@ -5971,28 +6000,34 @@ mod tests {
     }
 
     #[test]
-    fn v2_split_fills_cannot_reset_daily_marginal_tiers() {
-        let seller = Pubkey::new_unique();
+    fn v2_fee_cannot_be_lowered_by_switching_wallets() {
+        // P0-5: это и была дыра. Продавец с большим дневным объёмом платил 8 %
+        // на одном кошельке и 5 % на каждом новом — Solana-ключи бесплатны,
+        // поэтому «смена личности» была бесплатным понижением ставки.
+        // Теперь ставка зависит только от объёма сделки, и накопленный объём
+        // (то, что привязано к кошельку) в цену не входит.
+        let amount = 10 * MICRO as u64;
+        let price = 1_000_000;
+        let fresh = calculate_settlement_fee_v2(amount, price, 0).unwrap();
+        let veteran = calculate_settlement_fee_v2(amount, price, 500_000 * MICRO as u64).unwrap();
+        assert_eq!(fresh.fee_quote_atoms, veteran.fee_quote_atoms);
+        // Учёт объёма при этом продолжается: он нужен событиям и статистике.
+        assert_eq!(veteran.seller_volume_before_micro, 500_000 * MICRO as u64);
+        assert_eq!(
+            veteran.seller_volume_after_micro,
+            500_000 * MICRO as u64 + amount
+        );
+        // И SellerVolumeV2 по-прежнему катается по UTC-суткам.
         let now = 10 * SECONDS_PER_DAY + 1;
         let mut volume = SellerVolumeV2 {
-            seller,
+            seller: Pubkey::new_unique(),
             day_index: now.div_euclid(SECONDS_PER_DAY),
             filled_potato_micro: 0,
             bump: 0,
         };
-        let whole = calculate_settlement_fee_v2(1_250 * MICRO as u64, 10_000_003, 0).unwrap();
-        let mut split_fee = 0u64;
-        let mut split_gross = 0u64;
-        for _ in 0..25 {
-            let before = volume.volume_at(now);
-            let part = calculate_settlement_fee_v2(50 * MICRO as u64, 10_000_003, before).unwrap();
-            split_fee += part.fee_quote_atoms;
-            split_gross += part.gross_quote_atoms;
-            volume.record_fill(now, 50 * MICRO as u64).unwrap();
-        }
-        assert_eq!(volume.filled_potato_micro, 1_250 * MICRO as u64);
-        assert!(split_fee >= whole.fee_quote_atoms);
-        assert!(split_gross >= whole.gross_quote_atoms);
+        volume.record_fill(now, amount).unwrap();
+        assert_eq!(volume.volume_at(now), amount);
+        assert_eq!(volume.volume_at(now + SECONDS_PER_DAY), 0);
     }
 
     #[test]

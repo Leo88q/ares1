@@ -5,7 +5,7 @@ import { useI18n, t } from '../i18n'
 
 import { useGame } from '../contexts/GameContext'
 import { useFeatures } from '../hooks/useFeatures'
-import { IS_MAINNET, useSolana } from '../contexts/SolanaContext'
+import { IS_MAINNET, NETWORK_LABEL, useSolana } from '../contexts/SolanaContext'
 import FieldCardVice from './FieldCardVice'
 import FieldsPanel from '../fields/FieldsPanel'
 import { fieldVisual } from '../fields/model'
@@ -257,7 +257,7 @@ function ConnectHint() {
      }}
      className="ares-mono"
     >
-     <span>• SOLANA DEVNET</span>
+     <span>• SOLANA {NETWORK_LABEL}</span>
      <span>• PHANTOM / SOLFLARE</span>
      <span>• ZERO-KNOWLEDGE</span>
     </div>
@@ -299,7 +299,7 @@ function FreeStartNotice(): JSX.Element {
  }
  return (
   <section aria-labelledby="free-start-title" className="po-plate" style={{ padding: '16px 18px', margin: '0 0 14px', border: '1px solid rgba(255,179,71,0.28)' }}>
-   <p className="ares-mono" style={{ color: '#C9A176', fontSize: 9, letterSpacing: '.14em', margin: '0 0 6px' }}>{t('DEVNET · НАСТОЯЩИЕ ON-CHAIN-ЭКРАНЫ')}</p>
+   <p className="ares-mono" style={{ color: '#C9A176', fontSize: 9, letterSpacing: '.14em', margin: '0 0 6px' }}>{t('{network} · НАСТОЯЩИЕ ON-CHAIN-ЭКРАНЫ', { network: NETWORK_LABEL })}</p>
    <h2 id="free-start-title" className="ares-stencil" style={{ color: '#EFD9AC', fontSize: 14, margin: '0 0 7px' }}>{t('ДО ПЕРВОГО ПОЛЯ · ЧЕСТНЫЙ СТАТУС')}</h2>
    <p style={{ color: 'var(--pf-text-secondary)', fontSize: 11, lineHeight: 1.55, margin: 0 }}>
     {railOn

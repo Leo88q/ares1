@@ -47,8 +47,10 @@ if (idl.address !== rawProgramId) {
   )
 }
 export const PROGRAM_ID = new PublicKey(rawProgramId)
-export const CLUSTER = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet'
-export const IS_MAINNET = CLUSTER === 'mainnet-beta'
+// Сеть и её ярлык живут в листовом модуле: их импортируют подписи шапки и
+// экран загрузки, которым не нужен весь web3-стек. Реэкспорт сохраняет
+// существующие импорты `from '../contexts/SolanaContext'`.
+export { CLUSTER, IS_MAINNET, NETWORK_LABEL } from '../utils/network'
 export const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '')
 
 const CONFIG_POLL_MS = 30_000

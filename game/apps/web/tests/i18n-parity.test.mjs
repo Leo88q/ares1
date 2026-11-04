@@ -83,21 +83,20 @@ function entriesOf(file) {
   return entries;
 }
 
-test('tutorial describes Age of Farming as separate and the bridge as not live', () => {
-  const keys = [
-    '07 / КВЕСТЫ И ПЛАНЫ',
-    'Награды квестов и планы интеграции',
-    'Квесты минтит сервер (не клиент). Age of Farming — отдельное приложение; межигровые переводы и общий burn пока не доступны. Удачи, колонист.',
-  ];
+test('dead tutorial stays deleted: no component, no copy, no import', async () => {
+  // InteractiveTutorial никем не импортировался, а его текст описывал то, чего в
+  // продукте нет (Age of Farming как отдельное приложение, реферальные скидки
+  // как действующие, лицензия «−3 % на V1»). Мёртвый код удалён; тест держит
+  // это состояние: вернуть обучение можно только вместе с экраном, который его
+  // показывает, и заново написанным текстом.
+  const { existsSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  assert.equal(existsSync(join(srcDir, 'components', 'InteractiveTutorial.tsx')), false);
+  const source = walk(srcDir).map((file) => readFileSync(file, 'utf8')).join('\n');
+  assert.equal(source.includes('InteractiveTutorial'), false, 'dead tutorial component is imported again');
   const english = entriesOf('en.ts');
-  assert.ok(english.get(keys[2]).includes('separate app'));
-  assert.ok(english.get(keys[2]).includes('not available'));
-  for (const file of files.filter((file) => file !== 'en.ts')) {
-    const translated = entriesOf(file);
-    for (const key of keys) {
-      assert.ok(translated.has(key), `${file} is missing ${key}`);
-      assert.notEqual(translated.get(key), english.get(key), `${file} leaves the tutorial integration copy in English`);
-    }
+  for (const key of ['01 / КОЛОНИЯ', '07 / КВЕСТЫ И ПЛАНЫ', 'Награды квестов и планы интеграции', 'Далее', 'Завершить']) {
+    assert.equal(english.has(key), false, `orphaned tutorial key came back: ${key}`);
   }
 });
 
@@ -114,7 +113,7 @@ test('new greenhouse and settlement copy is translated, with interpolation token
     'Подключи кошелёк, чтобы увидеть текущие on-chain мутации.',
     'Нет активных мутаций в текущих полях.',
     'Мутации могут появиться после улучшения поля, если сработает проверка контракта.',
-    'V1 удерживает 5–8% в POTATO при создании ордера. V2: 5–8% из выплаты продавцу при успешной сделке, в валюте расчёта и в казну; пороги 1 000 / 10 000 / 100 000 POTATO суточного объёма продавца действуют для пар SOL и SKR. Devnet-активы тестовые.',
+    'V1 удерживает 5–8% в POTATO при создании ордера. V2: 5–8% из выплаты продавцу при успешной сделке, в валюте расчёта и в казну; ступени 1 000 / 10 000 / 100 000 POTATO считаются по объёму самой сделки, а не по суточному объёму продавца.',
     'ОПЕРАЦИЯ: ПЕРВАЯ ТЕПЛИЦА',
     'ЭКИПАЖ: {wallet} · ЦИКЛ #{cycle}',
     'Подготовь теплицу за 28 дней. Задачи ниже сверяются с текущими on-chain аккаунтами; пока это журнал состояния, без сезонных очков, рейтинга или награды.',
@@ -136,7 +135,7 @@ test('new greenhouse and settlement copy is translated, with interpolation token
     'Чистая выплата продавцу',
     'Ордера V2 пока не опубликованы.',
     'POTATO депонируется без комиссии; комиссия в валюте пары взимается только при fill.',
-    'Оценка комиссии может измениться до исполнения из-за накопленного объёма продавца за UTC-день.',
+    'Комиссия считается от объёма этой сделки по ступеням 5/6/7/8 %, поэтому смена кошелька или дня её не меняет.',
     'Минимум 10 POTATO.',
     'Недостаточно POTATO для депозита',
     'Укажи количество POTATO и цену в {asset}',
@@ -202,7 +201,7 @@ test('live field lab and settlement status copy is translated, with placeholders
     'ЛАБ читает те же on-chain поля, что и АГРО. Сбор, ремонт, налог и удобрение используют существующие игровые транзакции; отдельного учебного поля или локального урожая нет.',
     'Реальное строительство колонии пока не входит в on-chain-протокол. Вкладка КОЛОНИЯ показывает статус разработки, а не фиктивные ресурсы.',
     'Все показанные поля и балансы читаются для подключённого кошелька. Предварительные расчёты не являются начислением; изменения поля происходят только после подтверждения соответствующей on-chain-транзакции.',
-    'DEVNET · НАСТОЯЩИЕ ON-CHAIN-ЭКРАНЫ',
+    '{network} · НАСТОЯЩИЕ ON-CHAIN-ЭКРАНЫ',
     'ДО ПЕРВОГО ПОЛЯ · ЧЕСТНЫЙ СТАТУС',
     'Первое обычное поле стоит {amount} тестовых POTATO. Для создания аккаунта также нужен SOL на rent и сетевую комиссию; ниже показана текущая оценка rent из RPC. Стартовый набор 250 POTATO выдаётся бесплатно один раз на кошелёк кнопкой в магазине выше: покупка за SKR закрыта, не отправляй деньги и не используй mainnet ради теста.',
     'ЛАБ и статус колонии можно осмотреть без кошелька; это просмотр реальных экранов, не тренировочная игра и не сохраняемая игровая сессия.',

@@ -122,7 +122,6 @@ function MarketScreenV2Inner() {
         quoteAsset={quoteAsset}
         skrMintReady={skrMintReady}
         balanceMicro={gameStats.potatoBalance}
-        sellerVolumeMicro={myVolumeMicro}
         onClose={() => setShowCreate(false)}
         onCreate={createOrder}
       />

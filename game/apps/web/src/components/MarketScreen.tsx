@@ -1,5 +1,6 @@
 import { ReactNode, useState, useMemo } from 'react'
 import { t } from '../i18n'
+import { NETWORK_LABEL } from '../utils/network'
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Clock, User, Loader2 } from 'lucide-react'
@@ -70,12 +71,12 @@ function MarketScreenInner() {
    </div>
 
    <div role="status" style={{ padding: '12px 14px', marginBottom: 14, border: '1px solid rgba(255,179,71,0.28)', borderRadius: 8, background: 'linear-gradient(180deg, rgba(37,24,14,0.94), rgba(17,11,7,0.96))' }}>
-    <div className="ares-mono" style={{ color: '#FFC94A', fontSize: 9, letterSpacing: '0.13em', marginBottom: 6 }}>{t('РЫНОК DEVNET · ВЕРСИЯ V1')}</div>
+    <div className="ares-mono" style={{ color: '#FFC94A', fontSize: 9, letterSpacing: '0.13em', marginBottom: 6 }}>{t('РЫНОК {network} · ВЕРСИЯ V1', { network: NETWORK_LABEL })}</div>
     <p style={{ color: 'var(--pf-gold)', fontSize: 11, lineHeight: 1.55, margin: '0 0 6px' }}>
      {t('V1 закрыт на запись: новые ордера создаются только в рынке V2. Уже выставленные ордера можно купить или отозвать.')}
     </p>
     <p style={{ color: 'var(--pf-text-secondary)', fontSize: 11, lineHeight: 1.55, margin: 0 }}>
-     {t('V1 удерживает 5–8% в POTATO при создании ордера. V2: 5–8% из выплаты продавцу при успешной сделке, в валюте расчёта и в казну; пороги 1 000 / 10 000 / 100 000 POTATO суточного объёма продавца действуют для пар SOL и SKR. Devnet-активы тестовые.')}
+     {t('V1 удерживает 5–8% в POTATO при создании ордера. V2: 5–8% из выплаты продавцу при успешной сделке, в валюте расчёта и в казну; ступени 1 000 / 10 000 / 100 000 POTATO считаются по объёму самой сделки, а не по суточному объёму продавца.')}
     </p>
    </div>
 

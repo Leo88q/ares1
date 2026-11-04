@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { useI18n } from '../../i18n';
+import { useI18n } from '../../i18n'
+import { NETWORK_LABEL } from '../../utils/network';
 import { motion } from 'framer-motion';
 import { usePrefersReducedMotion } from './effects';
 
@@ -88,7 +89,7 @@ export const LandingSequence = memo(function LandingSequence({
    `${t('ДАВЛЕНИЕ')} ............ 0.6 ${t('кПа (МАРС)')}`,
    `${t('ТЕМПЕРАТУРА')} ......... -62°C`,
    `${t('БИО-ПАЁК')} ............ ${t('ГОТОВ К КУЛЬТИВАЦИИ')}`,
-   'SOLANA .............. DEVNET SYNCED',
+   `SOLANA .............. ${NETWORK_LABEL} SYNCED`,
   ],
   [t, lang],
  );

@@ -1,4 +1,5 @@
 import { t } from '../i18n'
+import { IS_MAINNET } from '../utils/network'
 
 /** Closed status notice. No wallet connection, price quote, or transaction path. */
 export default function PresaleSection(): JSX.Element {
@@ -19,7 +20,9 @@ export default function PresaleSection(): JSX.Element {
     {t('Открытого одобренного SKR-пресейла сейчас нет. Не отправляй SKR: прежние 1053 SKR были devnet-путём покупки одного поля, а не целой колонии и не действующим предложением.')}
    </p>
    <p style={{ margin: '8px 0 0', color: '#A89578', fontSize: 9, lineHeight: 1.55 }}>
-    {t('Devnet — тестовая сеть; её SOL и SKR не имеют денежной стоимости. Повторное открытие покупки требует отдельного одобрения запуска.')}
+    {IS_MAINNET
+     ? t('SKR не развёрнут в mainnet: покупка закрыта до отдельного одобрения запуска.')
+     : t('Devnet — тестовая сеть; её SOL и SKR не имеют денежной стоимости. Повторное открытие покупки требует отдельного одобрения запуска.')}
    </p>
   </section>
  )
