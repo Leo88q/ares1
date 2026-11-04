@@ -805,44 +805,6 @@ describe("solana_potato", () => {
       expect(stats.totalTrades.toString()).to.eq("1");
     });
 
-    it("B7/E28 (V2): купленный ордер нельзя купить второй раз — close обнуляет повтор", async () => {
-      // Раньше пару «ровно один раз» держал тест на легаси-fill_order; легаси
-      // закрыт на запись (P2-2), поэтому инвариант проверяется на живом рельсе.
-      // Ордер закрывается (`close = seller`), escrow тоже — повторный fill
-      // упирается в отсутствующий аккаунт, а не в двойную выплату.
-      const id = BigInt(Date.now() + 715);
-      const order = orderV2Pda(id);
-      const escrow = escrowV2Pda(order);
-      await v2Methods.createSellOrderV2(
-        new BN(id.toString()), new BN(10_000_000), new BN(10_000_000), { sol: {} },
-      ).accountsPartial(createOrderV2Accounts(id, admin.publicKey, adminAta)).rpc();
-      const fill = () => v2Methods.fillOrderV2().accountsPartial({
-        buyer: player.publicKey,
-        seller: admin.publicKey,
-        config: configPda,
-        potatoMint: mint,
-        sellerVolumeV2: sellerVolumeV2Pda(admin.publicKey),
-        marketStatsV2: marketStatsV2Pda,
-        order,
-        escrow,
-        buyerPotato: playerAta,
-        treasurySol: treasurySolPda,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-      }).signers([player]).rpc();
-      await fill();
-      expect(await connection.getAccountInfo(order)).to.be.null;
-      expect(await connection.getAccountInfo(escrow)).to.be.null;
-      const statsAfter = await v2Accounts.marketStatsV2.fetch(marketStatsV2Pda);
-      const volumeAfter = await v2Accounts.sellerVolumeV2.fetch(sellerVolumeV2Pda(admin.publicKey));
-      await expectFail(fill());
-      // Повтор не сдвигает ни статистику, ни дневной объём продавца.
-      expect((await v2Accounts.marketStatsV2.fetch(marketStatsV2Pda)).totalTrades.toString())
-        .to.eq(statsAfter.totalTrades.toString());
-      expect((await v2Accounts.sellerVolumeV2.fetch(sellerVolumeV2Pda(admin.publicKey))).filledPotatoMicro.toString())
-        .to.eq(volumeAfter.filledPotatoMicro.toString());
-    });
-
     it("settles the POTATO/SKR pair in SKR and shares seller volume across quote pairs", async () => {
       const id = BigInt(Date.now() + 702);
       const order = orderV2Pda(id);
@@ -982,6 +944,44 @@ describe("solana_potato", () => {
         new BN((id + 1n).toString()), new BN(amountMicro.toString()), new BN(200_000_000), { skr: {} },
       ).accountsPartial(createOrderV2Accounts(id + 1n, cancelSeller.publicKey, cancelSellerAta)).signers([cancelSeller]).rpc(), "CancelCooldown");
       await transfer(connection, admin, cancelSellerAta, adminAta, cancelSeller, amountMicro);
+    });
+
+    it("B7/E28 (V2): купленный ордер нельзя купить второй раз — close обнуляет повтор", async () => {
+      // Раньше пару «ровно один раз» держал тест на легаси-fill_order; легаси
+      // закрыт на запись (P2-2), поэтому инвариант проверяется на живом рельсе.
+      // Ордер закрывается (`close = seller`), escrow тоже — повторный fill
+      // упирается в отсутствующий аккаунт, а не в двойную выплату.
+      const id = BigInt(Date.now() + 715);
+      const order = orderV2Pda(id);
+      const escrow = escrowV2Pda(order);
+      await v2Methods.createSellOrderV2(
+        new BN(id.toString()), new BN(10_000_000), new BN(10_000_000), { sol: {} },
+      ).accountsPartial(createOrderV2Accounts(id, admin.publicKey, adminAta)).rpc();
+      const fill = () => v2Methods.fillOrderV2().accountsPartial({
+        buyer: player.publicKey,
+        seller: admin.publicKey,
+        config: configPda,
+        potatoMint: mint,
+        sellerVolumeV2: sellerVolumeV2Pda(admin.publicKey),
+        marketStatsV2: marketStatsV2Pda,
+        order,
+        escrow,
+        buyerPotato: playerAta,
+        treasurySol: treasurySolPda,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      }).signers([player]).rpc();
+      await fill();
+      expect(await connection.getAccountInfo(order)).to.be.null;
+      expect(await connection.getAccountInfo(escrow)).to.be.null;
+      const statsAfter = await v2Accounts.marketStatsV2.fetch(marketStatsV2Pda);
+      const volumeAfter = await v2Accounts.sellerVolumeV2.fetch(sellerVolumeV2Pda(admin.publicKey));
+      await expectFail(fill());
+      // Повтор не сдвигает ни статистику, ни дневной объём продавца.
+      expect((await v2Accounts.marketStatsV2.fetch(marketStatsV2Pda)).totalTrades.toString())
+        .to.eq(statsAfter.totalTrades.toString());
+      expect((await v2Accounts.sellerVolumeV2.fetch(sellerVolumeV2Pda(admin.publicKey))).filledPotatoMicro.toString())
+        .to.eq(volumeAfter.filledPotatoMicro.toString());
     });
   });
 
