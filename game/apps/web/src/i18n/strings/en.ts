@@ -786,7 +786,6 @@ export default {
   // Магазин полей: вход без деплоя и витрина паков.
   'МАГАЗИН ПОЛЕЙ': 'FIELD STORE',
   'ВХОД БЕСПЛАТНЫЙ': 'FREE ENTRY',
-  'Стартовый набор 250 POTATO выдаётся один раз на кошелёк подписантом оператора. Ежедневный бонус 7 POTATO — один раз в UTC-сутки. Реферальных наград нет.': 'The 250 POTATO starter pack is granted once per wallet by the operator signer. The 7 POTATO daily bonus is granted once per UTC day. There are no referral rewards.',
   'ПОЛУЧИТЬ СТАРТОВЫЙ НАБОР': 'CLAIM STARTER PACK',
   'Отправляем…': 'Sending…',
   'Получить ежедневные 7 POTATO': 'Claim daily 7 POTATO',
@@ -820,4 +819,12 @@ export default {
   'Поле покупается за POTATO. Урожай ограничен капом эпохи 250 000–750 000 POTATO и лунным множителем 0.85×–1.15×.': 'A field is bought with POTATO. Yield is capped by the epoch cap of 250,000–750,000 POTATO and the 0.85×–1.15× lunar multiplier.',
   'Лицензия 500 SKR / 30 дней даёт −3 % комиссии только на закрытом легаси-рынке V1; на V2 скидки нет, и действующая выгода лицензии — батч-сбор 10 → 30 полей.': 'The 500 SKR / 30-day license gives −3% on fees only on the closed legacy V1 market; it gives no V2 discount, and its live benefit is batch harvest 10 → 30 fields.',
   'Экспортная лицензия 500 SKR / 30 дней снижает комиссию на 3 % только на закрытом легаси-рынке V1; комиссию V2 в SOL/SKR она не уменьшает. Действующая выгода — батч-сбор с 10 до 30 полей за транзакцию.': 'The 500 SKR / 30-day export license cuts the fee by 3% only on the closed legacy V1 market; it does not reduce the V2 SOL/SKR settlement fee. Its live benefit is batch harvest of 10 → 30 fields per transaction.',
+  'Стартовый набор 250 POTATO выдаётся один раз на кошелёк и только по коду оператора, выписанному на этот кошелёк. Ежедневный бонус 7 POTATO — один раз в UTC-сутки и только владельцу активного поля. Реферальных наград нет.': 'The 250 POTATO starter pack is issued once per wallet and only with an operator code issued for that wallet. The 7 POTATO daily bonus is once per UTC day and only to the owner of an active field. There are no referral rewards.',
+  'КОД ПРИГЛАШЕНИЯ (его выдаёт оператор на этот кошелёк)': 'INVITE CODE (issued by the operator for this wallet)',
+  'Код приглашения на стартовый набор': 'Starter-pack invite code',
+  'Нужен код приглашения от оператора, выписанный на этот кошелёк.': 'An operator invite code issued for this wallet is required.',
+  'Срок действия кода истёк. Попроси новый.': 'This invite code has expired. Ask for a new one.',
+  'Приглашения не настроены на сервере: стартовый набор сейчас не выдаётся.': 'Invites are not configured on the server: the starter pack is not being issued right now.',
+  'Ежедневный бонус доступен только владельцу активного поля.': 'The daily bonus is available only to the owner of an active field.',
+  'Не удалось проверить поля на цепи. Повтори позже.': 'Could not check your fields on-chain. Try again later.',
 }

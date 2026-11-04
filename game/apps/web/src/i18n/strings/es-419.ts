@@ -786,7 +786,6 @@ export default {
   // Магазин полей: вход без деплоя и витрина паков.
   'МАГАЗИН ПОЛЕЙ': 'TIENDA DE CAMPOS',
   'ВХОД БЕСПЛАТНЫЙ': 'ENTRADA GRATIS',
-  'Стартовый набор 250 POTATO выдаётся один раз на кошелёк подписантом оператора. Ежедневный бонус 7 POTATO — один раз в UTC-сутки. Реферальных наград нет.': 'El paquete inicial de 250 POTATO se entrega una vez por wallet mediante el firmante del operador. El bono diario de 7 POTATO es una vez por día UTC. No hay recompensas por referidos.',
   'ПОЛУЧИТЬ СТАРТОВЫЙ НАБОР': 'RECLAMAR PAQUETE INICIAL',
   'Отправляем…': 'Enviando…',
   'Получить ежедневные 7 POTATO': 'Reclamar 7 POTATO diarios',
@@ -820,4 +819,12 @@ export default {
   'Поле покупается за POTATO. Урожай ограничен капом эпохи 250 000–750 000 POTATO и лунным множителем 0.85×–1.15×.': 'El campo se compra con POTATO. La cosecha está limitada por el tope de época de 250 000–750 000 POTATO y el multiplicador lunar de 0.85×–1.15×.',
   'Лицензия 500 SKR / 30 дней даёт −3 % комиссии только на закрытом легаси-рынке V1; на V2 скидки нет, и действующая выгода лицензии — батч-сбор 10 → 30 полей.': 'La licencia de 500 SKR / 30 días da −3% de comisión solo en el mercado legacy V1 cerrado; no da descuento en V2, y su beneficio activo es la cosecha por lotes de 10 → 30 campos.',
   'Экспортная лицензия 500 SKR / 30 дней снижает комиссию на 3 % только на закрытом легаси-рынке V1; комиссию V2 в SOL/SKR она не уменьшает. Действующая выгода — батч-сбор с 10 до 30 полей за транзакцию.': 'La licencia de exportación de 500 SKR / 30 días reduce la comisión un 3% solo en el mercado legacy V1 cerrado; no reduce la comisión de liquidación V2 en SOL/SKR. Su beneficio activo es cosechar 10 → 30 campos por transacción.',
+  'Стартовый набор 250 POTATO выдаётся один раз на кошелёк и только по коду оператора, выписанному на этот кошелёк. Ежедневный бонус 7 POTATO — один раз в UTC-сутки и только владельцу активного поля. Реферальных наград нет.': 'El paquete inicial de 250 POTATO se entrega una vez por cartera y solo con un código del operador emitido para esa cartera. El bono diario de 7 POTATO es una vez por día UTC y solo para el dueño de un campo activo. No hay recompensas por referidos.',
+  'КОД ПРИГЛАШЕНИЯ (его выдаёт оператор на этот кошелёк)': 'CÓDIGO DE INVITACIÓN (lo emite el operador para esta cartera)',
+  'Код приглашения на стартовый набор': 'Código de invitación al paquete inicial',
+  'Нужен код приглашения от оператора, выписанный на этот кошелёк.': 'Se requiere un código de invitación del operador emitido para esta cartera.',
+  'Срок действия кода истёк. Попроси новый.': 'El código de invitación caducó. Pide uno nuevo.',
+  'Приглашения не настроены на сервере: стартовый набор сейчас не выдаётся.': 'Las invitaciones no están configuradas en el servidor: el paquete inicial no se está entregando ahora.',
+  'Ежедневный бонус доступен только владельцу активного поля.': 'El bono diario solo está disponible para el dueño de un campo activo.',
+  'Не удалось проверить поля на цепи. Повтори позже.': 'No se pudieron comprobar tus campos en la cadena. Inténtalo más tarde.',
 }

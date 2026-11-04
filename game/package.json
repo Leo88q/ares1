@@ -14,6 +14,7 @@
     "init-onchain": "tsx scripts/init-onchain.ts",
     "treasury:admin": "tsx scripts/treasury-admin.ts",
     "grant-potato": "tsx scripts/grant-potato.ts",
+    "reward-invite": "tsx scripts/reward-invite.ts",
     "grant-skr": "tsx scripts/grant-skr.ts",
     "migrate-v2": "tsx scripts/migrate-v2.ts",
     "test": "anchor test",

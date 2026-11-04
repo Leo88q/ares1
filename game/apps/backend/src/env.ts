@@ -55,8 +55,25 @@ export const env = {
    *  включения рельсы наград): никакого таймера и никаких тлеющих RPC-вызовов. */
   rewardDeliveryIntervalSeconds: parseInt(process.env.REWARD_DELIVERY_INTERVAL_SECONDS || "0", 10),
 
-  /** Такт крона квест-бюджета (доливка пула ачивок), в секундах. 0 = выключено. */
-  questBudgetIntervalSeconds: parseInt(process.env.QUEST_BUDGET_INTERVAL_SECONDS || "0", 10),
+  /**
+   * Такт крона квест-бюджета (доливка пула ачивок), в секундах.
+   *
+   * Раньше здесь стоял `|| "0"`: при включённой рельсе пул ачивок (550 POTATO,
+   * заправлен один раз при init) молча вычерпывался навсегда, и после
+   * нескольких десятков игроков `claim_achievement` падал с `QuestPoolEmpty`.
+   * Теперь умолчание — 15 минут: крон сам работает только при живой рельсе, а
+   * доливка ограничена low-water и суточным капом, так что «включён по
+   * умолчанию» не превращает его в насос. Явный `0` по-прежнему выключает
+   * (и это видно в логе старта).
+   */
+  questBudgetIntervalSeconds: parseInt(process.env.QUEST_BUDGET_INTERVAL_SECONDS || "900", 10),
+  /**
+   * Секрет подписи приглашений на стартовый набор.
+   *
+   * Пустое значение — приглашения не настроены, и `/api/rewards/starter`
+   * отвечает 503: открытая выдача 250 POTATO любому адресу была Sybil-краном.
+   */
+  rewardInviteSecret: process.env.REWARD_INVITE_SECRET || '',
   /** Express "trust proxy" setting.
    *
    *  Раньше по умолчанию возвращалось 1 — и прямой доступ к API позволял

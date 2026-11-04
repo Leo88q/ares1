@@ -786,7 +786,6 @@ export default {
   // Магазин полей: вход без деплоя и витрина паков.
   'МАГАЗИН ПОЛЕЙ': 'CỬA HÀNG RUỘNG',
   'ВХОД БЕСПЛАТНЫЙ': 'VÀO CỬA MIỄN PHÍ',
-  'Стартовый набор 250 POTATO выдаётся один раз на кошелёк подписантом оператора. Ежедневный бонус 7 POTATO — один раз в UTC-сутки. Реферальных наград нет.': 'Gói khởi đầu 250 POTATO được trao một lần cho mỗi ví bởi người ký của nhà vận hành. Thưởng hằng ngày 7 POTATO một lần mỗi ngày UTC. Không có thưởng giới thiệu.',
   'ПОЛУЧИТЬ СТАРТОВЫЙ НАБОР': 'NHẬN GÓI KHỞI ĐẦU',
   'Отправляем…': 'Đang gửi…',
   'Получить ежедневные 7 POTATO': 'Nhận 7 POTATO hằng ngày',
@@ -820,4 +819,12 @@ export default {
   'Поле покупается за POTATO. Урожай ограничен капом эпохи 250 000–750 000 POTATO и лунным множителем 0.85×–1.15×.': 'Ruộng được mua bằng POTATO. Sản lượng bị giới hạn bởi hạn mức epoch 250.000–750.000 POTATO và hệ số mặt trăng 0.85×–1.15×.',
   'Лицензия 500 SKR / 30 дней даёт −3 % комиссии только на закрытом легаси-рынке V1; на V2 скидки нет, и действующая выгода лицензии — батч-сбор 10 → 30 полей.': 'Giấy phép 500 SKR / 30 ngày giảm −3% phí chỉ trên thị trường legacy V1 đã đóng; không có giảm giá trên V2, và lợi ích đang hoạt động là thu hoạch theo lô 10 → 30 ruộng.',
   'Экспортная лицензия 500 SKR / 30 дней снижает комиссию на 3 % только на закрытом легаси-рынке V1; комиссию V2 в SOL/SKR она не уменьшает. Действующая выгода — батч-сбор с 10 до 30 полей за транзакцию.': 'Giấy phép xuất khẩu 500 SKR / 30 ngày giảm 3% phí chỉ trên thị trường legacy V1 đã đóng; không giảm phí thanh toán V2 bằng SOL/SKR. Lợi ích đang hoạt động là thu hoạch theo lô 10 → 30 ruộng mỗi giao dịch.',
+  'Стартовый набор 250 POTATO выдаётся один раз на кошелёк и только по коду оператора, выписанному на этот кошелёк. Ежедневный бонус 7 POTATO — один раз в UTC-сутки и только владельцу активного поля. Реферальных наград нет.': 'Gói khởi đầu 250 POTATO được cấp một lần cho mỗi ví và chỉ với mã của người vận hành cấp cho ví đó. Thưởng hàng ngày 7 POTATO mỗi ngày UTC một lần và chỉ cho chủ ruộng đang hoạt động. Không có thưởng giới thiệu.',
+  'КОД ПРИГЛАШЕНИЯ (его выдаёт оператор на этот кошелёк)': 'MÃ MỜI (người vận hành cấp cho ví này)',
+  'Код приглашения на стартовый набор': 'Mã mời cho gói khởi đầu',
+  'Нужен код приглашения от оператора, выписанный на этот кошелёк.': 'Cần mã mời từ người vận hành được cấp cho ví này.',
+  'Срок действия кода истёк. Попроси новый.': 'Mã mời đã hết hạn. Hãy xin mã mới.',
+  'Приглашения не настроены на сервере: стартовый набор сейчас не выдаётся.': 'Mã mời chưa được cấu hình trên máy chủ: gói khởi đầu hiện không được cấp.',
+  'Ежедневный бонус доступен только владельцу активного поля.': 'Thưởng hàng ngày chỉ dành cho chủ ruộng đang hoạt động.',
+  'Не удалось проверить поля на цепи. Повтори позже.': 'Không kiểm tra được ruộng trên chuỗi. Hãy thử lại sau.',
 }

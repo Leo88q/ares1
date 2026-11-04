@@ -318,10 +318,11 @@ permissionless epoch roller, signed by a dedicated payer. HTTP responses are JSO
 | `GET /api/store` | `{enabled, reason, currency:"POTATO", packs[]}` — каталог паков из тех же данных, что и выдача | Никогда не 5xx: при закрытых продажах `enabled:false` + `reason` |
 | `GET /api/features` | `{colonies, coloniesReleaseReady, rewardsRail, presalePayments}` — публичные гейты UI | 200 без чтения цепи: при недоступном RPC эндпоинт обязан отвечать |
 | `GET /api/rewards/status` | `{enabled, reason, rewardSigner, starter, daily}` | 200 всегда: состояние, а не действие |
-| `POST /api/rewards/starter` | `201 {ok,kind,wallet,amountMicro,signature}` (250 POTATO, один раз на кошелёк) | `400 BAD_WALLET`, `409 ALREADY_GRANTED`, `429 COOLDOWN`, `503 NOT_ENABLED`, `503 BUDGET_EXHAUSTED`, `502 GRANT_FAILED` |
-| `POST /api/rewards/daily` | `201` — 7 POTATO, один раз в UTC-сутки | те же коды, что у `starter` |
+| `POST /api/rewards/starter` | `201 {ok,kind,wallet,amountMicro,signature}` (250 POTATO, один раз на кошелёк **и только по коду приглашения**) | `400 BAD_WALLET`, `401 INVITE_REQUIRED`, `401 INVITE_INVALID`, `401 INVITE_EXPIRED`, `409 ALREADY_GRANTED`, `429 COOLDOWN`, `503 NOT_ENABLED`, `503 INVITES_NOT_CONFIGURED`, `503 BUDGET_EXHAUSTED`, `502 GRANT_FAILED` |
+| `POST /api/rewards/daily` | `201` — 7 POTATO, один раз в UTC-сутки, **только владельцу активного поля** | `400 BAD_WALLET`, `403 NO_ACTIVE_FIELD`, `429 COOLDOWN`, `503 NOT_ENABLED`, `503 ACTIVITY_CHECK_UNAVAILABLE`, `503 ACTIVITY_CHECK_FAILED`, `503 BUDGET_EXHAUSTED`, `502 GRANT_FAILED` |
 
-Тело `POST /api/rewards/*` — `{ "wallet": "<base58>" }`; ключи и секреты не
+Тело `POST /api/rewards/starter` — `{ "wallet": "<base58>", "invite": "v1.…" }`,
+`POST /api/rewards/daily` — `{ "wallet": "<base58>" }`; ключи и секреты не
 принимаются. Оба эндпоинта платят за счёт отдельного `reward_signer`
 (не authority и не epoch-payer), подпись проверяется по ончейн-конфигу перед
 отправкой, а транзакция симулируется перед подписью. `nonce` детерминирован
@@ -329,6 +330,30 @@ permissionless epoch roller, signed by a dedicated payer. HTTP responses are JSO
 поэтому повтор запроса не создаёт второй грант: PDA `[b"reward", ata, nonce]`
 уже существует, и клиент получает `409`. Мягкие бюджеты — 20 000 POTATO в сутки
 на каждый вид гранта, кулдаун 15 с на кошелёк.
+
+**Кто имеет право на грант (P0-2).** До этого единственным условием был
+валидный base58-адрес, то есть любая сгенерированная пара ключей получала 250
+POTATO бесплатно — Sybil-кран на 20 000 POTATO в сутки (`STARTER_DAILY_BUDGET`)
+или на 25 % эпохального капа по ончейн-квоте. Теперь:
+
+* `starter` выдаётся только по коду `v1.<payload>.<HMAC-SHA256>`, который
+  выписывает оператор: `yarn reward-invite <wallet> [--ttl-hours N]` при
+  `REWARD_INVITE_SECRET` (≥ 32 символов, тот же на бэкенде). Payload —
+  `{wallet, expiresAt}`, код привязан к кошельку и сроку (по умолчанию 12 ч,
+  максимум 7 суток). Хранения нет: всё, что нужно для проверки, лежит в коде,
+  повторную выдачу всё равно останавливает ончейн-PDA. Пустой
+  `REWARD_INVITE_SECRET` — fail-closed: `503 INVITES_NOT_CONFIGURED`, а не
+  «открытая выдача».
+* `daily` выдаётся только кошельку с **активным полем**. Проверка идёт по цепи:
+  `getProgramAccounts` с фильтрами `dataSize = 78` и `memcmp(offset = 8, bytes =
+  wallet)`, затем читается байт `is_active` (offset 66). Смещения — зеркало
+  `pub struct Field` и проверяются тестом `tests/reward-field-probe.test.ts`
+  против lib.rs, поэтому сдвиг layout'а уронит CI, а не выдачу. Результат
+  кешируется на 5 минут; недоступность RPC — `503`, а не «выдать на всякий
+  случай».
+
+Отказы по авторизации (`401`/`403`) не списывают суточный бюджет рельсы: бюджет
+общий, и поток пустых кошельков не должен вычерпывать его у честных игроков.
 
 `/api/features` — только видимость разделов: клиент скрывает «Колонию», когда
 сервер отдаёт `colonies:false`, но ни одно действие этими флагами не

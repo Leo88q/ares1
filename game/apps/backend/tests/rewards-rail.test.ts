@@ -30,6 +30,17 @@ import {
 import { rewardsRouter } from '../src/rewards/router.js';
 import { assertRewardInstructionsAllowed, assertDedicatedRewardSigner } from '../src/rewards/policy.js';
 import { anchorDiscriminator } from '../src/anchorRaw.js';
+import { issueInvite } from '../src/rewards/invite.js';
+
+/**
+ * Приглашение для тестов: выписано на кошелёк и живёт до 2 000 000 000 + 12 ч,
+ * то есть позже всех часов, которые используют эти тесты. Проверка кода
+ * сравнивает только «срок ещё не истёк», а не «когда выдан», поэтому фиксировать
+ * выдачу в будущем корректно и не привязывает helper к часам конкретного теста.
+ */
+const INVITE_SECRET = 'test-invite-secret';
+const inviteFor = (wallet: string): string =>
+  issueInvite({ wallet, nowSeconds: 2_000_000_000, secret: INVITE_SECRET });
 
 const libRs = readFileSync(new URL('../../../programs/solana_potato/src/lib.rs', import.meta.url), 'utf8');
 
@@ -181,6 +192,12 @@ async function serve(
     enabled: options.enabled,
     disabledReason: 'test gate',
     rewardSigner: null,
+    // Новый контракт (P0-2): стартёр — только по приглашению оператора,
+    // дейлик — только владельцу активного поля. Здесь поле «есть» всегда:
+    // тесты ниже проверяют лимиты, а не гейты авторизации (они в
+    // reward-invite-field.test.ts).
+    inviteSecret: INVITE_SECRET,
+    hasActiveField: async () => true,
     now: options.now ?? (() => 1_760_000_000n),
     sendGrant: async (input) => {
       if (options.fail) throw options.fail;
@@ -235,7 +252,7 @@ test('невалидный кошелёк отклоняется до подпи
 
 test('стартовый набор уходит одним грантом с детерминированным nonce', async () => {
   await serve({ enabled: true }, async (base, harness) => {
-    const response = await post(base, '/starter', { wallet: WALLET });
+    const response = await post(base, '/starter', { wallet: WALLET, invite: inviteFor(WALLET) });
     assert.equal(response.status, 201);
     const body = (await response.json()) as Record<string, unknown>;
     assert.equal(body.kind, 'starter');
@@ -263,7 +280,7 @@ test('ошибка подписанта не превращается в 200', a
 
 test('уже выданный грант отдаётся как 409, а не как сбой', async () => {
   await serve({ enabled: true, fail: new Error('Allocate: account Address already in use') }, async (base) => {
-    const response = await post(base, '/starter', { wallet: WALLET });
+    const response = await post(base, '/starter', { wallet: WALLET, invite: inviteFor(WALLET) });
     assert.equal(response.status, 409);
   });
 });
@@ -276,7 +293,8 @@ test('суточный бюджет рельсы ограничивает выд
     // Кошельки разные, поэтому кулдаун не мешает; сутки не меняются, поэтому
     // бюджет не сбрасывается.
     for (let i = 0; i < 200; i += 1) {
-      lastStatus = (await post(base, '/starter', { wallet: KeypairWallet(i) })).status;
+      const wallet = KeypairWallet(i);
+      lastStatus = (await post(base, '/starter', { wallet, invite: inviteFor(wallet) })).status;
       if (lastStatus !== 201) break;
       granted += 1;
     }
@@ -330,6 +348,8 @@ test('неудачная выдача не съедает суточный бю�
   app.use('/api/rewards', rewardsRouter({
     enabled: true,
     rewardSigner: null,
+    inviteSecret: INVITE_SECRET,
+    hasActiveField: async () => true,
     now: () => 1_800_000_000n,
     sendGrant: async () => { throw new Error('REWARD_RAIL: signer is not configured'); },
   }));
@@ -343,7 +363,7 @@ test('неудачная выдача не съедает суточный бю�
       last = await fetch(`http://127.0.0.1:${port}/api/rewards/starter`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ wallet }),
+        body: JSON.stringify({ wallet, invite: inviteFor(wallet) }),
       });
     }
     assert.equal(last?.status, 502, 'должны упираться в отказ отправки, а не в BUDGET_EXHAUSTED');
@@ -366,6 +386,8 @@ test('поток новых адресов не сбрасывает живой 
   app.use('/api/rewards', rewardsRouter({
     enabled: true,
     rewardSigner: null,
+    inviteSecret: INVITE_SECRET,
+    hasActiveField: async () => true,
     now: () => now,
     maxTrackedWallets: 2,
     sendGrant: async () => 'sig-test',
@@ -377,7 +399,7 @@ test('поток новых адресов не сбрасывает живой 
     fetch(`${base}/starter`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ wallet }),
+      body: JSON.stringify({ wallet, invite: inviteFor(wallet) }),
     });
   try {
     assert.equal((await ask(walletAt(0))).status, 201);

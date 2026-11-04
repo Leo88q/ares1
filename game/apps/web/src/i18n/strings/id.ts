@@ -786,7 +786,6 @@ export default {
   // Магазин полей: вход без деплоя и витрина паков.
   'МАГАЗИН ПОЛЕЙ': 'TOKO LAHAN',
   'ВХОД БЕСПЛАТНЫЙ': 'MASUK GRATIS',
-  'Стартовый набор 250 POTATO выдаётся один раз на кошелёк подписантом оператора. Ежедневный бонус 7 POTATO — один раз в UTC-сутки. Реферальных наград нет.': 'Paket awal 250 POTATO diberikan sekali per dompet oleh penanda tangan operator. Bonus harian 7 POTATO sekali per hari UTC. Tidak ada hadiah referral.',
   'ПОЛУЧИТЬ СТАРТОВЫЙ НАБОР': 'AMBIL PAKET AWAL',
   'Отправляем…': 'Mengirim…',
   'Получить ежедневные 7 POTATO': 'Ambil 7 POTATO harian',
@@ -820,4 +819,12 @@ export default {
   'Поле покупается за POTATO. Урожай ограничен капом эпохи 250 000–750 000 POTATO и лунным множителем 0.85×–1.15×.': 'Lahan dibeli dengan POTATO. Hasil panen dibatasi cap epoch 250.000–750.000 POTATO dan pengali lunar 0.85×–1.15×.',
   'Лицензия 500 SKR / 30 дней даёт −3 % комиссии только на закрытом легаси-рынке V1; на V2 скидки нет, и действующая выгода лицензии — батч-сбор 10 → 30 полей.': 'Lisensi 500 SKR / 30 hari memberi −3% biaya hanya di pasar legacy V1 yang sudah ditutup; tidak ada diskon V2, dan manfaat aktifnya adalah panen batch 10 → 30 lahan.',
   'Экспортная лицензия 500 SKR / 30 дней снижает комиссию на 3 % только на закрытом легаси-рынке V1; комиссию V2 в SOL/SKR она не уменьшает. Действующая выгода — батч-сбор с 10 до 30 полей за транзакцию.': 'Lisensi ekspor 500 SKR / 30 hari memotong biaya 3% hanya di pasar legacy V1 yang ditutup; tidak mengurangi biaya settlement V2 dalam SOL/SKR. Manfaat aktifnya adalah panen batch 10 → 30 lahan per transaksi.',
+  'Стартовый набор 250 POTATO выдаётся один раз на кошелёк и только по коду оператора, выписанному на этот кошелёк. Ежедневный бонус 7 POTATO — один раз в UTC-сутки и только владельцу активного поля. Реферальных наград нет.': 'Paket awal 250 POTATO diberikan sekali per dompet dan hanya dengan kode operator yang diterbitkan untuk dompet itu. Bonus harian 7 POTATO sekali per hari UTC dan hanya untuk pemilik lahan aktif. Tidak ada hadiah referral.',
+  'КОД ПРИГЛАШЕНИЯ (его выдаёт оператор на этот кошелёк)': 'KODE UNDANGAN (diterbitkan operator untuk dompet ini)',
+  'Код приглашения на стартовый набор': 'Kode undangan paket awal',
+  'Нужен код приглашения от оператора, выписанный на этот кошелёк.': 'Diperlukan kode undangan dari operator yang diterbitkan untuk dompet ini.',
+  'Срок действия кода истёк. Попроси новый.': 'Kode undangan sudah kedaluwarsa. Minta yang baru.',
+  'Приглашения не настроены на сервере: стартовый набор сейчас не выдаётся.': 'Undangan belum dikonfigurasi di server: paket awal tidak diberikan saat ini.',
+  'Ежедневный бонус доступен только владельцу активного поля.': 'Bonus harian hanya untuk pemilik lahan aktif.',
+  'Не удалось проверить поля на цепи. Повтори позже.': 'Tidak dapat memeriksa lahan di rantai. Coba lagi nanti.',
 }

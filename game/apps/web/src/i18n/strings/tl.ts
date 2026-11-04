@@ -786,7 +786,6 @@ export default {
   // Магазин полей: вход без деплоя и витрина паков.
   'МАГАЗИН ПОЛЕЙ': 'TINDAHAN NG BUKID',
   'ВХОД БЕСПЛАТНЫЙ': 'LIBRENG PASOK',
-  'Стартовый набор 250 POTATO выдаётся один раз на кошелёк подписантом оператора. Ежедневный бонус 7 POTATO — один раз в UTC-сутки. Реферальных наград нет.': 'Ang 250 POTATO starter pack ay ibinibigay isang beses kada wallet ng signer ng operator. Ang 7 POTATO daily bonus ay isang beses kada araw ng UTC. Walang referral na gantimpala.',
   'ПОЛУЧИТЬ СТАРТОВЫЙ НАБОР': 'KUNIN ANG STARTER PACK',
   'Отправляем…': 'Ipinapadala…',
   'Получить ежедневные 7 POTATO': 'Kunin ang araw-araw na 7 POTATO',
@@ -820,4 +819,12 @@ export default {
   'Поле покупается за POTATO. Урожай ограничен капом эпохи 250 000–750 000 POTATO и лунным множителем 0.85×–1.15×.': 'Ang bukid ay binibili gamit ang POTATO. Ang ani ay limitado ng epoch cap na 250,000–750,000 POTATO at ng lunar multiplier na 0.85×–1.15×.',
   'Лицензия 500 SKR / 30 дней даёт −3 % комиссии только на закрытом легаси-рынке V1; на V2 скидки нет, и действующая выгода лицензии — батч-сбор 10 → 30 полей.': 'Ang 500 SKR / 30 araw na lisensya ay nagbibigay ng −3% sa bayad sa saradong legacy V1 market lamang; walang V2 diskwento, at ang aktibong benepisyo ay batch harvest 10 → 30 bukid.',
   'Экспортная лицензия 500 SKR / 30 дней снижает комиссию на 3 % только на закрытом легаси-рынке V1; комиссию V2 в SOL/SKR она не уменьшает. Действующая выгода — батч-сбор с 10 до 30 полей за транзакцию.': 'Ang 500 SKR / 30 araw na export license ay nagbabawas ng 3% sa bayad sa saradong legacy V1 market lamang; hindi nito binabawasan ang V2 SOL/SKR settlement fee. Ang aktibong benepisyo ay batch harvest na 10 → 30 bukid bawat transaksyon.',
+  'Стартовый набор 250 POTATO выдаётся один раз на кошелёк и только по коду оператора, выписанному на этот кошелёк. Ежедневный бонус 7 POTATO — один раз в UTC-сутки и только владельцу активного поля. Реферальных наград нет.': 'Ang 250 POTATO starter pack ay ibinibigay isang beses bawat wallet at may operator code na para sa wallet na iyon. Ang 7 POTATO daily bonus ay isang beses bawat UTC day at para lamang sa may-ari ng aktibong bukid. Walang referral rewards.',
+  'КОД ПРИГЛАШЕНИЯ (его выдаёт оператор на этот кошелёк)': 'INVITE CODE (ibinibigay ng operator para sa wallet na ito)',
+  'Код приглашения на стартовый набор': 'Invite code para sa starter pack',
+  'Нужен код приглашения от оператора, выписанный на этот кошелёк.': 'Kailangan ang invite code mula sa operator na para sa wallet na ito.',
+  'Срок действия кода истёк. Попроси новый.': 'Nag-expire na ang invite code. Humingi ng bago.',
+  'Приглашения не настроены на сервере: стартовый набор сейчас не выдаётся.': 'Hindi naka-configure ang invites sa server: hindi ibinibigay ang starter pack ngayon.',
+  'Ежедневный бонус доступен только владельцу активного поля.': 'Ang daily bonus ay para lamang sa may-ari ng aktibong bukid.',
+  'Не удалось проверить поля на цепи. Повтори позже.': 'Hindi ma-check ang mga bukid sa chain. Subukan mamaya.',
 }

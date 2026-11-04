@@ -19,6 +19,7 @@ import { loadRewardKeypair, sendGrant as sendRewardGrant } from "./rewards/send.
 import { startDeliveryWorker } from "./rewards/worker.js";
 import { claimPda, findExistingGrant, resolveAtaOwner } from "./rewards/chain.js";
 import { startQuestBudgetWorker } from "./rewards/questBudget.js";
+import { createFieldProbe, hasActiveField, FIELD_ACCOUNT_BYTES, FIELD_OWNER_OFFSET } from "./rewards/fieldProbe.js";
 import { listActionable, listAwaitingConfirmation, markConfirmed, markFailed, markSubmitted } from "./gameops/intents.js";
 import { configPda, epochPda, questTreasuryPda } from "./solana.js";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
@@ -288,10 +289,29 @@ async function main() {
     : rewardKeypair === null
       ? "REWARD_KEYPAIR_JSON is not configured"
       : "reward rail is not approved for this network";
+  // Дейлик выдаётся только кошельку с активным полем: пустой адрес не должен
+  // получать награду за «возвращение». Проверка идёт по цепи (getProgramAccounts
+  // с фильтрами по владельцу и размеру аккаунта), результат кешируется на 5 мин.
+  const activeFieldProbe = createFieldProbe({
+    now: () => Math.floor(Date.now() / 1000),
+    lookup: async (wallet) => {
+      const accounts = await connection.getProgramAccounts(programId, {
+        commitment: "confirmed",
+        filters: [
+          { dataSize: FIELD_ACCOUNT_BYTES },
+          { memcmp: { offset: FIELD_OWNER_OFFSET, bytes: wallet } },
+        ],
+      });
+      return hasActiveField(accounts);
+    },
+  });
+
   app.use("/api/rewards", rewardsRouter({
     enabled: rewardsEnabled,
     disabledReason: rewardsDisabledReason,
     rewardSigner: rewardKeypair?.publicKey ?? null,
+    inviteSecret: env.rewardInviteSecret || null,
+    hasActiveField: activeFieldProbe,
     now: () => BigInt(Math.floor(Date.now() / 1000)),
     sendGrant: async ({ wallet, amountMicro, nonce, expiresAt }) => {
       // Ключ обязан быть тем самым reward_signer из ончейн-конфига: проверка
@@ -313,6 +333,11 @@ async function main() {
     },
   }));
   console.log(`[startup] rewards rail ${rewardsEnabled ? "on" : "off"}: ${rewardsEnabled ? "grant_reward_once" : rewardsDisabledReason}`);
+  if (rewardsEnabled && !env.rewardInviteSecret) {
+    // Тихая ошибка конфигурации: рельса включена, а стартовый набор всё равно
+    // закрыт. Скажем это вслух на старте, иначе выглядит как поломка выдачи.
+    console.warn("[startup] rewards: REWARD_INVITE_SECRET is empty — starter grants are disabled (503 INVITES_NOT_CONFIGURED)");
+  }
 
   // Авто-доставка reward_intents тем же reward_signer. Включается только когда
   // рельса жива, есть game_ops и явно задан такт: до запуска не должно быть ни
@@ -416,6 +441,11 @@ async function main() {
       }, env.questBudgetIntervalSeconds)
     : null;
   if (questBudgetWorker) console.log(`[startup] quest budget on: every ${env.questBudgetIntervalSeconds}s`);
+  if (rewardsEnabled && !questBudgetWorker) {
+    // Пул ачивок (550 POTATO) заправлен один раз: без крона он вычерпывается
+    // навсегда и `claim_achievement` начинает отвечать QuestPoolEmpty.
+    console.warn("[startup] quest budget is OFF while the rewards rail is on — set QUEST_BUDGET_INTERVAL_SECONDS");
+  }
 
   app.use("/api/config", configRouter);
 

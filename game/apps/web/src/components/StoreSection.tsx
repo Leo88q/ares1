@@ -63,6 +63,10 @@ export default function StoreSection(): JSX.Element {
   const [payload, setPayload] = useState<StorePayload | null>(null)
   const [unavailable, setUnavailable] = useState(false)
   const [request, setRequest] = useState<RequestState>({ kind: 'idle' })
+  // P0-2: стартовый набор выдаётся только по коду оператора, привязанному к
+  // кошельку и сроку. Поле ввода — не «промокод на скидку», а единственный
+  // вход в игру: без кода сервер отвечает 401 и ничего не минтит.
+  const [invite, setInvite] = useState('')
   const wallet = publicKey?.toBase58() ?? null
   const alive = useRef(true)
 
@@ -87,7 +91,7 @@ export default function StoreSection(): JSX.Element {
       const response = await fetch(`${BACKEND}/api/rewards/${kind}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ wallet }),
+        body: JSON.stringify(kind === 'starter' ? { wallet, invite: invite.trim() } : { wallet }),
       })
       const body = await response.json().catch(() => ({})) as { error?: string }
       if (response.status === 201) {
@@ -107,11 +111,33 @@ export default function StoreSection(): JSX.Element {
         setRequest({ kind: 'error', message: t('Выдача недоступна: рельса наград не включена на этом окружении.') })
         return
       }
+      // Коды отказа рельсы (P0-2): каждый говорит игроку, что он может сделать,
+      // вместо общего «попробуй позже».
+      if (body.error === 'INVITE_REQUIRED' || body.error === 'INVITE_INVALID') {
+        setRequest({ kind: 'error', message: t('Нужен код приглашения от оператора, выписанный на этот кошелёк.') })
+        return
+      }
+      if (body.error === 'INVITE_EXPIRED') {
+        setRequest({ kind: 'error', message: t('Срок действия кода истёк. Попроси новый.') })
+        return
+      }
+      if (body.error === 'INVITES_NOT_CONFIGURED') {
+        setRequest({ kind: 'error', message: t('Приглашения не настроены на сервере: стартовый набор сейчас не выдаётся.') })
+        return
+      }
+      if (body.error === 'NO_ACTIVE_FIELD') {
+        setRequest({ kind: 'error', message: t('Ежедневный бонус доступен только владельцу активного поля.') })
+        return
+      }
+      if (body.error === 'ACTIVITY_CHECK_UNAVAILABLE' || body.error === 'ACTIVITY_CHECK_FAILED') {
+        setRequest({ kind: 'error', message: t('Не удалось проверить поля на цепи. Повтори позже.') })
+        return
+      }
       setRequest({ kind: 'error', message: t('Не удалось выдать набор. Попробуй позже.') })
     } catch {
       setRequest({ kind: 'error', message: t('Не удалось выдать набор. Попробуй позже.') })
     }
-  }, [wallet, reload, t])
+  }, [wallet, invite, reload, t])
 
   const packs = payload?.packs ?? []
   const open = payload?.enabled === true
@@ -138,7 +164,7 @@ export default function StoreSection(): JSX.Element {
       </h2>
       <p style={{ color: 'var(--pf-text-secondary)', fontSize: 11, lineHeight: 1.55, margin: '0 0 12px' }}>
         {railOn
-          ? t('Стартовый набор 250 POTATO выдаётся один раз на кошелёк подписантом оператора. Ежедневный бонус 7 POTATO — один раз в UTC-сутки. Реферальных наград нет.')
+          ? t('Стартовый набор 250 POTATO выдаётся один раз на кошелёк и только по коду оператора, выписанному на этот кошелёк. Ежедневный бонус 7 POTATO — один раз в UTC-сутки и только владельцу активного поля. Реферальных наград нет.')
           : t('Бесплатная выдача выключена: рельса наград включается отдельным решением запуска. Первое поле выдаёт оператор. Не отправляй деньги ради теста.')}
       </p>
 
@@ -149,12 +175,35 @@ export default function StoreSection(): JSX.Element {
           </p>
           : connected && wallet
           ? <>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%', marginBottom: 2 }}>
+              <span style={{ fontSize: 9, letterSpacing: '.08em', color: 'var(--pf-text-muted)' }}>
+                {t('КОД ПРИГЛАШЕНИЯ (его выдаёт оператор на этот кошелёк)')}
+              </span>
+              <input
+                type="text"
+                value={invite}
+                onChange={(event) => setInvite(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                data-testid="store-invite-input"
+                placeholder="v1.…"
+                aria-label={t('Код приглашения на стартовый набор')}
+                style={{
+                  font: '11px/1.4 var(--ares-font-mono, monospace)',
+                  padding: '7px 9px',
+                  color: '#EFD9AC',
+                  background: 'rgba(0,0,0,0.35)',
+                  border: '1px solid rgba(255,179,71,0.28)',
+                  borderRadius: 4,
+                }}
+              />
+            </label>
             <button
               type="button"
               className="mk-key"
               data-testid="store-claim-starter"
               onClick={() => void claim('starter')}
-              disabled={busy}
+              disabled={busy || invite.trim().length === 0}
               style={{ padding: '8px 11px', fontSize: 9 }}
             >{busy ? t('Отправляем…') : t('ПОЛУЧИТЬ СТАРТОВЫЙ НАБОР')}</button>
             <button
