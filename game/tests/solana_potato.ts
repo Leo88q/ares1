@@ -805,6 +805,44 @@ describe("solana_potato", () => {
       expect(stats.totalTrades.toString()).to.eq("1");
     });
 
+    it("B7/E28 (V2): купленный ордер нельзя купить второй раз — close обнуляет повтор", async () => {
+      // Раньше пару «ровно один раз» держал тест на легаси-fill_order; легаси
+      // закрыт на запись (P2-2), поэтому инвариант проверяется на живом рельсе.
+      // Ордер закрывается (`close = seller`), escrow тоже — повторный fill
+      // упирается в отсутствующий аккаунт, а не в двойную выплату.
+      const id = BigInt(Date.now() + 715);
+      const order = orderV2Pda(id);
+      const escrow = escrowV2Pda(order);
+      await v2Methods.createSellOrderV2(
+        new BN(id.toString()), new BN(10_000_000), new BN(10_000_000), { sol: {} },
+      ).accountsPartial(createOrderV2Accounts(id, admin.publicKey, adminAta)).rpc();
+      const fill = () => v2Methods.fillOrderV2().accountsPartial({
+        buyer: player.publicKey,
+        seller: admin.publicKey,
+        config: configPda,
+        potatoMint: mint,
+        sellerVolumeV2: sellerVolumeV2Pda(admin.publicKey),
+        marketStatsV2: marketStatsV2Pda,
+        order,
+        escrow,
+        buyerPotato: playerAta,
+        treasurySol: treasurySolPda,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      }).signers([player]).rpc();
+      await fill();
+      expect(await connection.getAccountInfo(order)).to.be.null;
+      expect(await connection.getAccountInfo(escrow)).to.be.null;
+      const statsAfter = await v2Accounts.marketStatsV2.fetch(marketStatsV2Pda);
+      const volumeAfter = await v2Accounts.sellerVolumeV2.fetch(sellerVolumeV2Pda(admin.publicKey));
+      await expectFail(fill());
+      // Повтор не сдвигает ни статистику, ни дневной объём продавца.
+      expect((await v2Accounts.marketStatsV2.fetch(marketStatsV2Pda)).totalTrades.toString())
+        .to.eq(statsAfter.totalTrades.toString());
+      expect((await v2Accounts.sellerVolumeV2.fetch(sellerVolumeV2Pda(admin.publicKey))).filledPotatoMicro.toString())
+        .to.eq(volumeAfter.filledPotatoMicro.toString());
+    });
+
     it("settles the POTATO/SKR pair in SKR and shares seller volume across quote pairs", async () => {
       const id = BigInt(Date.now() + 702);
       const order = orderV2Pda(id);
@@ -949,12 +987,12 @@ describe("solana_potato", () => {
 
   describe("referrals", () => {
     const referrer = Keypair.generate();
-    let referrerAta: PublicKey;
     const playerReferralPda = pda(Buffer.from("referral"), player.publicKey.toBuffer());
 
-    it("register_referrer is free and stores the link once", async () => {
-      referrerAta = (await getOrCreateAssociatedTokenAccount(connection, player, mint, referrer.publicKey)).address;
-      // F-17: регистрация — мутация состояния, при паузе блокируется
+    it("P2-2: регистрация закрыта — ReferralProgramRetired без единого эффекта", async () => {
+      // Награды платит только легаси fill_order, а он закрыт на запись:
+      // регистрация продавала бы обещание, которое не может исполниться.
+      // Пауза проверяется раньше (F-17), поэтому при паузе ответ прежний.
       await program.methods.setPaused(true).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
       await expectFail(
         program.methods.registerReferrer(referrer.publicKey).accountsPartial({
@@ -964,63 +1002,22 @@ describe("solana_potato", () => {
         "Paused",
       );
       await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
-      const before = await ataBalance(playerAta);
-      const supplyBefore = (await getMint(connection, mint)).supply;
-      const rentBefore = await connection.getBalance(player.publicKey);
-      await program.methods.registerReferrer(referrer.publicKey).accountsPartial({
-        referral: playerReferralPda, config: configPda, potatoMint: mint, userPotato: playerAta,
-        owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-      }).signers([player]).rpc();
-      // Вход не должен требовать уже заработанных POTATO: ни списания, ни burn.
-      expect(await ataBalance(playerAta)).to.eq(before);
-      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
-      expect(await connection.getBalance(player.publicKey)).to.be.lessThan(rentBefore);
-      const r = await program.account.referral.fetch(playerReferralPda);
-      expect(r.owner.equals(player.publicKey)).to.be.true;
-      expect(r.referrer.equals(referrer.publicKey)).to.be.true;
-    });
 
-    it("a newcomer with an empty wallet can register and nothing is minted or burned", async () => {
-      const newcomer = Keypair.generate();
-      await connection.confirmTransaction(await connection.requestAirdrop(newcomer.publicKey, LAMPORTS_PER_SOL));
-      const newcomerAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, newcomer.publicKey)).address;
-      const referral = pda(Buffer.from("referral"), newcomer.publicKey.toBuffer());
-      const register = () => program.methods.registerReferrer(referrer.publicKey).accountsPartial({
-        referral, config: configPda, potatoMint: mint, userPotato: newcomerAta,
-        owner: newcomer.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-      }).signers([newcomer]).rpc();
+      const potatoBefore = await ataBalance(playerAta);
       const supplyBefore = (await getMint(connection, mint)).supply;
-      expect(await ataBalance(newcomerAta)).to.eq(0n);
-      await register();
-      expect(await ataBalance(newcomerAta)).to.eq(0n);
-      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
-      const stored = await program.account.referral.fetch(referral);
-      expect(stored.owner.equals(newcomer.publicKey)).to.be.true;
-      expect(stored.referrer.equals(referrer.publicKey)).to.be.true;
-    });
-
-    it("rejects self-referral and re-registration without another charge", async () => {
-      const playerBefore = await ataBalance(playerAta);
-      const adminBefore = await ataBalance(adminAta);
-      const supplyBefore = (await getMint(connection, mint)).supply;
-      const selfPda = pda(Buffer.from("referral"), admin.publicKey.toBuffer());
-      await expectFail(
-        program.methods.registerReferrer(admin.publicKey).accountsPartial({
-          referral: selfPda, config: configPda, potatoMint: mint, userPotato: adminAta,
-          owner: admin.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-        }).rpc(),
-        "Unauthorized",
-      );
+      const lamportsBefore = await connection.getBalance(player.publicKey);
       await expectFail(
         program.methods.registerReferrer(referrer.publicKey).accountsPartial({
           referral: playerReferralPda, config: configPda, potatoMint: mint, userPotato: playerAta,
           owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
         }).signers([player]).rpc(),
+        "ReferralProgramRetired",
       );
-      expect(await ataBalance(playerAta)).to.eq(playerBefore);
-      expect(await ataBalance(adminAta)).to.eq(adminBefore);
+      // Отказ до любых списаний: ни PDA, ни POTATO, ни эмиссии, ни аренды.
+      expect(await connection.getAccountInfo(playerReferralPda)).to.eq(null);
+      expect(await ataBalance(playerAta)).to.eq(potatoBefore);
       expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
-      expect(await connection.getAccountInfo(selfPda)).to.be.null;
+      expect(await connection.getBalance(player.publicKey)).to.eq(lamportsBefore);
     });
   });
 

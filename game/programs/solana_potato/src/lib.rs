@@ -208,6 +208,16 @@ pub const REFERRAL_REGISTRATION_COST_MICRO: u64 = 0;
 /// flagged by clippy (`absurd_extreme_comparisons`), and a silently-dead branch
 /// is exactly the kind of thing that rots. Re-enabling the fee = `Some(x)` here.
 pub const REFERRAL_REGISTRATION_FEE_MICRO: Option<u64> = None;
+/// P2-2-следствие: реферальные награды (0.5 % рефереру, −1 % покупателю)
+/// выплачиваются **только** легаси `fill_order`, а легаси-рынок закрыт на
+/// запись (`LEGACY_MARKET_WRITES_ENABLED = false`). Новая регистрация продавала
+/// бы обещание, которое не может исполниться, поэтому она закрыта: уже
+/// зарегистрированные пары продолжают получать выплаты, пока доигранная книга
+/// V1 не опустеет, а новых записей не появляется. Возврат программы — `true`
+/// здесь плюс отдельное решение по V2-экономике: 0.5 % из fee меняет доход
+/// казны, а `docs/ECONOMY.md` §5 фиксирует, что реферальные rebate'ы в V2 не
+/// утверждены.
+pub const REFERRAL_PROGRAM_ENABLED: bool = false;
 pub const BASE_TAX_MICRO: u64 = 6_000_000; // 6 $POTATO / week
 pub const BASE_REPAIR_MICRO: u64 = 15_000_000; // 15 $POTATO
 /// 2 POTATO per 24 h. At the old 10 the perk was strictly unprofitable: +50 %
@@ -1664,20 +1674,45 @@ pub mod solana_potato {
         }
 
         // ── Итоговая комиссия: скидки уменьшают её, разница — refund продавцу ──
-        let total_discounts = license_discount
-            .saturating_add(referral_discount)
-            .min(fee_listed);
-        let fee_net = fee_listed.saturating_sub(total_discounts);
-        let fee_to_treasury =
-            ((fee_net as u128) * (100u128 - FEE_BURN_PERCENT as u128) / 100) as u64;
-        let fee_to_burn_base = fee_net.saturating_sub(fee_to_treasury);
-        let referrer_reward = if referrer_key != Pubkey::default() {
-            // 0.5 % от суммы, не больше burn-доли
-            ((amount_micro as u128 * 50 / 10_000) as u64).min(fee_to_burn_base)
+        let split = legacy_fee_split(
+            amount_micro,
+            fee_listed,
+            license_discount,
+            referral_discount,
+            referrer_key != Pubkey::default(),
+        );
+        let total_discounts = split.total_discounts;
+        let fee_to_treasury = split.fee_to_treasury;
+        let referrer_reward = split.referrer_reward;
+
+        // ATA реферера проверяется ДО эффектов. Это только чтение, но значение
+        // важно для CEI: `total_burned_micro` обязан совпасть с реально
+        // сожжённым supply, а невостребованная награда сгорает (см.
+        // `LegacyFeeSplit::fee_to_burn`). Раньше счётчик увеличивался до
+        // проверки ATA и занижался на величину награды.
+        // ATA валидируется полностью: owner == Token Program и полный
+        // borsh-deserialize spl TokenAccount (ручная нарезка байт принимала
+        // поддельные аккаунты с произвольным owner/mint в первых 64 байтах).
+        let reward_ata = if referrer_reward > 0 {
+            ctx.remaining_accounts.get(2).filter(|ata_acc| {
+                if *ata_acc.owner != ctx.accounts.token_program.key() || ata_acc.data_is_empty() {
+                    return false;
+                }
+                let data = match ata_acc.try_borrow_data() {
+                    Ok(data) => data,
+                    Err(_) => return false,
+                };
+                let mut slice: &[u8] = &data;
+                TokenAccount::try_deserialize(&mut slice)
+                    .map(|ata| {
+                        ata.mint == ctx.accounts.potato_mint.key() && ata.owner == referrer_key
+                    })
+                    .unwrap_or(false)
+            })
         } else {
-            0
+            None
         };
-        let mut fee_to_burn = fee_to_burn_base.saturating_sub(referrer_reward);
+        let fee_to_burn = split.fee_to_burn(reward_ata.is_some());
 
         // ── Effects (CEI) ──
         ctx.accounts.order.status = OrderStatus::Filled;
@@ -1713,47 +1748,21 @@ pub mod solana_potato {
         let escrow = ctx.accounts.escrow.to_account_info();
 
         // Награда рефереру — переводом из escrow (часть комиссии), НЕ минтом.
-        // ATA реферера валидируется полностью: owner == Token Program и полный
-        // borsh-deserialize spl TokenAccount (ручная нарезка байт принимала
-        // поддельные аккаунты с произвольным owner/mint в первых 64 байтах).
-        let mut reward_claimed = false;
-        if referrer_reward > 0 {
-            if let Some(ata_acc) = ctx.remaining_accounts.get(2) {
-                let valid = if *ata_acc.owner == ctx.accounts.token_program.key()
-                    && !ata_acc.data_is_empty()
-                {
-                    let data = ata_acc.try_borrow_data()?;
-                    let mut slice: &[u8] = &data;
-                    TokenAccount::try_deserialize(&mut slice)
-                        .map(|ata| {
-                            ata.mint == ctx.accounts.potato_mint.key() && ata.owner == referrer_key
-                        })
-                        .unwrap_or(false)
-                } else {
-                    false
-                };
-                {
-                    if valid {
-                        token::transfer(
-                            CpiContext::new_with_signer(
-                                token_program.clone(),
-                                Transfer {
-                                    from: escrow.clone(),
-                                    to: ata_acc.to_account_info(),
-                                    authority: escrow.clone(),
-                                },
-                                signer,
-                            ),
-                            referrer_reward,
-                        )?;
-                        reward_claimed = true;
-                    }
-                }
-            }
-            if !reward_claimed {
-                // ATA не передан/неверный — доля сгорает, баланс escrow сходится.
-                fee_to_burn = fee_to_burn.saturating_add(referrer_reward);
-            }
+        // ATA уже провалидирована до CEI; `None` означает «не передан/неверный»,
+        // и тогда эта доля сгорает вместе с fee (escrow закрывается с нулём).
+        if let Some(ata_acc) = reward_ata {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    token_program.clone(),
+                    Transfer {
+                        from: escrow.clone(),
+                        to: ata_acc.to_account_info(),
+                        authority: escrow.clone(),
+                    },
+                    signer,
+                ),
+                referrer_reward,
+            )?;
         }
 
         if fee_to_burn > 0 {
@@ -1826,7 +1835,7 @@ pub mod solana_potato {
             amount_micro,
             total_lamports,
         });
-        if reward_claimed {
+        if reward_ata.is_some() {
             emit!(ReferralRewardPaid {
                 buyer: ctx.accounts.buyer.key(),
                 referrer: referrer_key,
@@ -2533,6 +2542,10 @@ pub mod solana_potato {
     pub fn register_referrer(ctx: Context<RegisterReferrer>, referrer: Pubkey) -> Result<()> {
         // F-17: гейтим паузой как остальные мутации состояния.
         require!(!ctx.accounts.config.paused, GameError::Paused);
+        // Реферальные награды живут только в легаси `fill_order`, а легаси
+        // закрыт на запись (P2-2). Регистрация закрыта до первых списаний:
+        // ни PDA, ни токены, ни cooldown не трогаются, отказ диагностируем.
+        require!(referral_program_enabled(), GameError::ReferralProgramRetired);
         require!(
             referrer != ctx.accounts.owner.key(),
             GameError::Unauthorized
@@ -3064,12 +3077,74 @@ pub fn order_fee_micro(amount_micro: u64) -> Result<u64> {
     u64::try_from(fee).map_err(|_| GameError::MathOverflow.into())
 }
 
+/// Как легаси `fill_order` делит удержанную комиссию между казной, сжиганием и
+/// реферером. Вынесено чистой функцией ради тестируемости: после закрытия
+/// легаси-рынка на запись (P2-2) живой ордер в тесте не создать, а деньги по уже
+/// выставленным ордерам продолжают идти по этим правилам до конца `ORDER_TTL`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LegacyFeeSplit {
+    /// Скидки (лицензия −3 %, реферал покупателя −1 %), но не больше комиссии.
+    pub total_discounts: u64,
+    pub fee_to_treasury: u64,
+    /// 0.5 % от суммы сделки, но не больше burn-доли.
+    pub referrer_reward: u64,
+    /// Комиссия к сжиганию, если награда рефереру выплачена.
+    pub fee_to_burn_claimed: u64,
+}
+
+impl LegacyFeeSplit {
+    /// Комиссия к сжиганию для конкретного исхода выплаты награды.
+    /// Невостребованная награда не остаётся в escrow (он закрывается ровно
+    /// с нулём), а сгорает — поэтому сумма «казна + сжигание + награда»
+    /// всегда равна `fee_listed`.
+    pub fn fee_to_burn(&self, reward_claimed: bool) -> u64 {
+        if self.referrer_reward > 0 && !reward_claimed {
+            self.fee_to_burn_claimed.saturating_add(self.referrer_reward)
+        } else {
+            self.fee_to_burn_claimed
+        }
+    }
+}
+
+pub fn legacy_fee_split(
+    amount_micro: u64,
+    fee_listed: u64,
+    license_discount: u64,
+    referral_discount: u64,
+    has_referrer: bool,
+) -> LegacyFeeSplit {
+    let total_discounts = license_discount
+        .saturating_add(referral_discount)
+        .min(fee_listed);
+    let fee_net = fee_listed.saturating_sub(total_discounts);
+    let fee_to_treasury = ((fee_net as u128) * (100u128 - FEE_BURN_PERCENT as u128) / 100) as u64;
+    let fee_to_burn_base = fee_net.saturating_sub(fee_to_treasury);
+    let referrer_reward = if has_referrer {
+        ((amount_micro as u128 * 50 / 10_000) as u64).min(fee_to_burn_base)
+    } else {
+        0
+    };
+    LegacyFeeSplit {
+        total_discounts,
+        fee_to_treasury,
+        referrer_reward,
+        fee_to_burn_claimed: fee_to_burn_base.saturating_sub(referrer_reward),
+    }
+}
+
 /// P2-2: единственная точка, читающая `LEGACY_MARKET_WRITES_ENABLED`.
 /// Отдельная функция, а не константа прямо в `require!`: хост-тест проверяет
 /// её же, поэтому инвариант «легаси закрыт» не может тихо разойтись с кодом
 /// инструкции.
 pub fn legacy_market_writes_enabled() -> bool {
     LEGACY_MARKET_WRITES_ENABLED
+}
+
+/// P2-2-следствие: единственная точка чтения `REFERRAL_PROGRAM_ENABLED`.
+/// Как и с легаси-рынком, тест проверяет эту функцию, а не константу, чтобы
+/// инвариант «регистрация закрыта» не разошёлся с кодом инструкции.
+pub fn referral_program_enabled() -> bool {
+    REFERRAL_PROGRAM_ENABLED
 }
 
 /// SOL (lamports) a buyer pays for an order. `price` is lamports per whole $POTATO.
@@ -5345,6 +5420,8 @@ pub enum GameError {
     QuestPoolEmpty, // 6057
     #[msg("Legacy marketplace is closed for new listings: use create_sell_order_v2")]
     LegacyMarketClosed, // 6058
+    #[msg("Referral registration is retired: rewards were paid by the closed legacy market only")]
+    ReferralProgramRetired, // 6059
 }
 
 // ──────────────────────────── Tests ──────────────────────────────
@@ -6199,6 +6276,76 @@ mod tests {
         assert_eq!(EPOCH_DURATION, SECONDS_PER_DAY);
         assert_eq!(MAX_ACCRUAL_SECONDS, 7 * SECONDS_PER_DAY);
         assert_eq!(LUNAR_TABLE.len(), 28);
+    }
+
+    #[test]
+    fn referral_registration_gate_stays_shut() {
+        // Награда рефереру (0.5 %) и скидка покупателю (−1 %) существуют только
+        // в легаси `fill_order`. Пока легаси закрыт на запись, новая регистрация
+        // обещала бы выплаты, которых не будет, — поэтому она закрыта, а
+        // программа либо возвращается вместе с решением по V2-экономике, либо
+        // удаляется отдельным релизом ABI.
+        assert!(
+            !referral_program_enabled(),
+            "P2-2: register_referrer обязан отклонять новые регистрации"
+        );
+        assert!(!legacy_market_writes_enabled(), "награды платит только легаси-fill");
+    }
+
+    #[test]
+    fn legacy_fee_split_matches_the_retired_market_rules() {
+        // Правила легаси-комиссии живут, пока доигрывается книга V1: ордер
+        // 10 POTATO с комиссией 5 % (500 000) и escrow 10 500 000.
+        let amount = 10 * MICRO as u64;
+        let listed = 500_000;
+
+        // Без скидок: 60 % сгорает, 40 % в казну — ровно как до P2-2.
+        let plain = legacy_fee_split(amount, listed, 0, 0, false);
+        assert_eq!(plain.total_discounts, 0);
+        assert_eq!(plain.fee_to_treasury, 200_000);
+        assert_eq!(plain.referrer_reward, 0);
+        assert_eq!(plain.fee_to_burn(true), 300_000);
+        assert_eq!(plain.fee_to_burn(false), 300_000, "без реферера исход не влияет");
+
+        // Реферал покупателя: −1 % из комиссии (refund продавцу) и 0.5 % рефереру.
+        let referred = legacy_fee_split(amount, listed, 0, listed / 5, true);
+        assert_eq!(referred.total_discounts, 100_000);
+        assert_eq!(referred.fee_to_treasury, 160_000);
+        assert_eq!(referred.referrer_reward, 50_000);
+        assert_eq!(referred.fee_to_burn(true), 190_000);
+        // ATA не передана/неверна — награда сгорает, escrow дренируется в ноль.
+        assert_eq!(referred.fee_to_burn(false), 240_000);
+
+        // Экспортная лицензия продавца: −3 % от суммы.
+        let licensed = legacy_fee_split(amount, listed, amount * 300 / 10_000, 0, false);
+        assert_eq!(licensed.total_discounts, 300_000);
+        assert_eq!(licensed.fee_to_treasury, 80_000);
+        assert_eq!(licensed.fee_to_burn(true), 120_000);
+
+        // Скидки не могут превысить удержанную комиссию.
+        let capped = legacy_fee_split(amount, listed, 400_000, 400_000, true);
+        assert_eq!(capped.total_discounts, listed);
+        assert_eq!(capped.fee_to_treasury, 0);
+        assert_eq!(capped.referrer_reward, 0, "рефереру не из чего платить");
+        assert_eq!(capped.fee_to_burn(true), 0);
+
+        // Инвариант дренажа: escrow = сумма ордера + комиссия, и каждый атом
+        // комиссии имеет адрес (казна + сожжённое + выплаченная награда).
+        for (amount, listed, license, referral, has_ref) in [
+            (amount, listed, 0u64, 0u64, false),
+            (amount, listed, 0, 100_000, true),
+            (amount, listed, 300_000, 0, false),
+            (amount, listed, 300_000, 100_000, true),
+            (amount, listed, 900_000, 900_000, true),
+        ] {
+            let split = legacy_fee_split(amount, listed, license, referral, has_ref);
+            let claimed = split.referrer_reward > 0;
+            let drained = split.fee_to_treasury
+                + split.referrer_reward
+                + split.fee_to_burn(claimed)
+                + split.total_discounts;
+            assert_eq!(drained, listed, "escrow не дренируется в ноль: {split:?}");
+        }
     }
 
     #[test]

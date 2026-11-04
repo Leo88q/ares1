@@ -9,7 +9,6 @@ import { WalletErrorReporter } from './components/WalletErrorReporter'
 import { GameProvider } from './contexts/GameContext'
 import { t, useI18n } from './i18n'
 import { ambientMusic } from './utils/ambientMusic'
-import { useReferralRegistration } from './hooks/useReferralRegistration'
 import { useFeatures } from './hooks/useFeatures'
 import { AresBottomNav } from './components/ares/AresBottomNav'
 import { SectionFrame } from './components/ares/SectionFrame'
@@ -33,7 +32,6 @@ type Screen = 'farm' | 'lab' | 'colony' | 'market' | 'stats' | 'profile' | 'oper
 
 export default function App() {
  const { lang } = useI18n()
- useReferralRegistration()
 
  useEffect(() => {
   ambientMusic.init()

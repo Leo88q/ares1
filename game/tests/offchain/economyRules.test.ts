@@ -83,6 +83,14 @@ test('referral registration is free: no entry fee before the first field', () =>
   assert.doesNotMatch(gated, /50_000_000/, 'жёстко зашитая цена регистрации');
   assert.match(gated, /token::burn\(/, 'fee-ветка должна сжигать POTATO, а не переводить их');
 
+  // P2-2: регистрация закрыта (`REFERRAL_PROGRAM_ENABLED = false`), потому что
+  // награды платит только закрытый легаси-рынок. Нулевая цена остаётся
+  // инвариантом на случай возврата программы, а UI больше не обещает выплат:
+  // он обязан говорить о закрытии и не показывать реферальную ссылку.
+  assert.match(rust, /pub const REFERRAL_PROGRAM_ENABLED: bool = false;/);
   const ui = fs.readFileSync('apps/web/src/components/ReferralSection.tsx', 'utf8');
-  assert.match(ui, /Регистрация бесплатна: 0 🥔, антиспам — одна запись на кошелёк/);
+  assert.match(ui, /Реферальная программа закрыта/);
+  assert.match(ui, /Новые регистрации не принимаются/);
+  assert.doesNotMatch(ui, /0\.5 %|−1 %/, 'UI не должен обещать выплаты закрытой программы');
+  assert.doesNotMatch(ui, /buildRefLink|clipboard/, 'ссылок и копирования у закрытой программы нет');
 });

@@ -26,6 +26,23 @@ test('V2 marketplace is the default screen and V1 no longer creates orders', () 
   assert.match(screen, /V1 закрыт на запись/)
 })
 
+test('pre-deploy window: unknown-instruction errors explain that the program is not deployed yet', () => {
+  // UI открывает V2 по умолчанию, а бинарь на кластере может быть старым (P2-2:
+  // деплой — отдельный шаг). Единственный симптом — ошибка Anchor 100/101/102
+  // «такой инструкции нет». Без явного текста игрок видит «код 101» и жмёт
+  // повторно: единственное верное действие — дождаться деплоя.
+  const errors = readFileSync(join(root, 'src/utils/errors.ts'), 'utf8')
+  for (const code of ['100', '101', '102']) {
+    const line = errors.split('\n').find(entry => entry.trim().startsWith(`${code}: '`))
+    assert.ok(line, `нет текста для ошибки Anchor ${code}`)
+    assert.match(line, /депло/, `текст ошибки ${code} обязан называть деплой как решение`)
+  }
+  // Новые коды программы тоже обязаны иметь игровой текст, иначе отказ P2-2
+  // выглядит как «Ошибка программы (код 6058)».
+  assert.match(errors, /LegacyMarketClosed: '/)
+  assert.match(errors, /ReferralProgramRetired: '/)
+})
+
 test('unverified SKR mint blocks new SKR trades without hiding escrow recovery actions', () => {
   const screen = readFileSync(join(root, 'src/components/MarketScreenV2.tsx'), 'utf8')
   const modal = readFileSync(join(root, 'src/components/CreateOrderV2Modal.tsx'), 'utf8')

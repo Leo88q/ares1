@@ -6961,6 +6961,11 @@
       "code": 6058,
       "name": "LegacyMarketClosed",
       "msg": "Legacy marketplace is closed for new listings: use create_sell_order_v2"
+    },
+    {
+      "code": 6059,
+      "name": "ReferralProgramRetired",
+      "msg": "Referral registration is retired: rewards were paid by the closed legacy market only"
     }
   ],
   "types": [

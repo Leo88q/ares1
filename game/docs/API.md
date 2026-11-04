@@ -226,13 +226,25 @@ harvests.
 - `create_sell_order`, `create_sell_order_v2`: top-level only
   (`CpiGrindNotAllowed`), so a contract cannot list the player's POTATO at a
   price the player never saw or park their `CancelCooldown`.
-- `create_sell_order`, `fill_order`, `cancel_order`, `close_expired_order`: current
-  market settles in native SOL; minimum order 10 POTATO and total 0.001 SOL. Fees depend on tier
-  and referral; 60% of fee burn / 40% treasury before referral adjustments.
-  `fill_order` validates license/referral remaining accounts by **owner = program**
-  and fully deserializes the referrer ATA (`spl TokenAccount`), rejecting forged
-  discount/referral accounts.
-- `register_referrer`: one-time link, **free** (registration cost is 0 POTATO), self-referral rejected.
+- `create_sell_order` is **closed for new listings** (P2-2): valid arguments are
+  rejected with `LegacyMarketClosed` (6058) after argument validation and before any
+  transfer, so no account is created and no POTATO moves.
+- `fill_order`, `cancel_order`, `close_expired_order` stay **open**: existing V1
+  escrow must be settleable. Old market settles in native SOL; minimum order
+  10 POTATO and total 0.001 SOL. The fee split is a pure function
+  (`legacy_fee_split` in `lib.rs`): `60%` burn / `40%` treasury, then a `−3%`
+  export-license discount, a `−1%` buyer-referral discount and a `0.5%` referrer
+  reward capped by the burn share; an unusable referrer ATA makes the reward burn
+  with the fee, so escrow always drains to zero. `fill_order` validates
+  license/referral remaining accounts by **owner = program** and fully
+  deserializes the referrer ATA (`spl TokenAccount`), rejecting forged accounts.
+  The referrer-ATA check runs before the CEI effects, so `total_burned_micro`
+  equals the supply actually burned.
+- `register_referrer` is **retired** (`ReferralProgramRetired`, 6059). The reward
+  and the buyer discount were paid only by `fill_order` above, so a new
+  registration would promise payouts that cannot happen. The instruction stays in
+  the ABI (clients get a program-level refusal instead of "unknown instruction");
+  already registered pairs keep earning while the drained V1 book settles.
 - `claim_achievement`: on-chain proofs and bitmap, quest IDs 0–5; requires the
   quest vault to hold at least the reward (`QuestPoolEmpty` otherwise, 6057);
   transfers existing

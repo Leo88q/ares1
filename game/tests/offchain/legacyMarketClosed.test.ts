@@ -80,15 +80,15 @@ test('P2-2: доигрывание книги не гейтится — escrow �
   }
 })
 
-test('P2-2: ABI не изменился, а LegacyMarketClosed — последний код GameError', () => {
+test('P2-2: ABI не изменился, а код 6058 дописан в конец GameError', () => {
   const names = idl.instructions.map((ix: { name: string }) => ix.name)
   assert.ok(names.includes('create_sell_order'), 'инструкция остаётся в ABI: клиенты должны получать понятный отказ')
   assert.equal(idl.instructions.length, 48, 'P2-2 не добавляет и не удаляет инструкции')
 
   const errors = idl.errors as { code: number; name: string }[]
-  const last = errors[errors.length - 1]
-  assert.equal(last.code, 6058, 'новый код обязан быть последним: 6057 занят QuestPoolEmpty')
-  assert.equal(last.name, 'LegacyMarketClosed')
+  const closed = errors.find(e => e.code === 6058)
+  assert.ok(closed, 'код 6058 обязан существовать')
+  assert.equal(closed.name, 'LegacyMarketClosed')
   // Коды не перенумеровываются: клиенты и логи сравнивают их как числа.
   const codes = errors.map((e, i) => e.code === 6000 + i)
   assert.ok(codes.every(Boolean), 'IDL: коды обязаны идти подряд с 6000')
@@ -97,6 +97,6 @@ test('P2-2: ABI не изменился, а LegacyMarketClosed — послед�
   const enumBody = rust.split('pub enum GameError {')[1].split('\n}')[0]
   const rustErrors = [...enumBody.matchAll(/^    (\w+),/gm)].map(m => m[1])
   assert.equal(rustErrors.length, errors.length, 'IDL.errors и GameError разошлись по длине')
-  assert.equal(rustErrors[rustErrors.length - 1], 'LegacyMarketClosed')
+  assert.equal(rustErrors[6058 - 6000], 'LegacyMarketClosed', 'код 6058 — ровно эта ошибка по счёту')
   assert.deepEqual(rustErrors, errors.map(e => e.name))
 })
