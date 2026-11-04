@@ -266,7 +266,7 @@ export default {
   'Мобильный кошелёк не найден': 'Dompet seluler tidak ditemukan',
   'Модуль поля — это один on-chain аккаунт. Он не создаёт готовую колонию и сам по себе не открывает отдельные строительные ресурсы.': 'Modul ladang adalah satu akun on-chain. Modul ini tidak langsung membuat koloni siap pakai atau membuka sumber daya pembangunan terpisah.',
   'Мои ордера ({count})': 'Order saya ({count})',
-  'Мой объём за UTC-день: {amount} POTATO': 'Volume saya hari UTC ini: {amount} POTATO',
+  'Мой объём за UTC-день (не влияет на комиссию): {amount} POTATO': 'Volume saya hari UTC ini (tidak memengaruhi biaya): {amount} POTATO',
   'Монтаж…': 'Mounting…',
   'Моя карточка состояния колонии ARES-1.': 'Kartu status koloni ARES-1 saya.',
   'Мутации могут появиться после улучшения поля, если сработает проверка контракта.': 'Upgrade dapat menghasilkan mutasi jika pemeriksaan on-chain berhasil.',

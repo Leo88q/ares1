@@ -266,7 +266,7 @@ export default {
   'Мобильный кошелёк не найден': 'Hindi mahanap ang mobile wallet',
   'Модуль поля — это один on-chain аккаунт. Он не создаёт готовую колонию и сам по себе не открывает отдельные строительные ресурсы.': 'Ang field module ay isang on-chain account. Hindi ito awtomatikong gumagawa ng kolonya o nagbubukas ng hiwalay na construction resource.',
   'Мои ордера ({count})': 'Mga order ko ({count})',
-  'Мой объём за UTC-день: {amount} POTATO': 'Dami ko ngayong UTC day: {amount} POTATO',
+  'Мой объём за UTC-день (не влияет на комиссию): {amount} POTATO': 'Dami ko ngayong UTC day (hindi nakakaapekto sa bayad): {amount} POTATO',
   'Монтаж…': 'Mounting…',
   'Моя карточка состояния колонии ARES-1.': 'ARES-1 colony status card ko.',
   'Мутации могут появиться после улучшения поля, если сработает проверка контракта.': 'Maaaring magkaroon ng mutation pagkatapos mag-upgrade kung pumasa ang on-chain check.',

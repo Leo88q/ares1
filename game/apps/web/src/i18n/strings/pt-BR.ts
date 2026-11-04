@@ -266,7 +266,7 @@ export default {
   'Мобильный кошелёк не найден': 'Carteira móvel não encontrada',
   'Модуль поля — это один on-chain аккаунт. Он не создаёт готовую колонию и сам по себе не открывает отдельные строительные ресурсы.': 'Um módulo de campo é uma conta on-chain. Ele não cria uma colônia pronta nem libera recursos de construção separados por si só.',
   'Мои ордера ({count})': 'Meus pedidos ({count})',
-  'Мой объём за UTC-день: {amount} POTATO': 'Meu volume no dia UTC: {amount} POTATO',
+  'Мой объём за UTC-день (не влияет на комиссию): {amount} POTATO': 'Meu volume no dia UTC (não afeta a taxa): {amount} POTATO',
   'Монтаж…': 'Montando…',
   'Моя карточка состояния колонии ARES-1.': 'Meu cartão de status da colônia ARES-1.',
   'Мутации могут появиться после улучшения поля, если сработает проверка контракта.': 'Uma melhoria pode gerar uma mutação se a verificação on-chain for aprovada.',

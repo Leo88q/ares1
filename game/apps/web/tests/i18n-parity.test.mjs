@@ -127,7 +127,7 @@ test('new greenhouse and settlement copy is translated, with interpolation token
     'Всего сделок',
     'Оборот SOL',
     'Оборот SKR',
-    'Мой объём за UTC-день: {amount} POTATO',
+    'Мой объём за UTC-день (не влияет на комиссию): {amount} POTATO',
     'Сумма сделки',
     'Валовая сумма',
     'Ставки комиссии',

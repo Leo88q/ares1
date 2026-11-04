@@ -266,7 +266,7 @@ export default {
   'Мобильный кошелёк не найден': 'Không tìm thấy ví di động',
   'Модуль поля — это один on-chain аккаунт. Он не создаёт готовую колонию и сам по себе не открывает отдельные строительные ресурсы.': 'Một mô-đun ruộng là một tài khoản on-chain. Nó không tự tạo thuộc địa hoàn chỉnh hay mở khóa tài nguyên xây dựng riêng.',
   'Мои ордера ({count})': 'Lệnh của tôi ({count})',
-  'Мой объём за UTC-день: {amount} POTATO': 'Khối lượng trong ngày UTC của tôi: {amount} POTATO',
+  'Мой объём за UTC-день (не влияет на комиссию): {amount} POTATO': 'Khối lượng trong ngày UTC của tôi (không ảnh hưởng đến phí): {amount} POTATO',
   'Монтаж…': 'Mounting…',
   'Моя карточка состояния колонии ARES-1.': 'Thẻ trạng thái thuộc địa ARES-1 của tôi.',
   'Мутации могут появиться после улучшения поля, если сработает проверка контракта.': 'Nâng cấp có thể tạo ra đột biến nếu bước kiểm tra on-chain thành công.',
