@@ -11,7 +11,7 @@ import { presaleRouter } from "./routes/presale.js";
 import { fetchTokenPaymentView } from "./presale/chain.js";
 import { slotsRouter } from "./routes/slots.js";
 import { resolveSlotsConfig } from "./slots/config.js";
-import { B2B_PRESALE_RUNS_ENABLED, COLONY_V1_RELEASE_READY, REWARDS_RAIL_ENABLED, USER_PRESALE_PAYMENTS_ENABLED } from "./launchGates.js";
+import { COLONY_V1_RELEASE_READY, REWARDS_RAIL_ENABLED, USER_PRESALE_PAYMENTS_ENABLED } from "./launchGates.js";
 import { rewardsRouter } from "./rewards/router.js";
 import { storeRouter } from "./routes/store.js";
 import { defaultFeatureFlags, featuresRouter } from "./routes/features.js";
@@ -240,22 +240,16 @@ async function main() {
         presaleRouter(gameOpsPool, gameOpsConfig, {
           connection,
           cluster: env.cluster,
-          // Режим тиража: B2B (оператор продаёт пак, право покупателя платить
-          // в приложении не нужно) или пользовательский чекаут. Второй — только
-          // при отдельном одобрении сети.
-          paymentsEnabled: B2B_PRESALE_RUNS_ENABLED
-            || (USER_PRESALE_PAYMENTS_ENABLED && (env.cluster === "mainnet-beta"
-              ? process.env.NODE_ENV === "production" && env.mainnetPresaleApproved
-              : env.devnetPresaleTestEnabled)),
+          paymentsEnabled: USER_PRESALE_PAYMENTS_ENABLED && (env.cluster === "mainnet-beta"
+            ? process.env.NODE_ENV === "production" && env.mainnetPresaleApproved
+            : env.devnetPresaleTestEnabled),
           potatoMint: chainCfg.potatoMint.toBase58(),
         }),
       );
-      const paymentsEnabled = B2B_PRESALE_RUNS_ENABLED
-        || (USER_PRESALE_PAYMENTS_ENABLED && (env.cluster === "mainnet-beta"
-          ? process.env.NODE_ENV === "production" && env.mainnetPresaleApproved
-          : env.devnetPresaleTestEnabled));
-      const presaleMode = B2B_PRESALE_RUNS_ENABLED ? "b2b-runs" : paymentsEnabled ? "user-checkout" : "disabled-by-default";
-      console.log(`[startup] presale router on: cluster=${env.cluster} mode=${presaleMode}`);
+      const paymentsEnabled = USER_PRESALE_PAYMENTS_ENABLED && (env.cluster === "mainnet-beta"
+        ? process.env.NODE_ENV === "production" && env.mainnetPresaleApproved
+        : env.devnetPresaleTestEnabled);
+      console.log(`[startup] presale router on: cluster=${env.cluster} payments=${paymentsEnabled ? "enabled" : "disabled-by-default"}`);
     } catch (err) {
       console.log("[startup] presale router not mounted: chain config unavailable");
     }

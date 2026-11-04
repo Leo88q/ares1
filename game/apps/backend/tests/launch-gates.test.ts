@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { B2B_PRESALE_RUNS_ENABLED, COLONY_V1_RELEASE_READY, USER_PRESALE_PAYMENTS_ENABLED, USER_SKR_SLOT_PURCHASES_ENABLED } from '../src/launchGates.js'
+import { COLONY_V1_RELEASE_READY, USER_PRESALE_PAYMENTS_ENABLED, USER_SKR_SLOT_PURCHASES_ENABLED } from '../src/launchGates.js'
 import { resolveSlotsConfig } from '../src/slots/config.js'
 import { colonyPackageCatalogResponse } from '../src/colonies/catalog.js'
 import { COLONY_RULESET_STATUS } from '../src/colonies/rules.js'
@@ -9,9 +9,6 @@ test('user-facing presale and paid SKR-slot purchases stay closed regardless of 
   assert.equal(USER_PRESALE_PAYMENTS_ENABLED, false)
   assert.equal(USER_SKR_SLOT_PURCHASES_ENABLED, false)
   assert.equal(COLONY_V1_RELEASE_READY, false)
-  // P1-7: тиражи B2B — отдельный гейт, чтобы продажу паков можно было открыть,
-  // не открывая покупательский чекаут. Сам гейт тоже закрыт до смоука devnet.
-  assert.equal(B2B_PRESALE_RUNS_ENABLED, false)
   const slots = resolveSlotsConfig({
     SLOTS_ENABLED: 'true',
     SLOT_SIGNING_KEY_PEM: 'would-be-enabled',
