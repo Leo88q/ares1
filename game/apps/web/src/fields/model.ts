@@ -1,4 +1,4 @@
-import { HARVEST_THRESHOLD_MICRO, MAX_DURABILITY } from '../utils/constants'
+import { MAX_DURABILITY, harvestReady } from '../utils/constants'
 
 /** Read-only presentation data. No new accounts, yields, prices or crop clock. */
 export interface FieldVisual {
@@ -26,13 +26,15 @@ export interface FieldSnapshot {
   fertilizerUntil: number
   taxPaidUntil: number
   mutationType: number
+  /** Нужен, чтобы «готово к сбору» совпадало с гейтом кнопки (цикл износа). */
+  lastHarvest: number
 }
 
 const bounded = (n: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, Number.isFinite(n) ? n : min))
 
 export function fieldVisual(field: FieldSnapshot, nowSec: number): FieldVisual {
-  const ready = field.accumulated >= HARVEST_THRESHOLD_MICRO
+  const ready = harvestReady(field, nowSec)
   return {
     id: field.publicKey.toString(),
     tier: Math.floor(bounded(field.fieldType, 0, 2)) as 0 | 1 | 2,

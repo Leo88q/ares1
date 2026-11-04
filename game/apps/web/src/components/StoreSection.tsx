@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSolana } from '../contexts/SolanaContext'
+import { useFeatures } from '../hooks/useFeatures'
 import { useGame } from '../contexts/GameContext'
 import { useI18n } from '../i18n'
 import PresaleSection from './PresaleSection'
@@ -53,6 +54,11 @@ function isStorePayload(value: unknown): value is StorePayload {
 export default function StoreSection(): JSX.Element {
   const { t, lang } = useI18n()
   const { publicKey, connected } = useSolana()
+  // P0-2: рельса наград выключена константой запуска (REWARDS_RAIL_ENABLED=false).
+  // Раньше кнопки стартового набора и дейлика рисовались всегда и падали в 503 —
+  // интерфейс обещал бесплатный вход, которого нет. Теперь их видно только
+  // тогда, когда сервер действительно отдаёт гранты.
+  const { rewardsRail: railOn } = useFeatures()
   const { reload } = useGame()
   const [payload, setPayload] = useState<StorePayload | null>(null)
   const [unavailable, setUnavailable] = useState(false)
@@ -128,14 +134,20 @@ export default function StoreSection(): JSX.Element {
         ARES-1 / {t('МАГАЗИН ПОЛЕЙ')}
       </p>
       <h2 id="store-title" className="ares-stencil" style={{ color: '#EFD9AC', fontSize: 14, margin: '0 0 8px' }}>
-        {t('ВХОД БЕСПЛАТНЫЙ')}
+        {railOn ? t('ВХОД БЕСПЛАТНЫЙ') : t('ВХОД ЧЕРЕЗ ОПЕРАТОРА')}
       </h2>
       <p style={{ color: 'var(--pf-text-secondary)', fontSize: 11, lineHeight: 1.55, margin: '0 0 12px' }}>
-        {t('Стартовый набор 250 POTATO выдаётся один раз на кошелёк подписантом оператора. Ежедневный бонус 7 POTATO — один раз в UTC-сутки. Реферальных наград нет.')}
+        {railOn
+          ? t('Стартовый набор 250 POTATO выдаётся один раз на кошелёк подписантом оператора. Ежедневный бонус 7 POTATO — один раз в UTC-сутки. Реферальных наград нет.')
+          : t('Бесплатная выдача выключена: рельса наград включается отдельным решением запуска. Первое поле выдаёт оператор. Не отправляй деньги ради теста.')}
       </p>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-        {connected && wallet
+        {!railOn
+          ? <p data-testid="store-rewards-off" style={{ margin: 0, color: 'var(--pf-text-muted)', fontSize: 10 }}>
+            {t('Кнопок выдачи нет, пока рельса наград не включена: нажимать нечего, и «пустая» кнопка не должна выглядеть как работающая функция.')}
+          </p>
+          : connected && wallet
           ? <>
             <button
               type="button"

@@ -96,6 +96,13 @@ pub const DEFAULT_MAX_SUPPLY_MICRO: u64 = 1_000_000_000_000_000;
 pub const DEFAULT_BASE_YIELD_MICRO_PER_DAY: u64 = 10_000_000;
 /// `global_multiplier_bps` can never exceed 2.0×.
 pub const MAX_GLOBAL_MULTIPLIER_BPS: u16 = 20_000;
+/// И нижнюю границу тоже нельзя: `0` в `update_config(global_multiplier_bps)`
+/// обнуляет урожай ВСЕХ полей сразу — игрок видит «собирать нечего» на полном
+/// поле, а откатить это можно только вторым вызовом админа. Опечатка в одном
+/// аргументе (`0` вместо `10_000`) не должна останавливать игру, поэтому
+/// допустимый диапазон — 0.5×…2.0×: даже при самой жёсткой настройке поле
+/// остаётся доходным, а «выключить игру» можно только `set_paused`.
+pub const MIN_GLOBAL_MULTIPLIER_BPS: u16 = 5_000;
 /// Ceiling for `update_config(base_yield_micro_per_day)`: 100 🥔/day per
 /// reference field. A typo here would silently break the whole economy.
 pub const MAX_BASE_YIELD_MICRO_PER_DAY: u64 = 100_000_000;
@@ -136,6 +143,15 @@ pub const KEEP_EPOCHS: u64 = 2;
 pub const FIELD_TYPE_COUNT: u8 = 3;
 pub const MAX_FIELD_LEVEL: u8 = 50;
 /// Minimum time between two harvests of the same field.
+///
+/// 60 секунд — жёсткий антиспам-пол. Экономический цикл сбора задаётся не им, а
+/// [`DURABILITY_DECAY_INTERVAL`]: износ считается целыми пунктами за каждые
+/// 6 часов оплаченного времени, поэтому сбор чаще раза в 6 часов списывает
+/// минимум 1 пункт (см. `harvest_decay`) — это осознанная плата за частоту, а
+/// не бесплатное действие. Клиент показывает кнопку сбора по циклу износа
+/// (`HARVEST_CYCLE_SECONDS` в web), чтобы игрок не попадал в этот штраф
+/// случайно; менять гейт на 6 часов на цепи нельзя, пока у интеграционных
+/// тестов нет способа перевести часы локального валидатора вперёд.
 pub const MIN_HARVEST_INTERVAL: i64 = 60;
 /// Yield stops accruing after this much time without a harvest.
 /// 7 days: long enough to survive a weekend offline, short enough that a
@@ -153,6 +169,11 @@ pub const LUNAR_TABLE: [u16; 28] = [
 
 /// A field loses 1 durability point per this much accrued time (≈4 / day),
 /// with a minimum of 1 point per harvest so harvest-spam is never free.
+///
+/// Квант износа — экономический цикл поля: сбор реже раза в 6 часов стоит
+/// столько же пунктов, сколько накопилось времени, а сбор чаще — минимум 1
+/// пункт (см. `harvest_decay`). Клиент показывает кнопку по этому же циклу
+/// (`HARVEST_CYCLE_SECONDS` в web), чтобы штраф не получался случайно.
 pub const DURABILITY_DECAY_INTERVAL: i64 = 6 * 3600;
 pub const MAX_DURABILITY: u8 = 100;
 /// Yield multiplier at 0 durability is 0.2×, at 100 durability 1.0×.
@@ -2369,6 +2390,13 @@ pub mod solana_potato {
         }
         if let Some(m) = global_multiplier_bps {
             require!(m <= MAX_GLOBAL_MULTIPLIER_BPS, GameError::MultiplierTooHigh);
+            // Нижняя граница — не косметика: `Some(0)` проходил проверку
+            // «не больше 2×» и обнулял урожай всех полей одним вызовом.
+            // Отдельный вариант ошибки не заводим осознанно: ошибки программы —
+            // часть ABI (IDL), и лишний вариант ломает клиентов, собранных под
+            // старый IDL. Для админского вызова под `authority` `InvalidAmount`
+            // диагностирует ровно случившееся: аргумент ниже допустимого.
+            require!(m >= MIN_GLOBAL_MULTIPLIER_BPS, GameError::InvalidAmount);
             config.global_multiplier_bps = m;
         }
         emit!(ConfigUpdated {
@@ -5582,6 +5610,23 @@ mod tests {
         assert_eq!(harvest_decay(i64::MAX, interval, false), MAX_DURABILITY);
         assert_eq!(harvest_decay(-5, interval, false), 1);
         assert_eq!(harvest_decay(100, 0, false), 0);
+    }
+
+    #[test]
+    fn global_multiplier_has_floor_and_ceiling() {
+        // P1-6: `update_config(global_multiplier_bps = Some(0))` проходил
+        // проверку «не выше 2×» и обнулял урожай всех полей. В `update_config`
+        // стоят два `require!` (потолок и пол); здесь проверяется их общий
+        // допустимый диапазон.
+        fn accepted(m: u16) -> bool {
+            (MIN_GLOBAL_MULTIPLIER_BPS..=MAX_GLOBAL_MULTIPLIER_BPS).contains(&m)
+        }
+        assert!(accepted(BPS as u16));
+        assert!(accepted(MIN_GLOBAL_MULTIPLIER_BPS));
+        assert!(accepted(MAX_GLOBAL_MULTIPLIER_BPS));
+        assert!(!accepted(0));
+        assert!(!accepted(MIN_GLOBAL_MULTIPLIER_BPS - 1));
+        assert!(!accepted(MAX_GLOBAL_MULTIPLIER_BPS + 1));
     }
 
     #[test]

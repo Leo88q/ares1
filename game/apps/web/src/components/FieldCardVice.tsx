@@ -10,6 +10,7 @@ import {
  fieldTypeInfo, MICRO, HARVEST_THRESHOLD_MICRO, MAX_DURABILITY, BPS, FERTILIZER_YIELD_BPS,
  DURABILITY_SLOPE_BPS_PER_POINT,
  upgradeCostMicro, repairCostMicro, taxCostMicro, fertilizerCostMicro, fmtPotatoExact,
+ harvestReady, harvestReadyAt,
 } from '../utils/constants'
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
@@ -44,7 +45,11 @@ export default function FieldCardVice({ field, index, dailyYieldMicro, onHarvest
  const rare = TIER_BY_TYPE[field.fieldType] ?? 'basic'
  const cassette = fieldTypeInfo(field.fieldType)
  const accumulated = field.accumulated / MICRO
- const canHarvest = field.accumulated >= HARVEST_THRESHOLD_MICRO
+ // P0-1: сбор раньше цикла износа стоит игроку лишний пункт прочности, поэтому
+ // кнопка активна ровно тогда, когда сбор не создаёт штраф за частоту.
+ const canHarvest = harvestReady(field, now)
+ const reportInSeconds = Math.max(0, harvestReadyAt(field.lastHarvest) - now)
+ const reportInHours = Math.ceil(reportInSeconds / 3600)
  const durability = field.durability
  const needsRepair = durability < MAX_DURABILITY
  const fertActive = field.fertilizerUntil > now
@@ -181,7 +186,11 @@ export default function FieldCardVice({ field, index, dailyYieldMicro, onHarvest
        {t('Собрать')}
       </span>
       <span className="field-action-btn__badge">
-       {canHarvest ? `+${accumulated.toFixed(2)} POTATO` : `≥ ${(HARVEST_THRESHOLD_MICRO / MICRO).toFixed(2)} POTATO`}
+       {canHarvest
+        ? `+${accumulated.toFixed(2)} POTATO`
+        : reportInSeconds > 0
+          ? t('цикл {n} ч', { n: reportInHours })
+          : `≥ ${(HARVEST_THRESHOLD_MICRO / MICRO).toFixed(2)} POTATO`}
       </span>
      </button>
 

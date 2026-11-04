@@ -186,6 +186,10 @@ test('C20: админ-рычаги под тимлоком/потолками/д
   assert.ok(libRs.includes('MAX_DAILY_CAP_MICRO, GameError::CapTooHigh'));
   assert.ok(libRs.includes('MAX_BASE_YIELD_MICRO_PER_DAY') && libRs.includes('GameError::BaseYieldTooHigh'));
   assert.ok(libRs.includes('MAX_GLOBAL_MULTIPLIER_BPS, GameError::MultiplierTooHigh'));
+  // P1-6: у множителя есть не только потолок, но и пол. `Some(0)` обнулял
+  // урожай всех полей одним вызовом и проходил проверку «не выше 2×».
+  assert.ok(libRs.includes('MIN_GLOBAL_MULTIPLIER_BPS: u16 = 5_000'));
+  assert.ok(libRs.includes('m >= MIN_GLOBAL_MULTIPLIER_BPS, GameError::InvalidAmount'));
   assert.ok(libRs.includes('GameError::GrantQuotaExceeded'));
   assert.ok(libRs.includes('GRANT_QUOTA_SHARE_BPS: u64 = 2_500'));
   assert.ok(libRs.includes('MAX_REWARD_MICRO: u64 = 1_000_000_000'));

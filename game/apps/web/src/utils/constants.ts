@@ -30,6 +30,36 @@ export const DURABILITY_SLOPE_BPS_PER_POINT = 80
 /** Harvest button becomes active above this amount (0.1 POTATO). */
 export const HARVEST_THRESHOLD_MICRO = 100_000
 /**
+ * Цикл износа: 1 пункт прочности за 6 часов накопления (mirror
+ * `DURABILITY_DECAY_INTERVAL` в lib.rs).
+ *
+ * Важно для UX: программа разрешает сбор раз в 60 секунд, но списывает износ
+ * **целыми** пунктами за каждые 6 часов оплаченного времени и минимум 1 пункт
+ * за сбор. Значит сбор каждые 15 минут стоит 96 пунктов прочности в сутки
+ * вместо 4 — тот же урожай, ремонт в 24 раза дороже. Поэтому кнопка сбора
+ * активна по циклу износа, а не по сумме на поле: интерфейс не должен
+ * предлагать игроку действие, которое его разоряет.
+ */
+export const DURABILITY_DECAY_INTERVAL_SECONDS = 6 * 60 * 60
+/** Цикл сбора в интерфейсе = цикл износа. */
+export const HARVEST_CYCLE_SECONDS = DURABILITY_DECAY_INTERVAL_SECONDS
+
+/** Момент (unix seconds), с которого сбор поля не создаёт штраф за частоту. */
+export function harvestReadyAt(lastHarvest: number): number {
+ return lastHarvest + HARVEST_CYCLE_SECONDS
+}
+
+/**
+ * Готово ли поле к сбору: накопилось больше порога И прошёл цикл износа.
+ * Одно правило для карточки поля, батч-панели и модели визуала.
+ */
+export function harvestReady(
+ field: { lastHarvest: number; accumulated: number },
+ nowSec: number,
+): boolean {
+ return field.accumulated >= HARVEST_THRESHOLD_MICRO && nowSec >= harvestReadyAt(field.lastHarvest)
+}
+/**
  * Mirror of Rust BATCH_LIMIT_BASE / BATCH_LIMIT_LICENSED: how many fields a
  * single `batch_harvest` may cover. An active export license lifts the cap.
  * The licensed tier is only reachable via VersionedTransaction + Address

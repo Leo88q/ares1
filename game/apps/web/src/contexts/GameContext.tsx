@@ -220,7 +220,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
     maxFieldLevel: maxLevel,
     pendingHarvest: fields.reduce((s, f) => s + f.accumulated, 0),
     playerLevel: Math.floor(fields.length / 3) + 1,
-    experience: fields.length * 100 + potatoBalance / MICRO,
+    // P1-2: раньше здесь было `fields.length * 100 + potatoBalance / MICRO`,
+    // то есть «стаж» (XP) падал от любой покупки: заплатил за поле — потерял
+    // опыт. Теперь XP — только то, что не тратится: делянки и максимальный
+    // достигнутый уровень поля.
+    experience: fields.length * 100 + maxLevel * 25,
     potatoBalance,
     skrBalance,
    }

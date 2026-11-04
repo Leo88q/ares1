@@ -138,7 +138,7 @@ builders in web/backend must match the generated IDL, not just its address.
 | `apply_pending_skr_mint` | Authority; applies the proposal after the 24 h timelock (`TimelockNotExpired` otherwise) |
 | `update_presale_price` | Authority; `price = 0` is the **kill switch** and applies immediately (closes both presale rails); `price > 0` is a proposal only |
 | `apply_pending_presale_price` | Authority; applies a pending price proposal after the 24 h timelock |
-| `update_config` | Authority; cap in `(0, 250k]`, multiplier ≤2×, `base_yield_micro_per_day` in `(0, 100 🥔/day]` (`BaseYieldTooHigh`) |
+| `update_config` | Authority; cap in `(0, 250k]`, multiplier in **[0.5×, 2×]** (`MultiplierTooHigh` / `InvalidAmount`), `base_yield_micro_per_day` in `(0, 100 🥔/day]` (`BaseYieldTooHigh`) |
 | `set_paused` | Authority **or dedicated guardian key** (F-02); pause only — does not freeze all instructions or treasury; only authority unpauses |
 | `propose_authority`, `accept_authority` | Two-step game authority transfer, NOT program upgrade authority transfer |
 | `withdraw_treasury` | Authority; POTATO treasury ATA → destination token account of same mint; ≤ **250 000 🥔 per rolling 24 h** (`AdminState`) |
@@ -170,8 +170,10 @@ Smaller balances yield a zero cap (dust is not withdrawable).
 **Cap semantics:** `daily_mint_cap_micro` is now respected by `roll_epoch` as the
 floor of the dynamic clamp (upper bound = 3× the configured cap). Lowering it via
 `update_config` tightens emission at the next roll. Manual grants additionally
-consume only the 10 % quota, leaving ≥90 % of every epoch cap for gameplay
-harvests.
+consume only the 25 % quota (`GRANT_QUOTA_SHARE_BPS = 2_500`), leaving ≥75 % of
+every epoch cap for gameplay harvests. Both bounds of `global_multiplier_bps`
+are enforced: `0` (which used to zero every field's yield in one call) is
+rejected with `InvalidAmount`.
 
 ## Player instructions
 

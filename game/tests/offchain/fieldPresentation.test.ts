@@ -3,9 +3,13 @@ import assert from 'node:assert/strict'
 import { fieldVisual, FIELD_PROFILES, FIELDS_PER_PAGE, selectedFieldId, visibleFields } from '../../apps/web/src/fields/model'
 import type { FieldSnapshot, FieldVisual } from '../../apps/web/src/fields/model'
 
+/** Цикл износа: 1 пункт прочности за 6 ч накопления (mirror lib.rs). */
+const HARVEST_CYCLE_SECONDS = 6 * 3600
 const source = (changes: Partial<FieldSnapshot> = {}): FieldSnapshot => ({
   publicKey: { toString: () => 'account-a' }, fieldType: 1, level: 8, durability: 82,
-  isActive: true, accumulated: 100_000, fertilizerUntil: 2_000, taxPaidUntil: 2_000, mutationType: 0, ...changes,
+  isActive: true, accumulated: 100_000, fertilizerUntil: 2_000, taxPaidUntil: 2_000, mutationType: 0,
+  // По умолчанию цикл износа уже прошёл: тесты ниже проверяют его явно.
+  lastHarvest: 1_000 - HARVEST_CYCLE_SECONDS, ...changes,
 })
 const visual = (id: string): FieldVisual => ({ ...fieldVisual(source(), 1_000), id })
 
@@ -19,10 +23,18 @@ test('field view preserves account identity, amount, rarity, rank and does not m
   assert.deepEqual(field, before)
   assert.equal(view.condition, 0.82)
 })
-test('field readiness is the existing exact micro-POTATO threshold', () => {
-  assert.equal(fieldVisual(source({ accumulated: 99_999 }), 0).ready, false)
-  assert.equal(fieldVisual(source({ accumulated: 100_000 }), 0).ready, true)
-  assert.equal(fieldVisual(source({ accumulated: 100_001 }), 0).ready, true)
+test('field readiness needs both the exact micro-POTATO threshold and one wear cycle', () => {
+  // Порог по сумме — прежний, точный до микроатома.
+  assert.equal(fieldVisual(source({ accumulated: 99_999 }), 1_000).ready, false)
+  assert.equal(fieldVisual(source({ accumulated: 100_000 }), 1_000).ready, true)
+  assert.equal(fieldVisual(source({ accumulated: 100_001 }), 1_000).ready, true)
+  // P0-1: сбор раньше цикла износа списывает минимум 1 пункт прочности, то
+  // есть кнопка не должна быть активна — иначе интерфейс сам предлагает
+  // игроку убыточное действие.
+  const lastHarvest = 1_000
+  assert.equal(fieldVisual(source({ lastHarvest }), 1_000).ready, false)
+  assert.equal(fieldVisual(source({ lastHarvest }), 1_000 + HARVEST_CYCLE_SECONDS - 1).ready, false)
+  assert.equal(fieldVisual(source({ lastHarvest }), 1_000 + HARVEST_CYCLE_SECONDS).ready, true)
 })
 test('fertilizer and tax expiry match existing card boundary comparisons', () => {
   const field = source({ fertilizerUntil: 1_000, taxPaidUntil: 1_000 })
