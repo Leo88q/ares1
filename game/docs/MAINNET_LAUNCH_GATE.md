@@ -54,6 +54,27 @@ artifact hash and static security tripwires. External approvals and on-chain
 invariants are still operator responsibilities; setting the acknowledgement is
 not a substitute for evidence.
 
+### Порядок релиза рынка (P2-2) — бинарь раньше бандла
+
+Легаси-рынок закрыт на запись **в программе** (`create_sell_order` →
+`LegacyMarketClosed`, 6058; `register_referrer` → `ReferralProgramRetired`,
+6059), а веб-бандл по умолчанию рендерит V2. Пока на кластере живёт старый
+бинарь, V2-инструкций в нём нет: игрок получит ошибку Anchor 100/101 («такой
+инструкции нет»), которую `apps/web/src/utils/errors.ts` переводит в «программа
+ещё не обновлена — дождись деплоя». Чтобы окно не открывалось вовсе, для каждого
+окружения соблюдается порядок:
+
+1. `anchor build` → `yarn check:contract target/idl/solana_potato.json` →
+   апгрейд по G-3 (Squads-буфер, хэш проверен).
+2. Только после успешного апгрейда выкладывается бандл с
+   `VITE_MARKET_V2_ENABLED=true` (значение по умолчанию из `.env.example`).
+   Переменная окружения имеет приоритет над `.env.example`, поэтому на время
+   деплоя в Cloudflare Pages ставится `VITE_MARKET_V2_ENABLED=false` — это
+   откат **UI**, а не возврат V1-записи.
+3. После апгрейда проверяется, что старый путь отвечает новыми ошибками
+   (6058/6059), а `fill_order` / `cancel_order` / `close_expired_order` по
+   старым ордерам продолжают работать.
+
 ---
 
 ## G-1. Рельс выплат — только `grant_reward_once`
