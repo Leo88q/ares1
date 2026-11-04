@@ -1,0 +1,272 @@
+/**
+ * Публичные эндпоинты стартового набора и дейлика.
+ *
+ * Контракт:
+ *   GET  /api/rewards/status        — что доступно и почему (без секретов);
+ *   POST /api/rewards/starter       — { wallet } → один грант 250 POTATO на кошелёк;
+ *   POST /api/rewards/daily         — { wallet } → 7 POTATO, один раз в UTC-сутки.
+ *
+ * Всё, что можно проверить без сети, проверяется здесь: формат адреса, гейт,
+ * бюджет, кулдаун. Ончейн-PDA `[reward, ata, nonce]` — последняя линия: повтор
+ * того же nonce отклоняет рантайм, поэтому гонка двух запросов не выдаёт два
+ * гранта.
+ *
+ * Зависимости инжектируются: тесты не ходят ни в RPC, ни в сеть.
+ */
+import express, { Router } from "express";
+import type { PublicKey } from "@solana/web3.js";
+import { verifyInvite } from "./invite.js";
+import type { FieldProbe } from "./fieldProbe.js";
+import {
+  DAILY_BONUS_MICRO,
+  GRANT_AMOUNTS_MICRO,
+  STARTER_GRANT_MICRO,
+  WALLET_COOLDOWN_SECONDS,
+  chargeBudget,
+  grantExpiry,
+  grantNonce,
+  isWalletAddress,
+  refundBudget,
+  type GrantBudgetState,
+  type GrantKind,
+} from "./rail.js";
+
+export interface RewardsRouterDeps {
+  /** Итоговый гейт: флаг запуска + наличие ключа + кластер. */
+  enabled: boolean;
+  /** Причина, если выключено — отдаётся наружу как есть (без внутренних путей). */
+  disabledReason?: string;
+  /** Адрес подписанта (не секрет) — нужен клиенту, чтобы показать «рельса жива». */
+  rewardSigner: PublicKey | null;
+  now: () => bigint;
+  /** Отправка гранта. Бросает при отказе цепи/симуляции. */
+  sendGrant: (input: { wallet: string; amountMicro: bigint; nonce: bigint; expiresAt: bigint }) => Promise<string>;
+  /** Потолок карты кулдаунов (по умолчанию 10 000). Вынесен для тестов. */
+  maxTrackedWallets?: number;
+  /**
+   * Секрет подписи приглашений (`REWARD_INVITE_SECRET`). `null` — приглашения
+   * не настроены, и стартовый набор не выдаётся вовсе (fail-closed): открытая
+   * выдача 250 POTATO любому адресу — это Sybil-кран, а не онбординг.
+   */
+  inviteSecret?: string | null;
+  /**
+   * Ончейн-проверка активного поля для дейлика. `null` — проверка недоступна,
+   * дейлик не выдаётся: без неё единственным условием снова становится
+   * валидный адрес.
+   */
+  hasActiveField?: FieldProbe | null;
+}
+
+interface WalletState {
+  lastRequestAt: bigint;
+}
+
+/** Потолок карты кулдаунов: 10 000 адресов ≈ 240 КБ. */
+const DEFAULT_MAX_TRACKED_WALLETS = 10_000;
+
+export function rewardsRouter(deps: RewardsRouterDeps): Router {
+  const router = Router();
+  const budgets: Record<GrantKind, GrantBudgetState> = {
+    starter: { day: -1n, spentMicro: 0n },
+    daily: { day: -1n, spentMicro: 0n },
+  };
+  const wallets = new Map<string, WalletState>();
+  const maxTrackedWallets = deps.maxTrackedWallets ?? DEFAULT_MAX_TRACKED_WALLETS;
+
+  const claimBudget = (kind: GrantKind): boolean => {
+    const result = chargeBudget(budgets[kind], kind, deps.now());
+    if (!result.ok) return false;
+    budgets[kind] = result.state;
+    return true;
+  };
+
+  /**
+   * Итог проверки кулдауна:
+   *   'ok'       — запрос можно обслуживать;
+   *   'cooldown' — кошелёк уже просил меньше 15 с назад (429);
+   *   'full'     — карта заполнена живыми кулдаунами, новый адрес не пускаем (503).
+   */
+  const coinCooledDown = (wallet: string): 'ok' | 'cooldown' | 'full' => {
+    const now = deps.now();
+    const previous = wallets.get(wallet);
+    if (previous && now - previous.lastRequestAt < WALLET_COOLDOWN_SECONDS) return 'cooldown';
+    if (!previous) {
+      // Раньше самый старый ключ вытеснялся по порядку вставки: поток запросов
+      // с новыми адресами сбрасывал живой 15-секундный кулдаун чужого кошелька
+      // (P2-10). Теперь освобождаются только истёкшие записи, а живые не
+      // трогаются: при переполнении новый адрес получает отказ, а не сброс
+      // чужого кулдауна.
+      if (wallets.size >= maxTrackedWallets) {
+        for (const [tracked, state] of wallets) {
+          if (now - state.lastRequestAt >= WALLET_COOLDOWN_SECONDS) wallets.delete(tracked);
+        }
+      }
+      if (wallets.size >= maxTrackedWallets) return 'full';
+    }
+    wallets.set(wallet, { lastRequestAt: now });
+    return 'ok';
+  };
+
+  router.get("/status", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json({
+      enabled: deps.enabled,
+      reason: deps.enabled ? null : deps.disabledReason ?? "disabled",
+      rewardSigner: deps.rewardSigner?.toBase58() ?? null,
+      starter: {
+        amountMicro: STARTER_GRANT_MICRO.toString(),
+        amountPotato: "250",
+        scope: "one-per-wallet",
+        // Клиент обязан знать, что без кода кнопку показывать незачем.
+        requiresInvite: true,
+        invitesConfigured: Boolean(deps.inviteSecret),
+      },
+      daily: {
+        amountMicro: DAILY_BONUS_MICRO.toString(),
+        amountPotato: "7",
+        scope: "one-per-wallet-per-utc-day",
+        requiresActiveField: true,
+        activityCheckAvailable: Boolean(deps.hasActiveField),
+      },
+    });
+  });
+
+  /**
+   * Право на грант. Проверяется ДО списания бюджета: бюджет — общий суточный
+   * ресурс, и отказ по вине запроса не должен его тратить.
+   *
+   * starter — только по подписанному приглашению (см. invite.ts);
+   * daily   — только при активном поле на цепи (см. fieldProbe.ts).
+   */
+  const authorize = async (
+    kind: GrantKind,
+    wallet: string,
+    req: express.Request,
+  ): Promise<{ ok: true } | { ok: false; status: number; error: string; message: string }> => {
+    if (kind === 'starter') {
+      if (!deps.inviteSecret) {
+        return {
+          ok: false,
+          status: 503,
+          error: 'INVITES_NOT_CONFIGURED',
+          message: 'reward invites are not configured; the starter pack cannot be issued',
+        };
+      }
+      const invite = typeof req.body?.invite === 'string' ? req.body.invite.trim() : '';
+      if (!invite) {
+        return { ok: false, status: 401, error: 'INVITE_REQUIRED', message: 'an operator invite code is required' };
+      }
+      const check = verifyInvite(invite, {
+        wallet,
+        nowSeconds: Number(deps.now()),
+        secret: deps.inviteSecret,
+      });
+      if (check.ok) return { ok: true };
+      // Наружу не сообщаем, чей это код и валидна ли подпись: «код существует,
+      // но выдан другому кошельку» — это подсказка для перебора.
+      if (check.reason === 'expired') {
+        return { ok: false, status: 401, error: 'INVITE_EXPIRED', message: 'this invite code has expired' };
+      }
+      return { ok: false, status: 401, error: 'INVITE_INVALID', message: 'this invite code is not valid' };
+    }
+
+    if (!deps.hasActiveField) {
+      return {
+        ok: false,
+        status: 503,
+        error: 'ACTIVITY_CHECK_UNAVAILABLE',
+        message: 'the on-chain activity check is not configured; the daily bonus cannot be issued',
+      };
+    }
+    let active = false;
+    try {
+      active = await deps.hasActiveField(wallet);
+    } catch {
+      // Сеть/цепь недоступны: не выдаём «на всякий случай» — это и был бы кран.
+      return {
+        ok: false,
+        status: 503,
+        error: 'ACTIVITY_CHECK_FAILED',
+        message: 'the on-chain activity check failed; retry later',
+      };
+    }
+    if (!active) {
+      return {
+        ok: false,
+        status: 403,
+        error: 'NO_ACTIVE_FIELD',
+        message: 'the daily bonus is for players with an active field',
+      };
+    }
+    return { ok: true };
+  };
+
+  const grant = (kind: GrantKind) => async (req: express.Request, res: express.Response) => {
+    if (!deps.enabled) {
+      res.status(503).json({ error: "NOT_ENABLED", message: deps.disabledReason ?? "disabled" });
+      return;
+    }
+    const wallet = typeof req.body?.wallet === "string" ? req.body.wallet.trim() : "";
+    if (!isWalletAddress(wallet)) {
+      res.status(400).json({ error: "BAD_WALLET", message: "wallet must be a base58 address" });
+      return;
+    }
+    const cooldown = coinCooledDown(wallet);
+    if (cooldown === 'cooldown') {
+      res.status(429).json({ error: "COOLDOWN", message: "one request per wallet per 15 s" });
+      return;
+    }
+    if (cooldown === 'full') {
+      // Осознанно fail-closed: пустить новый адрес можно только вытеснив живой
+      // кулдаун, а это и есть обход из P2-10. Карта чистится сама через 15 с.
+      res.status(503).json({ error: "WALLET_LEDGER_FULL", message: "wallet cooldown ledger is full" });
+      return;
+    }
+    const allowed = await authorize(kind, wallet, req);
+    if (!allowed.ok) {
+      res.status(allowed.status).json({ error: allowed.error, message: allowed.message });
+      return;
+    }
+    if (!claimBudget(kind)) {
+      // 503, а не 429: это наша квота, клиенту нечего «повторять с задержкой».
+      res.status(503).json({ error: "BUDGET_EXHAUSTED", message: "daily reward budget is exhausted" });
+      return;
+    }
+    const now = deps.now();
+    const amountMicro = GRANT_AMOUNTS_MICRO[kind];
+    const nonce = grantNonce(kind, wallet, now);
+    try {
+      const signature = await deps.sendGrant({
+        wallet,
+        amountMicro,
+        nonce,
+        expiresAt: grantExpiry(now),
+      });
+      res.status(201).json({
+        ok: true,
+        kind,
+        wallet,
+        amountMicro: amountMicro.toString(),
+        signature,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown error";
+      // Уже выданный грант — не ошибка сервера: PDA существует, деньги на месте.
+      // Бюджет в этом случае НЕ возвращаем: грант выдан, деньги ушли получателю.
+      if (/already in use|custom program error: 0x0\b/.test(message)) {
+        res.status(409).json({ error: "ALREADY_GRANTED", message: "this grant was already claimed" });
+        return;
+      }
+      // Ничего не выдано — списание бюджета откатываем, иначе серия неудачных
+      // попыток вычерпывает суточный бюджет и честные игроки получают 503.
+      budgets[kind] = refundBudget(budgets[kind], kind, deps.now());
+      // Наружу — только код и короткий хвост причины: полный текст ошибки RPC
+      // содержит адреса аккаунтов и внутренние детали.
+      res.status(502).json({ error: "GRANT_FAILED", message: message.slice(-200) });
+    }
+  };
+
+  router.post("/starter", express.json({ limit: "2kb" }), grant("starter"));
+  router.post("/daily", express.json({ limit: "2kb" }), grant("daily"));
+  return router;
+}

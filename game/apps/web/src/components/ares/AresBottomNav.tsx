@@ -21,6 +21,8 @@ const NAV_ICON: Record<AresTab, string> = {
 export interface AresBottomNavProps {
  active: AresTab;
  onChange: (tab: AresTab) => void;
+ /** Клавиши, скрытые фича-флагом бэкенда (например, колонии при COLONIES_ENABLED=false). */
+ hidden?: readonly AresTab[];
 }
 
 interface NavItem {
@@ -39,20 +41,24 @@ interface NavItem {
 export const AresBottomNav = memo(function AresBottomNav({
  active,
  onChange,
+ hidden,
 }: AresBottomNavProps): JSX.Element {
  const reducedMotion = useReducedMotion();
  const { t, lang } = useI18n();
 
  // Семь клавиш пульта (2026-10-17): ЛАБ — продуктовая полевая лаборатория /lab.
- const navItems: NavItem[] = useMemo(() => [
-  { id: 'main', label: t('АГРО'), code: 'K1', lamp: 'green' },
-  { id: 'lab', label: t('ЛАБ'), code: 'K2', lamp: 'amber' },
-  { id: 'colony', label: t('КОЛОНИЯ'), code: 'K3', lamp: 'green' },
-  { id: 'market', label: t('СНАБ'), code: 'K4', lamp: 'amber' },
-  { id: 'stats', label: t('ЖУРНАЛ'), code: 'K5', lamp: 'amber' },
-  { id: 'profile', label: t('КАЮТА'), code: 'K6', lamp: 'green' },
-  { id: 'operation', label: t('ОПЕРАЦИЯ'), code: 'K7', lamp: 'magenta' },
- ], [t, lang]);
+ const navItems: NavItem[] = useMemo(() => {
+  const all: NavItem[] = [
+   { id: 'main', label: t('АГРО'), code: 'K1', lamp: 'green' },
+   { id: 'lab', label: t('ЛАБ'), code: 'K2', lamp: 'amber' },
+   { id: 'colony', label: t('КОЛОНИЯ'), code: 'K3', lamp: 'green' },
+   { id: 'market', label: t('СНАБ'), code: 'K4', lamp: 'amber' },
+   { id: 'stats', label: t('ЖУРНАЛ'), code: 'K5', lamp: 'amber' },
+   { id: 'profile', label: t('КАЮТА'), code: 'K6', lamp: 'green' },
+   { id: 'operation', label: t('ОПЕРАЦИЯ'), code: 'K7', lamp: 'magenta' },
+  ];
+  return hidden?.length ? all.filter((item) => !hidden.includes(item.id)) : all;
+ }, [t, lang, hidden]);
 
  return (
   <div className="hull-nav-wrap">

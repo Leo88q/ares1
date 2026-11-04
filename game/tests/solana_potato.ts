@@ -5,6 +5,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   AuthorityType,
   TOKEN_PROGRAM_ID,
+  createAccount,
   createMint,
   createMintToInstruction,
   getAccount,
@@ -17,6 +18,14 @@ import {
 } from "@solana/spl-token";
 import { assert, expect } from "chai";
 import { SolanaPotato } from "../target/types/solana_potato";
+import {
+  EXPORT_LICENSE_PRICE_SKR_ATOMS,
+  GRANT_QUOTA_SHARE_BPS,
+  MAX_REWARD_EXPIRY_SECONDS,
+  MAX_REWARD_MICRO,
+  ORDER_TTL,
+  V2_SETTLEMENT_FEE_BPS,
+} from "./rustConstants";
 import fs from "node:fs";
 
 /**
@@ -108,6 +117,37 @@ describe("solana_potato", () => {
     }
     assert.fail(`expected failure${errorName ? ` (${errorName})` : ""}`);
   }
+
+  /**
+   * Единственный рельс наград — `grant_reward_once` (P1-1: replayable
+   * `grant_reward` удалён из программы 2026-11-03).
+   *
+   * Маркер `reward_claim` создаётся через `init` из (ATA получателя, nonce),
+   * поэтому невыполнимо «выплатить дважды»: повтор падает в рантайме. Отсюда
+   * правило файла — nonce уникален в пределах получателя; диапазоны разведены
+   * по сьютам, чтобы правка одного теста не ломала другой:
+   * 1-4 — учёт эпохи и границы, 7-16 — replay/срок, 20-29 — reward_signer,
+   * 30-39 — финансирование сценариев, 900+ — тест квоты.
+   */
+  const rewardClaimPda = (userPotato: PublicKey, nonce: bigint) =>
+    pda(Buffer.from("reward"), userPotato.toBuffer(), u64(nonce));
+  /** `expires_at` в пределах MAX_REWARD_EXPIRY_SECONDS (900 c) от времени цепи. */
+  const soon = () => new BN(Math.floor(Date.now() / 1000) + 300);
+  const once = (
+    nonce: bigint,
+    amount: number | bigint,
+    expiresAt: BN = soon(),
+    userPotato: PublicKey = playerAta,
+    authority: Keypair = admin,
+  ) =>
+    program.methods
+      .grantRewardOnce(new BN(nonce.toString()), new BN(amount.toString()), expiresAt)
+      .accountsPartial({
+        config: configPda, epoch: epochPda(0), authority: authority.publicKey, potatoMint: mint,
+        userPotato, rewardClaim: rewardClaimPda(userPotato, nonce),
+        systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .signers(authority === admin ? [] : [authority]);
 
   const fieldSpendAccounts = (field: PublicKey, owner: PublicKey, userPotato: PublicKey) => ({
     field, potatoMint: mint, userPotato, config: configPda, owner, tokenProgram: TOKEN_PROGRAM_ID,
@@ -225,47 +265,33 @@ describe("solana_potato", () => {
     });
   });
 
-  describe("grant_reward", () => {
-    it("authority can mint a bounded reward", async () => {
-      await program.methods.grantReward(new BN(1_000_000_000)).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: adminAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
-      await program.methods.grantReward(new BN(1_000_000_000)).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: playerAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
-      expect(await ataBalance(adminAta)).to.eq(1000n * MICRO);
-      const epoch = await program.account.epoch.fetch(epochPda(0));
-      expect(epoch.mintedMicro.toString()).to.eq("2000000000");
+  describe("grant_reward_once: epoch accounting and bounds", () => {
+    it("mints a bounded reward to two recipients and records the epoch emission", async () => {
+      const adminBefore = await ataBalance(adminAta);
+      const playerBefore = await ataBalance(playerAta);
+      const epochBefore = await program.account.epoch.fetch(epochPda(0));
+      // MAX_REWARD_MICRO — потолок одной выплаты из lib.rs, а не «1000» из головы.
+      await once(1n, MAX_REWARD_MICRO, undefined, adminAta).rpc();
+      await once(2n, MAX_REWARD_MICRO, undefined, playerAta).rpc();
+      expect((await ataBalance(adminAta)) - adminBefore).to.eq(1000n * MICRO);
+      expect((await ataBalance(playerAta)) - playerBefore).to.eq(1000n * MICRO);
+      const epochAfter = await program.account.epoch.fetch(epochPda(0));
+      // Оба счётчика двигаются на сумму выплаты — рельса не обходит ни кап
+      // минтинга, ни квоту грантов.
+      expect(epochAfter.mintedMicro.sub(epochBefore.mintedMicro).toString()).to.eq((MAX_REWARD_MICRO * 2n).toString());
+      expect(epochAfter.grantedMicro.sub(epochBefore.grantedMicro).toString()).to.eq((MAX_REWARD_MICRO * 2n).toString());
     });
 
-    it("rejects rewards above 1000 POTATO", async () => {
-      await expectFail(
-        program.methods.grantReward(new BN(1_000_000_001)).accountsPartial({
-          config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: adminAta, tokenProgram: TOKEN_PROGRAM_ID,
-        }).rpc(),
-        "RewardTooLarge",
-      );
+    it("rejects rewards above the per-call cap", async () => {
+      await expectFail(once(3n, MAX_REWARD_MICRO + 1n, undefined, adminAta).rpc(), "RewardTooLarge");
     });
 
     it("rejects a non-authority signer", async () => {
-      await expectFail(
-        program.methods.grantReward(new BN(1_000_000)).accountsPartial({
-          config: configPda, epoch: epochPda(0), authority: player.publicKey, potatoMint: mint, userPotato: playerAta, tokenProgram: TOKEN_PROGRAM_ID,
-        }).signers([player]).rpc(),
-      );
+      await expectFail(once(4n, 1_000_000, undefined, playerAta, player).rpc(), "Unauthorized");
     });
   });
 
   describe("grant_reward_once (replay-proof rail, gate G-1)", () => {
-    const rewardClaimPda = (userPotato: PublicKey, nonce: bigint) =>
-      pda(Buffer.from("reward"), userPotato.toBuffer(), u64(nonce));
-    const soon = () => new BN(Math.floor(Date.now() / 1000) + 300);
-    const once = (nonce: bigint, amount: number, expiresAt = soon(), userPotato = playerAta) =>
-      program.methods.grantRewardOnce(new BN(nonce.toString()), new BN(amount), expiresAt).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint,
-        userPotato, rewardClaim: rewardClaimPda(userPotato, nonce),
-        systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID,
-      });
 
     it("pays once and records the claim", async () => {
       const before = await ataBalance(playerAta);
@@ -298,15 +324,16 @@ describe("solana_potato", () => {
       );
     });
 
-    it("rejects an expiry beyond the 15-minute window", async () => {
+    it("rejects an expiry beyond MAX_REWARD_EXPIRY_SECONDS", async () => {
       await expectFail(
-        once(10n, 1_000_000, new BN(Math.floor(Date.now() / 1000) + 86_400)).rpc(),
+        // На секунду дальше ончейн-окна: проверяется сама граница, а не «сутки».
+        once(10n, 1_000_000, new BN(Math.floor(Date.now() / 1000) + Number(MAX_REWARD_EXPIRY_SECONDS) + 1)).rpc(),
         "RewardExpiryTooFar",
       );
     });
 
     it("rejects amounts above the per-reward bound", async () => {
-      await expectFail(once(11n, 1_000_000_001).rpc(), "RewardTooLarge");
+      await expectFail(once(11n, MAX_REWARD_MICRO + 1n).rpc(), "RewardTooLarge");
     });
 
     it("rejects a non-authority signer", async () => {
@@ -330,7 +357,30 @@ describe("solana_potato", () => {
       );
     });
 
-    it("counts toward the same epoch grant quota as grant_reward", async () => {
+    it("rejects a non-canonical token account: маркер повтора привязан к ATA", async () => {
+      // Второй токен-аккаунт того же владельца и минта — не ATA. Пока проверки
+      // не было, POD «одна выплата на (nonce, получатель)» означал «одна выплата
+      // на (аккаунт, nonce)»: тот же nonce создавал второй маркер и второй минт.
+      // createAccount БЕЗ keypair в @solana/spl-token 0.4 создаёт именно ATA
+      // (createAccount.js:21-23), поэтому передаём свежий keypair: нужен обычный
+      // токен-аккаунт того же минта на player, то есть заведомо не канонический.
+      const nonCanonical = await createAccount(connection, admin, mint, player.publicKey, Keypair.generate());
+      const before = await ataBalance(playerAta);
+      await expectFail(
+        program.methods.grantRewardOnce(new BN(16), new BN(1_000_000), soon()).accountsPartial({
+          config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint,
+          userPotato: nonCanonical, rewardClaim: rewardClaimPda(nonCanonical, 16n),
+          systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID,
+        }).rpc(),
+        "InvalidAuthority",
+      );
+      // Обхода больше нет по построению: легаси-`grant_reward` удалён (P1-1),
+      // и это единственная инструкция с минтом по подписи. Проверка выше
+      // держит инвариант «маркер повтора привязан к канонической ATA».
+      expect(await ataBalance(playerAta)).to.eq(before);
+    });
+
+    it("counts toward the epoch grant quota", async () => {
       const before = await program.account.epoch.fetch(epochPda(0));
       await once(15n, 2_000_000).rpc();
       const after = await program.account.epoch.fetch(epochPda(0));
@@ -342,11 +392,24 @@ describe("solana_potato", () => {
   describe("reward signer separation", () => {
     it("delegates mint only, rejects admin actions, and revokes the old signer", async () => {
       const rewardSigner = Keypair.generate();
+      // once-рельса делает подписанта плательщиком ренты за маркер `reward_claim`
+      // (1 343 280 lamports на аккаунт). Свежий ключ без баланса падал бы на
+      // `Transfer: insufficient lamports` до проверки прав, и тест проверял бы
+      // не разделение ключей, а отсутствие денег у подписанта.
+      await connection.confirmTransaction(await connection.requestAirdrop(rewardSigner.publicKey, 1 * LAMPORTS_PER_SOL));
       const rewardAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, rewardSigner.publicKey)).address;
-      const reward = (amount: number) => program.methods.grantReward(new BN(amount)).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: rewardSigner.publicKey,
-        potatoMint: mint, userPotato: rewardAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).signers([rewardSigner]).rpc();
+      // Каждая выплата — свой nonce: маркер создаётся через `init`, иначе
+      // вторая попытка упала бы на уже существующем `reward_claim`, а тест
+      // проверял бы replay-защиту вместо разделения ключей.
+      let rewardNonce = 20n;
+      const reward = (amount: number) => {
+        const nonce = rewardNonce++;
+        return program.methods.grantRewardOnce(new BN(nonce.toString()), new BN(amount), soon()).accountsPartial({
+          config: configPda, epoch: epochPda(0), authority: rewardSigner.publicKey,
+          potatoMint: mint, userPotato: rewardAta, rewardClaim: rewardClaimPda(rewardAta, nonce),
+          systemProgram: SystemProgram.programId, tokenProgram: TOKEN_PROGRAM_ID,
+        }).signers([rewardSigner]).rpc();
+      };
       await program.methods.updateRewardSigner(rewardSigner.publicKey).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
       try {
         const before = (await program.account.epoch.fetch(epochPda(0))).mintedMicro;
@@ -354,7 +417,7 @@ describe("solana_potato", () => {
         expect(await ataBalance(rewardAta)).to.eq(1n);
         expect((await program.account.epoch.fetch(epochPda(0))).mintedMicro.sub(before).toNumber()).to.eq(1);
         await expectFail(reward(0), "RewardTooLarge");
-        await expectFail(reward(1_000_000_001), "RewardTooLarge");
+        await expectFail(reward(Number(MAX_REWARD_MICRO + 1n)), "RewardTooLarge");
         await expectFail(program.methods.setPaused(true).accountsPartial({ config: configPda, authority: rewardSigner.publicKey }).signers([rewardSigner]).rpc(), "Unauthorized");
         await expectFail(program.methods.updateRewardSigner(player.publicKey).accountsPartial({ config: configPda, authority: rewardSigner.publicKey }).signers([rewardSigner]).rpc(), "ConstraintHasOne");
       } finally {
@@ -441,11 +504,11 @@ describe("solana_potato", () => {
       );
     });
 
-    it("upgrade burns 100 × level and raises the level", async () => {
+    it("upgrade burns 30 × level and raises the level", async () => {
       const before = await ataBalance(adminAta);
       // UpgradeField — единственный field-spend ix с sysvar slot_hashes (энтропия мутации).
       await program.methods.upgradeField().accountsPartial({ ...fieldSpendAccounts(field, admin.publicKey, adminAta), slotHashes: SYSVAR_SLOT_HASHES_PUBKEY }).rpc();
-      expect(before - (await ataBalance(adminAta))).to.eq(100n * MICRO);
+      expect(before - (await ataBalance(adminAta))).to.eq(30n * MICRO);
       expect((await program.account.field.fetch(field)).level).to.eq(2);
     });
 
@@ -485,7 +548,7 @@ describe("solana_potato", () => {
       }).rpc();
       const minted = (await ataBalance(adminAta)) - before;
       expect(minted > 0n, "should mint something").to.be.true;
-      // level 2 (1.57×) × fertilizer (1.5×) × 6 POTATO/day for ~61s ≈ 0.01 POTATO
+      // level 2 (1.57×) × fertilizer (1.5×) × 10 POTATO/day for ~61s ≈ 0.016 POTATO
       expect(minted < 100_000n, "should mint a small amount").to.be.true;
       const f = await program.account.field.fetch(field);
       expect(f.durability).to.eq(99);
@@ -516,10 +579,7 @@ describe("solana_potato", () => {
     before(async () => {
       await connection.confirmTransaction(await connection.requestAirdrop(owner.publicKey, LAMPORTS_PER_SOL));
       ownerAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, owner.publicKey)).address;
-      await program.methods.grantReward(new BN(300_000_000)).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint,
-        userPotato: ownerAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
+      await once(30n, 300_000_000, undefined, ownerAta).rpc();
       for (const id of ids) {
         await program.methods.createField(new BN(id.toString()), 0).accountsPartial({
           config: configPda, field: fieldPda(id), owner: owner.publicKey, potatoMint: mint,
@@ -576,10 +636,8 @@ describe("solana_potato", () => {
     });
   });
 
-  describe("marketplace", () => {
+  describe("legacy marketplace (locked for writes)", () => {
     const orderId = BigInt(Date.now() + 100);
-    let order: PublicKey;
-    let escrow: PublicKey;
 
     it("rejects orders whose SOL total rounds to nothing", async () => {
       // 10 POTATO at 0.00005 SOL each -> 0.5 SOL… wait: 10_000_000 * 50_000 / 1e6 = 500_000
@@ -601,81 +659,26 @@ describe("solana_potato", () => {
       );
     });
 
-    it("create_sell_order escrows amount + fee", async () => {
-      order = orderPda(orderId);
-      escrow = escrowPda(order);
-      const before = await ataBalance(adminAta);
-      // 10 POTATO at 0.001 SOL each
-      await program.methods.createSellOrder(new BN(orderId.toString()), new BN(10_000_000), new BN(1_000_000))
-        .accountsPartial(createOrderAccounts(orderId, admin.publicKey, adminAta)).rpc();
-      expect(before - (await ataBalance(adminAta))).to.eq(10_900_000n); // 9 % fee tier
-      expect(await ataBalance(escrow)).to.eq(10_900_000n);
-      const o = await program.account.marketOrder.fetch(order);
-      expect(o.feeMicro.toNumber()).to.eq(900_000);
-      expect(o.expiresAt.toNumber() - o.createdAt.toNumber()).to.eq(86_400);
-    });
-
-    it("self-trade is blocked", async () => {
+    it("P2-2: create_sell_order is closed for writes and moves no funds", async () => {
+      // Легаси-рельс закрыт константой LEGACY_MARKET_WRITES_ENABLED=false:
+      // валидный по аргументам ордер получает LegacyMarketClosed до любых
+      // списаний. Уже созданные ордера доигрываются fill/cancel/close_expired,
+      // новых не появляется — книга опустошается за ORDER_TTL.
+      const order = orderPda(orderId);
+      const escrow = escrowPda(order);
+      const potatoBefore = await ataBalance(adminAta);
+      const statsBefore = await connection.getAccountInfo(marketStatsPda);
       await expectFail(
-        program.methods.fillOrder().accountsPartial({
-          buyer: admin.publicKey, seller: admin.publicKey, config: configPda, potatoMint: mint, marketStats: marketStatsPda,
-          order, escrow, buyerPotato: adminAta, sellerPotato: adminAta, treasuryPotato: treasuryAta,
-          tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-        }).rpc(),
-        "SelfTradeBlocked",
+        program.methods.createSellOrder(new BN(orderId.toString()), new BN(10_000_000), new BN(1_000_000))
+          .accountsPartial(createOrderAccounts(orderId, admin.publicKey, adminAta)).rpc(),
+        "LegacyMarketClosed",
       );
-    });
-
-    it("close_expired_order is rejected before expiry", async () => {
-      await expectFail(
-        program.methods.closeExpiredOrder().accountsPartial({
-          order, escrow, sellerPotato: adminAta, seller: admin.publicKey, tokenProgram: TOKEN_PROGRAM_ID,
-        }).rpc(),
-        "OrderNotExpired",
-      );
-    });
-
-    it("fill_order pays SOL to seller, tokens to buyer, splits the fee and closes the order", async () => {
-      const sellerSolBefore = await connection.getBalance(admin.publicKey);
-      const buyerBefore = await ataBalance(playerAta);
-      const treasuryBefore = await ataBalance(treasuryAta);
-      await program.methods.fillOrder().accountsPartial({
-        buyer: player.publicKey, seller: admin.publicKey, config: configPda, potatoMint: mint, marketStats: marketStatsPda,
-        order, escrow, buyerPotato: playerAta, sellerPotato: adminAta, treasuryPotato: treasuryAta,
-        tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-      }).signers([player]).rpc();
-
-      expect((await ataBalance(playerAta)) - buyerBefore).to.eq(10_000_000n);
-      expect((await ataBalance(treasuryAta)) - treasuryBefore).to.eq(360_000n); // 40 % of the 900 k fee
-      const sellerSolAfter = await connection.getBalance(admin.publicKey);
-      // 10 POTATO × 0.001 SOL = 0.01 SOL, plus escrow + order rent refunds
-      expect(sellerSolAfter - sellerSolBefore).to.be.greaterThan(10_000_000);
-      expect(await connection.getAccountInfo(order)).to.be.null;
-      expect(await connection.getAccountInfo(escrow)).to.be.null;
-      const stats = await program.account.marketStats.fetch(marketStatsPda);
-      expect(stats.totalTrades.toNumber()).to.eq(1);
-      expect(stats.totalSolVolume.toNumber()).to.eq(10_000_000);
-      const cfg = await program.account.gameConfig.fetch(configPda);
-      expect(cfg.totalBurnedMicro.toNumber()).to.be.greaterThan(250_000_000 + 180_000);
-    });
-
-    it("cancel_order refunds and starts the cooldown", async () => {
-      const id = BigInt(Date.now() + 200);
-      await program.methods.createSellOrder(new BN(id.toString()), new BN(10_000_000), new BN(1_000_000))
-        .accountsPartial(createOrderAccounts(id, player.publicKey, playerAta)).signers([player]).rpc();
-      const before = await ataBalance(playerAta);
-      await program.methods.cancelOrder().accountsPartial({
-        seller: player.publicKey, sellerProfile: sellerProfilePda(player.publicKey), order: orderPda(id), escrow: escrowPda(orderPda(id)),
-        sellerPotato: playerAta, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-      }).signers([player]).rpc();
-      expect((await ataBalance(playerAta)) - before).to.eq(10_900_000n); // 10 + 9 % fee
-
-      const id2 = BigInt(Date.now() + 201);
-      await expectFail(
-        program.methods.createSellOrder(new BN(id2.toString()), new BN(10_000_000), new BN(1_000_000))
-          .accountsPartial(createOrderAccounts(id2, player.publicKey, playerAta)).signers([player]).rpc(),
-        "CancelCooldown",
-      );
+      // Отказ произошёл до init/списаний: ни ордера, ни escrow, ни рыночной
+      // статистики, ни движения POTATO у продавца.
+      expect(await connection.getAccountInfo(order)).to.eq(null);
+      expect(await connection.getAccountInfo(escrow)).to.eq(null);
+      expect(await connection.getAccountInfo(marketStatsPda)).to.eq(statsBefore);
+      expect(await ataBalance(adminAta)).to.eq(potatoBefore);
     });
   });
 
@@ -690,7 +693,8 @@ describe("solana_potato", () => {
       const amountMicro = 10_000_000n;
       const priceLamportsPerPotato = 10_000_000n;
       const gross = 100_000_000n;
-      const fee = 9_000_000n;
+      // Первый тир лестницы из lib.rs: 500 bps от gross.
+      const fee = (gross * (V2_SETTLEMENT_FEE_BPS[0] ?? 0n)) / 10_000n;
       const sellerNet = gross - fee;
       const sellerTokenBefore = await ataBalance(adminAta);
 
@@ -730,9 +734,36 @@ describe("solana_potato", () => {
       const txFee = BigInt(txMeta.fee ?? 0);
       // The aggregate pre/post balance delta captures the full runtime charge,
       // while `meta.fee` is retained as an RPC sanity check below.
-      const transactionFeeFromBalances = txMeta.preBalances.reduce((total, balance) => total + BigInt(balance), 0n)
-        - txMeta.postBalances.reduce((total, balance) => total + BigInt(balance), 0n);
-      expect(transactionFeeFromBalances >= txFee, "transaction balances show a fee smaller than RPC metadata").to.eq(true);
+      const preTotal = txMeta.preBalances.reduce((total, balance) => total + BigInt(balance), 0n);
+      const postTotal = txMeta.postBalances.reduce((total, balance) => total + BigInt(balance), 0n);
+      const transactionFeeFromBalances = preTotal - postTotal;
+      // Источник правды для комиссии — pre/post балансы этой же транзакции, а
+      // не `meta.fee`: на localnet они расходятся (наблюдено delta=9 952 при
+      // meta.fee=10 000; две подписи — ровно 4 976 за подпись). `meta.fee`
+      // считает RPC по параметрам fee-калькулятора на момент запроса, а списание
+      // делает банк слота по своей ставке; для сверки ниже важно фактическое
+      // списание. Проверяются его инварианты: комиссия списана, кратна числу
+      // подписей (тариф единый на подпись) и правдоподобна по величине.
+      const signatureCount = BigInt(tx!.transaction.signatures.length);
+      // Сравнения bigint пишем явно: chai-компараторы `at.least`/`at.most`
+      // принимают только number/date и падают на 2n.
+      const feeDiagnostics =
+        `delta=${transactionFeeFromBalances} rpc-fee=${txFee} signatures=${signatureCount} ` +
+        `pre=${txMeta.preBalances.length} post=${txMeta.postBalances.length} sig=${signature}`;
+      expect(signatureCount > 0n, `no signatures in transaction metadata: ${feeDiagnostics}`).to.eq(true);
+      expect(
+        transactionFeeFromBalances > 0n,
+        `fee not charged or not visible in balances: ${feeDiagnostics}`,
+      ).to.eq(true);
+      expect(
+        transactionFeeFromBalances % signatureCount,
+        `fee is not a multiple of the signature count: ${feeDiagnostics}`,
+      ).to.eq(0n);
+      const feePerSignature = transactionFeeFromBalances / signatureCount;
+      expect(
+        feePerSignature >= 1n && feePerSignature <= 100_000n,
+        `implausible fee per signature: ${feeDiagnostics} per-signature=${feePerSignature}`,
+      ).to.eq(true);
       expect(BigInt(buyerSolBefore - await connection.getBalance(player.publicKey, "confirmed"))).to.eq(gross);
       expect(BigInt(await connection.getBalance(treasurySolPda, "confirmed") - treasurySolBefore)).to.eq(fee);
 
@@ -781,7 +812,7 @@ describe("solana_potato", () => {
       const amountMicro = 10_000_000n;
       const priceAtomsPerPotato = 1_000_000n;
       const gross = 10_000_000n; // 10 SKR
-      const fee = 900_000n; // 9% of seller proceeds, paid only on a successful fill
+      const fee = 500_000n; // 5 % of seller proceeds, paid only on a successful fill
       const sellerNet = gross - fee;
       const buyerSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, player.publicKey)).address;
       await mintTo(connection, admin, skrMint, buyerSkrAta, admin, 1_000_000_000);
@@ -914,16 +945,54 @@ describe("solana_potato", () => {
       ).accountsPartial(createOrderV2Accounts(id + 1n, cancelSeller.publicKey, cancelSellerAta)).signers([cancelSeller]).rpc(), "CancelCooldown");
       await transfer(connection, admin, cancelSellerAta, adminAta, cancelSeller, amountMicro);
     });
+
+    it("B7/E28 (V2): купленный ордер нельзя купить второй раз — close обнуляет повтор", async () => {
+      // Раньше пару «ровно один раз» держал тест на легаси-fill_order; легаси
+      // закрыт на запись (P2-2), поэтому инвариант проверяется на живом рельсе.
+      // Ордер закрывается (`close = seller`), escrow тоже — повторный fill
+      // упирается в отсутствующий аккаунт, а не в двойную выплату.
+      const id = BigInt(Date.now() + 715);
+      const order = orderV2Pda(id);
+      const escrow = escrowV2Pda(order);
+      await v2Methods.createSellOrderV2(
+        new BN(id.toString()), new BN(10_000_000), new BN(10_000_000), { sol: {} },
+      ).accountsPartial(createOrderV2Accounts(id, admin.publicKey, adminAta)).rpc();
+      const fill = () => v2Methods.fillOrderV2().accountsPartial({
+        buyer: player.publicKey,
+        seller: admin.publicKey,
+        config: configPda,
+        potatoMint: mint,
+        sellerVolumeV2: sellerVolumeV2Pda(admin.publicKey),
+        marketStatsV2: marketStatsV2Pda,
+        order,
+        escrow,
+        buyerPotato: playerAta,
+        treasurySol: treasurySolPda,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      }).signers([player]).rpc();
+      await fill();
+      expect(await connection.getAccountInfo(order)).to.be.null;
+      expect(await connection.getAccountInfo(escrow)).to.be.null;
+      const statsAfter = await v2Accounts.marketStatsV2.fetch(marketStatsV2Pda);
+      const volumeAfter = await v2Accounts.sellerVolumeV2.fetch(sellerVolumeV2Pda(admin.publicKey));
+      await expectFail(fill());
+      // Повтор не сдвигает ни статистику, ни дневной объём продавца.
+      expect((await v2Accounts.marketStatsV2.fetch(marketStatsV2Pda)).totalTrades.toString())
+        .to.eq(statsAfter.totalTrades.toString());
+      expect((await v2Accounts.sellerVolumeV2.fetch(sellerVolumeV2Pda(admin.publicKey))).filledPotatoMicro.toString())
+        .to.eq(volumeAfter.filledPotatoMicro.toString());
+    });
   });
 
   describe("referrals", () => {
     const referrer = Keypair.generate();
-    let referrerAta: PublicKey;
     const playerReferralPda = pda(Buffer.from("referral"), player.publicKey.toBuffer());
 
-    it("register_referrer burns exactly 5 POTATO and stores the link once", async () => {
-      referrerAta = (await getOrCreateAssociatedTokenAccount(connection, player, mint, referrer.publicKey)).address;
-      // F-17: регистрация — трата, при паузе блокируется
+    it("P2-2: регистрация закрыта — ReferralProgramRetired без единого эффекта", async () => {
+      // Награды платит только легаси fill_order, а он закрыт на запись:
+      // регистрация продавала бы обещание, которое не может исполниться.
+      // Пауза проверяется раньше (F-17), поэтому при паузе ответ прежний.
       await program.methods.setPaused(true).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
       await expectFail(
         program.methods.registerReferrer(referrer.publicKey).accountsPartial({
@@ -933,136 +1002,22 @@ describe("solana_potato", () => {
         "Paused",
       );
       await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
-      const before = await ataBalance(playerAta);
-      const supplyBefore = (await getMint(connection, mint)).supply;
-      await program.methods.registerReferrer(referrer.publicKey).accountsPartial({
-        referral: playerReferralPda, config: configPda, potatoMint: mint, userPotato: playerAta,
-        owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-      }).signers([player]).rpc();
-      expect(before - (await ataBalance(playerAta))).to.eq(5_000_000n);
-      expect(supplyBefore - (await getMint(connection, mint)).supply).to.eq(5_000_000n);
-      const r = await program.account.referral.fetch(playerReferralPda);
-      expect(r.owner.equals(player.publicKey)).to.be.true;
-      expect(r.referrer.equals(referrer.publicKey)).to.be.true;
-    });
 
-    it("registration rejects 4.999999 POTATO atomically and succeeds with exactly 5", async () => {
-      const newcomer = Keypair.generate();
-      await connection.confirmTransaction(await connection.requestAirdrop(newcomer.publicKey, LAMPORTS_PER_SOL));
-      const newcomerAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, newcomer.publicKey)).address;
-      const referral = pda(Buffer.from("referral"), newcomer.publicKey.toBuffer());
-      await transfer(connection, admin, adminAta, newcomerAta, admin, 4_999_999n);
-      const register = () => program.methods.registerReferrer(referrer.publicKey).accountsPartial({
-        referral, config: configPda, potatoMint: mint, userPotato: newcomerAta,
-        owner: newcomer.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-      }).signers([newcomer]).rpc();
+      const potatoBefore = await ataBalance(playerAta);
       const supplyBefore = (await getMint(connection, mint)).supply;
-      const rentBefore = await connection.getBalance(newcomer.publicKey);
-      await expectFail(register());
-      expect(await ataBalance(newcomerAta)).to.eq(4_999_999n);
-      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
-      expect(await connection.getAccountInfo(referral)).to.be.null;
-      expect(await connection.getBalance(newcomer.publicKey)).to.eq(rentBefore);
-
-      await transfer(connection, admin, adminAta, newcomerAta, admin, 1n);
-      await register();
-      expect(await ataBalance(newcomerAta)).to.eq(0n);
-      expect(supplyBefore - (await getMint(connection, mint)).supply).to.eq(5_000_000n);
-      const stored = await program.account.referral.fetch(referral);
-      expect(stored.owner.equals(newcomer.publicKey)).to.be.true;
-      expect(stored.referrer.equals(referrer.publicKey)).to.be.true;
-    });
-
-    it("rejects self-referral and re-registration without another charge", async () => {
-      const playerBefore = await ataBalance(playerAta);
-      const adminBefore = await ataBalance(adminAta);
-      const supplyBefore = (await getMint(connection, mint)).supply;
-      const selfPda = pda(Buffer.from("referral"), admin.publicKey.toBuffer());
-      await expectFail(
-        program.methods.registerReferrer(admin.publicKey).accountsPartial({
-          referral: selfPda, config: configPda, potatoMint: mint, userPotato: adminAta,
-          owner: admin.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-        }).rpc(),
-        "Unauthorized",
-      );
+      const lamportsBefore = await connection.getBalance(player.publicKey);
       await expectFail(
         program.methods.registerReferrer(referrer.publicKey).accountsPartial({
           referral: playerReferralPda, config: configPda, potatoMint: mint, userPotato: playerAta,
           owner: player.publicKey, tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
         }).signers([player]).rpc(),
+        "ReferralProgramRetired",
       );
-      expect(await ataBalance(playerAta)).to.eq(playerBefore);
-      expect(await ataBalance(adminAta)).to.eq(adminBefore);
+      // Отказ до любых списаний: ни PDA, ни POTATO, ни эмиссии, ни аренды.
+      expect(await connection.getAccountInfo(playerReferralPda)).to.eq(null);
+      expect(await ataBalance(playerAta)).to.eq(potatoBefore);
       expect((await getMint(connection, mint)).supply).to.eq(supplyBefore);
-      expect(await connection.getAccountInfo(selfPda)).to.be.null;
-    });
-
-    it("fill_order pays the 0.5 % referral reward to the referrer from escrow, minting nothing", async () => {
-      const id = BigInt(Date.now() + 300);
-      await program.methods.createSellOrder(new BN(id.toString()), new BN(10_000_000), new BN(1_000_000))
-        .accountsPartial(createOrderAccounts(id, admin.publicKey, adminAta)).rpc();
-      const orderPk = orderPda(id);
-      const escrowPk = escrowPda(orderPk);
-
-      const supplyBefore = (await getMint(connection, mint)).supply;
-      const refBefore = await ataBalance(referrerAta);
-      const sellerBefore = await ataBalance(adminAta);
-      const buyerBefore = await ataBalance(playerAta);
-      const treasuryBefore = await ataBalance(treasuryAta);
-
-      const sellerLicensePda = pda(Buffer.from("license"), admin.publicKey.toBuffer());
-      await program.methods.fillOrder().accountsPartial({
-        buyer: player.publicKey, seller: admin.publicKey, config: configPda, potatoMint: mint, marketStats: marketStatsPda,
-        order: orderPk, escrow: escrowPk, buyerPotato: playerAta, sellerPotato: adminAta, treasuryPotato: treasuryAta,
-        tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-      }).signers([player]).remainingAccounts([
-        { pubkey: sellerLicensePda, isSigner: false, isWritable: false },
-        { pubkey: playerReferralPda, isSigner: false, isWritable: false },
-        { pubkey: referrerAta, isSigner: false, isWritable: true },
-      ]).rpc();
-
-      // buyer gets the amount, referrer the 0.5 % (50 k), seller the 1 % refund (100 k)
-      expect((await ataBalance(playerAta)) - buyerBefore).to.eq(10_000_000n);
-      expect((await ataBalance(referrerAta)) - refBefore).to.eq(50_000n);
-      expect((await ataBalance(adminAta)) - sellerBefore).to.eq(100_000n);
-      // 9 % fee = 900 k; after 1 % refund the net fee is 800 k -> 320 k treasury, 430 k burn
-      expect((await ataBalance(treasuryAta)) - treasuryBefore).to.eq(320_000n);
-      // Supply drops ONLY by the burned fee: 900k - 100k refund = 800k net
-      // -> 320k treasury (40%) + 480k burn base - 50k referral reward = 430k burned.
-      // The 50k reward itself is a transfer out of escrow, not a fresh mint.
-      const supplyAfter = (await getMint(connection, mint)).supply;
-      expect(supplyAfter).to.eq(supplyBefore - 430_000n);
-      expect(await connection.getAccountInfo(orderPk)).to.be.null;
-      expect(await connection.getAccountInfo(escrowPk)).to.be.null;
-    });
-
-    it("fill_order burns the reward when the referrer ATA is not provided", async () => {
-      const id = BigInt(Date.now() + 301);
-      await program.methods.createSellOrder(new BN(id.toString()), new BN(10_000_000), new BN(1_000_000))
-        .accountsPartial(createOrderAccounts(id, admin.publicKey, adminAta)).rpc();
-      const orderPk = orderPda(id);
-      const escrowPk = escrowPda(orderPk);
-
-      const supplyBefore = (await getMint(connection, mint)).supply;
-      const refBefore = await ataBalance(referrerAta);
-      const sellerBefore = await ataBalance(adminAta);
-      // license + buyer referral PDA are passed, but NO referrer ATA
-      // -> the 0.5 % reward is burned instead of paid; the 1 % refund still goes to the seller
-      const sellerLicensePda = pda(Buffer.from("license"), admin.publicKey.toBuffer());
-      await program.methods.fillOrder().accountsPartial({
-        buyer: player.publicKey, seller: admin.publicKey, config: configPda, potatoMint: mint, marketStats: marketStatsPda,
-        order: orderPk, escrow: escrowPk, buyerPotato: playerAta, sellerPotato: adminAta, treasuryPotato: treasuryAta,
-        tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-      }).signers([player]).remainingAccounts([
-        { pubkey: sellerLicensePda, isSigner: false, isWritable: false },
-        { pubkey: playerReferralPda, isSigner: false, isWritable: false },
-      ]).rpc();
-
-      expect((await ataBalance(referrerAta)) - refBefore).to.eq(0n);
-      expect((await ataBalance(adminAta)) - sellerBefore).to.eq(100_000n); // 1 % refund
-      // No referrer ATA -> the 50k reward joins the burn: 800k net - 320k treasury = 480k burned
-      expect((await getMint(connection, mint)).supply).to.eq(supplyBefore - 480_000n);
-      expect(await connection.getAccountInfo(orderPk)).to.be.null;
+      expect(await connection.getBalance(player.publicKey)).to.eq(lamportsBefore);
     });
   });
 
@@ -1144,14 +1099,13 @@ describe("solana_potato", () => {
       const wrongSkrMint = await createMint(connection, admin, admin.publicKey, null, 6);
       const buyerSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, player.publicKey, true)).address;
       const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, treasurySolPda, true)).address;
-      const buybackSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, wrongSkrMint, admin.publicKey, true)).address;
       const id = BigInt(Date.now()) + 5555n;
       await expectFail(
         program.methods.buyFieldSkr(new BN(id.toString())).accountsPartial({
           config: configPda, presaleState: presalePda, authority: admin.publicKey,
           buyerPresale: buyerPresalePda(player.publicKey), field: fieldPda(id),
           buyer: player.publicKey, skrMint: wrongSkrMint, buyerSkrAta,
-          treasurySol: treasurySolPda, treasurySkrAta, buybackSkrAta,
+          treasurySol: treasurySolPda, treasurySkrAta,
           tokenProgram: TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
           slotHashes: SYSVAR_SLOT_HASHES_PUBKEY,
         }).signers([player]).rpc(),
@@ -1366,9 +1320,7 @@ describe("solana_potato", () => {
         [admin],
       ));
       await getOrCreateAssociatedTokenAccount(connection, admin, mint, questTreasuryPda, true);
-      await program.methods.grantReward(new BN(POOL.toString())).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: questAta(), tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
+      await once(31n, POOL, undefined, questAta()).rpc();
       expect(await ataBalance(questAta())).to.eq(POOL);
     });
 
@@ -1392,27 +1344,23 @@ describe("solana_potato", () => {
       await expectFail(claim(stranger, 0, [], strangerAta), "BadProof");
     });
 
-    it("pays balance-based quests (100 / 1000 🥔) for a clean user", async () => {
-      // playerAta уже содержит 🥔 из ранних сьютов — берём чистого пользователя
+    it("pays quests 1/2 (2 and 3 fields) and rejects a wallet that only holds tokens", async () => {
+      // Раньше эти квесты проверяли баланс (100 / 1000 🥔): их проходил любой,
+      // кто купил токен, ни разу не сыграв, а баланс можно передать другому
+      // кошельку. Теперь доказательство — владение полями. saver ниже держит
+      // 150 🥔 и ноль полей: награды он не получает.
       const saver = Keypair.generate();
       await connection.confirmTransaction(await connection.requestAirdrop(saver.publicKey, 1 * LAMPORTS_PER_SOL));
       const saverAta = (await getOrCreateAssociatedTokenAccount(connection, admin, mint, saver.publicKey)).address;
+      await once(32n, 150_000_000, undefined, saverAta).rpc();
+      await expectFail(claim(saver, 1, [], saverAta), "BadProof");
 
-      await program.methods.grantReward(new BN("150000000")).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: saverAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
-      // 150 🥔: quest 2 (нужно 1000) невалиден, quest 1 (нужно 100) валиден
-      await expectFail(claim(saver, 2, [], saverAta), "BadProof");
-      await claim(saver, 1, [], saverAta);
-      expect(await ataBalance(saverAta)).to.eq(200_000_000n); // 150 + 50 (награда)
-      expect(await ataBalance(questAta())).to.eq(POOL - 50_000_000n - 50_000_000n);
-
-      await program.methods.grantReward(new BN("900000000")).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: saverAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
-      await claim(saver, 2, [], saverAta); // 1100 🥔 ≥ 1000
-      expect(await ataBalance(saverAta)).to.eq(1200_000_000n);
-      expect(await ataBalance(questAta())).to.eq(POOL - 50_000_000n - 50_000_000n - 100_000_000n);
+      const playerAtaBefore = await ataBalance(playerAta);
+      const poolBefore = await ataBalance(questAta());
+      await claim(player, 1, presaleFieldIds.slice(0, 2)); // 2 поля
+      await claim(player, 2, presaleFieldIds.slice(0, 3)); // 3 поля
+      expect((await ataBalance(playerAta)) - playerAtaBefore).to.eq(150_000_000n); // 50 + 100
+      expect(poolBefore - (await ataBalance(questAta()))).to.eq(150_000_000n);
     });
 
     it("rejects repeating one field as a five-field achievement proof", async () => {
@@ -1429,7 +1377,7 @@ describe("solana_potato", () => {
     it("rejects out-of-range quest ids and claims while paused", async () => {
       await expectFail(claim(player, 6), "InvalidFieldType");
       await program.methods.setPaused(true).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
-      await expectFail(claim(player, 4), "Paused"); // paused-чек раньше проверки баланса
+      await expectFail(claim(player, 4), "Paused"); // paused-чек раньше проверки полей
       await program.methods.setPaused(false).accountsPartial({ config: configPda, authority: admin.publicKey }).rpc();
     });
   });
@@ -1579,10 +1527,10 @@ describe("solana_potato", () => {
 
     it("withdraw_treasury is two-step, authority-only and window-capped", async function () {
       this.timeout(90_000);
-      // Финансируем казну: grant_reward минтит в treasury ATA (владелец митта — config PDA)
-      await program.methods.grantReward(new BN(500_000)).accountsPartial({
-        config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: treasuryAta, tokenProgram: TOKEN_PROGRAM_ID,
-      }).rpc();
+      // Финансируем казну: grant_reward_once минтит в treasury ATA (владелец — config PDA).
+      // 5 POTATO, а не 0.5: одна выплата ограничена 10 % баланса (P1-4),
+      // иначе предложенные ниже 100 000 micro не проходят проверку доли.
+      await once(33n, 5_000_000, undefined, treasuryAta).rpc();
       const proposePotato = (micro: string) => program.methods.proposeWithdrawal(0, new BN(micro)).accountsPartial({
         config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
       }).rpc();
@@ -1609,6 +1557,17 @@ describe("solana_potato", () => {
       await expectFail(proposePotato("251000000000"), "WithdrawWindowLimitExceeded");
       await proposePotato("100000");
       await expectFail(proposePotato("100000"), "WithdrawalAlreadyProposed");
+      // P1-4: предложение на 4 POTATO проходит окно (250 000), но упирается в
+      // долю баланса на исполнении: 10 % от 5 POTATO = 0.5 POTATO. Проверка
+      // стоит до таймлока, поэтому ждать 32 с не нужно.
+      const cancel = () => program.methods.cancelWithdrawal().accountsPartial({
+        config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
+      }).rpc();
+      await cancel();
+      await proposePotato("4000000");
+      await expectFail(execPotato("4000000"), "WithdrawShareExceeded");
+      await cancel();
+      await proposePotato("100000");
       // Очередь SKR: propose пишет только окно/счётчик (исполнение требует митта).
       await program.methods.proposeWithdrawal(2, new BN(1000)).accountsPartial({
         config: configPda, adminState: adminStatePda, authority: admin.publicKey, systemProgram: SystemProgram.programId,
@@ -1715,21 +1674,25 @@ describe("solana_potato", () => {
       expect((await program.account.epoch.fetch(epochPda(0))).id.toNumber()).to.eq(0);
     });
 
-    // ПОСЛЕДНИЙ тест прогона: исчерпывает квоту грантов (10% капа эпохи),
-    // поэтому все остальные grant_reward-сценарии идут выше по файлу.
-    it("grant_reward is capped at 10% of the epoch cap", async function () {
+    // ПОСЛЕДНИЙ тест прогона: исчерпывает квоту грантов (25 % капа эпохи),
+    // поэтому все остальные сценарии с минтом наград идут выше по файлу.
+    it("grant_reward_once is capped at 25% of the epoch cap", async function () {
       this.timeout(240_000);
-      const quota = (await program.account.epoch.fetch(epochPda(0))).mintCapMicro.divn(10);
-      const grant = () =>
-        program.methods.grantReward(new BN(1_000_000_000)).accountsPartial({
-          config: configPda, epoch: epochPda(0), authority: admin.publicKey, potatoMint: mint, userPotato: adminAta, tokenProgram: TOKEN_PROGRAM_ID,
-        }).rpc();
-      for (let i = 0; i < 30; i++) {
+      // Квота берётся из той же константы, которой пользуется программа:
+      // дублировать 2_500 руками — значит проверять тест против самого себя.
+      const quota = (await program.account.epoch.fetch(epochPda(0))).mintCapMicro
+        .mul(new BN(GRANT_QUOTA_SHARE_BPS.toString()))
+        .div(new BN(10_000));
+      const perGrant = MAX_REWARD_MICRO;
+      // Каждая выплата — новый nonce (маркер `reward_claim` создаётся `init`).
+      let nonce = 900n;
+      const grant = () => once(nonce++, perGrant, undefined, adminAta).rpc();
+      for (let i = 0; i < 100; i++) {
         const ep = await program.account.epoch.fetch(epochPda(0));
-        if (ep.grantedMicro.add(new BN(1_000_000_000)).gt(quota)) break;
+        if (ep.grantedMicro.add(new BN(perGrant.toString())).gt(quota)) break;
         await grant();
       }
-      await expectFail(grant(), "GrantQuotaExceeded");
+      await expectFail(once(nonce, perGrant, undefined, adminAta).rpc(), "GrantQuotaExceeded");
       const ep = await program.account.epoch.fetch(epochPda(0));
       expect(ep.grantedMicro.lte(quota)).to.be.true;
     });
@@ -1738,7 +1701,7 @@ describe("solana_potato", () => {
   // ══════════════════════════════════════════════════════════════════
   // security checklist (аудит 2026-09-25)
   // Негативные проверки по пунктам чек-листа, не покрытые ранними сьютами.
-  // Запускаются последними: не используют grant_reward (квота исчерпана выше).
+  // Запускаются последними: не минтят награды (квота грантов исчерпана выше).
   // ══════════════════════════════════════════════════════════════════
   describe("security checklist (2026-09-25 audit)", () => {
     it("A1/D24: PDA-подмена отклонена — чужой программный аккаунт не проходит как Field", async () => {
@@ -1830,24 +1793,6 @@ describe("solana_potato", () => {
         }).signers([player]).remainingAccounts([same, { ...same }]).rpc(),
         "BadProof",
       );
-    });
-
-    it("B7/E28: купленный ордер нельзя купить второй раз — CEI + close обнуляют атаку", async () => {
-      const id = BigInt(Date.now() + 777);
-      const order = orderPda(id);
-      await program.methods.createSellOrder(new BN(id.toString()), new BN(10_000_000), new BN(1_000_000))
-        .accountsPartial(createOrderAccounts(id, admin.publicKey, adminAta)).rpc();
-      const fill = () => program.methods.fillOrder().accountsPartial({
-        buyer: player.publicKey, seller: admin.publicKey, config: configPda, potatoMint: mint,
-        marketStats: marketStatsPda, order, escrow: escrowPda(order), buyerPotato: playerAta,
-        sellerPotato: adminAta, treasuryPotato: treasuryAta, tokenProgram: TOKEN_PROGRAM_ID,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID, systemProgram: SystemProgram.programId,
-      }).signers([player]).rpc();
-      await fill();
-      // Ордер и эскроу закрыты, рента — продавцу, повторный fill невозможен.
-      expect(await connection.getAccountInfo(order)).to.be.null;
-      expect(await connection.getAccountInfo(escrowPda(order))).to.be.null;
-      await expectFail(fill());
     });
 
     it("C16/C20: вывод казны привязан к сумме proposal, назначению ATA authority и тимлоку", async function () {
@@ -2005,10 +1950,11 @@ describe("solana_potato", () => {
       await expectFail(batch(11, true), "InvalidAmount");
     });
 
-    it("buy_export_license создаёт лицензию и забирает 500 SKR в казну", async () => {
+    it("buy_export_license создаёт лицензию и забирает цену лицензии в казну", async () => {
       const userSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, holder.publicKey)).address;
       const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, treasurySolPda, true)).address;
-      await mintTo(connection, admin, skrMint, userSkrAta, admin, 500_000_000);
+      // Цена лицензии — EXPORT_LICENSE_PRICE_SKR_ATOMS из lib.rs (500 SKR).
+      await mintTo(connection, admin, skrMint, userSkrAta, admin, Number(EXPORT_LICENSE_PRICE_SKR_ATOMS));
       const treasuryBefore = await ataBalance(treasurySkrAta);
 
       await program.methods.buyExportLicense().accountsPartial({
@@ -2021,7 +1967,7 @@ describe("solana_potato", () => {
       const lic = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
       expect(lic.owner.equals(holder.publicKey)).to.be.true;
       expect(lic.expiresAt.gt(new BN(Math.floor(Date.now() / 1000)))).to.be.true;
-      expect(await ataBalance(treasurySkrAta) - treasuryBefore).to.eq(500_000_000n);
+      expect(await ataBalance(treasurySkrAta) - treasuryBefore).to.eq(EXPORT_LICENSE_PRICE_SKR_ATOMS);
       expect(await ataBalance(userSkrAta)).to.eq(0n);
     });
 
@@ -2054,7 +2000,7 @@ describe("solana_potato", () => {
       // ранняя повторная покупка сжигала бы ещё не нажитые дни.
       const userSkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, holder.publicKey)).address;
       const treasurySkrAta = (await getOrCreateAssociatedTokenAccount(connection, admin, skrMint, treasurySolPda, true)).address;
-      await mintTo(connection, admin, skrMint, userSkrAta, admin, 500_000_000);
+      await mintTo(connection, admin, skrMint, userSkrAta, admin, Number(EXPORT_LICENSE_PRICE_SKR_ATOMS));
       const lic1 = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
       const treasuryBefore = await ataBalance(treasurySkrAta);
 
@@ -2067,7 +2013,7 @@ describe("solana_potato", () => {
 
       const lic2 = await program.account.exportLicense.fetch(licensePda(holder.publicKey));
       expect(lic2.expiresAt.sub(lic1.expiresAt).toNumber()).to.eq(30 * 86400);
-      expect(await ataBalance(treasurySkrAta) - treasuryBefore).to.eq(500_000_000n);
+      expect(await ataBalance(treasurySkrAta) - treasuryBefore).to.eq(EXPORT_LICENSE_PRICE_SKR_ATOMS);
       expect(await ataBalance(userSkrAta)).to.eq(0n);
     });
 

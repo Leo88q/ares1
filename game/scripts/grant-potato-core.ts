@@ -33,8 +33,8 @@ export const POTATO_MICRO = 1_000_000n
 const BPS = 10_000n
 /** lib.rs: `pub const MAX_REWARD_MICRO: u64 = 1_000_000_000` — потолок одной выдачи (1 000 POTATO). */
 export const MAX_REWARD_MICRO = 1_000n * POTATO_MICRO
-/** lib.rs: `pub const GRANT_QUOTA_SHARE_BPS: u64 = 1_000` — ручным грантам доступно 10 % капа эпохи. */
-export const GRANT_QUOTA_SHARE_BPS = 1_000n
+/** lib.rs: `pub const GRANT_QUOTA_SHARE_BPS: u64 = 2_500` — ручным грантам доступно 25 % капа эпохи. */
+export const GRANT_QUOTA_SHARE_BPS = 2_500n
 /** lib.rs: `pub const MAX_REWARD_EXPIRY_SECONDS: i64 = 900` — подпись гранта живёт не дольше 15 минут. */
 export const MAX_REWARD_EXPIRY_SECONDS = 900n
 /** Срок, который CLI ставит свежему гранту: внутри лимита программы и с запасом на подтверждение. */
@@ -43,8 +43,14 @@ export const GRANT_EXPIRY_TTL_SECONDS = 600n
 export const BASE_FIELD_PRICE_MICRO = 250n * POTATO_MICRO
 /** lib.rs: type_cost_bps(0) = 4_000 (0.4×) — самое дешёвое первое поле («Грядка»). */
 export const FIRST_FIELD_COST_BPS = 4_000n
-/** Размер аккаунта Field (Rust `8 + Field::INIT_SPACE` = 70) для фильтра getProgramAccounts. */
-export const FIELD_ACCOUNT_SIZE = 70
+/**
+ * Размер аккаунта Field (Rust `8 + Field::INIT_SPACE` = 78, layout v3) для
+ * фильтра getProgramAccounts. P1-3 дописал `field_id` в конец layout: пока
+ * кластер не мигрирован, фильтр обязан смотреть и на 70-байтную v2.
+ */
+export const FIELD_ACCOUNT_SIZE = 78
+/** v2 (70 байт) — до миграции P1-3; нужен, чтобы CLI видел ещё не мигрированные поля. */
+export const FIELD_ACCOUNT_SIZE_V2 = 70
 
 /** Цена первого (самого дешёвого) поля: scaled_cost(BASE, 0) = 100 POTATO. */
 export function firstFieldPriceMicro(): bigint {

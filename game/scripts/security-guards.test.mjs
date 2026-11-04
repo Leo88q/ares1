@@ -71,7 +71,14 @@ test('A1/A5/A6/D21-D22: каждый init платит ренту; data-акка
 test('A1: каждый seeds-констрейнт спарен с bump', () => {
   const seeded = blocks.filter((b) => /seeds\s*=/.test(b));
   // Count is pinned to the current source; review each new account context before changing it.
-  assert.equal(seeded.length, 108, `seeds-блоков: ${seeded.length}, ожидалось 108`);
+  // +4 и +4 (P1-3, layout v3): Harvest, UpgradeField, CloseField и три
+  // структуры repair/pay_tax/apply_fertilizer привязывают Field к
+  // `field.field_id`; последние три раньше жили в одном макросе и давали
+  // два seeds-блока на троих, теперь — по два на каждую.
+  // −2 (P1-1, 2026-11-03): accounts-структура `GrantReward` удалена вместе с
+  // replayable-инструкцией; её `config` и `epoch` были единственными
+  // seeds-блоками, которые она давала.
+  assert.equal(seeded.length, 114, `seeds-блоков: ${seeded.length}, ожидалось 114`);
   for (const b of seeded) {
     assert.ok(/\bbump\b/.test(b), `seeds без bump: ${b.slice(0, 120)}`);
   }
@@ -79,9 +86,12 @@ test('A1: каждый seeds-констрейнт спарен с bump', () => {
 
 test('A2: пины has_one для текущих account contexts', () => {
   // Нарочно зафиксированные счётчики: новый контекст = осознанный diff пина.
-  assert.equal(count(libRs, 'has_one = potato_mint'), 14);
+  // +2 (P1-3): макрос field_spend_accounts! развёрнут в три явные структуры
+  // (rustfmt не сходится на многострочном #[account(...)] внутри macro_rules!).
+  // −1 (P1-1): `GrantReward` удалена; её `config` нёс единственный has_one.
+  assert.equal(count(libRs, 'has_one = potato_mint'), 15);
   assert.equal(count(libRs, 'has_one = authority'), 17); // 18-й — в doc-комментарии, срезан
-  assert.equal(count(libRs, 'has_one = owner'), 4);
+  assert.equal(count(libRs, 'has_one = owner'), 6); // +2: три структуры вместо макроса
   assert.equal(count(libRs, 'has_one = seller'), 7);
 });
 
@@ -92,13 +102,13 @@ test('E28: close-назначения pinned для текущих account conte
 });
 
 test('A2: платежные ATA привязаны к подписанту (token::mint/authority)', () => {
-  assert.equal(count(libRs, 'token::mint = potato_mint, token::authority = owner'), 6);
+  assert.equal(count(libRs, 'token::mint = potato_mint, token::authority = owner'), 8); // +2: макрос → три структуры
   assert.equal(count(libRs, 'token::authority = seller'), 8);
   assert.ok(count(libRs, 'token::authority = buyer') >= 1);
 });
 
-test('B7/B8/F-01: платный RNG только на верхнем уровне (assert_no_cpi_grind ×2)', () => {
-  assert.equal(count(libRs, 'assert_no_cpi_grind()?;'), 2);
+test('B7/B8/F-01/P2-5: CPI-grind запрещён и в платном RNG, и в листинге (assert_no_cpi_grind ×5)', () => {
+  assert.equal(count(libRs, 'assert_no_cpi_grind()?;'), 5);
   assert.ok(libRs.includes('fn assert_no_cpi_grind()'));
   // Обе платно-рандомные инструкции вызывают guard ДО перевода средств.
   for (const fn of ['pub fn buy_field_skr', 'pub fn upgrade_field']) {
@@ -108,10 +118,20 @@ test('B7/B8/F-01: платный RNG только на верхнем уровн
     const transfer = libRs.indexOf('token::transfer(', at);
     assert.ok(guard > at && guard < transfer, `guard в ${fn} должен стоять до CPI`);
   }
+  // P2-5: эти инструкции создают игроку состояние (поле, ордер) и горят его
+  // POTATO — через CPI сторонний контракт навязал бы их без ведома игрока.
+  // Guard обязан стоять первым оператором тела, до любых проверок и мутаций.
+  for (const fn of ['pub fn create_field', 'pub fn create_sell_order(', 'pub fn create_sell_order_v2']) {
+    const at = libRs.indexOf(fn);
+    assert.ok(at > 0, `${fn} отсутствует`);
+    const guard = libRs.indexOf('assert_no_cpi_grind()?;', at);
+    assert.ok(guard > at && guard - at < 400, `guard в ${fn} должен стоять первым оператором`);
+  }
 });
 
-test('C: пауза-гейт на всех расходных инструкциях (19 пинов)', () => {
-  assert.equal(count(libRs, 'require!(!ctx.accounts.config.paused, GameError::Paused)'), 18);
+test('C: пауза-гейт на всех расходных инструкциях (18 пинов)', () => {
+  // −1 (P1-1): `grant_reward` удалена и больше не входит в расходные пути.
+  assert.equal(count(libRs, 'require!(!ctx.accounts.config.paused, GameError::Paused)'), 17);
   assert.equal(count(libRs, 'require!(!config.paused, GameError::Paused)'), 1);
   assert.ok(libRs.includes('pub fn set_paused'));
   // guardian может только ставить паузу, не снимать.
@@ -148,8 +168,10 @@ test('C15: комиссия считается floor-формулой с пот�
 
 test('C16/F-02: вывод казны — двухшаговый, с пином назначения и лимитами окна', () => {
   assert.equal(count(libRs, 'seeds = [b"treasury_sol"]'), 7);
-  // назначение прибито к ATA authority (POTATO, SKR) — кошелёк-посредник невозможен
-  assert.equal(count(libRs, 'associated_token::authority = authority'), 3);
+  // Назначение прибито к ATA authority (POTATO, SKR на выводе) — кошелёк-посредник
+  // невозможен. Было 3: третьим был buyback-ATA в buy_field_skr, удалён вместе со
+  // сплитом 80/20 (20 % уходили на кошелёк authority, минуя казну и её лимиты).
+  assert.equal(count(libRs, 'associated_token::authority = authority'), 2);
   assert.equal(count(libRs, 'GameError::WithdrawTimelockNotExpired'), 3);
   assert.equal(count(libRs, 'GameError::WithdrawAmountMismatch'), 3);
   assert.equal(count(libRs, 'GameError::WithdrawWindowLimitExceeded'), 1);
@@ -164,8 +186,12 @@ test('C20: админ-рычаги под тимлоком/потолками/д
   assert.ok(libRs.includes('MAX_DAILY_CAP_MICRO, GameError::CapTooHigh'));
   assert.ok(libRs.includes('MAX_BASE_YIELD_MICRO_PER_DAY') && libRs.includes('GameError::BaseYieldTooHigh'));
   assert.ok(libRs.includes('MAX_GLOBAL_MULTIPLIER_BPS, GameError::MultiplierTooHigh'));
+  // P1-6: у множителя есть не только потолок, но и пол. `Some(0)` обнулял
+  // урожай всех полей одним вызовом и проходил проверку «не выше 2×».
+  assert.ok(libRs.includes('MIN_GLOBAL_MULTIPLIER_BPS: u16 = 5_000'));
+  assert.ok(libRs.includes('m >= MIN_GLOBAL_MULTIPLIER_BPS, GameError::InvalidAmount'));
   assert.ok(libRs.includes('GameError::GrantQuotaExceeded'));
-  assert.ok(libRs.includes('GRANT_QUOTA_SHARE_BPS: u64 = 1_000'));
+  assert.ok(libRs.includes('GRANT_QUOTA_SHARE_BPS: u64 = 2_500'));
   assert.ok(libRs.includes('MAX_REWARD_MICRO: u64 = 1_000_000_000'));
 });
 
@@ -194,11 +220,63 @@ test('C17/D30: энтропия SlotHashes спинована по адресу 
 
 test('D24: миграции валидируют раскладки и authority', () => {
   assert.equal(count(libRs, 'migrations::authority('), 4);
-  for (const whitelist of ['&[156, 164, 228, 260]', '&[97, 145]', '&[69, 70]', '&[41, 49]']) {
+  // Field: 69 (v1) / 70 (v2) → 78 (v3, +field_id u64).
+  for (const whitelist of ['&[156, 164, 228, 260]', '&[97, 145]', '&[69, 70, 78]', '&[41, 49]']) {
     assert.ok(migrationsRs.includes(whitelist), `белый список размеров ${whitelist} отсутствует`);
   }
   assert.ok(migrationsRs.includes('fn check_layout('));
   assert.ok(migrationsRs.includes('require_keys_eq!(config.authority, *signer'));
+});
+
+test('D25: пороги квестов выполнимы — «полевые» проверки не упираются в кап', () => {
+  // claim_achievement принимает не больше MAX_CLAIM_PROOFS доказательств, поэтому
+  // порог «N полей» выше капа делает квест невыполнимым навсегда: игрок физически
+  // не может передать столько аккаунтов, сколько требует проверка. То же с
+  // уровнем — MAX_FIELD_LEVEL это потолок upgrade_field, требование выше него
+  // недостижимо ни при какой игре. Оба потолка выведены из констант, а не
+  // вписаны числами: менять их можно, ломать соотношение — нет.
+  const maxProofs = Number(libRs.match(/MAX_CLAIM_PROOFS: usize = (\d+)/)?.[1]);
+  const maxLevel = Number(libRs.match(/MAX_FIELD_LEVEL: u8 = (\d+)/)?.[1]);
+  assert.equal(maxProofs, 12);
+  assert.equal(maxLevel, 50);
+  const calls = [...libRs.matchAll(/verify_fields\(\s*ctx\.remaining_accounts,\s*&user,\s*pid,\s*(\d+),\s*(\d+)\s*\)/g)];
+  assert.equal(calls.length, 6, `полевых квестов: ${calls.length}, ожидалось 6 (все квесты)`);
+  for (const [, min, level] of calls) {
+    assert.ok(Number(min) >= 1 && Number(min) <= maxProofs, `порог полей ${min} вне 1..${maxProofs}`);
+    assert.ok(Number(level) <= maxLevel, `требование уровня ${level} выше потолка ${maxLevel}`);
+  }
+  // Квесты 1/2/4 раньше проверяли БАЛАНС кошелька (100/1000/10000 POTATO):
+  // их проходил любой, кто купил токен, а не сыграл. Теперь все шесть квестов
+  // доказываются владением полями, и балансовых проверок быть не должно —
+  // пин вернёт сюда ревью, если такая проверка появится снова.
+  assert.equal(count(libRs, 'require!(ata_amount >= '), 0);
+  assert.equal(count(libRs, 'user_potato_ata.amount'), 0);
+});
+
+test('D27/P7: migrate_field принимает только canonical PDA поля', () => {
+  // Долг P7 закрыт: у Field в раскладке нет id, поэтому migrate_field берёт
+  // field_id аргументом и обязан сверить адрес с [b"field", field_id] и
+  // сохранённый bump с каноническим. Иначе authority мог бы направить
+  // миграцию на любой program-owned аккаунт с раскладкой поля.
+  // Пин держит оба свойства: проверку PDA в migrate_field и канонические seeds
+  // у каждого места создания Field.
+  const body = (name) => {
+    const start = libRs.indexOf(`pub fn ${name}`);
+    assert.ok(start > 0, `${name} не найден`);
+    return libRs.slice(start, libRs.indexOf('pub fn ', start + 10));
+  };
+  assert.equal(count(body('migrate_field'), 'find_program_address'), 1);
+  assert.match(body('migrate_field'), /require_keys_eq!\(info\.key\(\), expected/);
+  assert.match(body('migrate_field'), /field\.bump == canonical_bump/);
+  assert.equal(count(body('migrate_epoch'), 'find_program_address'), 1);
+  const fieldInits = blocks.filter(b => b.includes('Field::INIT_SPACE'));
+  assert.equal(fieldInits.length, 3, 'Field создаётся в трёх местах — сверьте пины');
+  for (const block of fieldInits) {
+    assert.ok(
+      block.includes('seeds = [b"field", field_id.to_le_bytes().as_ref()]'),
+      'Field-аккаунт создаётся без канонических seeds: адреса больше не под контролем программы',
+    );
+  }
 });
 
 test('D26: program-id паритет declare_id == Anchor.toml == IDL клиента', () => {

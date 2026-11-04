@@ -13,6 +13,7 @@ import { Router, type Request, type Response } from 'express';
 import type { Connection } from '@solana/web3.js';
 import type { Pool } from '../gameops/pool.js';
 import { slotTransaction } from '../slots/store.js';
+import { recordSlotPaymentReview } from '../slots/reviews.js';
 import { grantSlot, type GrantInput, type SlotAudit } from '../slots/service.js';
 import { verifyRequestAuth } from '../slots/requestAuth.js';
 import { signSlotRecord, type SlotRecord } from '../slots/record.js';
@@ -89,6 +90,12 @@ export function slotsRouter(pool: Pool, deps: SlotsRouteDeps): Router {
         now: () => Math.floor(Date.now() / 1000),
         randomNonce: () => randomUUID(),
         audit: async entry => log({ ...entry, at: new Date().toISOString() }),
+        // Платёж, которому не досталось слота, не теряется в stdout: строка в
+        // game_ops.slot_payment_reviews, которую оператор обязан закрыть
+        // доказательством возврата (см. slots/reviews.ts).
+        recordReview: async input => {
+          await recordSlotPaymentReview(pool, { ...input, actor: 'slots-api' });
+        },
       });
       if (!outcome.ok) {
         send(res, outcome.status, { error: outcome.code });

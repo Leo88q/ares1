@@ -60,12 +60,13 @@ test('colony auth routes issue an origin-bound one-time session from a wallet si
   app.use(express.json());
   const programId = new PublicKey(new Uint8Array(32).fill(5));
   const fieldAddress = new PublicKey(new Uint8Array(32).fill(6));
-  const fieldData = Buffer.alloc(70);
+  const fieldData = Buffer.alloc(78); // P1-3: layout v3 (+field_id)
   anchorDiscriminator('account', 'Field').copy(fieldData);
   new PublicKey(wallet).toBuffer().copy(fieldData, 8);
   fieldData.writeUInt8(1, 40); fieldData.writeUInt8(5, 41);
   fieldData.writeBigInt64LE(0n, 42); fieldData.writeBigInt64LE(0n, 50); fieldData.writeBigInt64LE(0n, 58);
   fieldData.writeUInt8(1, 66); fieldData.writeUInt8(0, 67); fieldData.writeUInt8(255, 68); fieldData.writeUInt8(0, 69);
+  fieldData.writeBigUInt64LE(0n, 70); // field_id
   const fieldRpc = {
     async getAccountInfoAndContext() {
       return { context: { slot: 456 }, value: { data: fieldData, owner: programId } };
@@ -158,6 +159,70 @@ test('colony auth routes issue an origin-bound one-time session from a wallet si
     assert.equal(replay.status, 401);
     const wrongOrigin = await fetch(`${base}/auth/session`, { headers: { origin: 'https://attacker.example', authorization: `Bearer ${session.token}` } });
     assert.equal(wrongOrigin.status, 401);
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+});
+
+/**
+ * Каждый защищённый маршрут обязан требовать сессию. Проверка идёт по списку
+ * маршрутов, а не по одному: раньше проверка origin/Bearer копировалась в каждый
+ * хендлер, и новый маршрут можно было добавить без неё. Теперь проверка одна
+ * (`requireSession`), а этот тест следит, чтобы она была навешена на всё, что
+ * отдаёт данные кошелька.
+ */
+test('все защищённые маршруты колоний отвечают 401 без origin/токена и с битым токеном', async () => {
+  const app = express();
+  app.use(express.json());
+  const colonyService = {
+    freeStarterEnabled: false,
+    async get() { return { colonyId: 'c1' }; },
+  } as unknown as ColonyService;
+  app.use('/api/colonies', colonyAuthRouter({
+    pool: challengeDb(), cluster: 'devnet', sessionSecret: SESSION_SIGNING_KEY_FOR_TESTS,
+    allowedOrigins: [ORIGIN], colonyService,
+  }));
+  const server = createServer(app);
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+  const base = `http://127.0.0.1:${address.port}/api/colonies`;
+  const protectedRoutes: Array<{ method: 'GET' | 'POST'; path: string; body?: unknown }> = [
+    { method: 'GET', path: '/auth/session' },
+    { method: 'GET', path: '/rules' },
+    { method: 'GET', path: '/state' },
+    { method: 'POST', path: '/field/verify', body: { fieldAddress: 'A'.repeat(32) } },
+    { method: 'POST', path: '/fields/link', body: { fieldAddress: 'A'.repeat(32), requestId: 'r', expectedSequence: 1 } },
+    { method: 'POST', path: '/fields/unlink', body: { fieldAddress: 'A'.repeat(32), requestId: 'r', expectedSequence: 1 } },
+    { method: 'POST', path: '/initialize', body: { fieldAddress: 'A'.repeat(32), requestId: 'r' } },
+    { method: 'POST', path: '/actions', body: { requestId: 'r', expectedSequence: 1, action: { type: 'start_lab_upgrade' } } },
+  ];
+  const longEnoughButFake = `Bearer ${'a'.repeat(40)}`;
+  try {
+    for (const route of protectedRoutes) {
+      const withBody = (headers: Record<string, string>) => ({
+        method: route.method,
+        headers: { 'content-type': 'application/json', ...headers },
+        ...(route.body === undefined ? {} : { body: JSON.stringify(route.body) }),
+      });
+
+      const noOrigin = await fetch(`${base}${route.path}`, withBody({ authorization: longEnoughButFake }));
+      assert.equal(noOrigin.status, 401, `${route.path}: без origin должно быть 401`);
+      assert.equal((await noOrigin.json() as { error: string }).error, 'SESSION_REQUIRED');
+
+      const noToken = await fetch(`${base}${route.path}`, withBody({ origin: ORIGIN }));
+      assert.equal(noToken.status, 401, `${route.path}: без токена должно быть 401`);
+      assert.equal((await noToken.json() as { error: string }).error, 'SESSION_REQUIRED');
+
+      const badToken = await fetch(`${base}${route.path}`, withBody({ origin: ORIGIN, authorization: longEnoughButFake }));
+      assert.equal(badToken.status, 401, `${route.path}: с битым токеном должно быть 401`);
+      assert.equal((await badToken.json() as { error: string }).error, 'SESSION_INVALID');
+
+      const wrongOrigin = await fetch(`${base}${route.path}`, withBody({ origin: 'https://attacker.example', authorization: longEnoughButFake }));
+      assert.equal(wrongOrigin.status, 401, `${route.path}: чужой origin должен отклоняться`);
+    }
   } finally {
     server.close();
     await once(server, 'close');

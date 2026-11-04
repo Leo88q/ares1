@@ -22,8 +22,23 @@ import { randomU64, withRetry } from '../utils/rpc'
 
 import { usePolling } from '../hooks/usePolling'
 
-const FIELD_ACCOUNT_SIZE = 8 + 32 + 1 + 1 + 8 + 8 + 8 + 1 + 1 + 1 + 1 // 70: +mutation_type (v2)
+/**
+ * P1-3: Field v3 (78 байт) = v2 (70) + field_id u64. Пока кластер не
+ * мигрирован, в нём лежат аккаунты обеих версий: фильтр по одному размеру
+ * просто «терял» бы половину полей. Программа принимает только v3 (адрес
+ * проверяется против field_id), поэтому v2-поле всё равно не собрать —
+ * но показать его состояние честнее, чем молча спрятать.
+ */
+const FIELD_ACCOUNT_SIZES = [78, 70] as const
 const FIELDS_POLL_MS = 20_000
+
+/**
+ * Частота пересчёта «сколько накопилось». Раньше было 1000 мс: каждую секунду
+ * менялся объект `fields`, а вместе с ним перерисовывалось всё дерево экрана
+ * (у полей это тяжёлая 3D-сцена). Оценка урожая — не секундомер, 5 секунд
+ * достаточно, а лишних перерисовок становится в пять раз меньше.
+ */
+const ACCRUAL_TICK_MS = 5_000
 
 export interface Field {
  publicKey: PublicKey
@@ -99,7 +114,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const [licenseExpiresAt, setLicenseExpiresAt] = useState(0)
 
  useEffect(() => {
-  const t = window.setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 1000)
+  const t = window.setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), ACCRUAL_TICK_MS)
   return () => window.clearInterval(t)
  }, [])
 
@@ -120,9 +135,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
    const licensePda = pdas(programId).exportLicense(publicKey)
    const [accounts, infos] = await Promise.all([
     withRetry(() =>
-     connection.getProgramAccounts(programId, {
-      filters: [{ dataSize: FIELD_ACCOUNT_SIZE }, { memcmp: { offset: 8, bytes: publicKey.toBase58() } }],
-     }),
+     Promise.all(
+      FIELD_ACCOUNT_SIZES.map(dataSize =>
+       connection.getProgramAccounts(programId, {
+        filters: [{ dataSize }, { memcmp: { offset: 8, bytes: publicKey.toBase58() } }],
+       }),
+      ),
+     ).then(groups => groups.flat()),
     ),
     withRetry(() => connection.getMultipleAccountsInfo([publicKey, ata, skrAta, licensePda])),
    ])
@@ -181,10 +200,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const fields = useMemo<Field[]>(() => {
   if (!config) return []
   const cfg = { baseYieldMicroPerDay: Number(config.baseYieldMicroPerDay), globalMultiplierBps: config.globalMultiplierBps }
-  const currentEpoch = Number(config.epochId)
+  // P2-6: лунная фаза теперь считается от времени внутри accumulatedMicro,
+  // поэтому epoch_id в расчёт не передаётся (и не может разъехаться с цепью).
   return rawFields.map((f) => ({
    ...f,
-   accumulated: accumulatedMicro({ ...f, epochId: currentEpoch }, cfg, nowSec),
+   accumulated: accumulatedMicro(f, cfg, nowSec),
   }))
  }, [rawFields, config, nowSec])
 
@@ -200,7 +220,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
     maxFieldLevel: maxLevel,
     pendingHarvest: fields.reduce((s, f) => s + f.accumulated, 0),
     playerLevel: Math.floor(fields.length / 3) + 1,
-    experience: fields.length * 100 + potatoBalance / MICRO,
+    // P1-2: раньше здесь было `fields.length * 100 + potatoBalance / MICRO`,
+    // то есть «стаж» (XP) падал от любой покупки: заплатил за поле — потерял
+    // опыт. Теперь XP — только то, что не тратится: делянки и максимальный
+    // достигнутый уровень поля.
+    experience: fields.length * 100 + maxLevel * 25,
     potatoBalance,
     skrBalance,
    }
@@ -401,7 +425,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   [fieldSpend],
  )
  const repairField = useMemo(
-  () => fieldSpend(ixRepairField, (f) => repairCostMicro(f.level, f.fieldType), t('Не удалось отремонтировать поле')),
+  // P2-4: цена ремонта зависит от недостающей прочности — зеркало цены на цепи.
+  () => fieldSpend(ixRepairField, (f) => repairCostMicro(f.level, f.fieldType, f.durability), t('Не удалось отремонтировать поле')),
   [fieldSpend],
  )
  const payTax = useMemo(
@@ -409,7 +434,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   [fieldSpend],
  )
  const applyFertilizer = useMemo(
-  () => fieldSpend(ixApplyFertilizer, (f) => fertilizerCostMicro(f.fieldType), t('Не удалось удобрить поле')),
+  // P2-4: цена удобрения зависит от уровня и прочности — зеркало цены на цепи.
+  () => fieldSpend(ixApplyFertilizer, (f) => fertilizerCostMicro(f.level, f.fieldType, f.durability), t('Не удалось удобрить поле')),
   [fieldSpend],
  )
 

@@ -5,18 +5,13 @@ import {
   supplyGrant, SUPPLY_STEP, SUPPLY_UNIT,
 } from '../../apps/web/src/lab/bridge'
 import type { LabSupplyResource } from '../../apps/web/src/lab/bridge'
-import { colonyLink, microFieldEconomics, tierEconomics } from '../../apps/web/src/lab/economics'
 import { advanceDays, DEFAULT_SCENARIO, initialColony, syncView } from '../../apps/web/src/colony/simulation'
-import { COLONY_MODULE_LIMIT } from '../../apps/web/src/colony/layout'
 import type { ColonyState } from '../../apps/web/src/colony/simulation'
 import {
   advanceEngineering, canHarvest, engineeringAction, harvestMass, initialEngineering, LAB, storageKg, supplyRoom,
 } from '../../apps/web/src/fields/engineering/engine'
 import type { EngineeringState } from '../../apps/web/src/fields/engineering/engine'
 import { storedKg, unifiedBalance } from '../../apps/web/src/organism/unified'
-import { fieldPriceMicro } from '../../apps/web/src/utils/constants'
-import { canLinkFieldToColony, fieldTaxPerDayMicro, fieldYieldPerDayMicro, paybackDays } from '../../apps/web/src/organism/market'
-import { MARKET } from '../../apps/web/src/organism/parameters'
 
 /**
  * Мост «полевая лаборатория ↔ колония» (продакт-версия FIELD LAB, 2026-10-17).
@@ -295,51 +290,4 @@ test('a 30-sol expedition: the bench draws supplies, ships food and both ledgers
   assert.ok(endLedger.inflow >= startLedger.inflow + shippedKg - 1e-6)
   close(endLedger.residual, startLedger.residual, 1e-6)
   close(endLedger.residual, endLedger.inflow - endLedger.stock - endLedger.outflow, 1e-6)
-})
-
-test('colony link rules mirror the accepted market entry limits', () => {
-  const pads = COLONY_MODULE_LIMIT
-  const cap = Math.min(MARKET.colonyLinkedFieldCap, pads)
-  assert.equal(cap, MARKET.colonyLinkedFieldCap)
-  assert.ok(pads > cap)
-  for (const owned of [-1, 0, 1, 5, cap, cap + 7]) {
-    const link = colonyLink(owned, Math.max(0, Math.min(owned, pads)))
-    assert.equal(link.pads, pads)
-    assert.equal(link.cap, cap)
-    assert.equal(link.linkedFields, Math.min(Math.max(0, owned), cap))
-    assert.equal(link.occupiedPads, Math.max(0, Math.min(owned, pads)))
-    assert.equal(link.freePads, pads - link.occupiedPads)
-    assert.equal(link.hasRoom, canLinkFieldToColony(link.linkedFields))
-  }
-  // Отрицательные и превышающие входные данные не ломают счётчики.
-  const odd = colonyLink(999, -5)
-  assert.equal(odd.linkedFields, cap)
-  assert.equal(odd.occupiedPads, 0)
-  assert.equal(odd.freePads, pads)
-})
-
-test('tier and micro-field economics are derived from the program mirror, never invented', () => {
-  for (const balance of [0, 25_000_000, 250_000_000, 1_000_000_000]) {
-    const rows = tierEconomics(balance)
-    assert.equal(rows.length, 3)
-    for (const row of rows) {
-      assert.equal(row.priceMicro, fieldPriceMicro(row.tier))
-      assert.equal(row.yieldPerDayMicro, fieldYieldPerDayMicro(row.tier))
-      assert.equal(row.taxPerDayMicro, fieldTaxPerDayMicro(row.tier))
-      assert.equal(row.payback, paybackDays(row.priceMicro, row.yieldPerDayMicro, row.taxPerDayMicro))
-      assert.equal(row.affordable, balance >= row.priceMicro)
-      assert.ok(row.priceMicro > 0 && row.yieldPerDayMicro > 0 && row.taxPerDayMicro >= 0)
-      assert.ok(row.payback > 0)
-      assert.ok(row.name.length > 0)
-    }
-    const micro = microFieldEconomics(0, balance)
-    assert.ok(micro.priceMicro > 0 && micro.priceMicro < rows[0].priceMicro)
-    assert.equal(micro.payback, paybackDays(micro.priceMicro, micro.yieldPerDayMicro, micro.taxPerDayMicro))
-    assert.equal(micro.affordable, balance >= micro.priceMicro)
-  }
-  // E-C: каждое предыдущее поле делает микро-поле дороже.
-  const prices = [0, 1, 2, 3, 10].map(owned => microFieldEconomics(owned, Number.MAX_SAFE_INTEGER).priceMicro)
-  for (let i = 1; i < prices.length; i++) assert.ok(prices[i] >= prices[i - 1])
-  // Нулевой баланс: ничего не «доступно», но цены остаются настоящими.
-  assert.deepEqual(tierEconomics(0).map(row => row.affordable), [false, false, false])
 })

@@ -21,7 +21,7 @@ This is an implementation/status checklist, not approval to launch. The owner’
 6. Buyer instructions display a human-readable amount with the currency, not raw lamports/atoms. The UI reflects server cluster and payment gates; Phase1Notice does not embed an approved sale price. It displays only a run configured in the backend.
 7. Epoch crank remains in the backend API process. A dedicated low-privilege payer is permitted; authority, treasury, reward-signer, Squads and program keys must stay off the VPS.
 8. The cold-key treasury CLI wraps the existing two-step withdrawal ABI for devnet only. It checks genesis hash, authority, limits, pending amount and timelock, requires typed TTY confirmation, and refuses direct-key mainnet writes; a Squads-compatible mainnet workflow is still missing.
-9. The draft V2 UI has the public build-time rollout flag `VITE_MARKET_V2_ENABLED`, shipped as `false`; the normal app still uses legacy V1. Do not enable the flag until the matching binary is deployed to that cluster and the draft tier boundaries are approved.
+9. The V2 UI is the default screen: the program closes legacy V1 listings (`create_sell_order` → `LegacyMarketClosed`, 6058), so `VITE_MARKET_V2_ENABLED` ships as `true` and `/market` renders V2. `false` remains an emergency UI rollback only and does not reopen V1 writes. The draft tier boundaries still need owner approval before a V2 release on a new cluster, and the legacy binary stays live until the redeploy.
 
 These protections reduce accidental cross-network and UX failures; they do **not** replace review, audits, operational approval, or a mainnet deployment rehearsal.
 

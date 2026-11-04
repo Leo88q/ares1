@@ -7,7 +7,7 @@ import path from 'node:path';
 import net from 'node:net';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
-import { Connection, Keypair, PublicKey, ComputeBudgetProgram, SystemProgram, Transaction, type Signer } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, ComputeBudgetProgram, SystemProgram, Transaction, TransactionInstruction, type Signer } from '@solana/web3.js';
 import { anchorDiscriminator, decodeGameConfig, decodeEpoch } from '../apps/backend/src/anchorRaw';
 import { migrationInstruction, type MigrationKind } from './migrationClient';
 
@@ -56,7 +56,9 @@ async function run(configSize: 156 | 164) {
   field.writeBigInt64LE(100n, 42); field.writeBigInt64LE(200n, 50); field.writeBigInt64LE(150n, 58);
   field[66] = 1; field[67] = 2;
   field[68] = PublicKey.findProgramAddressSync([Buffer.from('field'), u64(100n)], programId)[1];
-  const currentField = Buffer.concat([field, Buffer.from([2])]);
+  // P1-3: текущая раскладка Field — v3 (78 байт): 69 байт v1 + mutation_type
+  // в 69 + field_id u64 в 70..78. Id обязан совпадать с адресом PDA.
+  const currentField = Buffer.concat([field, Buffer.from([2]), u64(101n)]);
   currentField[68] = PublicKey.findProgramAddressSync([Buffer.from('field'), u64(101n)], programId)[1];
   const epoch = Buffer.alloc(41);
   anchorDiscriminator('account', 'Epoch').copy(epoch);
@@ -141,8 +143,26 @@ async function run(configSize: 156 | 164) {
     };
     await confirm(await connection.requestAirdrop(admin.publicKey, 2_000_000_000));
     let nonce = 0;
-    const send = (kind: MigrationKind, target: PublicKey, signer = admin) => {
-      const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 + nonce++ }), migrationInstruction(kind, programId, target, signer.publicKey));
+    // P7: migrate_field accepts only the canonical [b"field", field_id] PDA, so
+    // every field migration has to name the id the account was created with.
+    // P7 negative cases must reach the program, but `migrationInstruction`
+    // refuses to build a non-canonical field migration at all. That refusal is
+    // the operator safeguard (asserted separately); to prove the on-chain check
+    // still bites, build the same bytes without the client-side guard.
+    const rawFieldIx = (target: PublicKey, fieldId: bigint) => new TransactionInstruction({
+      programId,
+      data: Buffer.concat([anchorDiscriminator('global', 'migrate_field'), u64(fieldId)]),
+      keys: [
+        { pubkey: target, isSigner: false, isWritable: true },
+        { pubkey: configPda, isSigner: false, isWritable: false },
+        { pubkey: admin.publicKey, isSigner: true, isWritable: true },
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      ],
+    });
+    const sendRawField = (target: PublicKey, fieldId: bigint) =>
+      sendTx(new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 + nonce++ }), rawFieldIx(target, fieldId)), [admin]);
+    const send = (kind: MigrationKind, target: PublicKey, signer = admin, fieldId?: bigint) => {
+      const tx = new Transaction().add(ComputeBudgetProgram.setComputeUnitLimit({ units: 200_000 + nonce++ }), migrationInstruction(kind, programId, target, signer.publicKey, fieldId));
       tx.feePayer = admin.publicKey;
       return sendTx(tx, signer === admin ? [admin] : [admin, signer]);
     };
@@ -154,16 +174,31 @@ async function run(configSize: 156 | 164) {
       assert.equal(after!.lamports, before!.lamports);
     };
     await reject(() => send('config', configPda, intruder), 'Unauthorized', configPda);
-    await reject(() => send('field', foreignField), 'ConstraintOwner', foreignField);
-    await reject(() => send('field', configPda), 'BadProof', configPda);
+    // Клиент отказывается подписывать не-каноническую миграцию поля — это
+    // первая линия защиты оператора, ещё до RPC.
+    assert.throws(() => migrationInstruction('field', programId, foreignField, admin.publicKey, 100n),
+      /Field must be the canonical/);
+    assert.throws(() => migrationInstruction('field', programId, fieldPda(101n), admin.publicKey, 100n),
+      /Field must be the canonical/);
+    assert.throws(() => migrationInstruction('field', programId, fieldPda(100n), admin.publicKey),
+      /Field migration requires the field id/);
+    await reject(() => sendRawField(foreignField, 100n), 'ConstraintOwner', foreignField);
+    // 100n относится к fieldPda(100n): чужой адрес с валидной раскладкой
+    // отклоняется до записи — это и есть проверка P7 на цепи.
+    await reject(() => sendRawField(fieldPda(101n), 100n), 'BadProof', fieldPda(101n));
+    await reject(() => sendRawField(configPda, 100n), 'BadProof', configPda);
     await reject(() => send('epoch', wrongEpochAddress), 'BadProof', wrongEpochAddress);
     await reject(() => send('admin_state', wrongAdminStateAddress), 'ConstraintSeeds', wrongAdminStateAddress);
-    const fakeIx = migrationInstruction('field', programId, fieldPda(100n), admin.publicKey);
+    const fakeIx = migrationInstruction('field', programId, fieldPda(100n), admin.publicKey, 100n);
     fakeIx.keys[1].pubkey = fakeConfig;
     await reject(() => sendTx(new Transaction().add(fakeIx), [admin]), 'ConstraintSeeds', fieldPda(100n));
 
     // Migrate a Field while config is still legacy, then normalize the config.
-    await send('field', fieldPda(100n));
+    await send('field', fieldPda(100n), admin, 100n);
+    // P1-3: у уже-мигрированного (78 байт) поля id лежит внутри аккаунта, и
+    // повторная миграция с другим id обязана быть отвергнута в migrations::field —
+    // иначе authority «переименовало» бы поле, не меняя адреса.
+    await reject(() => sendRawField(fieldPda(100n), 101n), 'BadProof', fieldPda(100n));
     await send('config', configPda);
     await send('epoch', epochPda(42n));
     await send('admin_state', adminStatePda);
@@ -178,25 +213,29 @@ async function run(configSize: 156 | 164) {
     assert.equal(c.guardian.toBase58(), PublicKey.default.toBase58()); // F-02 default = disabled
     assert.equal(migrated.length, 260);
     assert.deepEqual(migrated.subarray(168, 218), config.subarray(104, 154));
-    assert.deepEqual((await connection.getAccountInfo(fieldPda(100n)))!.data, Buffer.concat([field, Buffer.from([0])]));
+    // v1 (69) → v3 (78): байты v1 не двигаются, mutation_type = 0, id дописан.
+    assert.deepEqual(
+      (await connection.getAccountInfo(fieldPda(100n)))!.data,
+      Buffer.concat([field, Buffer.from([0]), u64(100n)]),
+    );
     assert.equal(decodeEpoch((await connection.getAccountInfo(epochPda(42n)))!.data).grantedMicro, 0n);
     const migratedAdmin = (await connection.getAccountInfo(adminStatePda))!.data;
     assert.equal(migratedAdmin.length, 145);
     assert.equal(migratedAdmin.readBigInt64LE(8), 1_700_000_000n); // legacy fields preserved
     assert.equal(migratedAdmin.readBigUInt64LE(16), 11n);
 
-    for (const [kind, key, size] of [['config', configPda, 260], ['field', fieldPda(100n), 70],
-      ['field', fieldPda(101n), 70], ['epoch', epochPda(42n), 49], ['epoch', epochPda(43n), 49],
-      ['admin_state', adminStatePda, 145]] as const) {
+    for (const [kind, key, size, fieldId] of [['config', configPda, 260, undefined], ['field', fieldPda(100n), 78, 100n],
+      ['field', fieldPda(101n), 78, 101n], ['epoch', epochPda(42n), 49, undefined], ['epoch', epochPda(43n), 49, undefined],
+      ['admin_state', adminStatePda, 145, undefined]] as const) {
       const before = (await connection.getAccountInfo(key))!;
       assert.equal(before.lamports, await connection.getMinimumBalanceForRentExemption(size));
-      await send(kind, key);
+      await send(kind, key, admin, fieldId);
       const after = (await connection.getAccountInfo(key))!;
       assert.deepEqual(after.data, before.data); assert.equal(after.lamports, before.lamports);
     }
     assert.deepEqual((await connection.getAccountInfo(fieldPda(101n)))!.data, currentField);
     assert.deepEqual((await connection.getAccountInfo(epochPda(43n)))!.data, currentEpoch);
-    console.log(`PASS: Config ${configSize}->260, Field 69->70, Epoch 41->49, AdminState 97->145; rent, flags, idempotency and negative cases`);
+    console.log(`PASS: Config ${configSize}->260, Field 69->78, Epoch 41->49, AdminState 97->145; rent, flags, idempotency and negative cases`);
   } catch (error) {
     console.error(`Migration fixture ${configSize} failed:`, error);
     console.error('Validator output:', output);

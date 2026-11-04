@@ -29,12 +29,14 @@
   {
     "provenance": "synthetic",
     "onChainEvent": "BatchHarvested",
-    "base64": "BAc/sOxoh48AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHwcBAAAAAAAgAAEAAAAAACAA",
+    "base64": "BAc/sOxoh48AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHwcBAAAAAAAgAAEAAAAAACAABgAAAAAAIAAA",
     "expected": {
       "owner": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
       "field_count": 7,
       "total_micro": "9007199254740993",
-      "treasury_micro": "9007199254740993"
+      "treasury_micro": "9007199254740993",
+      "requested_micro": "9007199254740998",
+      "truncated": false
     }
   },
   {
@@ -117,11 +119,13 @@
   {
     "provenance": "synthetic",
     "onChainEvent": "Harvested",
-    "base64": "+eVOl2q5lQsAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHwABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fAQAAAAAAIAA=",
+    "base64": "+eVOl2q5lQsAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHwABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fAQAAAAAAIAAGAAAAAAAgAAE=",
     "expected": {
       "owner": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
       "field": "1thX6LZfHDZZKUs92febYZhYRcXddmzfzF2NvTkPNE",
-      "amount_micro": "9007199254740993"
+      "amount_micro": "9007199254740993",
+      "pending_micro": "9007199254740998",
+      "truncated": true
     }
   },
   {

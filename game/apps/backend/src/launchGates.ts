@@ -1,3 +1,9 @@
+/**
+ * Стартовый набор и дейлик: рельса существует, но выключена до зелёного
+ * devnet-smoke и одобрения владельца. Включение — отдельный релиз: поднимает
+ * выдачу POTATO из бэкенда и делает бота-фарм возможным.
+ */
+export const REWARDS_RAIL_ENABLED = false
 /** User-facing token payment gates stay closed until a separate approved launch release. */
 export const USER_PRESALE_PAYMENTS_ENABLED = false
 export const USER_SKR_SLOT_PURCHASES_ENABLED = false

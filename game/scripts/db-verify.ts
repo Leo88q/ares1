@@ -39,7 +39,7 @@ export interface VerifyResult {
 }
 
 const EXPECTED_TRIGGERS = 16;
-const EXPECTED_TABLES = ['schema_version', 'reward_intents', 'reward_ledger', 'ledger_chain_head', 'admin_audit', 'chain_reconciliation', 'service_cursors', 'colony_auth_challenges', 'colony_entitlements', 'colonies', 'colony_events', 'colony_fields'];
+const EXPECTED_TABLES = ['schema_version', 'reward_intents', 'reward_ledger', 'ledger_chain_head', 'admin_audit', 'chain_reconciliation', 'service_cursors', 'colony_auth_challenges', 'colony_entitlements', 'colonies', 'colony_events', 'colony_fields', 'slot_payment_reviews'];
 const EXPECTED_VIEWS = ['reward_intents_actionable', 'reward_ledger_tail', 'chain_reconciliation_latest'];
 
 export async function verifyDatabase(options: VerifyOptions): Promise<VerifyResult> {
@@ -181,6 +181,15 @@ async function checkPrivileges(client: Client, writerRole: string): Promise<Veri
         && !(await has("SELECT has_column_privilege($1, 'game_ops.presale_orders', 'payer_wallet', 'UPDATE') AS ok", [writerRole]))
         && !(await has("SELECT has_column_privilege($1, 'game_ops.presale_orders', 'payer_email', 'UPDATE') AS ok", [writerRole])),
       detail: 'UPDATE на заказы пресейла — только по служебным колонкам, не по деньгам и контактам',
+    },
+    {
+      // Возврат: доказательство выплаты писатель фиксирует, а деньги — нет.
+      // Без этого гранта маршрут /refund-settled падал бы на первом же вызове,
+      // а без запрета на суммы — закрывал бы возврат подменой цены.
+      id: 'privileges.presale_refund_evidence',
+      ok: (await has("SELECT has_column_privilege($1, 'game_ops.presale_orders', 'refund_tx_signature', 'UPDATE') AS ok", [writerRole]))
+        && !(await has("SELECT has_column_privilege($1, 'game_ops.presale_orders', 'price_units', 'UPDATE') AS ok", [writerRole])),
+      detail: 'подпись возврата доступна писателю; цена заказа — нет',
     },
     {
       // Тираж: счётчик мест триггеру нужен, а цену и cap задним числом не меняют.

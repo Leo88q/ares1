@@ -63,7 +63,7 @@ async function main() {
   if (!mintInfo.mintAuthority.equals(admin.publicKey)) {
     if (mintInfo.mintAuthority.equals(configPda)) {
       console.error(`\n✖ Mint authority = config PDA (${configPda.toBase58()}) — напрямую кошельком ментить нельзя.`);
-      console.error("  Нужно on-chain instruction grant_skr (аналог grant_reward). Напишите — добавим и задеплоим.");
+      console.error("  Нужно on-chain instruction grant_skr (аналог grant_reward_once). Напишите — добавим и задеплоим.");
     } else {
       console.error(`\n✖ Mint authority = ${mintInfo.mintAuthority.toBase58()} — ни наш кошелёк, ни config PDA.`);
       console.error("  Варианты: отозвать/сменить authority или ментить из старого деплоя. Напишите адрес — решим.");

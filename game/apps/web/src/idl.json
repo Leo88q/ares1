@@ -67,7 +67,29 @@
       "accounts": [
         {
           "name": "field",
-          "writable": true
+          "docs": [
+            "P1-3: field обязан быть каноническим PDA от собственного field_id."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "field.field_id",
+                "account": "Field"
+              }
+            ]
+          }
         },
         {
           "name": "potato_mint",
@@ -1008,96 +1030,6 @@
               {
                 "kind": "account",
                 "path": "treasury_sol"
-              },
-              {
-                "kind": "const",
-                "value": [
-                  6,
-                  221,
-                  246,
-                  225,
-                  215,
-                  101,
-                  161,
-                  147,
-                  217,
-                  203,
-                  225,
-                  70,
-                  206,
-                  235,
-                  121,
-                  172,
-                  28,
-                  180,
-                  133,
-                  237,
-                  95,
-                  91,
-                  55,
-                  145,
-                  58,
-                  140,
-                  245,
-                  133,
-                  126,
-                  255,
-                  0,
-                  169
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "skr_mint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
-        },
-        {
-          "name": "buyback_skr_ata",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "authority"
               },
               {
                 "kind": "const",
@@ -2123,7 +2055,29 @@
         },
         {
           "name": "field",
-          "writable": true
+          "docs": [
+            "P1-3: канонический PDA проверяется до закрытия аккаунта."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "field.field_id",
+                "account": "Field"
+              }
+            ]
+          }
         },
         {
           "name": "owner",
@@ -2472,7 +2426,7 @@
       "name": "create_sell_order_v2",
       "docs": [
         "V2 listing: escrow only the POTATO principal. No fee is charged unless",
-        "the order fills; the eventual 9–12% commission is deducted from seller",
+        "the order fills; the closing 5–8% commission is deducted from seller",
         "proceeds and paid in the selected quote asset (SOL or SKR)."
       ],
       "discriminator": [
@@ -3533,107 +3487,21 @@
       "args": []
     },
     {
-      "name": "grant_reward",
-      "docs": [
-        "Authority-only (backend) reward mint, counted against the epoch cap."
-      ],
-      "discriminator": [
-        202,
-        133,
-        123,
-        208,
-        124,
-        131,
-        147,
-        235
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "epoch",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  101,
-                  112,
-                  111,
-                  99,
-                  104
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "config.epoch_id",
-                "account": "GameConfig"
-              }
-            ]
-          }
-        },
-        {
-          "name": "authority",
-          "docs": [
-            "S-03: может подписать как authority, так и reward_signer (low-priv backend)"
-          ],
-          "signer": true
-        },
-        {
-          "name": "potato_mint",
-          "writable": true,
-          "relations": [
-            "config"
-          ]
-        },
-        {
-          "name": "user_potato",
-          "writable": true
-        },
-        {
-          "name": "token_program",
-          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        }
-      ],
-      "args": [
-        {
-          "name": "amount_micro",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "grant_reward_once",
       "docs": [
-        "Replay-proof reward rail (gate G-1, checklist item 41).",
+        "Replay-proof reward rail (gate G-1, checklist item 41) — **единственный**",
+        "способ минтить награды с 2026-11-03.",
         "",
-        "`grant_reward` above authorises by signature alone: the same signed",
-        "transaction can be submitted twice, and an off-chain \"already paid\"",
-        "check loses every race. That is the exact class of bug that cost Aurory",
-        "~600k tokens. Here the payout is bound to a `reward_claim` PDA created",
-        "with `init`, so the second attempt with the same (recipient, nonce)",
-        "fails inside the runtime — no off-chain bookkeeping is trusted.",
+        "Раньше рядом жила `grant_reward`, авторизовавшаяся только подписью:",
+        "ту же подписанную транзакцию можно было провести дважды, а офчейн-флаг",
+        "«уже выплачено» проигрывал гонку. Именно этот класс бага стоил Aurory",
+        "~600k токенов. Инструкция удалена целиком (P1-1, audited 2026-11-02):",
+        "здесь выплата привязана к `reward_claim` PDA, создаваемому через `init`,",
+        "поэтому повтор с тем же (recipient, nonce) падает в рантайме — никакой",
+        "офчейн-бухгалтерии не доверяем.",
         "",
-        "`expires_at` closes the durable-nonce window (G-1b): a signature that",
-        "sat in an attacker's pocket past its deadline mints nothing."
+        "`expires_at` закрывает окно durable nonce (G-1b): подпись, пролежавшая",
+        "у атакующего дольше дедлайна, не минтит ничего."
       ],
       "discriminator": [
         90,
@@ -3821,7 +3689,29 @@
         },
         {
           "name": "field",
-          "writable": true
+          "docs": [
+            "P1-3: field обязан быть каноническим PDA от собственного field_id."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "field.field_id",
+                "account": "Field"
+              }
+            ]
+          }
         },
         {
           "name": "potato_mint",
@@ -4331,6 +4221,20 @@
     },
     {
       "name": "migrate_field",
+      "docs": [
+        "P7 + P1-3: migrates one Field account to the current (v3) layout.",
+        "",
+        "On the legacy layouts (69/70 bytes) the account does not carry its id,",
+        "so — unlike `migrate_epoch` — the handler cannot derive the PDA from",
+        "the account itself. It therefore takes `field_id` from the caller and",
+        "requires the account to be the **canonical** `[b\"field\", field_id]` PDA,",
+        "both by address and by the stored bump. Without this the authority",
+        "could point a migration at any program-owned, 69/70-byte,",
+        "Field-discriminated account; the layout check alone only guarantees",
+        "\"it looks like a field\", not \"it is one\". The id is then written into",
+        "the account, after which every instruction verifies it structurally",
+        "(`seeds`, `verify_fields`) and no caller-supplied id is trusted at all."
+      ],
       "discriminator": [
         65,
         252,
@@ -4374,7 +4278,12 @@
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "field_id",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "migrate_presale_authority",
@@ -4461,7 +4370,29 @@
       "accounts": [
         {
           "name": "field",
-          "writable": true
+          "docs": [
+            "P1-3: field обязан быть каноническим PDA от собственного field_id."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "field.field_id",
+                "account": "Field"
+              }
+            ]
+          }
         },
         {
           "name": "potato_mint",
@@ -4645,7 +4576,14 @@
     {
       "name": "register_referrer",
       "docs": [
-        "Registers a one-time referral relationship; burns the registration cost."
+        "Registers a one-time referral relationship.",
+        "",
+        "Registration is free (`REFERRAL_REGISTRATION_COST_MICRO == 0`). The",
+        "entry fee used to burn 5 POTATO from a wallet that has not earned a",
+        "single token yet, so the invite loop only worked for players who had",
+        "already bought in — the opposite of a referral program. The burn is",
+        "skipped entirely at zero instead of being executed with amount 0, so",
+        "the instruction cannot be used to probe an empty ATA either."
       ],
       "discriminator": [
         122,
@@ -4752,7 +4690,29 @@
       "accounts": [
         {
           "name": "field",
-          "writable": true
+          "docs": [
+            "P1-3: field обязан быть каноническим PDA от собственного field_id."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "field.field_id",
+                "account": "Field"
+              }
+            ]
+          }
         },
         {
           "name": "potato_mint",
@@ -5145,7 +5105,9 @@
     {
       "name": "update_reward_signer",
       "docs": [
-        "S-03: обновляет reward_signer — только authority. Backend будет подписывать grant_reward этим ключом."
+        "S-03: обновляет reward_signer — только authority. Backend подписывает",
+        "этим ключом `grant_reward_once` (replay-proof рельса); других минтов у",
+        "него нет."
       ],
       "discriminator": [
         102,
@@ -5298,7 +5260,29 @@
       "accounts": [
         {
           "name": "field",
-          "writable": true
+          "docs": [
+            "P1-3: field обязан быть каноническим PDA от собственного field_id."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "field.field_id",
+                "account": "Field"
+              }
+            ]
+          }
         },
         {
           "name": "potato_mint",
@@ -6861,7 +6845,7 @@
     {
       "code": 6035,
       "name": "GrantQuotaExceeded",
-      "msg": "Manual grant quota exceeded (10% of the epoch cap)"
+      "msg": "Manual grant quota exceeded (25% of the epoch cap)"
     },
     {
       "code": 6036,
@@ -6962,6 +6946,26 @@
       "code": 6055,
       "name": "InvalidSellerVolumeAccount",
       "msg": "Seller daily volume account does not match the order seller"
+    },
+    {
+      "code": 6056,
+      "name": "WithdrawShareExceeded",
+      "msg": "Withdrawal exceeds the share of the treasury balance allowed per call (10 %)"
+    },
+    {
+      "code": 6057,
+      "name": "QuestPoolEmpty",
+      "msg": "Quest pool is empty: the achievement reward cannot be paid right now"
+    },
+    {
+      "code": 6058,
+      "name": "LegacyMarketClosed",
+      "msg": "Legacy marketplace is closed for new listings: use create_sell_order_v2"
+    },
+    {
+      "code": 6059,
+      "name": "ReferralProgramRetired",
+      "msg": "Referral registration is retired: rewards were paid by the closed legacy market only"
     }
   ],
   "types": [
@@ -7131,6 +7135,20 @@
           {
             "name": "treasury_micro",
             "type": "u64"
+          },
+          {
+            "name": "requested_micro",
+            "docs": [
+              "Сумма, причитавшаяся всем полям до урезания капом (P3-19)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "truncated",
+            "docs": [
+              "`true`, если кап эпохи / max_supply урезали выплату."
+            ],
+            "type": "bool"
           }
         ]
       }
@@ -7209,7 +7227,7 @@
           {
             "name": "granted_micro",
             "docs": [
-              "micro-POTATO minted through `grant_reward` during this epoch.",
+              "micro-POTATO minted through `grant_reward_once` during this epoch.",
               "Counts toward the manual-grant quota (GRANT_QUOTA_SHARE_BPS of the cap).",
               "NOT a burn — the historical name was misleading; layout is unchanged."
             ],
@@ -7344,6 +7362,22 @@
           {
             "name": "mutation_type",
             "type": "u8"
+          },
+          {
+            "name": "field_id",
+            "docs": [
+              "P1-3 (layout v3): id, из которого выведен PDA `[b\"field\", id]`.",
+              "",
+              "До v3 аккаунт не знал своего id, поэтому `seeds` в инструкциях,",
+              "принимающих Field (`harvest`, ремонт/налог/удобрение, апгрейд,",
+              "`close_field`), были невыразимы, а квестовые доказательства",
+              "(`verify_fields`) принимали любой program-owned аккаунт с",
+              "дискриминатором Field. Теперь аккаунт самоописывается: адрес всегда",
+              "проверяется против id внутри него. Поле добавлено в конец layout",
+              "(78 байт), поэтому миграция 69/70 → 78 — это дописывание id, без",
+              "сдвига существующих байт."
+            ],
+            "type": "u64"
           }
         ]
       }
@@ -7516,6 +7550,20 @@
           {
             "name": "amount_micro",
             "type": "u64"
+          },
+          {
+            "name": "pending_micro",
+            "docs": [
+              "Начислено до урезания капом эпохи / max_supply (P3-19)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "truncated",
+            "docs": [
+              "`true`, если выплата урезана: `amount_micro` не отражает всё начисление."
+            ],
+            "type": "bool"
           }
         ]
       }
@@ -8028,7 +8076,7 @@
       "name": "Referral",
       "docs": [
         "Реферальная связь игрока. PDA seeds: `[\"referral\", owner]`.",
-        "Создаётся один раз через `register_referrer` (burn 5 POTATO)."
+        "Создаётся один раз через `register_referrer`; регистрация бесплатна."
       ],
       "type": {
         "kind": "struct",
@@ -8119,6 +8167,13 @@
     },
     {
       "name": "RewardGranted",
+      "docs": [
+        "Легаси-событие рельсы `grant_reward`, удалённой в апгрейде 2026-11-03",
+        "(P1-1). **Ни одна инструкция его больше не эмитит** — структура оставлена",
+        "только потому, что имя входит в allowlist хаба-индексатора и в карту",
+        "watchtower: удаление события сломало бы внешний контракт интеграции.",
+        "Все реальные выплаты идут через `RewardGrantedOnce`."
+      ],
       "type": {
         "kind": "struct",
         "fields": [

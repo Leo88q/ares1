@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import type { Connection } from '@solana/web3.js';
-import { fetchPaymentView, fetchTreasuryTransfers } from '../src/presale/chain.js';
+import { fetchPaymentView, fetchTreasuryTransfers, sourceWalletOf } from '../src/presale/chain.js';
 
 const payer = Keypair.generate().publicKey;
 const treasury = Keypair.generate().publicKey;
@@ -87,4 +87,79 @@ test('versioned transaction account keys include loaded addresses in balance-ind
   const view = await fetchPaymentView(connection, 'versioned-signature');
   assert.deepEqual(view?.accountKeys, [payer.toBase58(), treasury.toBase58()]);
   assert.deepEqual(view?.postBalances, [990n, 10n]);
+});
+
+test('плательщик определяется по дельте баланса, а не по accountKeys[0] (комиссию платит релейсер)', () => {
+  const buyer = Keypair.generate().publicKey.toBase58();
+  const relayer = Keypair.generate().publicKey.toBase58();
+  const treasuryKey = Keypair.generate().publicKey.toBase58();
+  const view = {
+    accountKeys: [relayer, buyer, treasuryKey],
+    // Релейсер только оплатил комиссию, покупатель потерял сумму перевода.
+    preBalances: [10_000_000n, 1_000_000_000n, 0n],
+    postBalances: [9_994_500n, 500_000_000n, 500_000_000n],
+  };
+  assert.equal(sourceWalletOf(view, treasuryKey), buyer);
+});
+
+test('казначейство исключено из кандидатов, а транзакция без потерь не даёт плательщика', () => {
+  const treasuryKey = Keypair.generate().publicKey.toBase58();
+  const other = Keypair.generate().publicKey.toBase58();
+  assert.equal(sourceWalletOf({
+    accountKeys: [treasuryKey, other],
+    preBalances: [0n, 1_000n],
+    postBalances: [1_000n, 500n],
+  }, treasuryKey), other);
+  assert.equal(sourceWalletOf({
+    accountKeys: [treasuryKey],
+    preBalances: [0n],
+    postBalances: [5n],
+  }, treasuryKey), null);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Preflight SKR-казны перед открытием тиража (P2-1).
+//
+// `treasury_skr_ata` создаётся только BOOTSTRAP_PROFILE=full. Тиражи, открытые
+// без него, собирали бы SKR в несуществующий аккаунт: платёж не проходит, заказ
+// истекает, покупатель теряет комиссию сети.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { assertSkrTreasuryReady } from '../src/presale/chain.js';
+
+const SKR = 'Fotom38ZJAYia8VGKtYjmSGuqPPDGiSz7R46ydWzRA4o';
+const TREASURY_ATA = Keypair.generate().publicKey.toBase58();
+
+function parsedAccount(mint: string) {
+  return { value: { data: { parsed: { type: 'account', info: { mint, owner: 'X'.repeat(40) } } } } };
+}
+
+test('SKR-казна: отсутствующий ATA отклоняется до открытия тиража', async () => {
+  const connection = { getParsedAccountInfo: async () => ({ value: null }) } as any;
+  await assert.rejects(
+    assertSkrTreasuryReady(connection, treasury.toBase58(), SKR),
+    /не существует/,
+  );
+});
+
+test('SKR-казна: аккаунт другого минта отклоняется', async () => {
+  const connection = { getParsedAccountInfo: async () => parsedAccount('So11111111111111111111111111111111111111112') } as any;
+  await assert.rejects(assertSkrTreasuryReady(connection, treasury.toBase58(), SKR), /держит минт/);
+});
+
+test('SKR-казна: не токен-аккаунт (например, кошелёк) отклоняется', async () => {
+  const connection = { getParsedAccountInfo: async () => ({ value: { data: Buffer.alloc(0) } }) } as any;
+  await assert.rejects(assertSkrTreasuryReady(connection, treasury.toBase58(), SKR), /не является токен-аккаунтом/);
+});
+
+test('SKR-казна: корректный ATA пропускает тираж', async () => {
+  const connection = { getParsedAccountInfo: async () => parsedAccount(SKR) } as any;
+  await assert.doesNotReject(assertSkrTreasuryReady(connection, treasury.toBase58(), SKR));
+});
+
+test('SKR-казна: мусорный адрес отклоняется до RPC', async () => {
+  let called = false;
+  const connection = { getParsedAccountInfo: async () => { called = true; return { value: null }; } } as any;
+  await assert.rejects(assertSkrTreasuryReady(connection, 'not-a-key', SKR), /base58/);
+  assert.equal(called, false, 'невалидный адрес не должен доходить до RPC');
 });

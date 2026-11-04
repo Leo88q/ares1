@@ -9,11 +9,13 @@ reviewed SBF binary, generated IDL and localnet tests before a live upgrade.
 |---|---|---|
 | Config | 156 / 164 / 228 → 260 | Preserve authority, pending authority, mint, numeric fields, paused and bump. 156/164 insert SKR/reward signer (preserve burn snapshot; absent snapshot → zero); 228 appends guardian (`PublicKey.default`). |
 | AdminState | 97 → 145 | Preserve rate-limit counters and pending proposal fields (zeros on 97 → 145); proposed withdrawal destination/amount appended. |
-| Field | 69 → 70 | Preserve all 69 original bytes; new mutation byte starts at zero. |
+| Field | 69 / 70 → 78 | Preserve every existing byte at its offset; 69 → 78 zero-fills the `mutation_type` byte (v1 had none); `field_id` (u64) is appended at 70..78 from the instruction argument, which must equal the canonical `[b"field", field_id]` PDA and the stored bump. Re-running on a v3 account is a no-op only when the passed id matches the stored one. |
 | Epoch | 41 → 49 | Preserve original epoch fields/bump; new grant-quota counter (`granted_micro`, renamed from the never-incremented `burned_micro` on 2026-09-21) starts at zero. |
 
 All handlers validate program ownership, exact supported size and discriminator.
-Config must be the canonical PDA; Epoch address must match its stored ID. The
+Config must be the canonical PDA; Epoch address must match its stored ID; Field
+must be the canonical `[b"field", field_id]` PDA of its argument **and** of the
+id inside the account once it is v3. The
 current game authority signs and pays the **target account's rent shortfall** via
 System Program CPI before realloc. Never transfer rent to the executable program.
 The authority meta is writable in every migration instruction.

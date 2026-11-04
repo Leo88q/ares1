@@ -112,15 +112,16 @@ try {
   await market.page.getByRole('button', { name: 'Отменить', exact: true }).click()
   assert.deepEqual(await market.page.evaluate(() => window.__artOrderCalls.at(-1)), ['cancel', ids[1]])
   await market.page.getByRole('button', { name: 'Понятно', exact: true }).click()
-  await market.page.getByRole('button', { name: 'Отгрузить', exact: true }).click()
-  await market.page.getByLabel('Количество POTATO', { exact: true }).fill('100')
-  await market.page.getByLabel('Цена за 1 POTATO (SOL)', { exact: true }).fill('0.002')
-  await market.page.getByRole('button', { name: 'Оформить ордер', exact: true }).click()
-  await market.page.waitForFunction(() => window.__artOrderCalls.some(call => call[0] === 'create'))
-  assert.deepEqual(await market.page.evaluate(() => window.__artOrderCalls.at(-1)), ['create', 100, 0.002])
-  assert.equal(await market.page.evaluate(() => window.__artOrderCalls.length), 3)
+  // P2-2: V1 закрыт на запись — формы создания нет вовсе (кнопка «Отгрузить»
+  // и модалка удалены), вместо неё видно предупреждение, а мок-провайдер не
+  // получает ни одного create-вызова. Покупка и отмена старых ордеров работают.
+  assert.equal(await market.page.getByRole('button', { name: 'Отгрузить', exact: true }).count(), 0)
+  assert.equal(await market.page.getByRole('button', { name: 'Оформить ордер', exact: true }).count(), 0)
+  assert.equal(await market.page.getByText(/^V1 закрыт на запись/).first().isVisible(), true)
+  assert.equal(await market.page.evaluate(() => window.__artOrderCalls.length), 2)
+  assert.equal(await market.page.evaluate(() => window.__artOrderCalls.some(call => call[0] === 'create')), false)
   await shot(market.page, 'actual-market-390.png'); await noOverflow(market.page); await market.context.close()
-  console.log('PASS actual V1 MarketScreen/CreateOrderModal with mocked providers: same fill/cancel keys and create amount/price, no signing/RPC')
+  console.log('PASS actual V1 MarketScreen with mocked providers: fill/cancel still work, no create path, no signing/RPC')
   assert.deepEqual(errors, []); assert.deepEqual(outside, [])
   console.log('PASS production CSP, no unexpected console/page errors or external requests')
 } finally { await browser.close(); fixture.dispose(); navFixture.dispose() }

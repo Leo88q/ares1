@@ -2,7 +2,7 @@
 
 > **Статус: исторический черновик, не публиковать как актуальный launch plan.** Большая часть цифр ниже предшествует решениям 11.10.2026; mainnet / продажи не подтверждены и не разрешены.
 >
-> Актуальная продуктовая политика и launch gates: [`ARES1_PRODUCT_HYPE_REVENUE_CHECKLIST_2026-10-11.md`](../../docs/ARES1_PRODUCT_HYPE_REVENUE_CHECKLIST_2026-10-11.md) и [`LAUNCH_NEXT_STEPS.md`](../../docs/LAUNCH_NEXT_STEPS.md). Devnet остаётся бесплатной песочницей. Целевая V2-комиссия 9–12% удерживается с seller proceeds в quote-валюте после успешного fill и идёт в казну в SOL/SKR; V2 и POTATO/SKR ещё не реализованы. Пороговые значения tier пока рабочий draft. «Операция: Первая теплица» — главный сезонный крючок, но on-chain ledger/очки/призы не активны.
+> Актуальная продуктовая политика и launch gates: [`ARES1_PRODUCT_HYPE_REVENUE_CHECKLIST_2026-10-11.md`](../../docs/ARES1_PRODUCT_HYPE_REVENUE_CHECKLIST_2026-10-11.md) и [`LAUNCH_NEXT_STEPS.md`](../../docs/LAUNCH_NEXT_STEPS.md). Devnet остаётся бесплатной песочницей. V2-комиссия 5–8% удерживается с seller proceeds в quote-валюте после успешного fill и идёт в казну в SOL/SKR; пороги — 1k/10k/100k POTATO суточного объёма продавца. «Операция: Первая теплица» — главный сезонный крючок, но on-chain ledger/очки/призы не активны.
 
 ## 1. Product-Market Fit
 
@@ -33,7 +33,7 @@
 
 ### Viral mechanics — чего не хватает
 
-* **Реферальная система существует в legacy V1.** `register_referrer` burns 5 POTATO; current V1 `fill_order` can apply referral adjustments. Their interaction with the target 9–12% V2 settlement fee is not configured or approved; do not advertise those rates for V2.
+* **Реферальная система существует в legacy V1.** `register_referrer` бесплатен; current V1 `fill_order` can apply referral adjustments. Their interaction with the 5–8% V2 settlement fee is not configured or approved; do not advertise those rates for V2.
 * **Локальный share-card prototype exists** (`greenhouseShareCard.ts`); its browser UX and Web Share integration still require manual testing. No Telegram-specific funnel is planned.
 * **Клановая механика** (гильдии полей с общим множителем) не является утверждённым сроком/релизным обязательством; см. актуальный product checklist.
 
@@ -63,7 +63,7 @@
 
 | Поток | Механика | Оценка при 5 000 MAU |
 |---|---|---|
-| **Комиссия маркетплейса** | Целевая V2: 9–12% gross quote удерживается из seller payout при successful fill и поступает в казну в той же валюте (SOL/SKR); V2 не live | **Нет проверяемого прогноза**: нужны реализованный V2, confirmed tier boundaries и реальные объёмы/quote prices |
+| **Комиссия маркетплейса** | V2: 5–8% gross quote удерживается из seller payout при successful fill и поступает в казну в той же валюте (SOL/SKR) | **Нет проверяемого прогноза**: нужны реализованный V2, confirmed tier boundaries и реальные объёмы/quote prices |
 | **Первичная продажа полей** | На текущем devnet нельзя считать коммерческой выручкой; future mainnet rail требует отдельного GO/NO-GO, price/cap/terms и delivery path. Историческое имя `buyback` не означает автоматический on-chain buyback/burn. | Не прогнозируется / не одобрено к запуску |
 | **Rewarded ads** | (Заглушка «реклама 15 с → 25 🥔» + Telegram ad-сети — **удалены 14.09.2026**) | — |
 | **Косметика / NFT-скины полей** (M3) | Не влияют на yield → не ломают экономику | Опционально |

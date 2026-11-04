@@ -37,7 +37,6 @@ export interface MarketOrderV2View {
   feeQuoteAtoms: bigint
   feeRatesBps: readonly bigint[]
   sellerNetQuoteAtoms: bigint
-  sellerVolumeBeforeMicro: bigint
   status: 'active' | 'expired'
   createdAt: number
   expiresAt: number
@@ -56,12 +55,6 @@ const EMPTY_STATS: MarketStatsV2View = {
   totalSolVolumeLamports: 0n,
   totalSkrVolumeAtoms: 0n,
   totalTrades: 0n,
-}
-
-function splitIntoChunks<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = []
-  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size))
-  return chunks
 }
 
 export function useMarketplaceV2() {
@@ -111,34 +104,31 @@ export function useMarketplaceV2() {
       const blockTime = await withRetry(() => connection.getBlockTime(slot))
       const now = blockTime ?? Math.floor(Date.now() / 1000)
       const parsed = accounts.map(({ pubkey, account }) => ({ publicKey: pubkey, decoded: decodeMarketOrderV2(account.data as Buffer) }))
-      const sellerKeys = [...new Map(parsed.map(({ decoded }) => [decoded.seller.toBase58(), decoded.seller])).values()]
-      if (publicKey && !sellerKeys.some(seller => seller.equals(publicKey))) sellerKeys.push(publicKey)
-      const volumeInfos = (await Promise.all(splitIntoChunks(sellerKeys, 100).map(chunk =>
-        withRetry(() => connection.getMultipleAccountsInfo(chunk, 'confirmed')),
-      ))).flat()
-      const volumeBySeller = new Map<string, bigint>()
-      for (const [i, seller] of sellerKeys.entries()) {
-        const info = volumeInfos[i]
-        if (!info) {
-          volumeBySeller.set(seller.toBase58(), 0n)
-          continue
+      // P0-5: ставка V2 зависит только от объёма сделки, поэтому объём КАЖДОГО
+      // продавца для расчёта больше не нужен. Раньше на каждую перезагрузку
+      // книги уходил `getMultipleAccountsInfo` на каждые 100 продавцов — теперь
+      // читается один аккаунт, и только свой: он нужен подписи «мой объём за
+      // UTC-день», а не цене.
+      let myVolume = 0n
+      if (publicKey) {
+        const info = await withRetry(() => connection.getAccountInfo(pdas(programId).sellerVolumeV2(publicKey)))
+        if (info) {
+          if (!info.owner.equals(programId)) throw new Error('Seller-volume PDA has the wrong owner')
+          const volume = decodeSellerVolumeV2(info.data as Buffer)
+          if (!volume.seller.equals(publicKey)) throw new Error('Seller-volume PDA does not match the wallet')
+          if (volume.dayIndex === BigInt(Math.floor(now / 86_400))) myVolume = volume.filledPotatoMicro
         }
-        if (!info.owner.equals(programId)) throw new Error('Seller-volume PDA has the wrong owner')
-        const volume = decodeSellerVolumeV2(info.data as Buffer)
-        if (!volume.seller.equals(seller)) throw new Error('Seller-volume PDA does not match the order seller')
-        const currentDay = BigInt(Math.floor(now / 86_400))
-        volumeBySeller.set(seller.toBase58(), volume.dayIndex === currentDay ? volume.filledPotatoMicro : 0n)
       }
 
       const mapped: MarketOrderV2View[] = parsed.flatMap(({ publicKey: orderAddress, decoded }) => {
         if (decoded.feePolicyVersion !== 1) throw new Error('Unsupported marketplace fee policy version')
         const expiresAt = Number(decoded.expiresAt)
         if (decoded.status !== 'active') return []
-        const sellerVolumeBeforeMicro = volumeBySeller.get(decoded.seller.toBase58()) ?? 0n
+        // История продавца не участвует в цене: расчёт идёт от объёма сделки.
         const quote = calculateSettlementFee({
           amountMicro: decoded.amountMicro,
           priceQuoteAtomsPerPotato: decoded.priceQuoteAtomsPerPotato,
-          sellerVolumeBeforeMicro,
+          sellerVolumeBeforeMicro: 0n,
         })
         return [{
           publicKey: orderAddress,
@@ -150,7 +140,6 @@ export function useMarketplaceV2() {
           feeQuoteAtoms: quote.feeQuoteAtoms,
           feeRatesBps: [...new Set(quote.segments.map(segment => segment.feeBps))],
           sellerNetQuoteAtoms: quote.sellerNetQuoteAtoms,
-          sellerVolumeBeforeMicro,
           status: now >= expiresAt ? 'expired' as const : 'active' as const,
           createdAt: Number(decoded.createdAt),
           expiresAt,
@@ -169,8 +158,7 @@ export function useMarketplaceV2() {
       } else {
         setStats(EMPTY_STATS)
       }
-      if (publicKey) setMyVolumeMicro(volumeBySeller.get(publicKey.toBase58()) ?? 0n)
-      else setMyVolumeMicro(0n)
+      setMyVolumeMicro(myVolume)
       setError(null)
     } catch (err) {
       setError(describeError(err))
@@ -207,10 +195,11 @@ export function useMarketplaceV2() {
       if (quoteAsset === 'skr' && !skrMintReady) throw new Error(t('Mint SKR не настроен или имеет неверное число знаков в этой сети.'))
       if (amountMicro < MIN_ORDER_MICRO) throw new Error(t('Минимум 10 POTATO.'))
       if (priceQuoteAtomsPerPotato <= 0n) throw new Error(t('Цена должна быть положительной.'))
+      // Ставка от объёма сделки: дневной объём продавца в оценку не входит.
       const quote = calculateSettlementFee({
         amountMicro,
         priceQuoteAtomsPerPotato,
-        sellerVolumeBeforeMicro: myVolumeMicro,
+        sellerVolumeBeforeMicro: 0n,
       })
       if (quote.grossQuoteAtoms < MIN_SETTLEMENT_GROSS_QUOTE_ATOMS) throw new Error('Gross quote is below the market minimum')
 
@@ -243,7 +232,7 @@ export function useMarketplaceV2() {
     } finally {
       setActionLoading(null)
     }
-  }, [config, publicKey, programId, myVolumeMicro, skrMintReady, ensureAtaIx, sendIx, show, loadOrders, notifyError])
+  }, [config, publicKey, programId, skrMintReady, ensureAtaIx, sendIx, show, loadOrders, notifyError])
 
   const fillOrder = useCallback(async (order: MarketOrderV2View): Promise<boolean> => {
     if (!publicKey) { show({ type: 'warning', title: t('Кошелёк не подключён.') }); return false }
@@ -251,23 +240,12 @@ export function useMarketplaceV2() {
     setActionLoading(order.publicKey.toBase58())
     try {
       const p = pdas(programId)
-      const [volumeInfo, slot] = await Promise.all([
-        withRetry(() => connection.getAccountInfo(p.sellerVolumeV2(order.seller))),
-        withRetry(() => connection.getSlot('confirmed')),
-      ])
-      const blockTime = await withRetry(() => connection.getBlockTime(slot))
-      const now = blockTime ?? Math.floor(Date.now() / 1000)
-      let currentVolume = 0n
-      if (volumeInfo) {
-        if (!volumeInfo.owner.equals(programId)) throw new Error('Seller-volume PDA has the wrong owner')
-        const volume = decodeSellerVolumeV2(volumeInfo.data as Buffer)
-        if (!volume.seller.equals(order.seller)) throw new Error('Seller-volume PDA does not match the order seller')
-        if (volume.dayIndex === BigInt(Math.floor(now / 86_400))) currentVolume = volume.filledPotatoMicro
-      }
+      // Цена сделки не зависит от дневного объёма продавца (P0-5), поэтому
+      // перед покупкой его PDA SellerVolumeV2 не читается вовсе.
       const settlement = calculateSettlementFee({
         amountMicro: order.amountMicro,
         priceQuoteAtomsPerPotato: order.priceQuoteAtomsPerPotato,
-        sellerVolumeBeforeMicro: currentVolume,
+        sellerVolumeBeforeMicro: 0n,
       })
       const { address: buyerPotato, ixs: potatoAtaIxs } = await ensureAtaIx(publicKey, config.potatoMint)
 

@@ -14,7 +14,7 @@ export async function marketArtFixture() {
   writeFileSync(game, 'export function useGame(){return {stats:{potatoBalance:100000000000,skrBalance:0},fields:[]};}')
   writeFileSync(solana, `import {PublicKey} from '@solana/web3.js';
 const key=new PublicKey(new Uint8Array(32).fill(7));
-export const IS_MAINNET=false;export const CLUSTER='devnet';
+export const IS_MAINNET=false;export const CLUSTER='devnet';export const NETWORK_LABEL='DEVNET';
 export function useSolana(){return {publicKey:key,programId:key,ready:true,connected:true,config:{},connection:{getAccountInfo:async()=>null},refreshConfig:async()=>{},sendIx:async()=>{throw new Error('Forbidden signing in art test')}};}`)
   writeFileSync(toast, 'export function useToast(){return {show:message=>{window.__artNotices.push(message)}};}')
   writeFileSync(market, `import {PublicKey} from '@solana/web3.js';

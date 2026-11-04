@@ -40,6 +40,11 @@ export function treasuryAuthority(): PublicKey {
   return configPda();
 }
 
+/** PDA ["quest_treasury"]: владелец пула наград за ачивки. */
+export function questTreasuryPda(): PublicKey {
+  return PublicKey.findProgramAddressSync([Buffer.from("quest_treasury")], programId)[0];
+}
+
 /** AdminState singleton PDA: withdrawal rate limits + timelocked proposals. */
 export function adminStatePda(): PublicKey {
   return PublicKey.findProgramAddressSync([Buffer.from("admin_state")], programId)[0];
@@ -57,35 +62,6 @@ export async function fetchEpoch(epochId: bigint): Promise<EpochAccount> {
   if (!info) throw new Error(`Epoch ${epochId} account not found`);
   if (!info.owner.equals(programId)) throw new Error("Epoch account has unexpected owner");
   return decodeEpoch(info.data);
-}
-
-/**
- * DEPRECATED — replayable. Authorises purely by signature, so the same signed
- * transaction can be landed twice and an off-chain "already paid" flag loses
- * the race (the Aurory reward-replay class of bug). Kept only because the
- * Anchor test-suite uses it to fund accounts; no production path may call it.
- * Use {@link buildGrantRewardOnceIx} for anything that pays real users.
- *
- * @deprecated Use buildGrantRewardOnceIx.
- */
-export function buildGrantRewardIx(params: {
-  config: PublicKey;
-  epoch: PublicKey;
-  authority: PublicKey;
-  potatoMint: PublicKey;
-  userPotato: PublicKey;
-  amountMicro: bigint;
-}): TransactionInstruction {
-  const data = Buffer.concat([anchorDiscriminator("global", "grant_reward"), u64LE(params.amountMicro)]);
-  const keys = [
-    { pubkey: params.config, isSigner: false, isWritable: true },
-    { pubkey: params.epoch, isSigner: false, isWritable: true },
-    { pubkey: params.authority, isSigner: true, isWritable: false },
-    { pubkey: params.potatoMint, isSigner: false, isWritable: true },
-    { pubkey: params.userPotato, isSigner: false, isWritable: true },
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-  ];
-  return new TransactionInstruction({ programId, keys, data });
 }
 
 /** Replay marker PDA: `["reward", recipient ATA, nonce]`. */

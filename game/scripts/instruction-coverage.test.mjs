@@ -31,10 +31,10 @@ test('coverage ignores comments and recognizes the guarded treasury CLI builder'
   assert.equal(row(solFieldIx).hits['web-builder'], 0);
   assert.ok(row(solFieldIx).hits.tests > 0);
 
-  // grant_reward occurs only in a comment in anchorClient.ts; backend/tests are
-  // real references, but the comment must not create a web-builder reference.
-  assert.equal(row(legacyGrant).hits['web-builder'], 0);
-  assert.ok(row(legacyGrant).hits.backend > 0);
+  // P1-1: grant_reward удалён из программы и IDL — отчёт не должен его
+  // содержать (иначе появилась бы «покрытая» инструкция, которой нет на цепи).
+  assert.equal(row(legacyGrant), undefined);
+  assert.ok(!result.rows.some((item) => item.name === legacyGrant));
 
   // SKR treasury withdrawal is deliberately absent from the player-facing web
   // flow. It does have an offline authority CLI builder and ABI tests, so it is

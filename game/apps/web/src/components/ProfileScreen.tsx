@@ -148,7 +148,7 @@ function ProfileScreenInner() {
        </span>
       </div>
       <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 14, lineHeight: 1.4 }}>
-       {t('Devnet legacy V1 only: the export license discounts the old POTATO market fee by 3%; it does not discount the target V2 SOL/SKR settlement fee. Batch-harvest benefits are shown below.')}
+       {t('Экспортная лицензия 500 SKR / 30 дней снижает комиссию на 3 % только на закрытом легаси-рынке V1; комиссию V2 в SOL/SKR она не уменьшает. Действующая выгода — батч-сбор с 10 до 30 полей за транзакцию.')}
       </p>
       <p style={{ fontSize: 12, color: '#9FBE7A', marginBottom: 14, lineHeight: 1.4 }}>
        {t('Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.', { n: BATCH_LIMIT_LICENSED, base: BATCH_LIMIT_BASE })}
@@ -158,7 +158,7 @@ function ProfileScreenInner() {
     ) : (
      <div>
       <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 12, lineHeight: 1.4 }}>
-       {t('Devnet legacy V1 only: the export license discounts the old POTATO market fee by 3%; it does not discount the target V2 SOL/SKR settlement fee. Batch-harvest benefits are shown below.')}
+       {t('Экспортная лицензия 500 SKR / 30 дней снижает комиссию на 3 % только на закрытом легаси-рынке V1; комиссию V2 в SOL/SKR она не уменьшает. Действующая выгода — батч-сбор с 10 до 30 полей за транзакцию.')}
       </p>
       <p style={{ fontSize: 12, color: '#9FBE7A', marginBottom: 12, lineHeight: 1.4 }}>
        {t('Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.', { n: BATCH_LIMIT_LICENSED, base: BATCH_LIMIT_BASE })}
@@ -252,7 +252,14 @@ function ProfileScreenInner() {
      </div>
      <div style={{ fontSize: 11, color: 'rgba(255,179,71,0.5)', display: 'flex', alignItems: 'center', gap: 6 }}>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-      <span>{t('Ранг {n}: улучшенная сопротивляемость износу кассет', { n: stats.playerLevel + 1 })}</span>
+      {/*
+       P1-3: здесь было «Ранг N: улучшенная сопротивляемость износу кассет».
+       Такой механики нет ни в программе, ни в клиенте: ранг — это только
+       fields / 3 + 1, он ничего не модифицирует. Обещание убрано, вместо
+       него — следующая реальная разблокировка (уровень выше 1 у поля
+       действительно меняет урожай, см. get_level_mult).
+      */}
+      <span>{t('Следующий ранг открывается на {n} делянках. Урожай растит уровень поля, а не ранг.', { n: (stats.playerLevel + 1) * 3 })}</span>
      </div>
     </div>
    </div>

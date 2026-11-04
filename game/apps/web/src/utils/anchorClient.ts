@@ -112,7 +112,7 @@ async function ixFieldAction(name: string, programId: PublicKey, params: {
 
 export const ixRepairField = (programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]) =>
  ixFieldAction('repair_field', programId, params)
-/** upgrade_field = field_spend_accounts + SlotHashes (энтропия мутаций). */
+/** upgrade_field = repair/pay_tax/apply_fertilizer-форма + SlotHashes (энтропия мутаций). */
 export async function ixUpgradeField(programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]): Promise<TransactionInstruction> {
  const data = concatBytes(await ixDiscriminator('upgrade_field'))
  const keys = [
@@ -333,6 +333,8 @@ export interface DecodedField {
  owner: PublicKey; level: number; durability: number; lastHarvest: bigint
  taxPaidUntil: bigint; fertilizerUntil: bigint; isActive: boolean; fieldType: number
  bump: number; mutationType: number
+ /** P1-3 (layout v3): id поля; `null` — аккаунт ещё не мигрирован с v2 (70 байт). */
+ fieldId: bigint | null
 }
 
 export function decodeField(data: Buffer): DecodedField {
@@ -346,12 +348,14 @@ export function decodeField(data: Buffer): DecodedField {
  const isActive = readBool(data, o); o = isActive.next
  const fieldType = readU8(data, o); o = fieldType.next
  const bump = readU8(data, o); o = bump.next
- const mutationType = readU8(data, o)
+ const mutationType = readU8(data, o); o = mutationType.next
+ // v3 (78 байт) хранит field_id в конце; 70-байтные аккаунты — ещё v2.
+ const fieldId = data.length === 70 ? { value: null } : readU64(data, o)
  return {
   owner: owner.value, level: level.value, durability: durability.value,
   lastHarvest: lastHarvest.value, taxPaidUntil: taxPaidUntil.value,
   fertilizerUntil: fertilizerUntil.value, isActive: isActive.value, fieldType: fieldType.value,
-  bump: bump.value, mutationType: mutationType.value,
+  bump: bump.value, mutationType: mutationType.value, fieldId: fieldId.value,
  }
 }
 
@@ -486,7 +490,7 @@ export interface DecodedConfig {
 export interface DecodedEpoch {
  id: bigint; mintCapMicro: bigint; mintedMicro: bigint; startTime: bigint
  bump: number
- /** micro-POTATO выданные grant_reward в эту эпоху (квота 10% капа). НЕ burn. */
+ /** micro-POTATO выданные grant_reward_once в эту эпоху (квота 25% капа). НЕ burn. */
  grantedMicro: bigint
 }
 
@@ -577,9 +581,11 @@ export async function ixMigrateConfig(programId: PublicKey, params: {
 }
 
 export async function ixMigrateField(programId: PublicKey, params: {
- field: PublicKey; config: PublicKey; authority: PublicKey;
+ field: PublicKey; config: PublicKey; authority: PublicKey; fieldId: bigint;
 }): Promise<TransactionInstruction> {
- const data = Buffer.from(await ixDiscriminator('migrate_field'))
+ // P7: программа требует canonical PDA [b"field", field_id] — без аргумента
+ // миграцию не к чему привязать, поэтому id обязателен на уровне ABI.
+ const data = concatBytes(await ixDiscriminator('migrate_field'), u64LE(params.fieldId))
  return new TransactionInstruction({
   programId,
   data,
@@ -639,13 +645,17 @@ export const LUNAR_TABLE: number[] = [
   8827,  9065,  9349,  9666,                               // дни 24-27
 ];
 
-export function getLunarMultiplier(epochId: number): number {
-  const idx = epochId % 28;
+/**
+ * P2-6: фаза луны — функция времени, а не номера эпохи. `lunarDay` — индекс
+ * дня (`floor(now / 86400) mod 28`), тот же, что в программе.
+ */
+export function getLunarMultiplier(lunarDay: number): number {
+  const idx = ((lunarDay % 28) + 28) % 28;
   return LUNAR_TABLE[idx] / 10000;
 }
 
-export function getLunarPhase(epochId: number): string {
-  const day = epochId % 28;
+export function getLunarPhase(lunarDay: number): string {
+  const day = ((lunarDay % 28) + 28) % 28;
   if (day <= 3) return t('Растущая луна');
   if (day <= 7) return t('Первая четверть');
   if (day <= 10) return t('Прибывающая луна');
@@ -754,7 +764,9 @@ export function decodeAchievementsBitmap(data: Buffer): number {
 
 /**
  * claim_achievement(quest_id) — верификация прогресса в программе:
- *  0: ≥1 поле · 1: ≥100 POTATO · 2: ≥1000 POTATO · 3: ≥5 полей · 4: ≥10 000 POTATO · 5: ≥6 полей, ≥3-го уровня одно.
+ *  0: ≥1 поле · 1: ≥2 поля · 2: ≥3 поля · 3: ≥5 полей · 4: ≥8 полей · 5: ≥6 полей, ≥3-го уровня одно.
+ * Все условия — владение полями (баланс POTATO ничего не доказывает: токен
+ * можно купить или получить переводом, не играя).
  * Поля игрока передаются в remaining_accounts (proof by ownership).
  */
 

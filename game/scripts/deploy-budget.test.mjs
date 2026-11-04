@@ -47,8 +47,11 @@ test('setup profiles: core includes only mint/config/epoch; full keeps optional 
   const full = await estimateSetupOnchain({ rent, profile: 'full' });
   assert.equal(core.total, 3937000n);
   assert.deepEqual(core.parts.map((part) => part.split('=')[0]), ['potato_mint', 'game_config', 'epoch0']);
-  assert.equal(full.total, 10642600n);
-  assert.ok(full.parts.includes('skr_atas=+2976880'));
+  // 10 642 600 − 1 488 440: buyback-ATA больше не входит в профиль full.
+  assert.equal(full.total, 9154160n);
+  // Один ATA казны (165 байт = 1 488 440 лампортов): buyback-ATA удалён вместе
+  // со сплитом 80/20 — 20 % больше не уходят на кошелёк authority.
+  assert.ok(full.parts.includes('skr_atas=+1488440'));
 });
 
 // ── V1: первый деплой, so_len = max_len = 450 000 ───────────────────────────

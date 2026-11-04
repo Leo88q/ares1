@@ -155,7 +155,10 @@ test('loadGameOpsConfig: без URL слой выключен, с URL — тре
     ADMIN_API_TOKEN: 'a'.repeat(32),
     GAME_OPS_DB_ROLE: 'game_ops_writer',
   });
-  assert.equal(config?.expectedSchemaVersion, 13);
+  // 16 = число файлов миграций (последняя — 0016_presale_refund_reason.sql).
+  // Значение обязано совпадать с len(migrations/game_ops/*.sql): нижняя версия
+  // пропустила бы неприменённую миграцию, верхняя — навсегда уронила бы /ready.
+  assert.equal(config?.expectedSchemaVersion, 16);
   assert.equal(config?.role, 'game_ops_writer');
   assert.throws(() => loadGameOpsConfig({
     GAME_OPS_DATABASE_URL: 'postgres://localhost/ares1',

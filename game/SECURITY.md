@@ -43,8 +43,11 @@ Fixed and CI-verified on localnet (`anchor build` + `anchor test`):
   invocation (stack-height guard), closing the revert-if-unlucky grind.
 - Dynamic epoch cap is now clamped to `[daily_mint_cap_micro, 3×]` — the admin
   setting constrains `roll_epoch`.
-- Manual `grant_reward` mints are capped at 10 % of the epoch cap
-  (`Epoch.granted_micro` quota).
+- Off-chain reward mints (`grant_reward_once`, the only reward rail since the
+  2026-11-03 upgrade) are capped at **25 %** of the epoch cap
+  (`GRANT_QUOTA_SHARE_BPS` = 2 500, tracked in `Epoch.granted_micro`). The
+  legacy signature-only `grant_reward` rail — replayable by construction — was
+  removed from the program, the IDL and every client.
 - Rarity/upgrade randomness mixes in `SlotHashes` — slot-grinding at signing
   time no longer works. Accrual capped at 7 days; lunar multiplier time-weighted.
 - `buy_field_sol` prices scale with field type and take a buyer slippage bound

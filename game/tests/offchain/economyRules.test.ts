@@ -1,20 +1,39 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { RUST_SOURCE as rust, rustConst as constant } from '../rustConstants.js';
 
 // Source-level regression guards, not a substitute for localnet execution.
 // The owner's confirmed denomination split must not be changed incidentally.
-const rust = fs.readFileSync('programs/solana_potato/src/lib.rs', 'utf8');
 function handler(name: string): string {
   const start = rust.indexOf(`    pub fn ${name}(`);
   assert(start >= 0, `Missing handler ${name}`);
   const next = rust.indexOf('    pub fn ', start + 12);
   return rust.slice(start, next < 0 ? undefined : next);
 }
-function constant(name: string): bigint {
-  const match = new RegExp(`pub const ${name}: u64 = ([0-9_]+);`).exec(rust);
-  assert(match, `Missing constant ${name}`);
-  return BigInt(match[1].replaceAll('_', ''));
+/**
+ * Тело ветки, открывающейся строкой `if let Some(fee) = NAME {`, с балансом
+ * скобок. Вырезать её нужно, чтобы проверить свойство «больше НИГДЕ деньги не
+ * двигаются»: точное совпадение синтаксиса (прежняя версия теста) валилось от
+ * любого рефакторинга с сохранением поведения и всё равно ничего не говорило о
+ * том, что плата не списывается.
+ */
+function gatedBranch(body: string, marker: string): string {
+  const start = body.indexOf(marker);
+  assert(start >= 0, `нет ветки ${marker}`);
+  let depth = 0;
+  let seen = false;
+  for (let i = start; i < body.length; i += 1) {
+    const ch = body[i];
+    if (ch === '{') {
+      depth += 1;
+      seen = true;
+    } else if (ch === '}') {
+      depth -= 1;
+      if (seen && depth === 0) return body.slice(start, i + 1);
+    }
+  }
+  assert.fail(`незакрытая ветка ${marker}`);
 }
 
 test('confirmed SKR prices: presale 1053 and export license 500', () => {
@@ -45,11 +64,33 @@ test('unapproved SKR service pricing rail is absent from contract and active cli
 });
 
 
-test('owner-confirmed referral registration costs 5 POTATO, matching the UI', () => {
-  assert.equal(constant('REFERRAL_REGISTRATION_COST_MICRO'), 5n * 1_000_000n);
-  assert.match(handler('register_referrer'), /token::burn\(/);
-  assert.match(handler('register_referrer'), /REFERRAL_REGISTRATION_COST_MICRO/);
-  assert.doesNotMatch(handler('register_referrer'), /50_000_000/);
+test('referral registration is free: no entry fee before the first field', () => {
+  // Новичок приходит с пустым кошельком. Плата за регистрацию делала реферал
+  // доступным только тем, кто уже купил POTATO, — то есть убивала единственную
+  // петлю роста. Ставка обязана остаться нулевой.
+  assert.equal(constant('REFERRAL_REGISTRATION_COST_MICRO'), 0n);
+  // Рабочий переключатель — Option-константа: сравнение вида `FEE > 0` clippy
+  // отклоняет как заведомо ложное, а мёртвая ветка тихо гниёт.
+  assert.match(rust, /pub const REFERRAL_REGISTRATION_FEE_MICRO: Option<u64> = None;/);
+
+  // Свойство, которое действительно важно: единственное место, где
+  // `register_referrer` может двинуть токены, — ветка, включаемая этой
+  // константой. Любая плата вне ветки (или плата при `None`) — регресс.
+  const body = handler('register_referrer');
+  const gated = gatedBranch(body, 'if let Some(fee) = REFERRAL_REGISTRATION_FEE_MICRO {');
+  const outside = body.replace(gated, '');
+  assert.doesNotMatch(outside, /token::(burn|transfer)\(|burn_from_user\(/, 'плата за реферал вне fee-ветки');
+  assert.doesNotMatch(gated, /50_000_000/, 'жёстко зашитая цена регистрации');
+  assert.match(gated, /token::burn\(/, 'fee-ветка должна сжигать POTATO, а не переводить их');
+
+  // P2-2: регистрация закрыта (`REFERRAL_PROGRAM_ENABLED = false`), потому что
+  // награды платит только закрытый легаси-рынок. Нулевая цена остаётся
+  // инвариантом на случай возврата программы, а UI больше не обещает выплат:
+  // он обязан говорить о закрытии и не показывать реферальную ссылку.
+  assert.match(rust, /pub const REFERRAL_PROGRAM_ENABLED: bool = false;/);
   const ui = fs.readFileSync('apps/web/src/components/ReferralSection.tsx', 'utf8');
-  assert.match(ui, /Антиспам: 5 🥔 сгорает с баланса приглашённого, разово/);
+  assert.match(ui, /Реферальная программа закрыта/);
+  assert.match(ui, /Новые регистрации не принимаются/);
+  assert.doesNotMatch(ui, /0\.5 %|−1 %/, 'UI не должен обещать выплаты закрытой программы');
+  assert.doesNotMatch(ui, /buildRefLink|clipboard/, 'ссылок и копирования у закрытой программы нет');
 });

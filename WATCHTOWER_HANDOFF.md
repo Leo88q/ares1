@@ -163,7 +163,7 @@ in-memory ёмкость (≤250 000 событий), это **не** архив
 | `OrderFilled` | `OrderFilled` | `fill_order` | `buyer` | POTATO + SOL | `code_only` |
 | `OrderCancelled` | `OrderCancelled` | `cancel_order` | `seller` | — | `code_only` |
 | `OrderExpiredEvent` | `OrderExpired` | `close_expired_order` | — | — | `code_only` |
-| `RewardGranted` | `RewardGranted` | `grant_reward` | `recipient` | POTATO | `code_only` (имя есть в allowlist хаба) |
+| `RewardGranted` | `RewardGranted` | — (легаси-рельса `grant_reward` удалена 2026-11-03; событие оставлено в ABI только ради allowlist хаба) | `recipient` | POTATO | `code_only` (имя есть в allowlist хаба); новых эмиссий нет |
 | `RewardGrantedOnce` | `RewardGrantedOnce` | `grant_reward_once` | `recipient` | POTATO | `code_only` (replay-safe rail, nonce) |
 | `ReferralRewardPaid` | `ReferralRewardPaid` | `fill_order` | buyer+referrer | POTATO | `code_only` |
 | `ReferrerRegistered` | `ReferrerRegistered` | `register_referrer` | `owner` | POTATO (burn 5) | `code_only` |
@@ -202,7 +202,7 @@ in-memory ёмкость (≤250 000 событий), это **не** архив
 | `PlayerJoined` | `unavailable` | нет ни on-chain, ни off-chain join-события |
 | `PotatoPlanted` | `unavailable` | посадки нет; поле создаётся (`FieldCreated`) |
 | `PotatoHarvested` | `unavailable` | реальные имена — `Harvested`, `BatchHarvested` |
-| `TokenMinted` | `unavailable` | минт внутри `harvest`/`batch_harvest`/`grant_reward`; отдельного события нет |
+| `TokenMinted` | `unavailable` | минт внутри `harvest`/`batch_harvest`/`grant_reward_once`; отдельного события нет |
 | `TokenBurned` | `unavailable` | burn'ы — внутренние CPI без события |
 | `TreasuryChanged` | `unavailable` | движения казны itemized: `TreasuryTaxed` / `TreasuryWithdrawn*` / `ConfigUpdated` |
 | `WalletConnected`, `SessionStarted/Ended` | `unavailable` | нет телеметрии и нет `sessionId` |
@@ -268,7 +268,7 @@ inbox — нет.
 | Преобразование в USD | — | — | `unavailable`: реального источника цены нет; raw units нельзя выдавать за USD, decimals не конвертируются хабом (его парсер — не конвертер) по умолчанию |
 | Диапазоны | u64 максимум `18446744073709551615` > `Number.MAX_SAFE_INTEGER` | — | exporter уже отдаёт u64/i64 строками; до расчётов на стороне хаба парсер должен быть расширен контрактно |
 | Supply / treasury / revenue | — | — | supply на 2026-10-06 — 434.280849 POTATO (devnet-снапшот, не экономический факт); treasury balances, revenue/costs, circulating supply — `unavailable` |
-| Направления потоков | mint: `harvest`/`batch_harvest`/`grant_reward*`; burn: покупка/ремонт/апгрейд/налог/удобрение и 60 % комиссии рынка; reward: квесты (перевод, не минт); treasury: `TreasuryTaxed`/`Treasury*Withdrawn`; trade: `OrderFilled`; fee: внутри `fill_order` (в payload не itemized) | `game/programs/solana_potato/src/lib.rs`, `game/docs/API.md` | roadmap/оценки экономики (`game/economy/simulate.py`) — модель, не измеренные факты |
+| Направления потоков | mint: `harvest`/`batch_harvest`/`grant_reward_once`; burn: покупка/ремонт/апгрейд/налог/удобрение и 60 % комиссии рынка; reward: квесты (перевод, не минт); treasury: `TreasuryTaxed`/`Treasury*Withdrawn`; trade: `OrderFilled`; fee: внутри `fill_order` (в payload не itemized) | `game/programs/solana_potato/src/lib.rs`, `game/docs/API.md` | roadmap/оценки экономики (`game/economy/simulate.py`) — модель, не измеренные факты |
 
 ### F.3. Location
 

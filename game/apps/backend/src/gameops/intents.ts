@@ -47,7 +47,7 @@ export function assertIntentInput(input: CreateIntentInput): void {
     throw new GameOpsError('VALIDATION', 'recipientAta не похож на Solana-адрес');
   }
   if (input.amountMicro <= 0n || input.amountMicro > 1_000_000_000n) {
-    throw new GameOpsError('VALIDATION', 'amountMicro должен быть больше 0 и не больше 1 000 000 000 (как в grant_reward)');
+    throw new GameOpsError('VALIDATION', 'amountMicro должен быть больше 0 и не больше 1 000 000 000 (как в grant_reward_once)');
   }
   if (input.nonce < 0n) throw new GameOpsError('VALIDATION', 'nonce не может быть отрицательным');
   const ttl = input.ttlSeconds ?? DEFAULT_TTL_SECONDS;
@@ -193,6 +193,38 @@ export async function expireStale(pool: Pool, actor: string, batchSize = 500): P
     );
     return { expired: result.rowCount ?? 0 };
   });
+}
+
+/**
+ * Интенты, по которым транзакция ушла, но подтверждение не зафиксировано
+ * (`submitted` без слота).
+ *
+ * Зачем отдельный запрос. `reward_intents_actionable` отдаёт только `pending`, а
+ * воркер доставки обрабатывает ровно его. Значит интент, у которого
+ * `markSubmitted` прошёл, а `markConfirmed` — нет (таймаут подтверждения,
+ * рестарт процесса между двумя вызовами, отсутствие слота в ответе RPC),
+ * выпадал из обработки навсегда: заказ оставался `paid` без выдачи, а повторная
+ * выдача того же заказа вручную — это вторая выплата. Такие строки обязана
+ * добирать сверка по PDA гранта, а не человек.
+ *
+ * `minAgeSeconds` — пауза после отправки: без неё воркер в том же такте
+ * повторно спрашивал бы RPC про транзакцию, которая ещё не успела попасть в
+ * историю аккаунта.
+ */
+export async function listAwaitingConfirmation(
+  pool: Pool,
+  limit = 100,
+  minAgeSeconds = 30,
+): Promise<IntentRow[]> {
+  return query<IntentRow>(
+    pool,
+    `SELECT * FROM game_ops.reward_intents
+      WHERE state = 'submitted' AND slot IS NULL
+        AND updated_at <= now() - make_interval(secs => $2)
+      ORDER BY updated_at, id
+      LIMIT $1`,
+    [limit, Math.max(0, Math.trunc(minAgeSeconds))],
+  );
 }
 
 export async function listActionable(pool: Pool, limit = 100): Promise<Array<Record<string, unknown>>> {

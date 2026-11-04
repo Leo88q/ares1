@@ -127,6 +127,85 @@ export async function fetchTokenPaymentView(
 }
 
 /**
+ * Кошелёк, с которого деньги реально ушли.
+ *
+ * `accountKeys[0]` — это плательщик комиссии, а не обязательно источник средств.
+ * Как только платёж проходит через релейсер (или комиссию платит сервис),
+ * атрибуция «первому ключу» приписывает перевод чужому кошельку: сверка
+ * объявляет walletMismatch у честного платежа, а `payersFromChain` — «список
+ * плательщиков, восстановленный только из цепи» — начинает врать, и возврат
+ * уходит не тому. Источник определяем по максимальной отрицательной дельте
+ * баланса, исключая казначейство (у него дельта положительная).
+ *
+ * `null` — ни один аккаунт не потерял деньги: для успешной транзакции с
+ * притоком это невозможно, и молча подставлять `accountKeys[0]` нельзя.
+ */
+export function sourceWalletOf(
+  view: { accountKeys: readonly string[]; preBalances: readonly bigint[]; postBalances: readonly bigint[] },
+  treasury: string,
+): string | null {
+  let best: { key: string; lost: bigint } | null = null;
+  for (const [index, key] of view.accountKeys.entries()) {
+    if (key === treasury) continue;
+    const pre = view.preBalances[index];
+    const post = view.postBalances[index];
+    if (pre === undefined || post === undefined) continue;
+    const lost = pre - post;
+    if (lost <= 0n) continue;
+    if (!best || lost > best.lost) best = { key, lost };
+  }
+  return best?.key ?? null;
+}
+
+/**
+ * Preflight казначейского ATA для SKR-тиража.
+ *
+ * Почему это отдельная проверка перед открытием тиража. Для SKR поле
+ * `presale_runs.treasury` — не кошелёк, а ТОКЕН-аккаунт (ATA) казны. Его
+ * создаёт только `BOOTSTRAP_PROFILE=full` в `scripts/init-onchain.ts:292-296`,
+ * то есть существование ATA — договорённость между оператором и бутстрапом, а
+ * не инвариант программы. Если открыть SKR-тираж без этого ATA, покупатель
+ * отправит перевод на несуществующий аккаунт: транзакция не пройдёт, деньги не
+ * придут, а заказ останется `reserved` и истечёт. Отказ обязан случиться на шаге
+ * оператора — до того, как покупателю что-то пообещали.
+ *
+ * Проверяем три вещи, которые можно проверить до тиража: аккаунт существует,
+ * он токен-аккаунт, и его минт — именно SKR. Владельца здесь не сверяем: ATA
+ * казны — это адрес, который оператор указывает в тираже; кому он принадлежит,
+ * решает бутстрап.
+ */
+export async function assertSkrTreasuryReady(
+  connection: Connection,
+  treasury: string,
+  skrMint: string,
+): Promise<void> {
+  let key: PublicKey;
+  try {
+    key = new PublicKey(treasury);
+  } catch {
+    throw new Error(`treasury ${treasury || '(пусто)'} не является base58-адресом токен-аккаунта SKR`);
+  }
+  const info = await connection.getParsedAccountInfo(key, 'confirmed');
+  const value = info.value;
+  if (!value) {
+    throw new Error(
+      `SKR-казна ${treasury} не существует: создайте ATA (BOOTSTRAP_PROFILE=full) до открытия тиража, иначе платежи покупателей не пройдут`,
+    );
+  }
+  const data = value.data;
+  const parsed = typeof data === 'object' && data !== null && 'parsed' in data
+    ? (data as { parsed?: { type?: string; info?: { mint?: unknown } } }).parsed
+    : undefined;
+  const mint = parsed?.info?.mint;
+  if (typeof mint !== 'string') {
+    throw new Error(`SKR-казна ${treasury} не является токен-аккаунтом: переводы SKR на него невозможны`);
+  }
+  if (mint !== skrMint) {
+    throw new Error(`SKR-казна ${treasury} держит минт ${mint}, а тираж принимает ${skrMint}`);
+  }
+}
+
+/**
  * История притоков к кошельку-казначейству для сверки. Строится ТОЛЬКО из
  * истории кошелька — из неё же восстанавливается список плательщиков, поэтому
  * сверка не зависит от БД.
@@ -174,9 +253,15 @@ export async function fetchTreasuryTransfers(
       if (index < 0) continue;
       const received = view.postBalances[index] - view.preBalances[index];
       if (received <= 0n) continue;
+      const fromWallet = sourceWalletOf(view, treasury);
+      if (!fromWallet) {
+        // Приток есть, а плательщика нет — значит разбор ответа RPC неверен.
+        // Подставить «первый ключ» здесь значило бы выдать догадку за факт.
+        throw new Error(`Treasury transaction ${signature.signature} has an inflow without a source wallet; refusing to guess the payer`);
+      }
       transfers.push({
         signature: signature.signature,
-        fromWallet: view.accountKeys[0] ?? '',
+        fromWallet,
         units: received,
         slot: view.slot,
         blockTime: view.blockTime,

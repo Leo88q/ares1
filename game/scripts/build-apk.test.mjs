@@ -26,7 +26,8 @@ test('release script fails closed without HTTPS origin, application id, Android 
 })
 
 test('rent estimator is read-only, checks the cluster identity, and uses explicit account-size inputs', () => {
-  assert.match(rentEstimator, /FIELD_ACCOUNT_BYTES = 70/)
+  // P1-3: layout v3 (78 байт) — оценка rent обязана идти по нему.
+  assert.match(rentEstimator, /FIELD_ACCOUNT_BYTES = 78/)
   assert.match(rentEstimator, /SPL_TOKEN_ACCOUNT_BYTES = 165/)
   assert.match(rentEstimator, /getGenesisHash\(\)/)
   assert.match(rentEstimator, /expectedGenesisHash\(cluster\)/)

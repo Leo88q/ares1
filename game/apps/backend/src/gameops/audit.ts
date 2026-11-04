@@ -12,8 +12,8 @@
  */
 import { createHash } from 'node:crypto';
 import { GameOpsError } from './errors.js';
-import { query } from './pool.js';
-import type { Pool } from './pool.js';
+import { query, withTransaction } from './pool.js';
+import type { Client, Pool } from './pool.js';
 
 export const AUDIT_OUTCOMES = ['ok', 'denied', 'error'] as const;
 export type AuditOutcome = (typeof AUDIT_OUTCOMES)[number];
@@ -63,11 +63,15 @@ export interface RecordAuditInput {
 }
 
 /**
- * Прямая запись в аудит — только для случаев, когда действие НЕ покрыто
- * триггером (например, ручное решение оператора или отказ доступа). Записи о
- * выплатах и курсорах делает БД сама: приложение не может их «забыть».
+ * Запись в аудит внутри уже открытой транзакции действия.
+ *
+ * Это единственная форма, которой должны пользоваться маршруты, меняющие
+ * деньги или состояние: иначе аудит коммитится отдельным соединением и может
+ * пережить откат самого действия (или потеряться, когда действие прошло).
+ * Плюс GUC `game_ops.actor` уже выставлен транзакцией, поэтому триггеры видят
+ * того же актора, что и ручная запись.
  */
-export async function recordAudit(pool: Pool, input: RecordAuditInput): Promise<void> {
+export async function recordAuditTx(client: Client, input: RecordAuditInput): Promise<void> {
   if (!ACTION_RE.test(input.action)) throw new GameOpsError('VALIDATION', `action не соответствует шаблону: ${input.action}`);
   if (!SUBJECT_RE.test(input.subject)) throw new GameOpsError('VALIDATION', `subject не соответствует шаблону: ${input.subject}`);
   if (!AUDIT_OUTCOMES.includes(input.outcome)) throw new GameOpsError('VALIDATION', `outcome должен быть одним из ${AUDIT_OUTCOMES.join(', ')}`);
@@ -75,8 +79,7 @@ export async function recordAudit(pool: Pool, input: RecordAuditInput): Promise<
   if (input.requestId && !/^[A-Za-z0-9._:-]{8,64}$/.test(input.requestId)) {
     throw new GameOpsError('VALIDATION', 'requestId должен быть 8..64 символов A-Za-z0-9._:-');
   }
-  await query(
-    pool,
+  await client.query(
     `INSERT INTO game_ops.admin_audit (actor, action, subject, subject_id, outcome, detail_hash, request_id)
      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
@@ -89,6 +92,19 @@ export async function recordAudit(pool: Pool, input: RecordAuditInput): Promise<
       input.requestId ?? null,
     ],
   );
+}
+
+/**
+ * Прямая запись в аудит — только для случаев, когда действие НЕ покрыто
+ * триггером (например, ручное решение оператора или отказ доступа). Записи о
+ * выплатах и курсорах делает БД сама: приложение не может их «забыть».
+ *
+ * Обёртка открывает собственную транзакцию: `INSERT` и есть само действие
+ * (например, `POST /audit`), но атомарность и GUC актора остаются те же, что
+ * у вызывающих `recordAuditTx`.
+ */
+export async function recordAudit(pool: Pool, input: RecordAuditInput): Promise<void> {
+  await withTransaction(pool, input.actor, client => recordAuditTx(client, input));
 }
 
 /** Аудит действия с отказом: фиксируется даже то, что НЕ было разрешено. */

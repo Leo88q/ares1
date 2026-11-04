@@ -1,9 +1,9 @@
 name: Rent audit experiments
 
 # Измерительные варианты размера `.so` — цифры к вопросам человеку Q2/Q3/Q4:
-# группа M, отдельный grant_reward, buy_field_sol, IDL и SBPF v3.
+# группа M, рельс наград, buy_field_sol, IDL и SBPF v3.
 #
-# НЕ ДЛЯ МЕРЖА: no-m/no-grant/no-grant-legacy/no-buy-field-sol меняют ABI
+# НЕ ДЛЯ МЕРЖА: no-m/no-grant/no-buy-field-sol меняют ABI
 # измерительной сборки; arch-v3 меняет целевую платформу. Только замер размера;
 # продуктовый код и Cargo.toml не меняются.
 #
@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        exp: [z, sbf, no-idl, no-m, no-grant, no-grant-legacy, no-buy-field-sol, arch-v3]
+        exp: [z, sbf, no-idl, no-m, no-grant, no-buy-field-sol, arch-v3]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master, pinned (was @master)

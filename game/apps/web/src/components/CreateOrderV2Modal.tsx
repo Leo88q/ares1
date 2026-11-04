@@ -13,7 +13,6 @@ interface Props {
   quoteAsset: MarketQuoteAsset
   skrMintReady: boolean
   balanceMicro: number
-  sellerVolumeMicro: bigint
   onClose: () => void
   onCreate: (amountMicro: bigint, priceQuoteAtomsPerPotato: bigint, quoteAsset: MarketQuoteAsset) => Promise<boolean>
 }
@@ -38,7 +37,7 @@ const formatQuote = (atoms: bigint, asset: MarketQuoteAsset) => {
 
 const formatFeeRates = (rates: readonly bigint[]) => [...new Set(rates)].map(rate => `${rate / 100n}%`).join(' · ')
 
-export default function CreateOrderV2Modal({ open, quoteAsset, skrMintReady, balanceMicro, sellerVolumeMicro, onClose, onCreate }: Props) {
+export default function CreateOrderV2Modal({ open, quoteAsset, skrMintReady, balanceMicro, onClose, onCreate }: Props) {
   const { show } = useToast()
   const [amount, setAmount] = useState('100')
   const [price, setPrice] = useState(quoteAsset === 'sol' ? '0.001' : '1')
@@ -61,13 +60,15 @@ export default function CreateOrderV2Modal({ open, quoteAsset, skrMintReady, bal
         settlement: calculateSettlementFee({
           amountMicro,
           priceQuoteAtomsPerPotato: priceAtoms,
-          sellerVolumeBeforeMicro: sellerVolumeMicro,
+          // P0-5: ступень считается от объёма этой сделки; история продавца в
+          // оценку не входит.
+          sellerVolumeBeforeMicro: 0n,
         }),
       }
     } catch {
       return null
     }
-  }, [amount, price, quoteDecimals, sellerVolumeMicro])
+  }, [amount, price, quoteDecimals])
 
   const handleSubmit = async () => {
     if (quoteAsset === 'skr' && !skrMintReady) {
@@ -141,7 +142,7 @@ export default function CreateOrderV2Modal({ open, quoteAsset, skrMintReady, bal
                   <PreviewRow label={t('Чистая выплата продавцу')} value={formatQuote(preview.settlement.sellerNetQuoteAtoms, quoteAsset)} highlight />
                 </>}
               </div>
-              <p style={{ margin: 0, fontSize: 11, lineHeight: 1.5, color: 'var(--pf-text-secondary)' }}>{t('Оценка комиссии может измениться до исполнения из-за накопленного объёма продавца за UTC-день.')}</p>
+              <p style={{ margin: 0, fontSize: 11, lineHeight: 1.5, color: 'var(--pf-text-secondary)' }}>{t('Комиссия считается от объёма этой сделки по ступеням 5/6/7/8 %, поэтому смена кошелька или дня её не меняет.')}</p>
               <div style={{ borderLeft: '3px solid #FFC94A', padding: '8px 10px', background: 'rgba(255,201,74,0.07)', fontSize: 10, lineHeight: 1.5, color: '#E8C997' }}>
                 {t('Пороги 1k / 10k / 100k POTATO — черновик; утвердить до релиза V2.')}
               </div>

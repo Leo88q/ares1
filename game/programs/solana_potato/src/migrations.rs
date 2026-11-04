@@ -51,10 +51,28 @@ pub(crate) fn authority(data: &[u8], signer: &Pubkey) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn field(data: &[u8]) -> Result<Vec<u8>> {
-    check_layout(data, Field::DISCRIMINATOR, &[69, 70])?;
-    let mut out = data.to_vec();
-    out.resize(70, 0);
+/// P1-3: normalizes a Field to layout v3 (78 bytes).
+///
+/// v1 (69 B) had no `mutation_type`; v2 (70 B) appended it; v3 appends
+/// `field_id`. Because the id is added at the **end**, both legacy layouts are
+/// the same operation: copy the old bytes, zero-fill the one byte v1 lacks,
+/// write the id. Nothing existing moves, so a migrated account is
+/// byte-identical to the original on every offset the old layout defined.
+///
+/// `field_id` comes from the instruction argument, which `migrate_field`
+/// already binds to the canonical PDA and to the stored bump. For an account
+/// that is **already** v3 the argument must equal the stored id — otherwise
+/// the authority could relabel a field by "migrating" it again.
+pub(crate) fn field(data: &[u8], field_id: u64) -> Result<Vec<u8>> {
+    check_layout(data, Field::DISCRIMINATOR, &[69, 70, 78])?;
+    if data.len() == 78 {
+        let field = Field::try_deserialize(&mut &data[..])?;
+        require!(field.field_id == field_id, GameError::BadProof);
+        return Ok(data.to_vec());
+    }
+    let mut out = vec![0u8; 78];
+    out[..data.len()].copy_from_slice(data);
+    out[70..78].copy_from_slice(&field_id.to_le_bytes());
     Field::try_deserialize(&mut &out[..])?;
     Ok(out)
 }
@@ -183,13 +201,16 @@ mod tests {
         corrupt = current;
         corrupt[226] = 2; // invalid Borsh boolean
         assert!(config(&corrupt).is_err());
-        assert!(field(&[0u8; 69]).is_err());
+        assert!(field(&[0u8; 69], 0).is_err());
         assert!(epoch(&[0u8; 41]).is_err());
         assert!(admin_state(&[0u8; 97]).is_err());
     }
 
+    /// P1-3: v3 дописывает `field_id` в конец, поэтому старые байты обязаны
+    /// остаться на тех же местах — иначе миграция переписала бы состояние поля
+    /// (владельца, уровень, сроки), а не только добавила идентификатор.
     #[test]
-    fn field_and_epoch_migrations_preserve_nonzero_current_extensions() {
+    fn field_v3_migration_appends_id_without_moving_existing_bytes() {
         let f = Field {
             owner: Pubkey::new_unique(),
             level: 3,
@@ -201,14 +222,29 @@ mod tests {
             field_type: 2,
             bump: 254,
             mutation_type: 2,
+            field_id: 7,
         };
         let mut bytes = Vec::new();
         f.try_serialize(&mut bytes).unwrap();
-        assert_eq!(field(&bytes).unwrap(), bytes);
-        let migrated = field(&bytes[..69]).unwrap();
-        assert_eq!(&migrated[..69], &bytes[..69]);
-        assert_eq!(migrated[69], 0);
-        assert!(field(&bytes[..68]).is_err());
+        assert_eq!(bytes.len(), 78);
+        // Уже v3: id обязан совпасть, иначе authority «переименовало» бы поле.
+        assert_eq!(field(&bytes, 7).unwrap(), bytes);
+        assert!(field(&bytes, 8).is_err());
+        // v2 (70 B) → v3: старые байты не двигаются.
+        let migrated = field(&bytes[..70], 7).unwrap();
+        assert_eq!(&migrated[..70], &bytes[..70]);
+        assert_eq!(&migrated[70..], &7u64.to_le_bytes());
+        // v1 (69 B) → v3: mutation_type нулевой, id на своём месте.
+        let migrated_v1 = field(&bytes[..69], 7).unwrap();
+        assert_eq!(&migrated_v1[..69], &bytes[..69]);
+        assert_eq!(migrated_v1[69], 0);
+        assert_eq!(&migrated_v1[70..], &7u64.to_le_bytes());
+        assert!(field(&bytes[..68], 7).is_err());
+    }
+
+    #[test]
+    fn epoch_migration_preserves_nonzero_current_extensions() {
+        let mut bytes = Vec::new();
         let e = Epoch {
             id: 42,
             mint_cap_micro: 100,
@@ -217,13 +253,12 @@ mod tests {
             bump: 255,
             granted_micro: 17,
         };
-        bytes.clear();
         e.try_serialize(&mut bytes).unwrap();
         assert_eq!(epoch(&bytes).unwrap(), bytes);
         let migrated = epoch(&bytes[..41]).unwrap();
         assert_eq!(&migrated[..41], &bytes[..41]);
         assert_eq!(&migrated[41..], &[0; 8]);
         assert!(epoch(&bytes[..40]).is_err());
-        assert!(field(&bytes).is_err());
+        assert!(field(&bytes, 0).is_err());
     }
 }

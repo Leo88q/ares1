@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import { Connection, Keypair, PublicKey, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
 import { anchorDiscriminator, decodeGameConfig } from '../apps/backend/src/anchorRaw';
 import { safeError } from '../apps/backend/src/security';
-import { migrationInstruction, migrationLayouts, validateMigrationAccount, type MigrationKind } from './migrationClient';
+import { fieldPda, migrationInstruction, migrationLayouts, validateMigrationAccount, type MigrationKind } from './migrationClient';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -33,7 +33,7 @@ async function main() {
   const config = decodeGameConfig(info.data);
   const admin = keyPath ? Keypair.fromSecretKey(Uint8Array.from(JSON.parse(fs.readFileSync(keyPath, 'utf8')))) : undefined;
   if (admin && !admin.publicKey.equals(config.authority)) throw new Error('Signer is not the current game authority');
-  const plan: { kind: MigrationKind; key: PublicKey }[] = [];
+  const plan: { kind: MigrationKind; key: PublicKey; fieldId?: bigint }[] = [];
   if (info.data.length !== migrationLayouts.config.current) plan.push({ kind: 'config', key: configPda });
   for (const kind of ['epoch', 'field'] as const) {
     const layout = migrationLayouts[kind];
@@ -42,11 +42,31 @@ async function main() {
       for (const { pubkey, account } of accounts) {
         if (!account.data.subarray(0, 8).equals(anchorDiscriminator('account', layout.name))) continue;
         validateMigrationAccount(kind, account, programId);
+        if (kind === 'field') {
+          // P7: Field does not store its id, so it cannot be recovered from the
+          // account. Auto-discovering the address and guessing the id would
+          // either fail on-chain or migrate the wrong account, so fields are
+          // only planned when the operator supplies the pairs explicitly.
+          console.log('field', pubkey.toBase58(), 'skipped: id unknown — add it to FIELD_MIGRATION_IDS');
+          continue;
+        }
         plan.push({ kind, key: pubkey });
       }
     }
   }
-  for (const { kind, key } of plan) {
+  for (const pair of (process.env.FIELD_MIGRATION_IDS ?? '').split(',').map(v => v.trim()).filter(Boolean)) {
+    const [address, rawId] = pair.split(':');
+    if (!address || !rawId || !/^[0-9]+$/.test(rawId)) throw new Error(`FIELD_MIGRATION_IDS: ожидается <pubkey>:<field_id>, получено "${pair}"`);
+    const fieldId = BigInt(rawId);
+    const key = fieldPda(programId, fieldId);
+    if (key.toBase58() !== address) throw new Error(`FIELD_MIGRATION_IDS: ${address} не является PDA поля с id ${rawId}`);
+    const account = await connection.getAccountInfo(key);
+    if (!account) throw new Error(`FIELD_MIGRATION_IDS: аккаунт ${address} не найден`);
+    if (account.data.length === migrationLayouts.field.current) continue;
+    validateMigrationAccount('field', account, programId);
+    plan.push({ kind: 'field', key, fieldId });
+  }
+  for (const { kind, key, fieldId } of plan) {
     const before = await connection.getAccountInfo(key);
     if (!before) throw new Error('Planned account disappeared');
     validateMigrationAccount(kind, before, programId);
@@ -54,7 +74,7 @@ async function main() {
     const rent = await connection.getMinimumBalanceForRentExemption(targetSize);
     console.log(kind, key.toBase58(), `${before.data.length} -> ${targetSize} bytes`, 'rent shortfall:', Math.max(0, rent - before.lamports));
     if (admin && before.data.length !== targetSize) {
-      const tx = new Transaction().add(migrationInstruction(kind, programId, key, admin.publicKey));
+      const tx = new Transaction().add(migrationInstruction(kind, programId, key, admin.publicKey, fieldId));
       const signature = await sendAndConfirmTransaction(connection, tx, [admin]);
       const after = await connection.getAccountInfo(key);
       if (!after || after.data.length !== targetSize || after.lamports < rent) throw new Error('Post-migration verification failed');

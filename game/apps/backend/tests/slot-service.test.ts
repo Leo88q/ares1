@@ -90,6 +90,9 @@ function setup(opts: { payments?: Record<string, SlotPaymentSnapshot | null>; no
   const db = memStore();
   const audits: SlotAudit[] = [];
   const fetched: string[] = [];
+  const reviews: Array<{
+    paymentSignature: string; fieldId: string; slot: number; wallet: string; mint: string; amountUnits: bigint;
+  }> = [];
   const payments = opts.payments ?? {};
   const deps: SlotServiceDeps = {
     runInTransaction: fn => db.run(fn),
@@ -105,8 +108,9 @@ function setup(opts: { payments?: Record<string, SlotPaymentSnapshot | null>; no
     now: () => opts.now ?? NOW,
     randomNonce: () => randomUUID(),
     audit: async e => { audits.push(e); },
+    recordReview: async input => { reviews.push(input); },
   };
-  return { db, audits, fetched, deps };
+  return { db, audits, fetched, reviews, deps };
 }
 
 const free = (over: Partial<GrantInput> = {}): GrantInput => ({ field_id: 'F1', slot: 1, wallet: W1, payment_signature: null, ...over });
@@ -220,6 +224,12 @@ test('paid slot: valid payment but slot already owned → 409, no record, review
   assert.deepEqual(out, { ok: false, status: 409, code: 'SLOT_TAKEN' });
   assert.equal(s.db.issuances().length, 0);
   assert.ok(s.audits.some(a => a.action === 'slot.payment.review' && a.detail.reason === 'SLOT_TAKEN_AFTER_VALID_PAYMENT'));
+  // Деньги списаны, слот не выдан: случай обязан попасть в durable-очередь,
+  // а не остаться строкой в stdout (иначе после рестарта следа нет).
+  assert.equal(s.reviews.length, 1, 'валидный платёж при занятом слоте должен попасть в очередь разбора');
+  assert.equal(s.reviews[0]?.wallet, W2);
+  assert.equal(s.reviews[0]?.amountUnits, PRICE);
+  assert.equal(s.reviews[0]?.mint, MINT);
 });
 
 test('paid slot: a race lost at insert (unique index) is reported as SLOT_TAKEN', async () => {

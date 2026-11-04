@@ -59,6 +59,8 @@ export function useGame() { return useSyncExternalStore(fn => { listeners.add(fn
   writeFileSync(solana, `
 import { PublicKey } from '@solana/web3.js';
 const owner = new PublicKey(new Uint8Array(32).fill(9));
+export const IS_MAINNET = false;
+export const NETWORK_LABEL = 'DEVNET';
 export function useSolana() {
   return ${connected}
     ? { ready: true, connected: true, rpcError: null, publicKey: owner,

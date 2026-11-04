@@ -27,11 +27,14 @@ import {
   durabilityMultBps,
   feeBps,
   levelMultBps,
+  lunarDayIndex,
+  lunarWeightedBps,
 } from '../../apps/web/src/utils/constants'
 import {
   SETTLEMENT_FEE_BPS,
   SELLER_VOLUME_THRESHOLDS_MICRO,
 } from '../../apps/web/src/utils/marketFeePolicy'
+import { RUST_SOURCE, rustConstArray, rustConstNumber } from '../rustConstants.js'
 
 // Зеркала ончейн-констант: клиент печатает цены, комиссии и доходность по
 // своей копии значений из `programs/solana_potato/src/lib.rs`. Тест держит
@@ -43,28 +46,15 @@ import {
 // economics-константах не ловится ни одним набором тестов — тесты сравнивали
 // константу саму с собой (`expected` считался из той же константы).
 
-const rust = fs.readFileSync('programs/solana_potato/src/lib.rs', 'utf8')
+const rust = RUST_SOURCE
 
-/** Подстановки для выражений Rust (только те, что встречаются в lib.rs). */
-const RUST_CONSTS: Record<string, number> = { SECONDS_PER_DAY: 86_400, MICRO: 1_000_000, BPS: 10_000 }
-
-/** Число из `pub const NAME: u64 = <expr>;` с подстановкой простых констант. */
-function rustExpr(name: string): number {
-  const match = new RegExp(
-    `pub const ${name}\\s*:\\s*(?:u8|u16|u32|u64|u128|i64|usize)\\s*=\\s*([^;]+);`,
-  ).exec(rust)
-  assert(match, `в lib.rs нет константы ${name}`)
-  const raw = match[1].replace(/\/\/.*/, '').trim()
-  const substituted = raw.replace(/[A-Z][A-Z_]*/g, ident => {
-    assert(ident in RUST_CONSTS, `неизвестный идентификатор ${ident} в ${name}`)
-    return String(RUST_CONSTS[ident])
-  })
-  const normalized = substituted.replaceAll('_', '')
-  assert.match(normalized, /^[0-9\s*+/()-]+$/, `выражение ${name} не сводится к арифметике: ${raw}`)
-  const value = Number(new Function(`return (${normalized})`)())
-  assert(Number.isInteger(value), `${name} не целое: ${raw}`)
-  return value
-}
+/**
+ * Число из `pub const NAME` программы — через общий парсер
+ * (`tests/rustConstants.ts`). Локальная копия разбора удалена: она знала только
+ * три идентификатора и падала на новых выражениях, а «зеркало» тем самым
+ * проверялось по своей же реализации разбора.
+ */
+const rustExpr = rustConstNumber
 
 function rustBody(name: string): string {
   const start = rust.indexOf(`pub fn ${name}(`)
@@ -149,29 +139,26 @@ test('комиссия рынка совпадает с calculate_fee_bps на �
   )
   assert.deepEqual(thresholds, [1_000_000_000, 10_000_000_000, 100_000_000_000])
   const rustFees = rustReturnedNumbers('calculate_fee_bps')
-  assert.deepEqual(rustFees, [900, 1_000, 1_100, 1_200])
+  assert.deepEqual(rustFees, [500, 600, 700, 800])
   for (const [i, threshold] of thresholds.entries()) {
     assert.equal(feeBps(threshold - 1), rustFees[i], `ниже ${threshold}`)
     assert.equal(feeBps(threshold), rustFees[i + 1], `на ${threshold}`)
   }
-  // Golden-литералы по объёму ордера (9 % → 12 %).
+  // Golden-литералы по объёму ордера (5 % → 8 %).
   assert.deepEqual(
     [1_000, 999_999_999, 1_000_000_000, 9_999_999_999, 10_000_000_000, 99_999_999_999, 100_000_000_000].map(feeBps),
-    [900, 900, 1_000, 1_000, 1_100, 1_100, 1_200],
+    [500, 500, 600, 600, 700, 700, 800],
   )
 })
 
 test('V2 progressive settlement policy mirrors Rust draft tiers and uses separate versioned rails', () => {
-  const rustArray = (name: string): number[] => {
-    const declaration = rust.indexOf(`pub const ${name}:`)
-    assert(declaration >= 0, `в lib.rs нет массива ${name}`)
-    const open = rust.indexOf('[', rust.indexOf('=', declaration))
-    const close = rust.indexOf('];', open)
-    assert(open >= 0 && close > open, `массив ${name} повреждён`)
-    return [...rust.slice(open + 1, close).matchAll(/[0-9][0-9_]*/g)].map(m => Number(m[0].replaceAll('_', '')))
-  }
-  assert.deepEqual(rustArray('V2_SELLER_VOLUME_THRESHOLDS_MICRO'), SELLER_VOLUME_THRESHOLDS_MICRO.map(Number))
-  assert.deepEqual(rustArray('V2_SETTLEMENT_FEE_BPS'), SETTLEMENT_FEE_BPS.map(Number))
+  // Массивы читает общий парсер (tests/rustConstants.ts), а не локальная
+  // регулярка на каждый тест: иначе «зеркало» проверяется по своей же копии.
+  assert.deepEqual(
+    rustConstArray('V2_SELLER_VOLUME_THRESHOLDS_MICRO').map(Number),
+    SELLER_VOLUME_THRESHOLDS_MICRO.map(Number),
+  )
+  assert.deepEqual(rustConstArray('V2_SETTLEMENT_FEE_BPS').map(Number), SETTLEMENT_FEE_BPS.map(Number))
   assert.match(rust, /pub const V2_MIN_GROSS_QUOTE_ATOMS: u64 = 1_000_000;/)
   assert.match(rust, /pub const V2_FEE_POLICY_VERSION: u8 = 1;/)
   for (const instruction of [
@@ -197,6 +184,49 @@ test('LUNAR_TABLE побайтово совпадает с Rust-таблицей
     [LUNAR_TABLE[0], LUNAR_TABLE[7], LUNAR_TABLE[21], LUNAR_TABLE[27]],
     [10_000, 11_500, 8_500, 9_666],
   )
+})
+
+test('P2-6: лунная фаза считается от UTC-времени, а не от номера эпохи', () => {
+  // Rust-сигнатуры: второй аргумент — время, `epoch_id` в них больше нет.
+  assert.match(rust, /pub fn lunar_day_index\(now: i64\) -> i128 \{/)
+  assert.match(rust, /pub fn lunar_weighted_bps\(elapsed: i64, now: i64\) -> u128 \{/)
+  assert.match(rustBody('lunar_day_index'), /now\.div_euclid\(SECONDS_PER_DAY\)/)
+  assert.match(rustBody('lunar_weighted_bps'), /lunar_day_index\(now\)/)
+  // compute_pending_yield больше не принимает epoch_id — фаза выводится из now.
+  assert.match(rust, /pub fn compute_pending_yield\(\s*base_yield_micro_per_day: u64,[^)]*now: i64,\s*\) -> Result<u64>/)
+  // Лунный множитель внутри функции берётся от now, эпоха не передаётся.
+  const pendingBody = rustBody('compute_pending_yield').split('\n}\n')[0]
+  assert.match(pendingBody, /lunar_weighted_bps\(elapsed, now\)/)
+  assert.doesNotMatch(pendingBody, /epoch_id/)
+
+  // Golden-значения фазы: день 0 — база, день 7 — пик, день 21 — дно.
+  assert.equal(lunarDayIndex(0), 0)
+  assert.equal(lunarDayIndex(7 * 86_400 + 5), 7)
+  assert.equal(lunarDayIndex(21 * 86_400), 21)
+  assert.equal(lunarDayIndex(28 * 86_400), 0)
+  assert.equal(lunarDayIndex(-1), 27)
+  assert.equal(lunarWeightedBps(0, 7 * 86_400), 11_500)
+  assert.equal(lunarWeightedBps(0, 21 * 86_400), 8_500)
+  // Окно до суток = ровно значение текущего дня (как в Rust).
+  assert.equal(lunarWeightedBps(86_400, 12 * 3_600), LUNAR_TABLE[0])
+  // Двое суток в день 0 = средняя таблицы дня 0 и дня 27.
+  assert.equal(lunarWeightedBps(2 * 86_400, 0), Math.floor((LUNAR_TABLE[0] + LUNAR_TABLE[27]) / 2))
+  // 1.5 суток: 86 400 s по дню 0 + 43 200 s по дню 27.
+  assert.equal(
+    lunarWeightedBps(129_600, 0),
+    Math.floor((LUNAR_TABLE[0] * 86_400 + LUNAR_TABLE[27] * 43_200) / 129_600),
+  )
+  // Фаза повторяется с периодом 28 суток, сколько бы эпох ни прошло.
+  for (const now of [0, 1_700_000_000, 3 * 86_400]) {
+    assert.equal(lunarWeightedBps(86_400, now), lunarWeightedBps(86_400, now + 28 * 86_400))
+  }
+  // Множитель всегда внутри табличных экстремумов: подгадать пик нельзя.
+  for (let day = 0; day < 28; day += 1) {
+    for (const elapsed of [0, 1, 3_600, 86_400, 2 * 86_400, MAX_ACCRUAL_SECONDS]) {
+      const bps = lunarWeightedBps(elapsed, day * 86_400 + 1_234)
+      assert.ok(bps >= 8_500 && bps <= 11_500, `day ${day} elapsed ${elapsed}: ${bps}`)
+    }
+  }
 })
 
 test('порог кнопки сбора и цена лицензии — golden-литералы в понятных единицах', () => {

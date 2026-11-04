@@ -124,11 +124,25 @@ export interface DecodedField {
   fieldType: number;
   bump: number;
   mutationType: number;
+  /**
+   * P1-3 (layout v3): id, из которого выведен PDA `[b"field", id]`.
+   * `null` — аккаунт ещё в layout v2 (70 байт) и не мигрирован; такой Field
+   * программа уже не принимает (`seeds` проверяют канонический адрес), но
+   * читать его для аудита/миграции нужно.
+   */
+  fieldId: bigint | null;
 }
 
-/** Decode the deployed Anchor Field account layout (fixed 70-byte account). */
+/**
+ * Decode the Anchor Field account layout: v3 (78 bytes) or legacy v2 (70).
+ *
+ * 70-байтная форма принимается намеренно: во время пере redeploy старые поля
+ * ещё существуют, и бэкенд обязан показывать их состояние (и планировать
+ * миграцию), а не падать на первом же аккаунте. `fieldId === null` помечает
+ * такую запись явно — вызывающий код не может «не заметить» наследие.
+ */
 export function decodeField(data: Buffer): DecodedField {
-  validateAccount(data, "Field", [70]);
+  validateAccount(data, "Field", [70, 78]);
   let o = 8;
   const owner = readPubkey(data, o); o = owner.next;
   const level = readU8(data, o); o = level.next;
@@ -139,12 +153,14 @@ export function decodeField(data: Buffer): DecodedField {
   const isActive = readBool(data, o); o = isActive.next;
   const fieldType = readU8(data, o); o = fieldType.next;
   const bump = readU8(data, o); o = bump.next;
-  const mutationType = readU8(data, o);
+  const mutationType = readU8(data, o); o = mutationType.next;
+  const fieldId = data.length === 70 ? { value: null } : readU64(data, o);
   return {
     owner: owner.value, level: level.value, durability: durability.value,
     lastHarvest: lastHarvest.value, taxPaidUntil: taxPaidUntil.value,
     fertilizerUntil: fertilizerUntil.value, isActive: isActive.value,
     fieldType: fieldType.value, bump: bump.value, mutationType: mutationType.value,
+    fieldId: fieldId.value,
   };
 }
 
@@ -154,7 +170,7 @@ export interface EpochAccount {
   mintedMicro: bigint;
   startTime: bigint;
   bump: number;
-  /** v2 (renamed): micro-POTATO minted via grant_reward this epoch (10% quota). Not a burn. */
+  /** v2 (renamed): micro-POTATO minted via grant_reward_once this epoch (25% quota). Not a burn. */
   grantedMicro: bigint;
 }
 

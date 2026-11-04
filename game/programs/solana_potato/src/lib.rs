@@ -6,11 +6,14 @@
 //! $POTATO for SOL on a built-in escrow marketplace.
 //!
 //! ## Economic guard rails
-//! * Emission through `harvest` / `batch_harvest` / `grant_reward` is bounded by
-//!   a per-epoch mint cap (`Epoch.mint_cap_micro`, dynamically clamped to
-//!   [daily_mint_cap_micro, 3×daily_mint_cap_micro] on every roll) and by
-//!   `GameConfig.max_supply_micro`. Manual `grant_reward` mints are additionally
-//!   capped at `GRANT_QUOTA_SHARE_BPS` (10 %) of the epoch cap.
+//! * Emission through `harvest` / `batch_harvest` / `grant_reward_once` is
+//!   bounded by a per-epoch mint cap (`Epoch.mint_cap_micro`, dynamically
+//!   clamped to [daily_mint_cap_micro, 3×daily_mint_cap_micro] on every roll)
+//!   and by `GameConfig.max_supply_micro`. Off-chain reward mints are
+//!   additionally capped at `GRANT_QUOTA_SHARE_BPS` (25 %) of the epoch cap.
+//! * The legacy `grant_reward` rail (signature-only, replayable) was **removed**
+//!   in the 2026-11-03 upgrade (P1-1); `grant_reward_once` is the only reward
+//!   mint, and it is replay-proof by construction.
 //! * Epochs are 24h long and are rolled permissionlessly via `roll_epoch`.
 //! * Every in-game spend is a burn; 60 % of marketplace fees are burned and the
 //!   remaining 40 % go to the treasury ATA owned by the config PDA.
@@ -66,9 +69,16 @@ pub const EPOCH_DURATION: i64 = SECONDS_PER_DAY;
 pub const MAX_DAILY_CAP_MICRO: u64 = 250_000_000_000;
 /// Hard ceiling for a single off-chain reward: 1 000 $POTATO.
 pub const MAX_REWARD_MICRO: u64 = 1_000_000_000;
-/// Manual `grant_reward` mints may consume at most this share (bps) of an
-/// epoch cap: 10 %. Gameplay harvests keep the rest.
-pub const GRANT_QUOTA_SHARE_BPS: u64 = 1_000;
+/// Off-chain reward mints (`grant_reward_once`) may consume at most this share
+/// (bps) of an epoch cap: 25 %. Gameplay harvests keep the rest.
+///
+/// 10 % was the binding constraint on the whole store: the grant rail is the
+/// only way an off-chain purchase turns into POTATO, so a 10 % quota capped
+/// revenue at 25 000 POTATO/day regardless of demand. 25 % keeps a hard,
+/// auditable ceiling (a compromised reward key can still burn at most a
+/// quarter of one day's emission) while leaving room for packs and the
+/// starter grant.
+pub const GRANT_QUOTA_SHARE_BPS: u64 = 2_500;
 /// G-1b (Drift, апрель 2026): заранее подписанная durable-nonce транзакция не
 /// истекает сама. Заявка на награду обязана нести собственный дедлайн, и он не
 /// может быть отодвинут дальше этого окна — подпись, пролежавшая у атакующего
@@ -76,10 +86,23 @@ pub const GRANT_QUOTA_SHARE_BPS: u64 = 1_000;
 pub const MAX_REWARD_EXPIRY_SECONDS: i64 = 900; // 15 минут
 /// Default total supply ceiling: 1 000 000 000 $POTATO.
 pub const DEFAULT_MAX_SUPPLY_MICRO: u64 = 1_000_000_000_000_000;
-/// Default base yield of a level-1, 1.0× field: 6 $POTATO / day.
-pub const DEFAULT_BASE_YIELD_MICRO_PER_DAY: u64 = 6_000_000;
+/// Default base yield of a level-1, 1.0× field: 10 $POTATO / day.
+///
+/// At 6 a meadow returned ~4.4 POTATO/day after tax and upkeep, i.e. a 56-day
+/// payback for the 250 POTATO field and a 300-day payback for mid-level
+/// upgrades: nobody plays a game whose first purchase returns in two months.
+/// 10 puts the field at ~22 days and keeps emission at ~2 % of the daily cap
+/// even with 500 fields online.
+pub const DEFAULT_BASE_YIELD_MICRO_PER_DAY: u64 = 10_000_000;
 /// `global_multiplier_bps` can never exceed 2.0×.
 pub const MAX_GLOBAL_MULTIPLIER_BPS: u16 = 20_000;
+/// И нижнюю границу тоже нельзя: `0` в `update_config(global_multiplier_bps)`
+/// обнуляет урожай ВСЕХ полей сразу — игрок видит «собирать нечего» на полном
+/// поле, а откатить это можно только вторым вызовом админа. Опечатка в одном
+/// аргументе (`0` вместо `10_000`) не должна останавливать игру, поэтому
+/// допустимый диапазон — 0.5×…2.0×: даже при самой жёсткой настройке поле
+/// остаётся доходным, а «выключить игру» можно только `set_paused`.
+pub const MIN_GLOBAL_MULTIPLIER_BPS: u16 = 5_000;
 /// Ceiling for `update_config(base_yield_micro_per_day)`: 100 🥔/day per
 /// reference field. A typo here would silently break the whole economy.
 pub const MAX_BASE_YIELD_MICRO_PER_DAY: u64 = 100_000_000;
@@ -98,6 +121,11 @@ pub const MAX_WITHDRAW_POTATO_MICRO_PER_WINDOW: u64 = 250_000_000_000;
 pub const MAX_WITHDRAW_SOL_LAMPORTS_PER_WINDOW: u64 = 25_000_000_000;
 /// 100 000 SKR per window.
 pub const MAX_WITHDRAW_SKR_ATOMS_PER_WINDOW: u64 = 100_000_000_000;
+/// P1-4: доля текущего баланса казны, которую разрешено забрать одной
+/// выплатой. Окно ограничивает эмиссию (250 000 🥔 — ровно дневной кап), а не
+/// размер казны: без доли один ключ `authority` выносит всю казну одним
+/// предложением. 10 % за вызов, окно остаётся сверху.
+pub const MAX_WITHDRAW_BALANCE_SHARE_BPS: u16 = 1_000;
 
 /// F-02: исполнение предложенного вывода (`propose_withdrawal` → `withdraw_*`)
 /// разрешено не раньше чем через эту задержку. Окно — минуты, а не часы: главный
@@ -115,6 +143,15 @@ pub const KEEP_EPOCHS: u64 = 2;
 pub const FIELD_TYPE_COUNT: u8 = 3;
 pub const MAX_FIELD_LEVEL: u8 = 50;
 /// Minimum time between two harvests of the same field.
+///
+/// 60 секунд — жёсткий антиспам-пол. Экономический цикл сбора задаётся не им, а
+/// [`DURABILITY_DECAY_INTERVAL`]: износ считается целыми пунктами за каждые
+/// 6 часов оплаченного времени, поэтому сбор чаще раза в 6 часов списывает
+/// минимум 1 пункт (см. `harvest_decay`) — это осознанная плата за частоту, а
+/// не бесплатное действие. Клиент показывает кнопку сбора по циклу износа
+/// (`HARVEST_CYCLE_SECONDS` в web), чтобы игрок не попадал в этот штраф
+/// случайно; менять гейт на 6 часов на цепи нельзя, пока у интеграционных
+/// тестов нет способа перевести часы локального валидатора вперёд.
 pub const MIN_HARVEST_INTERVAL: i64 = 60;
 /// Yield stops accruing after this much time without a harvest.
 /// 7 days: long enough to survive a weekend offline, short enough that a
@@ -132,6 +169,11 @@ pub const LUNAR_TABLE: [u16; 28] = [
 
 /// A field loses 1 durability point per this much accrued time (≈4 / day),
 /// with a minimum of 1 point per harvest so harvest-spam is never free.
+///
+/// Квант износа — экономический цикл поля: сбор реже раза в 6 часов стоит
+/// столько же пунктов, сколько накопилось времени, а сбор чаще — минимум 1
+/// пункт (см. `harvest_decay`). Клиент показывает кнопку по этому же циклу
+/// (`HARVEST_CYCLE_SECONDS` в web), чтобы штраф не получался случайно.
 pub const DURABILITY_DECAY_INTERVAL: i64 = 6 * 3600;
 pub const MAX_DURABILITY: u8 = 100;
 /// Yield multiplier at 0 durability is 0.2×, at 100 durability 1.0×.
@@ -178,23 +220,79 @@ pub const EXPORT_LICENSE_PRICE_SKR_ATOMS: u64 = 500_000_000; // 500 SKR / 30 д�
 /// Клиент обязан держать поля в LUT, иначе лимит 30 недостижим физически.
 pub const BATCH_LIMIT_BASE: usize = 10;
 pub const BATCH_LIMIT_LICENSED: usize = 30;
-/// One-time referral registration cost, confirmed by the game owner: 5 POTATO.
-pub const REFERRAL_REGISTRATION_COST_MICRO: u64 = 5_000_000;
+/// One-time referral registration cost. FREE on purpose: a newcomer has no
+/// POTATO before his first field, so any entry fee here blocks the only growth
+/// loop the game has.
+pub const REFERRAL_REGISTRATION_COST_MICRO: u64 = 0;
+/// Fee actually charged by `register_referrer`: `None` while registration is
+/// free. Kept as an `Option` instead of `if FEE > 0`: a constant comparison is
+/// flagged by clippy (`absurd_extreme_comparisons`), and a silently-dead branch
+/// is exactly the kind of thing that rots. Re-enabling the fee = `Some(x)` here.
+pub const REFERRAL_REGISTRATION_FEE_MICRO: Option<u64> = None;
+/// P2-2-следствие: реферальные награды (0.5 % рефереру, −1 % покупателю)
+/// выплачиваются **только** легаси `fill_order`, а легаси-рынок закрыт на
+/// запись (`LEGACY_MARKET_WRITES_ENABLED = false`). Новая регистрация продавала
+/// бы обещание, которое не может исполниться, поэтому она закрыта: уже
+/// зарегистрированные пары продолжают получать выплаты, пока доигранная книга
+/// V1 не опустеет, а новых записей не появляется. Возврат программы — `true`
+/// здесь плюс отдельное решение по V2-экономике: 0.5 % из fee меняет доход
+/// казны, а `docs/ECONOMY.md` §5 фиксирует, что реферальные rebate'ы в V2 не
+/// утверждены.
+pub const REFERRAL_PROGRAM_ENABLED: bool = false;
 pub const BASE_TAX_MICRO: u64 = 6_000_000; // 6 $POTATO / week
 pub const BASE_REPAIR_MICRO: u64 = 15_000_000; // 15 $POTATO
-pub const BASE_FERTILIZER_MICRO: u64 = 10_000_000; // 10 $POTATO / 24h
+/// 2 POTATO per 24 h. At the old 10 the perk was strictly unprofitable: +50 %
+/// of a level-1 meadow is 3 POTATO, i.e. the fertilizer cost three times what
+/// it added, so nobody ever bought it. At 2 it pays for itself on a meadow
+/// (~1.5 POTATO of extra yield per 24 h) and stays a sink, not a trap.
+pub const BASE_FERTILIZER_MICRO: u64 = 2_000_000; // 2 $POTATO / 24h
 /// Upgrade from level L to L+1 costs `BASE_UPGRADE_MICRO × L × type_cost`.
-pub const BASE_UPGRADE_MICRO: u64 = 100_000_000; // 100 $POTATO × level
+///
+/// 30, not 100: the level multiplier is flat past L5 (+0.40× per level) while
+/// the price grew linearly, so the payback of an upgrade reached ~300 days and
+/// the whole upgrade mechanic was dead content. At 30 the first levels pay back
+/// in days and only the deep levels stay a deliberate long-term investment.
+pub const BASE_UPGRADE_MICRO: u64 = 30_000_000; // 30 $POTATO × level
 
 // ───────────────────────── Marketplace ───────────────────────────
 
-pub const ORDER_TTL: i64 = 24 * 3600;
+/// 7 days, not 24 h: a 24 h listing forced a daily on-chain action from every
+/// seller, and a missed expiry silently removed the order from the book. A
+/// weekly TTL keeps the maker side usable without removing the expiry guard.
+/// P0-4: вероятности SKR-дропа в процентах — 20 / 68 / 12 для Грядки, Луга и
+/// Поля.
+///
+/// Раньше было 70 / 25 / 5, и это была не «редкость», а убыточная лотерея:
+/// за 1053 SKR (цена Луга, 250 POTATO) покупатель в среднем получал
+/// 0.70×100 + 0.25×250 + 0.05×500 = 157.5 POTATO, то есть 63 % цены. Один и
+/// тот же товар стоил в SKR-ветке в 1.6 раза дороже, чем в SOL-ветке
+/// (`buy_field_sol` масштабирует цену по типу детерминированно).
+///
+/// Новые веса держат ожидание ровно на цене Луга:
+/// 0.20×100 + 0.68×250 + 0.12×500 = 250 POTATO. Инвариант закреплён
+/// host-тестом `skr_presale_odds_are_value_neutral`, чтобы веса нельзя было
+/// подвинуть «на глаз».
+///
+/// Разброс при этом остаётся: это платный ролл. Возвращать SKR-ветку в UI
+/// можно только с раскрытыми шансами (или с детерминированным выбором типа,
+/// что потребует нового аргумента инструкции и обновления ABI).
+pub const PRESALE_SKR_ODDS_PCT: [u8; FIELD_TYPE_COUNT as usize] = [20, 68, 12];
+pub const ORDER_TTL: i64 = 7 * 24 * 3600;
 /// After cancelling an order a seller must wait this long before listing again.
 pub const CANCEL_COOLDOWN: i64 = 3 * 3600;
 /// Minimum order size: 10 $POTATO.
 pub const MIN_ORDER_AMOUNT_MICRO: u64 = 10_000_000; // 10 POTATO
 /// Minimum SOL an order must be worth so that rounding can never make it free.
 pub const MIN_ORDER_TOTAL_LAMPORTS: u64 = 1_000_000; // 0.001 SOL
+/// P2-2: легаси-рынок закрыт на запись. Новые листинги `create_sell_order`
+/// отклоняются `LegacyMarketClosed`, а уже созданные ордера доигрываются
+/// `fill_order` / `cancel_order` / `close_expired_order` — escrow не застревает,
+/// книга опустошается за `ORDER_TTL`. Причина закрытия: база комиссии легаси
+/// — размер **ордера**, а не суточный объём продавца (`calculate_fee_bps`),
+/// поэтому сплит на ордера <1 000 POTATO платит 5 % там, где V2 взял бы
+/// 5–8 % (docs/ECONOMY.md §5). Открывать обратно — только осознанным релизом:
+/// инвариант держат хост-тест и offchain-страж, а не комментарий.
+pub const LEGACY_MARKET_WRITES_ENABLED: bool = false;
 /// Share of the legacy marketplace fee that is burned; the rest goes to the treasury.
 /// V2 settlement fees are paid wholly to the treasury in the quote asset.
 pub const FEE_BURN_PERCENT: u64 = 60;
@@ -205,7 +303,10 @@ pub const V2_MIN_GROSS_QUOTE_ATOMS: u64 = 1_000_000;
 /// defaults and MUST receive owner approval before a V2 release.
 pub const V2_SELLER_VOLUME_THRESHOLDS_MICRO: [u64; 3] =
     [1_000_000_000, 10_000_000_000, 100_000_000_000];
-pub const V2_SETTLEMENT_FEE_BPS: [u16; 4] = [900, 1_000, 1_100, 1_200];
+/// 5 / 6 / 7 / 8 %, down from 9-12 %. At 9 % the taker paid more than any
+/// realistic spread, so a market could not exist: every fill was a loss for
+/// whoever crossed it. The marginal tiers still reward small sellers.
+pub const V2_SETTLEMENT_FEE_BPS: [u16; 4] = [500, 600, 700, 800];
 pub const V2_FEE_POLICY_VERSION: u8 = 1;
 /// Адрес SPL Token. Нужен, чтобы проверить владельца «сырого» аккаунта минта,
 /// переданного в `remaining_accounts` (типизированный `Account<Mint>` там
@@ -376,6 +477,11 @@ pub mod solana_potato {
     // Переименование в `_field_id` изменило бы имя аргумента в IDL (ABI).
     #[allow(unused_variables)]
     pub fn create_field(ctx: Context<CreateField>, field_id: u64, field_type: u8) -> Result<()> {
+        // P2-5: только верхний уровень. Через CPI сторонний контракт создавал бы
+        // игроку поле (и сжигал его POTATO) внутри своей инструкции, а игрок
+        // видел бы только итоговую подпись — ровно тот класс «навязанных»
+        // действий, который мы запретили для платного рэндома.
+        assert_no_cpi_grind()?;
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(field_type < FIELD_TYPE_COUNT, GameError::InvalidFieldType);
 
@@ -408,6 +514,7 @@ pub mod solana_potato {
         field.is_active = true;
         field.field_type = field_type;
         field.bump = ctx.bumps.field;
+        field.field_id = field_id;
 
         emit!(FieldCreated {
             owner: field.owner,
@@ -445,18 +552,37 @@ pub mod solana_potato {
         require!(achievements.bitmap & bit == 0, GameError::AlreadyClaimed);
         let user = ctx.accounts.user.key();
         let pid = ctx.program_id;
-        let ata_amount = ctx.accounts.user_potato_ata.amount;
+        // Доказательство — ВЛАДЕНИЕ полями, а не баланс кошелька.
+        //
+        // Раньше квесты 1/2/4 проверяли `user_potato_ata.amount` (100 / 1000 /
+        // 10000 POTATO). Это доказывало не прогресс, а покупку: любой, кто
+        // приобрёл токен на рынке или получил перевод, забирал награду из
+        // квест-кассы, ни разу не сыграв. Баланс — это ещё и не «достижение»:
+        // его можно передать другому кошельку и получить награду дважды.
+        // Владение полем подделать нельзя: Field — PDA программы с owner=user,
+        // а создание поля сжигает POTATO, то есть награда выдаётся за то, что
+        // игрок уже вложил в игру. Порогов больше MAX_CLAIM_PROOFS нет и быть
+        // не может — их нечем доказать (см. пин в scripts/security-guards).
         match quest_id {
             0 => verify_fields(ctx.remaining_accounts, &user, pid, 1, 0)?,
-            1 => require!(ata_amount >= 100_000_000, GameError::BadProof),
-            2 => require!(ata_amount >= 1_000_000_000, GameError::BadProof),
+            1 => verify_fields(ctx.remaining_accounts, &user, pid, 2, 0)?,
+            2 => verify_fields(ctx.remaining_accounts, &user, pid, 3, 0)?,
             3 => verify_fields(ctx.remaining_accounts, &user, pid, 5, 0)?,
-            4 => require!(ata_amount >= 10_000_000_000, GameError::BadProof),
+            // 8, а не 4: это квест с самой большой наградой (200 POTATO), и он
+            // не должен оказаться дешевле предыдущего (5 полей).
+            4 => verify_fields(ctx.remaining_accounts, &user, pid, 8, 0)?,
             5 => verify_fields(ctx.remaining_accounts, &user, pid, 6, 3)?,
             _ => return err!(GameError::InvalidFieldType),
         }
         achievements.bitmap |= bit;
         let reward = QUEST_REWARD_MICRO[quest_id as usize];
+        // P2-8: без этой проверки пустой пул давал SPL-ошибку «insufficient
+        // funds» из недр token::transfer: игрок и поддержка видели непонятный
+        // отказ без причины. Теперь причина названа до CPI, а весь откат
+        // (включая бит достижения) делает рантайм. Имя короткое намеренно:
+        // rustfmt держит однострочную форму require! только в этих границах.
+        let quest_balance = ctx.accounts.quest_ata.amount;
+        require!(quest_balance >= reward, GameError::QuestPoolEmpty);
         let (_, t_bump) = Pubkey::find_program_address(&[b"quest_treasury"], ctx.program_id);
         token::transfer(
             CpiContext::new_with_signer(
@@ -593,21 +719,28 @@ pub mod solana_potato {
             roll_hash.0[2],
             roll_hash.0[3],
         ]) % 100;
-        let field_type: u8 = if roll < 70 {
+        let common_cutoff = u32::from(PRESALE_SKR_ODDS_PCT[0]);
+        let rare_cutoff = common_cutoff + u32::from(PRESALE_SKR_ODDS_PCT[1]);
+        let field_type: u8 = if roll < common_cutoff {
             0
-        } else if roll < 95 {
+        } else if roll < rare_cutoff {
             1
         } else {
             2
         };
 
         let total = PRESALE_PRICE_SKR_ATOMS; // 1053 SKR за модуль
-        let treasury_amount = total.checked_mul(80).ok_or(GameError::MathOverflow)? / 100;
-        let buyback_amount = total
-            .checked_sub(treasury_amount)
-            .ok_or(GameError::MathOverflow)?;
 
-        // 80 % SKR -> ATA казны
+        // 100 % SKR -> ATA казны.
+        //
+        // Раньше 20 % уходили на отдельный ATA, которым владел кошелёк
+        // `authority`. Это не «резерв протокола»: деньги лежали на одном ключе,
+        // программа ими не управляла, лимиты вывода казны и аудит переходов на
+        // них не распространялись, а при смене authority ATA оставался за
+        // старым ключом. Никакого on-chain buyback не существует вовсе —
+        // значит доля, которую нельзя потратить по правилам, это не доля
+        // протокола, а личный баланс оператора. Разделение убрано: всё
+        // поступление идёт в казну, где его видно и где оно ограничено.
         token::transfer(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -617,20 +750,7 @@ pub mod solana_potato {
                     authority: ctx.accounts.buyer.to_account_info(),
                 },
             ),
-            treasury_amount,
-        )?;
-
-        // 20 % SKR -> ATA buyback
-        token::transfer(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                Transfer {
-                    from: ctx.accounts.buyer_skr_ata.to_account_info(),
-                    to: ctx.accounts.buyback_skr_ata.to_account_info(),
-                    authority: ctx.accounts.buyer.to_account_info(),
-                },
-            ),
-            buyback_amount,
+            total,
         )?;
 
         // Создаём поле (логика идентична create_field)
@@ -647,6 +767,7 @@ pub mod solana_potato {
         field.is_active = true;
         field.field_type = field_type;
         field.bump = ctx.bumps.field;
+        field.field_id = field_id;
 
         // Обновляем счётчики
         presale.sold = presale.sold.checked_add(1).ok_or(GameError::MathOverflow)?;
@@ -686,8 +807,7 @@ pub mod solana_potato {
     /// type 2 pays 2× of `presale.price_lamports`. `max_total_lamports` is the
     /// buyer's slippage guard: the transaction reverts with InvalidPrice if the
     /// authority raised the price after the buyer signed.
-    // `field_id` связывает PDA поля через seeds, в теле не читается.
-    #[allow(unused_variables)]
+    // `field_id` связывает PDA поля через seeds и записывается в layout v3.
     pub fn buy_field_sol(
         ctx: Context<BuyFieldSol>,
         field_id: u64,
@@ -747,6 +867,7 @@ pub mod solana_potato {
         field.is_active = true;
         field.field_type = field_type;
         field.bump = ctx.bumps.field;
+        field.field_id = field_id;
 
         // Обновляем счётчики
         presale.sold = presale.sold.checked_add(1).ok_or(GameError::MathOverflow)?;
@@ -803,7 +924,6 @@ pub mod solana_potato {
             field,
             elapsed,
             now,
-            config.epoch_id,
         )?;
         require!(pending > 0, GameError::NothingToHarvest);
 
@@ -825,6 +945,9 @@ pub mod solana_potato {
         let supply_left = max_supply.saturating_sub(total_supply);
         let gross_mint = pending.min(epoch_cap_left).min(supply_left);
         require!(gross_mint > 0, GameError::EpochCapExceeded);
+        // P3-19: кап или max_supply урезали выплату — сообщаем это событием,
+        // чтобы UI мог предупредить игрока вместо тихого недоплата.
+        let truncated = gross_mint < pending;
 
         // Применяем налог: игрок получает (1 - tax), treasury получает tax/2, остальное burn
         let (player_yield, treasury_share) = split_harvest(gross_mint, base_tax_bps)?;
@@ -856,9 +979,7 @@ pub mod solana_potato {
         } else {
             DURABILITY_DECAY_INTERVAL
         };
-        let decay = (consumed / decay_interval)
-            .max(1)
-            .min(MAX_DURABILITY as i64) as u8;
+        let decay = harvest_decay(consumed, decay_interval, truncated);
         field.durability = field.durability.saturating_sub(decay);
 
         // ── Interaction ──
@@ -900,6 +1021,8 @@ pub mod solana_potato {
             owner: ctx.accounts.field.owner,
             field: ctx.accounts.field.key(),
             amount_micro: player_yield,
+            pending_micro: pending,
+            truncated,
         });
 
         if treasury_share > 0 {
@@ -920,12 +1043,12 @@ pub mod solana_potato {
             ctx.accounts.field.durability < MAX_DURABILITY,
             GameError::NothingToRepair
         );
-        let base_cost = scaled_cost(BASE_REPAIR_MICRO, ctx.accounts.field.field_type);
-        // Прогрессивный множитель ремонта: L1-2 → 1×, L30 → 10×, L50 → 16×
-        let level_mult = ((ctx.accounts.field.level as u64) / 3).max(1);
-        let cost = base_cost
-            .checked_mul(level_mult)
-            .ok_or(GameError::MathOverflow)?;
+        let cost = repair_cost_micro(
+            BASE_REPAIR_MICRO,
+            ctx.accounts.field.field_type,
+            ctx.accounts.field.durability,
+            ctx.accounts.field.level,
+        )?;
         burn_from_user(
             &ctx.accounts.token_program,
             &ctx.accounts.potato_mint,
@@ -1009,7 +1132,7 @@ pub mod solana_potato {
             GameError::PrepayLimitReached
         );
         let base_cost = scaled_cost(BASE_TAX_MICRO, field.field_type);
-        // Прогрессивный множитель: L1 → 1×, L10 → 5.5×, L50 → 25.5×
+        // Прогрессивный множитель: L1 → 1×, L10 → 5.5×, L50 → 25×
         let level_mult = (field.level as u64).saturating_add(1) / 2;
         let cost = base_cost
             .checked_mul(level_mult)
@@ -1043,7 +1166,12 @@ pub mod solana_potato {
             new_until <= now.saturating_add(MAX_FERTILIZER_PREPAY),
             GameError::PrepayLimitReached
         );
-        let cost = scaled_cost(BASE_FERTILIZER_MICRO, field.field_type);
+        let cost = fertilizer_cost_micro(
+            BASE_FERTILIZER_MICRO,
+            field.field_type,
+            field.level,
+            field.durability,
+        )?;
         burn_from_user(
             &ctx.accounts.token_program,
             &ctx.accounts.potato_mint,
@@ -1116,6 +1244,13 @@ pub mod solana_potato {
 
     /// Lists `amount_micro` $POTATO for sale at `price_lamports_per_potato`
     /// (lamports per whole $POTATO). Amount + fee move into an escrow PDA.
+    //
+    // P2-2: новых листингов нет — инструкция сохранена в ABI, но всегда
+    // отвечает `LegacyMarketClosed` (`LEGACY_MARKET_WRITES_ENABLED = false`).
+    // Так книга V1 закрывается без апгрейда layout'ов аккаунтов, а старые
+    // ордера продолжают обслуживать `fill_order` / `cancel_order` /
+    // `close_expired_order`. Обычные `//`, а не `///`: doc-комментарий попал бы
+    // в `docs[]` IDL и разошёлся бы с закоммиченным артефактом.
     // `order_id` связывает PDA ордера через `seeds = [b"order", order_id...]`
     // и в теле не читается; переименование изменило бы имя аргумента в IDL.
     #[allow(unused_variables)]
@@ -1125,6 +1260,9 @@ pub mod solana_potato {
         amount_micro: u64,
         price_lamports_per_potato: u64,
     ) -> Result<()> {
+        // P2-5: см. create_field — CPI позволил бы выставить ордер с ценой,
+        // которую игрок не читал, и занять его CancelCooldown.
+        assert_no_cpi_grind()?;
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(
             amount_micro >= MIN_ORDER_AMOUNT_MICRO,
@@ -1135,6 +1273,15 @@ pub mod solana_potato {
         require!(
             total_lamports >= MIN_ORDER_TOTAL_LAMPORTS,
             GameError::OrderTotalTooSmall
+        );
+        // P2-2: рынок закрыт на запись (см. `LEGACY_MARKET_WRITES_ENABLED`).
+        // Гейт стоит после валидации аргументов — отказ по некорректному ордеру
+        // остаётся диагностируемым — и до любых списаний: seller_profile,
+        // market_stats, escrow и токены продавца не трогаются. Уже созданные
+        // ордера доигрываются fill_order / cancel_order / close_expired_order.
+        require!(
+            legacy_market_writes_enabled(),
+            GameError::LegacyMarketClosed
         );
 
         let now = Clock::get()?.unix_timestamp;
@@ -1189,7 +1336,7 @@ pub mod solana_potato {
     }
 
     /// V2 listing: escrow only the POTATO principal. No fee is charged unless
-    /// the order fills; the eventual 9–12% commission is deducted from seller
+    /// the order fills; the closing 5–8% commission is deducted from seller
     /// proceeds and paid in the selected quote asset (SOL or SKR).
     pub fn create_sell_order_v2(
         ctx: Context<CreateSellOrderV2>,
@@ -1198,6 +1345,8 @@ pub mod solana_potato {
         price_quote_atoms_per_potato: u64,
         quote_asset: QuoteAsset,
     ) -> Result<()> {
+        // P2-5: V2-листинг так же недоступен через CPI.
+        assert_no_cpi_grind()?;
         require!(!ctx.accounts.config.paused, GameError::Paused);
         require!(
             amount_micro >= MIN_ORDER_AMOUNT_MICRO,
@@ -1566,20 +1715,45 @@ pub mod solana_potato {
         }
 
         // ── Итоговая комиссия: скидки уменьшают её, разница — refund продавцу ──
-        let total_discounts = license_discount
-            .saturating_add(referral_discount)
-            .min(fee_listed);
-        let fee_net = fee_listed.saturating_sub(total_discounts);
-        let fee_to_treasury =
-            ((fee_net as u128) * (100u128 - FEE_BURN_PERCENT as u128) / 100) as u64;
-        let fee_to_burn_base = fee_net.saturating_sub(fee_to_treasury);
-        let referrer_reward = if referrer_key != Pubkey::default() {
-            // 0.5 % от суммы, не больше burn-доли
-            ((amount_micro as u128 * 50 / 10_000) as u64).min(fee_to_burn_base)
+        let split = legacy_fee_split(
+            amount_micro,
+            fee_listed,
+            license_discount,
+            referral_discount,
+            referrer_key != Pubkey::default(),
+        );
+        let total_discounts = split.total_discounts;
+        let fee_to_treasury = split.fee_to_treasury;
+        let referrer_reward = split.referrer_reward;
+
+        // ATA реферера проверяется ДО эффектов. Это только чтение, но значение
+        // важно для CEI: `total_burned_micro` обязан совпасть с реально
+        // сожжённым supply, а невостребованная награда сгорает (см.
+        // `LegacyFeeSplit::fee_to_burn`). Раньше счётчик увеличивался до
+        // проверки ATA и занижался на величину награды.
+        // ATA валидируется полностью: owner == Token Program и полный
+        // borsh-deserialize spl TokenAccount (ручная нарезка байт принимала
+        // поддельные аккаунты с произвольным owner/mint в первых 64 байтах).
+        let reward_ata = if referrer_reward > 0 {
+            ctx.remaining_accounts.get(2).filter(|ata_acc| {
+                if *ata_acc.owner != ctx.accounts.token_program.key() || ata_acc.data_is_empty() {
+                    return false;
+                }
+                let data = match ata_acc.try_borrow_data() {
+                    Ok(data) => data,
+                    Err(_) => return false,
+                };
+                let mut slice: &[u8] = &data;
+                TokenAccount::try_deserialize(&mut slice)
+                    .map(|ata| {
+                        ata.mint == ctx.accounts.potato_mint.key() && ata.owner == referrer_key
+                    })
+                    .unwrap_or(false)
+            })
         } else {
-            0
+            None
         };
-        let mut fee_to_burn = fee_to_burn_base.saturating_sub(referrer_reward);
+        let fee_to_burn = split.fee_to_burn(reward_ata.is_some());
 
         // ── Effects (CEI) ──
         ctx.accounts.order.status = OrderStatus::Filled;
@@ -1592,8 +1766,8 @@ pub mod solana_potato {
         stats.roll_window(now);
         stats.total_trades = stats.total_trades.saturating_add(1);
         stats.total_sol_volume = stats.total_sol_volume.saturating_add(total_lamports);
-        stats.sell_volume_24h_micro = stats.sell_volume_24h_micro.saturating_add(amount_micro);
-        stats.buy_volume_24h_micro = stats.buy_volume_24h_micro.saturating_add(amount_micro);
+        // P5: one fill, one side. The taker of a sell order is the buyer.
+        stats.record_taker_fill(true, amount_micro);
 
         // ── Interactions ──
         anchor_lang::solana_program::program::invoke(
@@ -1615,47 +1789,21 @@ pub mod solana_potato {
         let escrow = ctx.accounts.escrow.to_account_info();
 
         // Награда рефереру — переводом из escrow (часть комиссии), НЕ минтом.
-        // ATA реферера валидируется полностью: owner == Token Program и полный
-        // borsh-deserialize spl TokenAccount (ручная нарезка байт принимала
-        // поддельные аккаунты с произвольным owner/mint в первых 64 байтах).
-        let mut reward_claimed = false;
-        if referrer_reward > 0 {
-            if let Some(ata_acc) = ctx.remaining_accounts.get(2) {
-                let valid = if *ata_acc.owner == ctx.accounts.token_program.key()
-                    && !ata_acc.data_is_empty()
-                {
-                    let data = ata_acc.try_borrow_data()?;
-                    let mut slice: &[u8] = &data;
-                    TokenAccount::try_deserialize(&mut slice)
-                        .map(|ata| {
-                            ata.mint == ctx.accounts.potato_mint.key() && ata.owner == referrer_key
-                        })
-                        .unwrap_or(false)
-                } else {
-                    false
-                };
-                {
-                    if valid {
-                        token::transfer(
-                            CpiContext::new_with_signer(
-                                token_program.clone(),
-                                Transfer {
-                                    from: escrow.clone(),
-                                    to: ata_acc.to_account_info(),
-                                    authority: escrow.clone(),
-                                },
-                                signer,
-                            ),
-                            referrer_reward,
-                        )?;
-                        reward_claimed = true;
-                    }
-                }
-            }
-            if !reward_claimed {
-                // ATA не передан/неверный — доля сгорает, баланс escrow сходится.
-                fee_to_burn = fee_to_burn.saturating_add(referrer_reward);
-            }
+        // ATA уже провалидирована до CEI; `None` означает «не передан/неверный»,
+        // и тогда эта доля сгорает вместе с fee (escrow закрывается с нулём).
+        if let Some(ata_acc) = reward_ata {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    token_program.clone(),
+                    Transfer {
+                        from: escrow.clone(),
+                        to: ata_acc.to_account_info(),
+                        authority: escrow.clone(),
+                    },
+                    signer,
+                ),
+                referrer_reward,
+            )?;
         }
 
         if fee_to_burn > 0 {
@@ -1728,7 +1876,7 @@ pub mod solana_potato {
             amount_micro,
             total_lamports,
         });
-        if reward_claimed {
+        if reward_ata.is_some() {
             emit!(ReferralRewardPaid {
                 buyer: ctx.accounts.buyer.key(),
                 referrer: referrer_key,
@@ -1868,60 +2016,19 @@ pub mod solana_potato {
         Ok(())
     }
 
-    /// Authority-only (backend) reward mint, counted against the epoch cap.
-    pub fn grant_reward(ctx: Context<GrantReward>, amount_micro: u64) -> Result<()> {
-        require!(!ctx.accounts.config.paused, GameError::Paused);
-        // S-03: reward_signer отделён от authority — backend использует low-priv ключ (fallback к authority для совместимости)
-        let signer_key = ctx.accounts.authority.key();
-        let cfg = &ctx.accounts.config;
-        let authorized = signer_key == cfg.reward_signer || signer_key == cfg.authority;
-        require!(authorized, GameError::Unauthorized);
-        require!(
-            amount_micro > 0 && amount_micro <= MAX_REWARD_MICRO,
-            GameError::RewardTooLarge
-        );
-        let supply_left = ctx
-            .accounts
-            .config
-            .max_supply_micro
-            .saturating_sub(ctx.accounts.potato_mint.supply);
-        require!(amount_micro <= supply_left, GameError::MaxSupplyReached);
-
-        charge_epoch_grant(&mut ctx.accounts.epoch, amount_micro)?;
-
-        let bump = ctx.accounts.config.bump;
-        let seeds: &[&[u8]] = &[b"config", &[bump]];
-        let signer: &[&[&[u8]]] = &[seeds];
-        token::mint_to(
-            CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
-                MintTo {
-                    mint: ctx.accounts.potato_mint.to_account_info(),
-                    to: ctx.accounts.user_potato.to_account_info(),
-                    authority: ctx.accounts.config.to_account_info(),
-                },
-                signer,
-            ),
-            amount_micro,
-        )?;
-        emit!(RewardGranted {
-            recipient: ctx.accounts.user_potato.owner,
-            amount_micro
-        });
-        Ok(())
-    }
-
-    /// Replay-proof reward rail (gate G-1, checklist item 41).
+    /// Replay-proof reward rail (gate G-1, checklist item 41) — **единственный**
+    /// способ минтить награды с 2026-11-03.
     ///
-    /// `grant_reward` above authorises by signature alone: the same signed
-    /// transaction can be submitted twice, and an off-chain "already paid"
-    /// check loses every race. That is the exact class of bug that cost Aurory
-    /// ~600k tokens. Here the payout is bound to a `reward_claim` PDA created
-    /// with `init`, so the second attempt with the same (recipient, nonce)
-    /// fails inside the runtime — no off-chain bookkeeping is trusted.
+    /// Раньше рядом жила `grant_reward`, авторизовавшаяся только подписью:
+    /// ту же подписанную транзакцию можно было провести дважды, а офчейн-флаг
+    /// «уже выплачено» проигрывал гонку. Именно этот класс бага стоил Aurory
+    /// ~600k токенов. Инструкция удалена целиком (P1-1, audited 2026-11-02):
+    /// здесь выплата привязана к `reward_claim` PDA, создаваемому через `init`,
+    /// поэтому повтор с тем же (recipient, nonce) падает в рантайме — никакой
+    /// офчейн-бухгалтерии не доверяем.
     ///
-    /// `expires_at` closes the durable-nonce window (G-1b): a signature that
-    /// sat in an attacker's pocket past its deadline mints nothing.
+    /// `expires_at` закрывает окно durable nonce (G-1b): подпись, пролежавшая
+    /// у атакующего дольше дедлайна, не минтит ничего.
     pub fn grant_reward_once(
         ctx: Context<GrantRewardOnce>,
         nonce: u64,
@@ -1938,6 +2045,17 @@ pub mod solana_potato {
             GameError::RewardTooLarge
         );
 
+        // Маркер повтора `[b"reward", user_potato, nonce]` привязан к ATA.
+        // Без этой проверки тот же nonce для того же кошелька проходил бы через
+        // второй токен-аккаунт и создавал вторую выплату (см. is_canonical_ata).
+        if !is_canonical_ata(
+            &ctx.accounts.user_potato.key(),
+            &ctx.accounts.user_potato.owner,
+            &ctx.accounts.potato_mint.key(),
+        ) {
+            msg!("user_potato must be the canonical ATA of (owner, mint)");
+            return Err(GameError::InvalidAuthority.into());
+        }
         let now = Clock::get()?.unix_timestamp;
         require!(now <= expires_at, GameError::RewardClaimExpired);
         require!(
@@ -2053,6 +2171,15 @@ pub mod solana_potato {
         let (pending, proposed_at) = state.pending_withdraw(0)?;
         require!(pending > 0, GameError::NoPendingWithdrawal);
         require!(pending == amount_micro, GameError::WithdrawAmountMismatch);
+        // P1-4: окно 250 000 🥔 равно дневному капу эмиссии, то есть казну
+        // целиком. Одна выплата дополнительно ограничена долей текущего
+        // баланса — сумма проверяется на исполнении, где баланс доступен.
+        // Проверка дешёвая и стоит до таймлока: отказ не должен зависеть от
+        // того, истекло ли время.
+        require!(
+            amount_micro <= single_withdraw_cap(ctx.accounts.treasury_potato.amount),
+            GameError::WithdrawShareExceeded
+        );
         let now = Clock::get()?.unix_timestamp;
         require!(
             now >= proposed_at
@@ -2283,6 +2410,13 @@ pub mod solana_potato {
         }
         if let Some(m) = global_multiplier_bps {
             require!(m <= MAX_GLOBAL_MULTIPLIER_BPS, GameError::MultiplierTooHigh);
+            // Нижняя граница — не косметика: `Some(0)` проходил проверку
+            // «не больше 2×» и обнулял урожай всех полей одним вызовом.
+            // Отдельный вариант ошибки не заводим осознанно: ошибки программы —
+            // часть ABI (IDL), и лишний вариант ломает клиентов, собранных под
+            // старый IDL. Для админского вызова под `authority` `InvalidAmount`
+            // диагностирует ровно случившееся: аргумент ниже допустимого.
+            require!(m >= MIN_GLOBAL_MULTIPLIER_BPS, GameError::InvalidAmount);
             config.global_multiplier_bps = m;
         }
         emit!(ConfigUpdated {
@@ -2349,7 +2483,9 @@ pub mod solana_potato {
         Ok(())
     }
 
-    /// S-03: обновляет reward_signer — только authority. Backend будет подписывать grant_reward этим ключом.
+    /// S-03: обновляет reward_signer — только authority. Backend подписывает
+    /// этим ключом `grant_reward_once` (replay-proof рельса); других минтов у
+    /// него нет.
     pub fn update_reward_signer(ctx: Context<UpdateConfig>, new_signer: Pubkey) -> Result<()> {
         require!(new_signer != Pubkey::default(), GameError::InvalidAuthority);
         ctx.accounts.config.reward_signer = new_signer;
@@ -2375,13 +2511,30 @@ pub mod solana_potato {
         )
     }
 
-    pub fn migrate_field(ctx: Context<MigrateField>) -> Result<()> {
+    /// P7 + P1-3: migrates one Field account to the current (v3) layout.
+    ///
+    /// On the legacy layouts (69/70 bytes) the account does not carry its id,
+    /// so — unlike `migrate_epoch` — the handler cannot derive the PDA from
+    /// the account itself. It therefore takes `field_id` from the caller and
+    /// requires the account to be the **canonical** `[b"field", field_id]` PDA,
+    /// both by address and by the stored bump. Without this the authority
+    /// could point a migration at any program-owned, 69/70-byte,
+    /// Field-discriminated account; the layout check alone only guarantees
+    /// "it looks like a field", not "it is one". The id is then written into
+    /// the account, after which every instruction verifies it structurally
+    /// (`seeds`, `verify_fields`) and no caller-supplied id is trusted at all.
+    pub fn migrate_field(ctx: Context<MigrateField>, field_id: u64) -> Result<()> {
         migrations::authority(
             &ctx.accounts.config.try_borrow_data()?,
             &ctx.accounts.authority.key(),
         )?;
         let info = ctx.accounts.field.to_account_info();
-        let updated = migrations::field(&info.try_borrow_data()?)?;
+        let updated = migrations::field(&info.try_borrow_data()?, field_id)?;
+        let field = Field::try_deserialize(&mut &updated[..])?;
+        let (expected, canonical_bump) =
+            Pubkey::find_program_address(&[b"field", &field_id.to_le_bytes()], ctx.program_id);
+        require_keys_eq!(info.key(), expected, GameError::BadProof);
+        require!(field.bump == canonical_bump, GameError::BadProof);
         write_migrated_account(
             &info,
             &ctx.accounts.authority,
@@ -2426,29 +2579,46 @@ pub mod solana_potato {
         )
     }
 
-    /// Registers a one-time referral relationship; burns the registration cost.
+    /// Registers a one-time referral relationship.
+    ///
+    /// Registration is free (`REFERRAL_REGISTRATION_COST_MICRO == 0`). The
+    /// entry fee used to burn 5 POTATO from a wallet that has not earned a
+    /// single token yet, so the invite loop only worked for players who had
+    /// already bought in — the opposite of a referral program. The burn is
+    /// skipped entirely at zero instead of being executed with amount 0, so
+    /// the instruction cannot be used to probe an empty ATA either.
     pub fn register_referrer(ctx: Context<RegisterReferrer>, referrer: Pubkey) -> Result<()> {
-        // F-17: снятие 5 POTATO за регистрацию — трата, гейтим паузой как
-        // остальные расходные инструкции.
+        // F-17: гейтим паузой как остальные мутации состояния.
         require!(!ctx.accounts.config.paused, GameError::Paused);
+        // Реферальные награды живут только в легаси `fill_order`, а легаси
+        // закрыт на запись (P2-2). Регистрация закрыта до первых списаний:
+        // ни PDA, ни токены, ни cooldown не трогаются, отказ диагностируем.
+        require!(
+            referral_program_enabled(),
+            GameError::ReferralProgramRetired
+        );
         require!(
             referrer != ctx.accounts.owner.key(),
             GameError::Unauthorized
         );
         require!(referrer != Pubkey::default(), GameError::Unauthorized);
 
-        // One-time registration burns 5 POTATO; market referral rewards are unchanged.
-        token::burn(
-            CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
-                Burn {
-                    mint: ctx.accounts.potato_mint.to_account_info(),
-                    from: ctx.accounts.user_potato.to_account_info(),
-                    authority: ctx.accounts.owner.to_account_info(),
-                },
-            ),
-            REFERRAL_REGISTRATION_COST_MICRO,
-        )?;
+        // Market referral rewards (0.5 % of a fill) are unchanged; only the
+        // registration fee is gone. Re-introducing a price is a one-constant
+        // change: set `REFERRAL_REGISTRATION_FEE_MICRO = Some(x)`.
+        if let Some(fee) = REFERRAL_REGISTRATION_FEE_MICRO {
+            token::burn(
+                CpiContext::new(
+                    ctx.accounts.token_program.to_account_info(),
+                    Burn {
+                        mint: ctx.accounts.potato_mint.to_account_info(),
+                        from: ctx.accounts.user_potato.to_account_info(),
+                        authority: ctx.accounts.owner.to_account_info(),
+                    },
+                ),
+                fee,
+            )?;
+        }
 
         ctx.accounts.referral.owner = ctx.accounts.owner.key();
         ctx.accounts.referral.referrer = referrer;
@@ -2517,7 +2687,6 @@ pub mod solana_potato {
         require!(!fields.is_empty(), GameError::NothingToHarvest);
         require!(fields.len() <= limit, GameError::InvalidAmount); // лимит полей/батч зависит от лицензии
 
-        let epoch_id = ctx.accounts.config.epoch_id;
         let base_yield = ctx.accounts.config.base_yield_micro_per_day;
         let global_bps = ctx.accounts.config.global_multiplier_bps;
         let total_supply = ctx.accounts.potato_mint.supply;
@@ -2552,11 +2721,19 @@ pub mod solana_potato {
             let mut slice: &[u8] = &acc.try_borrow_data()?[..];
             let f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
             require!(f.owner == ctx.accounts.owner.key(), GameError::Unauthorized);
+            // P1-3: адрес обязан выводиться из field_id внутри аккаунта. До
+            // layout v3 батч принимал любой program-owned аккаунт с
+            // дискриминатором Field, лишь бы owner совпал.
+            let (expected_field, canonical_bump) = Pubkey::find_program_address(
+                &[b"field", &f.field_id.to_le_bytes()],
+                ctx.program_id,
+            );
+            require_keys_eq!(acc.key(), expected_field, GameError::BadProof);
+            require!(f.bump == canonical_bump, GameError::BadProof);
             require!(f.is_active, GameError::FieldInactive);
             let elapsed = now.saturating_sub(f.last_harvest).min(MAX_ACCRUAL_SECONDS);
             require!(elapsed >= MIN_HARVEST_INTERVAL, GameError::HarvestTooSoon);
-            let pending =
-                compute_pending_yield(base_yield, global_bps, &f, elapsed, now, epoch_id)?;
+            let pending = compute_pending_yield(base_yield, global_bps, &f, elapsed, now)?;
             require!(pending > 0, GameError::NothingToHarvest);
             // Тот же split, что и в одиночном harvest (инвариант чек-листа п. 53).
             let (player_yield, treasury_share) = split_harvest(pending, base_tax_bps)?;
@@ -2585,7 +2762,12 @@ pub mod solana_potato {
 
         let scaled_player = (total_player as u128 * scale_num / scale_den) as u64;
         let scaled_treasury = (total_treasury as u128 * scale_num / scale_den) as u64;
-        require!(scaled_player > 0, GameError::NothingToHarvest);
+        // P3-19: раньше здесь стоял `NothingToHarvest`, хотя причина —
+        // исчерпанный кап. Ошибка сбивала с толку: игрок видел «собирать
+        // нечего» при полном поле урожая.
+        require!(scaled_player > 0, GameError::EpochCapExceeded);
+        // Урезание: общий множитель на весь батч, одинаковый для всех полей.
+        let scaled_truncated = scale_num != scale_den;
 
         // Эффекты: обновляем epoch и каждое поле
         ctx.accounts.epoch.minted_micro = ctx
@@ -2615,9 +2797,7 @@ pub mod solana_potato {
             } else {
                 DURABILITY_DECAY_INTERVAL
             };
-            let decay = (consumed / decay_interval)
-                .max(1)
-                .min(MAX_DURABILITY as i64) as u8;
+            let decay = harvest_decay(consumed, decay_interval, scaled_truncated);
             f.durability = f.durability.saturating_sub(decay);
             write_field_account(&f, &mut data)?;
         }
@@ -2658,6 +2838,8 @@ pub mod solana_potato {
             field_count: fields.len() as u8,
             total_micro: scaled_player,
             treasury_micro: scaled_treasury,
+            requested_micro: total_player,
+            truncated: scaled_truncated,
         });
         Ok(())
     }
@@ -2710,11 +2892,11 @@ fn write_field_account(field: &Field, data: &mut [u8]) -> Result<()> {
 
 // ────────────────────────── Pure helpers ─────────────────────────
 
-/// Списывает сумму гранта с квоты и капа эпохи. Один источник правды для
-/// `grant_reward` и `grant_reward_once`: если правило разъедется между двумя
-/// рельсами, более слабый станет обходным путём вокруг более строгого.
+/// Списывает сумму гранта с квоты и капа эпохи. Единственный источник правды
+/// для квоты: после удаления легаси-`grant_reward` (P1-1) остался один рельс
+/// (`grant_reward_once`), и правило не может разъехаться между двумя путями.
 pub fn charge_epoch_grant(epoch: &mut Epoch, amount_micro: u64) -> Result<()> {
-    // Квота ручных грантов: суммарно не более GRANT_QUOTA_SHARE_BPS (10 %)
+    // Квота ручных грантов: суммарно не более GRANT_QUOTA_SHARE_BPS (25 %)
     // капа эпохи. Иначе скомпрометированный reward_signer мог бы вычерпать
     // весь дневной кап грантами, оставив игроков без harvest.
     let grant_quota = ((epoch.mint_cap_micro as u128)
@@ -2740,6 +2922,36 @@ pub fn charge_epoch_grant(epoch: &mut Epoch, amount_micro: u64) -> Result<()> {
     Ok(())
 }
 // Kept free of account types so they can be unit-tested on the host.
+
+/// Program id of the SPL Associated Token Account program.
+pub const ATA_PROGRAM_ID: Pubkey = pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+/// Program id of the SPL Token program, used in the ATA derivation seeds.
+pub const SPL_TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+
+/// Является ли `account` канонической ATA для пары (owner, mint).
+///
+/// Грантовые инструкции минтят в `user_potato`, а маркер повтора
+/// `[b"reward", user_potato, nonce]` привязан именно к этому аккаунту. Пока
+/// проверки не было, POD «одна выплата на (nonce, получатель)» означал «одна
+/// выплата на (токен-аккаунт, nonce)»: второй токен-аккаунт того же минта у того
+/// же владельца (или аккаунт с другим владельцем) создавал второй маркер и
+/// второй минт по тому же nonce. ATA выводится из (owner, mint) однозначно,
+/// поэтому проверка возвращает исходный инвариант «один кошелёк — один маркер
+/// на nonce» без изменения аккаунтов инструкции.
+/// P1-4: потолок одной выплаты — доля текущего баланса казны.
+/// `saturating_mul`: баланс ограничен supply и не переполняет u64, но паника
+/// в on-chain коде дороже нулевого потолка.
+pub fn single_withdraw_cap(balance: u64) -> u64 {
+    balance.saturating_mul(MAX_WITHDRAW_BALANCE_SHARE_BPS as u64) / 10_000
+}
+
+pub fn is_canonical_ata(account: &Pubkey, owner: &Pubkey, mint: &Pubkey) -> bool {
+    let (expected, _) = Pubkey::find_program_address(
+        &[owner.as_ref(), SPL_TOKEN_PROGRAM_ID.as_ref(), mint.as_ref()],
+        &ATA_PROGRAM_ID,
+    );
+    expected == *account
+}
 
 /// Yield multiplier for a field type, in bps.
 pub fn type_yield_bps(field_type: u8) -> u128 {
@@ -2767,6 +2979,89 @@ pub fn field_price_micro(field_type: u8) -> u64 {
 /// Scales a type-1 base cost by the field type cost multiplier.
 pub fn scaled_cost(base_micro: u64, field_type: u8) -> u64 {
     ((base_micro as u128) * type_cost_bps(field_type) / BPS) as u64
+}
+
+/// Сколько пунктов прочности списывает сбор урожая (P3-19).
+///
+/// Износ пропорционален **оплаченному** времени (`consumed`), а не числу
+/// нажатий: сбор, урезанный капом эпохи до почти нулевой выплаты, больше не
+/// стоит пункта прочности. Минимум 1 пункт берётся только за сбор, закрывший
+/// окно целиком (`truncated == false`), иначе harvest раз в час был бы
+/// бесплатным по износу и поле никогда не пришлось бы ремонтировать.
+pub fn harvest_decay(consumed: i64, interval: i64, truncated: bool) -> u8 {
+    if interval <= 0 {
+        return 0;
+    }
+    let decay = (consumed.max(0) / interval).min(MAX_DURABILITY as i64) as u8;
+    if truncated {
+        decay
+    } else {
+        decay.max(1)
+    }
+}
+
+/// Стоимость ремонта поля: пропорциональна **недостающей** прочности.
+///
+/// Раньше ремонт стоил фиксированно `BASE_REPAIR × type × level_mult` независимо
+/// от того, 4 пункта нужно восстановить или все 100. При цене 6 POTATO за
+/// грядку ремонт с D = 96 окупался ~53 суток (прирост 0.008 × 4 × 3.5 POTATO/сут),
+/// то есть был заведомо убыточен, а с D = 0 — за 2 суток. Теперь игрок платит за
+/// каждый восстановленный пункт, и срок окупаемости почти не зависит от текущей
+/// прочности: `BASE × type × max(level/3, 1) × (100 − durability) / 100`.
+/// Минимум 1 микро-атом: ремонт не может быть бесплатным (иначе кнопку жмут
+/// ради события).
+pub fn repair_cost_micro(
+    base_micro: u64,
+    field_type: u8,
+    durability: u8,
+    level: u8,
+) -> Result<u64> {
+    let missing = MAX_DURABILITY.saturating_sub(durability.min(MAX_DURABILITY)) as u128;
+    // Прогрессивный множитель ремонта: L1-2 → 1×, L30 → 10×, L50 → 16×
+    let level_mult = ((level as u128) / 3).max(1);
+    let per_point = (scaled_cost(base_micro, field_type) as u128)
+        .checked_mul(level_mult)
+        .ok_or(GameError::MathOverflow)?;
+    let max_durability = MAX_DURABILITY as u128;
+    let cost = per_point
+        .checked_mul(missing)
+        .ok_or(GameError::MathOverflow)?
+        / max_durability;
+    Ok(u64::try_from(cost).unwrap_or(u64::MAX).max(1))
+}
+
+/// Стоимость удобрения на 24 ч: пропорциональна доходности поля.
+///
+/// Раньше цена зависела только от типа (`BASE × type_cost`) и не зависела от
+/// уровня и прочности, хотя прибавка `FERTILIZER_YIELD_BPS` умножается на
+/// `get_level_mult` и `durability_mult_bps`. На грядке L1 с полной прочностью
+/// цена 0.8 POTATO окупалась, на грядке с прочностью 20 — нет, а на L30 та же
+/// цена 0.8 POTATO покупала +50 % к ~100 POTATO/сут.
+///
+/// Теперь цена = `BASE × type_yield × level_mult × durability_mult`, то есть
+/// 40 % от прибавки, которую удобрение даёт за свои 24 ч, при любом уровне и
+/// типе поля (`BASE_FERTILIZER_MICRO` откалиброван по базовому полю: 2 POTATO
+/// против 10 POTATO суточного урожая при 1.0×). Соотношение «прибавка / цена»
+/// остаётся 2.5× и не превращается ни в ловушку, ни в печатный станок.
+pub fn fertilizer_cost_micro(
+    base_micro: u64,
+    field_type: u8,
+    level: u8,
+    durability: u8,
+) -> Result<u64> {
+    let typed = (base_micro as u128)
+        .checked_mul(type_yield_bps(field_type))
+        .ok_or(GameError::MathOverflow)?
+        / BPS;
+    let scaled = typed
+        .checked_mul(get_level_mult(level))
+        .ok_or(GameError::MathOverflow)?
+        / BPS;
+    let scaled = scaled
+        .checked_mul(durability_mult_bps(durability))
+        .ok_or(GameError::MathOverflow)?
+        / BPS;
+    Ok(u64::try_from(scaled).unwrap_or(u64::MAX).max(1))
 }
 
 /// Cost of upgrading from `level` to `level + 1`.
@@ -2799,17 +3094,29 @@ pub fn durability_mult_bps(durability: u8) -> u128 {
     DURABILITY_FLOOR_BPS + (durability.min(MAX_DURABILITY) as u128) * DURABILITY_SLOPE_BPS_PER_POINT
 }
 
-/// Marketplace fee tier by order size (progressive: 9 % → 12 %).
+/// Marketplace fee tier of the **legacy** rail: by order size (5 % → 8 %).
+///
+/// Совпадает с `V2_SETTLEMENT_FEE_BPS` только **лестница ставок** (500/600/700/
+/// 800 bps и те же границы 1k/10k/100k POTATO). База другая и это не опечатка:
+///   • здесь tier выбирается по `amount_micro` — размеру **самого ордера**;
+///   • в V2 (`calculate_settlement_fee_v2`) — по накопленному UTC-объёму
+///     **продавца** (`SellerVolumeV2`), причём внутри одной сделки ставка
+///     режется по границам маржинально.
+/// Из-за этого крупный продавец платит на легаси-рельсе 5 % за ордер в 999
+/// POTATO, хотя на V2 с его дневным объёмом заплатил бы 8 %. Расхождение
+/// зафиксировано тестом `legacy_and_v2_fee_bases_differ_by_design`; убрать его
+/// можно только решением владельца экономики — либо перевести легаси-рельс на
+/// `SellerVolumeV2` (меняет ABI), либо закрыть `create_sell_order` на запись.
 pub fn calculate_fee_bps(amount_micro: u64) -> u16 {
-    // Прогрессивная комиссия 9% – 12% (от объёма ордера)
+    // Прогрессивная комиссия 5% – 8% (от объёма ордера)
     if amount_micro < 1_000_000_000 {
-        900 // < 1k POTATO:   9%
+        500 // < 1k POTATO:   5%
     } else if amount_micro < 10_000_000_000 {
-        1_000 // < 10k POTATO:  10%
+        600 // < 10k POTATO:   6%
     } else if amount_micro < 100_000_000_000 {
-        1_100 // < 100k POTATO: 11%
+        700 // < 100k POTATO:  7%
     } else {
-        1_200 // >= 100k POTATO: 12%
+        800 // >= 100k POTATO: 8%
     }
 }
 
@@ -2819,6 +3126,77 @@ pub fn order_fee_micro(amount_micro: u64) -> Result<u64> {
         .ok_or(GameError::MathOverflow)?
         / BPS;
     u64::try_from(fee).map_err(|_| GameError::MathOverflow.into())
+}
+
+/// Как легаси `fill_order` делит удержанную комиссию между казной, сжиганием и
+/// реферером. Вынесено чистой функцией ради тестируемости: после закрытия
+/// легаси-рынка на запись (P2-2) живой ордер в тесте не создать, а деньги по уже
+/// выставленным ордерам продолжают идти по этим правилам до конца `ORDER_TTL`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LegacyFeeSplit {
+    /// Скидки (лицензия −3 %, реферал покупателя −1 %), но не больше комиссии.
+    pub total_discounts: u64,
+    pub fee_to_treasury: u64,
+    /// 0.5 % от суммы сделки, но не больше burn-доли.
+    pub referrer_reward: u64,
+    /// Комиссия к сжиганию, если награда рефереру выплачена.
+    pub fee_to_burn_claimed: u64,
+}
+
+impl LegacyFeeSplit {
+    /// Комиссия к сжиганию для конкретного исхода выплаты награды.
+    /// Невостребованная награда не остаётся в escrow (он закрывается ровно
+    /// с нулём), а сгорает — поэтому сумма «казна + сжигание + награда»
+    /// всегда равна `fee_listed`.
+    pub fn fee_to_burn(&self, reward_claimed: bool) -> u64 {
+        if self.referrer_reward > 0 && !reward_claimed {
+            self.fee_to_burn_claimed
+                .saturating_add(self.referrer_reward)
+        } else {
+            self.fee_to_burn_claimed
+        }
+    }
+}
+
+pub fn legacy_fee_split(
+    amount_micro: u64,
+    fee_listed: u64,
+    license_discount: u64,
+    referral_discount: u64,
+    has_referrer: bool,
+) -> LegacyFeeSplit {
+    let total_discounts = license_discount
+        .saturating_add(referral_discount)
+        .min(fee_listed);
+    let fee_net = fee_listed.saturating_sub(total_discounts);
+    let fee_to_treasury = ((fee_net as u128) * (100u128 - FEE_BURN_PERCENT as u128) / 100) as u64;
+    let fee_to_burn_base = fee_net.saturating_sub(fee_to_treasury);
+    let referrer_reward = if has_referrer {
+        ((amount_micro as u128 * 50 / 10_000) as u64).min(fee_to_burn_base)
+    } else {
+        0
+    };
+    LegacyFeeSplit {
+        total_discounts,
+        fee_to_treasury,
+        referrer_reward,
+        fee_to_burn_claimed: fee_to_burn_base.saturating_sub(referrer_reward),
+    }
+}
+
+/// P2-2: единственная точка, читающая `LEGACY_MARKET_WRITES_ENABLED`.
+/// Отдельная функция, а не константа прямо в `require!`: хост-тест проверяет
+/// её же, поэтому инвариант «легаси закрыт» не может тихо разойтись с кодом
+/// инструкции.
+pub fn legacy_market_writes_enabled() -> bool {
+    LEGACY_MARKET_WRITES_ENABLED
+}
+
+/// P2-2-следствие: единственная точка чтения `REFERRAL_PROGRAM_ENABLED`.
+/// Как и с легаси-рынком, тест проверяет эту функцию, а не константу, чтобы
+/// инвариант «регистрация закрыта» не разошёлся с кодом инструкции.
+pub fn referral_program_enabled() -> bool {
+    REFERRAL_PROGRAM_ENABLED
 }
 
 /// SOL (lamports) a buyer pays for an order. `price` is lamports per whole $POTATO.
@@ -2866,10 +3244,31 @@ pub fn v2_gross_quote_atoms(amount_micro: u64, price_quote_atoms_per_potato: u64
     u64::try_from(gross).map_err(|_| GameError::MathOverflow.into())
 }
 
-/// Calculate V2 settlement fees using a seller's rolling UTC-day POTATO
-/// volume, shared between SOL and SKR pairs. Each fill is split at tier edges;
-/// quote rounding is cumulative-ceil and each marginal segment's fee rounds
-/// upward, so splitting one sale cannot reset the tier or reduce its fee.
+/// V2 settlement fee: progressive-marginal **on the trade itself**.
+///
+/// P0-5: раньше ставка выбиралась по накопленному UTC-суточному объёму
+/// **продавца** (`SellerVolumeV2`), то есть по личности, а не по сделке. Обход
+/// стоил ноль: Solana-ключи бесплатны, поэтому продавец с 500 000 POTATO в сутки
+/// просто заводил новый кошелёк на каждую сделку и платил 5 % вместо 8 % —
+/// 3 процентных пункта выручки казны уходили мимо неё без единого действия в
+/// игре. Обратная сторона была не лучше: ставка росла от объёма, то есть
+/// честный продавец платил больше за то, что продаёт больше.
+///
+/// Теперь лестница 5/6/7/8 % применяется маржинально к **объёму сделки**,
+/// начиная с нуля на каждую сделку. Кошелёк, день и история больше на цену не
+/// влияют; `seller_volume_before_micro` остаётся только для учёта и событий
+/// (и обновления `SellerVolumeV2`), но не участвует в выборе ставки.
+///
+/// Что этим НЕ решается, осознанно: дробление одной крупной сделки на мелкие
+/// по-прежнему держит каждую в нижней ступени. Это свойство любой нелинейной
+/// шкалы, и цена обхода здесь другая — реальные транзакции, комиссии сети,
+/// отдельный контрагент на каждый филл (self-trade запрещён) и потеря
+/// ликвидности, а не бесплатная генерация ключей. Инвариант «дробление не
+/// снижает комиссию» держать было нечем: он и раньше выполнялся только для
+/// честных продавцов, а противник платил 5 % одним новым кошельком.
+///
+/// Округление прежнее: gross считается кумулятивно-ceil по сегментам, комиссия
+/// каждого сегмента округляется вверх, сумма сегментов равна gross ровно.
 pub fn calculate_settlement_fee_v2(
     amount_micro: u64,
     price_quote_atoms_per_potato: u64,
@@ -2888,23 +3287,25 @@ pub fn calculate_settlement_fee_v2(
 
     let mut remaining_micro = amount_micro;
     let mut consumed_micro = 0u64;
-    let mut seller_volume_micro = seller_volume_before_micro;
+    // P0-5: ступень выбирается по объёму ТЕКУЩЕЙ сделки, а не по дневному
+    // объёму продавца. Ноль здесь — не забытый аргумент, а решение.
+    let mut priced_volume_micro = 0u64;
     let mut allocated_gross = 0u64;
     let mut fee_quote_atoms = 0u64;
 
     while remaining_micro > 0 {
-        let tier_index = if seller_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[0] {
+        let tier_index = if priced_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[0] {
             0
-        } else if seller_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[1] {
+        } else if priced_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[1] {
             1
-        } else if seller_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[2] {
+        } else if priced_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[2] {
             2
         } else {
             3
         };
         let capacity = V2_SELLER_VOLUME_THRESHOLDS_MICRO
             .get(tier_index)
-            .map(|threshold| threshold.saturating_sub(seller_volume_micro))
+            .map(|threshold| threshold.saturating_sub(priced_volume_micro))
             .unwrap_or(remaining_micro);
         let segment_micro = remaining_micro.min(capacity);
         require!(segment_micro > 0, GameError::MathOverflow);
@@ -2946,7 +3347,7 @@ pub fn calculate_settlement_fee_v2(
             .ok_or(GameError::MathOverflow)?;
         remaining_micro -= segment_micro;
         consumed_micro = next_consumed_micro;
-        seller_volume_micro = seller_volume_micro
+        priced_volume_micro = priced_volume_micro
             .checked_add(segment_micro)
             .ok_or(GameError::MathOverflow)?;
     }
@@ -2993,13 +3394,28 @@ fn extend_timer(current: i64, now: i64, period: i64) -> Result<i64> {
         .ok_or(GameError::MathOverflow.into())
 }
 
+/// P2-6: индекс дня лунного цикла по абсолютному UTC-времени:
+/// `floor(now / 86400) mod 28` (для отрицательных `now` — `rem_euclid`, чтобы
+/// индекс всегда попадал в `0..28`).
+///
+/// Раньше фаза бралась из `config.epoch_id` (`LUNAR_TABLE[epoch_id % 28]`), то
+/// есть код молча предполагал, что эпоха — ровно сутки. `roll_epoch` может
+/// опаздывать или не вызываться вовсе: тогда фаза уезжала относительно
+/// календаря, игрок мог подгадать сбор под пик, а кап эпохи при этом замирал.
+/// Время — общий источник правды и для программы, и для клиента.
+pub fn lunar_day_index(now: i64) -> i128 {
+    (now.div_euclid(SECONDS_PER_DAY) as i128).rem_euclid(28)
+}
+
 /// Time-weighted lunar multiplier (bps) for an accrual window of `elapsed`
-/// seconds ending in `epoch_id`. The window is split into trailing 86 400 s
-/// segments; segment `k` (0 = most recent) is weighted by
-/// `LUNAR_TABLE[(epoch_id - k) mod 28]`. For `elapsed <= 86400` this is
-/// exactly `LUNAR_TABLE[epoch_id % 28]`, so single-day behaviour is unchanged.
-pub fn lunar_weighted_bps(elapsed: i64, epoch_id: u64) -> u128 {
-    let current = LUNAR_TABLE[(epoch_id % 28) as usize] as u128;
+/// seconds ending at `now`. The window is split into trailing 86 400 s
+/// segments; segment `k` (0 = most recent) is weighted by the lunar bps of the
+/// calendar day it covers: `LUNAR_TABLE[(lunar_day_index(now) - k) mod 28]`.
+/// For `elapsed <= 86400` this is exactly today's table value, so single-day
+/// behaviour is unchanged.
+pub fn lunar_weighted_bps(elapsed: i64, now: i64) -> u128 {
+    let today = lunar_day_index(now);
+    let current = LUNAR_TABLE[today as usize] as u128;
     if elapsed <= 0 {
         return current;
     }
@@ -3008,7 +3424,7 @@ pub fn lunar_weighted_bps(elapsed: i64, epoch_id: u64) -> u128 {
     let mut age_days: i128 = 0;
     while remaining > 0 {
         let chunk = remaining.min(SECONDS_PER_DAY);
-        let idx = ((epoch_id as i128 - age_days).rem_euclid(28)) as usize;
+        let idx = (today - age_days).rem_euclid(28) as usize;
         weighted =
             weighted.saturating_add((LUNAR_TABLE[idx] as u128).saturating_mul(chunk as u128));
         remaining -= chunk;
@@ -3025,7 +3441,6 @@ pub fn compute_pending_yield(
     field: &Field,
     elapsed: i64,
     now: i64,
-    epoch_id: u64,
 ) -> Result<u64> {
     let tax_bps = if now > field.tax_paid_until {
         UNPAID_TAX_YIELD_BPS
@@ -3043,10 +3458,10 @@ pub fn compute_pending_yield(
         _ => BPS,
     };
     // Лунный цикл: взвешенный по сегментам множитель. Начисление может
-    // охватывать до 7 суток (MAX_ACCRUAL_SECONDS) = до 7 эпох; каждая
-    // trailing-сутка оценивается по лунному bps СВОЕЙ эпохи, а не только
-    // текущей (иначе harvest прямо перед roll_epoch давал бесплатный арбитраж).
-    let lunar_bps: u128 = lunar_weighted_bps(elapsed, epoch_id);
+    // охватывать до 7 суток (MAX_ACCRUAL_SECONDS); каждая trailing-сутка
+    // оценивается по лунному bps СВОЕГО календарного дня, а не только текущего
+    // (иначе сбор на стыке суток давал бы бесплатный арбитраж).
+    let lunar_bps: u128 = lunar_weighted_bps(elapsed, now);
     let multipliers = [
         get_level_mult(field.level),
         durability_mult_bps(field.durability),
@@ -3354,7 +3769,13 @@ pub struct Harvest<'info> {
     pub config: Account<'info, GameConfig>,
     #[account(mut, seeds = [b"epoch", config.epoch_id.to_le_bytes().as_ref()], bump = epoch.bump)]
     pub epoch: Account<'info, Epoch>,
-    #[account(mut, has_one = owner)]
+    /// P1-3: field обязан быть каноническим PDA от собственного field_id.
+    #[account(
+        mut,
+        has_one = owner,
+        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+        bump = field.bump
+    )]
     pub field: Account<'info, Field>,
     #[account(mut)]
     pub potato_mint: Account<'info, Mint>,
@@ -3374,33 +3795,84 @@ pub struct Harvest<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
-/// Shared shape for repair / upgrade / tax / fertilizer.
-macro_rules! field_spend_accounts {
-    ($name:ident) => {
-        #[derive(Accounts)]
-        pub struct $name<'info> {
-            #[account(mut, has_one = owner)]
-            pub field: Account<'info, Field>,
-            #[account(mut)]
-            pub potato_mint: Account<'info, Mint>,
-            #[account(mut, token::mint = potato_mint, token::authority = owner)]
-            pub user_potato: Account<'info, TokenAccount>,
-            #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
-            pub config: Account<'info, GameConfig>,
-            pub owner: Signer<'info>,
-            pub token_program: Program<'info, Token>,
-        }
-    };
+// Форма repair / pay_tax / apply_fertilizer одинаковая, но описана тремя
+// структурами, а не макросом: rustfmt не сходится на многострочном
+// `#[account(...)]` внутри `macro_rules!` (каждый прогон добавляет отступ),
+// а `cargo fmt --check` в CI обязан быть идемпотентным.
+/// Repair: восстанавливает durability за POTATO.
+#[derive(Accounts)]
+pub struct RepairField<'info> {
+    /// P1-3: field обязан быть каноническим PDA от собственного field_id.
+    #[account(
+        mut,
+        has_one = owner,
+        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+        bump = field.bump
+    )]
+    pub field: Account<'info, Field>,
+    #[account(mut)]
+    pub potato_mint: Account<'info, Mint>,
+    #[account(mut, token::mint = potato_mint, token::authority = owner)]
+    pub user_potato: Account<'info, TokenAccount>,
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
+    pub config: Account<'info, GameConfig>,
+    pub owner: Signer<'info>,
+    pub token_program: Program<'info, Token>,
 }
-field_spend_accounts!(RepairField);
-field_spend_accounts!(PayTax);
-field_spend_accounts!(ApplyFertilizer);
 
-/// UpgradeField = field_spend_accounts + SlotHashes: мутация при апгрейде
+/// PayTax: продлевает tax_paid_until за POTATO.
+#[derive(Accounts)]
+pub struct PayTax<'info> {
+    /// P1-3: field обязан быть каноническим PDA от собственного field_id.
+    #[account(
+        mut,
+        has_one = owner,
+        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+        bump = field.bump
+    )]
+    pub field: Account<'info, Field>,
+    #[account(mut)]
+    pub potato_mint: Account<'info, Mint>,
+    #[account(mut, token::mint = potato_mint, token::authority = owner)]
+    pub user_potato: Account<'info, TokenAccount>,
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
+    pub config: Account<'info, GameConfig>,
+    pub owner: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+/// ApplyFertilizer: ускоряет рост на 24 ч за POTATO.
+#[derive(Accounts)]
+pub struct ApplyFertilizer<'info> {
+    /// P1-3: field обязан быть каноническим PDA от собственного field_id.
+    #[account(
+        mut,
+        has_one = owner,
+        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+        bump = field.bump
+    )]
+    pub field: Account<'info, Field>,
+    #[account(mut)]
+    pub potato_mint: Account<'info, Mint>,
+    #[account(mut, token::mint = potato_mint, token::authority = owner)]
+    pub user_potato: Account<'info, TokenAccount>,
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
+    pub config: Account<'info, GameConfig>,
+    pub owner: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+/// UpgradeField = форма repair/pay_tax/apply_fertilizer + SlotHashes: мутация при апгрейде
 /// роллится с примесью хеша последнего слота (непредсказуемо в момент подписания).
 #[derive(Accounts)]
 pub struct UpgradeField<'info> {
-    #[account(mut, has_one = owner)]
+    /// P1-3: field обязан быть каноническим PDA от собственного field_id.
+    #[account(
+        mut,
+        has_one = owner,
+        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+        bump = field.bump
+    )]
     pub field: Account<'info, Field>,
     #[account(mut)]
     pub potato_mint: Account<'info, Mint>,
@@ -3934,13 +4406,6 @@ pub struct BuyFieldSkr<'info> {
     )]
     pub treasury_skr_ata: Account<'info, TokenAccount>,
 
-    #[account(
-        mut,
-        associated_token::mint = skr_mint,
-        associated_token::authority = authority,
-    )]
-    pub buyback_skr_ata: Account<'info, TokenAccount>,
-
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     /// Энтропия drop-roll'а: хеш последнего слота неизвестен покупателю при подписании.
@@ -3992,21 +4457,6 @@ pub struct BuyFieldSol<'info> {
     pub treasury_sol: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct GrantReward<'info> {
-    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
-    pub config: Account<'info, GameConfig>,
-    #[account(mut, seeds = [b"epoch", config.epoch_id.to_le_bytes().as_ref()], bump = epoch.bump)]
-    pub epoch: Account<'info, Epoch>,
-    /// S-03: может подписать как authority, так и reward_signer (low-priv backend)
-    pub authority: Signer<'info>,
-    #[account(mut)]
-    pub potato_mint: Account<'info, Mint>,
-    #[account(mut, token::mint = potato_mint)]
-    pub user_potato: Account<'info, TokenAccount>,
-    pub token_program: Program<'info, Token>,
 }
 
 /// Accounts for `grant_reward_once`. The replay protection is structural:
@@ -4263,7 +4713,14 @@ pub struct BatchHarvest<'info> {
 pub struct CloseField<'info> {
     #[account(mut, seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, GameConfig>,
-    #[account(mut, has_one = owner, close = owner)]
+    /// P1-3: канонический PDA проверяется до закрытия аккаунта.
+    #[account(
+        mut,
+        has_one = owner,
+        close = owner,
+        seeds = [b"field", field.field_id.to_le_bytes().as_ref()],
+        bump = field.bump
+    )]
     pub field: Account<'info, Field>,
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -4295,7 +4752,7 @@ pub struct GameConfig {
     pub pending_authority: Pubkey,
     pub potato_mint: Pubkey,
     pub skr_mint: Pubkey, // S-01: конфигурируемый SKR mint (mainnet мигрируется без redeploy)
-    pub reward_signer: Pubkey, // S-03: low-priv ключ для grant_reward (backend), отделён от authority
+    pub reward_signer: Pubkey, // S-03: low-priv ключ для grant_reward_once (backend), отделён от authority
     pub max_supply_micro: u64,
     pub daily_mint_cap_micro: u64,
     pub base_yield_micro_per_day: u64,
@@ -4345,6 +4802,17 @@ pub struct Field {
     pub field_type: u8,
     pub bump: u8,
     pub mutation_type: u8, // 0=None, 1=Golden (+25% yield), 2=Silicon (decay ÷2)
+    /// P1-3 (layout v3): id, из которого выведен PDA `[b"field", id]`.
+    ///
+    /// До v3 аккаунт не знал своего id, поэтому `seeds` в инструкциях,
+    /// принимающих Field (`harvest`, ремонт/налог/удобрение, апгрейд,
+    /// `close_field`), были невыразимы, а квестовые доказательства
+    /// (`verify_fields`) принимали любой program-owned аккаунт с
+    /// дискриминатором Field. Теперь аккаунт самоописывается: адрес всегда
+    /// проверяется против id внутри него. Поле добавлено в конец layout
+    /// (78 байт), поэтому миграция 69/70 → 78 — это дописывание id, без
+    /// сдвига существующих байт.
+    pub field_id: u64,
 }
 
 /// One 24h emission window. PDA seeds: `["epoch", id.to_le_bytes()]`.
@@ -4356,7 +4824,7 @@ pub struct Epoch {
     pub minted_micro: u64,
     pub start_time: i64,
     pub bump: u8,
-    /// micro-POTATO minted through `grant_reward` during this epoch.
+    /// micro-POTATO minted through `grant_reward_once` during this epoch.
     /// Counts toward the manual-grant quota (GRANT_QUOTA_SHARE_BPS of the cap).
     /// NOT a burn — the historical name was misleading; layout is unchanged.
     pub granted_micro: u64,
@@ -4452,7 +4920,7 @@ pub struct RewardClaim {
 }
 
 /// Реферальная связь игрока. PDA seeds: `["referral", owner]`.
-/// Создаётся один раз через `register_referrer` (burn 5 POTATO).
+/// Создаётся один раз через `register_referrer`; регистрация бесплатна.
 #[account]
 #[derive(InitSpace)]
 pub struct Referral {
@@ -4525,6 +4993,23 @@ impl MarketStats {
             self.buy_volume_24h_micro = 0;
         }
         self.last_update = now;
+    }
+
+    /// Books a fill against the **taker** side only.
+    ///
+    /// Every order on this market is a sell order, so the taker is always the
+    /// buyer: one fill is one buy of `amount_micro`. The old code incremented
+    /// both `sell_volume_24h_micro` and `buy_volume_24h_micro` with the same
+    /// amount, which made `sell + buy` — the only way a consumer can compute
+    /// turnover from these counters — exactly double the real volume (P5).
+    /// `sell_volume_24h_micro` is kept for a future buy-order instruction
+    /// where the taker sells; it stays zero on this rail by construction.
+    pub fn record_taker_fill(&mut self, taker_is_buyer: bool, amount_micro: u64) {
+        if taker_is_buyer {
+            self.buy_volume_24h_micro = self.buy_volume_24h_micro.saturating_add(amount_micro);
+        } else {
+            self.sell_volume_24h_micro = self.sell_volume_24h_micro.saturating_add(amount_micro);
+        }
     }
 }
 
@@ -4688,6 +5173,10 @@ pub struct Harvested {
     pub owner: Pubkey,
     pub field: Pubkey,
     pub amount_micro: u64,
+    /// Начислено до урезания капом эпохи / max_supply (P3-19).
+    pub pending_micro: u64,
+    /// `true`, если выплата урезана: `amount_micro` не отражает всё начисление.
+    pub truncated: bool,
 }
 
 #[event]
@@ -4799,6 +5288,11 @@ pub struct OrderExpiredEvent {
     pub order: Pubkey,
 }
 
+/// Легаси-событие рельсы `grant_reward`, удалённой в апгрейде 2026-11-03
+/// (P1-1). **Ни одна инструкция его больше не эмитит** — структура оставлена
+/// только потому, что имя входит в allowlist хаба-индексатора и в карту
+/// watchtower: удаление события сломало бы внешний контракт интеграции.
+/// Все реальные выплаты идут через `RewardGrantedOnce`.
 #[event]
 pub struct RewardGranted {
     /// Wallet that owns the receiving token account.
@@ -4851,6 +5345,10 @@ pub struct BatchHarvested {
     pub field_count: u8,
     pub total_micro: u64,
     pub treasury_micro: u64,
+    /// Сумма, причитавшаяся всем полям до урезания капом (P3-19).
+    pub requested_micro: u64,
+    /// `true`, если кап эпохи / max_supply урезали выплату.
+    pub truncated: bool,
 }
 
 #[event]
@@ -4949,7 +5447,7 @@ pub enum GameError {
     PresaleWalletLimitReached, // 6033
     #[msg("Presale is not active")]
     PresaleNotActive, // 6034
-    #[msg("Manual grant quota exceeded (10% of the epoch cap)")]
+    #[msg("Manual grant quota exceeded (25% of the epoch cap)")]
     GrantQuotaExceeded, // 6035
     #[msg("Withdrawal rate limit exceeded for the current 24h window")]
     WithdrawWindowLimitExceeded, // 6036
@@ -4991,6 +5489,14 @@ pub enum GameError {
     V2FeeConsumesProceeds, // 6054
     #[msg("Seller daily volume account does not match the order seller")]
     InvalidSellerVolumeAccount, // 6055
+    #[msg("Withdrawal exceeds the share of the treasury balance allowed per call (10 %)")]
+    WithdrawShareExceeded, // 6056
+    #[msg("Quest pool is empty: the achievement reward cannot be paid right now")]
+    QuestPoolEmpty, // 6057
+    #[msg("Legacy marketplace is closed for new listings: use create_sell_order_v2")]
+    LegacyMarketClosed, // 6058
+    #[msg("Referral registration is retired: rewards were paid by the closed legacy market only")]
+    ReferralProgramRetired, // 6059
 }
 
 // ──────────────────────────── Tests ──────────────────────────────
@@ -5011,7 +5517,36 @@ mod tests {
             field_type,
             bump: 0,
             mutation_type: 0,
+            field_id: 0,
         }
+    }
+
+    #[test]
+    fn canonical_ata_check_binds_replay_marker_to_wallet() {
+        // ATA выводится из (owner, mint) однозначно: тот же кошелёк и минт дают
+        // ровно один допустимый аккаунт, поэтому один nonce не может создать
+        // второй маркер через «другой токен-аккаунт того же владельца».
+        let owner = Pubkey::new_from_array([3u8; 32]);
+        let mint = Pubkey::new_from_array([9u8; 32]);
+        let (ata, _) = Pubkey::find_program_address(
+            &[owner.as_ref(), SPL_TOKEN_PROGRAM_ID.as_ref(), mint.as_ref()],
+            &ATA_PROGRAM_ID,
+        );
+        assert!(is_canonical_ata(&ata, &owner, &mint));
+
+        // Любой другой аккаунт (второй токен-аккаунт) — не ATA.
+        let other = Pubkey::new_from_array([1u8; 32]);
+        assert!(!is_canonical_ata(&other, &owner, &mint));
+        // Тот же аккаунт, но другой владелец или минт — тоже нет.
+        assert!(!is_canonical_ata(&ata, &other, &mint));
+        assert!(!is_canonical_ata(&ata, &owner, &other));
+        // Проверка идёт по (owner, mint), а не по самому адресу: адрес ATA
+        // чужого кошелька для этой пары не подходит.
+        let (foreign, _) = Pubkey::find_program_address(
+            &[other.as_ref(), SPL_TOKEN_PROGRAM_ID.as_ref(), mint.as_ref()],
+            &ATA_PROGRAM_ID,
+        );
+        assert!(!is_canonical_ata(&foreign, &owner, &mint));
     }
 
     #[test]
@@ -5044,11 +5579,129 @@ mod tests {
     }
 
     #[test]
+    fn repair_cost_is_proportional_to_missing_durability() {
+        // Полная цена — только когда восстанавливать нужно все 100 пунктов.
+        assert_eq!(
+            repair_cost_micro(BASE_REPAIR_MICRO, 1, 0, 1).unwrap(),
+            15_000_000
+        );
+        // Грядка дешевле луга (type_cost 0.4×): 6 POTATO за полный ремонт.
+        assert_eq!(
+            repair_cost_micro(BASE_REPAIR_MICRO, 0, 0, 1).unwrap(),
+            6_000_000
+        );
+        // Пропорциональность: половина прочности — половина цены.
+        assert_eq!(
+            repair_cost_micro(BASE_REPAIR_MICRO, 1, 50, 1).unwrap(),
+            7_500_000
+        );
+        assert_eq!(
+            repair_cost_micro(BASE_REPAIR_MICRO, 1, 96, 1).unwrap(),
+            600_000
+        );
+        // Уровень масштабирует цену (L30 = 10×), как и прежний level_mult.
+        assert_eq!(
+            repair_cost_micro(BASE_REPAIR_MICRO, 1, 0, 30).unwrap(),
+            150_000_000
+        );
+        // Ремонт никогда не бесплатен: минимум 1 микро-атом.
+        assert_eq!(repair_cost_micro(BASE_REPAIR_MICRO, 1, 100, 1).unwrap(), 1);
+        // Прочность выше максимума не делает цену отрицательной.
+        assert_eq!(repair_cost_micro(BASE_REPAIR_MICRO, 1, 200, 1).unwrap(), 1);
+    }
+
+    #[test]
+    fn fertilizer_cost_tracks_the_yield_it_multiplies() {
+        // База: луг L1 с полной прочностью — 2 POTATO, как и раньше.
+        assert_eq!(
+            fertilizer_cost_micro(BASE_FERTILIZER_MICRO, 1, 1, 100).unwrap(),
+            2_000_000
+        );
+        // Грядка даёт 0.35× урожая — и стоит 0.35× (было 0.8: убыток).
+        assert_eq!(
+            fertilizer_cost_micro(BASE_FERTILIZER_MICRO, 0, 1, 100).unwrap(),
+            700_000
+        );
+        assert_eq!(
+            fertilizer_cost_micro(BASE_FERTILIZER_MICRO, 2, 1, 100).unwrap(),
+            4_200_000
+        );
+        // Изношенное поле даёт меньше — цена падает пропорционально.
+        assert_eq!(
+            fertilizer_cost_micro(BASE_FERTILIZER_MICRO, 1, 1, 50).unwrap(),
+            1_200_000
+        );
+        // Уровень масштабирует цену вместе с прибавкой (L30 = 12.86×).
+        assert_eq!(
+            fertilizer_cost_micro(BASE_FERTILIZER_MICRO, 1, 30, 100).unwrap(),
+            25_720_000
+        );
+    }
+
+    #[test]
+    fn harvest_decay_charges_only_for_paid_time() {
+        let interval = DURABILITY_DECAY_INTERVAL;
+        // Сбор, закрывший сутки, изнашивает поле на 4 пункта.
+        assert_eq!(harvest_decay(SECONDS_PER_DAY, interval, false), 4);
+        // Частый сбор всё равно стоит минимум 1 пункт (иначе износ бесплатен).
+        assert_eq!(harvest_decay(60, interval, false), 1);
+        // Урезанный капом сбор, которому зачли почти ноль времени, бесплатен.
+        assert_eq!(harvest_decay(0, interval, true), 0);
+        assert_eq!(harvest_decay(interval - 1, interval, true), 0);
+        assert_eq!(harvest_decay(interval, interval, true), 1);
+        // Износ не может превысить всю прочность и не паникует на мусоре.
+        assert_eq!(harvest_decay(i64::MAX, interval, false), MAX_DURABILITY);
+        assert_eq!(harvest_decay(-5, interval, false), 1);
+        assert_eq!(harvest_decay(100, 0, false), 0);
+    }
+
+    #[test]
+    fn skr_presale_odds_are_value_neutral() {
+        // P0-4: SKR-ветка пресейла — платный ролл с ФИКСИРОВАННОЙ ценой
+        // (1053 SKR ≈ цена Луга), поэтому её ожидание обязано быть не ниже
+        // цены Луга. При старых весах 70/25/5 ожидание было 157.5 POTATO —
+        // покупатель SKR-ветки платил в 1.6 раза больше, чем за тот же товар
+        // в SOL-ветке.
+        let total_pct: u32 = PRESALE_SKR_ODDS_PCT.iter().map(|v| u32::from(*v)).sum();
+        assert_eq!(total_pct, 100, "вероятности обязаны давать 100 %");
+        let expected: u128 = (0..FIELD_TYPE_COUNT as usize)
+            .map(|t| u128::from(PRESALE_SKR_ODDS_PCT[t]) * field_price_micro(t as u8) as u128)
+            .sum();
+        let reference = field_price_micro(1) as u128; // Луг — эталон цены
+        assert_eq!(
+            expected / 100,
+            reference,
+            "EV платного SKR-ролла не должен отличаться от цены Луга"
+        );
+        // И ни один тир не должен быть недостижим: 0 % сделал бы «дроп» фикцией.
+        for pct in PRESALE_SKR_ODDS_PCT {
+            assert!(pct > 0, "вес каждого тира должен быть положительным");
+        }
+    }
+
+    #[test]
+    fn global_multiplier_has_floor_and_ceiling() {
+        // P1-6: `update_config(global_multiplier_bps = Some(0))` проходил
+        // проверку «не выше 2×» и обнулял урожай всех полей. В `update_config`
+        // стоят два `require!` (потолок и пол); здесь проверяется их общий
+        // допустимый диапазон.
+        fn accepted(m: u16) -> bool {
+            (MIN_GLOBAL_MULTIPLIER_BPS..=MAX_GLOBAL_MULTIPLIER_BPS).contains(&m)
+        }
+        assert!(accepted(BPS as u16));
+        assert!(accepted(MIN_GLOBAL_MULTIPLIER_BPS));
+        assert!(accepted(MAX_GLOBAL_MULTIPLIER_BPS));
+        assert!(!accepted(0));
+        assert!(!accepted(MIN_GLOBAL_MULTIPLIER_BPS - 1));
+        assert!(!accepted(MAX_GLOBAL_MULTIPLIER_BPS + 1));
+    }
+
+    #[test]
     fn upgrade_cost_scales_with_level_and_type() {
-        assert_eq!(upgrade_cost_micro(1, 1).unwrap(), 100_000_000);
-        assert_eq!(upgrade_cost_micro(10, 1).unwrap(), 1_000_000_000);
-        assert_eq!(upgrade_cost_micro(1, 0).unwrap(), 40_000_000);
-        assert_eq!(upgrade_cost_micro(1, 2).unwrap(), 200_000_000);
+        assert_eq!(upgrade_cost_micro(1, 1).unwrap(), 30_000_000);
+        assert_eq!(upgrade_cost_micro(10, 1).unwrap(), 300_000_000);
+        assert_eq!(upgrade_cost_micro(1, 0).unwrap(), 12_000_000);
+        assert_eq!(upgrade_cost_micro(1, 2).unwrap(), 60_000_000);
     }
 
     #[test]
@@ -5060,7 +5713,6 @@ mod tests {
             &f,
             SECONDS_PER_DAY,
             1,
-            0,
         )
         .unwrap();
         assert_eq!(y, DEFAULT_BASE_YIELD_MICRO_PER_DAY);
@@ -5070,11 +5722,11 @@ mod tests {
     fn unpaid_tax_halves_yield_and_fertilizer_adds_half() {
         let mut f = field(1, 100, 1);
         f.tax_paid_until = 0; // overdue at now = 10
-        let y = compute_pending_yield(6_000_000, 10_000, &f, SECONDS_PER_DAY, 10, 0).unwrap();
+        let y = compute_pending_yield(6_000_000, 10_000, &f, SECONDS_PER_DAY, 10).unwrap();
         assert_eq!(y, 3_000_000);
         f.tax_paid_until = i64::MAX;
         f.fertilizer_until = i64::MAX;
-        let y = compute_pending_yield(6_000_000, 10_000, &f, SECONDS_PER_DAY, 10, 0).unwrap();
+        let y = compute_pending_yield(6_000_000, 10_000, &f, SECONDS_PER_DAY, 10).unwrap();
         assert_eq!(y, 9_000_000);
     }
 
@@ -5089,15 +5741,9 @@ mod tests {
     fn weekly_yield_covers_tax_at_level_one() {
         for t in 0..FIELD_TYPE_COUNT {
             let f = field(1, 100, t);
-            let weekly = compute_pending_yield(
-                DEFAULT_BASE_YIELD_MICRO_PER_DAY,
-                10_000,
-                &f,
-                TAX_PERIOD,
-                1,
-                0,
-            )
-            .unwrap();
+            let weekly =
+                compute_pending_yield(DEFAULT_BASE_YIELD_MICRO_PER_DAY, 10_000, &f, TAX_PERIOD, 1)
+                    .unwrap();
             let tax = scaled_cost(BASE_TAX_MICRO, t);
             assert!(weekly > tax * 3, "type {t}: weekly {weekly} vs tax {tax}");
         }
@@ -5105,26 +5751,56 @@ mod tests {
 
     #[test]
     fn lunar_weight_is_segment_weighted_over_trailing_days() {
-        // Одна эпоха назад = ровно табличное значение текущей эпохи.
+        // P2-6: индекс дня берётся из времени, а не из epoch_id.
+        // Ровно сутки назад = ровно табличное значение текущего дня.
         assert_eq!(
             lunar_weighted_bps(SECONDS_PER_DAY, 0),
             LUNAR_TABLE[0] as u128
         );
         assert_eq!(
-            lunar_weighted_bps(SECONDS_PER_DAY, 3),
+            lunar_weighted_bps(SECONDS_PER_DAY, 3 * SECONDS_PER_DAY),
             LUNAR_TABLE[3] as u128
         );
-        // elapsed = 0 → текущая эпоха.
-        assert_eq!(lunar_weighted_bps(0, 27), LUNAR_TABLE[27] as u128);
-        // Двое суток, epoch_id = 0: средняя между LUNAR[0] и LUNAR[27].
+        // elapsed = 0 → текущий день.
+        assert_eq!(
+            lunar_weighted_bps(0, 27 * SECONDS_PER_DAY),
+            LUNAR_TABLE[27] as u128
+        );
+        // Двое суток в день 0: средняя между LUNAR[0] и LUNAR[27].
         let expected = (LUNAR_TABLE[0] as u128 + LUNAR_TABLE[27] as u128) / 2;
         assert_eq!(lunar_weighted_bps(2 * SECONDS_PER_DAY, 0), expected);
-        // Частичный сегмент взвешивается по своей длительности.
-        // 1.5 суток, epoch 0: 86400 s по LUNAR[0] + 43200 s по LUNAR[27].
+        // Частичный сегмент взвешивается по своей длительности:
+        // 1.5 суток в день 0 → 86400 s по LUNAR[0] + 43200 s по LUNAR[27].
         let w = (LUNAR_TABLE[0] as u128 * 86_400 + LUNAR_TABLE[27] as u128 * 43_200) / 129_600;
         assert_eq!(lunar_weighted_bps(SECONDS_PER_DAY * 3 / 2, 0), w);
         // Семь суток (MAX_ACCRUAL) не выходят за границы таблицы.
-        let _ = lunar_weighted_bps(MAX_ACCRUAL_SECONDS, 5);
+        let _ = lunar_weighted_bps(MAX_ACCRUAL_SECONDS, 5 * SECONDS_PER_DAY);
+        // Фаза следует за временем, а не за числом роллов: два «сейчас» с
+        // разницей в 28 суток дают одинаковый множитель, хотя epoch_id мог
+        // уехать куда угодно.
+        for now in [0i64, 1_700_000_000, SECONDS_PER_DAY * 3] {
+            assert_eq!(
+                lunar_weighted_bps(SECONDS_PER_DAY, now),
+                lunar_weighted_bps(SECONDS_PER_DAY, now + 28 * SECONDS_PER_DAY)
+            );
+        }
+        assert_eq!(lunar_day_index(-1), 27);
+        assert_eq!(lunar_day_index(0), 0);
+        assert_eq!(lunar_day_index(SECONDS_PER_DAY * 28), 0);
+    }
+
+    #[test]
+    fn single_withdraw_cap_is_a_share_of_the_treasury_balance() {
+        // P1-4: окно вывода (250 000 🥔) равно дневному капу эмиссии, то есть
+        // размеру всей казны. Одна выплата дополнительно ограничена долей
+        // текущего баланса.
+        assert_eq!(MAX_WITHDRAW_BALANCE_SHARE_BPS, 1_000);
+        assert_eq!(single_withdraw_cap(0), 0);
+        assert_eq!(single_withdraw_cap(9), 0, "пыль не выводится вовсе");
+        assert_eq!(single_withdraw_cap(1_000_000), 100_000);
+        assert_eq!(single_withdraw_cap(250_000_000_000), 25_000_000_000);
+        // Насыщение вместо паники: баланс у предела u64 не должен ронять IX.
+        assert_eq!(single_withdraw_cap(u64::MAX), u64::MAX / 10_000);
     }
 
     #[test]
@@ -5156,10 +5832,10 @@ mod tests {
     }
 
     #[test]
-    fn grant_quota_is_ten_percent_of_epoch_cap() {
+    fn grant_quota_is_quarter_of_epoch_cap() {
         let cap = MAX_DAILY_CAP_MICRO; // 250k 🥔
         let quota = ((cap as u128) * GRANT_QUOTA_SHARE_BPS as u128 / BPS) as u64;
-        assert_eq!(quota, 25_000_000_000); // 25k 🥔
+        assert_eq!(quota, 62_500_000_000); // 62.5k 🥔
         assert!(
             quota >= MAX_REWARD_MICRO,
             "single max reward must fit in quota"
@@ -5168,20 +5844,112 @@ mod tests {
 
     #[test]
     fn fee_tiers_are_progressive() {
-        // Прогрессивная комиссия 9% – 12%
-        assert_eq!(calculate_fee_bps(999_999_999), 900);
-        assert_eq!(calculate_fee_bps(1_000_000_000), 1_000);
-        assert_eq!(calculate_fee_bps(10_000_000_000), 1_100);
-        assert_eq!(calculate_fee_bps(100_000_000_000), 1_200);
-        assert_eq!(order_fee_micro(1_000_000).unwrap(), 90_000); // 1 POTATO × 9%
+        // Прогрессивная комиссия 5% – 8%
+        assert_eq!(calculate_fee_bps(999_999_999), 500);
+        assert_eq!(calculate_fee_bps(1_000_000_000), 600);
+        assert_eq!(calculate_fee_bps(10_000_000_000), 700);
+        assert_eq!(calculate_fee_bps(100_000_000_000), 800);
+        assert_eq!(order_fee_micro(1_000_000).unwrap(), 50_000); // 1 POTATO × 5%
+    }
+
+    #[test]
+    fn legacy_and_v2_fee_bases_differ_by_design() {
+        // Лестница ставок одна, база — разная:
+        //   • легаси `calculate_fee_bps` берёт ОДНУ ступень от суммы ордера;
+        //   • V2 делит сделку на маржинальные ступени.
+        // Обе базы теперь не зависят от личности продавца (V2 — P0-5), но для
+        // ордера ≥ 1 000 POTATO расхождение остаётся: 1 500 POTATO на легаси
+        // = 6 % целиком, на V2 = 5 % на первые 1 000 и 6 % на остаток.
+        assert_eq!(V2_SETTLEMENT_FEE_BPS, [500, 600, 700, 800]);
+        for (amount, legacy_bps) in [
+            (999 * MICRO as u64, 500u16),
+            (1_000 * MICRO as u64, 600),
+            (10_000 * MICRO as u64, 700),
+            (100_000 * MICRO as u64, 800),
+        ] {
+            assert_eq!(calculate_fee_bps(amount), legacy_bps);
+        }
+
+        let order_micro = 1_500 * MICRO as u64;
+        let price = 1_000_000;
+        let legacy = order_fee_micro(order_micro).unwrap();
+        let v2 = calculate_settlement_fee_v2(order_micro, price, 0).unwrap();
+        let bps_of = |fee: u64, base: u64| ((fee as u128 * BPS) / base as u128) as u64;
+        assert_eq!(calculate_fee_bps(order_micro), 600, "легаси: одна ступень");
+        assert_eq!(bps_of(legacy, order_micro), 600);
+        assert_eq!(
+            bps_of(v2.fee_quote_atoms, v2.gross_quote_atoms),
+            533,
+            "V2: 5 % на 1 000 POTATO + 6 % на 500"
+        );
+        assert!(
+            v2.fee_quote_atoms < legacy,
+            "маржинальная база V2 ниже пошаговой легаси на крупном ордере"
+        );
+    }
+
+    #[test]
+    fn fee_base_divergence_examples_match_documented_table() {
+        // Числа этой таблицы опубликованы в `docs/ECONOMY.md` §5 («Сколько это
+        // в деньгах»). Документ, который никто не сверяет, устаревает молча:
+        // здесь каждая строка пересчитана по тем же функциям, что и на цепи,
+        // поэтому смена ставок или порогов уронит тест, а не оставит в доке
+        // неверные проценты. Проценты печатаются как floor(bps), ровно как в
+        // таблице (5.33 % = 533 bps, 7.26 % = 726 bps).
+        let price = 1_000_000; // atoms за 1 POTATO: проценты от цены не зависят
+        let bps_of = |fee: u64, base: u64| ((fee as u128 * BPS) / base as u128) as u64;
+
+        // Строка 1: новичок, 10 POTATO, суточный объём 0 → обе рельсы 5 %.
+        let order = 10 * MICRO as u64;
+        let legacy = order_fee_micro(order).unwrap();
+        let v2 = calculate_settlement_fee_v2(order, price, 0).unwrap();
+        assert_eq!(
+            bps_of(legacy, order),
+            500,
+            "legacy берёт 5 % от суммы ордера"
+        );
+        assert_eq!(
+            bps_of(v2.fee_quote_atoms, v2.gross_quote_atoms),
+            500,
+            "V2 берёт 5 % от gross-выручки"
+        );
+
+        // Строка 2: тот же ордер 10 POTATO, но дневной объём продавца 200k.
+        // P0-5: ставка от личности не зависит, поэтому на V2 остаётся 5 % —
+        // именно этого «бесплатного» понижения ставки сменой кошелька больше нет.
+        let v2_big = calculate_settlement_fee_v2(order, price, 200_000 * MICRO as u64).unwrap();
+        assert_eq!(
+            bps_of(v2_big.fee_quote_atoms, v2_big.gross_quote_atoms),
+            500,
+            "V2 не смотрит на суточный объём продавца"
+        );
+        // Строка 3: один ордер 1.5k POTATO → legacy 6 %, V2 5.33 % (маржинально).
+        let single = 1_500 * MICRO as u64;
+        let legacy_single = order_fee_micro(single).unwrap();
+        let v2_single = calculate_settlement_fee_v2(single, price, 0).unwrap();
+        assert_eq!(bps_of(legacy_single, single), 600);
+        assert_eq!(
+            bps_of(v2_single.fee_quote_atoms, v2_single.gross_quote_atoms),
+            533
+        );
+
+        // Строка 4: один ордер 150k POTATO → legacy 8 %, V2 7.26 %.
+        let huge = 150_000 * MICRO as u64;
+        let legacy_huge = order_fee_micro(huge).unwrap();
+        let v2_huge = calculate_settlement_fee_v2(huge, price, 0).unwrap();
+        assert_eq!(bps_of(legacy_huge, huge), 800);
+        assert_eq!(
+            bps_of(v2_huge.fee_quote_atoms, v2_huge.gross_quote_atoms),
+            726
+        );
     }
 
     #[test]
     fn v2_settlement_fee_is_quote_denominated_and_seller_paid() {
         let result = calculate_settlement_fee_v2(10 * MICRO as u64, 1_000_000, 0).unwrap();
         assert_eq!(result.gross_quote_atoms, 10_000_000);
-        assert_eq!(result.fee_quote_atoms, 900_000);
-        assert_eq!(result.seller_net_quote_atoms, 9_100_000);
+        assert_eq!(result.fee_quote_atoms, 500_000);
+        assert_eq!(result.seller_net_quote_atoms, 9_500_000);
         assert_eq!(
             result.gross_quote_atoms,
             result.fee_quote_atoms + result.seller_net_quote_atoms
@@ -5192,27 +5960,41 @@ mod tests {
 
     #[test]
     fn v2_fee_splits_a_fill_at_progressive_tier_edges() {
-        let result = calculate_settlement_fee_v2(
-            100 * MICRO as u64,
-            10_000_000,
-            999 * MICRO as u64 + 500_000,
-        )
-        .unwrap();
-        // 0.5 POTATO at 9%, then 99.5 POTATO at 10%.
-        assert_eq!(result.gross_quote_atoms, 1_000_000_000);
-        assert_eq!(result.fee_quote_atoms, 99_950_000);
-        assert_eq!(result.seller_net_quote_atoms, 900_050_000);
+        // P0-5: ступени считаются по объёму СДЕЛКИ. Один филл на 1 100 POTATO
+        // по цене 10 000 000 атомов за POTATO: 1 000 POTATO по 5 %, остаток
+        // 100 POTATO по 6 %.
+        let result = calculate_settlement_fee_v2(1_100 * MICRO as u64, 10_000_000, 0).unwrap();
+        let gross_first = 1_000 * MICRO as u64 * 10_000_000 / MICRO as u64;
+        let gross_rest = 100 * MICRO as u64 * 10_000_000 / MICRO as u64;
+        assert_eq!(result.gross_quote_atoms, gross_first + gross_rest);
         assert_eq!(
-            result.seller_volume_after_micro,
-            1_099 * MICRO as u64 + 500_000
+            result.fee_quote_atoms,
+            gross_first / 20 + gross_rest * 6 / 100,
+            "5 % на первой тысяче и 6 % на остатке"
         );
+        assert_eq!(
+            result.gross_quote_atoms,
+            result.fee_quote_atoms + result.seller_net_quote_atoms
+        );
+        // Дневной объём продавца — только учёт: та же сделка с любым «до»
+        // стоит ровно столько же.
+        for before in [0u64, 1, 999 * MICRO as u64, 1_000_000 * MICRO as u64] {
+            let same =
+                calculate_settlement_fee_v2(1_100 * MICRO as u64, 10_000_000, before).unwrap();
+            assert_eq!(same.fee_quote_atoms, result.fee_quote_atoms);
+            assert_eq!(same.seller_volume_before_micro, before);
+            assert_eq!(
+                same.seller_volume_after_micro,
+                before + 1_100 * MICRO as u64
+            );
+        }
     }
 
     #[test]
     fn v2_fill_crosses_all_draft_tiers_and_quote_rounding_is_upward() {
         let result = calculate_settlement_fee_v2(120_000 * MICRO as u64, 1_000_000, 0).unwrap();
         assert_eq!(result.gross_quote_atoms, 120_000_000_000);
-        assert_eq!(result.fee_quote_atoms, 13_290_000_000);
+        assert_eq!(result.fee_quote_atoms, 8_490_000_000);
         assert_eq!(
             result.gross_quote_atoms,
             result.fee_quote_atoms + result.seller_net_quote_atoms
@@ -5222,28 +6004,34 @@ mod tests {
     }
 
     #[test]
-    fn v2_split_fills_cannot_reset_daily_marginal_tiers() {
-        let seller = Pubkey::new_unique();
+    fn v2_fee_cannot_be_lowered_by_switching_wallets() {
+        // P0-5: это и была дыра. Продавец с большим дневным объёмом платил 8 %
+        // на одном кошельке и 5 % на каждом новом — Solana-ключи бесплатны,
+        // поэтому «смена личности» была бесплатным понижением ставки.
+        // Теперь ставка зависит только от объёма сделки, и накопленный объём
+        // (то, что привязано к кошельку) в цену не входит.
+        let amount = 10 * MICRO as u64;
+        let price = 1_000_000;
+        let fresh = calculate_settlement_fee_v2(amount, price, 0).unwrap();
+        let veteran = calculate_settlement_fee_v2(amount, price, 500_000 * MICRO as u64).unwrap();
+        assert_eq!(fresh.fee_quote_atoms, veteran.fee_quote_atoms);
+        // Учёт объёма при этом продолжается: он нужен событиям и статистике.
+        assert_eq!(veteran.seller_volume_before_micro, 500_000 * MICRO as u64);
+        assert_eq!(
+            veteran.seller_volume_after_micro,
+            500_000 * MICRO as u64 + amount
+        );
+        // И SellerVolumeV2 по-прежнему катается по UTC-суткам.
         let now = 10 * SECONDS_PER_DAY + 1;
         let mut volume = SellerVolumeV2 {
-            seller,
+            seller: Pubkey::new_unique(),
             day_index: now.div_euclid(SECONDS_PER_DAY),
             filled_potato_micro: 0,
             bump: 0,
         };
-        let whole = calculate_settlement_fee_v2(1_250 * MICRO as u64, 10_000_003, 0).unwrap();
-        let mut split_fee = 0u64;
-        let mut split_gross = 0u64;
-        for _ in 0..25 {
-            let before = volume.volume_at(now);
-            let part = calculate_settlement_fee_v2(50 * MICRO as u64, 10_000_003, before).unwrap();
-            split_fee += part.fee_quote_atoms;
-            split_gross += part.gross_quote_atoms;
-            volume.record_fill(now, 50 * MICRO as u64).unwrap();
-        }
-        assert_eq!(volume.filled_potato_micro, 1_250 * MICRO as u64);
-        assert!(split_fee >= whole.fee_quote_atoms);
-        assert!(split_gross >= whole.gross_quote_atoms);
+        volume.record_fill(now, amount).unwrap();
+        assert_eq!(volume.volume_at(now), amount);
+        assert_eq!(volume.volume_at(now + SECONDS_PER_DAY), 0);
     }
 
     #[test]
@@ -5309,6 +6097,47 @@ mod tests {
     }
 
     #[test]
+    fn one_fill_books_exactly_one_side_of_the_volume() {
+        // P5: sell + buy должны давать реальный оборот, а не удвоенный.
+        let mut s = MarketStats {
+            sell_volume_24h_micro: 0,
+            buy_volume_24h_micro: 0,
+            total_sol_volume: 0,
+            total_trades: 0,
+            last_update: 1,
+            bump: 0,
+        };
+        s.record_taker_fill(true, 10_000_000);
+        s.record_taker_fill(true, 5_000_000);
+        assert_eq!(s.buy_volume_24h_micro, 15_000_000);
+        assert_eq!(s.sell_volume_24h_micro, 0);
+        assert_eq!(
+            s.buy_volume_24h_micro + s.sell_volume_24h_micro,
+            15_000_000,
+            "sell + buy must equal the traded volume, not twice it"
+        );
+        // Ветка тейкера-продавца существует для будущего buy-ордера и не
+        // должна незаметно писать в buy-счётчик.
+        s.record_taker_fill(false, 7_000_000);
+        assert_eq!(s.sell_volume_24h_micro, 7_000_000);
+        assert_eq!(s.buy_volume_24h_micro, 15_000_000);
+    }
+
+    #[test]
+    fn referral_registration_is_free_and_costs_no_burn_rail() {
+        // Новичок приходит без POTATO: плата за реферал не должна требовать
+        // токенов, которых у него ещё нет.
+        assert_eq!(REFERRAL_REGISTRATION_COST_MICRO, 0);
+        // Числовое зеркало и рабочий переключатель обязаны совпадать, иначе
+        // документация и списание разъедутся.
+        assert_eq!(
+            REFERRAL_REGISTRATION_FEE_MICRO.unwrap_or(0),
+            REFERRAL_REGISTRATION_COST_MICRO
+        );
+        assert!(REFERRAL_REGISTRATION_FEE_MICRO.is_none());
+    }
+
+    #[test]
     fn batch_field_serialization_round_trips_without_extra_discriminator() {
         let mut original = field(3, 99, 1);
         original.last_harvest = 123456;
@@ -5326,11 +6155,19 @@ mod tests {
     fn achievement_proofs_reject_duplicate_and_foreign_fields() {
         let user = Pubkey::new_unique();
         let program = crate::ID;
-        let key = Pubkey::new_unique();
+        let field_id: u64 = 41;
+        let (key, bump) =
+            Pubkey::find_program_address(&[b"field", &field_id.to_le_bytes()], &program);
         let mut f = field(3, 100, 1);
         f.owner = user;
+        f.field_id = field_id;
+        f.bump = bump;
         let mut data = vec![0; 8 + Field::INIT_SPACE];
         write_field_account(&f, &mut data).unwrap();
+        // P1-3: тот же байт-в-байт аккаунт по адресу, выведенному из ДРУГОГО id.
+        let mut lookalike_data = data.clone();
+        let (other_key, _) =
+            Pubkey::find_program_address(&[b"field", &(field_id + 1).to_le_bytes()], &program);
         let mut lamports = 1;
         let account = AccountInfo::new(
             &key,
@@ -5342,8 +6179,20 @@ mod tests {
             false,
             0,
         );
+        let mut lookalike_lamports = 1;
+        let lookalike = AccountInfo::new(
+            &other_key,
+            false,
+            false,
+            &mut lookalike_lamports,
+            &mut lookalike_data,
+            &program,
+            false,
+            0,
+        );
         let accounts = [account.clone()];
         assert!(verify_fields(&accounts, &user, &program, 1, 3).is_ok());
+        assert!(verify_fields(&[lookalike], &user, &program, 1, 0).is_err());
         assert!(verify_fields(&[account.clone(), account.clone()], &user, &program, 2, 0).is_err());
         assert!(verify_fields(&accounts, &Pubkey::new_unique(), &program, 1, 0).is_err());
         assert!(verify_fields(&[account], &user, &Pubkey::new_unique(), 1, 0).is_err());
@@ -5351,7 +6200,9 @@ mod tests {
 
     #[test]
     fn account_sizes_match_client_decoders() {
-        assert_eq!(8 + Field::INIT_SPACE, 70);
+        // Field v3 (P1-3): v2 62 байта payload + field_id u64 (см. table in
+        // docs/API.md; размер обязан совпадать с FIELD_ACCOUNT_SIZE клиентов).
+        assert_eq!(8 + Field::INIT_SPACE, 78);
         assert_eq!(8 + MarketOrder::INIT_SPACE, 83);
         // Versioned market accounts are additive; legacy layout remains 83 bytes.
         assert_eq!(8 + MarketOrderV2::INIT_SPACE, 85);
@@ -5367,6 +6218,20 @@ mod tests {
             8 + AdminState::INIT_SPACE,
             8 + 8 + 24 + 32 + 8 + 8 + 8 + 1 + 8 * 6
         );
+        // RewardClaim — маркер реплея (P1-2): его layout не должен меняться
+        // незаметно, иначе повторная выплата снова станет возможной.
+        // recipient 32 + nonce 8 + amount 8 + claimed_at 8 + bump 1
+        assert_eq!(8 + RewardClaim::INIT_SPACE, 65);
+        // Referral: owner 32 + referrer 32 + bump 1
+        assert_eq!(8 + Referral::INIT_SPACE, 73);
+        // PresaleState: authority 32 + sold u32 + cap u32 + price u64 + bump 1
+        assert_eq!(8 + PresaleState::INIT_SPACE, 57);
+        // ExportLicense: owner 32 + expires_at 8 + bump 1
+        assert_eq!(8 + ExportLicense::INIT_SPACE, 49);
+        // Achievements: bitmap u64 + bump
+        assert_eq!(8 + Achievements::INIT_SPACE, 17);
+        // SellerProfile: seller 32 + last_cancel_at 8 + bump 1
+        assert_eq!(8 + SellerProfile::INIT_SPACE, 49);
     }
 
     // ─────────────── Security checklist 2026-09-25 ───────────────
@@ -5396,12 +6261,12 @@ mod tests {
     }
 
     #[test]
-    fn fee_bps_stay_within_nine_and_twelve_percent() {
-        // П. 15: прогрессия тиров 9–12 % без выбросов на границах диапазона.
+    fn fee_bps_stay_within_five_and_eight_percent() {
+        // П. 15: прогрессия тиров 5–8 % без выбросов на границах диапазона.
         for amount in [0u64, 1, MIN_ORDER_AMOUNT_MICRO, u64::MAX] {
             let bps = calculate_fee_bps(amount);
             assert!(
-                (900u16..=1_200).contains(&bps),
+                (500u16..=800).contains(&bps),
                 "tier {bps} out of range at {amount}"
             );
         }
@@ -5412,7 +6277,7 @@ mod tests {
         // Пп. 13–14: checked-цепочка + потолок u64; отрицательный elapsed
         // зажимается, а не паникует.
         let f = field(MAX_FIELD_LEVEL, MAX_DURABILITY, 2);
-        let y = compute_pending_yield(u64::MAX, u16::MAX, &f, MAX_ACCRUAL_SECONDS, 1, u64::MAX)
+        let y = compute_pending_yield(u64::MAX, u16::MAX, &f, MAX_ACCRUAL_SECONDS, 1)
             .expect("checked math must not overflow-panic");
         assert_eq!(
             y,
@@ -5420,11 +6285,11 @@ mod tests {
             "extreme yield is capped at u64::MAX, never panics"
         );
         assert_eq!(
-            compute_pending_yield(u64::MAX, u16::MAX, &f, 0, 0, 0).unwrap(),
+            compute_pending_yield(u64::MAX, u16::MAX, &f, 0, 0).unwrap(),
             0
         );
         assert_eq!(
-            compute_pending_yield(6_000_000, 10_000, &f, -1, 0, 0).unwrap(),
+            compute_pending_yield(6_000_000, 10_000, &f, -1, 0).unwrap(),
             0
         );
     }
@@ -5438,16 +6303,16 @@ mod tests {
                 assert!(cost > 0);
             }
         }
-        assert_eq!(upgrade_cost_micro(u8::MAX, 2).unwrap(), 51_000_000_000);
+        assert_eq!(upgrade_cost_micro(u8::MAX, 2).unwrap(), 15_300_000_000);
     }
 
     #[test]
     fn lunar_weighted_bps_stays_within_table_extremes() {
         // П. 10: взвешенный лунный множитель всегда внутри [8500, 11500] —
-        // межэпохальный арбитраж перед/после roll_epoch невозможен.
+        // арбитраж на стыке дней (и на отставании roll_epoch) невозможен.
         let mut min = u128::MAX;
         let mut max = 0u128;
-        for epoch in 0..2_000u64 {
+        for day in 0..2_000i64 {
             for elapsed in [
                 0i64,
                 1,
@@ -5456,7 +6321,7 @@ mod tests {
                 2 * SECONDS_PER_DAY,
                 MAX_ACCRUAL_SECONDS,
             ] {
-                let w = lunar_weighted_bps(elapsed, epoch);
+                let w = lunar_weighted_bps(elapsed, day * SECONDS_PER_DAY);
                 min = min.min(w);
                 max = max.max(w);
             }
@@ -5500,15 +6365,21 @@ mod tests {
         // до O(n²)-проверки; ровно кап проходит.
         let user = Pubkey::new_unique();
         let program = crate::ID;
-        let mut f = field(1, 100, 1);
-        f.owner = user;
-        let mut data = vec![0; 8 + Field::INIT_SPACE];
-        write_field_account(&f, &mut data).unwrap();
         let mut accounts: Vec<AccountInfo> = Vec::new();
-        for _ in 0..(MAX_CLAIM_PROOFS + 1) {
-            let key: &'static Pubkey = Box::leak(Box::new(Pubkey::new_unique()));
+        for id in 0..(MAX_CLAIM_PROOFS as u64 + 1) {
+            // P1-3: доказательство — только канонический PDA своего field_id,
+            // поэтому адрес выводится из id, а не берётся случайным.
+            let (key, bump) =
+                Pubkey::find_program_address(&[b"field", &id.to_le_bytes()], &program);
+            let mut f = field(1, 100, 1);
+            f.owner = user;
+            f.field_id = id;
+            f.bump = bump;
+            let mut data = vec![0; 8 + Field::INIT_SPACE];
+            write_field_account(&f, &mut data).unwrap();
+            let key: &'static Pubkey = Box::leak(Box::new(key));
             let lamports: &'static mut u64 = Box::leak(Box::new(1u64));
-            let acc_data: &'static mut Vec<u8> = Box::leak(Box::new(data.clone()));
+            let acc_data: &'static mut Vec<u8> = Box::leak(Box::new(data));
             accounts.push(AccountInfo::new(
                 key, false, false, lamports, acc_data, &program, false, 0,
             ));
@@ -5530,13 +6401,104 @@ mod tests {
         assert_eq!(MAX_WITHDRAW_SKR_ATOMS_PER_WINDOW, 100_000_000_000);
         assert_eq!(MAX_CLAIM_PROOFS, 12);
         assert_eq!(MAX_REWARD_MICRO, 1_000_000_000);
-        assert_eq!(GRANT_QUOTA_SHARE_BPS, 1_000);
+        assert_eq!(GRANT_QUOTA_SHARE_BPS, 2_500);
         assert_eq!(FEE_BURN_PERCENT, 60);
         assert_eq!(MIN_ORDER_AMOUNT_MICRO, 10_000_000);
         assert_eq!(MIN_ORDER_TOTAL_LAMPORTS, 1_000_000);
         assert_eq!(EPOCH_DURATION, SECONDS_PER_DAY);
         assert_eq!(MAX_ACCRUAL_SECONDS, 7 * SECONDS_PER_DAY);
         assert_eq!(LUNAR_TABLE.len(), 28);
+    }
+
+    #[test]
+    fn referral_registration_gate_stays_shut() {
+        // Награда рефереру (0.5 %) и скидка покупателю (−1 %) существуют только
+        // в легаси `fill_order`. Пока легаси закрыт на запись, новая регистрация
+        // обещала бы выплаты, которых не будет, — поэтому она закрыта, а
+        // программа либо возвращается вместе с решением по V2-экономике, либо
+        // удаляется отдельным релизом ABI.
+        assert!(
+            !referral_program_enabled(),
+            "P2-2: register_referrer обязан отклонять новые регистрации"
+        );
+        assert!(
+            !legacy_market_writes_enabled(),
+            "награды платит только легаси-fill"
+        );
+    }
+
+    #[test]
+    fn legacy_fee_split_matches_the_retired_market_rules() {
+        // Правила легаси-комиссии живут, пока доигрывается книга V1: ордер
+        // 10 POTATO с комиссией 5 % (500 000) и escrow 10 500 000.
+        let amount = 10 * MICRO as u64;
+        let listed = 500_000;
+
+        // Без скидок: 60 % сгорает, 40 % в казну — ровно как до P2-2.
+        let plain = legacy_fee_split(amount, listed, 0, 0, false);
+        assert_eq!(plain.total_discounts, 0);
+        assert_eq!(plain.fee_to_treasury, 200_000);
+        assert_eq!(plain.referrer_reward, 0);
+        assert_eq!(plain.fee_to_burn(true), 300_000);
+        assert_eq!(
+            plain.fee_to_burn(false),
+            300_000,
+            "без реферера исход не влияет"
+        );
+
+        // Реферал покупателя: −1 % из комиссии (refund продавцу) и 0.5 % рефереру.
+        let referred = legacy_fee_split(amount, listed, 0, listed / 5, true);
+        assert_eq!(referred.total_discounts, 100_000);
+        assert_eq!(referred.fee_to_treasury, 160_000);
+        assert_eq!(referred.referrer_reward, 50_000);
+        assert_eq!(referred.fee_to_burn(true), 190_000);
+        // ATA не передана/неверна — награда сгорает, escrow дренируется в ноль.
+        assert_eq!(referred.fee_to_burn(false), 240_000);
+
+        // Экспортная лицензия продавца: −3 % от суммы.
+        let licensed = legacy_fee_split(amount, listed, amount * 300 / 10_000, 0, false);
+        assert_eq!(licensed.total_discounts, 300_000);
+        assert_eq!(licensed.fee_to_treasury, 80_000);
+        assert_eq!(licensed.fee_to_burn(true), 120_000);
+
+        // Скидки не могут превысить удержанную комиссию.
+        let capped = legacy_fee_split(amount, listed, 400_000, 400_000, true);
+        assert_eq!(capped.total_discounts, listed);
+        assert_eq!(capped.fee_to_treasury, 0);
+        assert_eq!(capped.referrer_reward, 0, "рефереру не из чего платить");
+        assert_eq!(capped.fee_to_burn(true), 0);
+
+        // Инвариант дренажа: escrow = сумма ордера + комиссия, и каждый атом
+        // комиссии имеет адрес (казна + сожжённое + выплаченная награда).
+        for (amount, listed, license, referral, has_ref) in [
+            (amount, listed, 0u64, 0u64, false),
+            (amount, listed, 0, 100_000, true),
+            (amount, listed, 300_000, 0, false),
+            (amount, listed, 300_000, 100_000, true),
+            (amount, listed, 900_000, 900_000, true),
+        ] {
+            let split = legacy_fee_split(amount, listed, license, referral, has_ref);
+            let claimed = split.referrer_reward > 0;
+            let drained = split.fee_to_treasury
+                + split.referrer_reward
+                + split.fee_to_burn(claimed)
+                + split.total_discounts;
+            assert_eq!(drained, listed, "escrow не дренируется в ноль: {split:?}");
+        }
+    }
+
+    #[test]
+    fn legacy_market_write_gate_stays_shut() {
+        // P2-2: закрытие легаси-рынка — явный инвариант, а не «вызовов больше
+        // нет». Открытие обратно меняет базу комиссии (размер ордера вместо
+        // суточного объёма продавца, docs/ECONOMY.md §5) и требует отдельного
+        // решения владельца экономики, поэтому тест падает на любой правке
+        // константы. Доигрывание книги (fill/cancel/close_expired) намеренно
+        // не гейтится: чужие escrow не должны застревать.
+        assert!(
+            !legacy_market_writes_enabled(),
+            "P2-2: create_sell_order обязан отклонять новые листинги"
+        );
     }
 
     // ─────────────── Extended checklist 2026-09-26 (пп. 31-70) ───────────────
@@ -5580,7 +6542,7 @@ mod tests {
                 "rounding at {amount}"
             );
             assert!(
-                (900..=1_200).contains(&(bps as u16)),
+                (500..=800).contains(&(bps as u16)),
                 "tier {bps} at {amount}"
             );
         }
@@ -5664,14 +6626,14 @@ mod tests {
                 field_type: rng.below(FIELD_TYPE_COUNT as u64) as u8,
                 bump: 0,
                 mutation_type: rng.below(3) as u8,
+                field_id: 0,
             };
             let base = rng.below(MAX_BASE_YIELD_MICRO_PER_DAY) + 1;
             let global = rng.below(MAX_GLOBAL_MULTIPLIER_BPS as u64 + 1) as u16;
             let now = rng.below(1_000_000_000) as i64;
-            let epoch = rng.next_u64();
             let mut previous = 0u64;
             for day in 1..=MAX_ACCRUAL_SECONDS / SECONDS_PER_DAY {
-                let y = compute_pending_yield(base, global, &f, day * SECONDS_PER_DAY, now, epoch)
+                let y = compute_pending_yield(base, global, &f, day * SECONDS_PER_DAY, now)
                     .expect("checked chain must not panic");
                 assert!(
                     y >= previous,
@@ -5709,7 +6671,7 @@ mod tests {
         // принимает только размеры из белого списка и дополняет до текущего —
         // эти числа обязаны быть ПОСЛЕДНИМИ элементами списков, иначе миграция
         // «улучшит» актуальный аккаунт до устаревшего размера.
-        assert_eq!(8 + Field::INIT_SPACE, 70);
+        assert_eq!(8 + Field::INIT_SPACE, 78);
         assert_eq!(8 + Epoch::INIT_SPACE, 49);
         assert_eq!(8 + AdminState::INIT_SPACE, 145);
         assert_eq!(8 + GameConfig::INIT_SPACE, 260);
@@ -5746,6 +6708,14 @@ fn verify_fields(
         let mut slice: &[u8] = &data;
         let f = Field::try_deserialize(&mut slice).map_err(|_| error!(GameError::BadProof))?;
         require!(f.owner == *user, GameError::BadProof);
+        // P1-3: одного дискриминатора мало. До layout v3 доказательством
+        // «поля» был любой program-owned аккаунт с дискриминатором Field;
+        // теперь id лежит внутри, поэтому адрес можно проверить на
+        // каноничность: тот же аргумент, что и в seeds мутаций.
+        let (expected, canonical_bump) =
+            Pubkey::find_program_address(&[b"field", &f.field_id.to_le_bytes()], program);
+        require_keys_eq!(acc.key(), expected, GameError::BadProof);
+        require!(f.bump == canonical_bump, GameError::BadProof);
         if f.level >= min_level {
             saw_level = true;
         }

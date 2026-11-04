@@ -4,6 +4,7 @@ import { ArrowRight, Check, Clock3, Download, Leaf, Share2, ShieldCheck, Sprout,
 import { useI18n } from '../i18n'
 import { useGame } from '../contexts/GameContext'
 import { useSolana } from '../contexts/SolanaContext'
+import { NETWORK_LABEL } from '../utils/network'
 import { useToast } from './Toast'
 import { MICRO } from '../utils/constants'
 import {
@@ -78,7 +79,7 @@ export default function OperationScreen(): JSX.Element {
           wallet: shortAddress(publicKey?.toBase58() ?? null),
           cycle: cycleNumber ?? '—',
         }),
-        networkLabel: t('SOLANA DEVNET · ИГРОВОЙ ПРОГРЕСС НЕ ПЕРЕНОСИТСЯ'),
+        networkLabel: t('SOLANA {network} · ИГРОВОЙ ПРОГРЕСС НЕ ПЕРЕНОСИТСЯ', { network: NETWORK_LABEL }),
         disclaimer: t('Снимок текущего состояния кошелька; не рейтинг, не награда и не обещание дохода.'),
       })
       const file = new File([blob], 'ares1-first-greenhouse.png', { type: 'image/png' })
@@ -143,7 +144,7 @@ export default function OperationScreen(): JSX.Element {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ minWidth: 0, flex: '1 1 230px' }}>
             <div className="ares-mono" style={{ fontSize: 9, letterSpacing: '0.16em', color: '#E0A183', marginBottom: 7 }}>
-              {t('ЦЕЛЬ КОЛОНИИ · DEVNET')}
+              {t('ЦЕЛЬ КОЛОНИИ · {network}', { network: NETWORK_LABEL })}
             </div>
             <h2 className="ares-stencil" style={{ fontSize: 18, margin: '0 0 8px', color: '#F6F1ED' }}>
               {t('ЧЕТЫРЕ ГЛАВЫ. ОДИН ЛУННЫЙ ЦИКЛ.')}
@@ -252,14 +253,18 @@ export default function OperationScreen(): JSX.Element {
         </div>
       </div>
 
+      {/* 48, а не 44: на предке (PageTransition) framer-motion держит
+          scale: 0.98, пока идёт вход — getBoundingClientRect() потомка уже
+          масштабирован, и 44 CSS-пикселя гейт tests/tap-target-audit.mjs
+          измеряет как 43. 48 × 0.98 = 47.04, порог 44 проходит с запасом. */}
       <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-        <Link to="/" className="mk-key mk-key--paint op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11 }}>
+        <Link to="/" className="mk-key mk-key--paint op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 11, minHeight: 48, boxSizing: 'border-box' }}>
           {t('В ТЕПЛИЦУ')} <ArrowRight size={14} aria-hidden="true" />
         </Link>
-        <Link to="/market" className="mk-key op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11 }}>
+        <Link to="/market" className="mk-key op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 11, minHeight: 48, boxSizing: 'border-box' }}>
           {t('К РЫНКУ')} <ArrowRight size={14} aria-hidden="true" />
         </Link>
-        {!connected && <Link to="/lab" className="mk-key op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11 }}>{t('ОТКРЫТЬ ЛАБОРАТОРИЮ')}</Link>}
+        {!connected && <Link to="/lab" className="mk-key op-action" style={{ textDecoration: 'none', padding: '10px 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 11, minHeight: 48, boxSizing: 'border-box' }}>{t('ОТКРЫТЬ ЛАБОРАТОРИЮ')}</Link>}
       </div>
 
       {!ready && <div style={{ marginTop: 12, color: 'var(--pf-text-muted)', fontSize: 11 }}>{t('Ожидаем ответ Solana RPC…')}</div>}

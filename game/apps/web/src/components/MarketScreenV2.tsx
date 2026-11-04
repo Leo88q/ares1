@@ -80,7 +80,7 @@ function MarketScreenV2Inner() {
         <Stat label={t('Оборот SKR')} value={formatQuote(stats.totalSkrVolumeAtoms, 'skr')} />
       </div>
       <div className="ares-mono" style={{ marginBottom: 14, color: 'var(--pf-text-muted)', fontSize: 10 }}>
-        {t('Мой объём за UTC-день: {amount} POTATO', { amount: formatFixedPointUnitsExact(myVolumeMicro, 6) })}
+        {t('Мой объём за UTC-день (не влияет на комиссию): {amount} POTATO', { amount: formatFixedPointUnitsExact(myVolumeMicro, 6) })}
       </div>
 
       <div role="tablist" style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
@@ -122,7 +122,6 @@ function MarketScreenV2Inner() {
         quoteAsset={quoteAsset}
         skrMintReady={skrMintReady}
         balanceMicro={gameStats.potatoBalance}
-        sellerVolumeMicro={myVolumeMicro}
         onClose={() => setShowCreate(false)}
         onCreate={createOrder}
       />

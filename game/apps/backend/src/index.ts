@@ -1,14 +1,28 @@
 import { assertDedicatedPayer, safeError } from "./security.js";
 import express, { NextFunction, Request, Response } from "express";
+import { PublicKey } from "@solana/web3.js";
 import cors from "cors";
 import { env } from "./env.js";
 import { expectedGenesisHash } from "./cluster.js";
 import { configRouter } from "./routes/config.js";
+import { healthRouter } from "./routes/health.js";
 import { gameOpsRouter } from "./routes/gameops.js";
 import { presaleRouter } from "./routes/presale.js";
+import { fetchTokenPaymentView } from "./presale/chain.js";
 import { slotsRouter } from "./routes/slots.js";
 import { resolveSlotsConfig } from "./slots/config.js";
-import { COLONY_V1_RELEASE_READY, USER_PRESALE_PAYMENTS_ENABLED } from "./launchGates.js";
+import { COLONY_V1_RELEASE_READY, REWARDS_RAIL_ENABLED, USER_PRESALE_PAYMENTS_ENABLED } from "./launchGates.js";
+import { rewardsRouter } from "./rewards/router.js";
+import { storeRouter } from "./routes/store.js";
+import { defaultFeatureFlags, featuresRouter } from "./routes/features.js";
+import { loadRewardKeypair, sendGrant as sendRewardGrant } from "./rewards/send.js";
+import { startDeliveryWorker } from "./rewards/worker.js";
+import { claimPda, findExistingGrant, resolveAtaOwner } from "./rewards/chain.js";
+import { startQuestBudgetWorker } from "./rewards/questBudget.js";
+import { createFieldProbe, hasActiveField, FIELD_ACCOUNT_BYTES, FIELD_OWNER_OFFSET } from "./rewards/fieldProbe.js";
+import { listActionable, listAwaitingConfirmation, markConfirmed, markFailed, markSubmitted } from "./gameops/intents.js";
+import { configPda, epochPda, questTreasuryPda } from "./solana.js";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { colonyPackageCatalogResponse } from "./colonies/catalog.js";
 import { colonyAuthRouter } from "./colonies/routes.js";
 import { ColonyService } from "./colonies/service.js";
@@ -102,29 +116,17 @@ async function main() {
 
   app.get("/live", (_req, res) => res.json({ live: true }));
 
-  // Health with detailed checks
-  app.get("/health", async (_req, res) => {
-    try {
-      const [slot, config, payerBal] = await Promise.all([
-        connection.getSlot(),
-        fetchConfig(),
-        connection.getBalance(payerKeypair.publicKey),
-      ]);
-      res.json({
-        ok: true,
-        slot,
-        epochId: config.epochId.toString(),
-        paused: config.paused,
-        payer: payerKeypair.publicKey.toBase58(),
-        payerSol: payerBal / 1e9,
-        gameOps: gameOpsPool ? "on" : "off",
-        cluster: env.cluster,
-        uptime: process.uptime(),
-      });
-    } catch (err) {
-      res.status(503).json({ ok: false, error: "Dependency check failed" });
-    }
-  });
+  // Health: состояние процесса и зависимостей, но БЕЗ идентичности плательщика.
+  // Публичный (исключён из rate-limit) эндпоинт не должен сообщать адрес и баланс
+  // hot-wallet: это карта для целенаправленной атаки на конкретный кошелёк.
+  // Состав полей закреплён тестом tests/health.test.ts.
+  app.use("/health", healthRouter({
+    connection,
+    fetchConfig,
+    gameOpsEnabled: () => Boolean(gameOpsPool),
+    cluster: env.cluster,
+    uptime: () => process.uptime(),
+  }));
 
   // Слой game_ops подключается ТОЛЬКО если задан GAME_OPS_DATABASE_URL. Без него
   // бэкенд работает как раньше (read-only API + крон эпохи), а платёжные
@@ -222,7 +224,10 @@ async function main() {
   });
 
   if (gameOpsConfig && gameOpsPool) {
-    app.use("/api/gameops", gameOpsRouter(gameOpsPool, gameOpsConfig));
+    app.use("/api/gameops", gameOpsRouter(gameOpsPool, gameOpsConfig, {
+      // Доказательство возврата по слоту читается из цепи, а не из тела запроса.
+      fetchTokenView: signature => fetchTokenPaymentView(connection, signature),
+    }));
   }
   // Пресейл монтируется только при включённом game_ops и доступной цепи: без БД
   // нет учёта заказов, без цепи — нет верификации платежа. Fail-closed.
@@ -260,6 +265,188 @@ async function main() {
   } else {
     console.log(`[startup] slots router off: ${slotsCfg.reason}${"detail" in slotsCfg ? ` (${slotsCfg.detail})` : ""}`);
   }
+  // Публичные фича-флаги: клиент скрывает выключенные разделы, но ни одно
+  // действие не разрешается здесь — гейты остаются на сервере.
+  app.use("/api/features", featuresRouter(defaultFeatureFlags({ coloniesEnabled: env.coloniesEnabled })));
+
+  // Витрина: каталог паков и честное состояние продаж. Не требует БД и цепи,
+  // поэтому игрок видит, что можно купить, даже когда платежи ещё закрыты.
+  app.use("/api/store", storeRouter({
+    salesEnabled: USER_PRESALE_PAYMENTS_ENABLED && (env.cluster === "mainnet-beta"
+      ? process.env.NODE_ENV === "production" && env.mainnetPresaleApproved
+      : env.devnetPresaleTestEnabled),
+    closedReason: "sales are closed until the launch approval and the devnet smoke run",
+  }));
+
+  // Стартовый набор и дейлик. Ключ — отдельный reward_signer, не authority и не
+  // payer; рельса выключена константой REWARDS_RAIL_ENABLED до одобрения
+  // запуска. Отсутствие ключа — не ошибка старта: рельса просто не работает.
+  const rewardKeypair = loadRewardKeypair(process.env.REWARD_KEYPAIR_JSON);
+  const rewardsEnabled = REWARDS_RAIL_ENABLED && rewardKeypair !== null && (env.cluster !== "mainnet-beta"
+    || (process.env.NODE_ENV === "production" && process.env.REWARDS_MAINNET_APPROVED === "true"));
+  const rewardsDisabledReason = !REWARDS_RAIL_ENABLED
+    ? "reward rail is disabled until the devnet smoke run and owner approval"
+    : rewardKeypair === null
+      ? "REWARD_KEYPAIR_JSON is not configured"
+      : "reward rail is not approved for this network";
+  // Дейлик выдаётся только кошельку с активным полем: пустой адрес не должен
+  // получать награду за «возвращение». Проверка идёт по цепи (getProgramAccounts
+  // с фильтрами по владельцу и размеру аккаунта), результат кешируется на 5 мин.
+  const activeFieldProbe = createFieldProbe({
+    now: () => Math.floor(Date.now() / 1000),
+    lookup: async (wallet) => {
+      const accounts = await connection.getProgramAccounts(programId, {
+        commitment: "confirmed",
+        filters: [
+          { dataSize: FIELD_ACCOUNT_BYTES },
+          { memcmp: { offset: FIELD_OWNER_OFFSET, bytes: wallet } },
+        ],
+      });
+      return hasActiveField(accounts);
+    },
+  });
+
+  app.use("/api/rewards", rewardsRouter({
+    enabled: rewardsEnabled,
+    disabledReason: rewardsDisabledReason,
+    rewardSigner: rewardKeypair?.publicKey ?? null,
+    inviteSecret: env.rewardInviteSecret || null,
+    hasActiveField: activeFieldProbe,
+    now: () => BigInt(Math.floor(Date.now() / 1000)),
+    sendGrant: async ({ wallet, amountMicro, nonce, expiresAt }) => {
+      // Ключ обязан быть тем самым reward_signer из ончейн-конфига: проверка
+      // внутри sendGrant, здесь только сборка аккаунтов.
+      const chainCfg = await fetchConfig();
+      if (!rewardKeypair) throw new Error("REWARD_RAIL: signer is not configured");
+      return sendRewardGrant({
+        connection,
+        signer: rewardKeypair,
+        programId,
+        config: configPda(),
+        epoch: epochPda(chainCfg.epochId),
+        potatoMint: chainCfg.potatoMint,
+        wallet: new PublicKey(wallet),
+        amountMicro,
+        nonce,
+        expiresAt,
+      }, { gameConfig: chainCfg, payer: payerKeypair.publicKey });
+    },
+  }));
+  console.log(`[startup] rewards rail ${rewardsEnabled ? "on" : "off"}: ${rewardsEnabled ? "grant_reward_once" : rewardsDisabledReason}`);
+  if (rewardsEnabled && !env.rewardInviteSecret) {
+    // Тихая ошибка конфигурации: рельса включена, а стартовый набор всё равно
+    // закрыт. Скажем это вслух на старте, иначе выглядит как поломка выдачи.
+    console.warn("[startup] rewards: REWARD_INVITE_SECRET is empty — starter grants are disabled (503 INVITES_NOT_CONFIGURED)");
+  }
+
+  // Авто-доставка reward_intents тем же reward_signer. Включается только когда
+  // рельса жива, есть game_ops и явно задан такт: до запуска не должно быть ни
+  // таймера, ни RPC-опроса. Восстановление после падения между отправкой и
+  // записью подписи — через PDA гранта, а не повторной отправкой.
+  const deliveryWorker = rewardsEnabled && gameOpsPool && rewardKeypair && env.rewardDeliveryIntervalSeconds > 0
+    ? startDeliveryWorker({
+        actor: "reward-delivery",
+        limit: 10,
+        listActionable: async (limit) => {
+          const rows = await listActionable(gameOpsPool!, limit);
+          return rows.map((row) => ({
+            id: String(row.id),
+            recipientAta: String(row.recipient_ata),
+            amountMicro: BigInt(String(row.amount_micro)),
+            nonce: BigInt(String(row.nonce)),
+            // View `reward_intents_actionable` отдаёт только pending-строки.
+            state: "pending",
+          }));
+        },
+        // `submitted` без слота: транзакция ушла, подтверждение не записалось.
+        // Без этой фазы такой интент не вернётся в очередь никогда (переход
+        // submitted → pending запрещён), а заказ останется paid без выдачи.
+        listAwaitingConfirmation: async (limit) => {
+          const rows = await listAwaitingConfirmation(gameOpsPool!, limit);
+          return rows.map((row) => ({
+            id: String(row.id),
+            recipientAta: String(row.recipient_ata),
+            amountMicro: BigInt(String(row.amount_micro)),
+            nonce: BigInt(String(row.nonce)),
+            state: "submitted",
+            signature: row.signature,
+          }));
+        },
+        lookupExistingGrant: async ({ recipientAta, nonce }) =>
+          findExistingGrant(connection, claimPda(programId, new PublicKey(recipientAta), nonce)),
+        executeGrant: async ({ recipientAta, amountMicro, nonce }) => {
+          const chainCfg = await fetchConfig();
+          const wallet = await resolveAtaOwner(connection, new PublicKey(recipientAta));
+          const signature = await sendRewardGrant({
+            connection,
+            signer: rewardKeypair,
+            programId,
+            config: configPda(),
+            epoch: epochPda(chainCfg.epochId),
+            potatoMint: chainCfg.potatoMint,
+            wallet,
+            amountMicro,
+            nonce,
+            expiresAt: BigInt(Math.floor(Date.now() / 1000) + 300),
+          }, { gameConfig: chainCfg, payer: payerKeypair.publicKey });
+          const status = await connection.getSignatureStatuses([signature]);
+          const slot = status.value[0]?.slot;
+          return { signature, slot: slot === undefined || slot === null ? undefined : BigInt(slot) };
+        },
+        markSubmitted: (input) => markSubmitted(gameOpsPool!, input),
+        markConfirmed: (input) => markConfirmed(gameOpsPool!, input),
+        markFailed: (input) => markFailed(gameOpsPool!, input),
+      }, env.rewardDeliveryIntervalSeconds)
+    : null;
+  if (deliveryWorker) {
+    console.log(`[startup] reward delivery on: every ${env.rewardDeliveryIntervalSeconds}s`);
+  } else if (rewardsEnabled) {
+    console.log("[startup] reward delivery off: set REWARD_DELIVERY_INTERVAL_SECONDS and game_ops to drain intents");
+  }
+
+  // Крон квест-бюджета: пул ачивок (quest_ata) пополняется через
+  // grant_reward_once с nonce на UTC-сутки. Работает только при живой рельсе и
+  // явно заданном такте; доливка — не больше одного пула в сутки и только ниже
+  // low-water, чтобы крон не вычерпал квоту грантов.
+  const questBudgetWorker = rewardsEnabled && rewardKeypair && env.questBudgetIntervalSeconds > 0
+    ? startQuestBudgetWorker({
+        now: () => BigInt(Math.floor(Date.now() / 1000)),
+        readBalance: async () => {
+          const chainCfg = await fetchConfig();
+          const ata = getAssociatedTokenAddressSync(chainCfg.potatoMint, questTreasuryPda(), true);
+          try {
+            const balance = await connection.getTokenAccountBalance(ata, "confirmed");
+            return BigInt(balance.value.amount);
+          } catch {
+            // ATA ещё не создан — считаем пул пустым, доливка создаст его.
+            return 0n;
+          }
+        },
+        refill: async ({ amountMicro, nonce, expiresAt }) => {
+          const chainCfg = await fetchConfig();
+          return sendRewardGrant({
+            connection,
+            signer: rewardKeypair,
+            programId,
+            config: configPda(),
+            epoch: epochPda(chainCfg.epochId),
+            potatoMint: chainCfg.potatoMint,
+            wallet: questTreasuryPda(),
+            allowOwnerOffcurve: true,
+            amountMicro,
+            nonce,
+            expiresAt,
+          }, { gameConfig: chainCfg, payer: payerKeypair.publicKey });
+        },
+      }, env.questBudgetIntervalSeconds)
+    : null;
+  if (questBudgetWorker) console.log(`[startup] quest budget on: every ${env.questBudgetIntervalSeconds}s`);
+  if (rewardsEnabled && !questBudgetWorker) {
+    // Пул ачивок (550 POTATO) заправлен один раз: без крона он вычерпывается
+    // навсегда и `claim_achievement` начинает отвечать QuestPoolEmpty.
+    console.warn("[startup] quest budget is OFF while the rewards rail is on — set QUEST_BUDGET_INTERVAL_SECONDS");
+  }
+
   app.use("/api/config", configRouter);
 
   // 404
@@ -324,7 +511,7 @@ async function main() {
   // пул — чтобы «полуоткрытая» транзакция выплаты не осталась в соединении
   // с ролью-писателем, а roll_epoch не потерял advisory lock посреди такта.
   const shutdown = createShutdown({
-    stopRoller: () => roller.stop(),
+    stopRoller: () => { roller.stop(); deliveryWorker?.stop(); questBudgetWorker?.stop(); },
     server,
     closePool: gameOpsPool ? () => closePool(gameOpsPool) : undefined,
   });

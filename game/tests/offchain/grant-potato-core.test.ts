@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import { Keypair, PublicKey, SystemProgram } from '@solana/web3.js'
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { anchorDiscriminator } from '../../apps/backend/src/anchorRaw.js'
+import { RUST_SOURCE as rust, rustConst } from '../rustConstants.js'
 import {
   BASE_FIELD_PRICE_MICRO,
   FIELD_ACCOUNT_SIZE,
@@ -30,7 +31,6 @@ import {
 } from '../../scripts/grant-potato-core.js'
 
 const randomKey = () => Keypair.generate().publicKey
-const rust = fs.readFileSync('programs/solana_potato/src/lib.rs', 'utf8')
 const idl = JSON.parse(fs.readFileSync('apps/web/src/idl.json', 'utf8')) as {
   instructions: Array<{
     name: string
@@ -38,12 +38,6 @@ const idl = JSON.parse(fs.readFileSync('apps/web/src/idl.json', 'utf8')) as {
     accounts: Array<{ name: string; writable?: boolean; signer?: boolean }>
     args: Array<{ name: string; type: string }>
   }>
-}
-
-function rustConst(name: string): bigint {
-  const match = rust.match(new RegExp(`pub const ${name}: (?:u64|i64|u128) = ([\\d_]+)`))
-  assert.ok(match, `Rust const ${name} must exist`)
-  return BigInt(match[1]!.replaceAll('_', ''))
 }
 
 test('grant constants mirror the Rust program (caps, quota share, expiry, first-field price)', () => {
@@ -59,7 +53,7 @@ test('grant constants mirror the Rust program (caps, quota share, expiry, first-
   // 250 POTATO × 0.4 = 100 POTATO ровно.
   assert.equal(firstFieldPriceMicro(), 100_000_000n)
   assert.equal(starterAmountMicro(), firstFieldPriceMicro())
-  assert.equal(FIELD_ACCOUNT_SIZE, 70)
+  assert.equal(FIELD_ACCOUNT_SIZE, 78) // P1-3: layout v3 (+field_id u64)
   assert.match(rust, /space\s*=\s*8\s*\+\s*Field::INIT_SPACE/)
 })
 
@@ -89,10 +83,10 @@ test('parsePotatoAmount: точный bigint-парсинг и потолок о
 
 test('квота эпохи повторяет charge_epoch_grant: минимум из квоты грантов и общего капа', () => {
   const cap = 250_000n * 1_000_000n // максимальный дневной кап программы
-  assert.equal(epochGrantQuotaMicro(cap), 25_000n * 1_000_000n)
+  assert.equal(epochGrantQuotaMicro(cap), 62_500n * 1_000_000n)
 
-  // Свободная эпоха: ограничивает квота грантов (10 %), а не общий кап.
-  assert.equal(remainingGrantQuotaMicro({ mintCapMicro: cap, mintedMicro: 0n, grantedMicro: 0n }), 25_000n * 1_000_000n)
+  // Свободная эпоха: ограничивает квота грантов (25 %), а не общий кап.
+  assert.equal(remainingGrantQuotaMicro({ mintCapMicro: cap, mintedMicro: 0n, grantedMicro: 0n }), 62_500n * 1_000_000n)
   // Харвесты почти выбрали кап: ограничивает общий кап.
   assert.equal(
     remainingGrantQuotaMicro({ mintCapMicro: cap, mintedMicro: cap - 5_000_000n, grantedMicro: 0n }),
@@ -100,11 +94,11 @@ test('квота эпохи повторяет charge_epoch_grant: миниму�
   )
   // Квота выбрана грантами целиком.
   assert.equal(
-    remainingGrantQuotaMicro({ mintCapMicro: cap, mintedMicro: 25_000n * 1_000_000n, grantedMicro: 25_000n * 1_000_000n }),
+    remainingGrantQuotaMicro({ mintCapMicro: cap, mintedMicro: 62_500n * 1_000_000n, grantedMicro: 62_500n * 1_000_000n }),
     0n,
   )
 
-  const epoch = { mintCapMicro: cap, mintedMicro: 0n, grantedMicro: 24_950n * 1_000_000n }
+  const epoch = { mintCapMicro: cap, mintedMicro: 0n, grantedMicro: 62_450n * 1_000_000n }
   assert.doesNotThrow(() => assertGrantWithinLimits(50n * 1_000_000n, epoch))
   assert.throws(() => assertGrantWithinLimits(51n * 1_000_000n, epoch), /remaining epoch grant quota/)
   assert.throws(() => assertGrantWithinLimits(MAX_REWARD_MICRO + 1n, epoch), /one-grant cap/)

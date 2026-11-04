@@ -34,6 +34,40 @@ function localizeMobileWalletAdapterModal(): import('vite').Plugin {
 }
 
 /**
+ * В preview (и только в нём) нет бэкенда: статический сервер отвечает 404 на
+ * `/api/*`, и фоновые запросы UI (`/api/features`, `/api/store`) попадают в
+ * консоль браузера как ошибки сети — smoke-тесты требуют чистую консоль.
+ *
+ * Отвечаем теми же значениями, что UI использует при недоступном бэкенде:
+ * колонии доступны, продажи и рельса наград выключены. Это не «фейковый API»,
+ * а явное состояние стенда: ни одна операция по этим ответам не разрешается —
+ * гейты остаются на сервере. При заданном BACKEND_PROXY_TARGET прокси есть, и
+ * заглушка не включается.
+ */
+function previewApiStub(): import('vite').Plugin {
+  return {
+    name: 'preview-api-stub',
+    apply: 'serve',
+    configurePreviewServer(server) {
+      if (process.env.BACKEND_PROXY_TARGET) return
+      server.middlewares.use((req, res, next) => {
+        const url = req.url ?? ''
+        if (!url.startsWith('/api/')) return next()
+        const body = url.startsWith('/api/features')
+          ? { colonies: true, coloniesReleaseReady: false, rewardsRail: false, presalePayments: false }
+          : url.startsWith('/api/store')
+            ? { enabled: false, reason: 'preview has no backend', currency: 'POTATO', packs: [] }
+            : { error: 'NOT_AVAILABLE_IN_PREVIEW' }
+        res.statusCode = 200
+        res.setHeader('content-type', 'application/json')
+        res.setHeader('cache-control', 'no-store')
+        res.end(JSON.stringify(body))
+      })
+    },
+  }
+}
+
+/**
  * .env.example — единственный env-файл в git (политика .gitignore §1.3.1:
  * трекаются только credential-free примеры). Значения VITE_* по определению
  * публичны — они компилируются в браузерный бандл, — поэтому разобранный
@@ -41,6 +75,35 @@ function localizeMobileWalletAdapterModal(): import('vite').Plugin {
  * в окружении которых переменные не заданы (Cloudflare Pages `ares1-play`
  * и любой другой CI).
  */
+/**
+ * IDL — вторая копия program id внутри бандла: `address` запекается в `idl.json`
+ * при `anchor build`, а `VITE_PROGRAM_ID` приходит из окружения. Если они
+ * разошлись (перегенерировали IDL и забыли переменную, или наоборот), клиент
+ * строит инструкции для одной программы, а allowlist в `utils/txSafety.ts`
+ * содержит ещё и адрес из IDL — то есть разрешает подпись чужой программе.
+ * Расхождение обязано ломать сборку, а не выясняться в проде.
+ */
+function assertProgramIdMatchesIdl(): import('vite').Plugin {
+  return {
+    name: 'assert-program-id-matches-idl',
+    enforce: 'post',
+    apply: 'build',
+    buildStart() {
+      const idl = JSON.parse(readFileSync(join(projectRoot, 'src', 'idl.json'), 'utf8')) as { address?: string }
+      const configured = process.env.VITE_PROGRAM_ID
+      if (!idl.address) this.error('idl.json: отсутствует поле address')
+      if (!configured) this.error('VITE_PROGRAM_ID не задан: сборка не может проверить, что IDL и программа совпадают')
+      if (idl.address !== configured) {
+        this.error(
+          `IDL собран для программы ${idl.address}, а VITE_PROGRAM_ID=${configured}. ` +
+          'Обновите IDL (anchor build → apps/web/src/idl.json) либо переменную окружения; ' +
+          'сборка с расхождением выпустила бы клиент, разрешающий инструкции двух программ.',
+        )
+      }
+    },
+  }
+}
+
 function parseEnvFile(filePath: string): Record<string, string> {
   let text: string
   try {
@@ -100,7 +163,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), localizeMobileWalletAdapterModal()],
+    plugins: [react(), localizeMobileWalletAdapterModal(), assertProgramIdMatchesIdl(), previewApiStub()],
     server: {
       port: 5175,
       host: true,
@@ -116,6 +179,17 @@ export default defineConfig(({ mode }) => {
       port: 4173,
       host: true,
       allowedHosts: true,
+      /**
+       * Preview — статический сервер. По умолчанию Vite наследует сюда
+       * `server.proxy`, и любой фоновый запрос UI (`/api/features`,
+       * `/api/store`, `/api/config`) уходит на несуществующий бэкенд
+       * 127.0.0.1:8080: ответ 500 попадает в консоль браузера и валит
+       * smoke-тесты, которые обязаны видеть чистую консоль. Проксируем только
+       * при явно заданной цели — это осознанный локальный сценарий.
+       */
+      proxy: process.env.BACKEND_PROXY_TARGET
+        ? { '/api': { target: process.env.BACKEND_PROXY_TARGET, changeOrigin: false } }
+        : {},
     },
     build: {
       target: 'es2020',

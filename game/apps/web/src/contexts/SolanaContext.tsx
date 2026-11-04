@@ -14,6 +14,7 @@ import {
 } from '@solana/web3.js'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { decodeConfig, decodeEpoch, DecodedConfig, DecodedEpoch, pdas } from '../utils/anchorClient'
+import idl from '../idl.json'
 import { describeError } from '../utils/errors'
 import { withRetry } from '../utils/rpc'
 import { usePolling } from '../hooks/usePolling'
@@ -35,9 +36,21 @@ const rawProgramId = import.meta.env.VITE_PROGRAM_ID
 if (!rawProgramId) {
   throw new Error('VITE_PROGRAM_ID не задан (см. apps/web/.env.example). Задай его в окружении сборки (Cloudflare Pages → Settings → Environment variables) — отказ от запуска вместо старого захардкоженного program id')
 }
+// Первая линия защиты — сборка (vite.config.ts: assert-program-id-matches-idl).
+// Здесь вторая: даже если в бандл попал чужой IDL (старый артефакт, подмена при
+// деплое), клиент обязан отказаться работать. Иначе allowlist в txSafety.ts
+// разрешил бы инструкции ДВУМ программам: нашей и той, что записана в IDL.
+if (idl.address !== rawProgramId) {
+  throw new Error(
+    `IDL собран для программы ${idl.address}, а VITE_PROGRAM_ID=${rawProgramId}: клиент не запускается, ` +
+    'пока адрес программы в IDL и в окружении не совпадает',
+  )
+}
 export const PROGRAM_ID = new PublicKey(rawProgramId)
-export const CLUSTER = import.meta.env.VITE_SOLANA_CLUSTER || 'devnet'
-export const IS_MAINNET = CLUSTER === 'mainnet-beta'
+// Сеть и её ярлык живут в листовом модуле: их импортируют подписи шапки и
+// экран загрузки, которым не нужен весь web3-стек. Реэкспорт сохраняет
+// существующие импорты `from '../contexts/SolanaContext'`.
+export { CLUSTER, IS_MAINNET, NETWORK_LABEL } from '../utils/network'
 export const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '')
 
 const CONFIG_POLL_MS = 30_000

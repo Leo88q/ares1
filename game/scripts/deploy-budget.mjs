@@ -71,7 +71,6 @@ export const SETUP_ACCOUNTS = Object.freeze([
 ]);
 export const SETUP_SKR_ATAS = Object.freeze([
   { key: 'skr_treasury_ata', space: 165n },
-  { key: 'skr_buyback_ata', space: 165n },
 ]);
 
 export const ceilDiv = (a, b) => {

@@ -21,13 +21,15 @@ test('entry (E-A + E-C): a newcomer with 25 POTATO can buy a micro-field; a Comm
   assert.equal(microFieldPriceMicro(0), MARKET.microFieldPriceMicro)
 })
 
-test('payback matches §14.2 (Common ≈57, Rare ≈49, Epic ≈46 days), so tiers stay at parity', () => {
+test('payback matches the v1 economy (Common ≈32, Rare ≈27, Epic ≈26 days), so tiers stay at parity', () => {
+  // База 10 POTATO/сутки: поле окупается за месяц, а не за два. Разница между
+  // тирами меньше двух недель, поэтому «дороже = хуже» не возникает.
   const days = (t: 0 | 1 | 2): number => paybackDays(fieldPriceMicro(t, 0), fieldYieldPerDayMicro(t), fieldTaxPerDayMicro(t))
-  assert.ok(Math.abs(days(0) - 57) < 0.5, `Common ${days(0)}`)
-  assert.ok(Math.abs(days(1) - 49) < 0.5, `Rare ${days(1)}`)
-  assert.ok(Math.abs(days(2) - 46) < 0.5, `Epic ${days(2)}`)
-  // §14.2 table values: Common yield 2.10, tax 0.34 POTATO/day
-  close(fieldYieldPerDayMicro(0) / POTATO, 2.1)
+  assert.ok(Math.abs(days(0) - 31.7) < 0.5, `Common ${days(0)}`)
+  assert.ok(Math.abs(days(1) - 27.3) < 0.5, `Rare ${days(1)}`)
+  assert.ok(Math.abs(days(2) - 25.9) < 0.5, `Epic ${days(2)}`)
+  // v1 economy: Common yield 3.50, tax 0.34 POTATO/day
+  close(fieldYieldPerDayMicro(0) / POTATO, 3.5)
   assert.ok(Math.abs(fieldTaxPerDayMicro(0) / POTATO - 0.34) < 0.005)
 })
 
@@ -37,8 +39,8 @@ test('micro-field (E-C) pays back within 60 days, the same as Common, at a quart
   assert.ok(micro <= 60, `micro payback ${micro}`)
   close(micro, common, 1e-6) // H: yield and tax scale with price, so the entry is not a worse deal
   close(microFieldYieldPerDayMicro() / fieldYieldPerDayMicro(0), MARKET.microFieldScale)
-  // small harvest: a micro-field yields 0.525 POTATO/day
-  close(microFieldYieldPerDayMicro() / POTATO, 0.525)
+  // small harvest: a micro-field yields 0.875 POTATO/day
+  close(microFieldYieldPerDayMicro() / POTATO, 0.875)
 })
 
 test('whale growth (K-A): the N-th field costs base × (1 + α·N); growth slows but never stops', () => {

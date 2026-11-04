@@ -50,12 +50,53 @@ export const env = {
     return v || "*"; // '*' only for local dev
   })(),
   epochRollCron: process.env.EPOCH_ROLL_CRON || "*/10 * * * *",
-  /** Express "trust proxy" setting. Behind exactly one reverse proxy (the usual
-   *  k8s ingress / ALB setup) keep "1". Set "false"/0 when the API is exposed
-   *  directly, or the rate limiter can be bypassed via a spoofed X-Forwarded-For. */
+
+  /** Такт авто-доставки reward_intents, в секундах. 0 = выключено (до
+   *  включения рельсы наград): никакого таймера и никаких тлеющих RPC-вызовов. */
+  rewardDeliveryIntervalSeconds: parseInt(process.env.REWARD_DELIVERY_INTERVAL_SECONDS || "0", 10),
+
+  /**
+   * Такт крона квест-бюджета (доливка пула ачивок), в секундах.
+   *
+   * Раньше здесь стоял `|| "0"`: при включённой рельсе пул ачивок (550 POTATO,
+   * заправлен один раз при init) молча вычерпывался навсегда, и после
+   * нескольких десятков игроков `claim_achievement` падал с `QuestPoolEmpty`.
+   * Теперь умолчание — 15 минут: крон сам работает только при живой рельсе, а
+   * доливка ограничена low-water и суточным капом, так что «включён по
+   * умолчанию» не превращает его в насос. Явный `0` по-прежнему выключает
+   * (и это видно в логе старта).
+   */
+  questBudgetIntervalSeconds: parseInt(process.env.QUEST_BUDGET_INTERVAL_SECONDS || "900", 10),
+  /**
+   * Секрет подписи приглашений на стартовый набор.
+   *
+   * Пустое значение — приглашения не настроены, и `/api/rewards/starter`
+   * отвечает 503: открытая выдача 250 POTATO любому адресу была Sybil-краном.
+   */
+  rewardInviteSecret: process.env.REWARD_INVITE_SECRET || '',
+  /** Express "trust proxy" setting.
+   *
+   *  Раньше по умолчанию возвращалось 1 — и прямой доступ к API позволял
+   *  подставить `X-Forwarded-For` и обойти per-IP лимит (Express читает
+   *  левый адрес из заголовка, если доверяет прокси). Теперь умолчание —
+   *  «не доверять никому», а в production значение обязательно и задаётся
+   *  явно: молчание здесь означает либо обход лимита, либо (если прокси есть,
+   *  а доверия нет) один общий IP у всех клиентов и мгновенный 429 для всех.
+   *  Обе ошибки тихие, поэтому выбор должен быть осознанным.
+   *
+   *  Значения: "false" — прямой доступ; число N — доверять N хопам
+   *  (обычно 1 за одним ingress/ALB); "true" — доверять любому (не для прода). */
   trustProxy: (() => {
-    const v = process.env.TRUST_PROXY;
-    if (v === undefined) return 1;
+    const raw = process.env.TRUST_PROXY;
+    const v = raw?.trim();
+    if (v === undefined || v === "") {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(
+          "Missing required env var: TRUST_PROXY (set \"1\" behind one reverse proxy, \"false\" when the API is exposed directly)",
+        );
+      }
+      return false;
+    }
     if (v === "true") return true;
     if (v === "false") return false;
     const n = parseInt(v, 10);

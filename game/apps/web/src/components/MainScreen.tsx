@@ -4,14 +4,15 @@ import { motion } from 'framer-motion'
 import { useI18n, t } from '../i18n'
 
 import { useGame } from '../contexts/GameContext'
-import { IS_MAINNET, useSolana } from '../contexts/SolanaContext'
+import { useFeatures } from '../hooks/useFeatures'
+import { IS_MAINNET, NETWORK_LABEL, useSolana } from '../contexts/SolanaContext'
 import FieldCardVice from './FieldCardVice'
 import FieldsPanel from '../fields/FieldsPanel'
 import { fieldVisual } from '../fields/model'
 import { fieldCopy } from '../fields/copy'
-import PresaleSection from './PresaleSection'
+import StoreSection from './StoreSection'
 import Header from './Header'
-import { FIELD_TYPES, fieldPriceMicro, fmtPotato, HARVEST_THRESHOLD_MICRO, BATCH_LIMIT_LICENSED } from '../utils/constants'
+import { FIELD_TYPES, fieldPriceMicro, fmtPotato, BATCH_LIMIT_LICENSED, dailyYieldMicro, harvestReady, BPS, MICRO } from '../utils/constants'
 import { sounds } from '../utils/sounds'
 import { haptics } from '../utils/haptic'
 import { AgroBay } from './ares/AgroBay'
@@ -22,10 +23,17 @@ import { Tuber9 } from './ares/mascot'
 
 export default function MainScreen() {
  const { fields, stats, loading, fieldsError, reload, purchasing, harvest, purchaseField, upgradeField, repairField, payTax, applyFertilizer } = useGame()
- const { ready, rpcError, connected } = useSolana()
+ const { ready, rpcError, connected, config } = useSolana()
  const { lang } = useI18n()
  const fieldText = fieldCopy(lang)
- const visualFields = fields.map(field => fieldVisual(field, Math.floor(Date.now() / 1000)))
+ const nowSec = Math.floor(Date.now() / 1000)
+ const visualFields = fields.map(field => fieldVisual(field, nowSec))
+ // P2-4: суточный урожай поля нужен карточке, чтобы подписать окупаемость
+ // ремонта/удобрения. Без конфига карточка просто не показывает подпись.
+ const yieldCfg = config
+  ? { baseYieldMicroPerDay: Number(config.baseYieldMicroPerDay), globalMultiplierBps: config.globalMultiplierBps }
+  : null
+ const dailyYield = (field: typeof fields[number]) => yieldCfg ? dailyYieldMicro(field, yieldCfg, nowSec) : undefined
  return (
   <AgroBay>
    <div className="main-screen-container">
@@ -36,13 +44,14 @@ export default function MainScreen() {
      <span>{fieldText.preview} →</span>
      <small style={{ color: '#C9A176', fontSize: 8 }}>3D · CC0</small>
     </a>
-    <PresaleSection />
+    <StoreSection />
     {!loading && fields.length === 0 && <FreeStartNotice />}
         <BuyFieldCard
          onPurchase={purchaseField}
          purchasing={purchasing}
          balanceMicro={stats.potatoBalance}
          firstField={fields.length === 0}
+         yieldCfg={yieldCfg}
         />
     <BatchHarvestBar />
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
@@ -80,6 +89,7 @@ export default function MainScreen() {
             key={selected.id}
             field={field}
             index={index}
+            dailyYieldMicro={dailyYield(field)}
             onHarvest={harvest}
             onUpgrade={upgradeField}
             onRepair={repairField}
@@ -90,12 +100,12 @@ export default function MainScreen() {
           renderCards={() => fields.map((field, i) => (
            <FieldGestureLayer
             key={field.publicKey.toString()}
-            canHarvest={field.accumulated >= HARVEST_THRESHOLD_MICRO}
+            canHarvest={harvestReady(field, nowSec)}
             onHarvest={() => harvest(field.publicKey)}
             scanData={[{ label: 'LVL', value: String(field.level) }, { label: 'DUR', value: `${field.durability}%` }]}
            >
             <FieldCardVice
-             field={field} index={i}
+             field={field} index={i} dailyYieldMicro={dailyYield(field)}
              onHarvest={harvest} onUpgrade={upgradeField} onRepair={repairField}
              onPayTax={payTax} onApplyFertilizer={applyFertilizer}
             />
@@ -247,7 +257,7 @@ function ConnectHint() {
      }}
      className="ares-mono"
     >
-     <span>• SOLANA DEVNET</span>
+     <span>• SOLANA {NETWORK_LABEL}</span>
      <span>• PHANTOM / SOLFLARE</span>
      <span>• ZERO-KNOWLEDGE</span>
     </div>
@@ -256,11 +266,15 @@ function ConnectHint() {
  )
 }
 
-const FIELD_ACCOUNT_DATA_BYTES = 70 // Anchor discriminator (8) + Field::INIT_SPACE (62)
+// P1-3 (layout v3): Anchor discriminator (8) + Field::INIT_SPACE (70, включая field_id u64).
+// Оценка rent берётся из RPC по этому размеру — занизить его значит показать игроку
+// меньше SOL, чем спишет создание поля.
+const FIELD_ACCOUNT_DATA_BYTES = 78
 
 function FreeStartNotice(): JSX.Element {
  const { t } = useI18n()
  const { connection, ready, connected } = useSolana()
+ const { rewardsRail: railOn } = useFeatures()
  const { airdropSol } = useGame()
  const [fieldRentLamports, setFieldRentLamports] = useState<number | null>(null)
  const [rentUnavailable, setRentUnavailable] = useState(false)
@@ -285,10 +299,12 @@ function FreeStartNotice(): JSX.Element {
  }
  return (
   <section aria-labelledby="free-start-title" className="po-plate" style={{ padding: '16px 18px', margin: '0 0 14px', border: '1px solid rgba(255,179,71,0.28)' }}>
-   <p className="ares-mono" style={{ color: '#C9A176', fontSize: 9, letterSpacing: '.14em', margin: '0 0 6px' }}>{t('DEVNET · НАСТОЯЩИЕ ON-CHAIN-ЭКРАНЫ')}</p>
+   <p className="ares-mono" style={{ color: '#C9A176', fontSize: 9, letterSpacing: '.14em', margin: '0 0 6px' }}>{t('{network} · НАСТОЯЩИЕ ON-CHAIN-ЭКРАНЫ', { network: NETWORK_LABEL })}</p>
    <h2 id="free-start-title" className="ares-stencil" style={{ color: '#EFD9AC', fontSize: 14, margin: '0 0 7px' }}>{t('ДО ПЕРВОГО ПОЛЯ · ЧЕСТНЫЙ СТАТУС')}</h2>
    <p style={{ color: 'var(--pf-text-secondary)', fontSize: 11, lineHeight: 1.55, margin: 0 }}>
-    {t('Первое обычное поле стоит {amount} тестовых POTATO. Для создания аккаунта также нужен SOL на rent и сетевую комиссию; ниже показана текущая оценка rent из RPC. Публичной выдачи POTATO нет, но участникам devnet-беты оператор выдаёт один стартовый набор на первое поле вручную: передай адрес подключённого кошелька оператору беты. Покупка за SKR закрыта: не отправляй деньги и не используй mainnet ради теста.', { amount: fmtPotato(fieldPriceMicro(0), 0) })}
+    {railOn
+     ? t('Первое обычное поле стоит {amount} тестовых POTATO. Для создания аккаунта также нужен SOL на rent и сетевую комиссию; ниже показана текущая оценка rent из RPC. Стартовый набор 250 POTATO выдаётся бесплатно один раз на кошелёк кнопкой в магазине выше: покупка за SKR закрыта, не отправляй деньги и не используй mainnet ради теста.', { amount: fmtPotato(fieldPriceMicro(0), 0) })
+     : t('Первое обычное поле стоит {amount} тестовых POTATO плюс SOL на rent. Бесплатной выдачи сейчас нет: рельса наград выключена до решения запуска, поэтому кнопки стартового набора в магазине не показываются. Не отправляй деньги и не используй mainnet ради теста.', { amount: fmtPotato(fieldPriceMicro(0), 0) })}
    </p>
    <p aria-live="polite" style={{ color: rentUnavailable ? '#F0A18E' : '#D8BB8E', fontSize: 10, lineHeight: 1.45, margin: '7px 0 0' }}>
     {fieldRentLamports !== null
@@ -316,6 +332,8 @@ interface BuyProps {
  purchasing: boolean
  balanceMicro: number
  firstField: boolean
+ /** Конфиг эмиссии читается из цепи: без него карточка не выдумывает урожай. */
+ yieldCfg: { baseYieldMicroPerDay: number; globalMultiplierBps: number } | null
 }
 
 const TIER_META = [
@@ -324,8 +342,9 @@ const TIER_META = [
  { label: 'TIER III · БИО-КАССЕТА', tag: 'EPIC', borderColor: '#8A5826', accentColor: '#FFC94A' },
 ]
 
-function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyProps) {
+function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField, yieldCfg }: BuyProps) {
  const { t } = useI18n()
+ const { rewardsRail: railOn } = useFeatures()
  return (
   <motion.div
    initial={{ opacity: 0, y: 20 }}
@@ -409,8 +428,18 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
           </span>
          </div>
          <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 10, color: 'var(--pf-text-secondary)' }} className="ares-mono">
-          <span>{t('СБОР: ~{n} POTATO / СОЛ', { n: ((type.yieldBps / 10_000) * 100).toFixed(0) })}</span>
-          <span>{t('РЕСУРС: 100%')}</span>
+          {/*
+           P1-1: раньше здесь стояло `yieldBps / 10_000 * 100`, то есть на
+           грядке «~35 POTATO/сол» вместо реальных 3.5/сутки — цифра завышена в
+           10 раз и в единицах, которых не существует. Теперь это суточный
+           урожай нового поля из конфига цепи: baseYield × тип × глобальный
+           множитель. Без конфига честнее показать прочерк, чем выдумать
+           число.
+          */}
+          <span>{yieldCfg
+           ? t('СБОР: ~{n} POTATO / СУТКИ', { n: ((yieldCfg.baseYieldMicroPerDay * type.yieldBps * yieldCfg.globalMultiplierBps) / (BPS * BPS) / MICRO).toFixed(2) })
+           : t('СБОР: — / СУТКИ')}</span>
+          <span>{t('ПРОЧНОСТЬ: 100/100')}</span>
          </div>
         </div>
        </div>
@@ -448,7 +477,9 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
 
    {firstField && (
     <div style={{ fontSize: 11, color: 'var(--ares-dust, #E0A183)', textAlign: 'center', lineHeight: 1.4, background: 'rgba(0,0,0,0.25)', padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
-     {t('Стартовый набор на первое поле выдаёт оператор devnet-беты вручную по адресу кошелька. Публичного крана POTATO нет; не покупай токены ради теста.')}
+     {railOn
+      ? t('Стартовый набор 250 POTATO выдаёт подписант оператора devnet-беты по адресу кошелька — один раз на кошелёк. Публичного крана POTATO нет; не покупай токены ради теста.')
+      : t('Бесплатная выдача выключена: рельса наград включается отдельным решением запуска. Первое поле выдаёт оператор. Не отправляй деньги ради теста.')}
     </div>
    )}
   </motion.div>
@@ -466,8 +497,10 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField }: BuyP
 function BatchHarvestBar() {
  const { fields, batchHarvest, batchLimit, licenseActive } = useGame()
  const [busy, setBusy] = useState(false)
+ const nowSec = Math.floor(Date.now() / 1000)
 
- const ready = fields.filter(f => f.isActive && f.accumulated >= HARVEST_THRESHOLD_MICRO)
+ // P0-1: тот же цикл износа, что и на карточке поля.
+ const ready = fields.filter(f => f.isActive && harvestReady(f, nowSec))
  if (ready.length < 2) return null
 
  const take = ready.slice(0, batchLimit)

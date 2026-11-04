@@ -24,9 +24,8 @@ export default function FieldLabScreen(): JSX.Element {
 
   const ownedFields = useMemo(() => game.fields.map(field => fieldVisual(field, nowSec)), [game.fields, nowSec])
   const cfg = config ? { baseYieldMicroPerDay: Number(config.baseYieldMicroPerDay), globalMultiplierBps: config.globalMultiplierBps } : null
-  const epochId = config ? Number(config.epochId) : undefined
   const totalYield = cfg
-    ? game.fields.reduce((sum, field) => sum + dailyYieldMicro({ ...field, epochId }, cfg, nowSec), 0)
+    ? game.fields.reduce((sum, field) => sum + dailyYieldMicro(field, cfg, nowSec), 0)
     : null
   const readyCount = game.fields.filter(field => field.accumulated >= HARVEST_THRESHOLD_MICRO).length
   const walletTag = publicKey ? `${publicKey.toBase58().slice(0, 4)}…${publicKey.toBase58().slice(-4)}` : ''
@@ -81,14 +80,14 @@ export default function FieldLabScreen(): JSX.Element {
               fields={ownedFields}
               language={lang}
               renderCards={() => game.fields.map((field, index) => (
-                <FieldCardVice key={field.publicKey.toString()} field={field} index={index}
+                <FieldCardVice key={field.publicKey.toString()} field={field} index={index} dailyYieldMicro={cfg ? dailyYieldMicro(field, cfg, nowSec) : undefined}
                   onHarvest={game.harvest} onUpgrade={game.upgradeField} onRepair={game.repairField}
                   onPayTax={game.payTax} onApplyFertilizer={game.applyFertilizer} />
               ))}
               renderInspector={selected => {
                 const index = game.fields.findIndex(field => field.publicKey.toString() === selected.id)
                 const field = game.fields[index]
-                return field ? <FieldCardVice key={selected.id} field={field} index={index}
+                return field ? <FieldCardVice key={selected.id} field={field} index={index} dailyYieldMicro={cfg ? dailyYieldMicro(field, cfg, nowSec) : undefined}
                   onHarvest={game.harvest} onUpgrade={game.upgradeField} onRepair={game.repairField}
                   onPayTax={game.payTax} onApplyFertilizer={game.applyFertilizer} /> : null
               }}
