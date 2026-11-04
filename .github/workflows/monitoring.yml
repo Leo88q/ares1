@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Compare live DNS records with the committed baseline
         run: node scripts/check-dns.mjs --verbose
       - name: Open or reuse a tracking issue
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Public devnet endpoint: this is a read-only registry check. If the
       # address of the expected multisig is known but not committed (pre-mainnet
       # gate G-2), pass it here via a repository variable and remove the
@@ -78,7 +78,7 @@ jobs:
       run:
         working-directory: game
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Headers, TLS and HTTP->HTTPS
         run: ./scripts/check-headers.sh "${{ inputs.site_url }}"
       - name: Public exposure (no .env, .git, dumps, source maps)
