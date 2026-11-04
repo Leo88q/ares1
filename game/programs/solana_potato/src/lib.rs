@@ -5979,10 +5979,14 @@ mod tests {
         // Дневной объём продавца — только учёт: та же сделка с любым «до»
         // стоит ровно столько же.
         for before in [0u64, 1, 999 * MICRO as u64, 1_000_000 * MICRO as u64] {
-            let same = calculate_settlement_fee_v2(1_100 * MICRO as u64, 10_000_000, before).unwrap();
+            let same =
+                calculate_settlement_fee_v2(1_100 * MICRO as u64, 10_000_000, before).unwrap();
             assert_eq!(same.fee_quote_atoms, result.fee_quote_atoms);
             assert_eq!(same.seller_volume_before_micro, before);
-            assert_eq!(same.seller_volume_after_micro, before + 1_100 * MICRO as u64);
+            assert_eq!(
+                same.seller_volume_after_micro,
+                before + 1_100 * MICRO as u64
+            );
         }
     }
 
