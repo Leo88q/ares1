@@ -148,7 +148,7 @@ function ProfileScreenInner() {
        </span>
       </div>
       <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 14, lineHeight: 1.4 }}>
-       {t('Devnet legacy V1 only: the export license discounts the old POTATO market fee by 3%; it does not discount the target V2 SOL/SKR settlement fee. Batch-harvest benefits are shown below.')}
+       {t('Экспортная лицензия 500 SKR / 30 дней снижает комиссию на 3 % только на закрытом легаси-рынке V1; комиссию V2 в SOL/SKR она не уменьшает. Действующая выгода — батч-сбор с 10 до 30 полей за транзакцию.')}
       </p>
       <p style={{ fontSize: 12, color: '#9FBE7A', marginBottom: 14, lineHeight: 1.4 }}>
        {t('Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.', { n: BATCH_LIMIT_LICENSED, base: BATCH_LIMIT_BASE })}
@@ -158,7 +158,7 @@ function ProfileScreenInner() {
     ) : (
      <div>
       <p style={{ fontSize: 12, color: 'var(--ares-dust, #E0A183)', marginBottom: 12, lineHeight: 1.4 }}>
-       {t('Devnet legacy V1 only: the export license discounts the old POTATO market fee by 3%; it does not discount the target V2 SOL/SKR settlement fee. Batch-harvest benefits are shown below.')}
+       {t('Экспортная лицензия 500 SKR / 30 дней снижает комиссию на 3 % только на закрытом легаси-рынке V1; комиссию V2 в SOL/SKR она не уменьшает. Действующая выгода — батч-сбор с 10 до 30 полей за транзакцию.')}
       </p>
       <p style={{ fontSize: 12, color: '#9FBE7A', marginBottom: 12, lineHeight: 1.4 }}>
        {t('Бонус: батч-жатва до {n} полей за транзакцию вместо {base}.', { n: BATCH_LIMIT_LICENSED, base: BATCH_LIMIT_BASE })}

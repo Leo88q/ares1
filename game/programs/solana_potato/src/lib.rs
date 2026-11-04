@@ -259,6 +259,24 @@ pub const BASE_UPGRADE_MICRO: u64 = 30_000_000; // 30 $POTATO × level
 /// 7 days, not 24 h: a 24 h listing forced a daily on-chain action from every
 /// seller, and a missed expiry silently removed the order from the book. A
 /// weekly TTL keeps the maker side usable without removing the expiry guard.
+/// P0-4: вероятности SKR-дропа в процентах — 20 / 68 / 12 для Грядки, Луга и
+/// Поля.
+///
+/// Раньше было 70 / 25 / 5, и это была не «редкость», а убыточная лотерея:
+/// за 1053 SKR (цена Луга, 250 POTATO) покупатель в среднем получал
+/// 0.70×100 + 0.25×250 + 0.05×500 = 157.5 POTATO, то есть 63 % цены. Один и
+/// тот же товар стоил в SKR-ветке в 1.6 раза дороже, чем в SOL-ветке
+/// (`buy_field_sol` масштабирует цену по типу детерминированно).
+///
+/// Новые веса держат ожидание ровно на цене Луга:
+/// 0.20×100 + 0.68×250 + 0.12×500 = 250 POTATO. Инвариант закреплён
+/// host-тестом `skr_presale_odds_are_value_neutral`, чтобы веса нельзя было
+/// подвинуть «на глаз».
+///
+/// Разброс при этом остаётся: это платный ролл. Возвращать SKR-ветку в UI
+/// можно только с раскрытыми шансами (или с детерминированным выбором типа,
+/// что потребует нового аргумента инструкции и обновления ABI).
+pub const PRESALE_SKR_ODDS_PCT: [u8; FIELD_TYPE_COUNT as usize] = [20, 68, 12];
 pub const ORDER_TTL: i64 = 7 * 24 * 3600;
 /// After cancelling an order a seller must wait this long before listing again.
 pub const CANCEL_COOLDOWN: i64 = 3 * 3600;
@@ -701,9 +719,11 @@ pub mod solana_potato {
             roll_hash.0[2],
             roll_hash.0[3],
         ]) % 100;
-        let field_type: u8 = if roll < 70 {
+        let common_cutoff = u32::from(PRESALE_SKR_ODDS_PCT[0]);
+        let rare_cutoff = common_cutoff + u32::from(PRESALE_SKR_ODDS_PCT[1]);
+        let field_type: u8 = if roll < common_cutoff {
             0
-        } else if roll < 95 {
+        } else if roll < rare_cutoff {
             1
         } else {
             2
@@ -5610,6 +5630,30 @@ mod tests {
         assert_eq!(harvest_decay(i64::MAX, interval, false), MAX_DURABILITY);
         assert_eq!(harvest_decay(-5, interval, false), 1);
         assert_eq!(harvest_decay(100, 0, false), 0);
+    }
+
+    #[test]
+    fn skr_presale_odds_are_value_neutral() {
+        // P0-4: SKR-ветка пресейла — платный ролл с ФИКСИРОВАННОЙ ценой
+        // (1053 SKR ≈ цена Луга), поэтому её ожидание обязано быть не ниже
+        // цены Луга. При старых весах 70/25/5 ожидание было 157.5 POTATO —
+        // покупатель SKR-ветки платил в 1.6 раза больше, чем за тот же товар
+        // в SOL-ветке.
+        let total_pct: u32 = PRESALE_SKR_ODDS_PCT.iter().map(|v| u32::from(*v)).sum();
+        assert_eq!(total_pct, 100, "вероятности обязаны давать 100 %");
+        let expected: u128 = (0..FIELD_TYPE_COUNT as usize)
+            .map(|t| u128::from(PRESALE_SKR_ODDS_PCT[t]) * field_price_micro(t as u8) as u128)
+            .sum();
+        let reference = field_price_micro(1) as u128; // Луг — эталон цены
+        assert_eq!(
+            expected / 100,
+            reference,
+            "EV платного SKR-ролла не должен отличаться от цены Луга"
+        );
+        // И ни один тир не должен быть недостижим: 0 % сделал бы «дроп» фикцией.
+        for pct in PRESALE_SKR_ODDS_PCT {
+            assert!(pct > 0, "вес каждого тира должен быть положительным");
+        }
     }
 
     #[test]

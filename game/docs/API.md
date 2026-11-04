@@ -267,7 +267,14 @@ rejected with `InvalidAmount`.
   **no** on-chain buyback/burn, so a "reserve" the code cannot spend is not a
   reserve — everything now lands in the treasury, where it is visible and
   capped. Global cap and 5-field wallet cap; same `SlotHashes` rarity entropy
-  (needs `slotHashes`).
+  (needs `slotHashes`). The drop odds are `PRESALE_SKR_ODDS_PCT = [20, 68, 12]`
+  (COMMON / RARE / EPIC). With the flat 1053 SKR price the expectation is
+  0.20×100 + 0.68×250 + 0.12×500 = **250 POTATO**, i.e. exactly the RARE price
+  a `buy_field_sol` buyer pays deterministically; the old 70/25/5 odds returned
+  only 157.5 POTATO (63 % of the price) and are locked against by the host test
+  `skr_presale_odds_are_value_neutral`. Reopening the SKR rail in the UI
+  requires the odds to be disclosed (or the tier to become a deterministic
+  argument, which is an ABI change).
 - `buy_export_license`: configured SKR payment; inspect source/current config for terms.
 
 Both presale rails check `price_lamports > 0` (`PresaleNotActive`), which is how

@@ -19,14 +19,14 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   id: 'welcome',
   eyebrow: t('01 / КОЛОНИЯ'),
   title: t('ARES-1: картофельная колония на Solana'),
-  description: t('Картошка = $POTATO. Эмиссия — урожаи игроков, награды квестов и ½ налога маркета в казну; команда не продаёт токен отдельно.'),
+  description: t('Картошка = $POTATO. Эмиссия — только урожай полей и гранты оператора; налог с урожая делится между казной и сжиганием, комиссии V2-рынка идут в казну. Команда не продаёт токен отдельно.'),
   position: 'center',
  },
  {
   id: 'field',
   eyebrow: t('02 / ДЕЛЯНКА'),
   title: t('Модуль, харвест, лунный цикл'),
-  description: t('Купи модуль за SKR. Харвест ограничен капом эпохи 250–750K POTATO и лунным множителем 0.85×–1.15× (Фобос влияет).'),
+  description: t('Поле покупается за POTATO. Урожай ограничен капом эпохи 250 000–750 000 POTATO и лунным множителем 0.85×–1.15×.'),
   position: 'top',
  },
  {
@@ -40,7 +40,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   id: 'license',
   eyebrow: t('04 / НАЛОГ И ЛИЦЕНЗИЯ'),
   title: t('Налог на харвест и экспорт-лицензия'),
-  description: t('Devnet legacy V1 only: license 500 SKR / 30 days gives −3% on the old POTATO market fee. It does not discount the target V2 settlement fee; V2 is not live.'),
+  description: t('Лицензия 500 SKR / 30 дней даёт −3 % комиссии только на закрытом легаси-рынке V1; на V2 скидки нет, и действующая выгода лицензии — батч-сбор 10 → 30 полей.'),
   position: 'bottom',
  },
  {
