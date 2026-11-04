@@ -2545,7 +2545,10 @@ pub mod solana_potato {
         // Реферальные награды живут только в легаси `fill_order`, а легаси
         // закрыт на запись (P2-2). Регистрация закрыта до первых списаний:
         // ни PDA, ни токены, ни cooldown не трогаются, отказ диагностируем.
-        require!(referral_program_enabled(), GameError::ReferralProgramRetired);
+        require!(
+            referral_program_enabled(),
+            GameError::ReferralProgramRetired
+        );
         require!(
             referrer != ctx.accounts.owner.key(),
             GameError::Unauthorized
@@ -3099,7 +3102,8 @@ impl LegacyFeeSplit {
     /// всегда равна `fee_listed`.
     pub fn fee_to_burn(&self, reward_claimed: bool) -> u64 {
         if self.referrer_reward > 0 && !reward_claimed {
-            self.fee_to_burn_claimed.saturating_add(self.referrer_reward)
+            self.fee_to_burn_claimed
+                .saturating_add(self.referrer_reward)
         } else {
             self.fee_to_burn_claimed
         }
@@ -6289,7 +6293,10 @@ mod tests {
             !referral_program_enabled(),
             "P2-2: register_referrer обязан отклонять новые регистрации"
         );
-        assert!(!legacy_market_writes_enabled(), "награды платит только легаси-fill");
+        assert!(
+            !legacy_market_writes_enabled(),
+            "награды платит только легаси-fill"
+        );
     }
 
     #[test]
@@ -6305,7 +6312,11 @@ mod tests {
         assert_eq!(plain.fee_to_treasury, 200_000);
         assert_eq!(plain.referrer_reward, 0);
         assert_eq!(plain.fee_to_burn(true), 300_000);
-        assert_eq!(plain.fee_to_burn(false), 300_000, "без реферера исход не влияет");
+        assert_eq!(
+            plain.fee_to_burn(false),
+            300_000,
+            "без реферера исход не влияет"
+        );
 
         // Реферал покупателя: −1 % из комиссии (refund продавцу) и 0.5 % рефереру.
         let referred = legacy_fee_split(amount, listed, 0, listed / 5, true);
