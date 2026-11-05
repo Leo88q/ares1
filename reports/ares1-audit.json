@@ -296,7 +296,7 @@
       "severity": "review",
       "location": {
         "path": "game/programs/solana_potato/src/lib.rs",
-        "line": 6815,
+        "line": 6818,
         "column": 9
       },
       "message": "init_if_needed token: review re-initialization, ownership and PDA constraints",
