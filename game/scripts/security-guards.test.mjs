@@ -78,7 +78,8 @@ test('A1: каждый seeds-констрейнт спарен с bump', () => {
   // −2 (P1-1, 2026-11-03): accounts-структура `GrantReward` удалена вместе с
   // replayable-инструкцией; её `config` и `epoch` были единственными
   // seeds-блоками, которые она давала.
-  assert.equal(seeded.length, 114, `seeds-блоков: ${seeded.length}, ожидалось 114`);
+  // +1 (колонийная трата, 2026-11-06): ColonySpend.config = seeds [b"config"] + bump.
+  assert.equal(seeded.length, 115, `seeds-блоков: ${seeded.length}, ожидалось 115`);
   for (const b of seeded) {
     assert.ok(/\bbump\b/.test(b), `seeds без bump: ${b.slice(0, 120)}`);
   }
@@ -89,7 +90,8 @@ test('A2: пины has_one для текущих account contexts', () => {
   // +2 (P1-3): макрос field_spend_accounts! развёрнут в три явные структуры
   // (rustfmt не сходится на многострочном #[account(...)] внутри macro_rules!).
   // −1 (P1-1): `GrantReward` удалена; её `config` нёс единственный has_one.
-  assert.equal(count(libRs, 'has_one = potato_mint'), 15);
+  // +1 (колонийная трата): ColonySpend.config has_one = potato_mint.
+  assert.equal(count(libRs, 'has_one = potato_mint'), 16);
   assert.equal(count(libRs, 'has_one = authority'), 17); // 18-й — в doc-комментарии, срезан
   assert.equal(count(libRs, 'has_one = owner'), 6); // +2: три структуры вместо макроса
   assert.equal(count(libRs, 'has_one = seller'), 7);
@@ -102,7 +104,7 @@ test('E28: close-назначения pinned для текущих account conte
 });
 
 test('A2: платежные ATA привязаны к подписанту (token::mint/authority)', () => {
-  assert.equal(count(libRs, 'token::mint = potato_mint, token::authority = owner'), 8); // +2: макрос → три структуры
+  assert.equal(count(libRs, 'token::mint = potato_mint, token::authority = owner'), 9); // +2: макрос → три структуры; +1: ColonySpend.user_potato
   assert.equal(count(libRs, 'token::authority = seller'), 8);
   assert.ok(count(libRs, 'token::authority = buyer') >= 1);
 });
@@ -131,7 +133,8 @@ test('B7/B8/F-01/P2-5: CPI-grind запрещён и в платном RNG, и �
 
 test('C: пауза-гейт на всех расходных инструкциях (18 пинов)', () => {
   // −1 (P1-1): `grant_reward` удалена и больше не входит в расходные пути.
-  assert.equal(count(libRs, 'require!(!ctx.accounts.config.paused, GameError::Paused)'), 17);
+  // +1 (колонийная трата): colony_spend сжигает POTATO и обязан стоять на паузе.
+  assert.equal(count(libRs, 'require!(!ctx.accounts.config.paused, GameError::Paused)'), 18);
   assert.equal(count(libRs, 'require!(!config.paused, GameError::Paused)'), 1);
   assert.ok(libRs.includes('pub fn set_paused'));
   // guardian может только ставить паузу, не снимать.
