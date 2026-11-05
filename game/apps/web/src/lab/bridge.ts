@@ -24,7 +24,9 @@ import { storedKg } from '../organism/unified'
 
 export type LabSupplyResource = 'water' | 'nutrients' | 'spares'
 
-/** Сколько переносит одно нажатие клавиши. Запчасти — целые детали. */
+/** Сколько переносит одно нажатие клавиши. Запчасти — целые детали.
+ *  Вода — 40 л за раз: этого хватает на несколько поливов стенда, а сток базы
+ *  (около 1.2 т) не превращается в ноль одним промахом по кнопке. */
 export const SUPPLY_STEP: Record<LabSupplyResource, number> = { water: 40, nutrients: 0.2, spares: 1 }
 
 /** Единицы для подписей (строки остаются за i18n экрана). */

@@ -165,8 +165,9 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 async function bootstrap(): Promise<void> {
   try {
     // All public routes boot the same wallet/on-chain application shell.
-    // The former standalone /colony simulator is no longer exposed to players;
-    // /colony is redirected to the truthful product-status route in App.tsx.
+    // /colony ведёт на /base — рабочую колонию (3D-макет базы и локальная
+    // экспедиция) внутри этого же shell; /base/status остаётся страницей
+    // честного статуса протокола.
 
     // Только прикладные модули — динамически (в них живут fail-fast
     // проверки конфигурации на уровне модуля). Вендор — статически,

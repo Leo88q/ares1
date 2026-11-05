@@ -7,10 +7,10 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { ToastProvider } from './components/Toast'
 import { WalletErrorReporter } from './components/WalletErrorReporter'
 import { GameProvider } from './contexts/GameContext'
+import { ColonyProvider } from './colony/ColonyContext'
 import { t, useI18n } from './i18n'
 import { NETWORK_LABEL } from './utils/network'
 import { ambientMusic } from './utils/ambientMusic'
-import { useFeatures } from './hooks/useFeatures'
 import { AresBottomNav } from './components/ares/AresBottomNav'
 import { SectionFrame } from './components/ares/SectionFrame'
 import type { AresTab } from './components/ares/AresBottomNav'
@@ -28,6 +28,10 @@ const ProfileScreen = lazy(() => import('./components/ProfileScreen'))
 const OperationScreen = lazy(() => import('./components/OperationScreen'))
 const FieldLabScreen = lazy(() => import('./lab/FieldLabScreen'))
 const ColonyStatusScreen = lazy(() => import('./components/ColonyStatusScreen'))
+// Колония возвращена в игровой shell: 3D-раскладка базы, стройка, сети,
+// логистика и общий с /lab запас ресурсов — вместо страницы «строительство не
+// активно». On-chain операции колоний по-прежнему закрыты серверными гейтами.
+const ColonyScreen = lazy(() => import('./colony/ColonyScreen'))
 
 type Screen = 'farm' | 'lab' | 'colony' | 'market' | 'stats' | 'profile' | 'operation'
 
@@ -63,7 +67,13 @@ export default function App() {
        <WalletErrorReporter />
        <CookieConsent />
        <GameProvider>
-        <AppRoutes />
+        {/* Одна экспедиция базы на всю сессию: её читают КОЛОНИЯ (/base) и
+            ПОЛЕВАЯ ЛАБОРАТОРИЯ (/lab), поэтому вода, питание и запчасти — одни
+            и те же числа в обеих секциях. Без общего провайдера каждый экран
+            завёл бы свой сток, и передача ресурсов стала бы фикцией. */}
+        <ColonyProvider>
+         <AppRoutes />
+        </ColonyProvider>
        </GameProvider>
       </ToastProvider>
      </ErrorBoundary>
@@ -86,10 +96,11 @@ function ScreenFallback() {
 function AppRoutes() {
  const navigate = useNavigate()
  const location = useLocation()
- // Колонии скрываются, когда сервер выключает COLONIES_ENABLED. Флаг не
- // разрешает операции: это только видимость раздела, гейты остаются на сервере.
- const features = useFeatures()
- const hiddenTabs: AresTab[] = features.colonies ? [] : ['colony']
+ // Клавиша КОЛОНИЯ не скрывается фиче-флагом бэкенда: раздел снова рабочий
+ // (локальная экспедиция базы), а серверные гейты колоний остаются закрытыми.
+ // Прятать целый раздел из-за закрытых on-chain операций — это не гейт, а
+ // выключенная половина игры; флаг colonies продолжает управлять сервером.
+ const hiddenTabs: readonly AresTab[] = []
 
  const currentScreen: Screen =
   location.pathname === '/lab' ? 'lab'
@@ -110,8 +121,17 @@ function AppRoutes() {
       <Routes location={location}>
        <Route path="/" element={<MainScreen />} />
        <Route path="/lab" element={<FieldLabScreen />} />
-       <Route path="/base" element={features.colonies ? <ColonyStatusScreen /> : <Navigate to="/" replace />} />
-       <Route path="/colony" element={<Navigate to={features.colonies ? '/base' : '/'} replace />} />
+       {/*
+         /base — рабочая колония: 3D-макет базы, стройка модулей, сети, логистика
+         и общий с /lab запас ресурсов. Это экспедиция сессии (CR/кг/литры), она
+         не пишет в цепь и не минтит POTATO; on-chain колонии по-прежнему закрыты
+         серверными гейтами, а не спрятанным экраном.
+       */}
+       <Route path="/base" element={<ColonyScreen embedded />} />
+       {/* Статус протокола остаётся доступен отдельным адресом: он рассказывает,
+           что именно ещё не включено на сервере. */}
+       <Route path="/base/status" element={<ColonyStatusScreen />} />
+       <Route path="/colony" element={<Navigate to="/base" replace />} />
        <Route path="/market" element={<MarketScreen />} />
        <Route path="/stats" element={<StatsScreen />} />
        <Route path="/profile" element={<ProfileScreen />} />

@@ -66,9 +66,9 @@ See [current climate profile and verification](docs/FIELD_CLIMATE.md), [ten LAB/
 
 ## Earlier local 3D colony sandbox
 
-The earlier wallet-free design prototype remains available at **`/colony`** on the game client (linked from the colony tab and the field lab). It includes 14 locally bundled CC0 models, construction, power/storage, water recycling, batch crops, maintenance and a finite fictional food order. It is a separate lunar design study, not a mainnet launch, a change to on-chain yields, or a token-to-food conversion. Browser progress resets on reload.
+The playable colony is back on the product route **`/base`** (`/colony` redirects there): the 3D base scene with a 2D plan fallback, day clock, construction, networks and logistics. The protocol status page stays at **`/base/status`**. Lab and colony share one expedition stock: the field lab's «СВЯЗЬ С КОЛОНИЕЙ» card draws water, nutrients and spares from it while the colony clock is paused. It includes 14 locally bundled CC0 models, construction, power/storage, water recycling, batch crops, maintenance and a finite fictional food order. It is a separate lunar design study, not a mainnet launch, a change to on-chain yields, or a token-to-food conversion. Browser progress resets on reload.
 
-See [the asset research, resource assumptions and integration plan](docs/LUNAR_FARM_PLAN.md) and the [reproducible 180-day study](game/economy/colony-report-2026-10-14.md). Run with `cd game && yarn dev:web`, then open `/colony`; `yarn simulate:colony` runs the same resource engine without a browser.
+See [the asset research, resource assumptions and integration plan](docs/LUNAR_FARM_PLAN.md) and the [reproducible 180-day study](game/economy/colony-report-2026-10-14.md). Run with `cd game && yarn dev:web`, then open `/base`; `yarn simulate:colony` runs the same resource engine without a browser.
 
 ## Current documentation
 

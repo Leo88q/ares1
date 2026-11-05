@@ -1,6 +1,8 @@
-// Production-route smoke for the real Colony status/backend flow.
-// The former local colony simulator is intentionally not exposed to players;
-// /colony must redirect to /base and never mount demo balances or controls.
+// Production-route smoke: /colony ведёт на /base, где живёт рабочая колония —
+// 3D-макет базы, стройка модулей и локальная экспедиция (CR/кг/литры). Смоук
+// проверяет, что раздел действительно смонтирован, а не подменён страницей
+// статуса, и что страница статуса остаётся доступной отдельным адресом.
+// Он ничего не подписывает: кошелёк в тесте не подключается.
 // CHROMIUM_EXECUTABLE_PATH=/path/to/chrome yarn workspace web test:colony-browser
 // Optional COLONY_BASE_URL and COLONY_SCREENSHOT_DIR.
 import assert from 'node:assert/strict'
@@ -34,39 +36,43 @@ async function openColony(width, locale = 'en-US') {
   })
   await page.goto(`${base}/colony`, { waitUntil: 'networkidle' })
   await page.waitForURL(url => url.pathname === '/base')
-  await page.getByTestId('colony-status').waitFor({ state: 'visible' })
-  await page.getByTestId('persistent-colony').waitFor({ state: 'visible' })
   return { page, context }
 }
 
 try {
   for (const width of [1440, 390, 320]) {
-    const { page, context } = await openColony(width, width < 500 ? 'en-US' : 'en-US')
-    const status = page.getByTestId('colony-status')
-    const persistent = page.getByTestId('persistent-colony')
-    assert.match(await status.innerText(), /CONSTRUCTION INACTIVE/)
-    assert.match(await status.innerText(), /feature is disabled in the current game environment/i)
-    assert.match(await status.innerText(), /ACCESS CLOSED/)
-    assert.match(await persistent.innerText(), /backend-persistent/i)
-    assert.match(await persistent.innerText(), /Sign a one-time sign-in message\. The signature does not transfer tokens or submit a transaction\./i)
-    assert.match(await persistent.innerText(), /CONNECT A WALLET FIRST/)
-
-    // No local/demo simulation may be reachable through the public Colony route.
-    assert.equal(await page.locator('.colony-canvas-host canvas, [data-testid="colony-viewport"]').count(), 0)
-    assert.equal(await page.getByTestId('colony-day').count(), 0)
-    assert.equal(await page.getByRole('button', { name: /New expedition|Run simulation/i }).count(), 0)
-    assert.equal(await page.locator('.colony-resource-value').count(), 0)
+    const { page, context } = await openColony(width, 'en-US')
+    // Раздел колонии смонтирован в игровом shell: часы, ресурсы, стройка, 3D.
+    await page.getByTestId('colony-day').waitFor({ state: 'visible' })
+    assert.ok(await page.locator('.colony-resource-value').count() >= 4, `colony resources missing at ${width}px`)
+    assert.ok(await page.locator('.colony-build-item').count() >= 5, `build catalog missing at ${width}px`)
+    // 3D-сцена либо canvas (WebGL есть), либо честный 2D-план без WebGL.
+    const scene = page.getByTestId('colony-viewport')
+    await scene.waitFor({ state: 'visible' })
+    assert.ok(await page.locator('.colony-canvas-host canvas, .colony-plan-grid').count() > 0, `colony scene missing at ${width}px`)
+    // Пульт секций: клавиша КОЛОНИЯ активна и раздел не скрыт флагом бэкенда.
+    assert.equal(await page.locator('.ship-nav .hull-nav-key').count(), 7, `section keys missing at ${width}px`)
+    assert.equal(await page.locator('.ship-nav .hull-nav-key[aria-pressed="true"]').count(), 1)
+    // Стройка не тратит POTATO и не подписывает транзакции: кошелёк не подключён,
+    // а кнопки времени работают на локальной экспедиции.
+    await page.getByRole('button', { name: '+1 day', exact: true }).first().click()
+    assert.match(await page.getByTestId('colony-day').innerText(), /^00[2-9]$/)
+    // Страница статуса протокола осталась доступной отдельным адресом.
+    const statusPage = await context.newPage()
+    await statusPage.goto(`${base}/base/status`, { waitUntil: 'networkidle' })
+    assert.match(await statusPage.getByTestId('colony-status').innerText(), /CONSTRUCTION INACTIVE/)
+    await statusPage.close()
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `horizontal overflow at ${width}px`)
 
-    if (width === 1440 && screenshots) await page.screenshot({ path: join(screenshots, 'colony-status-desktop.png'), fullPage: true })
-    if (width === 390 && screenshots) await page.screenshot({ path: join(screenshots, 'colony-status-mobile.png'), fullPage: true })
+    if (width === 1440 && screenshots) await page.screenshot({ path: join(screenshots, 'colony-desktop.png'), fullPage: true })
+    if (width === 390 && screenshots) await page.screenshot({ path: join(screenshots, 'colony-mobile.png'), fullPage: true })
     await context.close()
-    console.log(`PASS ${width}px: /colony redirects to /base, persistent status only, no local simulation or horizontal overflow`)
+    console.log(`PASS ${width}px: /colony → /base mounts the working colony (3D scene, clocks, build catalog), status page stays at /base/status, no overflow`)
   }
   assert.deepEqual(external, [], `unexpected external requests: ${external.join(', ')}`)
   assert.ok(rpcRequests.every(url => url === allowedRpcEndpoint), `only the configured devnet RPC is permitted: ${rpcRequests.join(', ')}`)
   assert.deepEqual(errors, [], `browser console/page errors: ${errors.slice(0, 8).join('\n')}`)
-  console.log('PASS Colony production route uses same-origin assets only and has no runtime errors')
+  console.log('PASS Colony route uses same-origin assets only and has no runtime errors')
 } finally {
   await browser.close()
 }

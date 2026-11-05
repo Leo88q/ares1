@@ -17,12 +17,13 @@ test('navigation opens the real Lab and preserves seven unique section keys', ()
 test('legacy URLs cannot enter a local colony simulator or training route', () => {
   const app = source('App.tsx')
   assert.match(app, /<Route path="\/lab" element=\{<FieldLabScreen \/>} \/>/)
-  // /base остаётся статусом колонии, но только когда сервер не выключил раздел:
-  // при colonies:false оба URL уводят на главный экран.
-  assert.match(app, /<Route path="\/base" element=\{features\.colonies \? <ColonyStatusScreen \/> : <Navigate to="\/" replace \/>} \/>/)
-  assert.match(app, /<Route path="\/colony" element=\{<Navigate to=\{features\.colonies \? '\/base' : '\/'\} replace \/>} \/>/)
+  // /base — рабочая колония (встроенная в shell): 3D-раскладка базы, стройка,
+  // сети и логистика. /colony ведёт туда же, /demo — в лабораторию.
+  assert.match(app, /<Route path="\/base" element=\{<ColonyScreen embedded \/>} \/>/)
+  assert.match(app, /<Route path="\/colony" element=\{<Navigate to="\/base" replace \/>} \/>/)
   assert.match(app, /<Route path="\/demo" element=\{<Navigate to="\/lab" replace \/>} \/>/)
-  assert.doesNotMatch(app, /ColonyProvider|<ColonyScreen|TutorialProvider|TutorialScreen/)
+  // Учебных/тренировочных экранов по-прежнему нет.
+  assert.doesNotMatch(app, /TutorialProvider|TutorialScreen/)
   assert.doesNotMatch(app, /FarmTab|DemoScreen/)
 
   const main = source('main.tsx')
@@ -46,7 +47,12 @@ test('Lab reads only connected wallet fields and reuses on-chain actions', () =>
   assert.match(lab, /\{connected && <MarketBook \/>}/)
   assert.match(lab, /ready && !connected && <EmptyFields/)
   assert.match(lab, /ready && connected && !game\.fieldsError && game\.fields\.length === 0 && <EmptyFields/)
-  assert.doesNotMatch(lab, /ColonyProvider|useColony|BENCH_PREFIX|demo=|onBuy=|purchaseField|localStorage|sessionStorage|sendTransaction|pause/i)
+  // Мост «колония → лаборатория» теперь продуктовый: ЛАБ берёт воду, питание и
+  // запчасти из общего стока базы через colony/bridge, а не из локального стенда.
+  // Границы остались: никакой покупки поля, localStorage и подписи транзакций.
+  assert.match(lab, /import \{ useColony \} from '\.\.\/colony\/ColonyContext'/)
+  assert.match(lab, /drawFromColony\(current, item\.key, SUPPLY_STEP\[item\.key\]\)/)
+  assert.doesNotMatch(lab, /ColonyProvider|BENCH_PREFIX|demo=|onBuy=|purchaseField|localStorage|sessionStorage|sendTransaction/i)
 })
 
 test('the field selector has no demo source, local resource ledger, or SIM controls', () => {
@@ -54,10 +60,13 @@ test('the field selector has no demo source, local resource ledger, or SIM contr
   assert.match(panel, /fields: readonly FieldVisual\[\]/)
   assert.match(panel, /renderInspector\(field: FieldVisual\): ReactNode/)
   assert.match(panel, /renderCards\?: \(\) => ReactNode/)
-  assert.doesNotMatch(panel, /demo|SIM|bench|source-tabs|onBuy|lab-supply|lab-ship/i)
+  assert.doesNotMatch(panel, /demo|SIM|bench|source-tabs|onBuy/i)
 
   const labCss = source('lab/lab.css')
-  assert.doesNotMatch(labCss, /lab-bench|lab-supply|lab-ship|SIM|учебн/i)
+  // Учебных стендов в CSS нет. `lab-supply-*` — сетка кнопок переноса ресурсов
+  // из общего стока колонии, это продуктовая связь секций, а не SIM-панель.
+  assert.doesNotMatch(labCss, /lab-bench|lab-ship|SIM|учебн/i)
+  assert.match(labCss, /\.lab-supply-actions \{[^}]*min-height|minmax\(150px/)
   const art = source('fields/art-direction.css')
   assert.doesNotMatch(art, /mf-source-tabs|eg-console|eg-telemetry|eg-topology|is-sim/i)
 })
