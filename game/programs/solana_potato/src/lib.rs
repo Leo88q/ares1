@@ -5871,7 +5871,10 @@ mod tests {
     /// вместе с этим тестом и с `/docs/ECONOMY.md`.
     #[test]
     fn v2_fee_ladder_thresholds_are_the_accepted_values() {
-        assert_eq!(V2_TRADE_VOLUME_THRESHOLDS_MICRO, [1_000_000_000, 10_000_000_000, 100_000_000_000]);
+        assert_eq!(
+            V2_TRADE_VOLUME_THRESHOLDS_MICRO,
+            [1_000_000_000, 10_000_000_000, 100_000_000_000]
+        );
         assert_eq!(V2_SETTLEMENT_FEE_BPS, [500, 600, 700, 800]);
         // Лестница возрастает и остаётся ниже «невозможных» 9 %: у ставки есть
         // смысл только пока она меньше типичного спреда.

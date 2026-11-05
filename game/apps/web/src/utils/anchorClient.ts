@@ -580,8 +580,14 @@ export function decodeExportLicense(data: Buffer): DecodedExportLicense {
  * суммы, лимиты и рельса — на стороне программы.
  */
 export const PRESALE_SOL_CLIENT_ENABLED = (() => {
-  const raw = typeof import.meta.env !== 'undefined' ? import.meta.env.VITE_PRESALE_SOL_ENABLED : undefined
-  return raw === 'true'
+  // `import.meta.env` есть только в сборке Vite. Тот же модуль тянет
+  // `tsconfig.tools.json` (scripts/ и tests/offchain/): там ImportMeta объявлен
+  // без `env`, и прямое обращение роняло typecheck:tools — а CI гоняет именно
+  // его. Поэтому optional-chaining по образцу useFeatures/StoreSection.
+  // Тип `ImportMetaEnv` объявлен в `vite-env.d.ts`, а tools-конфиг его не
+  // включает — поэтому тип локальный, а не глобальный.
+  const env = (import.meta as ImportMeta & { env?: { VITE_PRESALE_SOL_ENABLED?: string } }).env
+  return env?.VITE_PRESALE_SOL_ENABLED === 'true'
 })()
 
 /**

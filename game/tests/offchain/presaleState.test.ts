@@ -41,7 +41,10 @@ test('SOL presale purchase exists in the client but only behind an explicit flag
   // закрытом тираже ведёт человека с деньгами в гарантированно падающую
   // транзакцию.
   assert.match(client, /VITE_PRESALE_SOL_ENABLED/);
-  assert.match(client, /raw === 'true'/);
+  // Безопасный доступ к env: тот же модуль тайпчекается и tools-конфигом, где
+  // ImportMeta объявлен без `env`.
+  assert.match(client, /\(import\.meta as ImportMeta & \{ env\?:/);
+  assert.match(client, /VITE_PRESALE_SOL_ENABLED === 'true'/);
   assert.match(source('apps/web/.env.example'), /VITE_PRESALE_SOL_ENABLED=false/);
 });
 
