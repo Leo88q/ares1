@@ -20,11 +20,20 @@ test('фича-флаги читаются с /api/features и не роняют
   assert.match(hook, /catch\(\(\) => \{ \/\* оставляем значения по умолчанию \*\/ \}\)/)
 })
 
-test('колонии скрываются из маршрута и навигации при colonies:false', () => {
-  assert.match(app, /const features = useFeatures\(\)/)
-  assert.match(app, /features\.colonies \? <ColonyStatusScreen \/> : <Navigate to="\/" replace \/>/)
-  assert.match(app, /features\.colonies \? '\/base' : '\/'/)
+test('фиче-флаг не прячет рабочий раздел колонии из маршрута и навигации', () => {
+  // Было: colonies:false убирало клавишу КОЛОНИЯ и уводило /base на главный
+  // экран. Это выключало половину игры из-за закрытых on-chain операций:
+  // строительство базы — локальная экспедиция, она не требует серверного
+  // разрешения. Гейты остаются на сервере, раздел — в пульте.
+  assert.match(app, /<Route path="\/base" element=\{<ColonyScreen embedded \/>} \/>/)
+  assert.match(app, /<Route path="\/colony" element=\{<Navigate to="\/base" replace \/>} \/>/)
+  assert.match(app, /const hiddenTabs: readonly AresTab\[\] = \[\]/)
   assert.match(app, /hidden=\{hiddenTabs\}/)
+  // Статус протокола остаётся доступен отдельным адресом.
+  assert.match(app, /<Route path="\/base\/status" element=\{<ColonyStatusScreen \/>} \/>/)
+  // Флаг продолжает приходить с бэкенда (и используется сервером), но не
+  // решает, существует ли раздел.
+  assert.match(hook, /\/api\/features/)
   assert.match(nav, /hidden\?: readonly AresTab\[\]/)
   assert.match(nav, /hidden\.includes\(item\.id\)/)
 })

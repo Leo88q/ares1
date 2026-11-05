@@ -18,6 +18,9 @@ test('engineering SIM is not imported into the real game, field Lab, or colony s
   for (const [name, code] of [['App', app], ['MainScreen', main], ['FieldLabScreen', lab], ['FieldsPanel', fields], ['ColonyStatusScreen', colony]]) {
     assert.doesNotMatch(code, /EngineeringConsole|engineering\/|EngineeringState/, `${name} must not mount the training simulator`)
   }
-  assert.doesNotMatch(lab, /BENCH_PREFIX|demo=|pause|localStorage|sessionStorage/i)
+  // Учебный стенд по-прежнему не монтируется. `pause` больше не запрещён: ЛАБ
+  // связан с колонией, а передачи ресурсов разрешены только на остановленных
+  // часах экспедиции — это состояние базы, а не учебная пауза.
+  assert.doesNotMatch(lab, /BENCH_PREFIX|demo=|localStorage|sessionStorage/i)
   assert.doesNotMatch(fields, /SIM|bench|training|source-tabs/i)
 })

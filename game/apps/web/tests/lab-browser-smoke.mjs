@@ -1,4 +1,7 @@
-// Product Lab smoke: real account data and controls only; no local benches or pauseable sim.
+// Product Lab smoke: real account data and controls only; no training benches.
+// ЛАБ связан с колонией продуктово: карточка «СВЯЗЬ С КОЛОНИЕЙ» показывает сток
+// базы и умеет забрать из него воду/питание/запчасти. Учебного стенда и своей
+// паузы у лаборатории по-прежнему нет.
 // CHROMIUM_EXECUTABLE_PATH=... [LAB_BASE_URL=...] yarn workspace web test:lab-browser
 import assert from 'node:assert/strict'
 import { readFileSync, mkdirSync } from 'node:fs'
@@ -70,7 +73,12 @@ try {
   assert.match(await readTile(page, 'ПОЛЯ КОШЕЛЬКА'), /2/)
   assert.doesNotMatch(await readTile(page, 'РАСЧЁТНЫЙ ВЫХОД ПОЛЕЙ В ДЕНЬ'), /—/)
   assert.equal(await page.getByTestId('lab-market-book').count(), 1)
-  assert.equal(await page.locator('[data-testid="lab-colony-link"]').count(), 0)
+  // Мост с колонией смонтирован и показывает реальные числа стока базы.
+  const link = page.getByTestId('lab-colony-link')
+  assert.equal(await link.count(), 1)
+  assert.match(await link.innerText(), /СВЯЗЬ С КОЛОНИЕЙ/)
+  const waterBefore = await link.getByTestId('lab-draw-water').innerText()
+  assert.ok(waterBefore.length > 0)
   await page.getByTestId('fields-viewport').waitFor()
   await shot(page, 'lab-desktop.png')
 
@@ -85,9 +93,12 @@ try {
   await page.evaluate(() => window.__reorderFields())
   assert.equal(await page.getByTestId('lab-bench').count(), 0)
   assert.equal(await page.getByTestId('lab-supply').count(), 0)
+  // Передача ресурсов разрешена только на остановленных часах колонии: кнопки
+  // есть, но никакой собственной паузы у лаборатории не появляется.
+  assert.equal(await link.getByTestId('lab-draw-nutrients').count(), 1)
   assert.equal(await page.getByRole('button', { name: /SIM|пауза|pause/i }).count(), 0)
   await desktop.context.close()
-  console.log('PASS connected Lab: account fields, on-chain calculations, market book and existing harvest callback')
+  console.log('PASS connected Lab: account fields, on-chain calculations, market book, colony stock link and existing harvest callback')
 
   // No wallet: no invented fields, market book, bench, local stock or purchase form.
   const empty = await open(1440, { connected: false })
@@ -112,6 +123,7 @@ try {
       .filter(item => parseFloat(item.size) < 44 || parseFloat(item.size.split('x')[1]) < 44))
     assert.deepEqual(small, [], `controls smaller than 44 px at ${width}px`)
     assert.equal(await mobile.page.getByRole('button', { name: /SIM|пауза|pause/i }).count(), 0)
+    assert.equal(await mobile.page.getByTestId('lab-colony-link').count(), 1, `colony link missing at ${width}px`)
     await shot(mobile.page, `lab-mobile-${width}.png`)
     await noOverflow(mobile.page)
     await mobile.context.close()

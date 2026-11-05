@@ -64,6 +64,11 @@
 .lab-key--small { min-height: 44px; padding: 8px 10px; font-size: 10px; }
 .lab-key--ghost { color: #c6ab83; filter: saturate(.72) brightness(.94); }
 .lab-key:focus-visible, .lab-hero-chip a:focus-visible { outline: 2px solid #f6cf85; outline-offset: 2px; }
+/* Мост «колония → лаборатория»: кнопки переноса ресурсов идут плотной сеткой,
+   но каждая остаётся ≥44 px — палец на телефоне не должен попадать в соседнюю. */
+.lab-supply-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 10px 0 8px; }
+.lab-supply-actions .lab-key { width: 100%; min-width: 0; }
+.lab-card[data-testid="lab-colony-link"] .lab-figures { margin-bottom: 8px; }
 
 /* ── Таблица рынка ── */
 .lab-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 8px; }

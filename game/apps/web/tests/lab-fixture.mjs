@@ -93,9 +93,10 @@ import '${src}/theme/tokens.css'; import '${src}/styles/global.css'; import '${s
 import { setLang } from '${src}/i18n';
 import { ToastProvider } from '${src}/components/Toast';
 import FieldLabScreen from '${src}/lab/FieldLabScreen';
+import { ColonyProvider } from '${src}/colony/ColonyContext';
 window.__setLang = setLang;
 createRoot(document.getElementById('root')).render(
-  <BrowserRouter><div className="pf-phone-chassis"><ToastProvider><FieldLabScreen /></ToastProvider></div></BrowserRouter>,
+  <BrowserRouter><div className="pf-phone-chassis"><ToastProvider><ColonyProvider><FieldLabScreen /></ColonyProvider></ToastProvider></div></BrowserRouter>,
 );
 `)
 

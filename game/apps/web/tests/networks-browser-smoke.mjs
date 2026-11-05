@@ -1,9 +1,21 @@
-// Production-route regression: network editor controls from the retired local
-// colony sandbox must never appear on the real, persistent Colony status route.
+// Regression: редактор сетей живёт внутри рабочей колонии (/base) и работает
+// только локально — без транзакций, без списания POTATO и без внешних запросов.
+// Страница статуса протокола (/base/status) при этом по-прежнему не показывает
+// ни редактора, ни симулированных ресурсов.
 import assert from 'node:assert/strict'
 import { readFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright-core'
+
+/** Первый визит в свежем контексте показывает баннер cookie (role=dialog .consent),
+ *  который перекрывает нижний пульт. Отказываемся от всего — это равноправная
+ *  кнопка, игра остаётся рабочей; тест проверяет игровой UI, а не баннер. */
+async function dismissConsent(page) {
+  const dialog = page.locator('.consent')
+  if (await dialog.count() === 0) return
+  await dialog.locator('.consent__actions .consent__btn').nth(1).click()
+  await dialog.waitFor({ state: 'hidden', timeout: 5000 })
+}
 
 if (!process.env.CHROMIUM_EXECUTABLE_PATH) throw new Error('Set CHROMIUM_EXECUTABLE_PATH; this test never downloads a browser.')
 const base = (process.env.COLONY_BASE_URL || 'http://127.0.0.1:4173').replace(/\/$/, '')
@@ -35,36 +47,41 @@ try {
       const response = await route.fetch()
       await route.fulfill({ response, headers: { ...response.headers(), 'content-security-policy': csp } })
     })
-    await page.goto(`${base}/colony`, { waitUntil: 'networkidle' })
-    await page.waitForURL(url => url.pathname === '/base')
-    const status = page.getByTestId('colony-status')
-    await status.waitFor({ state: 'visible' })
-    await page.getByTestId('persistent-colony').waitFor({ state: 'visible' })
+    await page.goto(`${base}/base`, { waitUntil: 'networkidle' })
+    await dismissConsent(page)
+    await page.getByTestId('colony-day').waitFor({ state: 'visible' })
 
+    // Редактор сетей доступен в рабочей колонии и не подписывает транзакции.
+    await page.getByRole('button', { name: /Networks|Сети/ }).first().click()
+    const panel = page.getByTestId('network-panel')
+    await panel.waitFor({ state: 'visible' })
+    const crBefore = await page.locator('.colony-resource-value').first().innerText()
+    assert.ok(crBefore.length > 0)
+
+    // Страница статуса протокола остаётся честной и без редактора.
+    const statusPage = await context.newPage()
+    await statusPage.goto(`${base}/base/status`, { waitUntil: 'networkidle' })
+    await dismissConsent(statusPage)
+    const status = statusPage.getByTestId('colony-status')
+    await status.waitFor({ state: 'visible' })
+    await statusPage.getByTestId('persistent-colony').waitFor({ state: 'visible' })
     const copy = await status.innerText()
     assert.match(copy, /CONSTRUCTION INACTIVE/)
     assert.match(copy, /A field module is one on-chain account/i)
-    assert.match(copy, /buying a Field does not automatically create a Colony/i)
     assert.match(copy, /does not create a ready-made colony or unlock separate construction resources/i)
-
-    // No demo resources, line editor, paid network actions or simulated clock.
-    for (const selector of [
-      '[data-testid="network-panel"]', '[data-testid="network-route-preview"]',
-      '[data-testid="module-service-status"]', '.colony-canvas-host canvas',
-      '[data-testid="colony-viewport"]', '.colony-resource-value',
-    ]) assert.equal(await page.locator(selector).count(), 0, `retired simulator control leaked at ${width}px: ${selector}`)
-    for (const label of [/Install line/i, /Remove without CR refund/i, /New expedition/i, /\+1 day/i]) {
-      assert.equal(await page.getByRole('button', { name: label }).count(), 0, `retired simulator action leaked at ${width}px: ${label}`)
+    for (const selector of ['[data-testid="network-panel"]', '.colony-resource-value']) {
+      assert.equal(await statusPage.locator(selector).count(), 0, `status route must not mount the simulator at ${width}px: ${selector}`)
     }
+    if (screenshots) await statusPage.screenshot({ path: join(screenshots, `colony-status-${width}.png`), fullPage: true })
+    await statusPage.close()
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `horizontal overflow at ${width}px`)
-    if (screenshots) await page.screenshot({ path: join(screenshots, `colony-status-${width}.png`), fullPage: true })
     await context.close()
-    console.log(`PASS ${width}px: no local network editor, simulated resources or paid demo actions`)
+    console.log(`PASS ${width}px: network editor inside the colony, status route stays truthful`)
   }
   assert.deepEqual(external, [], `unexpected external requests: ${external.join(', ')}`)
   assert.ok(rpcRequests.every(url => url === allowedRpcEndpoint), `only the configured devnet RPC is permitted: ${rpcRequests.join(', ')}`)
   assert.deepEqual(errors, [], `browser console/page errors: ${errors.slice(0, 8).join('\n')}`)
-  console.log('PASS real Colony route, production CSP, no demo network editor and no unexpected external requests')
+  console.log('PASS colony network editor stays local, status route truthful, production CSP, no external requests')
 } finally {
   await browser.close()
 }

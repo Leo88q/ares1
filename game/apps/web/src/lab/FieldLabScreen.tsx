@@ -10,6 +10,9 @@ import FieldCardVice from '../components/FieldCardVice'
 import ResourceIcon from '../fields/ResourceIcon'
 import type { ResourceArt } from '../fields/visualAssets'
 import { useMarketplace } from '../hooks/useMarketplace'
+import { useColony } from '../colony/ColonyContext'
+import { colonyStock, colonyFreeStorageKg, drawFromColony, SUPPLY_STEP, SUPPLY_UNIT } from './bridge'
+import type { LabSupplyResource } from './bridge'
 import { dailyYieldMicro, fmtPotato, fmtSol, HARVEST_THRESHOLD_MICRO } from '../utils/constants'
 import './lab.css'
 
@@ -19,6 +22,7 @@ const number = (value: number, decimals = 0): string => (Number.isFinite(value) 
 export default function FieldLabScreen(): JSX.Element {
   const { t, lang } = useI18n()
   const game = useGame()
+  const colony = useColony()
   const { connected, ready, config, rpcError, publicKey } = useSolana()
   const nowSec = Math.floor(Date.now() / 1000)
 
@@ -100,8 +104,13 @@ export default function FieldLabScreen(): JSX.Element {
               <h2 className="lab-card-title">{t('ОДИН АККАУНТ — ОДИН ИСТОЧНИК ДАННЫХ')}</h2>
               <p className="lab-copy">{t('ЛАБ читает те же on-chain поля, что и АГРО. Сбор, ремонт, налог и удобрение используют существующие игровые транзакции; отдельного учебного поля или локального урожая нет.')}</p>
               <Link className="lab-key" to="/">{t('ОТКРЫТЬ АГРО')}<ArrowRight size={14} /></Link>
-              <p className="lab-fineprint">{t('Реальное строительство колонии пока не входит в on-chain-протокол. Вкладка КОЛОНИЯ показывает статус разработки, а не фиктивные ресурсы.')}</p>
+              <p className="lab-fineprint">{t('Строительство колонии живёт в разделе КОЛОНИЯ: это экспедиция базы с общим стоком воды, питания и запчастей. On-chain операций колонии пока нет — серверные гейты закрыты, поэтому стройка не тратит POTATO и не отправляет транзакций.')}</p>
             </section>
+            {/* Мост «колония → лаборатория»: вода, питание и запчасти берутся из
+                того же стока, что виден в разделе КОЛОНИЯ. Это локальная
+                бухгалтерия сессии: POTATO не тратится, транзакций нет. Передачи
+                разрешены только на остановленных часах колонии. */}
+            <LabSupplyLink colony={colony.state} paused={!colony.running} onChange={colony.setState} />
             {connected && <MarketBook />}
           </aside>
         </div>
@@ -113,6 +122,55 @@ export default function FieldLabScreen(): JSX.Element {
       </div>
     </div>
   )
+}
+
+/**
+ * Передача ресурсов из стока колонии в лабораторию и обратно.
+ *
+ * Зачем: до этого мост (`lab/bridge.ts`) был только в тестах — в интерфейсе
+ * разделы выглядели как две несвязанные игры. Теперь ЛАБ показывает сток базы и
+ * умеет забрать воду/питание/запчасти одним нажатием, а собранная на стенде еда
+ * уходит в хранилище базы. Ничего on-chain: POTATO не тратится, транзакций нет.
+ */
+function LabSupplyLink({ colony, paused, onChange }: {
+  colony: ReturnType<typeof useColony>['state']
+  paused: boolean
+  onChange: ReturnType<typeof useColony>['setState']
+}): JSX.Element {
+  const { t } = useI18n()
+  const resources: Array<{ key: LabSupplyResource; label: string }> = [
+    { key: 'water', label: t('ВОДА') },
+    { key: 'nutrients', label: t('ПИТАНИЕ') },
+    { key: 'spares', label: t('ЗАПЧАСТИ') },
+  ]
+  const free = colonyFreeStorageKg(colony)
+  return <section className="lab-card" data-testid="lab-colony-link" aria-label={t('СВЯЗЬ С КОЛОНИЕЙ')}>
+    <p className="lab-eyebrow">{t('СВЯЗЬ С КОЛОНИЕЙ')}</p>
+    <h2 className="lab-card-title">{t('ОДИН СТОК НА ДВЕ СЕКЦИИ')}</h2>
+    <dl className="lab-figures">
+      {resources.map(item => <div key={item.key}>
+        <dt>{item.label}</dt>
+        <dd>{number(colonyStock(colony, item.key), item.key === 'spares' ? 0 : 1)} {SUPPLY_UNIT[item.key]}</dd>
+      </div>)}
+      <div><dt>{t('СВОБОДНО В ХРАНИЛИЩЕ')}</dt><dd>{number(free, 1)} kg</dd></div>
+    </dl>
+    <div className="lab-supply-actions">
+      {resources.map(item => <button
+        key={item.key}
+        type="button"
+        className="lab-key lab-key--small"
+        data-testid={`lab-draw-${item.key}`}
+        disabled={!paused || colonyStock(colony, item.key) < SUPPLY_STEP[item.key]}
+        aria-label={`${t('ВЗЯТЬ ИЗ КОЛОНИИ')}: ${item.label} ${SUPPLY_STEP[item.key]} ${SUPPLY_UNIT[item.key]}`}
+        onClick={() => onChange(current => drawFromColony(current, item.key, SUPPLY_STEP[item.key]).state)}
+      >
+        {t('ВЗЯТЬ')} {SUPPLY_STEP[item.key]} {SUPPLY_UNIT[item.key]} {item.label}
+      </button>)}
+    </div>
+    <p className="lab-fineprint">{paused
+      ? t('Вода, питание и запчасти списываются из общего стока базы — там их становится ровно столько же меньше. POTATO не тратится, транзакция не подписывается.')
+      : t('Часы колонии идут: останови экспедицию в разделе КОЛОНИЯ, чтобы забрать ресурсы без гонки с дневным тиком.')}</p>
+  </section>
 }
 
 function EmptyFields({ title, description, linkLabel }: { title: string; description: string; linkLabel: string }): JSX.Element {
