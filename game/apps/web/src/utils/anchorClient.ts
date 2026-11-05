@@ -134,6 +134,24 @@ export const ixPayTax = (programId: PublicKey, params: Parameters<typeof ixField
 export const ixApplyFertilizer = (programId: PublicKey, params: Parameters<typeof ixFieldAction>[2]) =>
  ixFieldAction('apply_fertilizer', programId, params)
 
+// colony_spend: сжигает POTATO за колонийную трату (стройка/ремонт/апгрейд колонии).
+// Аккаунты и порядок — как в структуре ColonySpend программы (без поля фермы).
+// Аргументы: u64 amount_micro + u8 purpose (1 стройка, 2 ремонт, 3 апгрейд).
+export async function ixColonySpend(programId: PublicKey, params: {
+ potatoMint: PublicKey; userPotato: PublicKey; config: PublicKey; owner: PublicKey
+ amountMicro: bigint; purpose: number
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(await ixDiscriminator('colony_spend'), u64LE(params.amountMicro), u8(params.purpose))
+ const keys = [
+  { pubkey: params.potatoMint, isSigner: false, isWritable: true },
+  { pubkey: params.userPotato, isSigner: false, isWritable: true },
+  { pubkey: params.config, isSigner: false, isWritable: true },
+  { pubkey: params.owner, isSigner: true, isWritable: false },
+  { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
+
 export async function ixCreateSellOrder(programId: PublicKey, params: {
  seller: PublicKey; sellerProfile: PublicKey; order: PublicKey; marketStats: PublicKey
  sellerPotato: PublicKey; escrow: PublicKey; potatoMint: PublicKey; config: PublicKey

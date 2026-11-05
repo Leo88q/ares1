@@ -25,7 +25,9 @@ test('фиче-флаг не прячет рабочий раздел колон
   // экран. Это выключало половину игры из-за закрытых on-chain операций:
   // строительство базы — локальная экспедиция, она не требует серверного
   // разрешения. Гейты остаются на сервере, раздел — в пульте.
-  assert.match(app, /<Route path="\/base" element=\{<ColonyScreen embedded \/>} \/>/)
+  // /base монтирует обёртку с оплатой POTATO; она сама рендерит ColonyScreen embedded.
+  assert.match(app, /<Route path="\/base" element=\{<ColonyBaseRoute \/>} \/>/)
+  assert.match(readFileSync(new URL('../src/colony/ColonyBaseRoute.tsx', import.meta.url), 'utf8'), /<ColonyScreen embedded /)
   assert.match(app, /<Route path="\/colony" element=\{<Navigate to="\/base" replace \/>} \/>/)
   assert.match(app, /const hiddenTabs: readonly AresTab\[\] = \[\]/)
   assert.match(app, /hidden=\{hiddenTabs\}/)
