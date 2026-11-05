@@ -84,7 +84,7 @@ jobs:
           test "$(rustc --version | awk '{print $2}')" = '1.97.1'
           test "$(solana --version | awk '{print $2}')" = "$SOLANA_VERSION"
           test "$(anchor --version | awk '{print $2}')" = "$ANCHOR_VERSION"
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: game
           cache-on-failure: true
