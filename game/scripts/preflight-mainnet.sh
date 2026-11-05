@@ -137,6 +137,27 @@ else
   warn "POTATO_MINT not set — mint invariants not checked here (run scripts/check-invariants.ts)"
 fi
 
+# ── 5b. Program id must be mainnet-only, not the devnet deployment ───────────
+# До этого `Anchor.toml` объявлял ОДИН и тот же program id для devnet и mainnet.
+# Это не обязательно ошибка (если devnet-программа задумана как beta-клон), но
+# это должно быть осознанным решением, а не совпадением по умолчанию: счётчики,
+# PDA и состояние одной сети не должны выглядеть как другая сеть, а
+# «переехали на mainnet тем же адресом» ломает любые внешние ссылки и путает
+# explorer. Проверяем, что адрес из `[programs.mainnet]` отличается от
+# `[programs.devnet]`, либо что владелец явно подтвердил совпадение.
+PROGRAM_DEVNET="$(awk -F'"' '/^\[programs.devnet\]/{f=1;next} /^\[/{f=0} f&&/solana_potato/{print $2}' Anchor.toml)"
+if [[ -n "$PROGRAM_DEVNET" && "$PROGRAM_DEVNET" == "$PROGRAM_ID" ]]; then
+  if [[ "${ALLOW_SHARED_PROGRAM_ID:-0}" == "1" ]]; then
+    # Явное решение владельца — это note, а не WARN: в --strict режиме WARN
+    # считается провалом, и «разрешено» не должно вести себя как «не проверено».
+    echo "note: mainnet program id equals the devnet id ($PROGRAM_ID) — allowed because ALLOW_SHARED_PROGRAM_ID=1 was passed explicitly"
+  else
+    fail "[programs.mainnet] and [programs.devnet] share program id $PROGRAM_ID; set a distinct mainnet keypair (anchor keys list --url mainnet-beta) or pass ALLOW_SHARED_PROGRAM_ID=1 as an explicit owner decision"
+  fi
+else
+  ok "mainnet program id ${PROGRAM_ID} differs from devnet ${PROGRAM_DEVNET:-<unset>}"
+fi
+
 # ── 6. Item 68: migrations validated on a fork before the upgrade ──
 if [[ -f "programs/solana_potato/src/migrations.rs" ]]; then
   ok "migration module present: every account layout must be migrated on a mainnet FORK before the upgrade (item 68)"

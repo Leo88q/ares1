@@ -8,7 +8,7 @@ import {
   ORDER_TTL,
   RUST_LIB_PATH,
   SECONDS_PER_DAY,
-  V2_SELLER_VOLUME_THRESHOLDS_MICRO,
+  V2_TRADE_VOLUME_THRESHOLDS_MICRO,
   V2_SETTLEMENT_FEE_BPS,
   rustConst,
   rustConstArray,
@@ -51,15 +51,15 @@ test('выражения из других констант вычисляютс
 
 test('массивы читаются целиком, включая многострочные и с типом [T; N]', () => {
   assert.deepEqual(V2_SETTLEMENT_FEE_BPS, [500n, 600n, 700n, 800n])
-  assert.equal(V2_SELLER_VOLUME_THRESHOLDS_MICRO.length, 3)
+  assert.equal(V2_TRADE_VOLUME_THRESHOLDS_MICRO.length, 3)
   // Лестница обязана расти: иначе «прогрессивная» комиссия перестала бы быть
   // прогрессивной, а маржинальный расчёт в V2 — монотонным.
   for (let i = 1; i < V2_SETTLEMENT_FEE_BPS.length; i += 1) {
     assert.ok(V2_SETTLEMENT_FEE_BPS[i]! > V2_SETTLEMENT_FEE_BPS[i - 1]!, 'ставки V2 должны возрастать')
   }
-  for (let i = 1; i < V2_SELLER_VOLUME_THRESHOLDS_MICRO.length; i += 1) {
+  for (let i = 1; i < V2_TRADE_VOLUME_THRESHOLDS_MICRO.length; i += 1) {
     assert.ok(
-      V2_SELLER_VOLUME_THRESHOLDS_MICRO[i]! > V2_SELLER_VOLUME_THRESHOLDS_MICRO[i - 1]!,
+      V2_TRADE_VOLUME_THRESHOLDS_MICRO[i]! > V2_TRADE_VOLUME_THRESHOLDS_MICRO[i - 1]!,
       'границы объёма V2 должны возрастать',
     )
   }

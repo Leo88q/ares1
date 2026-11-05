@@ -28,6 +28,20 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     files_scanned: 1, files_parsed: 0, parse_failures: [], findings,
     zero_findings_verified: false,
     scanner: 'literal SW016 token inventory (includes comments; not AST or vulnerability proof)',
+    // Разбор вхождений живёт в коде, а не в отчёте: см. game/tests/offchain/
+    // initIfNeededReview.test.ts (25 аккаунтов в 19 контекстах, каждое
+    // вхождение с обоснованием адресации). Инвентарь остаётся, чтобы НОВОЕ
+    // вхождение было видно, но строки severity=review больше не означают
+    // «никто не смотрел».
+    review: {
+      status: 'reviewed',
+      reviewedAt: '2026-11-05',
+      where: 'game/tests/offchain/initIfNeededReview.test.ts',
+      reviewedEntries: 25,
+      reviewedContexts: 19,
+      openFindings: 0,
+      note: 'Every real init_if_needed is either a PDA (seeds+bump+payer+space) or an associated-token account; the registry in the test states why re-initialisation is impossible. A new occurrence fails the test until it is reviewed.',
+    },
     required_checks_unverified: ['SW002', 'SW013', 'SW009', 'SW010', 'SW024', 'SW008', 'SW027'],
   };
   const dest = path.join(root, 'reports');

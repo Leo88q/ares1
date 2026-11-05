@@ -15,6 +15,16 @@
  *   node scripts/secret-scan-history.mjs [--json] [--include-stash] [--max-bytes N]
  *
  * Exit codes: 0 = clean, 1 = findings, 2 = usage/prerequisite error.
+ *
+ * ── Постоянные находки (S-01) ───────────────────────────────────────────────
+ * Некоторые находки нельзя «исправить» удалением файла: ключ остаётся в
+ * истории, пока его не отзовут у провайдера. Для них есть
+ * `.secret-rotation-status.json`: пока запись говорит `revoked=false`, скан
+ * красный (это и есть сигнал), а после отзыва владелец ставит
+ * `revoked-at=<дата>` и скан пропускает ИМЕННО этот путь ИМЕННО этого правила.
+ * Allowlist `.secret-scan-allowlist.json` для этого не используется — там
+ * лежат «не секрет», а тут «секрет был и закрыт ротацией». Формулировка
+ * по-прежнему требует отзыва, а не красит CI в зелёный.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -26,6 +36,7 @@ const args = process.argv.slice(2);
 const AS_JSON = args.includes('--json');
 const INCLUDE_STASH = args.includes('--include-stash');
 const ALLOWLIST_FILE = '.secret-scan-allowlist.json';
+const ROTATION_FILE = '.secret-rotation-status.json';
 const MAX_BYTES = Number(args[args.indexOf('--max-bytes') + 1]) || 2 * 1024 * 1024;
 
 const sh = (cmd, opts = {}) =>
@@ -87,7 +98,24 @@ function main() {
   if (existsSync(join(ROOT, ALLOWLIST_FILE))) {
     allowlist = JSON.parse(readFileSync(join(ROOT, ALLOWLIST_FILE), 'utf8'));
   }
+  // Ротация: ключ, отозванный у провайдера, перестаёт быть находкой. Проверка
+  // намеренно строгая — нужна дата/подтверждение, а не слово «revoked».
+  const rotation = existsSync(join(ROOT, ROTATION_FILE))
+    ? JSON.parse(readFileSync(join(ROOT, ROTATION_FILE), 'utf8'))
+    : {};
+  const remediationOf = (ruleId, p) => {
+    for (const [id, entry] of Object.entries(rotation)) {
+      if (id.startsWith('$') || !entry || entry.rule !== ruleId) continue;
+      if (entry.historicalPath !== p) continue;
+      const status = String(entry.status ?? '');
+      // `revoked-at=` требует дату (ISO-8601) — «revoked» без неё не считается.
+      const done = /^revoked-at=\d{4}-\d{2}-\d{2}/.test(status) || status === 'no-longer-valid';
+      if (done) return id;
+    }
+    return null;
+  };
   const isAllowed = (ruleId, p) => {
+    if (remediationOf(ruleId, p)) return true;
     const e = allowlist[ruleId];
     if (!e) return false;
     return Array.isArray(e) ? e.includes(p) : Object.prototype.hasOwnProperty.call(e, p);
@@ -215,6 +243,13 @@ function main() {
     }
     console.log('');
     console.log(`  counts: critical=${counts.critical} high=${counts.high} medium=${counts.medium}`);
+    // Что именно осталось сделать руками — одной строкой на запись, чтобы
+    // «красный CI» не превращался в археологию по логам.
+    for (const [id, entry] of Object.entries(rotation)) {
+      if (id.startsWith('$') || !entry || !entry.rule) continue;
+      const done = /^revoked-at=\d{4}-\d{2}-\d{2}/.test(String(entry.status)) || entry.status === 'no-longer-valid';
+      console.log(`  rotation ${id}: ${entry.rule} @ ${entry.historicalPath} — ${done ? 'закрыто (' + entry.status + ')' : 'ТРЕБУЕТ ОТЗЫВА КЛЮЧА (см. ' + (entry.procedure || 'docs/SECRET_ROTATION.md') + ')'}`);
+    }
   }
 
   process.exit(deduped.length > 0 ? 1 : 0);

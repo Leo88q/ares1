@@ -5,6 +5,32 @@ No key, mnemonic, secret JSON, private RPC URL or admin token belongs in this do
 
 The current `game_ops` implementation and VPS runbook use self-hosted PostgreSQL. Whether this is an acceptable final choice remains unresolved; the earlier SQLite preference was not explicitly reversed. A SQLite choice requires a real data-layer port and tests. This document describes the current implementation, not that decision.
 
+## Rewards rail: end-to-end smoke before opening it
+
+The rail stays closed until `REWARDS_RAIL_ENABLED=true` **and**
+`REWARDS_RAIL_APPROVED=YES` (see `game/apps/backend/src/launchGates.ts`). Before
+granting that approval, run the full path once on devnet — unit tests cover each
+seam, this covers the joints:
+
+```sh
+cd game
+REWARDS_SMOKE_BASE_URL=https://<devnet-backend> \
+REWARDS_SMOKE_WALLET=<fresh devnet wallet> \
+REWARD_INVITE_SECRET=<same secret as the backend> \
+PROGRAM_ID=DUUBiVvpbw5BbFLpryisvLGmBWmhVYC8tdf5xCUyEadf \
+SOLANA_CLUSTER=devnet RPC_URL=https://api.devnet.solana.com \
+yarn rewards:smoke
+```
+
+It checks `GET /api/rewards/status`, issues an invite with the same code the
+operator issues, posts `/api/rewards/starter`, then reconciles **two on-chain
+facts**: the grant PDA exists and the recipient ATA grew by the grant amount.
+`--dry-run` checks configuration and chain state without issuing anything.
+Mainnet refuses unless `REWARDS_SMOKE_ALLOW_MAINNET=true`.
+
+The script never signs: only the backend `reward_signer` can mint a grant, and
+handing that key to a smoke test would create a second way to print POTATO.
+
 ## Reproducible checks
 
 From the repository root, select Node using `.nvmrc` / `.node-version` (22.22.3).

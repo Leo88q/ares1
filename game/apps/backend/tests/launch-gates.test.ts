@@ -1,23 +1,77 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { COLONY_V1_RELEASE_READY, USER_PRESALE_PAYMENTS_ENABLED, USER_SKR_SLOT_PURCHASES_ENABLED } from '../src/launchGates.js'
+import {
+  APPROVAL_TOKEN,
+  LAUNCH_GATES,
+  LAUNCH_GATE_DEFINITIONS,
+  REWARDS_RAIL_ENABLED,
+  USER_PRESALE_PAYMENTS_ENABLED,
+  USER_SKR_SLOT_PURCHASES_ENABLED,
+  launchGateLogLines,
+  resolveLaunchGate,
+  resolveLaunchGates,
+} from '../src/launchGates.js'
 import { resolveSlotsConfig } from '../src/slots/config.js'
 import { colonyPackageCatalogResponse } from '../src/colonies/catalog.js'
 import { COLONY_RULESET_STATUS } from '../src/colonies/rules.js'
 
-test('user-facing presale and paid SKR-slot purchases stay closed regardless of environment flags', () => {
+/**
+ * Гейты запуска — не константы в коде (тогда запуск невозможен без правки
+ * исходников), а пара «флаг + подпись» в окружении. Тесты фиксируют главное:
+ * без переменных окружения всё закрыто, одного флага недостаточно, и открытие
+ * всегда объяснено причиной.
+ */
+test('без переменных окружения все гейты запуска закрыты', () => {
+  const gates = resolveLaunchGates({})
+  for (const id of Object.keys(LAUNCH_GATE_DEFINITIONS) as (keyof typeof LAUNCH_GATES)[]) {
+    assert.equal(gates[id].enabled, false, `${id} должен быть закрыт по умолчанию`)
+    assert.match(gates[id].reason, /^closed: .+\(missing /)
+  }
+  // Модульные значения повторяют окружение процесса: в тестовом окружении
+  // переменных нет, значит и здесь false.
+  assert.equal(REWARDS_RAIL_ENABLED, false)
   assert.equal(USER_PRESALE_PAYMENTS_ENABLED, false)
   assert.equal(USER_SKR_SLOT_PURCHASES_ENABLED, false)
-  assert.equal(COLONY_V1_RELEASE_READY, false)
-  const slots = resolveSlotsConfig({
-    SLOTS_ENABLED: 'true',
-    SLOT_SIGNING_KEY_PEM: 'would-be-enabled',
-    SLOT_KEY_ID: 'would-be-enabled',
-    SKR_MINT: '11111111111111111111111111111111',
-    SLOT_TREASURY_OWNER: '11111111111111111111111111111111',
-    SLOT_PRICE_UNITS: '500000000',
-  } as NodeJS.ProcessEnv, 'devnet')
-  assert.deepEqual(slots, { enabled: false, reason: 'flag-off' })
+})
+
+test('одного флага мало: без отдельной подписи гейт остаётся закрытым', () => {
+  const flagOnly = resolveLaunchGate('rewardsRail', { REWARDS_RAIL_ENABLED: 'true' })
+  assert.equal(flagOnly.enabled, false)
+  assert.match(flagOnly.reason, /REWARDS_RAIL_APPROVED=YES/)
+
+  const approvalOnly = resolveLaunchGate('rewardsRail', { REWARDS_RAIL_APPROVED: APPROVAL_TOKEN })
+  assert.equal(approvalOnly.enabled, false)
+  assert.match(approvalOnly.reason, /REWARDS_RAIL_ENABLED=true/)
+})
+
+test('гейт открывается только парой «флаг + YES» и называет себя в причине', () => {
+  const open = resolveLaunchGate('rewardsRail', {
+    REWARDS_RAIL_ENABLED: 'true',
+    REWARDS_RAIL_APPROVED: 'YES',
+  })
+  assert.equal(open.enabled, true)
+  assert.match(open.reason, /^open: REWARDS_RAIL_ENABLED=true and REWARDS_RAIL_APPROVED=YES$/)
+})
+
+test('похожие на true значения не открывают гейт', () => {
+  for (const value of ['1', 'TRUE', 'True', 'yes', 'on', '']) {
+    assert.equal(
+      resolveLaunchGate('userPresalePayments', {
+        USER_PRESALE_PAYMENTS_ENABLED: value,
+        USER_PRESALE_PAYMENTS_APPROVED: value,
+      }).enabled,
+      false,
+      `значение ${JSON.stringify(value)} не должно открывать денежный путь`,
+    )
+  }
+})
+
+test('лог старта перечисляет каждый гейт и безопасен (без секретов)', () => {
+  const lines = launchGateLogLines(resolveLaunchGates({ REWARDS_RAIL_ENABLED: 'true', REWARDS_RAIL_APPROVED: 'YES' }))
+  assert.equal(lines.length, Object.keys(LAUNCH_GATE_DEFINITIONS).length)
+  assert.ok(lines.some(line => line.startsWith('[launch-gate] rewardsRail: OPEN')))
+  assert.ok(lines.some(line => line.startsWith('[launch-gate] colonyV1Release: closed')))
+  for (const line of lines) assert.doesNotMatch(line, /KEYPAIR|SECRET|https?:\/\//)
 })
 
 /**
@@ -30,14 +84,24 @@ test('каталог колоний не продаётся: ни SKU, ни от
   assert.equal(response.saleOpen, false)
   assert.equal(response.purchasable, false)
   assert.equal(response.status, 'design-only')
-  // Пакеты — спецификация (цена и состав), а не оферта: флага «можно купить»
-  // у SKU нет вовсе, покупку закрывает только ответ в целом.
   for (const pack of response.packages) {
     assert.equal('purchasable' in pack, false, `SKU ${pack.id} не должен нести признак продажи`)
     assert.equal('saleOpen' in pack, false, `SKU ${pack.id} не должен нести флаг открытия продаж`)
     assert.match(pack.priceStatus, /^(owner-proposed|owner-approved)$/)
   }
   assert.equal(COLONY_RULESET_STATUS, 'internal-review')
+})
+
+test('платные SKR-слоты закрыты даже при полной конфигурации окружения', () => {
+  const slots = resolveSlotsConfig({
+    SLOTS_ENABLED: 'true',
+    SLOT_SIGNING_KEY_PEM: 'would-be-enabled',
+    SLOT_KEY_ID: 'would-be-enabled',
+    SKR_MINT: '11111111111111111111111111111111',
+    SLOT_TREASURY_OWNER: '11111111111111111111111111111111',
+    SLOT_PRICE_UNITS: '500000000',
+  } as NodeJS.ProcessEnv, 'devnet')
+  assert.deepEqual(slots, { enabled: false, reason: 'flag-off' })
 })
 
 test('в колониях нет маршрута покупки: только аутентификация, поля и действия', async () => {

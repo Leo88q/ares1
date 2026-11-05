@@ -53,21 +53,24 @@ export interface FieldProbe {
   (wallet: string): Promise<boolean>;
 }
 
-/**
- * Кеш вокруг RPC-проверки.
- *
- * `getProgramAccounts` — дорогой вызов, а дейлик жмут повторно (кулдаун 15 с,
- * ретраи после ошибок). Кеш на `ttlSeconds` держит его дешёвым, но при этом
- * не превращается в источник правды: истёкшая запись перечитывается с цепи.
- * Размер карты ограничен, чтобы поток случайных адресов не съел память; при
- * переполнении выбрасываются только истёкшие записи, живые не трогаются.
- */
-export function createFieldProbe(input: {
+/** Зависимости пробы: основной путь, резерв и кеш. */
+export interface FieldProbeDeps {
+  /** Основной путь: `getProgramAccounts` с фильтрами по владельцу. */
   lookup: (wallet: string) => Promise<boolean>;
   now: () => number;
+  /**
+   * Резервный путь для провайдеров, которые закрывают `getProgramAccounts`
+   * (на mainnet это делают многие: 403/410, и дейлик перестаёт выдаваться
+   * вовсе, хотя RPC исправен). Это тот же запрос, но к отдельному эндпоинту
+   * (`REWARDS_ACTIVITY_RPC_URL`). Без него поведение прежнее — fail-closed.
+   */
+  fallback?: (wallet: string) => Promise<boolean>;
   ttlSeconds?: number;
   maxEntries?: number;
-}): FieldProbe {
+}
+
+/** Кеш вокруг RPC-проверки. */
+export function createFieldProbe(input: FieldProbeDeps): FieldProbe {
   const ttl = input.ttlSeconds ?? 300;
   const maxEntries = input.maxEntries ?? 5_000;
   const cache = new Map<string, { value: boolean; expiresAt: number }>();
@@ -84,8 +87,30 @@ export function createFieldProbe(input: {
       if (cache.size >= maxEntries) cache.delete(cache.keys().next().value as string);
     }
 
-    const value = await input.lookup(wallet);
+    const value = await probeWithFallback(input, wallet);
     cache.set(wallet, { value, expiresAt: now + ttl });
     return value;
   };
+}
+
+/**
+ * Основной путь, затем резерв.
+ *
+ * Отдельная (экспортируемая) функция, потому что поведение при отказе
+ * провайдера — часть контракта: ошибка основного пути не должна ронять дейлик,
+ * если резерв ответил, и наоборот — резерв не должен маскировать «поля нет».
+ */
+export async function probeWithFallback(input: FieldProbeDeps, wallet: string): Promise<boolean> {
+  try {
+    return await input.lookup(wallet);
+  } catch (primaryError) {
+    if (!input.fallback) throw primaryError;
+    try {
+      return await input.fallback(wallet);
+    } catch {
+      // Оба пути недоступны: fail-closed, а вызывающая сторона отвечает 503
+      // ACTIVITY_CHECK_UNAVAILABLE. Выдавать дейлик «на всякий случай» нельзя.
+      throw primaryError;
+    }
+  }
 }

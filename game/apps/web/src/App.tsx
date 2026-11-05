@@ -8,6 +8,7 @@ import { ToastProvider } from './components/Toast'
 import { WalletErrorReporter } from './components/WalletErrorReporter'
 import { GameProvider } from './contexts/GameContext'
 import { t, useI18n } from './i18n'
+import { NETWORK_LABEL } from './utils/network'
 import { ambientMusic } from './utils/ambientMusic'
 import { useFeatures } from './hooks/useFeatures'
 import { AresBottomNav } from './components/ares/AresBottomNav'
@@ -41,7 +42,10 @@ export default function App() {
   document.title = t('Solana Potato — фарм-игра на Solana')
   document.querySelector('meta[name="description"]')?.setAttribute(
    'content',
-   t('Solana Potato — игра с on-chain-полями в Solana devnet. Тестовые токены не имеют денежной стоимости, а devnet-прогресс не переносится в mainnet.'),
+   // Аудит P2: описание в <meta> было зашито как «devnet» и на mainnet-сборке
+   // врало о сети прямо в выдаче поисковика. Метка берётся из того же источника,
+   // что и RPC-эндпоинт.
+   t('Solana Potato — игра с on-chain-полями в Solana {network}. Тестовые токены не имеют денежной стоимости, а прогресс не переносится между сетями.', { network: NETWORK_LABEL }),
   )
   document.documentElement.lang = lang === 'es-419' ? 'es' : lang
  }, [lang])

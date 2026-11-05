@@ -7,15 +7,15 @@ import {
   grossQuoteAtomsForFill,
   MIN_SETTLEMENT_GROSS_QUOTE_ATOMS,
   POTATO_MICRO,
-  SELLER_VOLUME_THRESHOLDS_MICRO,
+  TRADE_VOLUME_THRESHOLDS_MICRO,
 } from '../../apps/web/src/utils/marketFeePolicy'
 
 test('marginal tiers are a function of the trade volume only', () => {
   assert.equal(feeBpsAtPricedVolume(0n), 500n)
-  assert.equal(feeBpsAtPricedVolume(SELLER_VOLUME_THRESHOLDS_MICRO[0] - 1n), 500n)
-  assert.equal(feeBpsAtPricedVolume(SELLER_VOLUME_THRESHOLDS_MICRO[0]), 600n)
-  assert.equal(feeBpsAtPricedVolume(SELLER_VOLUME_THRESHOLDS_MICRO[1]), 700n)
-  assert.equal(feeBpsAtPricedVolume(SELLER_VOLUME_THRESHOLDS_MICRO[2]), 800n)
+  assert.equal(feeBpsAtPricedVolume(TRADE_VOLUME_THRESHOLDS_MICRO[0] - 1n), 500n)
+  assert.equal(feeBpsAtPricedVolume(TRADE_VOLUME_THRESHOLDS_MICRO[0]), 600n)
+  assert.equal(feeBpsAtPricedVolume(TRADE_VOLUME_THRESHOLDS_MICRO[1]), 700n)
+  assert.equal(feeBpsAtPricedVolume(TRADE_VOLUME_THRESHOLDS_MICRO[2]), 800n)
 })
 
 test('crossing a tier inside one fill splits gross exactly and pays each marginal rate', () => {

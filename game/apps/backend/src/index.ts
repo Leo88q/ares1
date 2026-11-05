@@ -1,6 +1,6 @@
 import { assertDedicatedPayer, safeError } from "./security.js";
 import express, { NextFunction, Request, Response } from "express";
-import { PublicKey } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import cors from "cors";
 import { env } from "./env.js";
 import { expectedGenesisHash } from "./cluster.js";
@@ -11,7 +11,14 @@ import { presaleRouter } from "./routes/presale.js";
 import { fetchTokenPaymentView } from "./presale/chain.js";
 import { slotsRouter } from "./routes/slots.js";
 import { resolveSlotsConfig } from "./slots/config.js";
-import { COLONY_V1_RELEASE_READY, REWARDS_RAIL_ENABLED, USER_PRESALE_PAYMENTS_ENABLED } from "./launchGates.js";
+import {
+  COLONY_V1_RELEASE_READY,
+  LAUNCH_GATES,
+  REWARDS_RAIL_ENABLED,
+  USER_PRESALE_PAYMENTS_ENABLED,
+  launchGateBlockerHelp,
+  launchGateLogLines,
+} from "./launchGates.js";
 import { rewardsRouter } from "./rewards/router.js";
 import { storeRouter } from "./routes/store.js";
 import { defaultFeatureFlags, featuresRouter } from "./routes/features.js";
@@ -89,15 +96,41 @@ async function main() {
     const secondaryGenesis = await secondaryConnection.getGenesisHash();
     if (secondaryGenesis !== expectedGenesis) throw new Error(`Secondary RPC cluster mismatch: configured=${env.cluster}, genesis=${secondaryGenesis}`);
   }
-  if (env.cluster === "mainnet-beta" && env.coloniesEnabled && !COLONY_V1_RELEASE_READY) {
-    throw new Error("COLONIES_ENABLED is blocked on mainnet until the Colony V1 release gate is approved");
+  // ── Гейты запуска ────────────────────────────────────────────────────────
+  // Печатаем состояние всех гейтов один раз при старте: включение денежного
+  // пути должно быть видно в журнале деплоя, а не только в панели хостинга.
+  for (const line of launchGateLogLines()) console.log(line);
+
+  // Колонии — отдельный блок. Бэкенд ядра (поля, рынок, epoch-роллер, health)
+  // на mainnet стартует сам по себе: раньше `COLONY_V1_RELEASE_READY=false`
+  // ронял production-процесс ЦЕЛИКОМ, даже когда колонии не включены, то есть
+  // незакрытый релиз колоний блокировал запуск игры. Теперь блокируется
+  // только запрошенная колонийная функциональность.
+  if (env.coloniesEnabled && !COLONY_V1_RELEASE_READY) {
+    throw new Error(
+      "COLONIES_ENABLED is blocked until the Colony V1 release gate is approved"
+      + ` (set COLONY_V1_RELEASE_READY=true and COLONY_V1_RELEASE_APPROVED=YES after the acceptance suite and release review).`
+      + ` Gate state: ${LAUNCH_GATES.colonyV1Release.reason}`,
+    );
   }
-  if (env.cluster === "mainnet-beta" && env.colonyFreeStarterEnabled && !COLONY_V1_RELEASE_READY) {
-    throw new Error("COLONY_FREE_STARTER_ENABLED is blocked on mainnet until the Colony V1 release gate is approved");
+  if (env.colonyFreeStarterEnabled && !COLONY_V1_RELEASE_READY) {
+    throw new Error(
+      "COLONY_FREE_STARTER_ENABLED is blocked until the Colony V1 release gate is approved"
+      + ` (${LAUNCH_GATES.colonyV1Release.reason})`,
+    );
   }
-  if (process.env.NODE_ENV === "production" && env.cluster === "mainnet-beta" && (!env.coloniesEnabled || !COLONY_V1_RELEASE_READY)) {
-    throw new Error("Production mainnet backend is blocked until the complete Colony V1 acceptance suite and release review pass");
+  if (process.env.NODE_ENV === "production" && env.cluster === "mainnet-beta") {
+    const closed = (Object.keys(LAUNCH_GATES) as (keyof typeof LAUNCH_GATES)[])
+      .filter(id => !LAUNCH_GATES[id].enabled);
+    if (closed.length > 0) {
+      // Не отказ: ядро (поля/рынок/чтение цепи) обязано работать на mainnet.
+      // Отказ виден по каждому маршруту, а здесь — одна строка, чтобы оператор
+      // не искал причину 503 в коде.
+      console.log(`[launch-gate] mainnet production with ${closed.length} closed gate(s): ${closed.join(", ")}`);
+      console.log(`[launch-gate] to open: ${launchGateBlockerHelp(closed)}`);
+    }
   }
+
   if (env.coloniesEnabled && Buffer.byteLength(env.colonySessionSecret, "utf8") < 32) {
     throw new Error("COLONY_SESSION_SECRET is required (>=32 UTF-8 bytes) when COLONIES_ENABLED=true");
   }
@@ -290,8 +323,19 @@ async function main() {
       ? "REWARD_KEYPAIR_JSON is not configured"
       : "reward rail is not approved for this network";
   // Дейлик выдаётся только кошельку с активным полем: пустой адрес не должен
-  // получать награду за «возвращение». Проверка идёт по цепи (getProgramAccounts
-  // с фильтрами по владельцу и размеру аккаунта), результат кешируется на 5 мин.
+  // получать награду за «возвращение». Проверка идёт по цепи, результат
+  // кешируется на 5 мин.
+  //
+  // Основной путь — `getProgramAccounts` с фильтрами по владельцу. Многие
+  // mainnet-провайдеры этот метод закрывают (403/410), и тогда рельса
+  // отвечала 503 ACTIVITY_CHECK_UNAVAILABLE: дейлик не выдавался ВООБЩЕ, хотя
+  // сам RPC работал. Поэтому появился второй, независимый источник —
+  // отдельный эндпоинт, который такой метод обслуживает. Он опционален:
+  // без него поведение прежнее (fail-closed), но причина видна в
+  // `/api/rewards/status` и в логе старта, а не только в 503.
+  const activityConnection = env.rewardsActivityRpcUrl
+    ? new Connection(env.rewardsActivityRpcUrl, "confirmed")
+    : null;
   const activeFieldProbe = createFieldProbe({
     now: () => Math.floor(Date.now() / 1000),
     lookup: async (wallet) => {
@@ -304,6 +348,20 @@ async function main() {
       });
       return hasActiveField(accounts);
     },
+    ...(activityConnection
+      ? {
+          fallback: async (wallet: string) => {
+            const accounts = await activityConnection.getProgramAccounts(programId, {
+              commitment: "confirmed",
+              filters: [
+                { dataSize: FIELD_ACCOUNT_BYTES },
+                { memcmp: { offset: FIELD_OWNER_OFFSET, bytes: wallet } },
+              ],
+            });
+            return hasActiveField(accounts);
+          },
+        }
+      : {}),
   });
 
   app.use("/api/rewards", rewardsRouter({

@@ -96,7 +96,13 @@ test('all user-facing SKR purchase controls stay closed; real POTATO field gamep
   const main = source('components/MainScreen.tsx')
   assert.doesNotMatch(main, /CaseReveal|revealTier|PRESALE_DROP/)
   const chain = source('utils/anchorClient.ts')
-  assert.doesNotMatch(chain, /ixBuyFieldSkr|ixBuyFieldSol|ixBuyExportLicense|ixInitPresale|ixUpdatePresalePrice/)
+  // `ixBuyFieldSol` — единственный холодный старт для кошелька без POTATO: он
+  // есть в клиенте за флагом VITE_PRESALE_SOL_ENABLED (см.
+  // tests/offchain/presaleState.test.ts). SKR-покупка, лицензия и операторские
+  // инструкции по-прежнему недоступны приложению.
+  assert.doesNotMatch(chain, /ixBuyFieldSkr|ixBuyExportLicense|ixInitPresale|ixUpdatePresalePrice/)
+  assert.match(chain, /export async function ixBuyFieldSol\(/)
+  assert.match(chain, /VITE_PRESALE_SOL_ENABLED/)
   assert.match(chain, /decodeExportLicense/)
 
   for (const file of ['components/MainScreen.tsx', 'components/Header.tsx']) {

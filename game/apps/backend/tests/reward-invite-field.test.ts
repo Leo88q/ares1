@@ -17,6 +17,7 @@ import type { Server } from 'node:http';
 import express from 'express';
 import {
   createFieldProbe,
+  probeWithFallback,
   hasActiveField,
   FIELD_ACCOUNT_BYTES,
   FIELD_IS_ACTIVE_OFFSET,
@@ -155,6 +156,38 @@ test('переполненный кеш выбрасывает истёкшие 
   await probe('c'); // не должно упасть и не должно потерять c
   await probe('d');
   assert.ok(true);
+});
+
+/**
+ * Резервный путь пробы. На mainnet `getProgramAccounts` закрывают многие
+ * провайдеры (403/410), и раньше дейлик просто переставал выдаваться
+ * (503 ACTIVITY_CHECK_UNAVAILABLE), хотя RPC исправен. Поведение закреплено:
+ *  - основной путь упал, резерв ответил → ответ резерва;
+ *  - оба упали → ошибка основного пути (fail-closed, без «выдать на всякий»);
+ *  - резерва нет → ошибка основного пути как раньше.
+ */
+test('проба переходит на резервный источник и остаётся fail-closed без него', async () => {
+  const now = () => 1_000;
+  assert.equal(
+    await probeWithFallback({ now, lookup: async () => { throw new Error('410 Gone') }, fallback: async () => true }, WALLET),
+    true,
+  );
+  assert.equal(
+    await probeWithFallback({ now, lookup: async () => { throw new Error('410 Gone') }, fallback: async () => false }, WALLET),
+    false,
+  );
+  await assert.rejects(
+    probeWithFallback({ now, lookup: async () => { throw new Error('410 Gone') }, fallback: async () => { throw new Error('down') } }, WALLET),
+    /410 Gone/,
+  );
+  await assert.rejects(probeWithFallback({ now, lookup: async () => { throw new Error('410 Gone') } }, WALLET), /410 Gone/);
+  // Успешный основной путь резерв не трогает — иначе дешёвый вызов стоил бы двух запросов.
+  let fallbackCalls = 0;
+  assert.equal(
+    await probeWithFallback({ now, lookup: async () => true, fallback: async () => { fallbackCalls += 1; return false } }, WALLET),
+    true,
+  );
+  assert.equal(fallbackCalls, 0);
 });
 
 /* ─────────────────────────── эндпоинты ─────────────────────────── */

@@ -51,7 +51,10 @@ export function pdas(programId: PublicKey) {
  const exportLicense = (owner: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from('license'), owner.toBuffer()], programId)[0]
  // Withdrawal rate limits + timelocked admin proposals (AdminState singleton).
  const adminState = () => PublicKey.findProgramAddressSync([Buffer.from('admin_state')], programId)[0]
- return { config, epoch, field, order, escrow, orderV2, escrowV2, sellerVolumeV2, marketStatsV2, sellerProfile, marketStats, treasuryAuthority, treasurySol, exportLicense, adminState }
+ // Пресейл (холодный старт): состояние тиража и счётчик покупок кошелька.
+ const presale = () => PublicKey.findProgramAddressSync([Buffer.from('presale')], programId)[0]
+ const buyerPresale = (buyer: PublicKey) => PublicKey.findProgramAddressSync([Buffer.from('buyer_presale'), buyer.toBuffer()], programId)[0]
+ return { config, epoch, field, order, escrow, orderV2, escrowV2, sellerVolumeV2, marketStatsV2, sellerProfile, marketStats, treasuryAuthority, treasurySol, exportLicense, adminState, presale, buyerPresale }
 }
 
 export function potatoAta(owner: PublicKey, mint: PublicKey): PublicKey {
@@ -556,10 +559,68 @@ export function decodeExportLicense(data: Buffer): DecodedExportLicense {
 
 
 /**
- * User-facing SKR field purchases, export-license purchases, and presale
- * transaction builders are intentionally absent from the web client until an
- * approved launch. Existing license accounts remain readable via decodeExportLicense.
+ * User-facing SKR field purchases and export-license purchases are intentionally
+ * absent from the web client until an approved launch. Existing license accounts
+ * remain readable via decodeExportLicense.
  */
+
+/**
+ * Гейт SOL-пресейла в клиенте (`VITE_PRESALE_SOL_ENABLED=true`).
+ *
+ * Зачем отдельный флаг. `buy_field_sol` — единственный путь, которым новый
+ * кошелёк получает ПЕРВОЕ поле, не имея POTATO: `create_field` сжигает POTATO
+ * (`create_field` → сжигание цены поля), рельса наград и паки закрыты до
+ * одобрения запуска, а рынок продаёт POTATO только тому, у кого он уже есть.
+ * Без этого пути на старте POTATO есть только у оператора и раздаётся
+ * вручную (`yarn grant-potato`).
+ *
+ * Флаг выключен по умолчанию, потому что включённая кнопка «купить за SOL» без
+ * открытого тиража приводит человека с деньгами в транзакцию, которая
+ * гарантированно упадёт (`PresaleNotActive`). Включается вместе с тиражом, а
+ * суммы, лимиты и рельса — на стороне программы.
+ */
+export const PRESALE_SOL_CLIENT_ENABLED = (() => {
+  // `import.meta.env` есть только в сборке Vite. Тот же модуль тянет
+  // `tsconfig.tools.json` (scripts/ и tests/offchain/): там ImportMeta объявлен
+  // без `env`, и прямое обращение роняло typecheck:tools — а CI гоняет именно
+  // его. Поэтому optional-chaining по образцу useFeatures/StoreSection.
+  // Тип `ImportMetaEnv` объявлен в `vite-env.d.ts`, а tools-конфиг его не
+  // включает — поэтому тип локальный, а не глобальный.
+  const env = (import.meta as ImportMeta & { env?: { VITE_PRESALE_SOL_ENABLED?: string } }).env
+  return env?.VITE_PRESALE_SOL_ENABLED === 'true'
+})()
+
+/**
+ * `buy_field_sol(field_id, field_type, max_total_lamports)`.
+ *
+ * `maxTotalLamports` — защита покупателя от роста цены: программа отклоняет
+ * транзакцию, если итог больше этого значения. Считать его нужно от прочитанной
+ * из цепи `PresaleState.price_lamports`, а не от константы: цену задаёт
+ * оператор через `init_presale`/`update_presale_price`.
+ */
+export async function ixBuyFieldSol(programId: PublicKey, params: {
+ config: PublicKey; presaleState: PublicKey; authority: PublicKey; buyerPresale: PublicKey
+ field: PublicKey; buyer: PublicKey; treasurySol: PublicKey
+ fieldId: bigint; fieldType: number; maxTotalLamports: bigint
+}): Promise<TransactionInstruction> {
+ const data = concatBytes(
+  await ixDiscriminator('buy_field_sol'),
+  u64LE(params.fieldId),
+  u8(params.fieldType),
+  u64LE(params.maxTotalLamports),
+ )
+ const keys = [
+  { pubkey: params.config, isSigner: false, isWritable: true },
+  { pubkey: params.presaleState, isSigner: false, isWritable: true },
+  { pubkey: params.authority, isSigner: false, isWritable: false },
+  { pubkey: params.buyerPresale, isSigner: false, isWritable: true },
+  { pubkey: params.field, isSigner: false, isWritable: true },
+  { pubkey: params.buyer, isSigner: true, isWritable: true },
+  { pubkey: params.treasurySol, isSigner: false, isWritable: true },
+  { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+ ]
+ return new TransactionInstruction({ programId, keys, data })
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Migration helpers (devnet v1 → v2)

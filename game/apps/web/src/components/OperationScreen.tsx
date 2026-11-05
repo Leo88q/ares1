@@ -248,7 +248,7 @@ export default function OperationScreen(): JSX.Element {
         <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
           <ShieldCheck size={16} color="#E0A183" aria-hidden="true" />
           <p style={{ color: 'var(--pf-text-secondary)', fontSize: 10, lineHeight: 1.55, margin: 0 }}>
-            {t('Это devnet-журнал состояния, а не запущенный соревновательный сезон. Очки, призы, глобальный рейтинг и архив появятся только после внедрения сезонного on-chain учёта; тестовые активы и прогресс не имеют денежной ценности.')}
+            {t('Это журнал состояния сети {network}, а не запущенный соревновательный сезон. Очки, призы, глобальный рейтинг и архив появятся только после внедрения сезонного on-chain учёта; тестовые активы и прогресс не имеют денежной ценности.', { network: NETWORK_LABEL })}
           </p>
         </div>
       </div>

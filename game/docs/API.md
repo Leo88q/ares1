@@ -384,9 +384,14 @@ Optional: `PORT=8080`, `EPOCH_ROLL_CRON=*/10 * * * *`, `RATE_LIMIT_PER_MINUTE=30
 
 Rewards rail (off by default): `REWARD_KEYPAIR_JSON` (path to a `solana-keygen`
 JSON or inline array) holds the dedicated `reward_signer`; the rail stays off
-while `REWARDS_RAIL_ENABLED=false` in `src/launchGates.ts`, when the key is
-absent, and on mainnet unless `NODE_ENV=production` and
-`REWARDS_MAINNET_APPROVED=true`. `REWARD_DELIVERY_INTERVAL_SECONDS` (default `0`
+while the launch gate is closed (`REWARDS_RAIL_ENABLED=true` **and**
+`REWARDS_RAIL_APPROVED=YES` in the environment — see `src/launchGates.ts`;
+constants are no longer edited to open a gate), when the key is absent, and on
+mainnet unless `NODE_ENV=production` and `REWARDS_MAINNET_APPROVED=true`.
+`REWARDS_ACTIVITY_RPC_URL` (optional) is a separate endpoint that serves
+`getProgramAccounts` for the "has an active field" check; when unset, a provider
+that blocks that method leaves the daily reward at 503
+`ACTIVITY_CHECK_UNAVAILABLE` (fail-closed, with the reason in `/api/rewards/status`). `REWARD_DELIVERY_INTERVAL_SECONDS` (default `0`
 = worker off) starts the `reward_intents` delivery worker; it needs `game_ops`
 and recovers an already-sent grant from the claim PDA instead of re-sending it.
 `QUEST_BUDGET_INTERVAL_SECONDS` (default `0` = off) starts the quest-pool cron:
