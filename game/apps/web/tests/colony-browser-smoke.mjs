@@ -66,8 +66,14 @@ try {
     assert.equal(await page.locator('.ship-nav .hull-nav-key[aria-pressed="true"]').count(), 1)
     // Стройка не тратит POTATO и не подписывает транзакции: кошелёк не подключён,
     // а кнопки времени работают на локальной экспедиции.
+    // Экспедиция стартует с дня 000; проверяем приращение относительно текущего значения,
+    // а не жёсткий номер дня (он зависит от начального состояния).
+    const dayText = () => page.getByTestId('colony-day').innerText().then(text => text.trim())
+    const dayBefore = await dayText()
+    assert.match(dayBefore, /^\d{3}$/)
     await page.getByRole('button', { name: '+1 day', exact: true }).first().click()
-    assert.match(await page.getByTestId('colony-day').innerText(), /^00[2-9]$/)
+    await page.waitForFunction(prev => document.querySelector('[data-testid="colony-day"]')?.textContent?.trim() !== prev, dayBefore)
+    assert.equal(Number(await dayText()), Number(dayBefore) + 1, `+1 day must advance the clock at ${width}px`)
     // Страница статуса протокола осталась доступной отдельным адресом.
     const statusPage = await context.newPage()
     await statusPage.goto(`${base}/base/status`, { waitUntil: 'networkidle' })
