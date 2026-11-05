@@ -45,17 +45,19 @@ for (const r of routes) {
       const cs = getComputedStyle(el)
       if (!el.offsetParent && cs.position !== 'fixed') continue
       if (cs.visibility === 'hidden' || cs.display === 'none') continue
-      const b = el.getBoundingClientRect()
-      if (b.width === 0 || b.height === 0) continue
+      // Размер измеряем по layout-коробке (offsetWidth/offsetHeight), а не по
+      // getBoundingClientRect: framer-motion держит на контроле transform:scale
+      // во время входного перехода, и rect даёт 43 px у кнопки, которая объявлена
+      // как 44×44 (поймано в CI на «Sound and notification settings»). Tap-target
+      // — это layout-размер, transform его не меняет.
+      const w = el.offsetWidth
+      const h = el.offsetHeight
+      if (!w || !h) continue
       total++
-      // Допуск 0.5 px: CSS-пиксели дробные при DPR 3, и контрол, объявленный
-      // ровно как 44×44, измеряется как 43.996 — гейт падал на собственном
-      // пороге (поймано в CI: «44x44 Sound and notification settings» -
-      // framer-motion держит на кнопке transform, пока идёт scale-переход).
-      // Контрол меньше 44 px по-прежнему не пройдёт: 43.5 требует 43.5+0.5 < 44.
-      if (b.width + 0.5 < 44 || b.height + 0.5 < 44) {
+      // Допуск 0.5 px на дробные CSS-пиксели при DPR 3: 44 px проходит, 43 — нет.
+      if (w + 0.5 < 44 || h + 0.5 < 44) {
         const label = (el.getAttribute('aria-label') || el.textContent || el.getAttribute('title') || el.tagName).replace(/\s+/g, ' ').trim().slice(0, 40)
-        small.push(`${Math.round(b.width)}x${Math.round(b.height)} ${label}`)
+        small.push(`${w}x${h} ${label}`)
       }
     }
     return { total, small: [...new Set(small)] }
