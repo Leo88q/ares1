@@ -7,6 +7,16 @@ import { readFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright-core'
 
+/** Первый визит в свежем контексте показывает баннер cookie (role=dialog .consent),
+ *  который перекрывает нижний пульт. Отказываемся от всего — это равноправная
+ *  кнопка, игра остаётся рабочей; тест проверяет игровой UI, а не баннер. */
+async function dismissConsent(page) {
+  const dialog = page.locator('.consent')
+  if (await dialog.count() === 0) return
+  await dialog.locator('.consent__actions .consent__btn').nth(1).click()
+  await dialog.waitFor({ state: 'hidden', timeout: 5000 })
+}
+
 if (!process.env.CHROMIUM_EXECUTABLE_PATH) throw new Error('Set CHROMIUM_EXECUTABLE_PATH; this test never downloads a browser.')
 const base = (process.env.COLONY_BASE_URL || 'http://127.0.0.1:4173').replace(/\/$/, '')
 const origin = new URL(base).origin
@@ -38,6 +48,7 @@ try {
       await route.fulfill({ response, headers: { ...response.headers(), 'content-security-policy': csp } })
     })
     await page.goto(`${base}/base`, { waitUntil: 'networkidle' })
+    await dismissConsent(page)
     await page.getByTestId('colony-day').waitFor({ state: 'visible' })
 
     // Редактор сетей доступен в рабочей колонии и не подписывает транзакции.
@@ -50,6 +61,7 @@ try {
     // Страница статуса протокола остаётся честной и без редактора.
     const statusPage = await context.newPage()
     await statusPage.goto(`${base}/base/status`, { waitUntil: 'networkidle' })
+    await dismissConsent(statusPage)
     const status = statusPage.getByTestId('colony-status')
     await status.waitFor({ state: 'visible' })
     await statusPage.getByTestId('persistent-colony').waitFor({ state: 'visible' })

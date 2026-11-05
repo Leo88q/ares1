@@ -10,6 +10,16 @@ import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright-core'
 
+/** Первый визит в свежем контексте показывает баннер cookie (role=dialog .consent),
+ *  который перекрывает нижний пульт. Отказываемся от всего — это равноправная
+ *  кнопка, игра остаётся рабочей; тест проверяет игровой UI, а не баннер. */
+async function dismissConsent(page) {
+  const dialog = page.locator('.consent')
+  if (await dialog.count() === 0) return
+  await dialog.locator('.consent__actions .consent__btn').nth(1).click()
+  await dialog.waitFor({ state: 'hidden', timeout: 5000 })
+}
+
 if (!process.env.CHROMIUM_EXECUTABLE_PATH) throw new Error('Set CHROMIUM_EXECUTABLE_PATH to an installed Chromium binary; this test never downloads a browser.')
 const base = (process.env.COLONY_BASE_URL || 'http://127.0.0.1:4173').replace(/\/$/, '')
 const origin = new URL(base).origin
@@ -36,6 +46,7 @@ async function openColony(width, locale = 'en-US') {
   })
   await page.goto(`${base}/colony`, { waitUntil: 'networkidle' })
   await page.waitForURL(url => url.pathname === '/base')
+  await dismissConsent(page)
   return { page, context }
 }
 
@@ -60,6 +71,7 @@ try {
     // Страница статуса протокола осталась доступной отдельным адресом.
     const statusPage = await context.newPage()
     await statusPage.goto(`${base}/base/status`, { waitUntil: 'networkidle' })
+    await dismissConsent(statusPage)
     assert.match(await statusPage.getByTestId('colony-status').innerText(), /CONSTRUCTION INACTIVE/)
     await statusPage.close()
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `horizontal overflow at ${width}px`)
