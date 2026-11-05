@@ -32,6 +32,9 @@ import { configPda, epochPda, questTreasuryPda } from "./solana.js";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { colonyPackageCatalogResponse } from "./colonies/catalog.js";
 import { colonyAuthRouter } from "./colonies/routes.js";
+import { colonyPotatoSpendRouter } from "./colonies/potatoSpendRouter.js";
+import { ColonyPotatoSpendService } from "./colonies/potatoSpendService.js";
+import { parseTransactionForSpend } from "./colonies/potatoSpendChain.js";
 import { ColonyService } from "./colonies/service.js";
 import { checkColonyDatabaseRole } from "./colonies/dbReadiness.js";
 import { loadGameOpsConfig } from "./gameops/env.js";
@@ -247,6 +250,18 @@ async function main() {
       programId,
       colonyService: new ColonyService(gameOpsPool, env.cluster, env.colonyFreeStarterEnabled),
     }));
+  }
+
+  // Колонийная трата POTATO: только devnet, только за флагом. Проверка идёт в сети,
+  // клиенту не доверяем. Без флага маршрута нет (404).
+  if (env.colonyPotatoSpendEnabled) {
+    if (env.cluster !== "devnet") throw new Error("COLONY_POTATO_SPEND_ENABLED is blocked outside devnet until owner approval");
+    if (!gameOpsPool) throw new Error("COLONY_POTATO_SPEND_ENABLED requires GAME_OPS_DATABASE_URL");
+    app.use("/api/colony-spend", colonyPotatoSpendRouter(new ColonyPotatoSpendService(gameOpsPool, env.cluster, {
+      fetchFinalizedTransaction: signature => parseTransactionForSpend(connection, signature),
+      programId: () => programId.toBase58(),
+      potatoMint: async () => (await fetchConfig()).potatoMint.toBase58(),
+    })));
   }
 
   // Product transparency endpoint only; this static proposal cannot create

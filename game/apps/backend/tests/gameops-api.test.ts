@@ -24,7 +24,7 @@ const config: GameOpsConfig = {
   adminToken: token,
   reconciliationMaxAgeMinutes: 20,
   chainId: 'reward',
-  expectedSchemaVersion: 16,
+  expectedSchemaVersion: 17,
 };
 
 /**

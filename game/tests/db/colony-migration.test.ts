@@ -23,14 +23,14 @@ test('all game_ops migrations, including Colony, pass the disposable PGlite acce
   const db = await PGlite.create();
   try {
     const files = await applyAllMigrations(db);
-    assert.equal(files.length, 16);
-    assert.equal(files.at(-1), '0016_presale_refund_reason.sql');
+    assert.equal(files.length, 17);
+    assert.equal(files.at(-1), '0017_colony_potato_spends.sql');
 
     const schema = await db.query<{ table_name: string }>("SELECT table_name FROM information_schema.tables WHERE table_schema = 'game_ops' AND table_type = 'BASE TABLE'");
     const tableNames = new Set(schema.rows.map(row => row.table_name));
-    const requiredTables = ['schema_version', 'reward_intents', 'reward_ledger', 'ledger_chain_head', 'admin_audit', 'chain_reconciliation', 'service_cursors', 'colony_auth_challenges', 'colony_entitlements', 'colonies', 'colony_events', 'colony_fields'];
+    const requiredTables = ['schema_version', 'reward_intents', 'reward_ledger', 'ledger_chain_head', 'admin_audit', 'chain_reconciliation', 'service_cursors', 'colony_auth_challenges', 'colony_entitlements', 'colonies', 'colony_events', 'colony_fields', 'colony_potato_spends'];
     for (const name of requiredTables) assert.ok(tableNames.has(name), `required table ${name} must exist`);
-    assert.equal(tableNames.size, 18);
+    assert.equal(tableNames.size, 19);
     const entitlementIndex = await db.query<{ indexdef: string }>("SELECT indexdef FROM pg_indexes WHERE schemaname = 'game_ops' AND indexname = 'colony_entitlements_one_active_sku_idx'");
     assert.match(entitlementIndex.rows[0]?.indexdef ?? '', /UNIQUE/i);
     assert.match(entitlementIndex.rows[0]?.indexdef ?? '', /WHERE \(revoked_at IS NULL\)/i);
@@ -41,8 +41,8 @@ test('all game_ops migrations, including Colony, pass the disposable PGlite acce
     assert.match(activeFieldIndex.rows[0]?.indexdef ?? '', /UNIQUE/i);
     assert.match(activeFieldIndex.rows[0]?.indexdef ?? '', /WHERE \(unlinked_at IS NULL\)/i);
     const triggers = await db.query<{ count: number }>(`SELECT count(*)::int AS count FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'game_ops' AND NOT t.tgisinternal`);
-    // 32 до 0016; +2 триггера причины возврата (immutability + audit).
-    assert.equal(triggers.rows[0]?.count, 34);
+    // 32 до 0016; +2 триггера причины возврата (immutability + audit); +2 append-only триггера колонийных трат (0017).
+    assert.equal(triggers.rows[0]?.count, 36);
 
     const freeStarterFunction = await db.query<{ function_name: string | null }>("SELECT to_regprocedure('game_ops.claim_free_colony_starter(uuid,text,text)')::text AS function_name");
     assert.match(freeStarterFunction.rows[0]?.function_name ?? '', /game_ops\.claim_free_colony_starter\(uuid, ?text, ?text\)/);
