@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Clock, Loader2, Plus, User, X } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { t } from '../i18n'
+import { IS_MAINNET } from '../utils/network'
 import { useMarketplaceV2, type MarketOrderV2View } from '../hooks/useMarketplaceV2'
 import { useGame } from '../contexts/GameContext'
 import type { MarketQuoteAsset } from '../utils/anchorClient'
@@ -71,7 +72,16 @@ function MarketScreenV2Inner() {
           </button>
         })}
       </div>
-      {!skrMintReady && <p style={{ margin: '-6px 0 12px', color: 'var(--pf-text-muted)', fontSize: 10 }}>{t('Пара POTATO / SKR недоступна для новых сделок без проверенного mint; ордера видны, свои можно отменить, истёкший escrow можно вернуть.')}</p>}
+      {!skrMintReady && (
+        // Честная подпись, а не тишина: SKR-пара — половина витрины, и при
+        // неразвёрнутом минте она мертва. Раньше это было видно только по
+        // отключённой кнопке покупки в карточке ордера.
+        <p style={{ margin: '-6px 0 12px', color: 'var(--pf-text-muted)', fontSize: 10 }}>
+          {IS_MAINNET
+            ? t('SKR не развёрнут в этой сети: пара POTATO / SKR недоступна для новых сделок, лента SKR пуста. Ордера SOL работают; свои ордера можно отменить, истёкший escrow вернуть.')
+            : t('Пара POTATO / SKR недоступна для новых сделок без проверенного mint; ордера видны, свои можно отменить, истёкший escrow можно вернуть.')}
+        </p>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 14 }}>
         <Stat label={t('Оборот POTATO')} value={`${formatFixedPointUnitsExact(stats.totalPotatoVolumeMicro, 6)} POTATO`} />

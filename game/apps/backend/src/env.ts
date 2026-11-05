@@ -119,6 +119,17 @@ export const env = {
    *  Must be a different provider than RPC_URL — same-vendor backup endpoints
    *  do not count as independence (one poisoned vendor would poison both). */
   secondaryRpcUrl: process.env.RPC_URL_SECONDARY || "",
+  /**
+   * Эндпоинт, который ОБСЛУЖИВАЕТ `getProgramAccounts` (некоторые mainnet-
+   * провайдеры его закрывают: 403/410). Нужен только проверке дейлика
+   * («у кошелька есть активное поле»): без неё рельса отвечает 503
+   * ACTIVITY_CHECK_UNAVAILABLE и дейлик не выдаётся вовсе. Пусто — резервного
+   * источника нет, поведение прежнее (fail-closed, причина видна в логе).
+   *
+   * Это НЕ второй источник правды для подписей: ключи/конфиг сверяются только
+   * через `RPC_URL` / `RPC_URL_SECONDARY`.
+   */
+  rewardsActivityRpcUrl: process.env.REWARDS_ACTIVITY_RPC_URL || "",
   /** Fail closed by default when NODE_ENV=production: the epoch roller refuses
    *  to sign without a verified second data source. Set REQUIRE_SECONDARY_RPC=0
    *  to consciously downgrade (documented decision, never silence). */

@@ -33,7 +33,13 @@ test('first-field onboarding is transparent about the operator-issued starter an
   assert.match(main, /to="\/lab"/)
   assert.match(main, /to="\/base"/)
   assert.match(main, /connected && !IS_MAINNET/)
-  assert.match(main, /Стартовый набор 250 POTATO выдаёт подписант оператора devnet-беты по адресу кошелька/)
+  // Подпись больше не называет devnet на любой сборке (аудит P2): текст выбран
+  // по сети и по состоянию тиража.
+  assert.match(main, /Стартовый набор выдаёт подписант оператора по адресу кошелька/)
+  assert.doesNotMatch(main, /подписант оператора devnet-беты/)
+  // Холодный старт: при открытом тираже первое поле покупается за SOL, и это
+  // сказано до всякой выдачи от оператора.
+  assert.match(main, /Первое поле можно купить за SOL по цене тиража/)
   assert.match(presale, /ПОКУПКА ЗА SKR ОТКЛЮЧЕНА/)
   assert.doesNotMatch(main, /тренировочный режим|пауза игры|pauseGame/i)
 })

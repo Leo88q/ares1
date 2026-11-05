@@ -2970,3 +2970,15 @@ button.morph-button--header:hover {
     font-size: 14px;
   }
 }
+
+/* §4.3: ссылка на политику в баннере cookie — видимая и фокусируемая. */
+.consent__policy-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.consent__policy-link:hover,
+.consent__policy-link:focus-visible {
+  color: #ffc94a;
+}

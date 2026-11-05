@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useGame } from '../contexts/GameContext'
 import { useSolana } from '../contexts/SolanaContext'
 import { useI18n } from '../i18n'
+import { IS_MAINNET, NETWORK_LABEL } from '../utils/network'
 import PersistentColonyPanel from './PersistentColonyPanel'
 import './colony-status.css'
 import './persistent-colony.css'
@@ -71,6 +72,10 @@ export default function ColonyStatusScreen(): JSX.Element {
     </section>
 
     {connected && game.fieldsError && <p className="colony-status-error" role="alert">{game.fieldsError}</p>}
-    <p className="colony-status-footnote">{t('Публичный релиз не опубликован. Devnet используется только для внутреннего QA; SOL и SKR в devnet — тестовые активы без денежной стоимости. Экран не управляет игровыми часами.')}</p>
+    {/* Аудит P2: на mainnet-сборке эта подпись называла devnet. Текст выбирается
+        по сети сборки, а не по времени написания компонента. */}
+    <p className="colony-status-footnote">{IS_MAINNET
+      ? t('Публичный релиз не опубликован. Mainnet-сборка показывает только состояние продукта: продажа колоний и SKR закрыта, экран не управляет игровыми часами.')
+      : t('Публичный релиз не опубликован. {network} используется только для внутреннего QA; SOL и SKR в {network} — тестовые активы без денежной стоимости. Экран не управляет игровыми часами.', { network: NETWORK_LABEL })}</p>
   </div>
 }

@@ -16,6 +16,8 @@
 #   MAINNET_AUTHORITY=<Squads vault> MAINNET_TREASURY=<treasury owner>
 #   MAINNET_PAYER=<backend payer> POTATO_MINT=<mainnet mint>
 #   MAINNET_RELEASE_APPROVED=YES (set only after external release gates are met)
+#   [ALLOW_SHARED_PROGRAM_ID=1] (only if [programs.mainnet] intentionally reuses
+#                               the devnet program id; otherwise preflight refuses)
 #   [RPC_URL=https://...]
 #
 # First deployment:

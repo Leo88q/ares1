@@ -9,7 +9,7 @@ import { useToast } from '../components/Toast'
  import {
  decodeField, pdas,
  ixCreateField, ixHarvest, ixRepairField, ixUpgradeField, ixPayTax, ixApplyFertilizer,
- ixBatchHarvest, ixCloseField, SKR_MINT,
+ ixBatchHarvest, ixCloseField, ixBuyFieldSol, PRESALE_SOL_CLIENT_ENABLED, SKR_MINT,
  potatoAta, decodeExportLicense,
  achievementsPda, questTreasuryPda, decodeAchievementsBitmap, ixClaimAchievement, QUEST_REWARDS_MICRO,
 } from '../utils/anchorClient'
@@ -19,6 +19,9 @@ import {
 } from '../utils/constants'
 import { describeError } from '../utils/errors'
 import { randomU64, withRetry } from '../utils/rpc'
+import { decodePresaleState, presaleOpen, presalePriceLamportsFor, presaleRemaining } from '../utils/presaleState'
+import type { PresaleStateView } from '../utils/presaleState'
+
 
 import { usePolling } from '../hooks/usePolling'
 
@@ -82,6 +85,18 @@ export interface GameContextType {
  closeField: (field: PublicKey) => Promise<boolean>
  ensureLut: () => Promise<string | null>
  purchaseField: (fieldType: number) => Promise<boolean>
+ /**
+  * Покупка поля за SOL (`buy_field_sol`) — единственный путь к первому полю для
+  * кошелька без POTATO. `null` — тираж закрыт или клиентский флаг выключен;
+  * цена берётся из аккаунта `PresaleState`, а не из константы.
+  */
+ buyFieldSol: (fieldType: number) => Promise<boolean>
+ /** Состояние тиража из цепи; `null` — не прочитано или аккаунта нет. */
+ presale: PresaleStateView | null
+ /** Продажа открыта (тираж не выбран, цена не сброшена в ноль). */
+ presaleOpen: boolean
+ /** Сколько полей осталось по тиражу; 0 — закрыто. */
+ presaleRemaining: number
  upgradeField: (field: PublicKey) => Promise<boolean>
  repairField: (field: PublicKey) => Promise<boolean>
  payTax: (field: PublicKey) => Promise<boolean>
@@ -112,6 +127,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const [claimed, setClaimed] = useState<Record<string, boolean>>({})
  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000))
  const [licenseExpiresAt, setLicenseExpiresAt] = useState(0)
+ const [presale, setPresale] = useState<PresaleStateView | null>(null)
 
  useEffect(() => {
   const t = window.setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), ACCRUAL_TICK_MS)
@@ -133,7 +149,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
    const skrMint = (config.skrMint as unknown as PublicKey) ?? SKR_MINT
    const skrAta = getAssociatedTokenAddressSync(skrMint, publicKey, false)
    const licensePda = pdas(programId).exportLicense(publicKey)
-   const [accounts, infos] = await Promise.all([
+   const presalePda = pdas(programId).presale()
+   const [accounts, infos, presaleInfo] = await Promise.all([
     withRetry(() =>
      Promise.all(
       FIELD_ACCOUNT_SIZES.map(dataSize =>
@@ -144,7 +161,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
      ).then(groups => groups.flat()),
     ),
     withRetry(() => connection.getMultipleAccountsInfo([publicKey, ata, skrAta, licensePda])),
+    // Тираж читается тем же проходом: отдельный запрос на каждый тик поллинга
+    // был бы лишним RPC-вызовом ради экрана, который меняется раз в сутки.
+    withRetry(() => connection.getAccountInfo(presalePda)).catch(() => null),
    ])
+   setPresale(presaleInfo ? decodePresaleState(presaleInfo.data) : null)
    const [walletInfo, ataInfo, skrInfo, licenseInfo] = infos
    setSolBalance((walletInfo?.lamports ?? 0) / 1e9)
    if (ataInfo) {
@@ -211,6 +232,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
  const licenseActive = licenseExpiresAt > nowSec
  // Премиум-тир лицензии: одна транзакция покрывает 30 полей вместо 10.
  const batchLimit = licenseActive ? BATCH_LIMIT_LICENSED : BATCH_LIMIT_BASE
+ // Пресейл: состояние читается из цепи каждый тик поллинга, поэтому кнопка
+ // «купить за SOL» не может открыться при закрытом тираже или сброшенной цене.
+ const presaleIsOpen = PRESALE_SOL_CLIENT_ENABLED && presaleOpen(presale)
+ const presaleLeft = presaleRemaining(presale)
 
  const stats = useMemo<GameStats>(
   () => {
@@ -295,6 +320,68 @@ export function GameProvider({ children }: { children: ReactNode }) {
    }
   },
   [config, publicKey, ready, requireBalance, runTx, ownAta, programId, notify],
+ )
+
+ /**
+  * Покупка поля за SOL — холодный старт.
+  *
+  * Зачем отдельно от `purchaseField`. `create_field` сжигает POTATO у игрока,
+  * а у нового кошелька POTATO нет: рельса наград и паки закрыты до одобрения
+  * запуска, `buy_field_sol` в клиенте не вызывался вовсе, рынок продаёт только
+  * то, что у кого-то уже есть. Итог был такой: на старте POTATO есть только у
+  * оператора, и он раздаёт его вручную (`yarn grant-potato`).
+  *
+  * `maxTotalLamports` — защита от роста цены между чтением состояния и
+  * подписью. Берём цену из цепи и допускаем нулевой запас: если оператор поднял
+  * цену, транзакция не пройдёт, и человек увидит причину до списания, а не
+  * «купилось дороже, чем показывали».
+  */
+ const buyFieldSol = useCallback(
+  async (fieldType: number) => {
+   if (!config || !publicKey || !ready) {
+    notify('warning', t('Игра ещё загружается'), t('Подожди пару секунд.'))
+    return false
+   }
+   if (!PRESALE_SOL_CLIENT_ENABLED) {
+    notify('warning', t('Покупка за SOL закрыта'), t('Тираж открывается отдельным решением запуска.'))
+    return false
+   }
+   if (!presaleOpen(presale)) {
+    notify(
+     'warning',
+     t('Тираж закрыт'),
+     presale && presale.sold >= presale.cap
+      ? t('Все поля тиража проданы.')
+      : t('Приём SOL за поля сейчас остановлен оператором.'),
+    )
+    return false
+   }
+   const priceLamports = presalePriceLamportsFor(presale, fieldType)
+   if (priceLamports <= 0n) return false
+   setPurchasing(true)
+   try {
+    return await runTx(t('Не удалось купить поле за SOL'), async () => {
+     const { config: configPda, field, presale: presalePda, buyerPresale, treasurySol } = pdas(programId)
+     const fieldId = randomU64()
+     const ix = await ixBuyFieldSol(programId, {
+      config: configPda(),
+      presaleState: presalePda(),
+      authority: config.authority,
+      buyerPresale: buyerPresale(publicKey),
+      field: field(fieldId),
+      buyer: publicKey,
+      treasurySol: treasurySol(),
+      fieldId,
+      fieldType,
+      maxTotalLamports: priceLamports,
+     })
+     return [ix]
+    })
+   } finally {
+    setPurchasing(false)
+   }
+  },
+  [config, publicKey, ready, presale, runTx, programId, notify],
  )
 
  const harvest = useCallback(
@@ -577,12 +664,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
    fields, stats, solBalance, loading, fieldsError, purchasing, claimed,
    licenseExpiresAt, licenseActive, batchLimit,
    harvest, batchHarvest, closeField, ensureLut,
-   purchaseField, upgradeField, repairField, payTax, applyFertilizer,
+   purchaseField, buyFieldSol, presale, presaleOpen: presaleIsOpen, presaleRemaining: presaleLeft,
+   upgradeField, repairField, payTax, applyFertilizer,
    claimReward, airdropSol, sendPotato, sendSol, reload: loadFields,
   }),
   [fields, stats, solBalance, loading, fieldsError, purchasing, claimed, licenseExpiresAt, licenseActive, batchLimit,
-   harvest, batchHarvest, closeField, ensureLut, purchaseField, upgradeField, repairField,
-   payTax, applyFertilizer, claimReward, airdropSol, sendPotato, sendSol, loadFields],
+   harvest, batchHarvest, closeField, ensureLut, purchaseField, buyFieldSol, presale, presaleIsOpen, presaleLeft,
+   upgradeField, repairField, payTax, applyFertilizer, claimReward, airdropSol, sendPotato, sendSol, loadFields],
  )
 
  return <GameContext.Provider value={value}>{children}</GameContext.Provider>

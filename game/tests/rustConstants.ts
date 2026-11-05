@@ -241,7 +241,7 @@ export const V2_FEE_POLICY_VERSION = rustConst('V2_FEE_POLICY_VERSION');
 /** Лестница ставок V2: 500/600/700/800 bps. */
 export const V2_SETTLEMENT_FEE_BPS = rustConstArray('V2_SETTLEMENT_FEE_BPS');
 /** Границы дневного объёма продавца, микро-POTATO. */
-export const V2_SELLER_VOLUME_THRESHOLDS_MICRO = rustConstArray('V2_SELLER_VOLUME_THRESHOLDS_MICRO');
+export const V2_TRADE_VOLUME_THRESHOLDS_MICRO = rustConstArray('V2_TRADE_VOLUME_THRESHOLDS_MICRO');
 
 /** Ставка V2 в bps для нулевого объёма — первая ступень лестницы. */
 export function v2BaseFeeBps(): bigint {

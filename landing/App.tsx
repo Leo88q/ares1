@@ -45,6 +45,7 @@ import {
 } from "./MicroMotion";
 import { SoundToggle } from "./SoundToggle";
 import { CookieConsent, openCookieSettings } from "./CookieConsent";
+import { LegalNav, LegalPage, legalPageFromPath } from "./legal";
 import { t, useI18n, tr } from "./i18n";
 import { LangSwitcher } from "./i18n/LangSwitcher";
 import { useSounds } from "./useSounds";
@@ -1513,15 +1514,17 @@ function Footer(): JSX.Element {
         </div>
 
         {/*
-          Legal pages are intentionally absent per the owner's 2026-10-06 decision.
-          This does not mean legal review is complete: no real-payment launch is
-          approved until terms, refunds, delivery, privacy and applicable notices
-          are explicitly reviewed. Keep the consent controls available here.
+          Правовые страницы вернулись 2026-11-05 (`/privacy`, `/terms`): лендинг
+          собирает IP-адрес запроса и пишет выбор cookie на устройство, и без
+          описания этого публичный запуск не одобряется. Тексты описывают
+          фактическое поведение кода; юридическое ревью всё ещё обязательно
+          перед приёмом реальных платежей — см. docs/LEGAL_REVIEW.md.
         */}
         <nav aria-label={t("Настройки cookies")} className="footer-legal">
           <button type="button" className="footer-legal__button" onClick={openCookieSettings}>
             {t("Настройки cookies")}
           </button>
+          <LegalNav />
         </nav>
 
         <div className="footer-middle">
@@ -1637,7 +1640,13 @@ export default function App(): JSX.Element {
   const timer = useRef<number | null>(null);
 
   // SEO-теги следуют за языком (title, description, og:*, twitter:*, html lang).
+  // Юридические страницы живут по своим путям в том же бандле (_redirects
+  // отдаёт /index.html на неизвестный путь). Лендинг при этом не рендерится:
+  // иначе политика открывалась бы с баннером, анимациями и hero-видео поверх.
+  const legalPage = legalPageFromPath(window.location.pathname);
+
   useEffect(() => {
+    if (legalPage) return; // заголовок страницы ставит LegalPage
     document.title = SC.seo.title;
     const setMeta = (selector: string, value: string): void => {
       document.head.querySelector(selector)?.setAttribute("content", value);
@@ -1649,7 +1658,7 @@ export default function App(): JSX.Element {
     setMeta('meta[name="twitter:title"]', SC.seo.title);
     setMeta('meta[name="twitter:description"]', SC.seo.description);
     document.documentElement.lang = lang === "es-419" ? "es" : lang;
-  }, [lang]);
+  }, [lang, legalPage]);
 
   const notify = useCallback((message: string): void => {
     if (timer.current !== null) {
@@ -1675,6 +1684,21 @@ export default function App(): JSX.Element {
       }
     };
   }, []);
+
+  if (legalPage) {
+    return (
+      <>
+        <a href="#legal-main" className="skip-link">
+          {SC.accessibility.skipToContent}
+        </a>
+        <Ambient />
+        <div id="legal-main">
+          <LegalPage page={legalPage} />
+        </div>
+        <CookieConsent />
+      </>
+    );
+  }
 
   return (
     <>

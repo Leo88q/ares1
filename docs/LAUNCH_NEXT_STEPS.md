@@ -1,7 +1,7 @@
 # ARES-1 launch readiness — 2026-10-11
 
 **Status: closed devnet beta preparation. No mainnet deployment, live run, or real-payment acceptance has been performed.**
-This is an implementation/status checklist, not approval to launch. The owner’s 2026-10-06 decision removed public legal pages from the repository; that is not legal clearance, and terms/refunds/delivery obligations/notices remain launch gates. The [ARES-1 product checklist](ARES1_PRODUCT_HYPE_REVENUE_CHECKLIST_2026-10-11.md) records the owner-approved season and seller-paid 9–12% quote-asset fee decisions. A V2 source/client/UI draft now exists, but the generated IDL is stale, the Anchor source is unbuilt/unverified, and the verified season ledger is not implemented. None of these decisions authorizes a public V2 release or mainnet.
+This is an implementation/status checklist, not approval to launch. The public legal pages removed on 2026-10-06 exist again since 2026-11-05 (`landing/legal.tsx` → `/privacy`, `/terms`), but that is not legal clearance: the text describes the code, it is not a legal opinion, and terms/refunds/delivery obligations/notices remain launch gates (see `docs/LEGAL_REVIEW.md`). The 2026-11-05 audit closure is recorded in `docs/AUDIT_REPORT_2026-11-05_CLOSURE.md`. The [ARES-1 product checklist](ARES1_PRODUCT_HYPE_REVENUE_CHECKLIST_2026-10-11.md) records the owner-approved season and seller-paid 9–12% quote-asset fee decisions. A V2 source/client/UI draft now exists, but the generated IDL is stale, the Anchor source is unbuilt/unverified, and the verified season ledger is not implemented. None of these decisions authorizes a public V2 release or mainnet.
 
 ## Scope and boundary
 

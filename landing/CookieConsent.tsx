@@ -237,7 +237,10 @@ export function CookieConsent(): JSX.Element | null {
         </div>
 
         <p className="consent__footnote">
-          <span>{t.policy}</span>
+          {/* §4.3: политика — ссылка, а не подпись. Раньше здесь стоял
+              недоступный текст «Политика cookie», и проверить, что именно
+              хранится, было нельзя. */}
+          <a href="/privacy" className="consent__policy-link">{t.policy}</a>
           {record ? (
             <span className="consent__record">
               {' '}

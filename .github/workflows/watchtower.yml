@@ -84,6 +84,12 @@ jobs:
       # rotated, provider-restricted endpoint in WATCHTOWER_SMOKE_RPC_URL.
       # Never reuse a key exposed in Git history; never echo the secret into logs.
       SMOKE_RPC_URL: ${{ secrets.WATCHTOWER_SMOKE_RPC_URL || vars.WATCHTOWER_SMOKE_RPC_URL || 'https://api.devnet.solana.com' }}
+      # Жёсткость гейта задаётся наличием выделенного RPC, а не настроением:
+      #   * WATCHTOWER_SMOKE_RPC_URL задан (secret или variable) → «нет данных»
+      #     и rate-limit НЕ считаются уважительной причиной, job краснеет;
+      #   * не задан (публичный devnet RPC) → предупреждение, как раньше.
+      # Ослабить гейт можно только удалив secret — это видно в настройках.
+      WATCHTOWER_SMOKE_STRICT: ${{ (secrets.WATCHTOWER_SMOKE_RPC_URL != '' || vars.WATCHTOWER_SMOKE_RPC_URL != '') && '1' || '0' }}
     defaults:
       run:
         working-directory: watchtower
@@ -155,6 +161,10 @@ jobs:
             exit 0
           fi
           if grep -q 'NO_KNOWN_APPLIED_EVENT' /tmp/verify.out; then
+            if [ "${WATCHTOWER_SMOKE_STRICT:-0}" = "1" ]; then
+              publish error "NO_KNOWN_APPLIED_EVENT на выделенном RPC (strict): сверка не нашла ни одного известного события — это красный гейт, а не предупреждение"
+              exit 1
+            fi
             publish warning "по программе нет трафика с известными событиями (NO_KNOWN_APPLIED_EVENT) — не регрессия; повторится на следующем изменении watchtower/**"
             exit 0
           fi
@@ -165,6 +175,10 @@ jobs:
             phase="${meta%% *}"; issues="${meta#* }"
             case "${issues:-}" in
               *RPC_429*|*RPC_5*)
+                if [ "${WATCHTOWER_SMOKE_STRICT:-0}" = "1" ]; then
+                  publish error "экспортёр не вышел в readyz за 180s на выделенном RPC: phase=$phase issues=[$issues] — strict-режим, это FAIL"
+                  exit 1
+                fi
                 publish warning "экспортёр не вышел в readyz за 180s: phase=$phase issues=[$issues] ($RPC_LABEL) — rate-limit, данных для сверки нет; НЕ регрессия кода. Для жёсткого гейта задайте secret WATCHTOWER_SMOKE_RPC_URL"
                 exit 0;;
               *)

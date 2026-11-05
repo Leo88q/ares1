@@ -17,7 +17,9 @@ export default function PresaleSection(): JSX.Element {
    <p style={{ margin: 0, color: '#C8AA78', font: '9px/1.6 var(--ares-font-mono, monospace)', letterSpacing: '.13em' }}>ARES-1 / {t('ПРЕСЕЙЛ SKR ЗАКРЫТ')}</p>
    <h2 className="pf-h2" style={{ margin: '6px 0 8px', color: '#EFD9AC' }}>{t('ПОКУПКА ЗА SKR ОТКЛЮЧЕНА')}</h2>
    <p style={{ margin: 0, maxWidth: 720, color: '#CDB693', fontSize: 11, lineHeight: 1.6 }}>
-    {t('Открытого одобренного SKR-пресейла сейчас нет. Не отправляй SKR: прежние 1053 SKR были devnet-путём покупки одного поля, а не целой колонии и не действующим предложением.')}
+    {IS_MAINNET
+     ? t('Открытого одобренного SKR-пресейла сейчас нет. Не отправляй SKR: покупка поля за SKR в mainnet не развёрнута.')
+     : t('Открытого одобренного SKR-пресейла сейчас нет. Не отправляй SKR: прежние 1053 SKR были devnet-путём покупки одного поля, а не целой колонии и не действующим предложением.')}
    </p>
    <p style={{ margin: '8px 0 0', color: '#A89578', fontSize: 9, lineHeight: 1.55 }}>
     {IS_MAINNET

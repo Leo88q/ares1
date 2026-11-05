@@ -32,7 +32,7 @@ import {
 } from '../../apps/web/src/utils/constants'
 import {
   SETTLEMENT_FEE_BPS,
-  SELLER_VOLUME_THRESHOLDS_MICRO,
+  TRADE_VOLUME_THRESHOLDS_MICRO,
 } from '../../apps/web/src/utils/marketFeePolicy'
 import { RUST_SOURCE, rustConstArray, rustConstNumber } from '../rustConstants.js'
 
@@ -151,12 +151,12 @@ test('комиссия рынка совпадает с calculate_fee_bps на �
   )
 })
 
-test('V2 progressive settlement policy mirrors Rust draft tiers and uses separate versioned rails', () => {
+test('V2 progressive settlement policy mirrors the accepted Rust tiers and uses separate versioned rails', () => {
   // Массивы читает общий парсер (tests/rustConstants.ts), а не локальная
   // регулярка на каждый тест: иначе «зеркало» проверяется по своей же копии.
   assert.deepEqual(
-    rustConstArray('V2_SELLER_VOLUME_THRESHOLDS_MICRO').map(Number),
-    SELLER_VOLUME_THRESHOLDS_MICRO.map(Number),
+    rustConstArray('V2_TRADE_VOLUME_THRESHOLDS_MICRO').map(Number),
+    TRADE_VOLUME_THRESHOLDS_MICRO.map(Number),
   )
   assert.deepEqual(rustConstArray('V2_SETTLEMENT_FEE_BPS').map(Number), SETTLEMENT_FEE_BPS.map(Number))
   assert.match(rust, /pub const V2_MIN_GROSS_QUOTE_ATOMS: u64 = 1_000_000;/)
@@ -167,7 +167,12 @@ test('V2 progressive settlement policy mirrors Rust draft tiers and uses separat
   assert.match(rust, /pub struct MarketOrderV2/)
   assert.match(rust, /pub struct SellerVolumeV2/)
   assert.ok(rust.includes('seeds = [b"seller_volume_v2", seller.key().as_ref()]'))
-  assert.match(rust, /V2 progressive marginal tiers.*draft/i)
+  // Ставки и пороги — принятые значения, а не черновик: комментарий в Rust
+  // обязан это фиксировать, иначе следующий читатель снова сверит их с
+  // решением 2026-10-11 (9/10/11/12 %, другая база) и «исправит» экономику.
+  assert.match(rust, /pub const V2_TRADE_VOLUME_THRESHOLDS_MICRO/)
+  assert.match(rust, /POTATO ranges \*\*of the trade itself\*\*/)
+  assert.match(rust, /v2_fee_ladder_thresholds_are_the_accepted_values/)
   // The old fee remains frozen on its legacy instruction; new quote fees are not added to it.
   assert.match(rustBody('create_sell_order'), /order_fee_micro\(amount_micro\)/)
 })

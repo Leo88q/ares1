@@ -299,9 +299,19 @@ pub const FEE_BURN_PERCENT: u64 = 60;
 /// Minimum gross quote amount for a V2 settlement: 1,000,000 quote atoms
 /// (0.001 SOL or 1 SKR with the pinned six-decimal SKR mint).
 pub const V2_MIN_GROSS_QUOTE_ATOMS: u64 = 1_000_000;
-/// V2 progressive marginal tiers. 1k/10k/100k POTATO thresholds are draft
-/// defaults and MUST receive owner approval before a V2 release.
-pub const V2_SELLER_VOLUME_THRESHOLDS_MICRO: [u64; 3] =
+/// V2 progressive marginal tiers — POTATO ranges **of the trade itself**.
+///
+/// Имя раньше было `V2_TRADE_VOLUME_THRESHOLDS_MICRO`: после P0-5 (`calculate_
+/// settlement_fee_v2` считает ступень от объёма сделки, а не от суточного
+/// объёма продавца) оно врало — «volume» читалось как «объём продавца», и
+/// решение 2026-10-11 («9/10/11/12 %») сверяли не с той базой. Теперь имя
+/// говорит, о чём порог, а ставки — 5/6/7/8 % (`V2_SETTLEMENT_FEE_BPS`).
+///
+/// Пороги 1k / 10k / 100k POTATO — принятое значение, а не черновик: оно
+/// закреплено тестом `v2_fee_ladder_thresholds_are_the_accepted_values` и
+/// offchain-зеркалом `tests/offchain/mirrorParity.test.ts`, поэтому молчаливая
+/// правка «на глаз» уронит сборку.
+pub const V2_TRADE_VOLUME_THRESHOLDS_MICRO: [u64; 3] =
     [1_000_000_000, 10_000_000_000, 100_000_000_000];
 /// 5 / 6 / 7 / 8 %, down from 9-12 %. At 9 % the taker paid more than any
 /// realistic spread, so a market could not exist: every fill was a loss for
@@ -3294,16 +3304,16 @@ pub fn calculate_settlement_fee_v2(
     let mut fee_quote_atoms = 0u64;
 
     while remaining_micro > 0 {
-        let tier_index = if priced_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[0] {
+        let tier_index = if priced_volume_micro < V2_TRADE_VOLUME_THRESHOLDS_MICRO[0] {
             0
-        } else if priced_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[1] {
+        } else if priced_volume_micro < V2_TRADE_VOLUME_THRESHOLDS_MICRO[1] {
             1
-        } else if priced_volume_micro < V2_SELLER_VOLUME_THRESHOLDS_MICRO[2] {
+        } else if priced_volume_micro < V2_TRADE_VOLUME_THRESHOLDS_MICRO[2] {
             2
         } else {
             3
         };
-        let capacity = V2_SELLER_VOLUME_THRESHOLDS_MICRO
+        let capacity = V2_TRADE_VOLUME_THRESHOLDS_MICRO
             .get(tier_index)
             .map(|threshold| threshold.saturating_sub(priced_volume_micro))
             .unwrap_or(remaining_micro);
@@ -5850,6 +5860,31 @@ mod tests {
         assert_eq!(calculate_fee_bps(10_000_000_000), 700);
         assert_eq!(calculate_fee_bps(100_000_000_000), 800);
         assert_eq!(order_fee_micro(1_000_000).unwrap(), 50_000); // 1 POTATO × 5%
+    }
+
+    /// Пороги V2 — принятое значение, а не черновик. Тест существует потому,
+    /// что эти константы когда-то сверяли с решением 2026-10-11 (9/10/11/12 %),
+    /// которое считалось от ДРУГОЙ базы: там ставка бралась от объёма ордера
+    /// или суточного объёма продавца, а не от объёма сделки. На маржинальной
+    /// базе 9 % в первой ступени означают, что тейкер платит больше любого
+    /// реалистичного спреда. Ставки 5/6/7/8 % подтверждены; правка — только
+    /// вместе с этим тестом и с `/docs/ECONOMY.md`.
+    #[test]
+    fn v2_fee_ladder_thresholds_are_the_accepted_values() {
+        assert_eq!(V2_TRADE_VOLUME_THRESHOLDS_MICRO, [1_000_000_000, 10_000_000_000, 100_000_000_000]);
+        assert_eq!(V2_SETTLEMENT_FEE_BPS, [500, 600, 700, 800]);
+        // Лестница возрастает и остаётся ниже «невозможных» 9 %: у ставки есть
+        // смысл только пока она меньше типичного спреда.
+        for window in V2_SETTLEMENT_FEE_BPS.windows(2) {
+            assert!(window[0] < window[1], "V2 fee ladder must be increasing");
+        }
+        assert!(
+            V2_SETTLEMENT_FEE_BPS[3] < 900,
+            "top V2 tier must stay below the owner's 9 % floor"
+        );
+        for window in V2_TRADE_VOLUME_THRESHOLDS_MICRO.windows(2) {
+            assert!(window[0] < window[1], "V2 thresholds must be increasing");
+        }
     }
 
     #[test]

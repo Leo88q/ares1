@@ -74,11 +74,16 @@ jobs:
           # code path rots, every clone silently loses its local gate.
           git ls-files -z | head -c 4000 | node scripts/secret-scan.mjs --stdin
       # Known finding S-01 (a Helius devnet key committed in 55ba9d9..87eb954
-      # and deleted later) is NOT allowlisted on purpose, and this step is a
-      # REAL gate: the scan is run with continue-on-error only so that the
-      # annotation step below still executes, and the step after that turns a
-      # red history scan into a red job. Until the key is revoked and the owner
-      # verifies the replacement, this job must fail. Git history is not rewritten.
+      # and deleted later) is NOT in the allowlist: it was a real key, and the
+      # allowlist is only for "this is not a secret". It is tracked in
+      # `.secret-rotation-status.json` instead, which the scanner reads: while
+      # the record says revoked=false the finding stays RED, and once the owner
+      # records the revocation date the scanner stops reporting THAT path and
+      # THAT rule. Git history is not rewritten either way.
+      #
+      # This is a REAL gate. The scan runs with continue-on-error only so the
+      # annotation step below still executes; the step after turns a red scan
+      # into a red job.
       - name: Full history scan
         continue-on-error: true
         id: history
@@ -86,11 +91,11 @@ jobs:
       - name: Annotate historical findings
         if: steps.history.outcome == 'failure'
         run: |
-          echo "::error title=Historical secret scan is RED::A committed credential is reachable in git history. Revoke/rotate it with the owner, verify the replacement, and treat historical copies as exposed (game/docs/OPERATIONS.md). Do not rewrite history or add the finding to .secret-scan-allowlist.json."
+          echo "::error title=Historical secret scan is RED::A committed credential is reachable in git history. Revoke/rotate it with the owner, record the revocation in .secret-rotation-status.json (docs/SECRET_ROTATION.md), and treat historical copies as exposed. Do not rewrite history and do not add the finding to .secret-scan-allowlist.json."
       - name: Enforce the history gate
         if: steps.history.outcome == 'failure'
         run: |
-          echo "secret-scan-history reported findings; the history gate is intentionally red until S-01 is remediated." >&2
+          echo "secret-scan-history reported findings; the history gate stays red until every pending rotation is recorded as revoked (docs/SECRET_ROTATION.md)." >&2
           exit 1
 
   deploy-readiness:
@@ -102,9 +107,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
-      # The owner removed public legal pages on 2026-10-06; required legal review is
-      # still a launch gate. The generated security.txt is checked below by the
-      # public-exposure script.
+      # Public legal pages exist again (/privacy, /terms — landing/legal.tsx), but the
+      # legal REVIEW is still a launch gate: the text describes the code, it is not a
+      # legal opinion. See docs/LEGAL_REVIEW.md (stop-conditions P-1…P-5). The
+      # generated security.txt is checked below by the public-exposure script.
       # §2.3: source maps off in both bundlers. A silent Vite/framework upgrade
       # must not re-enable them.
       - name: Source maps disabled in both builds

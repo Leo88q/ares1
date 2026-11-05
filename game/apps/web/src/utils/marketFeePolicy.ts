@@ -1,11 +1,14 @@
 /**
- * Working V2 marketplace fee policy. The 1k/10k/100k POTATO breakpoints below
- * are draft defaults pending final owner approval before release. This helper
- * is not used by live legacy Anchor instructions; keep that separation explicit
- * until the versioned program and quote-pair accounts are deployed.
+ * Working V2 marketplace fee policy — зеркало `lib.rs`.
+ *
+ * Ставки 5/6/7/8 % считаются от объёма **сделки** (P0-5), а не от суточного
+ * объёма продавца, поэтому имена говорят `TRADE_VOLUME`: прежнее
+ * `SELLER_VOLUME_THRESHOLDS_MICRO` читалось как «объём продавца» и провоцировало
+ * сверку с решением 2026-10-11 (9/10/11/12 %), которое относилось к другой базе.
+ * Значения закреплены `tests/offchain/mirrorParity.test.ts` против Rust-источника.
  */
 export const SETTLEMENT_FEE_BPS = [500n, 600n, 700n, 800n] as const
-export const SELLER_VOLUME_THRESHOLDS_MICRO = [
+export const TRADE_VOLUME_THRESHOLDS_MICRO = [
   1_000n * 1_000_000n,
   10_000n * 1_000_000n,
   100_000n * 1_000_000n,
@@ -45,9 +48,9 @@ function ceilDiv(numerator: bigint, denominator: bigint): bigint {
  */
 export function feeBpsAtPricedVolume(volumeMicro: bigint): bigint {
   if (volumeMicro < 0n || volumeMicro > U64_MAX) throw new RangeError('invalid seller volume')
-  if (volumeMicro < SELLER_VOLUME_THRESHOLDS_MICRO[0]) return SETTLEMENT_FEE_BPS[0]
-  if (volumeMicro < SELLER_VOLUME_THRESHOLDS_MICRO[1]) return SETTLEMENT_FEE_BPS[1]
-  if (volumeMicro < SELLER_VOLUME_THRESHOLDS_MICRO[2]) return SETTLEMENT_FEE_BPS[2]
+  if (volumeMicro < TRADE_VOLUME_THRESHOLDS_MICRO[0]) return SETTLEMENT_FEE_BPS[0]
+  if (volumeMicro < TRADE_VOLUME_THRESHOLDS_MICRO[1]) return SETTLEMENT_FEE_BPS[1]
+  if (volumeMicro < TRADE_VOLUME_THRESHOLDS_MICRO[2]) return SETTLEMENT_FEE_BPS[2]
   return SETTLEMENT_FEE_BPS[3]
 }
 
@@ -107,7 +110,7 @@ export function calculateSettlementFee(input: {
 
   while (remainingMicro > 0n) {
     const bps = feeBpsAtPricedVolume(pricedVolumeMicro)
-    const nextThreshold = SELLER_VOLUME_THRESHOLDS_MICRO.find((threshold) => pricedVolumeMicro < threshold)
+    const nextThreshold = TRADE_VOLUME_THRESHOLDS_MICRO.find((threshold) => pricedVolumeMicro < threshold)
     const tierCapacity = nextThreshold === undefined ? remainingMicro : nextThreshold - pricedVolumeMicro
     const segmentMicro = remainingMicro < tierCapacity ? remainingMicro : tierCapacity
     const nextConsumedMicro = consumedMicro + segmentMicro

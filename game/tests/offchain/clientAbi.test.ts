@@ -41,9 +41,16 @@ const cases: [string, () => Promise<TransactionInstruction>, Record<string, unkn
   ['close_old_epoch', () => client.ixCloseOldEpoch(program, p), {}],
   ['update_reward_signer', () => client.ixUpdateRewardSigner(program, p), { new_signer: keys.newSigner }],
   ['claim_achievement', () => client.ixClaimAchievement(program, p, 3, []), { quest_id: 3 }],
+  // Холодный старт: покупка первого поля за SOL. Аргументы — ровно те, что
+  // объявлены в IDL, включая slippage-гвард max_total_lamports.
+  ['buy_field_sol', () => client.ixBuyFieldSol(program, p), { field_id: bn, field_type: 2, max_total_lamports: bn }],
 ];
-test('user-facing SKR sale transaction builders are absent from the browser client', () => {
-  for (const name of ['ixInitPresale', 'ixUpdatePresalePrice', 'ixBuyFieldSol', 'ixBuyFieldSkr', 'ixBuyExportLicense', 'ixApplyPendingPresalePrice']) {
+test('user-facing SKR sale and operator presale builders are absent from the browser client', () => {
+  // `ixBuyFieldSol` сюда НЕ входит: SOL-пресейл — единственный холодный старт
+  // для кошелька без POTATO. Он есть в клиенте, но за флагом
+  // VITE_PRESALE_SOL_ENABLED и покрыт ABI-тестом ниже. SKR-ветка, покупка
+  // лицензии и операторские инструкции по-прежнему недоступны приложению.
+  for (const name of ['ixInitPresale', 'ixUpdatePresalePrice', 'ixBuyFieldSkr', 'ixBuyExportLicense', 'ixApplyPendingPresalePrice']) {
     assert.equal(Object.hasOwn(client, name), false, `${name} must not be exported to the app`);
   }
 });

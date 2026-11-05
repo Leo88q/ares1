@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { presalePriceLamportsFor } from '../utils/presaleState'
+import type { PresaleStateView } from '../utils/presaleState'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useI18n, t } from '../i18n'
@@ -22,7 +24,7 @@ import { Key } from '../ui/kit'
 import { Tuber9 } from './ares/mascot'
 
 export default function MainScreen() {
- const { fields, stats, loading, fieldsError, reload, purchasing, harvest, purchaseField, upgradeField, repairField, payTax, applyFertilizer } = useGame()
+ const { fields, stats, loading, fieldsError, reload, purchasing, harvest, purchaseField, buyFieldSol, presale, presaleOpen, presaleRemaining, upgradeField, repairField, payTax, applyFertilizer } = useGame()
  const { ready, rpcError, connected, config } = useSolana()
  const { lang } = useI18n()
  const fieldText = fieldCopy(lang)
@@ -48,10 +50,14 @@ export default function MainScreen() {
     {!loading && fields.length === 0 && <FreeStartNotice />}
         <BuyFieldCard
          onPurchase={purchaseField}
+         onPurchaseSol={buyFieldSol}
          purchasing={purchasing}
          balanceMicro={stats.potatoBalance}
          firstField={fields.length === 0}
          yieldCfg={yieldCfg}
+         presale={presale}
+         presaleOpen={presaleOpen}
+         presaleRemaining={presaleRemaining}
         />
     <BatchHarvestBar />
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
@@ -329,11 +335,24 @@ function FreeStartNotice(): JSX.Element {
 
 interface BuyProps {
  onPurchase: (type: number) => Promise<boolean>
+ /** Покупка за SOL (пресейл). Открыта только при тираже и включённом флаге. */
+ onPurchaseSol: (type: number) => Promise<boolean>
  purchasing: boolean
  balanceMicro: number
  firstField: boolean
  /** Конфиг эмиссии читается из цепи: без него карточка не выдумывает урожай. */
  yieldCfg: { baseYieldMicroPerDay: number; globalMultiplierBps: number } | null
+ /** Состояние тиража из цепи; `null` — тираж не открыт/не прочитан. */
+ presale: PresaleStateView | null
+ presaleOpen: boolean
+ presaleRemaining: number
+}
+
+/** Формат SOL из лампортов: 4 знака достаточно для цены поля, без «1e-9». */
+function formatSolFromLamports(lamports: bigint): string {
+ const whole = lamports / 1_000_000_000n
+ const frac = (lamports % 1_000_000_000n).toString().padStart(9, '0').replace(/0+$/, '')
+ return frac ? `${whole}.${frac.slice(0, 4)}` : whole.toString()
 }
 
 const TIER_META = [
@@ -342,9 +361,12 @@ const TIER_META = [
  { label: 'TIER III · БИО-КАССЕТА', tag: 'EPIC', borderColor: '#8A5826', accentColor: '#FFC94A' },
 ]
 
-function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField, yieldCfg }: BuyProps) {
+function BuyFieldCard({ onPurchase, onPurchaseSol, purchasing, balanceMicro, firstField, yieldCfg, presale, presaleOpen: saleOpen, presaleRemaining }: BuyProps) {
  const { t } = useI18n()
  const { rewardsRail: railOn } = useFeatures()
+ // Цена в SOL считается от `price_lamports` в цепи, а не от constants: цену
+ // задаёт оператор, и UI не должен показывать «красивое» число, которого нет.
+ const solPrice = (fieldType: number) => presalePriceLamportsFor(presale, fieldType, FIELD_TYPES.map(type => type.costBps))
  return (
   <motion.div
    initial={{ opacity: 0, y: 20 }}
@@ -393,6 +415,7 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField, yieldC
      const meta = TIER_META[type.id] ?? TIER_META[0]
      const price = fieldPriceMicro(type.id)
      const affordable = balanceMicro >= price
+     const solLamports = solPrice(type.id)
      const yieldMul = (type.yieldBps / 10_000).toFixed(2)
 
      return (
@@ -449,6 +472,33 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField, yieldC
          {fmtPotato(price, 0)} <span style={{ fontSize: 9, opacity: 0.8 }}>POTATO</span>
         </div>
 
+        {solLamports > 0n && (
+         // Второй путь появляется ТОЛЬКО при открытом тираже: цена прочитана из
+         // цепи, поэтому кнопка «за SOL» не может существовать при
+         // `price_lamports=0` (аварийный стоп) или выбранном cap.
+         <motion.button
+          whileTap={purchasing || !saleOpen ? undefined : { y: 2 }}
+          transition={{ type: 'spring', stiffness: 520, damping: 26 }}
+          disabled={purchasing || !saleOpen}
+          aria-label={t('Купить {name} за {price} SOL', { name: type.name, price: formatSolFromLamports(solLamports) })}
+          onClick={() => {
+           sounds.buy()
+           haptics.purchaseField()
+           void onPurchaseSol(type.id)
+          }}
+          className={saleOpen ? 'mk-key' : 'mk-key'}
+          style={{
+           padding: '8px 12px',
+           fontSize: 10,
+           fontWeight: 700,
+           cursor: saleOpen ? 'pointer' : 'not-allowed',
+           opacity: saleOpen ? 1 : 0.6,
+          }}
+         >
+          {t('{price} SOL', { price: formatSolFromLamports(solLamports) })}
+         </motion.button>
+        )}
+
         <motion.button
          whileTap={purchasing || !affordable ? undefined : { y: 2 }}
          transition={{ type: 'spring', stiffness: 520, damping: 26 }}
@@ -475,11 +525,26 @@ function BuyFieldCard({ onPurchase, purchasing, balanceMicro, firstField, yieldC
     })}
    </div>
 
+   {saleOpen && (
+    <p className="ares-mono" style={{ margin: 0, fontSize: 9, lineHeight: 1.5, color: '#A89578' }}>
+     {t('Тираж: осталось {n} полей. Цена в SOL читается из цепи; POTATO за первое поле не нужен.', { n: presaleRemaining })}
+    </p>
+   )}
+
    {firstField && (
     <div style={{ fontSize: 11, color: 'var(--ares-dust, #E0A183)', textAlign: 'center', lineHeight: 1.4, background: 'rgba(0,0,0,0.25)', padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.05)' }}>
-     {railOn
-      ? t('Стартовый набор 250 POTATO выдаёт подписант оператора devnet-беты по адресу кошелька — один раз на кошелёк. Публичного крана POTATO нет; не покупай токены ради теста.')
-      : t('Бесплатная выдача выключена: рельса наград включается отдельным решением запуска. Первое поле выдаёт оператор. Не отправляй деньги ради теста.')}
+     {/*
+      Холодный старт. Раньше здесь было две ветки: «рельса включена» и
+      «рельса выключена, первое поле выдаёт оператор». Третьего пути (купить
+      поле за SOL) в интерфейсе не было вовсе, хотя инструкция
+      `buy_field_sol` существует и покрыта тестами: новый кошелёк без POTATO
+      не мог начать играть сам. Теперь ветка «тираж открыт» названа первой.
+     */}
+     {saleOpen
+      ? t('Первое поле можно купить за SOL по цене тиража или получить POTATO от оператора. POTATO за первое поле не требуется.')
+      : railOn
+       ? t('Стартовый набор выдаёт подписант оператора по адресу кошелька — один раз на кошелёк. Публичного крана POTATO нет.')
+       : t('Бесплатная выдача выключена: рельса наград включается отдельным решением запуска. Первое поле выдаёт оператор.')}
     </div>
    )}
   </motion.div>

@@ -162,6 +162,11 @@ printf '%s\\n' "$FAKE_DEPLOY_AUTHORITY"
         MAINNET_PAYER: 'BackendPayer11111111111111111111111111111',
         POTATO_MINT: 'PotatoMint1111111111111111111111111111111',
         MAINNET_RELEASE_APPROVED: releaseApproved,
+        // Anchor.toml pins the same program id for devnet and mainnet, and the
+        // deploy flow explicitly allows a shared id for this repository. The
+        // separate preflight gate (ALLOW_SHARED_PROGRAM_ID) exists so that a
+        // DIFFERENT decision is visible; here we only exercise the deploy flow.
+        ALLOW_SHARED_PROGRAM_ID: '1',
         RPC_URL: 'https://mainnet.invalid/path/OUTPUT_SENTINEL',
         FAKE_STATE: stateFile,
         FAKE_BUFFER_AUTHORITY_FILE: bufferAuthorityFile,

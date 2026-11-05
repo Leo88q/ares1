@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,11 +26,19 @@ test('coverage ignores comments and recognizes the guarded treasury CLI builder'
   assert.ok(row(migration).hits.tests > 0);
   assert.ok(!result.unreferenced.includes(migration));
 
-  // SOL field purchases are closed: their legacy ABI is referenced only by
-  // offline compatibility tests, never by a browser builder or UI.
-  assert.equal(row(solFieldIx).hits['web-ui'], 0);
-  assert.equal(row(solFieldIx).hits['web-builder'], 0);
+  // Холодный старт: buy_field_sol — единственный путь к первому полю без
+  // POTATO, поэтому сборщик инструкции и вызов из контекста существуют.
+  // Но путь ОБЯЗАН быть под флагом: без него кнопка «купить за SOL» вела бы в
+  // транзакцию, которая падает на закрытом тираже.
+  assert.ok(row(solFieldIx).hits['web-builder'] > 0);
+  assert.ok(row(solFieldIx).hits['web-ui'] > 0);
   assert.ok(row(solFieldIx).hits.tests > 0);
+  const builder = readFileSync(path.join(gameRoot, 'apps/web/src/utils/anchorClient.ts'), 'utf8');
+  const context = readFileSync(path.join(gameRoot, 'apps/web/src/contexts/GameContext.tsx'), 'utf8');
+  assert.match(builder, /PRESALE_SOL_CLIENT_ENABLED/);
+  assert.match(context, /PRESALE_SOL_CLIENT_ENABLED/);
+  // Флаг читается только из env и по умолчанию закрыт: `=== 'true'`, не истинность.
+  assert.match(builder, /VITE_PRESALE_SOL_ENABLED[\s\S]{0,80}=== 'true'/);
 
   // P1-1: grant_reward удалён из программы и IDL — отчёт не должен его
   // содержать (иначе появилась бы «покрытая» инструкция, которой нет на цепи).
