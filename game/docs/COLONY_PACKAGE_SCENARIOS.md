@@ -1,6 +1,6 @@
 # Colony ruleset v3 — approved package scenarios
 
-Run: `cd game && yarn simulate:colony-rules`. The simulation runs the same backend engine and grant resolver for Starter and all seven expansion combinations over 30/90/180 days.
+Run: `cd game && yarn simulate:colony-rules` (скрипт удалён 2026-11-06 вместе со старым движком колонии; см. docs/GAME_AUDIT_2026-11-06.md). The simulation runs the same backend engine and grant resolver for Starter and all seven expansion combinations over 30/90/180 days.
 
 **Not an offer, live economy forecast or mainnet test.** Resources are server-side game values. No payment, token yield, stochastic events, maintenance/sinks, independent Field colonies or user behavior are modeled. The Field grant is reported as eligible linked-Field capacity; current game simulation has no production/action yield per linked Field. Lab cap is an entitlement limit; no Lab upgrade action exists yet, so simulated Lab production stays at its current level.
 

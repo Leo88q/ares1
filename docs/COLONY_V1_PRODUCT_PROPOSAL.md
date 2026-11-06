@@ -69,7 +69,7 @@
 
 ### Сравнение Starter и утверждённых expansion grants на backend engine
 
-Команда `cd game && yarn simulate:colony-rules` теперь прогоняет Starter и все 7 комбинаций расширений на тех же resolver/engine, на горизонтах 30/90/180 суток. Полный результат (таблица и очередь действий) сохранён в [COLONY_PACKAGE_SCENARIOS.md](../game/docs/COLONY_PACKAGE_SCENARIOS.md); пересобрать его можно командой `yarn simulate:colony-rules --report docs/COLONY_PACKAGE_SCENARIOS.md` из каталога `game`.
+Команда `cd game && yarn simulate:colony-rules` (удалена 2026-11-06 вместе со старым движком колонии) раньше прогоняет Starter и все 7 комбинаций расширений на тех же resolver/engine, на горизонтах 30/90/180 суток. Полный результат (таблица и очередь действий) сохранён в [COLONY_PACKAGE_SCENARIOS.md](../game/docs/COLONY_PACKAGE_SCENARIOS.md); пересобрать его можно командой `yarn simulate:colony-rules --report docs/COLONY_PACKAGE_SCENARIOS.md` из каталога `game`.
 
 Гранты очередей реально влияют на симуляцию; складские множители применяются по ресурсам: Research Wing удваивает science cap, Frontier — все четыре ресурса ×2, Industrial — все ×4; multipliers берутся максимумом, не перемножаются. Сценарий сообщает итоговые запасы/ёмкости на каждом горизонте и первый момент заполнения каждого склада.
 

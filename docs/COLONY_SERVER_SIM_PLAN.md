@@ -79,7 +79,7 @@
   монтирование за `COLONY_SIM_ENABLED` (по умолчанию выключен). Тесты 6/6, backend 346/346.
 
 - **F4** (клиент): общий хук входа `useColonySession` (challenge → подпись → verify, токен привязан к адресу,
-  проверка cluster; используется и в `PersistentColonyPanel`); `simClient.ts` (HTTP с инъекцией fetch, `requestId` UUID);
+  проверка cluster; использовался `PersistentColonyPanel`, компонент удалён 2026-11-06); `simClient.ts` (HTTP с инъекцией fetch, `requestId` UUID);
   `serverLink.ts` (очередь, `expectedSequence`, повтор при `STALE_SEQUENCE` с той же квитанцией, resync при сетевой
   ошибке); `ColonySimProvider.tsx` (серверный стор, тик `SERVER_TICK_DAYS` = 7 дней за запрос); `ColonyContext` с двумя
   режимами: локальный (по умолчанию) и серверный (`VITE_COLONY_SIM=true`). В серверном режиме мутации

@@ -34,7 +34,6 @@ export const env = {
   // Серверная симуляция колонии (docs/COLONY_SERVER_SIM_PLAN.md). Выключена по умолчанию.
   colonySimEnabled: configuredBoolean('COLONY_SIM_ENABLED'),
   // Бесплатный стартер: выключен по умолчанию на всех сетях (гейты default-closed, без тихого включения).
-  colonyFreeStarterEnabled: configuredBoolean('COLONY_FREE_STARTER_ENABLED'),
   colonySessionSecret: process.env.COLONY_SESSION_SECRET || '',
   rpcUrl: required("RPC_URL"),
   programId: required("PROGRAM_ID"),
