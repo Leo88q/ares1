@@ -37,7 +37,6 @@ import { colonySimRouter } from "./colonySim/routes.js";
 import { ColonySimService, poolDatabase } from "./colonySim/service.js";
 import { ColonyPotatoSpendService } from "./colonies/potatoSpendService.js";
 import { parseTransactionForSpend } from "./colonies/potatoSpendChain.js";
-import { ColonyService } from "./colonies/service.js";
 import { checkColonyDatabaseRole } from "./colonies/dbReadiness.js";
 import { loadGameOpsConfig } from "./gameops/env.js";
 import { closePool, createPool } from "./gameops/pool.js";
@@ -116,13 +115,6 @@ async function main() {
       "COLONIES_ENABLED is blocked until the Colony V1 release gate is approved"
       + ` (set COLONY_V1_RELEASE_READY=true and COLONY_V1_RELEASE_APPROVED=YES after the acceptance suite and release review).`
       + ` Gate state: ${LAUNCH_GATES.colonyV1Release.reason}`,
-    );
-  }
-  // Стартер действует только вместе с колониями; при выключенных колониях не валит запуск игры.
-  if (env.coloniesEnabled && env.colonyFreeStarterEnabled && !COLONY_V1_RELEASE_READY) {
-    throw new Error(
-      "COLONY_FREE_STARTER_ENABLED is blocked until the Colony V1 release gate is approved"
-      + ` (${LAUNCH_GATES.colonyV1Release.reason})`,
     );
   }
   if (process.env.NODE_ENV === "production" && env.cluster === "mainnet-beta") {
@@ -247,11 +239,6 @@ async function main() {
       sessionSecret: env.colonySessionSecret,
       allowedOrigins: env.corsOrigin.split(",").map(origin => origin.trim()).filter(Boolean),
       allowLocalhostForDevelopment: process.env.NODE_ENV !== "production",
-      fieldRpc: connection,
-      secondaryFieldRpc: secondaryConnection,
-      requireSecondaryFieldRpc: env.requireSecondaryRpc,
-      programId,
-      colonyService: new ColonyService(gameOpsPool, env.cluster, env.colonyFreeStarterEnabled),
     }));
   }
 

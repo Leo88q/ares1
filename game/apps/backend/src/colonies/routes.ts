@@ -1,12 +1,7 @@
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import type { Pool } from 'pg';
-import { Connection, PublicKey } from '@solana/web3.js';
 import { withTransaction } from '../gameops/pool.js';
-import { FieldOwnershipError, verifyFieldOwnership } from './fieldOwnership.js';
-import { ColonyRuleError } from './engine.js';
-import { ColonyService, ColonyServiceError } from './service.js';
-import { BASE_CAPACITY, BUILDINGS, COLONY_RULESET_STATUS, COLONY_RULESET_VERSION, LAB_UPGRADE_BASE, RESEARCH, STARTER_INITIAL_RESOURCES } from './rules.js';
 import { createWalletChallenge, hashWalletChallenge, issueWalletSession, verifyWalletChallenge, verifyWalletSession, type WalletSession } from './walletAuth.js';
 
 export interface ColonyAuthRouterOptions {
@@ -15,11 +10,6 @@ export interface ColonyAuthRouterOptions {
   sessionSecret: string;
   allowedOrigins: readonly string[];
   allowLocalhostForDevelopment?: boolean;
-  fieldRpc?: Connection;
-  secondaryFieldRpc?: Connection | null;
-  requireSecondaryFieldRpc?: boolean;
-  programId?: PublicKey;
-  colonyService?: ColonyService;
 }
 
 interface ChallengeRow {
@@ -178,178 +168,11 @@ export function colonyAuthRouter(options: ColonyAuthRouterOptions): Router {
     return res.json({ wallet: session.wallet, expiresAt: new Date(session.expiresAt * 1000).toISOString(), cluster: options.cluster });
   });
 
-  router.post('/field/verify', requireSession(options), async (req: Request, res: Response) => {
-    const session = sessionOf(res);
-    if (!options.fieldRpc || !options.programId) return res.status(503).json({ error: 'FIELD_VERIFICATION_NOT_CONFIGURED' });
-    if (!isRecord(req.body) || typeof req.body.fieldAddress !== 'string') return res.status(400).json({ error: 'INVALID_FIELD_ADDRESS' });
-    try {
-      const evidence = await verifyFieldOwnership({
-        primary: options.fieldRpc,
-        secondary: options.secondaryFieldRpc ?? undefined,
-        requireSecondary: options.requireSecondaryFieldRpc,
-        cluster: options.cluster,
-        programId: options.programId,
-        wallet: session.wallet,
-        fieldAddress: req.body.fieldAddress,
-      });
-      return res.json(evidence);
-    } catch (error) {
-      if (error instanceof FieldOwnershipError) {
-        const unavailable = error.code === 'RPC_DISAGREEMENT' || error.code === 'SECONDARY_REQUIRED';
-        return res.status(unavailable ? 503 : 403).json({ error: error.code });
-      }
-      return res.status(503).json({ error: 'FIELD_RPC_UNAVAILABLE' });
-    }
-  });
-
-  router.post('/fields/link', requireSession(options), async (req: Request, res: Response) => {
-    const session = sessionOf(res);
-    if (!options.colonyService || !options.fieldRpc || !options.programId) return res.status(503).json({ error: 'COLONY_SERVICE_NOT_CONFIGURED' });
-    if (!isRecord(req.body) || typeof req.body.fieldAddress !== 'string'
-      || typeof req.body.requestId !== 'string' || typeof req.body.expectedSequence !== 'number') {
-      return res.status(400).json({ error: 'INVALID_FIELD_LINK_REQUEST' });
-    }
-    try {
-      const evidence = await verifyFieldOwnership({
-        primary: options.fieldRpc, secondary: options.secondaryFieldRpc ?? undefined,
-        requireSecondary: options.requireSecondaryFieldRpc, cluster: options.cluster,
-        programId: options.programId, wallet: session.wallet, fieldAddress: req.body.fieldAddress,
-      });
-      const result = await options.colonyService.linkField({
-        wallet: session.wallet, fieldAddress: evidence.fieldAddress,
-        requestId: req.body.requestId, expectedSequence: req.body.expectedSequence, evidence,
-      });
-      return res.json({ ...result, rulesetStatus: COLONY_RULESET_STATUS, persistent: true });
-    } catch (error) {
-      if (error instanceof FieldOwnershipError) {
-        const unavailable = error.code === 'RPC_DISAGREEMENT' || error.code === 'SECONDARY_REQUIRED';
-        return res.status(unavailable ? 503 : 403).json({ error: error.code });
-      }
-      if (error instanceof ColonyServiceError) {
-        const status = error.code === 'COLONY_NOT_FOUND' ? 404
-          : error.code === 'INVALID_REQUEST' ? 400
-          : ['VERSION_CONFLICT', 'FIELD_MISMATCH', 'IDEMPOTENCY_CONFLICT', 'FIELD_SLOT_LIMIT', 'FIELD_ALREADY_LINKED', 'FIELD_IN_USE'].includes(error.code) ? 409 : 503;
-        return res.status(status).json({ error: error.code });
-      }
-      return res.status(503).json({ error: 'COLONY_STORAGE_UNAVAILABLE' });
-    }
-  });
-
-  router.post('/fields/unlink', requireSession(options), async (req: Request, res: Response) => {
-    const session = sessionOf(res);
-    if (!options.colonyService) return res.status(503).json({ error: 'COLONY_SERVICE_NOT_CONFIGURED' });
-    if (!isRecord(req.body) || typeof req.body.fieldAddress !== 'string'
-      || typeof req.body.requestId !== 'string' || typeof req.body.expectedSequence !== 'number') {
-      return res.status(400).json({ error: 'INVALID_FIELD_UNLINK_REQUEST' });
-    }
-    try {
-      const result = await options.colonyService.unlinkField({
-        wallet: session.wallet, fieldAddress: req.body.fieldAddress,
-        requestId: req.body.requestId, expectedSequence: req.body.expectedSequence,
-      });
-      return res.json({ ...result, rulesetStatus: COLONY_RULESET_STATUS, persistent: true });
-    } catch (error) {
-      if (error instanceof ColonyServiceError) {
-        const status = error.code === 'COLONY_NOT_FOUND' ? 404
-          : error.code === 'INVALID_REQUEST' ? 400
-          : ['VERSION_CONFLICT', 'IDEMPOTENCY_CONFLICT', 'FIELD_NOT_LINKED', 'FIELD_PRIMARY_IMMUTABLE'].includes(error.code) ? 409 : 503;
-        return res.status(status).json({ error: error.code });
-      }
-      return res.status(503).json({ error: 'COLONY_STORAGE_UNAVAILABLE' });
-    }
-  });
-
-  router.post('/initialize', requireSession(options), async (req: Request, res: Response) => {
-    const session = sessionOf(res);
-    if (!options.colonyService || !options.fieldRpc || !options.programId) return res.status(503).json({ error: 'COLONY_SERVICE_NOT_CONFIGURED' });
-    if (!isRecord(req.body) || typeof req.body.fieldAddress !== 'string' || typeof req.body.requestId !== 'string') {
-      return res.status(400).json({ error: 'INVALID_INITIALIZATION_REQUEST' });
-    }
-    try {
-      const evidence = await verifyFieldOwnership({
-        primary: options.fieldRpc, secondary: options.secondaryFieldRpc ?? undefined,
-        requireSecondary: options.requireSecondaryFieldRpc, cluster: options.cluster,
-        programId: options.programId, wallet: session.wallet, fieldAddress: req.body.fieldAddress,
-      });
-      const snapshot = await options.colonyService.initialize({
-        wallet: session.wallet, fieldAddress: evidence.fieldAddress, requestId: req.body.requestId, evidence,
-      });
-      return res.status(201).json({ snapshot, rulesetStatus: 'internal-review' });
-    } catch (error) {
-      if (error instanceof FieldOwnershipError) {
-        const unavailable = error.code === 'RPC_DISAGREEMENT' || error.code === 'SECONDARY_REQUIRED';
-        return res.status(unavailable ? 503 : 403).json({ error: error.code });
-      }
-      if (error instanceof ColonyServiceError) {
-        const status = error.code === 'ENTITLEMENT_REQUIRED' ? 403 : error.code === 'INVALID_REQUEST' ? 400 : error.code === 'FIELD_MISMATCH' ? 409 : 503;
-        return res.status(status).json({ error: error.code });
-      }
-      return res.status(503).json({ error: 'COLONY_STORAGE_UNAVAILABLE' });
-    }
-  });
-
-  router.get('/rules', requireSession(options), (req: Request, res: Response) => {
-    return res.json({
-      version: COLONY_RULESET_VERSION,
-      status: COLONY_RULESET_STATUS,
-      freeStarterEnabled: options.colonyService?.freeStarterEnabled ?? false,
-      freeStarterLimit: 'one-per-wallet',
-      initialResources: STARTER_INITIAL_RESOURCES,
-      capacities: BASE_CAPACITY,
-      buildings: BUILDINGS,
-      labUpgrade: LAB_UPGRADE_BASE,
-      research: RESEARCH,
-    });
-  });
-
-  router.get('/state', requireSession(options), async (req: Request, res: Response) => {
-    const session = sessionOf(res);
-    if (!options.colonyService) return res.status(503).json({ error: 'COLONY_SERVICE_NOT_CONFIGURED' });
-    try {
-      const snapshot = await options.colonyService.get(session.wallet);
-      return res.json({ snapshot, rulesetStatus: 'internal-review', persistent: true });
-    } catch (error) {
-      if (error instanceof ColonyServiceError) return res.status(error.code === 'COLONY_NOT_FOUND' ? 404 : 503).json({ error: error.code });
-      return res.status(503).json({ error: 'COLONY_STORAGE_UNAVAILABLE' });
-    }
-  });
-
-  router.post('/actions', requireSession(options), async (req: Request, res: Response) => {
-    const session = sessionOf(res);
-    if (!options.colonyService || !options.fieldRpc || !options.programId) return res.status(503).json({ error: 'COLONY_SERVICE_NOT_CONFIGURED' });
-    if (!isRecord(req.body) || typeof req.body.requestId !== 'string' || typeof req.body.expectedSequence !== 'number' || !isRecord(req.body.action)) {
-      return res.status(400).json({ error: 'INVALID_ACTION_REQUEST' });
-    }
-    try {
-      const snapshot = await options.colonyService.get(session.wallet);
-      await verifyFieldOwnership({
-        primary: options.fieldRpc, secondary: options.secondaryFieldRpc ?? undefined,
-        requireSecondary: options.requireSecondaryFieldRpc, cluster: options.cluster,
-        programId: options.programId, wallet: session.wallet, fieldAddress: snapshot.fieldAddress,
-      });
-      const result = await options.colonyService.act({
-        wallet: session.wallet, fieldAddress: snapshot.fieldAddress,
-        requestId: req.body.requestId, expectedSequence: req.body.expectedSequence,
-        action: req.body.action as import('./engine.js').ColonyAction,
-      });
-      return res.json({ ...result, rulesetStatus: 'internal-review', persistent: true });
-    } catch (error) {
-      if (error instanceof FieldOwnershipError) {
-        const unavailable = error.code === 'RPC_DISAGREEMENT' || error.code === 'SECONDARY_REQUIRED';
-        return res.status(unavailable ? 503 : 403).json({ error: error.code });
-      }
-      if (error instanceof ColonyRuleError) {
-        const status = error.code === 'INVALID_ACTION' || error.code === 'INVALID_STATE' ? 400 : 409;
-        return res.status(status).json({ error: error.code });
-      }
-      if (error instanceof ColonyServiceError) {
-        const status = error.code === 'COLONY_NOT_FOUND' ? 404
-          : error.code === 'INVALID_REQUEST' ? 400
-          : error.code === 'VERSION_CONFLICT' || error.code === 'FIELD_MISMATCH' || error.code === 'IDEMPOTENCY_CONFLICT' ? 409 : 503;
-        return res.status(status).json({ error: error.code });
-      }
-      return res.status(503).json({ error: 'COLONY_STORAGE_UNAVAILABLE' });
-    }
+  // Старая серверная колония (B2, решение владельца 2026-11-06) закрыта. Пути отвечают 410, а не 404,
+  // чтобы старый клиент получал явный отказ. Новый путь: /api/colony-sim.
+  const RETIRED_COLONY_PATHS = ['/field/verify', '/fields/link', '/fields/unlink', '/initialize', '/rules', '/state', '/actions'];
+  router.all(RETIRED_COLONY_PATHS, (_req: Request, res: Response) => {
+    res.status(410).json({ error: 'LEGACY_COLONY_RETIRED', use: '/api/colony-sim' });
   });
 
   return router;

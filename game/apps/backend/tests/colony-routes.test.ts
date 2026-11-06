@@ -3,12 +3,10 @@ import { generateKeyPairSync, sign } from 'node:crypto';
 import { once } from 'node:events';
 import express from 'express';
 import { PublicKey } from '@solana/web3.js';
-import { anchorDiscriminator } from '../src/anchorRaw.js';
 import type { Pool, PoolClient, QueryResult } from 'pg';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { colonyAuthRouter } from '../src/colonies/routes.js';
-import type { ColonyService } from '../src/colonies/service.js';
 
 const ORIGIN = 'https://game.example';
 const SESSION_SIGNING_KEY_FOR_TESTS = 'test-only-colony-session-secret-32-bytes';
@@ -58,41 +56,9 @@ test('colony auth routes issue an origin-bound one-time session from a wallet si
   const { wallet, privateKey } = walletPair();
   const app = express();
   app.use(express.json());
-  const programId = new PublicKey(new Uint8Array(32).fill(5));
-  const fieldAddress = new PublicKey(new Uint8Array(32).fill(6));
-  const fieldData = Buffer.alloc(78); // P1-3: layout v3 (+field_id)
-  anchorDiscriminator('account', 'Field').copy(fieldData);
-  new PublicKey(wallet).toBuffer().copy(fieldData, 8);
-  fieldData.writeUInt8(1, 40); fieldData.writeUInt8(5, 41);
-  fieldData.writeBigInt64LE(0n, 42); fieldData.writeBigInt64LE(0n, 50); fieldData.writeBigInt64LE(0n, 58);
-  fieldData.writeUInt8(1, 66); fieldData.writeUInt8(0, 67); fieldData.writeUInt8(255, 68); fieldData.writeUInt8(0, 69);
-  fieldData.writeBigUInt64LE(0n, 70); // field_id
-  const fieldRpc = {
-    async getAccountInfoAndContext() {
-      return { context: { slot: 456 }, value: { data: fieldData, owner: programId } };
-    },
-  } as unknown as import('@solana/web3.js').Connection;
-  let linkedEvidence: unknown;
-  let initializedRequest: unknown;
-  let unlinkedRequest: unknown;
-  const colonyService = {
-    freeStarterEnabled: true,
-    async initialize(params: { wallet: string; fieldAddress: string; requestId: string; evidence: unknown }) {
-      initializedRequest = params;
-      return { colonyId: 'colony-test', fieldAddress: params.fieldAddress };
-    },
-    async linkField(params: { evidence: { fieldAddress: string } }) {
-      linkedEvidence = params.evidence;
-      return { snapshot: { linkedFields: [params.evidence.fieldAddress] }, duplicate: false };
-    },
-    async unlinkField(params: { wallet: string; fieldAddress: string; requestId: string; expectedSequence: number }) {
-      unlinkedRequest = params;
-      return { snapshot: { linkedFields: [] }, duplicate: false };
-    },
-  } as unknown as ColonyService;
   app.use('/api/colonies', colonyAuthRouter({
     pool: challengeDb(), cluster: 'mainnet-beta', sessionSecret: SESSION_SIGNING_KEY_FOR_TESTS,
-    allowedOrigins: [ORIGIN], fieldRpc, programId, colonyService,
+    allowedOrigins: [ORIGIN],
   }));
   const server = createServer(app);
   server.listen(0, '127.0.0.1');
@@ -111,49 +77,10 @@ test('colony auth routes issue an origin-bound one-time session from a wallet si
     const session = await verifyResponse.json() as { token: string; wallet: string; cluster: string };
     assert.equal(session.wallet, wallet);
     assert.equal(session.cluster, 'mainnet-beta');
-    const rulesResponse = await fetch(`${base}/rules`, { headers: { origin: ORIGIN, authorization: `Bearer ${session.token}` } });
-    assert.equal(rulesResponse.status, 200);
-    const rules = await rulesResponse.json() as { status: string; freeStarterEnabled: boolean; freeStarterLimit: string; buildings: Record<string, unknown> };
-    assert.equal(rules.status, 'internal-review');
-    assert.equal(rules.freeStarterEnabled, true);
-    assert.equal(rules.freeStarterLimit, 'one-per-wallet');
 
     const sessionResponse = await fetch(`${base}/auth/session`, { headers: { origin: ORIGIN, authorization: `Bearer ${session.token}` } });
     assert.equal(sessionResponse.status, 200);
     assert.equal((await sessionResponse.json() as { wallet: string }).wallet, wallet);
-
-    const fieldResponse = await fetch(`${base}/field/verify`, {
-      method: 'POST', headers: { ...headers, authorization: `Bearer ${session.token}` },
-      body: JSON.stringify({ fieldAddress: fieldAddress.toBase58() }),
-    });
-    assert.equal(fieldResponse.status, 200);
-    assert.equal((await fieldResponse.json() as { fieldAddress: string; wallet: string }).fieldAddress, fieldAddress.toBase58());
-
-    const initializeResponse = await fetch(`${base}/initialize`, {
-      method: 'POST', headers: { ...headers, authorization: `Bearer ${session.token}` },
-      body: JSON.stringify({ fieldAddress: fieldAddress.toBase58(), requestId: '50000000-0000-4000-8000-000000000003' }),
-    });
-    assert.equal(initializeResponse.status, 201);
-    assert.deepEqual(initializedRequest, {
-      wallet, fieldAddress: fieldAddress.toBase58(), requestId: '50000000-0000-4000-8000-000000000003',
-      evidence: { wallet, fieldAddress: fieldAddress.toBase58(), cluster: 'mainnet-beta', observedSlot: 456, commitment: 'finalized', fieldLevel: 1, fieldType: 0, durability: 5 },
-    });
-
-    const linkResponse = await fetch(`${base}/fields/link`, {
-      method: 'POST', headers: { ...headers, authorization: `Bearer ${session.token}` },
-      body: JSON.stringify({ fieldAddress: fieldAddress.toBase58(), requestId: '50000000-0000-4000-8000-000000000001', expectedSequence: 1 }),
-    });
-    assert.equal(linkResponse.status, 200);
-    assert.equal((await linkResponse.json() as { duplicate: boolean }).duplicate, false);
-    assert.equal((linkedEvidence as { commitment: string }).commitment, 'finalized');
-
-    const unlinkResponse = await fetch(`${base}/fields/unlink`, {
-      method: 'POST', headers: { ...headers, authorization: `Bearer ${session.token}` },
-      body: JSON.stringify({ fieldAddress: fieldAddress.toBase58(), requestId: '50000000-0000-4000-8000-000000000002', expectedSequence: 2 }),
-    });
-    assert.equal(unlinkResponse.status, 200);
-    assert.equal((await unlinkResponse.json() as { duplicate: boolean }).duplicate, false);
-    assert.deepEqual(unlinkedRequest, { wallet, fieldAddress: fieldAddress.toBase58(), requestId: '50000000-0000-4000-8000-000000000002', expectedSequence: 2 });
 
     const replay = await fetch(`${base}/auth/verify`, { method: 'POST', headers, body: JSON.stringify({ wallet, challengeId: challenge.challengeId, message: challenge.message, signature }) });
     assert.equal(replay.status, 401);
@@ -166,22 +93,15 @@ test('colony auth routes issue an origin-bound one-time session from a wallet si
 });
 
 /**
- * Каждый защищённый маршрут обязан требовать сессию. Проверка идёт по списку
- * маршрутов, а не по одному: раньше проверка origin/Bearer копировалась в каждый
- * хендлер, и новый маршрут можно было добавить без неё. Теперь проверка одна
- * (`requireSession`), а этот тест следит, чтобы она была навешена на всё, что
- * отдаёт данные кошелька.
+ * Старая серверная колония закрыта (B2, решение владельца 2026-11-06). Её пути отвечают 410
+ * независимо от сессии: данные колонии с них не отдаются, а клиент получает явный отказ.
  */
-test('все защищённые маршруты колоний отвечают 401 без origin/токена и с битым токеном', async () => {
+test('старые маршруты колонии отвечают 410 и не отдают данные, даже с валидной сессией', async () => {
   const app = express();
   app.use(express.json());
-  const colonyService = {
-    freeStarterEnabled: false,
-    async get() { return { colonyId: 'c1' }; },
-  } as unknown as ColonyService;
   app.use('/api/colonies', colonyAuthRouter({
     pool: challengeDb(), cluster: 'devnet', sessionSecret: SESSION_SIGNING_KEY_FOR_TESTS,
-    allowedOrigins: [ORIGIN], colonyService,
+    allowedOrigins: [ORIGIN],
   }));
   const server = createServer(app);
   server.listen(0, '127.0.0.1');
@@ -189,40 +109,64 @@ test('все защищённые маршруты колоний отвечаю
   const address = server.address();
   assert.ok(address && typeof address !== 'string');
   const base = `http://127.0.0.1:${address.port}/api/colonies`;
-  const protectedRoutes: Array<{ method: 'GET' | 'POST'; path: string; body?: unknown }> = [
-    { method: 'GET', path: '/auth/session' },
+  const retired: Array<{ method: 'GET' | 'POST'; path: string }> = [
+    { method: 'POST', path: '/field/verify' },
+    { method: 'POST', path: '/fields/link' },
+    { method: 'POST', path: '/fields/unlink' },
+    { method: 'POST', path: '/initialize' },
     { method: 'GET', path: '/rules' },
     { method: 'GET', path: '/state' },
-    { method: 'POST', path: '/field/verify', body: { fieldAddress: 'A'.repeat(32) } },
-    { method: 'POST', path: '/fields/link', body: { fieldAddress: 'A'.repeat(32), requestId: 'r', expectedSequence: 1 } },
-    { method: 'POST', path: '/fields/unlink', body: { fieldAddress: 'A'.repeat(32), requestId: 'r', expectedSequence: 1 } },
-    { method: 'POST', path: '/initialize', body: { fieldAddress: 'A'.repeat(32), requestId: 'r' } },
-    { method: 'POST', path: '/actions', body: { requestId: 'r', expectedSequence: 1, action: { type: 'start_lab_upgrade' } } },
+    { method: 'POST', path: '/actions' },
   ];
   const longEnoughButFake = `Bearer ${'a'.repeat(40)}`;
   try {
-    for (const route of protectedRoutes) {
-      const withBody = (headers: Record<string, string>) => ({
-        method: route.method,
-        headers: { 'content-type': 'application/json', ...headers },
-        ...(route.body === undefined ? {} : { body: JSON.stringify(route.body) }),
+    for (const route of retired) {
+      const withSession = await fetch(`${base}${route.path}`, {
+        method: route.method, headers: { 'content-type': 'application/json', origin: ORIGIN, authorization: longEnoughButFake },
+        ...(route.method === 'POST' ? { body: JSON.stringify({}) } : {}),
       });
-
-      const noOrigin = await fetch(`${base}${route.path}`, withBody({ authorization: longEnoughButFake }));
-      assert.equal(noOrigin.status, 401, `${route.path}: без origin должно быть 401`);
-      assert.equal((await noOrigin.json() as { error: string }).error, 'SESSION_REQUIRED');
-
-      const noToken = await fetch(`${base}${route.path}`, withBody({ origin: ORIGIN }));
-      assert.equal(noToken.status, 401, `${route.path}: без токена должно быть 401`);
-      assert.equal((await noToken.json() as { error: string }).error, 'SESSION_REQUIRED');
-
-      const badToken = await fetch(`${base}${route.path}`, withBody({ origin: ORIGIN, authorization: longEnoughButFake }));
-      assert.equal(badToken.status, 401, `${route.path}: с битым токеном должно быть 401`);
-      assert.equal((await badToken.json() as { error: string }).error, 'SESSION_INVALID');
-
-      const wrongOrigin = await fetch(`${base}${route.path}`, withBody({ origin: 'https://attacker.example', authorization: longEnoughButFake }));
-      assert.equal(wrongOrigin.status, 401, `${route.path}: чужой origin должен отклоняться`);
+      assert.equal(withSession.status, 410, `${route.path}: должно быть 410`);
+      assert.equal((await withSession.json() as { error: string }).error, 'LEGACY_COLONY_RETIRED');
     }
+  } finally {
+    server.close();
+    await once(server, 'close');
+  }
+});
+
+/**
+ * Единственный защищённый маршрут этого роутера — /auth/session. Он обязан требовать origin и Bearer.
+ * Проверка идёт через `requireSession`, а не копируется в хендлер.
+ */
+test('/auth/session отвечает 401 без origin/токена, с битым токеном и с чужим origin', async () => {
+  const app = express();
+  app.use(express.json());
+  app.use('/api/colonies', colonyAuthRouter({
+    pool: challengeDb(), cluster: 'devnet', sessionSecret: SESSION_SIGNING_KEY_FOR_TESTS,
+    allowedOrigins: [ORIGIN],
+  }));
+  const server = createServer(app);
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+  const base = `http://127.0.0.1:${address.port}/api/colonies`;
+  const longEnoughButFake = `Bearer ${'a'.repeat(40)}`;
+  try {
+    const noOrigin = await fetch(`${base}/auth/session`, { headers: { authorization: longEnoughButFake } });
+    assert.equal(noOrigin.status, 401);
+    assert.equal((await noOrigin.json() as { error: string }).error, 'SESSION_REQUIRED');
+
+    const noToken = await fetch(`${base}/auth/session`, { headers: { origin: ORIGIN } });
+    assert.equal(noToken.status, 401);
+    assert.equal((await noToken.json() as { error: string }).error, 'SESSION_REQUIRED');
+
+    const badToken = await fetch(`${base}/auth/session`, { headers: { origin: ORIGIN, authorization: longEnoughButFake } });
+    assert.equal(badToken.status, 401);
+    assert.equal((await badToken.json() as { error: string }).error, 'SESSION_INVALID');
+
+    const wrongOrigin = await fetch(`${base}/auth/session`, { headers: { origin: 'https://attacker.example', authorization: longEnoughButFake } });
+    assert.equal(wrongOrigin.status, 401);
   } finally {
     server.close();
     await once(server, 'close');
