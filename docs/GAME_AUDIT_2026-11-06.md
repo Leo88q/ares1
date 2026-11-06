@@ -19,7 +19,7 @@ backend, web), а не по описаниям в документах. Где �
 | C3 | Низкая | Комментарий `colonyFeature.ts` и статус `COLONY_POTATO_ECONOMY_PROPOSAL.md` устарели | 🔧 |
 | C4 | Высокая (документ) | `docs/V1_SCOPE_STATUS.md` от 16.10 — устарел почти во всех строках экономики | 📄 (шапка-предупреждение, полная переписка — отдельно) |
 | A5 | Высокая (проверить) | Ручной `harvestBed` на сервере обходит учёт семян (вероятно, не доказано запуском) | ❓ проверить первым |
-| D1 | Низкая | Мёртвый код: `EngineeringConsole`, `receiveLabFood`, `shippableLots`, `supplyGrant`, `potatoEstimate` | ❓ (уборка после решения A1) |
+| D1 | Низкая | Мёртвый код: `EngineeringConsole`, `receiveLabFood`, `shippableLots`, `supplyGrant`, `potatoEstimate` | 🔧 частично: удалены `Button`, `PersistentColonyPanel`, `loading` (с ассетом), `utils/referral`, 67 сиротских ключей в 6 словарях. Сохранены приёмник переноса (`lab/bridge`), модель и UI стенда до этапов 1–4. `colonies/*` ждёт решения владельца |
 
 ## 1a. Решения владельца (2026-11-06) и что сделано
 
@@ -29,7 +29,7 @@ backend, web), а не по описаниям в документах. Где �
 - **Старая колония (`/base/status`):** страница и маршрут удалены. Backend-модуль `colonies/` (ruleset v4, метал / вода / энергия / наука) оставлен выключенным (`COLONIES_ENABLED=false`): модуль содержит `potatoSpend`, который используется новой колонией, и миграцию 0010. Удаление модуля — отдельная задача, нужна миграция.
 - **Тесты, которые читали удалённые файлы,** обновлены: проверка отсутствия маршрута вместо наличия, ключи «сиротских» строк удалены из шести словарей.
 
-Мёртвый код после этих решений: `PersistentColonyPanel.tsx` (был только на удалённой странице), `EngineeringConsole`, `receiveLabFood`, `shippableLots`, `supplyGrant`.
+Мёртвый код после этих решений: `PersistentColonyPanel.tsx` (был только на удалённой странице) удалён. `EngineeringConsole`, `receiveLabFood`, `shippableLots`, `supplyGrant` не удалены: это модель и приёмник переноса для этапов 1–4 и решения по A1 (см. `docs/LAB_BENCH_PARAMS_MAPPING.md` §8.1).
 
 ## 2. Экономика колонии
 

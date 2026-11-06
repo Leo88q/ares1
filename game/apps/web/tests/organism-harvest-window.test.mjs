@@ -55,19 +55,21 @@ test('overripe window (LAB.overripeHours): factor 1 − 0.5 × (since / W) / 0.2
   m0: harvestMass(at(1, 100, 100)),
   h12: harvestMass(at(1, 100 + 12, 100)),
   h72: harvestMass(at(1, 100 + 72, 100)),
-  h140: harvestMass(at(1, 100 + 0.1944 * W, 100)),
-  open140: canHarvest(at(1, 100 + 0.1944 * W, 100)),
-  closed: canHarvest(at(1, 100 + 0.2 * W + 24, 100)),
+  h140: harvestMass(at(1, 100 + 140, 100)),
+  open140: canHarvest(at(1, 100 + 140, 100)),
+  closed170: canHarvest(at(1, 100 + 170, 100)),
 }))`)
   const K = r.K, W = r.W
   const factor = (since) => 1 - 0.5 * ((since / W) / 0.2)
+  // Границы из плана (+12, +72, +140 открыто, +170 закрыто) должны лежать по разные стороны от 0,2 × W.
+  assert.ok(140 < 0.2 * W && 0.2 * W < 170, `окно ${0.2 * W} ч не совпадает с границами +140/+170`)
   assert.ok(Math.abs(r.m0 - K) < 1e-9)
   assert.ok(Math.abs(r.h12 - K * factor(12)) < 1e-9, `12h ${r.h12}`)
   assert.ok(Math.abs(r.h72 - K * factor(72)) < 1e-9, `72h ${r.h72}`)
-  assert.ok(Math.abs(r.h140 - K * factor(0.1944 * W)) < 1e-9, `140h ${r.h140}`)
+  assert.ok(Math.abs(r.h140 - K * factor(140)) < 1e-9, `140h ${r.h140}`)
   assert.equal(r.open140, true)
   // window closes when ratio exceeds 1.2, i.e. after 0.2 × W hours
-  assert.equal(r.closed, false)
+  assert.equal(r.closed170, false)
 })
 
 test('dead or unplanted crops cannot be harvested; ratio is 0', () => {

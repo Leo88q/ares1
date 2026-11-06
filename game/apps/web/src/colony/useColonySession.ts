@@ -1,6 +1,5 @@
 // Вход по кошельку для API колонии: одноразовый challenge, подпись, токен сессии.
-// Подпись не переводит токены и не отправляет транзакцию. Вынесено из PersistentColonyPanel,
-// чтобы серверная симуляция и постоянная колония использовали один и тот же вход.
+// Подпись не переводит токены и не отправляет транзакцию. Общий вход для серверной симуляции колонии.
 import { useCallback, useEffect, useState } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { BACKEND_URL, CLUSTER } from '../contexts/SolanaContext'

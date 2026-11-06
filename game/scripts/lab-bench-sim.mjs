@@ -2,12 +2,16 @@
 // Суточная модель (1 сол). Единицы и источники — docs/LAB_BENCH_PARAMS_MAPPING.md.
 // Допущения: выход 0,12 кг/м²/сол (PARAMETERS.cropKgM2Day), срок сырья 3 сол (rawShelfSols),
 // переработка 4,2 кг/сол без экипажа (processUnstaffedKgPerSol), склад стенда 45 кг (storageCapacityKg),
-// сбор раз в цикл, полный выход партии. Горизонт 180 сол. Запуск: node scripts/lab-bench-sim.mjs
+// сбор раз в цикл, полный выход партии. Вода: колониальная норма 4,3 л/м²/сол (deep/params.ts),
+// бак стенда 120 л; остаток за цикл — со склада колонии (решение владельца, §8 документа).
+// Горизонт 180 сол. Запуск: node scripts/lab-bench-sim.mjs
 const KG_M2_SOL = 0.12
 const RAW_SHELF = 3
 const PROCESS_KG_SOL = 4.2
 const STORAGE_KG = 45
 const HORIZON = 180
+const WATER_L_M2_SOL = 4.3
+const TANK_L = 120
 
 export function simulate({ areaM2, cycleSols, horizon = HORIZON }) {
   const batch = areaM2 * KG_M2_SOL * cycleSols
@@ -48,6 +52,8 @@ export function simulate({ areaM2, cycleSols, horizon = HORIZON }) {
     peakStorageKg: peakStorage,
     fitsStorage: peakStorage <= STORAGE_KG + 1e-9,
     kgPerSol: areaM2 * KG_M2_SOL,
+    waterPerCycleL: areaM2 * WATER_L_M2_SOL * cycleSols,
+    tankCoverPct: 100 * Math.min(TANK_L, areaM2 * WATER_L_M2_SOL * cycleSols) / (areaM2 * WATER_L_M2_SOL * cycleSols),
   }
 }
 
@@ -55,9 +61,9 @@ export function simulate({ areaM2, cycleSols, horizon = HORIZON }) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const areas = [2, 3, 3.5, 4, 5, 6]
   const cycles = [6, 10, 15, 20, 30, 45, 90]
-  console.log('area_m2 cycle_sols batch_kg harvests first_sol waste_% peak_kg fits_storage kg_per_sol')
+  console.log('area_m2 cycle_sols batch_kg harvests first_sol waste_% peak_kg fits_storage kg_per_sol water_cycle_L tank_cover_%')
   for (const a of areas) for (const c of cycles) {
     const r = simulate({ areaM2: a, cycleSols: c })
-    console.log([a, c, r.batchKg.toFixed(1), r.harvests, r.firstHarvest, r.wastePct.toFixed(1), r.peakStorageKg.toFixed(1), r.fitsStorage, r.kgPerSol.toFixed(2)].join('\t'))
+    console.log([a, c, r.batchKg.toFixed(1), r.harvests, r.firstHarvest, r.wastePct.toFixed(1), r.peakStorageKg.toFixed(1), r.fitsStorage, r.kgPerSol.toFixed(2), r.waterPerCycleL.toFixed(1), r.tankCoverPct.toFixed(0)].join('\t'))
   }
 }

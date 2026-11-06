@@ -90,6 +90,7 @@ http://127.0.0.1:8080/api/gameops/ready` — `ready: true` и все прове�
 ```env
 SOLANA_CLUSTER=devnet
 COLONIES_ENABLED=true
+COLONY_FREE_STARTER_ENABLED=true
 GAME_OPS_DB_ROLE=game_ops_writer
 GAME_OPS_EXPECTED_SCHEMA_VERSION=16
 ```
@@ -148,7 +149,7 @@ yarn test:db:unit # isolated PGlite migrations + schema/Colony grants; no config
 | `intents.ledger_amount_match` | суммы и получатели подтверждённых интентов совпадают с зеркалом (ловит подмену денежного поля интента, которую hash-chain не видит) |
 | `reconciliation.drift` | по каждому потоку последняя сверка имеет `drift = 0` |
 
-Локальный прогон `yarn test:db:unit` (PGlite 0.5.8) применяет миграции `0001`–`0016`; проверки включают grants, безопасную бесплатную стартовую выдачу и повторный claim. Отдельный CI job `gameops-db` применяет миграции на настоящем PostgreSQL и запускает `tests/db/*.test.ts` с runtime-ролью. Сервисный путь старой колонии (`colony-postgres.test.ts`) удалён 2026-11-06 вместе с модулем: проверка на настоящем PostgreSQL для него больше не выполняется. В этом workspace operational `GAME_OPS_TEST_URL` не задан, поэтому PostgreSQL acceptance и `db:verify` против целевой БД здесь не выполнялись. PGlite не проверяет failover, managed-provider behavior, production backup или restore; CI acceptance тоже не заменяет эксплуатационный backup/restore drill.
+Локальный прогон `yarn test:db:unit` (PGlite 0.5.8) применяет миграции `0001`–`0016`; проверки включают grants, Field-link lifecycle, безопасную бесплатную стартовую выдачу и повторный claim. Отдельный CI job `gameops-db` применяет миграции на настоящем PostgreSQL и запускает `colony-postgres.test.ts` с runtime-ролью, включая сервисный путь создания Colony. В этом workspace operational `GAME_OPS_TEST_URL` не задан, поэтому PostgreSQL acceptance и `db:verify` против целевой БД здесь не выполнялись. PGlite не проверяет failover, managed-provider behavior, production backup или restore; CI acceptance тоже не заменяет эксплуатационный backup/restore drill.
 
 ## 4. Что делать, если
 

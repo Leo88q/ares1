@@ -266,9 +266,9 @@ function growBeds(b: UnifiedBase, growth: GrowthInput, opts: AdvanceOptions = {}
   return cur
 }
 
-/** Raw → processed, at the LAB line rate (0.7 kg/h × 24 h) with its 85 % yield. */
+/** Raw → processed, one sol at the LAB line rate (4,2 кг/сол = processorRateKgph × solHours) with its 85 % yield. */
 function processDay(b: UnifiedBase): UnifiedBase {
-  const x = Math.min(b.rawKg, LAB.processorRateKgph * 24)
+  const x = Math.min(b.rawKg, LAB.processorRateKgph * LAB.solHours)
   if (x <= 0) return b
   return {
     ...b,

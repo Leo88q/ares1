@@ -27,6 +27,7 @@
     "scripts/db-migrate.ts",
     "scripts/db-roles.ts",
     "scripts/db-verify.ts",
+    "scripts/colony-audit.ts",
     "scripts/db-bench.ts",
     "scripts/db-mutate.ts",
     "scripts/presale-reconcile.ts",

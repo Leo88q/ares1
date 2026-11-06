@@ -75,20 +75,17 @@ test('the field selector has no demo source, local resource ledger, or SIM contr
   assert.doesNotMatch(art, /mf-source-tabs|eg-console|eg-telemetry|eg-topology|is-sim/i)
 })
 
-test('the colony tab connects only to the persistent backend and never simulates authoritative state', () => {
-  const panel = source('components/PersistentColonyPanel.tsx')
-  // Вход по кошельку вынесен в общий хук useColonySession (challenge → подпись → verify).
+test('the colony tab connects only to the persistent backend; retired colony screen and routes stay removed', () => {
+  // Старая панель колонии (PersistentColonyPanel) удалена 2026-11-06 вместе с закрытыми путями
+  // /api/colonies/{initialize,fields/*,state,rules,actions}. Вход по кошельку — общий хук.
+  assert.throws(() => source('components/PersistentColonyPanel.tsx'), /ENOENT/)
   const session = source('colony/useColonySession.ts')
-  assert.match(panel, /useColonySession\(\)/)
   assert.match(session, /\/auth\/challenge/)
-  assert.match(panel, /\/initialize/)
-  assert.match(panel, /\/actions/)
-  assert.match(panel, /\/state/)
-  assert.match(panel, /expectedSequence/)
   assert.match(session, /session\.cluster !== CLUSTER/)
   assert.match(session, /wallet\.connected && !!wallet\.signMessage/)
-  assert.match(panel, /\/rules/)
-  assert.doesNotMatch(panel, /localStorage|initialColony|advanceDays|setItem\(/)
+  const web = ['colony/useColonySession.ts', 'colony/simClient.ts', 'colony/ColonySimProvider.tsx', 'colony/serverLink.ts']
+    .map(source).join('\n')
+  assert.doesNotMatch(web, /api\/colonies\/(initialize|fields|field|rules|state|actions)/)
 })
 
 test('all user-facing SKR purchase controls stay closed; real POTATO field gameplay remains separate', () => {
