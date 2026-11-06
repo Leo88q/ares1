@@ -53,7 +53,9 @@ test('Lab reads only connected wallet fields and reuses on-chain actions', () =>
   // запчасти из общего стока базы через colony/bridge, а не из локального стенда.
   // Границы остались: никакой покупки поля, localStorage и подписи транзакций.
   assert.match(lab, /import \{ useColony \} from '\.\.\/colony\/ColonyContext'/)
-  assert.match(lab, /drawFromColony\(current, item\.key, SUPPLY_STEP\[item\.key\]\)/)
+  // Перенос идёт через серверное действие labDraw (perform), а не через локальный setState.
+  assert.match(lab, /perform\(\{ type: 'labDraw', resource: item\.key, kg: SUPPLY_STEP\[item\.key\] \}\)/)
+  assert.doesNotMatch(lab, /drawFromColony|setState/)
   assert.doesNotMatch(lab, /ColonyProvider|BENCH_PREFIX|demo=|onBuy=|purchaseField|localStorage|sessionStorage|sendTransaction/i)
 })
 
@@ -76,14 +78,17 @@ test('the field selector has no demo source, local resource ledger, or SIM contr
 test('the colony tab connects only to the persistent backend and never simulates authoritative state', () => {
   const status = source('components/ColonyStatusScreen.tsx')
   const panel = source('components/PersistentColonyPanel.tsx')
+  // Вход по кошельку вынесен в общий хук useColonySession (challenge → подпись → verify).
+  const session = source('colony/useColonySession.ts')
   assert.match(status, /PersistentColonyPanel/)
-  assert.match(panel, /\/auth\/challenge/)
+  assert.match(panel, /useColonySession\(\)/)
+  assert.match(session, /\/auth\/challenge/)
   assert.match(panel, /\/initialize/)
   assert.match(panel, /\/actions/)
   assert.match(panel, /\/state/)
   assert.match(panel, /expectedSequence/)
-  assert.match(panel, /session\.cluster !== CLUSTER/)
-  assert.match(panel, /wallet\.connected && !wallet\.signMessage/)
+  assert.match(session, /session\.cluster !== CLUSTER/)
+  assert.match(session, /wallet\.connected && !!wallet\.signMessage/)
   assert.match(panel, /\/rules/)
   assert.doesNotMatch(panel, /localStorage|initialColony|advanceDays|setItem\(/)
 })

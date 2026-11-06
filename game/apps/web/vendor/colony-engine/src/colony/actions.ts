@@ -12,11 +12,15 @@ import {
 import { addNetwork, NETWORK_TYPES, removeNetwork, type ColonyNetwork, type NetworkType } from './networks.js'
 import type { Placement, QuarterTurn } from './layout.js'
 import { RESOURCE_IDS, type ResourceId } from './deep/resources.js'
-import { ANALYSIS_KINDS, type AnalysisKind, type Regime } from './deep/lab.js'
+import { ANALYSIS_KINDS, ANALYSIS_META, type AnalysisKind, type Regime } from './deep/lab.js'
 import {
   applyRecipe, cancelTask, deliverContract, importResource, isolateSection, requestAnalysis, saveRecipe,
-  setRisky, setSafeMode, setStandby, setTaskPaused, setTaskPriority, startExperiment,
+  setRisky, setSafeMode, setStandby, setTaskPaused, setTaskPriority, startExperiment, takeSample,
 } from './deep/world.js'
+import { drawFromColony, type LabSupplyResource } from './supply.js'
+
+/** Ресурсы, которые лаборатория может забрать из стока колонии (совпадает с веб-мостом). */
+const LAB_RESOURCES: readonly LabSupplyResource[] = ['water', 'nutrients', 'spares']
 
 /** Версия правил движка. Меняется вместе с золотым хешем в test/determinism.test.mjs. */
 export const ENGINE_VERSION = 1
@@ -57,6 +61,7 @@ export type SimAction =
   | { type: 'harvestBed'; moduleId: string; index: number }
   | { type: 'networkAdd'; network: { type: NetworkType; from: string; to: string; cells: { x: number; z: number }[] } }
   | { type: 'networkRemove'; networkId: string }
+  | { type: 'labDraw'; resource: LabSupplyResource; kg: number }
   | { type: 'deep'; deep: DeepAction }
   | { type: 'reset' }
 
@@ -128,6 +133,9 @@ export function applyAction(session: SimSession, action: SimAction): ApplyResult
     case 'networkRemove':
       next.state = removeNetwork(s, action.networkId)
       break
+    case 'labDraw':
+      next.state = drawFromColony(s, action.resource, action.kg).state
+      break
     case 'deep': {
       if (!world) return { ok: false, code: 'NO_WORLD' }
       applyDeep(world, action.deep)
@@ -150,7 +158,11 @@ function applyDeep(world: NonNullable<ColonyState['world']>, op: DeepAction): vo
     case 'standby': setStandby(world, op.deviceId, op.on); break
     case 'risky': setRisky(world, op.targetId, op.on); break
     case 'contractDeliver': deliverContract(world, op.contractId, op.kg); break
-    case 'analysis': requestAnalysis(world, op.kind, op.targetId); break
+    // Проба и анализ — одна операция: так же, как кнопка «Анализ» в клиенте (проба тратит воду).
+    case 'analysis':
+      takeSample(world, ANALYSIS_META[op.kind].sample, op.targetId)
+      requestAnalysis(world, op.kind, op.targetId)
+      break
     case 'experimentStart': startExperiment(world, op.name, op.sols, op.regimeA, op.regimeB); break
     case 'recipeSave': saveRecipe(world, op.experimentId); break
     case 'recipeApply': applyRecipe(world, op.recipeId, op.greenhouseId); break
@@ -259,6 +271,10 @@ export function parseSimAction(input: unknown): SimAction | null {
     }
     case 'networkRemove':
       return isId(input.networkId) ? { type: 'networkRemove', networkId: input.networkId } : null
+    case 'labDraw':
+      return typeof input.resource === 'string' && (LAB_RESOURCES as readonly string[]).includes(input.resource)
+        && isNum(input.kg, 0, 1_000)
+        ? { type: 'labDraw', resource: input.resource as LabSupplyResource, kg: input.kg } : null
     case 'deep': {
       const deep = parseDeep(input.deep)
       return deep ? { type: 'deep', deep } : null

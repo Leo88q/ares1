@@ -136,3 +136,34 @@ test('deep-журнал: реальные операции меняют мир �
   for (const a of deepJournal.slice(3)) { const r = applyAction(u, a); if (r.ok) u = r.session }
   assert.equal(serializeSession(u), serializeSession(s))
 })
+
+test('labDraw: разбор отбрасывает чужой ресурс и отрицательный объём; применение списывает из стока', () => {
+  assert.deepEqual(parseSimAction({ type: 'labDraw', resource: 'water', kg: 40 }), { type: 'labDraw', resource: 'water', kg: 40 })
+  assert.equal(parseSimAction({ type: 'labDraw', resource: 'gold', kg: 1 }), null)
+  assert.equal(parseSimAction({ type: 'labDraw', resource: 'water', kg: -1 }), null)
+  assert.equal(parseSimAction({ type: 'labDraw', resource: 'water', kg: 'много' }), null)
+  const s0 = freshSession()
+  const r = applyAction(s0, { type: 'labDraw', resource: 'water', kg: 40 })
+  assert.ok(r.ok, 'перенос воды со стока колонии принимается')
+  assert.ok(Math.abs(r.session.state.waterLitres - (s0.state.waterLitres - 40)) < 1e-9)
+  // Исходный сеанс не меняется.
+  assert.equal(serializeSession(s0), serializeSession(freshSession()))
+})
+
+test('labDraw: пустой сток или нулевой объём — NO_EFFECT (такой перенос не оплачивается и не пишется)', () => {
+  const s = freshSession()
+  assert.deepEqual(applyAction(s, { type: 'labDraw', resource: 'water', kg: 0 }), { ok: false, code: 'NO_EFFECT' })
+  const emptied = JSON.parse(serializeSession(s))
+  emptied.state.nutrientsKg = 0
+  assert.deepEqual(applyAction(emptied, { type: 'labDraw', resource: 'nutrients', kg: 0.2 }), { ok: false, code: 'NO_EFFECT' })
+})
+
+test('analysis: проба и анализ — одна операция (проба тратит воду и добавляет образец)', () => {
+  const s = freshSession()
+  const before = s.state.world
+  const r = applyAction(s, { type: 'deep', deep: { op: 'analysis', kind: 'water_quality', targetId: 'greenhouse-5' } })
+  assert.ok(r.ok, 'проба должна измениться даже без доставленного образца')
+  const after = r.session.state.world
+  assert.equal(after.samples.length, before.samples.length + 1, 'появился образец')
+  assert.ok(after.totals.waterIndustrialL > before.totals.waterIndustrialL, 'проба записана в отчёт воды')
+})

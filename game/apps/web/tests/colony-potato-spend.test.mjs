@@ -174,21 +174,32 @@ test('ColonyScreen: оплата только при переданном potato
   const screen = read('colony/ColonyScreen.tsx')
   assert.doesNotMatch(screen, /useGame\(|useSolana\(/, 'экран колонии остаётся без кошелька и игровых провайдеров')
   assert.match(screen, /potatoSpend\?: PotatoSpend/)
-  const confirm = screen.match(/const confirmPlacement = async[\s\S]*?\n  }\n/)
+  // Единый путь: стоимость из движка (spendFor), проверка до оплаты, оплата до действия на сервере.
+  assert.match(screen, /const cost = spendFor\(action\)/)
+  const run = screen.match(/const run = async[\s\S]*?\n  }\n/)
+  assert.ok(run, 'run найден')
+  const r = run[0]
+  assert.ok(r.indexOf('colony.canPerform(action)') >= 0 && r.indexOf('colony.canPerform(action)') < r.indexOf('payColony('), 'предпроверка до оплаты')
+  assert.ok(r.indexOf('payColony(') < r.indexOf('colony.perform('), 'оплата до действия')
+  assert.ok(r.indexOf('payColony(') > 0 && r.indexOf('if (cost && potatoSpend)') > 0, 'оплата только при стоимости и переданном potatoSpend')
+  // Перенос (move) не имеет стоимости: spendFor возвращает null, POTATO не списывается.
+  const confirm = screen.match(/const confirmPlacement = \(\): void => \{[\s\S]*?\n  }\n/)
   assert.ok(confirm, 'confirmPlacement найден')
-  const c = confirm[0]
-  assert.match(c, /!draft\.moveId && !\(await payColony\(COLONY_PURPOSE\.build/)
-  assert.ok(c.indexOf('payColony(') < c.indexOf('setState(current'), 'оплата до изменения колонии')
-  const repair = screen.match(/const repair = async[\s\S]*?\n  }\n/)
+  assert.match(confirm[0], /type: 'move'/)
+  assert.match(confirm[0], /void run\(action/)
+  // Ремонт: стоимость задаёт движок (repairCredits внутри spendFor), экран её не дублирует.
+  const repair = screen.match(/const repair = \(\): void => \{[^\n]*\}/)
   assert.ok(repair, 'repair найден')
-  assert.match(repair[0], /!\(await payColony\(COLONY_PURPOSE\.repair/)
-  assert.ok(repair[0].indexOf('payColony(') < repair[0].indexOf('setState(repairColony)'))
-  assert.match(screen, /PARAMETERS\.repairCredits/)
+  assert.match(repair[0], /run\(\{ type: 'repair' \}\)/)
+  const actions = readFileSync(new URL('../vendor/colony-engine/src/colony/actions.ts', import.meta.url), 'utf8')
+  assert.match(actions, /if \(action\.type === 'repair'\) return \{ purpose: 2, cr: PARAMETERS\.repairCredits \}/)
+  assert.match(actions, /return null\n}/)
 })
 
 test('маршрут /base: флаг POTATO-трат стоит в обёртке, а не в экране; экран подключается лениво', () => {
   const route = read('colony/ColonyBaseRoute.tsx')
-  assert.match(route, /COLONY_POTATO_SPEND_ENABLED \? spendColonyPotato : undefined/)
+  assert.match(route, /const spendEnabled = COLONY_SIM_ENABLED && COLONY_POTATO_SPEND_ENABLED/)
+  assert.match(route, /potatoSpend=\{spendEnabled \? spendColonyPotato : undefined\}/)
   const app = read('App.tsx')
   assert.match(app, /lazy\(\(\) => import\('\.\/colony\/ColonyBaseRoute'\)\)/)
   assert.match(app, /path="\/base" element=\{<ColonyBaseRoute \/>\}/)

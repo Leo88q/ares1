@@ -826,6 +826,7 @@ export default {
   'СВОБОДНО В ХРАНИЛИЩЕ': 'RUANG PENYIMPANAN',
   'ВЗЯТЬ': 'AMBIL',
   'ВЗЯТЬ ИЗ КОЛОНИИ': 'Ambil dari koloni',
+  'Колония ещё не загружена с сервера. Войдите через кошелёк в разделе КОЛОНИЯ.': 'Koloni belum dimuat dari server. Masuk dengan dompet Anda di bagian KOLONI.',
   'Вода, питание и запчасти списываются из общего стока базы — там их становится ровно столько же меньше. POTATO не тратится, транзакция не подписывается.': 'Air, nutrisi, dan suku cadang diambil dari stok pangkalan — jumlah yang sama hilang di sana. Tidak ada POTATO yang dibelanjakan dan tidak ada transaksi yang ditandatangani.',
   'Часы колонии идут: останови экспедицию в разделе КОЛОНИЯ, чтобы забрать ресурсы без гонки с дневным тиком.': 'Jam koloni berjalan: hentikan ekspedisi di bagian COLONY untuk mengambil sumber daya tanpa berlomba dengan tick harian.',
 }

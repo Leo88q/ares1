@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Dispatch, SetStateAction } from 'react'
 import type { ColonyState } from '@ares/colony-engine/colony/simulation'
+import type { SimAction } from '@ares/colony-engine/colony/actions'
 import { moduleCopy } from './copy'
+import { simErrorMessage } from './simClient'
+import type { PerformResult } from './serverLink'
 import { footprint, modulePlacement } from '@ares/colony-engine/colony/layout'
-import { addNetwork, removeNetwork, planNetwork, networkCost, networkServices, networksOf, supportsNetwork,
+import { planNetwork, networkCost, networkServices, networksOf, supportsNetwork,
   NETWORK_TYPES, NETWORK_COLORS, NETWORK_CREDITS_PER_CELL, type ColonyNetwork, type NetworkType } from '@ares/colony-engine/colony/networks'
 import './construction.css'
 
@@ -11,9 +13,11 @@ export function networkName(type: NetworkType, ru: boolean): string {
   return ({ power: ru ? 'Электрокабель' : 'Power cable', water: ru ? 'Подача воды' : 'Water supply',
     return: ru ? 'Возврат воды' : 'Water return', tunnel: ru ? 'Гермопереход' : 'Pressure tunnel' })[type]
 }
-export default function NetworkPanel({ state, language, selectedId, onChange, onPreview }: {
+export default function NetworkPanel({ state, language, selectedId, perform, onPreview }: {
   state: ColonyState; language: string; selectedId: string | null
-  onChange: Dispatch<SetStateAction<ColonyState>>; onPreview: Dispatch<SetStateAction<ColonyNetwork | null>>
+  /** Единственный путь изменения колонии (сервер или локальный движок). */
+  perform: (action: SimAction) => Promise<PerformResult>
+  onPreview: (network: ColonyNetwork | null) => void
 }): JSX.Element {
   const ru = language === 'ru', names = moduleCopy(language)
   const [type, setType] = useState<NetworkType>('power')
@@ -78,15 +82,16 @@ export default function NetworkPanel({ state, language, selectedId, onChange, on
     <p role="status" data-testid="network-route-status">{message || (duplicate ? (ru ? 'Эти модули уже соединены этим типом сети.' : 'This connection already exists.')
       : !preview ? (ru ? 'Нет допустимого пути или совместимых портов. Измените точку или модули.' : 'No valid route or compatible ports. Change the waypoint or modules.')
       : `${Math.max(1, preview.cells.length - 1)} ${ru ? 'сегм.' : 'segments'} · ${networkCost(preview)} CR${!affordable ? (ru ? ' · недостаточно CR' : ' · insufficient CR') : ''}`)}</p>
-    <button type="button" className="colony-button colony-relocate" disabled={!preview || !affordable || !!duplicate} onClick={() => {
+    <button type="button" className="colony-button colony-relocate" disabled={!preview || !affordable || !!duplicate} onClick={async () => {
       if (!preview) return
-      onChange(s => addNetwork(s, preview)); setMessage(ru ? 'Линия проложена.' : 'Line installed.')
+      const r = await perform({ type: 'networkAdd', network: { type: preview.type, from: preview.from, to: preview.to, cells: preview.cells } })
+      setMessage(r.ok ? (ru ? 'Линия проложена.' : 'Line installed.') : simErrorMessage(r.code, ru))
     }}>{ru ? 'Проложить линию' : 'Install line'}</button>
     <label>{ru ? 'Существующая линия' : 'Existing line'}<select aria-label={ru ? 'Существующая линия' : 'Existing line'} value={removeId} onChange={e => { setRemoveId(e.target.value); setMessage('') }}>
       <option value="">{ru ? 'Выберите линию' : 'Choose a line'}</option>
       {networks.map(n => <option key={n.id} value={n.id}>{networkName(n.type, ru)} · {n.from} → {n.to}</option>)}
     </select></label>
-    <button type="button" className="colony-button colony-relocate" disabled={!removeId} onClick={() => { onChange(s => removeNetwork(s, removeId)); setRemoveId(''); setMessage(ru ? 'Линия демонтирована. CR не возвращаются.' : 'Line removed. No CR refund.') }}>{ru ? 'Демонтировать без возврата CR' : 'Remove without CR refund'}</button>
+    <button type="button" className="colony-button colony-relocate" disabled={!removeId} onClick={async () => { const r = await perform({ type: 'networkRemove', networkId: removeId }); setRemoveId(''); setMessage(r.ok ? (ru ? 'Линия демонтирована. CR не возвращаются.' : 'Line removed. No CR refund.') : simErrorMessage(r.code, ru)) }}>{ru ? 'Демонтировать без возврата CR' : 'Remove without CR refund'}</button>
     {from && <p data-testid="network-module-status">{label(from.id)}: {(['power', 'water', 'return', 'access'] as const).map(t => `${t}: ${services.get(from.id)?.[t] ? '✓' : '—'}`).join(' · ')}</p>}
     <small>{ru ? 'Предпросмотр бесплатный. Вода требует подачи, возврат обеспечивает регенерацию. Нет потерь напряжения или гидродинамики; пропускная способность считается прежними формулами.' : 'Preview is free. Supply enables watering; return enables recovery. No voltage drop or hydraulics; existing capacity formulas still apply.'}</small>
   </section>

@@ -826,6 +826,7 @@ export default {
   'СВОБОДНО В ХРАНИЛИЩЕ': 'CHỖ TRỐNG KHO',
   'ВЗЯТЬ': 'LẤY',
   'ВЗЯТЬ ИЗ КОЛОНИИ': 'Lấy từ thuộc địa',
+  'Колония ещё не загружена с сервера. Войдите через кошелёк в разделе КОЛОНИЯ.': 'Thuộc địa chưa được tải từ máy chủ. Hãy đăng nhập bằng ví trong mục THUỘC ĐỊA.',
   'Вода, питание и запчасти списываются из общего стока базы — там их становится ровно столько же меньше. POTATO не тратится, транзакция не подписывается.': 'Nước, dinh dưỡng và phụ tùng lấy từ kho căn cứ — ở đó giảm đúng bằng lượng đó. Không tiêu POTATO và không ký giao dịch.',
   'Часы колонии идут: останови экспедицию в разделе КОЛОНИЯ, чтобы забрать ресурсы без гонки с дневным тиком.': 'Đồng hồ thuộc địa đang chạy: tạm dừng chuyến thám hiểm ở mục COLONY để lấy tài nguyên mà không tranh chấp với nhịp ngày.',
 }

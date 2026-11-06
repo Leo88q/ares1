@@ -826,6 +826,7 @@ export default {
   'СВОБОДНО В ХРАНИЛИЩЕ': 'ESPAÇO LIVRE',
   'ВЗЯТЬ': 'RETIRAR',
   'ВЗЯТЬ ИЗ КОЛОНИИ': 'Retirar da colônia',
+  'Колония ещё не загружена с сервера. Войдите через кошелёк в разделе КОЛОНИЯ.': 'A colônia ainda não foi carregada do servidor. Entre com sua carteira na seção COLÔNIA.',
   'Вода, питание и запчасти списываются из общего стока базы — там их становится ровно столько же меньше. POTATO не тратится, транзакция не подписывается.': 'Água, nutrientes e peças saem do estoque da base — exatamente a mesma quantidade desaparece lá. Nenhum POTATO é gasto e nenhuma transação é assinada.',
   'Часы колонии идут: останови экспедицию в разделе КОЛОНИЯ, чтобы забрать ресурсы без гонки с дневным тиком.': 'O relógio da colônia está correndo: pause a expedição na seção COLÔNIA para retirar recursos sem disputar com o tick diário.',
 }

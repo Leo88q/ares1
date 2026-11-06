@@ -12,7 +12,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const webRoot = resolve(here, '..')
 const tsx = resolve(webRoot, '../../node_modules/.bin/tsx')
 const libRs = readFileSync(resolve(webRoot, '../../programs/solana_potato/src/lib.rs'), 'utf8')
-const paramsSrc = readFileSync(resolve(webRoot, 'vendor/colony-engine/vendor/colony-engine/src/organism/parameters.ts'), 'utf8')
+const paramsSrc = readFileSync(resolve(webRoot, 'vendor/colony-engine/src/organism/parameters.ts'), 'utf8')
 
 function rustConst(name) {
   const m = libRs.match(new RegExp(`pub const ${name}: [a-z0-9]+ = ([0-9_]+);`))
@@ -34,7 +34,7 @@ test('WP1: LAB and colony parameter blocks live in organism/parameters.ts', () =
   assert.match(paramsSrc, /export const LAB = Object\.freeze\(\{/)
   assert.match(paramsSrc, /export const PARAMETERS = \{/)
   assert.match(readFileSync(resolve(webRoot, 'src/fields/engineering/engine.ts'), 'utf8'), /from '@ares\/colony-engine\/organism\/parameters'/)
-  assert.match(readFileSync(resolve(webRoot, 'vendor/colony-engine/vendor/colony-engine/src/colony/simulation.ts'), 'utf8'), /from '\.\.\/organism\/parameters\.js'/)
+  assert.match(readFileSync(resolve(webRoot, 'vendor/colony-engine/src/colony/simulation.ts'), 'utf8'), /from '\.\.\/organism\/parameters\.js'/)
 })
 
 test('economy mirror matches the Rust program constants', () => {

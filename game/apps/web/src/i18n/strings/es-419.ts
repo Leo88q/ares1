@@ -826,6 +826,7 @@ export default {
   'СВОБОДНО В ХРАНИЛИЩЕ': 'ALMACENAMIENTO LIBRE',
   'ВЗЯТЬ': 'RETIRAR',
   'ВЗЯТЬ ИЗ КОЛОНИИ': 'Retirar de la colonia',
+  'Колония ещё не загружена с сервера. Войдите через кошелёк в разделе КОЛОНИЯ.': 'La colonia aún no se ha cargado del servidor. Inicia sesión con tu billetera en la sección COLONIA.',
   'Вода, питание и запчасти списываются из общего стока базы — там их становится ровно столько же меньше. POTATO не тратится, транзакция не подписывается.': 'El agua, los nutrientes y los repuestos salen del stock de la base — allí desaparece exactamente la misma cantidad. No se gasta POTATO y no se firma ninguna transacción.',
   'Часы колонии идут: останови экспедицию в разделе КОЛОНИЯ, чтобы забрать ресурсы без гонки с дневным тиком.': 'El reloj de la colonia está en marcha: pausa la expedición en la sección COLONIA para retirar recursos sin competir con el tick diario.',
 }

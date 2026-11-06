@@ -5,9 +5,12 @@ import { ArrowLeft, ArrowRight, BatteryMedium, Box, Check, ChevronRight, CircleH
 import { useI18n } from '../i18n'
 import { colonyCopy, moduleCopy } from './copy'
 import { COLONY_MANUAL_HARVEST_ENABLED } from '../utils/colonyFeature'
-import { useColony } from './ColonyContext'
-import { COLONY_PURPOSE, ColonySpendFailure, colonySpendMessage, colonySpendMicro, type PotatoSpend } from './potatoSpend'
-import { batteryCapacity, bedCycleKg, bedSummary, canHarvestBed, harvestBed, buildModuleAt, moveModule, buySupplies, CATALOG, canBuild, canRepair, countModules, dailyBudget, deliverFood, foodDemand, MODULE_KINDS, PARAMETERS, repairColony, sellableKg } from '@ares/colony-engine/colony/simulation'
+import { useColony, type ColonySessionInfo } from './ColonyContext'
+import { ColonySpendFailure, colonySpendMessage, colonySpendMicro, type PotatoSpend } from './potatoSpend'
+import { batteryCapacity, bedCycleKg, bedSummary, canHarvestBed, CATALOG, canBuild, canRepair, countModules, dailyBudget, foodDemand, MODULE_KINDS, PARAMETERS, sellableKg } from '@ares/colony-engine/colony/simulation'
+import { spendFor, type SimAction } from '@ares/colony-engine/colony/actions'
+import { simErrorMessage } from './simClient'
+import type { PerformResult } from './serverLink'
 import type { BedState, ColonyModule, ColonyState, DayBudget, ModuleKind, Scenario } from '@ares/colony-engine/colony/simulation'
 import provenance from '../../public/models/colony/manifest.json'
 import ResourceIcon from '../fields/ResourceIcon'
@@ -40,7 +43,7 @@ export default function ColonyScreen({ embedded = false, potatoSpend }: { embedd
   // Общая экспедиция сессии: в игровом shell её же читает полевая лаборатория (/lab),
   // в отдельной песочнице /colony провайдер отсутствует и стор остаётся локальным.
   const colony = useColony()
-  const { state, setState, scenario, setScenario, running, setRunning, ended: end } = colony
+  const { state, scenario, running, setRunning, ended: end, ready, pending } = colony
   const [view, setView] = useState<View>('base')
   const [panel, setPanel] = useState<'build' | 'logistics' | 'networks' | 'deep'>('build')
   const [selectedId, setSelectedId] = useState<string | null>('greenhouse-5')
@@ -71,42 +74,57 @@ export default function ColonyScreen({ embedded = false, potatoSpend }: { embedd
     setRunning(false)
     setDraft({ kind, at }); setMessage('')
   }
-  // Оплата POTATO (только при включённом флаге): квитанция сети до изменения колонии.
-  // Перенос модуля ничего не списывает.
-  const payColony = async (purpose: number, cr: number): Promise<boolean> => {
-    if (!potatoSpend) return true
+  // Оплата POTATO (только при включённом флаге и серверной симуляции): квитанция берётся до действия,
+  // подпись уходит на сервер вместе с действием. Перенос модуля ничего не списывает.
+  const payColony = async (purpose: number, cr: number): Promise<{ ok: true; signature?: string } | { ok: false }> => {
+    if (!potatoSpend) return { ok: true }
     setPaying(true); setMessage('')
     try {
-      await potatoSpend(purpose, colonySpendMicro(cr))
-      return true
+      const receipt = await potatoSpend(purpose, colonySpendMicro(cr))
+      return { ok: true, signature: receipt.signature }
     } catch (err) {
       if (err instanceof ColonySpendFailure) setMessage(colonySpendMessage(err.code === 'REJECTED' && err.reason ? err.reason : err.code, lang))
       else setMessage(err instanceof Error ? err.message : colonySpendMessage(undefined, lang))
-      return false
+      return { ok: false }
     } finally {
       setPaying(false)
     }
   }
-  const repair = async (): Promise<void> => {
-    if (paying || !canRepair(state)) return
-    if (!(await payColony(COLONY_PURPOSE.repair, PARAMETERS.repairCredits))) return
-    setState(repairColony)
+  // Единый путь изменения колонии: проверка до оплаты (NO_EFFECT не списывает POTATO), оплата, действие.
+  const run = async (action: SimAction, onDone?: (next: ColonyState) => void): Promise<boolean> => {
+    if (paying || pending) return false
+    if (!colony.canPerform(action)) { setMessage(simErrorMessage('NO_EFFECT', lang === 'ru')); return false }
+    const cost = spendFor(action)
+    let spendSignature: string | undefined
+    if (cost && potatoSpend) {
+      const paid = await payColony(cost.purpose, cost.cr)
+      if (!paid.ok) return false
+      spendSignature = paid.signature
+    }
+    const result: PerformResult = await colony.perform(action, spendSignature === undefined ? undefined : { spendSignature })
+    if (!result.ok) { setMessage(simErrorMessage(result.code, lang === 'ru')); return false }
+    setMessage('')
+    onDone?.(result.state)
+    return true
   }
-  const confirmPlacement = async (): Promise<void> => {
-    if (!draft || paying) return
-    const next = draft.moveId ? moveModule(state, draft.moveId, draft.at) : buildModuleAt(state, draft.kind, draft.at)
-    if (next === state) return
-    if (!draft.moveId && !(await payColony(COLONY_PURPOSE.build, CATALOG[draft.kind].credits))) return
-    // Revalidate inside the updater: no captured snapshot can overwrite a clock tick.
-    setState(current => draft.moveId ? moveModule(current, draft.moveId, draft.at) : buildModuleAt(current, draft.kind, draft.at))
-    setSelectedId(draft.moveId ?? next.modules[next.modules.length - 1].id)
-    setMessage(`${descriptions[draft.kind].name} · X ${draft.at.x} / Z ${draft.at.z}`)
-    setDraft(null)
+  const repair = (): void => { if (canRepair(state)) void run({ type: 'repair' }) }
+  const confirmPlacement = (): void => {
+    if (!draft) return
+    const action: SimAction = draft.moveId
+      ? { type: 'move', moduleId: draft.moveId, at: draft.at }
+      : { type: 'build', kind: draft.kind, at: draft.at }
+    void run(action, next => {
+      setSelectedId(draft.moveId ?? next.modules[next.modules.length - 1].id)
+      setMessage(`${descriptions[draft.kind].name} · X ${draft.at.x} / Z ${draft.at.z}`)
+      setDraft(null)
+    })
   }
   const warning = end ? c.dayLimit : state.foodKg < foodDemand(state) ? c.foodWarning
     : budget.oxygenShortfallKg > 0.001 || budget.oxygenEndKg < budget.oxygenDemandKg * 3 ? c.oxygenWarning
     : budget.unmetKwh > 0.01 ? c.powerWarning : budget.waterShortfallLitres > 0.01 ? c.waterWarning
     : budget.growthFraction < 0.95 ? c.cropWarning : c.healthy
+  // Серверный режим: пока состояние не загружено, колонию не показываем и мутации не разрешаем.
+  if (!ready) return <SimGate session={colony.session} error={colony.error} ru={lang === 'ru'} />
   const Main = embedded ? 'div' : 'main'
   const constrained = end || state.foodKg < foodDemand(state) || budget.oxygenShortfallKg > 0.001 || budget.unmetKwh > 0.01 || budget.waterShortfallLitres > 0.01 || budget.growthFraction < 0.95
 
@@ -141,11 +159,11 @@ export default function ColonyScreen({ embedded = false, potatoSpend }: { embedd
 
           <div className="colony-command-bar">
             <div className="colony-day"><span>{c.day}</span><b data-testid="colony-day">{String(state.day).padStart(3, '0')}</b><small>/ 365</small></div>
-            <label className="colony-sun-control"><Sun size={16} /><span>{c.sun} <b>{scenario.sunHours} h</b></span><input type="range" aria-label={c.sun} min={0} max={24} step={1} value={scenario.sunHours} onChange={event => setScenario(s => ({ ...s, sunHours: Number(event.target.value) }))} /></label>
+            <label className="colony-sun-control"><Sun size={16} /><span>{c.sun} <b>{scenario.sunHours} h</b></span><input type="range" aria-label={c.sun} min={0} max={24} step={1} value={scenario.sunHours} onChange={event => colony.setScenario({ ...scenario, sunHours: Number(event.target.value) })} /></label>
             <div className="colony-time-buttons">
-              <button className="colony-button colony-button--primary" type="button" disabled={end || !!draft} onClick={() => setRunning(value => !value)}>{running ? <Pause size={14} /> : <Play size={14} />}{running ? c.pause : c.play}</button>
-              <button className="colony-button" type="button" disabled={running || end || !!draft} onClick={() => colony.advance(1)}>{c.next}</button>
-              <button className="colony-button" type="button" disabled={running || end || !!draft} onClick={() => colony.advance(7)}>{c.week}<ChevronRight size={13} /></button>
+              <button className="colony-button colony-button--primary" type="button" disabled={end || !!draft || !ready} onClick={() => setRunning(value => !value)}>{running ? <Pause size={14} /> : <Play size={14} />}{running ? c.pause : c.play}</button>
+              <button className="colony-button" type="button" disabled={running || end || !!draft || pending || !ready} onClick={() => colony.advance(1)}>{c.next}</button>
+              <button className="colony-button" type="button" disabled={running || end || !!draft || pending || !ready} onClick={() => colony.advance(7)}>{c.week}<ChevronRight size={13} /></button>
             </div>
           </div>
 
@@ -154,7 +172,7 @@ export default function ColonyScreen({ embedded = false, potatoSpend }: { embedd
               <Suspense fallback={<div className="colony-viewport colony-viewport-placeholder" role="status">{c.loading}</div>}>
                 <ColonyViewport state={state} selectedId={selectedId} sunHours={scenario.sunHours} language={lang} onSelect={setSelectedId} networkPreview={networkPreview} draft={draft} onSite={at => setDraft(current => current ? { ...current, at: { ...current.at, ...at } } : null)} />
               </Suspense>
-              {draft && <ConstructionPlan state={state} draft={draft} language={lang} onDraft={setDraft} onConfirm={() => void confirmPlacement()} onCancel={() => setDraft(null)} spendMicro={potatoSpend ? colonySpendMicro(CATALOG[draft.kind].credits) : undefined} paying={paying} />}
+              {draft && <ConstructionPlan state={state} draft={draft} language={lang} onDraft={setDraft} onConfirm={() => void confirmPlacement()} onCancel={() => setDraft(null)} spendMicro={potatoSpend ? colonySpendMicro(CATALOG[draft.kind].credits) : undefined} paying={paying || pending} />}
               <div className="colony-world-footer"><span><Box size={13} />{state.modules.length}/{COLONY_MODULE_LIMIT} {c.pads}</span><span><Leaf size={13} />{c.harvest}: <b>{number(state.harvestedKg)} {c.kg}</b></span><button type="button" onClick={reset}><RotateCcw size={12} />{c.reset}</button></div>
               <div className={`colony-status ${constrained ? 'colony-status--warning' : ''}`} role="status">{constrained ? <CircleHelp size={16} /> : <Check size={16} />}<span>{warning}</span></div>
               <div className="colony-module-selector" aria-label={c.moduleList}>
@@ -177,7 +195,7 @@ export default function ColonyScreen({ embedded = false, potatoSpend }: { embedd
                   </div>
                 })}</div>
                 <p className="colony-fineprint colony-build-note">{c.constructionNote}</p>
-              </> : panel === 'networks' ? <NetworkPanel state={state} language={lang} selectedId={selectedId} onChange={setState} onPreview={setNetworkPreview} /> : panel === 'deep' ? <DeepPanels world={state.world ?? null} language={lang} onChange={() => setState(prev => ({ ...prev }))} /> : <Logistics state={state} onChange={setState} onRepair={() => void repair()} repairPaying={paying} language={lang} />}
+              </> : panel === 'networks' ? <NetworkPanel state={state} language={lang} selectedId={selectedId} perform={colony.perform} onPreview={setNetworkPreview} /> : panel === 'deep' ? <DeepPanels world={state.world ?? null} language={lang} perform={op => void run({ type: 'deep', deep: op })} /> : <Logistics state={state} onAction={action => void run(action)} onRepair={repair} busy={paying || pending} language={lang} />}
               <div className="colony-inspector">
                 <p className="colony-eyebrow">{c.selected}</p>
                 {selected ? <>
@@ -195,7 +213,7 @@ export default function ColonyScreen({ embedded = false, potatoSpend }: { embedd
                     <div className="colony-meter"><span style={{ width: `${selected.growthDays / 90 * 100}%`, background: '#91cba2' }} /></div>
                     <BedPanel mod={selected} language={lang} storageFull={state.ledger.storageCapKg - state.ledger.rawKg - state.ledger.processedKg < bedCycleKg()} manualHarvest={COLONY_MANUAL_HARVEST_ENABLED && selected ? {
                       canHarvest: i => canHarvestBed(state, selected.id, i),
-                      onHarvest: i => setState(s => harvestBed(s, selected.id, i)),
+                      onHarvest: i => void run({ type: 'harvestBed', moduleId: selected.id, index: i }),
                     } : undefined} />
                   </>}
                 </> : <p>{c.select}</p>}
@@ -210,7 +228,7 @@ export default function ColonyScreen({ embedded = false, potatoSpend }: { embedd
           <div className="colony-live-message" aria-live="polite">{message}</div>
         </>}
 
-        {view === 'economy' && <Economy state={state} budget={budget} scenario={scenario} onScenario={setScenario} language={lang} />}
+        {view === 'economy' && <Economy state={state} budget={budget} scenario={scenario} onScenario={colony.setScenario} language={lang} />}
         {view === 'assets' && <AssetLibrary language={lang} />}
 
         <footer className="colony-footer"><span className="colony-footer-mark">ARES / FIELD NOTES — 001</span><p>{c.disclaimer}{potatoSpend && <> {c.potatoSpend}</>}</p><button type="button" onClick={() => setView(view === 'assets' ? 'economy' : 'assets')}>{c.sources}<ArrowRight size={13} /></button></footer>
@@ -248,18 +266,18 @@ function Resource({ art, label, value, unit, detail, progress, tone }: {
   return <div className={`colony-resource ${tone ? `colony-resource--${tone}` : ''}`}><div className="colony-resource-label"><ResourceIcon kind={art} size={22} /><span>{label}</span></div><div className="colony-resource-value">{value}<small>{unit}</small></div><p>{detail}</p>{progress !== undefined && <div className="colony-resource-progress"><span style={{ width: `${Math.max(0, Math.min(100, progress * 100))}%` }} /></div>}</div>
 }
 
-function Logistics({ state, onChange, onRepair, repairPaying, language }: { state: ColonyState; onChange: (action: (s: ColonyState) => ColonyState) => void; onRepair: () => void; repairPaying: boolean; language: string }): JSX.Element {
+function Logistics({ state, onAction, onRepair, busy, language }: { state: ColonyState; onAction: (action: SimAction) => void; onRepair: () => void; busy: boolean; language: string }): JSX.Element {
   const c = colonyCopy(language)
   const delivery = sellableKg(state)
   return <div className="colony-logistics">
     <div className="colony-stock-row"><FlaskConical size={15} /><span>{c.nutrients}</span><b>{number(state.nutrientsKg, 2)} {c.kg}</b></div>
     <div className="colony-stock-row"><Hammer size={15} /><span>{c.spares}</span><b>{number(state.sparesKg, 1)} {c.kg}</b></div>
-    <button type="button" className="colony-button colony-button--wide" disabled={!canRepair(state) || repairPaying} onClick={onRepair}><Wrench size={14} />{c.repair}<small>{PARAMETERS.repairCredits} CR</small></button>
+    <button type="button" className="colony-button colony-button--wide" disabled={!canRepair(state) || busy} onClick={onRepair}><Wrench size={14} />{c.repair}<small>{PARAMETERS.repairCredits} CR</small></button>
     <p className="colony-fineprint">{c.repairNote} · −2 {c.kg}</p>
-    <button type="button" className="colony-button colony-button--wide" disabled={state.credits < PARAMETERS.supplyCredits} onClick={() => onChange(buySupplies)}><Package size={14} />{c.resupply}<small>80 CR</small></button>
+    <button type="button" className="colony-button colony-button--wide" disabled={state.credits < PARAMETERS.supplyCredits || busy} onClick={() => onAction({ type: 'supplies' })}><Package size={14} />{c.resupply}<small>80 CR</small></button>
     <p className="colony-fineprint">{c.resupplyNote}</p>
     <div className="colony-contract"><p className="colony-eyebrow">{c.contract}</p><h3>{number(PARAMETERS.contractKg - state.deliveredKg, 1)} <small>{c.kg} {c.remaining}</small></h3><p className="colony-fineprint">{c.contractNote}</p>
-      <button type="button" className="colony-button colony-button--primary colony-button--wide" disabled={delivery <= 0} onClick={() => onChange(deliverFood)}><Truck size={14} />{c.deliver} {number(delivery, 1)} {c.kg}<small>+{number(delivery * PARAMETERS.contractCreditsKg)} CR</small></button>
+      <button type="button" className="colony-button colony-button--primary colony-button--wide" disabled={delivery <= 0 || busy} onClick={() => onAction({ type: 'deliver' })}><Truck size={14} />{c.deliver} {number(delivery, 1)} {c.kg}<small>+{number(delivery * PARAMETERS.contractCreditsKg)} CR</small></button>
     </div>
   </div>
 }
@@ -314,5 +332,32 @@ function AssetLibrary({ language }: { language: string }): JSX.Element {
     <div className="colony-asset-grid">{provenance.assets.map((asset, index) => <article className="colony-asset-card" key={asset.file}><div className="colony-asset-index">{String(index + 1).padStart(2, '0')}<Box size={18} /></div><h2>{asset.file}</h2><span className="colony-reference-tag">CC0-1.0</span><dl><div><dt>{c.author}</dt><dd>{asset.author}</dd></div><div><dt>PACK</dt><dd>{asset.pack}</dd></div><div><dt>GLB</dt><dd>{number(asset.bytes / 1024, 1)} KB</dd></div></dl><a href={asset.sourceUrl} target="_blank" rel="noreferrer">{c.source}<ExternalLink size={12} /></a></article>)}</div>
     <p className="colony-study-card colony-fineprint">{c.assetNotice}</p>
     <div className="colony-reference-links"><a href="https://quaternius.com/packs/ultimatespacekit.html" target="_blank" rel="noreferrer">Quaternius · Ultimate Space Kit / CC0<ExternalLink size={13} /></a><a href="https://kenney.nl/assets/space-kit" target="_blank" rel="noreferrer">Kenney · Space Kit / CC0<ExternalLink size={13} /></a><a href="https://kenney.nl/assets/survival-kit" target="_blank" rel="noreferrer">Kenney · Survival Kit / CC0<ExternalLink size={13} /></a></div>
+  </div>
+}
+
+/**
+ * Экран входа и загрузки для серверного режима (VITE_COLONY_SIM). Сам кошелёк здесь не трогается:
+ * статус и вход приходят из стора. Колония не показывается, пока сервер не вернул состояние.
+ */
+function SimGate({ session, error, ru }: { session: ColonySessionInfo | null; error: string | null; ru: boolean }): JSX.Element {
+  const status = session?.status ?? 'signed-out'
+  const copy: Record<ColonySessionInfo['status'], [string, string]> = {
+    'no-wallet': ['Подключите кошелёк, чтобы открыть колонию. Состояние колонии хранится на сервере.', 'Connect a wallet to open the colony. The colony state is stored on the server.'],
+    unsupported: ['Этот кошелёк не умеет подписывать сообщения. Выберите другой кошелёк.', 'This wallet cannot sign messages. Choose another wallet.'],
+    'signed-out': ['Войдите подписью кошелька. Подпись не переводит токены и не отправляет транзакцию.', 'Sign in with your wallet. The signature moves no tokens and sends no transaction.'],
+    busy: ['Проверяем подпись…', 'Checking the signature…'],
+    'signed-in': ['Загружаем колонию с сервера…', 'Loading the colony from the server…'],
+  }
+  const shownError = session?.error ?? error
+  return <div className="colony-app colony-app--embedded">
+    <section className="colony-study-card colony-sim-gate" data-testid="colony-sim-gate" role="status">
+      <p className="colony-eyebrow">ARES—1 / {ru ? 'СЕРВЕР' : 'SERVER'}</p>
+      <h2>{ru ? 'КОЛОНИЯ' : 'COLONY'}</h2>
+      <p>{ru ? copy[status][0] : copy[status][1]}</p>
+      {status === 'signed-out' && session && <button type="button" className="colony-button colony-button--primary" onClick={session.signIn}>
+        {ru ? 'Войти через кошелёк' : 'Sign in with wallet'}
+      </button>}
+      {shownError && <p role="alert">{simErrorMessage(shownError, ru)} <small>{shownError}</small></p>}
+    </section>
   </div>
 }

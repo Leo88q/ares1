@@ -3,6 +3,7 @@ import { type NetworkType } from './networks.js';
 import type { Placement } from './layout.js';
 import { type ResourceId } from './deep/resources.js';
 import { type AnalysisKind, type Regime } from './deep/lab.js';
+import { type LabSupplyResource } from './supply.js';
 /** Версия правил движка. Меняется вместе с золотым хешем в test/determinism.test.mjs. */
 export declare const ENGINE_VERSION = 1;
 /** Лимит дней за один запрос: полный год ≈ 2 с, поэтому длинные прогоны идут пачками. */
@@ -103,6 +104,10 @@ export type SimAction = {
 } | {
     type: 'networkRemove';
     networkId: string;
+} | {
+    type: 'labDraw';
+    resource: LabSupplyResource;
+    kg: number;
 } | {
     type: 'deep';
     deep: DeepAction;

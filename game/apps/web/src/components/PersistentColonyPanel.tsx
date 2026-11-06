@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useWallet } from '@solana/wallet-adapter-react'
 import { AlertTriangle, Box, CheckCircle2, CircleDashed, Construction, RefreshCw, ShieldCheck, Wallet } from 'lucide-react'
 import { useGame } from '../contexts/GameContext'
-import { BACKEND_URL, CLUSTER } from '../contexts/SolanaContext'
+import { BACKEND_URL } from '../contexts/SolanaContext'
+import { useColonySession } from '../colony/useColonySession'
 import { useI18n } from '../i18n'
 
 type ResourceName = 'metal' | 'water' | 'power' | 'science'
@@ -33,7 +33,6 @@ interface Snapshot {
   materializedAt: string
   pending: boolean
 }
-interface AuthResult { token: string; wallet: string; cluster: string; expiresInSeconds: number }
 interface ColonyRules {
   version: number
   status: string
@@ -45,12 +44,6 @@ interface ColonyRules {
 }
 interface ApiError { error?: string }
 
-function base64Url(bytes: Uint8Array): string {
-  let binary = ''
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-}
-
 async function readJson<T>(response: Response): Promise<T> {
   const body = await response.json().catch(() => ({})) as T & ApiError
   if (!response.ok) throw new Error(body.error || `HTTP_${response.status}`)
@@ -60,12 +53,12 @@ async function readJson<T>(response: Response): Promise<T> {
 /** Real server-backed Colony UI; no browser-owned resources, timers or fallback save. */
 export default function PersistentColonyPanel(): JSX.Element {
   const { t } = useI18n()
-  const wallet = useWallet()
   const game = useGame()
-  const publicKey = wallet.publicKey
-  const walletAddress = publicKey?.toBase58() ?? null
-  const [token, setToken] = useState<string | null>(null)
-  const [authWallet, setAuthWallet] = useState<string | null>(null)
+  // Вход по кошельку общий с серверной симуляцией колонии (useColonySession).
+  const session = useColonySession()
+  const token = session.token
+  const authWallet = session.wallet
+  const walletAddress = session.walletAddress
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
   const [rules, setRules] = useState<ColonyRules | null>(null)
   const [selectedField, setSelectedField] = useState<string>('')
@@ -129,34 +122,15 @@ export default function PersistentColonyPanel(): JSX.Element {
   }, [token, authWallet, walletAddress, refresh, loadRules])
 
   useEffect(() => {
-    if (authWallet !== walletAddress) {
-      setToken(null)
-      setAuthWallet(null)
-      setSnapshot(null)
-    }
+    if (authWallet !== walletAddress) setSnapshot(null)
   }, [authWallet, walletAddress])
 
   const signIn = async () => {
-    if (!publicKey || !wallet.signMessage) {
-      setError(t('Этот кошелёк не поддерживает подпись сообщения.'))
-      return
-    }
     setBusy(true); setError(null); setNotice(null)
     try {
-      const challenge = await api<{ challengeId: string; message: string; expiresAt: string }>('/auth/challenge', {
-        method: 'POST', body: JSON.stringify({ wallet: publicKey.toBase58() }),
-      })
-      const signature = await wallet.signMessage(new TextEncoder().encode(challenge.message))
-      const session = await api<AuthResult>('/auth/verify', {
-        method: 'POST', body: JSON.stringify({
-          wallet: publicKey.toBase58(), challengeId: challenge.challengeId,
-          message: challenge.message, signature: base64Url(signature),
-        }),
-      })
-      if (session.cluster !== CLUSTER) throw new Error('CLUSTER_MISMATCH')
-      setToken(session.token); setAuthWallet(session.wallet); setNotice(t('Кошелёк подтверждён. Состояние Colony хранится в backend.'))
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'AUTH_FAILED')
+      const ok = await session.signIn()
+      if (ok) setNotice(t('Кошелёк подтверждён. Состояние Colony хранится в backend.'))
+      else if (session.error) setError(session.error === 'NO_SIGN_MESSAGE' ? t('Этот кошелёк не поддерживает подпись сообщения.') : session.error)
     } finally { setBusy(false) }
   }
 
@@ -224,7 +198,7 @@ export default function PersistentColonyPanel(): JSX.Element {
     } finally { setBusy(false) }
   }
 
-  const signOut = () => { setToken(null); setAuthWallet(null); setSnapshot(null); setNotice(t('Сессия кошелька завершена.')) }
+  const signOut = () => { session.signOut(); setSnapshot(null); setNotice(t('Сессия кошелька завершена.')) }
   const resourceLabels: Record<ResourceName, string> = { metal: t('МЕТАЛЛ'), water: t('ВОДА'), power: t('ЭНЕРГИЯ'), science: t('ОЧКИ ИССЛЕДОВАНИЙ') }
   const buildingLabels: Record<BuildingKind, string> = { solar_array: t('СОЛНЕЧНЫЙ МАССИВ'), water_recycler: t('РЕЦИКЛЕР ВОДЫ'), metal_extractor: t('ДОБЫЧА МЕТАЛЛА') }
   const researchLabels: Record<ResearchId, string> = {
@@ -251,9 +225,9 @@ export default function PersistentColonyPanel(): JSX.Element {
 
     {!token ? <div className="persistent-colony__auth">
       <p><Wallet size={16} /> {t('Подпиши одноразовое сообщение для входа. Подпись не переводит токены и не отправляет транзакцию.')}</p>
-      {wallet.connected && !wallet.signMessage && <p role="alert">{t('Этот кошелёк не поддерживает подпись сообщения.')}</p>}
-      <button type="button" disabled={busy || !wallet.connected || !wallet.signMessage} onClick={() => void signIn()}>
-        {busy ? t('ПРОВЕРЯЕМ…') : wallet.connected ? t('ВОЙТИ ЧЕРЕЗ ПОДПИСЬ КОШЕЛЬКА') : t('СНАЧАЛА ПОДКЛЮЧИ КОШЕЛЁК')}
+      {session.connected && !session.canSign && <p role="alert">{t('Этот кошелёк не поддерживает подпись сообщения.')}</p>}
+      <button type="button" disabled={busy || !session.connected || !session.canSign} onClick={() => void signIn()}>
+        {busy ? t('ПРОВЕРЯЕМ…') : session.connected ? t('ВОЙТИ ЧЕРЕЗ ПОДПИСЬ КОШЕЛЬКА') : t('СНАЧАЛА ПОДКЛЮЧИ КОШЕЛЁК')}
       </button>
     </div> : <>
       <div className="persistent-colony__session"><span><CheckCircle2 size={15} />{authWallet?.slice(0, 5)}…{authWallet?.slice(-5)}</span><button type="button" onClick={signOut}>{t('ВЫЙТИ')}</button></div>

@@ -1,7 +1,7 @@
 # Колония: серверная симуляция и оплата POTATO (план)
 
-Статус: **F1–F3 выполнены** (см. «Выполнено»). F4 (клиент) и F5 (devnet) не начаты. Текущие гейты не меняются:
-`VITE_COLONY_POTATO_SPEND=false`, `COLONY_POTATO_SPEND_ENABLED=false`, mainnet закрыт до отдельного GO.
+Статус: **F1–F4 выполнены** (см. «Выполнено»). F5 (devnet) не начат и из песочницы недоступен. Текущие гейты не меняются:
+`VITE_COLONY_SIM=false`, `VITE_COLONY_POTATO_SPEND=false`, `COLONY_SIM_ENABLED=false`, `COLONY_POTATO_SPEND_ENABLED=false`; mainnet закрыт до отдельного GO.
 
 ## Решения владельца
 
@@ -59,8 +59,9 @@
 - Рост снимка (~370 КБ в год): при необходимости сжимать; журнал остаётся основным источником истины.
 - Стоимость прогона на сервере: лимит дней за запрос; тяжёлые прогоны — только по запросу, не по таймеру.
 - Изменение правил движка меняет результат старого журнала: нужна версия движка и миграция журнала.
-- Пока F4 не закрыт, 3D-колония остаётся в браузере, и POTATO-оплата не защищает состояние. Поэтому
-  флаги `VITE_COLONY_POTATO_SPEND` и `COLONY_POTATO_SPEND_ENABLED` остаются выключенными до F4.
+- POTATO-оплата защищает состояние только при серверной симуляции. Поэтому клиентский `VITE_COLONY_POTATO_SPEND`
+  подключается только вместе с `VITE_COLONY_SIM=true`, а сервер требует `COLONY_SIM_ENABLED` и `COLONY_POTATO_SPEND_ENABLED`
+  одновременно. Включать оба флага вместе, и только на devnet после F5.
 
 ## Выполнено
 
@@ -77,14 +78,21 @@
 - **F3** (`9987663`): `GET /api/colony-sim/state`, `POST /api/colony-sim/actions`, коды 400/401/402/409/422/503,
   монтирование за `COLONY_SIM_ENABLED` (по умолчанию выключен). Тесты 6/6, backend 346/346.
 
-## Остаток (F4, F5)
+- **F4** (клиент): общий хук входа `useColonySession` (challenge → подпись → verify, токен привязан к адресу,
+  проверка cluster; используется и в `PersistentColonyPanel`); `simClient.ts` (HTTP с инъекцией fetch, `requestId` UUID);
+  `serverLink.ts` (очередь, `expectedSequence`, повтор при `STALE_SEQUENCE` с той же квитанцией, resync при сетевой
+  ошибке); `ColonySimProvider.tsx` (серверный стор, тик `SERVER_TICK_DAYS` = 7 дней за запрос); `ColonyContext` с двумя
+  режимами: локальный (по умолчанию) и серверный (`VITE_COLONY_SIM=true`). В серверном режиме мутации
+  (`ColonyScreen`, `NetworkPanel`, `DeepPanels`, `FieldLabScreen` через `labDraw`) идут через `perform(action)`;
+  до загрузки состояния экран показывает гейт `SimGate`. Порядок оплаты: предпроверка `canPerform` → подпись →
+  квитанция POTATO (если передан `potatoSpend`) → действие. Движок: `labDraw` и `supply.ts`; `ENGINE_VERSION` = 1.
+  Проверки: `tsc` web и backend exit 0, web 110/110, `test:guards` 58/58, `test:offchain` 449/449 (включая
+  `layoutParity`), `test:engine` 25/25, `vite build` exit 0. Браузерный smoke из песочницы не запускается (проверяется в CI).
+  Попутно исправлен путь в тестах `vendor/colony-engine/vendor/...`, который оставил F1 (падали 3 теста web).
+- Не сделано в F4: gzip (нет compression-middleware; переносится в F5).
 
-- **F4.** Клиент: общий хук входа по кошельку (вынести из `PersistentColonyPanel`), `simApi` с `requestId` (UUID),
-  режим `VITE_COLONY_SIM` (по умолчанию выключен). В этом режиме `ColonyContext` берёт состояние с сервера,
-  а все мутации (`ColonyScreen`: ремонт, стройка, перенос, урожай, припасы, поставка, тик времени;
-  `NetworkPanel`; 13 прямых вызовов `world` в `DeepPanels`) уходят через `act(action)`. Локальная мутация
-  в этом режиме не допускается. Локальный режим до включения флага **сохраняется** (решение: иначе /base
-  ломается при выключенном флаге). Удаление локального режима — отдельное решение владельца.
+## Остаток (F5)
+
 - **F5.** Devnet-прогон, замер нагрузки и размера ответа, решение о сжатии. Требует devnet RPC и CI;
   из песочницы недоступно.
 

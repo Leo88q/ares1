@@ -826,6 +826,7 @@ export default {
   'СВОБОДНО В ХРАНИЛИЩЕ': 'LIBRENG IMBakan',
   'ВЗЯТЬ': 'KUNIN',
   'ВЗЯТЬ ИЗ КОЛОНИИ': 'Kunin mula sa kolonya',
+  'Колония ещё не загружена с сервера. Войдите через кошелёк в разделе КОЛОНИЯ.': 'Hindi pa na-load ang kolonya mula sa server. Mag-sign in gamit ang wallet mo sa seksyong KOLONYA.',
   'Вода, питание и запчасти списываются из общего стока базы — там их становится ровно столько же меньше. POTATO не тратится, транзакция не подписывается.': 'Kinukuha ang tubig, nutrients at spare parts mula sa stock ng base — eksaktong ganoon din ang nababawas doon. Walang POTATO na nagagastos at walang transaksyong pipirmahan.',
   'Часы колонии идут: останови экспедицию в разделе КОЛОНИЯ, чтобы забрать ресурсы без гонки с дневным тиком.': 'Tumitakbo ang orasan ng kolonya: i-pause ang expedition sa COLONY section para makakuha ng resource nang hindi karera sa daily tick.',
 }

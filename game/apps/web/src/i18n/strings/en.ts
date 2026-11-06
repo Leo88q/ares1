@@ -826,6 +826,7 @@ export default {
   'СВОБОДНО В ХРАНИЛИЩЕ': 'FREE STORAGE',
   'ВЗЯТЬ': 'DRAW',
   'ВЗЯТЬ ИЗ КОЛОНИИ': 'Draw from the colony',
+  'Колония ещё не загружена с сервера. Войдите через кошелёк в разделе КОЛОНИЯ.': 'Colony is not loaded from the server yet. Sign in with your wallet in the COLONY section.',
   'Вода, питание и запчасти списываются из общего стока базы — там их становится ровно столько же меньше. POTATO не тратится, транзакция не подписывается.': 'Water, nutrients and spare parts come out of the base stock — exactly the same amount disappears there. No POTATO is spent and no transaction is signed.',
   'Часы колонии идут: останови экспедицию в разделе КОЛОНИЯ, чтобы забрать ресурсы без гонки с дневным тиком.': 'The colony clock is running: pause the expedition in the COLONY section to draw resources without racing the daily tick.',
 }

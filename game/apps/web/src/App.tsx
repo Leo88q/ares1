@@ -8,6 +8,8 @@ import { ToastProvider } from './components/Toast'
 import { WalletErrorReporter } from './components/WalletErrorReporter'
 import { GameProvider } from './contexts/GameContext'
 import { ColonyProvider } from './colony/ColonyContext'
+import { ServerColonyProvider } from './colony/ColonySimProvider'
+import { COLONY_SIM_ENABLED } from './colony/simFlag'
 import { t, useI18n } from './i18n'
 import { NETWORK_LABEL } from './utils/network'
 import { ambientMusic } from './utils/ambientMusic'
@@ -71,9 +73,9 @@ export default function App() {
             ПОЛЕВАЯ ЛАБОРАТОРИЯ (/lab), поэтому вода, питание и запчасти — одни
             и те же числа в обеих секциях. Без общего провайдера каждый экран
             завёл бы свой сток, и передача ресурсов стала бы фикцией. */}
-        <ColonyProvider>
-         <AppRoutes />
-        </ColonyProvider>
+        {COLONY_SIM_ENABLED
+          ? <ServerColonyProvider><AppRoutes /></ServerColonyProvider>
+          : <ColonyProvider><AppRoutes /></ColonyProvider>}
        </GameProvider>
       </ToastProvider>
      </ErrorBoundary>

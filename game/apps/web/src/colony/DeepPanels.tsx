@@ -1,16 +1,12 @@
 import { useRef, useState, type KeyboardEvent } from 'react'
 import { deepCopy } from './deepCopy'
 import type { ColonyWorld } from '@ares/colony-engine/colony/deep/world'
+import type { DeepAction } from '@ares/colony-engine/colony/actions'
 import { RESOURCES, RESOURCE_IDS } from '@ares/colony-engine/colony/deep/resources'
 import { SPECIALTY_LABEL } from '@ares/colony-engine/colony/deep/crew'
 import { TASK_META } from '@ares/colony-engine/colony/deep/tasks'
 import { ANALYSIS_KINDS, ANALYSIS_META } from '@ares/colony-engine/colony/deep/lab'
-import {
-  applyRecipe, cancelTask, deliverContract, importResource, isolateSection, pricePerUnit,
-  requestAnalysis,
-  reserveSolsOf, saveRecipe,
-  setRisky, setSafeMode, setStandby, setTaskPaused, setTaskPriority, startExperiment, takeSample,
-} from '@ares/colony-engine/colony/deep/world'
+import { pricePerUnit, reserveSolsOf } from '@ares/colony-engine/colony/deep/world'
 import { finishExperiment } from '@ares/colony-engine/colony/deep/lab'
 import { batchStage, batchSummary, projectedYieldKg, STAGE_LABEL, FACTOR_LABEL } from '@ares/colony-engine/colony/deep/growth'
 import { totalPressureKpa, o2PartialKpa, co2PartialKpa } from '@ares/colony-engine/colony/deep/sections'
@@ -45,11 +41,11 @@ const num = (value: number, digits = 1): string =>
   Number.isFinite(value) ? value.toFixed(digits).replace(/\.0$/, '') : '—'
 
 /** Полотно панелей глубокого слоя: всё из одного мира, без вторых моделей. */
-export function DeepPanels({ world, language, onChange, initialTab = 'crew' }: {
+export function DeepPanels({ world, language, perform, initialTab = 'crew' }: {
   world: ColonyWorld | null
   language: string
-  /** Мир правится на месте; колбэк только просит перерисовать. */
-  onChange: () => void
+  /** Мир меняется только через perform: сервер (VITE_COLONY_SIM) или локальный движок. */
+  perform: (op: DeepAction) => void
   /** Открытая вкладка. Нужна и для ссылок на конкретную панель, и для тестов. */
   initialTab?: DeepTab
 }) {
@@ -86,14 +82,14 @@ export function DeepPanels({ world, language, onChange, initialTab = 'crew' }: {
         : <div className="colony-deep-body" role="tabpanel" id="deep-panel"
           aria-labelledby={`deep-tab-${tab}`} tabIndex={0}>
           {tab === 'crew' && <CrewPanel world={world} language={language} />}
-          {tab === 'tasks' && <TaskPanel world={world} language={language} onChange={onChange} />}
-          {tab === 'stores' && <StorePanel world={world} language={language} onChange={onChange} />}
+          {tab === 'tasks' && <TaskPanel world={world} language={language} perform={perform} />}
+          {tab === 'stores' && <StorePanel world={world} language={language} perform={perform} />}
           {tab === 'extraction' && <ExtractionPanel world={world} language={language} />}
-          {tab === 'life' && <LifePanel world={world} language={language} onChange={onChange} />}
+          {tab === 'life' && <LifePanel world={world} language={language} perform={perform} />}
           {tab === 'greenhouse' && <GreenhousePanel world={world} language={language} />}
-          {tab === 'lab' && <LabPanel world={world} language={language} onChange={onChange} />}
-          {tab === 'repair' && <RepairPanel world={world} language={language} onChange={onChange} />}
-          {tab === 'contracts' && <ContractPanel world={world} language={language} onChange={onChange} />}
+          {tab === 'lab' && <LabPanel world={world} language={language} perform={perform} />}
+          {tab === 'repair' && <RepairPanel world={world} language={language} perform={perform} />}
+          {tab === 'contracts' && <ContractPanel world={world} language={language} perform={perform} />}
           {tab === 'journal' && <JournalPanel world={world} language={language} />}
         </div>}
     </div>
@@ -129,7 +125,7 @@ function CrewPanel({ world, language }: { world: ColonyWorld; language: string }
   </section>
 }
 
-function TaskPanel({ world, language, onChange }: { world: ColonyWorld; language: string; onChange: () => void }) {
+function TaskPanel({ world, language, perform }: { world: ColonyWorld; language: string; perform: (op: DeepAction) => void }) {
   const c = deepCopy(language)
   const open = world.tasks.filter(t => t.status !== 'done' && t.status !== 'cancelled')
   const statusLabel: Record<string, string> = {
@@ -152,13 +148,13 @@ function TaskPanel({ world, language, onChange }: { world: ColonyWorld; language
             {t.blockReason && <> · <b>{c.blockedBy}</b>: {t.blockReason}</>}</td>
           <td>{t.manualPriority ?? t.basePriority} ({t.manualPriority === null ? c.auto : c.manual})</td>
           <td className="colony-deep-actions">
-            <button type="button" onClick={() => { setTaskPaused(world, t.id, t.status !== 'paused'); onChange() }}>
+            <button type="button" onClick={() => { perform({ op: 'taskPaused', taskId: t.id, paused: t.status !== 'paused' }) }}>
               {t.status === 'paused' ? c.resume : c.pause}</button>
-            <button type="button" aria-label={c.raise} onClick={() => { setTaskPriority(world, t.id, (t.manualPriority ?? t.basePriority) - 1); onChange() }}>↑</button>
-            <button type="button" aria-label={c.lower} onClick={() => { setTaskPriority(world, t.id, (t.manualPriority ?? t.basePriority) + 1); onChange() }}>↓</button>
-            <button type="button" onClick={() => { setTaskPriority(world, t.id, null); onChange() }}>{c.resetPrio}</button>
+            <button type="button" aria-label={c.raise} onClick={() => { perform({ op: 'taskPriority', taskId: t.id, priority: (t.manualPriority ?? t.basePriority) - 1 }) }}>↑</button>
+            <button type="button" aria-label={c.lower} onClick={() => { perform({ op: 'taskPriority', taskId: t.id, priority: (t.manualPriority ?? t.basePriority) + 1 }) }}>↓</button>
+            <button type="button" onClick={() => { perform({ op: 'taskPriority', taskId: t.id, priority: null }) }}>{c.resetPrio}</button>
             <button type="button" data-testid={`deep-cancel-${t.id}`}
-              onClick={() => { cancelTask(world, t.id); onChange() }}>{c.cancelTask}</button>
+              onClick={() => { perform({ op: 'taskCancel', taskId: t.id }) }}>{c.cancelTask}</button>
           </td>
         </tr>
       })}</tbody>
@@ -171,7 +167,7 @@ const IMPORTABLE = ['parts', 'filters', 'nutrient_n', 'nutrient_p', 'nutrient_k'
 /** Партия завоза: детали и фильтры считаются штуками, воду и удобрения берут десятками. */
 const IMPORT_BATCH: Record<string, number> = { parts: 2, filters: 2, water_clean: 50 }
 
-function StorePanel({ world, language, onChange }: { world: ColonyWorld; language: string; onChange: () => void }) {
+function StorePanel({ world, language, perform }: { world: ColonyWorld; language: string; perform: (op: DeepAction) => void }) {
   const c = deepCopy(language)
   const lang = language === 'ru' ? 'ru' : 'en'
   const rows = RESOURCE_IDS
@@ -181,7 +177,7 @@ function StorePanel({ world, language, onChange }: { world: ColonyWorld; languag
     const price = pricePerUnit(id)
     const room = Math.max(0, (world.stock.cap[id] ?? 0) - (world.stock.amount[id] ?? 0))
     const batch = Math.min(IMPORT_BATCH[id] ?? 10, room, price > 0 ? world.credits / price : 0)
-    if (batch > 0) { importResource(world, id, batch); onChange() }
+    if (batch > 0) perform({ op: 'importResource', resource: id, amount: batch })
   }
   return <section className="colony-study-card">
     <p className="colony-eyebrow">{c.storesTitle}</p>
@@ -264,7 +260,7 @@ function ExtractionPanel({ world, language }: { world: ColonyWorld; language: st
   </>
 }
 
-function LifePanel({ world, language, onChange }: { world: ColonyWorld; language: string; onChange: () => void }) {
+function LifePanel({ world, language, perform }: { world: ColonyWorld; language: string; perform: (op: DeepAction) => void }) {
   const c = deepCopy(language)
   return <section className="colony-study-card">
     <p className="colony-eyebrow">{c.lifeTitle}</p>
@@ -281,7 +277,7 @@ function LifePanel({ world, language, onChange }: { world: ColonyWorld; language
         <td><Bar value={s.condition} tone={s.condition < 0.7 ? 'danger' : undefined} /> {pct(s.condition)}</td>
         <td><button type="button" data-testid={`deep-isolate-${s.id}`}
           aria-pressed={s.isolated}
-          onClick={() => { isolateSection(world, s.id, !s.isolated); onChange() }}>
+          onClick={() => { perform({ op: 'isolateSection', sectionId: s.id, isolated: !s.isolated }) }}>
           {s.isolated ? c.reconnect : c.isolate}</button></td>
       </tr>)}</tbody>
     </table></div>
@@ -376,8 +372,8 @@ const REGIME_PRESETS = [
   { key: 'rich', regime: { targetC: 20, feedRate: 1.35, light: 1, irrigation: 1.1 } },
 ] as const
 
-function LabPanel({ world, language, onChange }: {
-  world: ColonyWorld; language: string; onChange: () => void
+function LabPanel({ world, language, perform }: {
+  world: ColonyWorld; language: string; perform: (op: DeepAction) => void
 }) {
   const c = deepCopy(language)
   const lang = language === 'ru' ? 'ru' : 'en'
@@ -393,17 +389,14 @@ function LabPanel({ world, language, onChange }: {
   // Цепочка честная: сначала проба (тратит воду), потом анализ (тратит реагенты).
   const requestAssay = () => {
     if (!target) return
-    takeSample(world, ANALYSIS_META[assayKind].sample, target)
-    if (requestAnalysis(world, assayKind, target)) onChange()
+    perform({ op: 'analysis', kind: assayKind, targetId: target })
   }
   const regimeOf = (key: string) =>
     (REGIME_PRESETS.find(p => p.key === key) ?? REGIME_PRESETS[0]).regime
 
   const start = () => {
     const label = (key: string) => c[`regime${key[0].toUpperCase()}${key.slice(1)}` as keyof typeof c] ?? key
-    const experiment = startExperiment(world, `${label(armA)} / ${label(armB)}`,
-      sols, regimeOf(armA), regimeOf(armB))
-    if (experiment) onChange()
+    perform({ op: 'experimentStart', name: `${label(armA)} / ${label(armB)}`, sols, regimeA: regimeOf(armA), regimeB: regimeOf(armB) })
   }
 
   return <>
@@ -464,7 +457,7 @@ function LabPanel({ world, language, onChange }: {
             <td>{num(e.a.energyKwh, 0)} / {num(e.b.energyKwh, 0)} kWh</td>
             <td>{result ? (result.winner === 'tie' ? c.labTie : result.winner.toUpperCase()) : '—'}</td>
             <td>{e.status === 'done' && !e.savedRecipeId
-              ? <button type="button" onClick={() => { if (saveRecipe(world, e.id)) onChange() }}>{c.labSaveRecipe}</button>
+              ? <button type="button" onClick={() => { perform({ op: 'recipeSave', experimentId: e.id }) }}>{c.labSaveRecipe}</button>
               : e.savedRecipeId ? c.labSaved : null}</td>
           </tr>
         })}</tbody>
@@ -481,7 +474,7 @@ function LabPanel({ world, language, onChange }: {
           <td>{num(r.regime.targetC)} {c.celsius}</td>
           <td>{r.evidence ? `${num(r.evidence.yieldKg)} kg · ${pct(r.evidence.quality)} · ${num(r.evidence.waterL, 0)} L` : '—'}</td>
           <td><select data-testid={`deep-recipe-target-${r.id}`} className="colony-deep-target"
-            onChange={e => { if (e.target.value && applyRecipe(world, r.id, e.target.value)) onChange() }} defaultValue="">
+            onChange={e => { if (e.target.value) perform({ op: 'recipeApply', recipeId: r.id, greenhouseId: e.target.value }) }} defaultValue="">
             <option value="">{c.labApplyTo}</option>
             {greenhouses.map(id => <option key={id} value={id}>{id}</option>)}
           </select></td>
@@ -492,7 +485,7 @@ function LabPanel({ world, language, onChange }: {
   </>
 }
 
-function RepairPanel({ world, language, onChange }: { world: ColonyWorld; language: string; onChange: () => void }) {
+function RepairPanel({ world, language, perform }: { world: ColonyWorld; language: string; perform: (op: DeepAction) => void }) {
   const c = deepCopy(language)
   const attention = attentionList(world)
   const byId = new Map(attention.map(a => [a.id, a]))
@@ -510,15 +503,15 @@ function RepairPanel({ world, language, onChange }: { world: ColonyWorld; langua
           <td>{note ? `${note.reason} · ${c[note.severity === 'critical' ? 'severityCritical' : note.severity === 'warning' ? 'severityWarning' : 'severityInfo']}` : '—'}</td>
           <td><button type="button" data-testid={`deep-safemode-${d.id}`}
             aria-pressed={d.safeMode}
-            onClick={() => { setSafeMode(world, d.id, !d.safeMode); onChange() }}>
+            onClick={() => { perform({ op: 'safeMode', deviceId: d.id, on: !d.safeMode }) }}>
             {d.safeMode ? c.safeModeOff : c.safeModeOn}</button></td>
           <td><button type="button" data-testid={`deep-standby-${d.id}`}
             aria-pressed={d.standby}
-            onClick={() => { setStandby(world, d.id, !d.standby); onChange() }}>
+            onClick={() => { perform({ op: 'standby', deviceId: d.id, on: !d.standby }) }}>
             {d.standby ? c.standbyOn : c.standbyOff}</button></td>
           <td><button type="button" data-testid={`deep-risky-${d.id}`}
             aria-pressed={d.risky}
-            onClick={() => { setRisky(world, d.id, !d.risky); onChange() }}>
+            onClick={() => { perform({ op: 'risky', targetId: d.id, on: !d.risky }) }}>
             {c.riskyOn}</button></td>
         </tr>
       })}</tbody>
@@ -530,7 +523,7 @@ function RepairPanel({ world, language, onChange }: { world: ColonyWorld; langua
   </section>
 }
 
-function ContractPanel({ world, language, onChange }: { world: ColonyWorld; language: string; onChange: () => void }) {
+function ContractPanel({ world, language, perform }: { world: ColonyWorld; language: string; perform: (op: DeepAction) => void }) {
   const c = deepCopy(language)
   // Автополитика держит резерв; ручная кнопка отдаёт решение игроку —
   // отвезти излишек раньше и остаться с тонким запасом еды.
@@ -554,7 +547,7 @@ function ContractPanel({ world, language, onChange }: { world: ColonyWorld; lang
           <td>{num(ware)} kg</td>
           <td>{ct.status === 'active' && kg > 1e-9
             ? <button type="button" data-testid={`deep-ship-${ct.id}`}
-              onClick={() => { deliverContract(world, ct.id, kg); onChange() }}>
+              onClick={() => { perform({ op: 'contractDeliver', contractId: ct.id, kg }) }}>
               {c.shipKg} {num(kg)} kg</button>
             : <span className="colony-fineprint">{ct.status === 'active' ? c.nothingToShip : ct.status}</span>}</td>
         </tr>

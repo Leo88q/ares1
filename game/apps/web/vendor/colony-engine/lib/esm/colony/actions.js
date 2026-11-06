@@ -7,8 +7,11 @@
 import { CATALOG, DEFAULT_SCENARIO, MODULE_KINDS, PARAMETERS, advanceDays, buildModuleAt, buySupplies, canBuild, canHarvestBed, canRepair, deliverFood, harvestBed, initialColony, moveModule, repairColony, } from './simulation.js';
 import { addNetwork, NETWORK_TYPES, removeNetwork } from './networks.js';
 import { RESOURCE_IDS } from './deep/resources.js';
-import { ANALYSIS_KINDS } from './deep/lab.js';
-import { applyRecipe, cancelTask, deliverContract, importResource, isolateSection, requestAnalysis, saveRecipe, setRisky, setSafeMode, setStandby, setTaskPaused, setTaskPriority, startExperiment, } from './deep/world.js';
+import { ANALYSIS_KINDS, ANALYSIS_META } from './deep/lab.js';
+import { applyRecipe, cancelTask, deliverContract, importResource, isolateSection, requestAnalysis, saveRecipe, setRisky, setSafeMode, setStandby, setTaskPaused, setTaskPriority, startExperiment, takeSample, } from './deep/world.js';
+import { drawFromColony } from './supply.js';
+/** Ресурсы, которые лаборатория может забрать из стока колонии (совпадает с веб-мостом). */
+const LAB_RESOURCES = ['water', 'nutrients', 'spares'];
 /** Версия правил движка. Меняется вместе с золотым хешем в test/determinism.test.mjs. */
 export const ENGINE_VERSION = 1;
 /** Лимит дней за один запрос: полный год ≈ 2 с, поэтому длинные прогоны идут пачками. */
@@ -82,6 +85,9 @@ export function applyAction(session, action) {
         case 'networkRemove':
             next.state = removeNetwork(s, action.networkId);
             break;
+        case 'labDraw':
+            next.state = drawFromColony(s, action.resource, action.kg).state;
+            break;
         case 'deep': {
             if (!world)
                 return { ok: false, code: 'NO_WORLD' };
@@ -122,7 +128,9 @@ function applyDeep(world, op) {
         case 'contractDeliver':
             deliverContract(world, op.contractId, op.kg);
             break;
+        // Проба и анализ — одна операция: так же, как кнопка «Анализ» в клиенте (проба тратит воду).
         case 'analysis':
+            takeSample(world, ANALYSIS_META[op.kind].sample, op.targetId);
             requestAnalysis(world, op.kind, op.targetId);
             break;
         case 'experimentStart':
@@ -243,6 +251,10 @@ export function parseSimAction(input) {
         }
         case 'networkRemove':
             return isId(input.networkId) ? { type: 'networkRemove', networkId: input.networkId } : null;
+        case 'labDraw':
+            return typeof input.resource === 'string' && LAB_RESOURCES.includes(input.resource)
+                && isNum(input.kg, 0, 1_000)
+                ? { type: 'labDraw', resource: input.resource, kg: input.kg } : null;
         case 'deep': {
             const deep = parseDeep(input.deep);
             return deep ? { type: 'deep', deep } : null;
