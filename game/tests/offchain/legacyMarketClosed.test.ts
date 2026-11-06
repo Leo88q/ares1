@@ -83,7 +83,8 @@ test('P2-2: доигрывание книги не гейтится — escrow �
 test('P2-2: ABI не изменился, а код 6058 дописан в конец GameError', () => {
   const names = idl.instructions.map((ix: { name: string }) => ix.name)
   assert.ok(names.includes('create_sell_order'), 'инструкция остаётся в ABI: клиенты должны получать понятный отказ')
-  assert.equal(idl.instructions.length, 48, 'P2-2 не добавляет и не удаляет инструкции')
+  // P2-2 сам инструкций не менял; +1 colony_spend (2026-11-06) — осознанный diff пина.
+  assert.equal(idl.instructions.length, 49, 'P2-2 не добавляет и не удаляет инструкции')
 
   const errors = idl.errors as { code: number; name: string }[]
   const closed = errors.find(e => e.code === 6058)

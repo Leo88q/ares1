@@ -241,6 +241,7 @@ pub const REFERRAL_REGISTRATION_FEE_MICRO: Option<u64> = None;
 pub const REFERRAL_PROGRAM_ENABLED: bool = false;
 pub const BASE_TAX_MICRO: u64 = 6_000_000; // 6 $POTATO / week
 pub const BASE_REPAIR_MICRO: u64 = 15_000_000; // 15 $POTATO
+
 // Колонийные траты POTATO: сжигаются как и прочие траты, эмиссии нет.
 // Лимит за один вызов — защита от случайной траты всего кошелька.
 pub const COLONY_SPEND_MAX_MICRO: u64 = 10_000_000_000; // 10 000 $POTATO
@@ -1189,7 +1190,10 @@ pub mod solana_potato {
             amount_micro > 0 && amount_micro <= COLONY_SPEND_MAX_MICRO,
             GameError::InvalidAmount
         );
-        require!(colony_purpose_valid(purpose), GameError::InvalidColonyPurpose);
+        require!(
+            colony_purpose_valid(purpose),
+            GameError::InvalidColonyPurpose
+        );
         burn_from_user(
             &ctx.accounts.token_program,
             &ctx.accounts.potato_mint,
@@ -1197,8 +1201,11 @@ pub mod solana_potato {
             &ctx.accounts.owner,
             amount_micro,
         )?;
-        ctx.accounts.config.total_burned_micro =
-            ctx.accounts.config.total_burned_micro.saturating_add(amount_micro);
+        ctx.accounts.config.total_burned_micro = ctx
+            .accounts
+            .config
+            .total_burned_micro
+            .saturating_add(amount_micro);
         emit!(ColonySpent {
             owner: ctx.accounts.owner.key(),
             amount_micro,

@@ -46,14 +46,18 @@ test('регистрация закрыта константой и гейтом
   }
 })
 
-test('инструкция остаётся в ABI, код 6059 — последний', () => {
+test('инструкция остаётся в ABI, код 6059 — ReferralProgramRetired; последний код — InvalidColonyPurpose (6060)', () => {
   const names = idl.instructions.map((ix: { name: string }) => ix.name)
   assert.ok(names.includes('register_referrer'), 'клиенты должны получать отказ программы, а не «unknown instruction»')
-  assert.equal(idl.instructions.length, 48)
+  // +1 colony_spend (2026-11-06) — осознанный diff пина.
+  assert.equal(idl.instructions.length, 49)
   const errors = idl.errors as { code: number; name: string }[]
+  const retired = errors.find(e => e.code === 6059)
+  assert.equal(retired?.name, 'ReferralProgramRetired')
+  // Новые коды дописываются в конец enum: последний — InvalidColonyPurpose.
   const last = errors[errors.length - 1]
-  assert.equal(last.name, 'ReferralProgramRetired')
-  assert.equal(last.code, 6059)
+  assert.equal(last.name, 'InvalidColonyPurpose')
+  assert.equal(last.code, 6060)
   assert.ok(errors.every((e, i) => e.code === 6000 + i), 'коды идут подряд с 6000')
 })
 
