@@ -24,7 +24,7 @@
 1. **Пакет движка.** Вынесено в vendor-пакет `game/apps/web/vendor/colony-engine` (`@ares/colony-engine`), а не в `packages/`: Cloudflare Pages видит только `game/apps/web`. Web и backend импортируют его.
    Web-файлы на время миграции реэкспортируют старые пути, чтобы не менять десятки импортов сразу.
 2. **Действия.** Каждая мутация UI становится типизированным действием: `build`, `move`, `repair`, `supplies`,
-   `deliver`, `harvestBed`, `advanceDays(n)` (n ≤ 7 за запрос), сетевые действия, действия deep-панелей, `reset`.
+   `deliver`, `harvestBedV2` (ручная уборка через глубокий мир; `harvestBed` — только старые записи журнала), `advanceDays(n)` (n ≤ 7 за запрос), сетевые действия, действия deep-панелей. `reset` и `scenario` в движке остаются для проигрывания журналов и на сервере запрещены.
    Сервер применяет `applyAction(state, action)` и возвращает новое состояние.
 3. **Хранение.** Журнал + периодические снимки, а не один большой JSON на каждый шаг:
    - `colony_sim_sessions(owner_wallet PK, sequence, snapshot_sequence, snapshot text, state_hash, engine_version, updated_at)`;

@@ -91,6 +91,10 @@ export type SimAction = {
     moduleId: string;
     index: number;
 } | {
+    type: 'harvestBedV2';
+    moduleId: string;
+    index: number;
+} | {
     type: 'networkAdd';
     network: {
         type: NetworkType;

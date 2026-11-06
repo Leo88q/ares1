@@ -92,6 +92,14 @@ export interface AdvanceResult {
 export declare function advanceColonyDay(state: ColonyState, scenario: Scenario, budget: DayBudget): AdvanceResult;
 export declare function emptyStepOf(sol: number): SolStep;
 /**
+ * Ручная уборка грядки (A5, вариант В). Реестр снимает урожай и оставляет грядку
+ * пустой (`autoReplant: false`), мир закрывает партию тем же учётом, что шаг дня.
+ * Пересев здесь не делается: партия без посадки получает задачу посадки глубокого
+ * слоя, которая списывает семенной картофель из запаса и требует труда экипажа.
+ * Если уборка отклонена (нет сбора, склад полон), возвращается то же состояние.
+ */
+export declare function harvestBedDeep(state: ColonyState, moduleId: string, index: number): ColonyState;
+/**
  * Мир колонии. Создаётся лениво: состояния сессии без `world` получают мир при
  * первом шаге, а не ломаются.
  */

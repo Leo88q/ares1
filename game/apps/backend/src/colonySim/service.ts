@@ -24,7 +24,8 @@ import {
 const MICRO_PER_CR = 1_000_000n;
 // Действия, которые сервер не принимает от клиента. Только для новых записей:
 // проигрывание старого журнала (parseSimAction в replay) их не трогает, иначе история перестанет сходиться.
-const SERVER_DISABLED_ACTIONS: ReadonlySet<string> = new Set(["reset", "scenario", "labDraw"]);
+// harvestBed (A5): уборка без учёта глубокого мира. Старые записи проигрываются, новые — только harvestBedV2.
+const SERVER_DISABLED_ACTIONS: ReadonlySet<string> = new Set(["reset", "scenario", "labDraw", "harvestBed"]);
 
 export const SNAPSHOT_EVERY = 20;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

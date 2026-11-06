@@ -208,7 +208,7 @@ export default function ColonyScreen({ embedded = false, potatoSpend }: { embedd
                     <div className="colony-meter"><span style={{ width: `${selected.growthDays / 90 * 100}%`, background: '#91cba2' }} /></div>
                     <BedPanel mod={selected} language={lang} storageFull={state.ledger.storageCapKg - state.ledger.rawKg - state.ledger.processedKg < bedCycleKg()} manualHarvest={COLONY_MANUAL_HARVEST_ENABLED && selected ? {
                       canHarvest: i => canHarvestBed(state, selected.id, i),
-                      onHarvest: i => void run({ type: 'harvestBed', moduleId: selected.id, index: i }),
+                      onHarvest: i => void run({ type: 'harvestBedV2', moduleId: selected.id, index: i }),
                     } : undefined} />
                   </>}
                 </> : <p>{c.select}</p>}

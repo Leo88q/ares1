@@ -98,6 +98,9 @@ test("коды ошибок: 400 на мусор, 409 на устаревший 
   // Аудит A1: labDraw списывает сток без приёмника, сервер его не принимает.
   const labDraw = await call("POST", "/actions", W1, { requestId: UUIDS[5], expectedSequence: 1, action: { type: "labDraw", resource: "water", kg: 5 } });
   assert.deepEqual([labDraw.status, labDraw.json.code], [400, "ACTION_DISABLED"]);
+  // A5: уборка без учёта глубокого мира отключена; новые записи идут через harvestBedV2.
+  const oldHarvest = await call("POST", "/actions", W1, { requestId: UUIDS[5], expectedSequence: 1, action: { type: "harvestBed", moduleId: "greenhouse-1", index: 0 } });
+  assert.deepEqual([oldHarvest.status, oldHarvest.json.code], [400, "ACTION_DISABLED"]);
   const notObject = await call("POST", "/actions", W1, [1, 2, 3]);
   assert.deepEqual([notObject.status, notObject.json.code], [400, "INVALID_REQUEST"]);
 

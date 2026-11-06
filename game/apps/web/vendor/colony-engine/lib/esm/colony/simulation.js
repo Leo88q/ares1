@@ -2,7 +2,7 @@ import { networkServices, starterNetworks, placementHitsNetwork } from './networ
 import { COLONY_MODULE_LIMIT, findPlacement, placementError } from './layout.js';
 import { BEDS, PARAMETERS } from '../organism/parameters.js';
 import { addPlot, canHarvestBed as unifiedCanHarvest, exportKg, harvestBed as unifiedHarvest, initialUnifiedBase, storedKg, } from '../organism/unified.js';
-import { addDeepModule, advanceColonyDay, createWorldForColony, DEVICE_FOR_MODULE, ensureWorld, overhaulWorld, syncStateFromWorld, withDeepExtras, } from './deep/bridge.js';
+import { addDeepModule, advanceColonyDay, createWorldForColony, DEVICE_FOR_MODULE, ensureWorld, overhaulWorld, harvestBedDeep, syncStateFromWorld, withDeepExtras, } from './deep/bridge.js';
 import { cloneWorld } from './deep/world.js';
 import { stockTake } from './deep/resources.js';
 /** Storage limit of the base (kg of raw + processed food). Decision §32 / P1b: 120 kg. */
@@ -142,6 +142,14 @@ export function canHarvestBed(state, moduleId, index) {
 export function harvestBed(state, moduleId, index) {
     const ledger = unifiedHarvest(state.ledger, moduleId, index);
     return ledger === state.ledger ? state : syncView({ ...state, ledger });
+}
+/**
+ * Ручная уборка на сервере (A5, вариант В): учитывает глубокий мир и оставляет грядку пустой.
+ * `harvestBed` выше сохранён только для проигрывания старых записей журнала.
+ */
+export function harvestBedV2(state, moduleId, index) {
+    const next = harvestBedDeep(state, moduleId, index);
+    return next === state ? state : syncView(next);
 }
 export const countModules = (s, kind) => s.modules.filter(m => m.kind === kind).length;
 export const batteryCapacity = (s) => countModules(s, 'battery') * PARAMETERS.batteryKwh;

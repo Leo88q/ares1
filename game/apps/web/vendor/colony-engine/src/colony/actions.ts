@@ -6,7 +6,7 @@
 // Без Node-модулей: этот файл входит и в браузерный бандл web.
 import {
   CATALOG, DEFAULT_SCENARIO, MODULE_KINDS, PARAMETERS, advanceDays, buildModuleAt, buySupplies, canBuild,
-  canHarvestBed, canRepair, deliverFood, harvestBed, initialColony, moveModule, repairColony,
+  canHarvestBed, canRepair, deliverFood, harvestBed, harvestBedV2, initialColony, moveModule, repairColony,
   type ColonyState, type ModuleKind, type Scenario,
 } from './simulation.js'
 import { addNetwork, NETWORK_TYPES, removeNetwork, type ColonyNetwork, type NetworkType } from './networks.js'
@@ -59,6 +59,7 @@ export type SimAction =
   | { type: 'supplies' }
   | { type: 'deliver' }
   | { type: 'harvestBed'; moduleId: string; index: number }
+  | { type: 'harvestBedV2'; moduleId: string; index: number }
   | { type: 'networkAdd'; network: { type: NetworkType; from: string; to: string; cells: { x: number; z: number }[] } }
   | { type: 'networkRemove'; networkId: string }
   | { type: 'labDraw'; resource: LabSupplyResource; kg: number }
@@ -126,6 +127,9 @@ export function applyAction(session: SimSession, action: SimAction): ApplyResult
       break
     case 'harvestBed':
       if (canHarvestBed(s, action.moduleId, action.index)) next.state = harvestBed(s, action.moduleId, action.index)
+      break
+    case 'harvestBedV2':
+      if (canHarvestBed(s, action.moduleId, action.index)) next.state = harvestBedV2(s, action.moduleId, action.index)
       break
     case 'networkAdd':
       next.state = addNetwork(s, { id: '', ...action.network } as ColonyNetwork)
@@ -258,6 +262,8 @@ export function parseSimAction(input: unknown): SimAction | null {
       return { type: 'deliver' }
     case 'harvestBed':
       return isId(input.moduleId) && isInt(input.index, 0, 63) ? { type: 'harvestBed', moduleId: input.moduleId, index: input.index } : null
+    case 'harvestBedV2':
+      return isId(input.moduleId) && isInt(input.index, 0, 63) ? { type: 'harvestBedV2', moduleId: input.moduleId, index: input.index } : null
     case 'networkAdd': {
       const n = input.network
       if (!isObject(n) || typeof n.type !== 'string' || !(NETWORK_TYPES as readonly string[]).includes(n.type)

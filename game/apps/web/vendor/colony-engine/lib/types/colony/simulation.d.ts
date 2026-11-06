@@ -142,6 +142,11 @@ export declare const bedCycleKg: () => number;
  */
 export declare function canHarvestBed(state: ColonyState, moduleId: string, index: number): boolean;
 export declare function harvestBed(state: ColonyState, moduleId: string, index: number): ColonyState;
+/**
+ * Ручная уборка на сервере (A5, вариант В): учитывает глубокий мир и оставляет грядку пустой.
+ * `harvestBed` выше сохранён только для проигрывания старых записей журнала.
+ */
+export declare function harvestBedV2(state: ColonyState, moduleId: string, index: number): ColonyState;
 export declare const countModules: (s: ColonyState, kind: ModuleKind) => number;
 export declare const batteryCapacity: (s: ColonyState) => number;
 export declare const foodDemand: (s: ColonyState) => number;

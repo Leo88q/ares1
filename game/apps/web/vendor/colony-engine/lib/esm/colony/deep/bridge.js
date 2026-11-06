@@ -27,7 +27,7 @@ import { createVehicle } from './machines.js';
 import { greenhouseRatedKw } from './world.js';
 import { createBatch } from './growth.js';
 import { applySort, applyStorageCapacity, createWorld, pushEvent, setSortableRawKg, splitNutrients, startCompost, stepSol, WORLD_VERSION, } from './world.js';
-import { advanceDay as advanceUnified, plantBed } from '../../organism/unified.js';
+import { advanceDay as advanceUnified, harvestBed as unifiedHarvestBed, plantBed } from '../../organism/unified.js';
 import { bedCycleKg } from '../../organism/beds.js';
 import { BEDS, LAB } from '../../organism/parameters.js';
 import { isOpen } from './tasks.js';
@@ -465,17 +465,10 @@ export function advanceColonyDay(state, scenario, budget) {
         }
     }
     stepped.totals.harvestedKg += harvestedKg;
-    // Вода, физически ушедшая с урожаем: картофель ~80 % воды. Её нельзя вернуть
-    // конденсатором, поэтому она списывается из бака в момент уборки.
     if (harvestedKg > 0) {
-        const boundL = harvestedKg * DEEP_P.waterBoundLPerKg;
-        const taken = stockTake(stepped.stock, 'water_clean', boundL);
+        const takenL = settleHarvestedMass(stepped, harvestedKg);
         if (stepped.lastStep)
-            stepped.lastStep.waterIndustrialL += taken.taken;
-        stepped.totals.waterIndustrialL += taken.taken;
-        // Ботва и корневые остатки — тоже масса: она не исчезает, а становится
-        // растительным остатком, из которого компост возвращает часть N/P/K.
-        startCompost(stepped, harvestedKg * 0.3);
+            stepped.lastStep.waterIndustrialL += takenL;
     }
     // 3. Сортировка: только то, что игрок (или политика) отправил на сортировку.
     let sortedKg = 0;
@@ -579,6 +572,43 @@ function clearDeepBatch(batch) {
     batch.density = 0;
     batch.lastTendSol = null;
     batch.harvestedKg = 0;
+}
+/**
+ * Учёт урожая в глубоком мире, общий для шага дня и ручной уборки. Вода, ушедшая
+ * с картофелем (~80 % воды), не возвращается конденсатором и списывается из бака
+ * в момент уборки. Ботва и корневые остатки — тоже масса: компост возвращает часть N/P/K.
+ * Возвращает литры, списанные из бака.
+ */
+function settleHarvestedMass(world, kg) {
+    const taken = stockTake(world.stock, 'water_clean', kg * DEEP_P.waterBoundLPerKg);
+    world.totals.waterIndustrialL += taken.taken;
+    startCompost(world, kg * 0.3);
+    return taken.taken;
+}
+/**
+ * Ручная уборка грядки (A5, вариант В). Реестр снимает урожай и оставляет грядку
+ * пустой (`autoReplant: false`), мир закрывает партию тем же учётом, что шаг дня.
+ * Пересев здесь не делается: партия без посадки получает задачу посадки глубокого
+ * слоя, которая списывает семенной картофель из запаса и требует труда экипажа.
+ * Если уборка отклонена (нет сбора, склад полон), возвращается то же состояние.
+ */
+export function harvestBedDeep(state, moduleId, index) {
+    const world = state.world;
+    if (!world)
+        return state;
+    const ledger = unifiedHarvestBed(state.ledger, moduleId, index, { autoReplant: false });
+    if (ledger === state.ledger)
+        return state;
+    const kg = ledger.harvestedKg - state.ledger.harvestedKg;
+    const batch = world.batches.find(b => b.greenhouseId === moduleId && b.bedIndex === index);
+    if (batch) {
+        world.totals.yieldLossKg += Math.max(0, BED_FULL_KG - kg);
+        clearDeepBatch(batch);
+    }
+    world.totals.harvestedKg += kg;
+    settleHarvestedMass(world, kg);
+    setSortableRawKg(world, ledger.rawKg);
+    return syncStateFromWorld({ ...state, ledger }, world);
 }
 // --- Доступ к миру состояния ----------------------------------------------
 /**

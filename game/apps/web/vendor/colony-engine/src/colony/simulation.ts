@@ -21,7 +21,7 @@ import {
 import type { ColonyWorld } from './deep/world.js'
 import {
   addDeepModule, advanceColonyDay, createWorldForColony, DEVICE_FOR_MODULE, ensureWorld, overhaulWorld,
-  syncStateFromWorld, withDeepExtras,
+  harvestBedDeep, syncStateFromWorld, withDeepExtras,
 } from './deep/bridge.js'
 import { cloneWorld } from './deep/world.js'
 import { stockTake } from './deep/resources.js'
@@ -262,6 +262,14 @@ export function canHarvestBed(state: ColonyState, moduleId: string, index: numbe
 export function harvestBed(state: ColonyState, moduleId: string, index: number): ColonyState {
   const ledger = unifiedHarvest(state.ledger, moduleId, index)
   return ledger === state.ledger ? state : syncView({ ...state, ledger })
+}
+/**
+ * Ручная уборка на сервере (A5, вариант В): учитывает глубокий мир и оставляет грядку пустой.
+ * `harvestBed` выше сохранён только для проигрывания старых записей журнала.
+ */
+export function harvestBedV2(state: ColonyState, moduleId: string, index: number): ColonyState {
+  const next = harvestBedDeep(state, moduleId, index)
+  return next === state ? state : syncView(next)
 }
 
 export const countModules = (s: ColonyState, kind: ModuleKind): number => s.modules.filter(m => m.kind === kind).length
