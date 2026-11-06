@@ -3,6 +3,7 @@
 import { Router, type Request, type Response } from "express";
 import { requireSession, sessionOf, type ColonySessionGuardOptions } from "../colonies/routes.js";
 import { ColonySimService, SimRejection } from "./service.js";
+import { gzipJsonResponses } from "./gzip.js";
 
 export interface ColonySimRouterOptions extends ColonySessionGuardOptions {
   service: ColonySimService;
@@ -25,6 +26,8 @@ function sendError(res: Response, err: unknown, options: ColonySimRouterOptions)
 
 export function colonySimRouter(options: ColonySimRouterOptions): Router {
   const router = Router();
+  // Сжатие до проверки сессии: ответы 401 тоже сжимаются одинаково.
+  router.use(gzipJsonResponses());
   router.use(requireSession(options));
 
   router.get("/state", async (_req: Request, res: Response) => {

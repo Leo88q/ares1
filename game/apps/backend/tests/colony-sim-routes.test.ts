@@ -55,7 +55,7 @@ async function setup(t: TestContext, spendRequired = false) {
   };
   const close = async () => { server.close(); await db.close(); };
   t.after(close);
-  return { db, call, errors };
+  return { db, call, errors, base, token };
 }
 
 test("без сессии или с чужим origin — 401, без тела состояния", async (t) => {
@@ -147,4 +147,29 @@ test("повреждённый журнал/снимок: 503 без внутр�
   assert.equal(res.json.code, "REPLAY_HASH_MISMATCH");
   assert.equal(res.json.stack, undefined);
   assert.equal(errors.length, 0, "ожидаемый отказ не считается внутренней ошибкой");
+});
+
+test("gzip: при Accept-Encoding gzip тело сжато и декодируется в тот же JSON; без него — обычный ответ", async (t) => {
+  const { base, token } = await setup(t);
+  const auth = { authorization: `Bearer ${token(W1)}`, origin: ORIGIN };
+  const zipped = await fetch(base + "/state", { headers: { ...auth, "accept-encoding": "gzip" } });
+  assert.equal(zipped.status, 200);
+  assert.equal(zipped.headers.get("content-encoding"), "gzip");
+  assert.match(zipped.headers.get("vary") ?? "", /Accept-Encoding/i);
+  const plain = await fetch(base + "/state", { headers: { ...auth, "accept-encoding": "identity" } });
+  assert.equal(plain.status, 200);
+  assert.equal(plain.headers.get("content-encoding"), null);
+  // fetch сам распаковывает gzip: тела должны совпадать по содержимому.
+  const a = (await zipped.json()) as { ok: boolean; view: { stateHash: string; sequence: number } };
+  const b = (await plain.json()) as typeof a;
+  assert.deepEqual(a, b);
+  assert.equal(a.ok, true);
+});
+
+test("gzip: ответ 401 без сессии тоже сжимается и остаётся JSON-ошибкой", async (t) => {
+  const { base } = await setup(t);
+  const res = await fetch(base + "/state", { headers: { origin: ORIGIN, "accept-encoding": "gzip" } });
+  assert.equal(res.status, 401);
+  assert.equal(res.headers.get("content-encoding"), "gzip");
+  assert.equal(((await res.json()) as { error: string }).error, "SESSION_REQUIRED");
 });
