@@ -37,11 +37,13 @@ test('T4 is applied to harvest mass, not to the window or maturity', () => {
   assert.ok(Math.abs(r.planted100 - r.K) < 1e-9)
 })
 
-test('T4 calibration: the ideal crop matures within 1 h of the nominal cycle (with water supplied)', () => {
-  // Идеальная культура с подпиткой воды до полного бака. Водный бюджет проверяется отдельно (см. §6b в mapping).
-  const r = runTs(`import { initialEngineering, advanceEngineering } from '__WEB__/fields/engineering/engine.ts';\nimport { LAB } from '__ENGINE__/organism/parameters.ts';\nlet s = initialEngineering('t', 0); let i = 0;\nwhile (i < 800 && s.crop.matureHour === undefined) { s = advanceEngineering(s, 1); i++; if (s.tankL < LAB.tankCapacityL) s.tankL = LAB.tankCapacityL }\nconsole.log(JSON.stringify({ mature: s.crop.matureHour, nominal: LAB.nominalCycleHours, steps: i }))`)
+test('T4 calibration: the ideal crop matures within 1 h of the nominal cycle; water comes from the stock and the balance closes', () => {
+  // Вода учитывается: склад подаёт воду по действию supply, бак пополняется refill. Баланс проверяется.
+  const r = runTs(`import { initialEngineering, advanceEngineering, engineeringAction, supplyRoom } from '__WEB__/fields/engineering/engine.ts';\nimport { LAB } from '__ENGINE__/organism/parameters.ts';\nlet s = initialEngineering('t', 0); const w0 = s.tankL + s.supplyL + s.lineL; let i = 0;\nwhile (i < 800 && s.crop.matureHour === undefined) { s = advanceEngineering(s, 1); i++; if (s.supplyL < 10) s = engineeringAction(s, { type: 'supply', resource: 'water', amount: Math.min(50, supplyRoom(s, 'water')) }); if (s.tankL < LAB.tankCapacityL - 1e-9) s = engineeringAction(s, { type: 'refill' }) }\nconsole.log(JSON.stringify({ mature: s.crop.matureHour, nominal: LAB.nominalCycleHours, steps: i, w0, left: s.tankL + s.supplyL + s.lineL, cons: s.totals.waterConsumedL, inflow: s.totals.inflowLitres, stockMin: s.tankL >= 0 && s.supplyL >= 0 }))`)
   assert.notEqual(r.mature, undefined, `crop did not mature within ${r.steps} h`)
   assert.ok(Math.abs(r.mature - r.nominal) <= 1, `matureHour ${r.mature} vs nominal ${r.nominal}`)
+  assert.ok(Math.abs(r.w0 + r.inflow - r.left - r.cons) < 1e-6, `баланс воды: ${r.w0} + ${r.inflow} − ${r.left} − ${r.cons}`)
+  assert.ok(r.cons > 0 && r.stockMin === true, 'расход положительный, запасы не уходят в минус')
 })
 
 test('T5: line buffer is 2 L at tier 0 and scales with tier like the other lab reserves', () => {
