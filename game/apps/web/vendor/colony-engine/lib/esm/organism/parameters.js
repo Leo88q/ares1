@@ -7,32 +7,37 @@
 export const LAB = Object.freeze({
     version: 'ARES-LAB/2', solHours: 24.66, tickHours: 0.25,
     maxAdvanceHours: 24.66 * 7, maxHours: 24.66 * 60,
-    growthLightHours: 96, lightHoursPerSol: 16,
+    // Этап 1b: 20 сол × 16 ч света = 320 (было 96 → созревание за 148 ч, а цикл 493 ч; T4 требует совпадения).
+    growthLightHours: 20 * 16, lightHoursPerSol: 16,
     batteryCapacityKwh: 12, batteryInitialKwh: 8,
     chargeEfficiency: 0.9, dischargeEfficiency: 0.9,
     solarPeakKw: 3.2, lampKw: 0.7, pumpKw: 0.08, coolerKw: 0.12, processorKw: 0.35,
     tankCapacityL: 120, tankInitialL: 100, supplyInitialL: 240,
     // T5 (approved, H): line buffer 6 → 2 L, so a pump outage bites within hours, not a day.
     lineCapacityL: 2, lineInitialL: 2, pumpRateLph: 3,
-    // T4 (approved, H): nominal cycle from planting to ripeness at ideal conditions (measured 148 h).
+    // Этап 1b (docs/LAB_BENCH_PARAMS_MAPPING.md, scripts/lab-bench-sim.mjs): цикл 20 сол и площадь 4 м²
+    // по колониальной норме 0,12 кг/м²/сол. Партия 9,6 кг: без потерь сырья (срок 3 сол, переработка 4,2 кг/сол),
+    // склад не переполняется. Прежние 148 ч (T4) заменены. Цикл 20 сол выбран по поручению владельца, подтверждение открыто.
     // Harvest after this loses yield linearly, reaching 0 at 2 × nominalCycleHours.
-    nominalCycleHours: 148,
-    nutrientsInitialKg: 0.65, nutrientsPerCycleKg: 0.16,
-    seedsInitial: 3, sparesInitial: 3, harvestKg: 18, storageCapacityKg: 45,
+    nominalCycleHours: 20 * 24.66,
+    nutrientsInitialKg: 0.65, nutrientsPerCycleKg: 0.096, // 0,01 кг/кг урожая (cropNutrientKgPerKg)
+    seedsInitial: 3, sparesInitial: 3, harvestKg: 9.6, storageCapacityKg: 45, // 4 м² × 0,12 × 20 сол
     // Colony link (FIELD LAB product, 2026-10-17): ceilings for what the base may
     // hand to one greenhouse bench. They bound the transfers; nothing here creates
     // mass on its own — every litre/kg/part is deducted from the colony stock.
     supplyCapacityL: 480, nutrientCapacityKg: 2, sparesCapacity: 9,
     rawShelfHours: 72, processedShelfHours: 336, coldAgeFactor: 0.12,
     // T1/T3 (approved to proceed, H): heat stress above 22 °C and slower stress from pump/water loss
-    heatStressAboveC: 22, heatStressPerCHour: 0.0004,
+    heatStressAboveC: 22, heatStressPerCHour: 0.0004, // порог 22 °C — стендовый, без аналога в колонии (вопрос открыт)
     irrigationStressPerHour: 0.014, // was 0.028 in ARES-LAB/2; halved (T3)
-    overripeHours: 240, // H (WP11): 120 % window closes 48 h after maturity; not validated (raised from 120 after browser check: 7-sol wait missed the window)
-    processorRateKgph: 0.7, processingYield: 0.85, processBatchKg: 5,
+    // Окно закрывается при ratio 1,2, то есть через 0,2 × overripeHours после зрелости. Колония: harvestGraceSols = 6 сол = 144 ч → 144 / 0,2 = 720.
+    // Прежние 240 (окно 48 ч) — H (WP11), не validated; раньше 144 ошибочно принималось за срок окна.
+    overripeHours: 720,
+    processorRateKgph: 4.2 / 24.66, processingYield: 0.85, processBatchKg: 5, // колониальная норма 4,2 кг/сол
     maxLots: 12, maxHistory: 192, maxEvents: 40,
     initialTemperatureC: 20, targetTemperatureC: 20, minTargetC: 12, maxTargetC: 26,
     thermalCapacityKwhPerC: 0.9, envelopeKwPerC: 0.006,
-    heaterKw: 0.9, climateCoolerKw: 0.45, climateCoolingCop: 2.4,
+    heaterKw: 0.9, climateCoolerKw: 3.2, climateCoolingCop: 2.4, // охлаждение: колониальное coolerKw
     thermostatResponseHours: 2, lampHeatFraction: 0.65,
     evapFraction: 0.55, latentKwhPerL: 0.68,
     outsideMinC: -52, outsideDayAmplitudeC: 28, coldEventDropC: 26,

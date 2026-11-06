@@ -9,7 +9,7 @@ export declare const LAB: Readonly<{
     tickHours: 0.25;
     maxAdvanceHours: number;
     maxHours: number;
-    growthLightHours: 96;
+    growthLightHours: number;
     lightHoursPerSol: 16;
     batteryCapacityKwh: 12;
     batteryInitialKwh: 8;
@@ -26,12 +26,12 @@ export declare const LAB: Readonly<{
     lineCapacityL: 2;
     lineInitialL: 2;
     pumpRateLph: 3;
-    nominalCycleHours: 148;
+    nominalCycleHours: number;
     nutrientsInitialKg: 0.65;
-    nutrientsPerCycleKg: 0.16;
+    nutrientsPerCycleKg: 0.096;
     seedsInitial: 3;
     sparesInitial: 3;
-    harvestKg: 18;
+    harvestKg: 9.6;
     storageCapacityKg: 45;
     supplyCapacityL: 480;
     nutrientCapacityKg: 2;
@@ -42,8 +42,8 @@ export declare const LAB: Readonly<{
     heatStressAboveC: 22;
     heatStressPerCHour: 0.0004;
     irrigationStressPerHour: 0.014;
-    overripeHours: 240;
-    processorRateKgph: 0.7;
+    overripeHours: 720;
+    processorRateKgph: number;
     processingYield: 0.85;
     processBatchKg: 5;
     maxLots: 12;
@@ -56,7 +56,7 @@ export declare const LAB: Readonly<{
     thermalCapacityKwhPerC: 0.9;
     envelopeKwPerC: 0.006;
     heaterKw: 0.9;
-    climateCoolerKw: 0.45;
+    climateCoolerKw: 3.2;
     climateCoolingCop: 2.4;
     thermostatResponseHours: 2;
     lampHeatFraction: 0.65;
