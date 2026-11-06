@@ -12,9 +12,11 @@ export interface ConstructionDraft { kind: ModuleKind; at: Placement; moveId?: s
  * explicit confirm may change resources. Coordinate fields offer keyboard/AT
  * access to every cell without thousands of tiny focusable cell buttons.
  */
-export default function ConstructionPlan({ state, draft, language, onDraft, onConfirm, onCancel }: {
+export default function ConstructionPlan({ state, draft, language, onDraft, onConfirm, onCancel, spendMicro, paying }: {
   state: ColonyState; draft: ConstructionDraft; language: string
   onDraft(draft: ConstructionDraft): void; onConfirm(): void; onCancel(): void
+  /** Цена в микро-POTATO, если колонийная трата включена; undefined — оплата не требуется. */
+  spendMicro?: number; paying?: boolean
 }): JSX.Element {
   const ru = language === 'ru', names = moduleCopy(language)
   const [span, setSpan] = useState(24)
@@ -73,9 +75,10 @@ export default function ConstructionPlan({ state, draft, language, onDraft, onCo
     </div>
     <p role="status" data-testid="placement-status" className={problem || !affordable ? 'is-invalid' : 'is-valid'}>{error}</p>
     <small>{draft.moveId ? (ru ? 'Перенос отсоединит все линии этого модуля без возврата CR. Износ и грядки сохраняются.' : 'Relocation disconnects all attached lines without refunds. Condition and crops are preserved.') : `${CATALOG[draft.kind].credits} CR + 1 ${ru ? 'кг запчастей' : 'kg spares'}`} · {w} × {d}</small>
+    {spendMicro !== undefined && !draft.moveId && <small>{ru ? `Списание: ${(spendMicro / 1_000_000).toLocaleString('ru-RU')} POTATO (сжигается). Подтверждение — только после квитанции сети.` : `Spend: ${(spendMicro / 1_000_000).toLocaleString('en-US')} POTATO (burned). Confirmed only after the network receipt.`}</small>}
     <div className="colony-plan-actions">
       <button type="button" className="colony-button" onClick={onCancel}>{ru ? 'Отменить размещение' : 'Cancel placement'}</button>
-      <button type="button" className="colony-button colony-button--primary" disabled={!!problem || !affordable || !!unchanged} onClick={onConfirm}>{ru ? 'Подтвердить размещение' : 'Confirm placement'}</button>
+      <button type="button" className="colony-button colony-button--primary" disabled={!!problem || !affordable || !!unchanged || !!paying} onClick={onConfirm}>{paying ? (ru ? 'Оплачиваю POTATO…' : 'Paying in POTATO…') : (ru ? 'Подтвердить размещение' : 'Confirm placement')}</button>
     </div>
   </section>
 }

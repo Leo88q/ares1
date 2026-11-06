@@ -2158,6 +2158,69 @@
       "args": []
     },
     {
+      "name": "colony_spend",
+      "discriminator": [
+        16,
+        73,
+        36,
+        156,
+        199,
+        14,
+        78,
+        194
+      ],
+      "accounts": [
+        {
+          "name": "potato_mint",
+          "writable": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "user_potato",
+          "writable": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "signer": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount_micro",
+          "type": "u64"
+        },
+        {
+          "name": "purpose",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "create_field",
       "docs": [
         "Buys a new field of `field_type` (0 = Грядка, 1 = Луг, 2 = Поле) by",
@@ -6265,6 +6328,19 @@
       ]
     },
     {
+      "name": "ColonySpent",
+      "discriminator": [
+        139,
+        162,
+        209,
+        201,
+        144,
+        34,
+        14,
+        249
+      ]
+    },
+    {
       "name": "ConfigUpdated",
       "discriminator": [
         40,
@@ -6966,6 +7042,11 @@
       "code": 6059,
       "name": "ReferralProgramRetired",
       "msg": "Referral registration is retired: rewards were paid by the closed legacy market only"
+    },
+    {
+      "code": 6060,
+      "name": "InvalidColonyPurpose",
+      "msg": "Colony purpose is not a known spend category"
     }
   ],
   "types": [
@@ -7171,6 +7252,26 @@
           },
           {
             "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ColonySpent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_micro",
+            "type": "u64"
+          },
+          {
+            "name": "purpose",
             "type": "u8"
           }
         ]

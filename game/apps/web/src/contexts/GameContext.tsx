@@ -4,7 +4,10 @@ import { t } from '../i18n'
 
 import { PublicKey, SystemProgram, TransactionInstruction, AddressLookupTableProgram } from '@solana/web3.js'
 import { createAssociatedTokenAccountIdempotentInstruction, createAssociatedTokenAccountInstruction, createTransferInstruction, unpackAccount, getAssociatedTokenAddressSync } from '@solana/spl-token'
-import { useSolana, IS_MAINNET } from './SolanaContext'
+import { useSolana, IS_MAINNET, BACKEND_URL } from './SolanaContext'
+import { ixColonySpend } from '../utils/anchorClient'
+import { ColonySpendFailure, assertSpendAmount, recordColonySpend, RECEIPT_ATTEMPTS, RECEIPT_DELAY_MS } from '../colony/potatoSpend'
+import type { ColonySpendReceipt } from '../colony/potatoSpend'
 import { useToast } from '../components/Toast'
  import {
  decodeField, pdas,
@@ -101,6 +104,8 @@ export interface GameContextType {
  repairField: (field: PublicKey) => Promise<boolean>
  payTax: (field: PublicKey) => Promise<boolean>
  applyFertilizer: (field: PublicKey) => Promise<boolean>
+ /** Колонийная трата POTATO: бросает ColonySpendFailure при отказе, квитанция — при успехе. */
+ spendColonyPotato: (purpose: number, amountMicro: number) => Promise<ColonySpendReceipt>
  claimReward: (questId: string, rewardMicro?: number) => Promise<boolean>
  airdropSol: () => Promise<boolean>
  sendPotato: (to: string, amount: number) => Promise<boolean>
@@ -526,6 +531,29 @@ export function GameProvider({ children }: { children: ReactNode }) {
   [fieldSpend],
  )
 
+ // Колонийная трата: сначала подпись POTATO-списания (colony_spend), затем квитанция бэкенда.
+ // Колония меняется только после успешной квитанции — вызывающий код делает это сам.
+ const spendColonyPotato = useCallback(
+  async (purpose: number, amountMicro: number): Promise<ColonySpendReceipt> => {
+   if (!config || !publicKey) throw new ColonySpendFailure('NO_WALLET')
+   assertSpendAmount(amountMicro)
+   if (potatoBalance < amountMicro) throw new ColonySpendFailure('INSUFFICIENT')
+   const { address: userPotato, ixs } = ownAta()
+   const ix = await ixColonySpend(programId, {
+    potatoMint: config.potatoMint, userPotato, config: pdas(programId).config(), owner: publicKey,
+    amountMicro: BigInt(amountMicro), purpose,
+   })
+   const signature = await sendIx([...ixs, ix])
+   const receipt = await recordColonySpend(
+    { signature, wallet: publicKey.toBase58() },
+    { backendBase: BACKEND_URL, fetchImpl: fetch, sleep: ms => new Promise(r => setTimeout(r, ms)), attempts: RECEIPT_ATTEMPTS, delayMs: RECEIPT_DELAY_MS },
+   )
+   await refreshAll()
+   return receipt
+  },
+  [config, publicKey, potatoBalance, ownAta, programId, sendIx, refreshAll],
+ )
+
  const QUEST_ID_BY_ACH: Record<string, number> = { a1: 0, a2: 1, a3: 2, a4: 3, a5: 4, a6: 5 }
 
  const loadClaimed = useCallback(async () => {
@@ -665,12 +693,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
    licenseExpiresAt, licenseActive, batchLimit,
    harvest, batchHarvest, closeField, ensureLut,
    purchaseField, buyFieldSol, presale, presaleOpen: presaleIsOpen, presaleRemaining: presaleLeft,
-   upgradeField, repairField, payTax, applyFertilizer,
+   upgradeField, repairField, payTax, applyFertilizer, spendColonyPotato,
    claimReward, airdropSol, sendPotato, sendSol, reload: loadFields,
   }),
   [fields, stats, solBalance, loading, fieldsError, purchasing, claimed, licenseExpiresAt, licenseActive, batchLimit,
    harvest, batchHarvest, closeField, ensureLut, purchaseField, buyFieldSol, presale, presaleIsOpen, presaleLeft,
-   upgradeField, repairField, payTax, applyFertilizer, claimReward, airdropSol, sendPotato, sendSol, loadFields],
+   upgradeField, repairField, payTax, applyFertilizer, spendColonyPotato, claimReward, airdropSol, sendPotato, sendSol, loadFields],
  )
 
  return <GameContext.Provider value={value}>{children}</GameContext.Provider>

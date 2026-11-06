@@ -19,7 +19,9 @@ test('legacy URLs cannot enter a local colony simulator or training route', () =
   assert.match(app, /<Route path="\/lab" element=\{<FieldLabScreen \/>} \/>/)
   // /base — рабочая колония (встроенная в shell): 3D-раскладка базы, стройка,
   // сети и логистика. /colony ведёт туда же, /demo — в лабораторию.
-  assert.match(app, /<Route path="\/base" element=\{<ColonyScreen embedded \/>} \/>/)
+  // /base монтирует обёртку с оплатой POTATO; она сама рендерит ColonyScreen embedded.
+  assert.match(app, /<Route path="\/base" element=\{<ColonyBaseRoute \/>} \/>/)
+  assert.match(readFileSync(new URL('../src/colony/ColonyBaseRoute.tsx', import.meta.url), 'utf8'), /<ColonyScreen embedded /)
   assert.match(app, /<Route path="\/colony" element=\{<Navigate to="\/base" replace \/>} \/>/)
   assert.match(app, /<Route path="\/demo" element=\{<Navigate to="\/lab" replace \/>} \/>/)
   // Учебных/тренировочных экранов по-прежнему нет.

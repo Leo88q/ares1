@@ -6,6 +6,7 @@ import { useI18n } from '../i18n'
 import { colonyCopy, moduleCopy } from './copy'
 import { COLONY_MANUAL_HARVEST_ENABLED } from '../utils/colonyFeature'
 import { useColony } from './ColonyContext'
+import { COLONY_PURPOSE, ColonySpendFailure, colonySpendMessage, colonySpendMicro, type PotatoSpend } from './potatoSpend'
 import { batteryCapacity, bedCycleKg, bedSummary, canHarvestBed, harvestBed, buildModuleAt, moveModule, buySupplies, CATALOG, canBuild, canRepair, countModules, dailyBudget, deliverFood, foodDemand, MODULE_KINDS, PARAMETERS, repairColony, sellableKg } from './simulation'
 import type { BedState, ColonyModule, ColonyState, DayBudget, ModuleKind, Scenario } from './simulation'
 import provenance from '../../public/models/colony/manifest.json'
@@ -30,7 +31,9 @@ type View = 'base' | 'economy' | 'assets'
 const HERO_ART: Record<View, string> = { base: '/ares/art/mars-sector.webp', economy: '/ares/art/journal-background.webp', assets: '/ares/art/cabin-background.webp' }
 
 /** `embedded`: inside the ARES app tab (АГРО/КОЛОНИЯ shell owns header, language and nav). */
-export default function ColonyScreen({ embedded = false }: { embedded?: boolean } = {}): JSX.Element {
+/** Необязательная оплата POTATO. Передаётся только на маршруте /base и только при включённом флаге;
+ * локальный прототип /colony работает без кошелька и без игровых провайдеров. */
+export default function ColonyScreen({ embedded = false, potatoSpend }: { embedded?: boolean; potatoSpend?: PotatoSpend } = {}): JSX.Element {
   const { lang, setLang } = useI18n()
   const c = colonyCopy(lang)
   const descriptions = moduleCopy(lang)
@@ -42,6 +45,7 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
   const [panel, setPanel] = useState<'build' | 'logistics' | 'networks' | 'deep'>('build')
   const [selectedId, setSelectedId] = useState<string | null>('greenhouse-5')
   const [message, setMessage] = useState('')
+  const [paying, setPaying] = useState(false)
   const [draft, setDraft] = useState<ConstructionDraft | null>(null)
   const [networkPreview, setNetworkPreview] = useState<ColonyNetwork | null>(null)
   const services = useMemo(() => networkServices(state), [state])
@@ -67,10 +71,32 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
     setRunning(false)
     setDraft({ kind, at }); setMessage('')
   }
-  const confirmPlacement = (): void => {
-    if (!draft) return
+  // Оплата POTATO (только при включённом флаге): квитанция сети до изменения колонии.
+  // Перенос модуля ничего не списывает.
+  const payColony = async (purpose: number, cr: number): Promise<boolean> => {
+    if (!potatoSpend) return true
+    setPaying(true); setMessage('')
+    try {
+      await potatoSpend(purpose, colonySpendMicro(cr))
+      return true
+    } catch (err) {
+      if (err instanceof ColonySpendFailure) setMessage(colonySpendMessage(err.code === 'REJECTED' && err.reason ? err.reason : err.code, lang))
+      else setMessage(err instanceof Error ? err.message : colonySpendMessage(undefined, lang))
+      return false
+    } finally {
+      setPaying(false)
+    }
+  }
+  const repair = async (): Promise<void> => {
+    if (paying || !canRepair(state)) return
+    if (!(await payColony(COLONY_PURPOSE.repair, PARAMETERS.repairCredits))) return
+    setState(repairColony)
+  }
+  const confirmPlacement = async (): Promise<void> => {
+    if (!draft || paying) return
     const next = draft.moveId ? moveModule(state, draft.moveId, draft.at) : buildModuleAt(state, draft.kind, draft.at)
     if (next === state) return
+    if (!draft.moveId && !(await payColony(COLONY_PURPOSE.build, CATALOG[draft.kind].credits))) return
     // Revalidate inside the updater: no captured snapshot can overwrite a clock tick.
     setState(current => draft.moveId ? moveModule(current, draft.moveId, draft.at) : buildModuleAt(current, draft.kind, draft.at))
     setSelectedId(draft.moveId ?? next.modules[next.modules.length - 1].id)
@@ -128,7 +154,7 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
               <Suspense fallback={<div className="colony-viewport colony-viewport-placeholder" role="status">{c.loading}</div>}>
                 <ColonyViewport state={state} selectedId={selectedId} sunHours={scenario.sunHours} language={lang} onSelect={setSelectedId} networkPreview={networkPreview} draft={draft} onSite={at => setDraft(current => current ? { ...current, at: { ...current.at, ...at } } : null)} />
               </Suspense>
-              {draft && <ConstructionPlan state={state} draft={draft} language={lang} onDraft={setDraft} onConfirm={confirmPlacement} onCancel={() => setDraft(null)} />}
+              {draft && <ConstructionPlan state={state} draft={draft} language={lang} onDraft={setDraft} onConfirm={() => void confirmPlacement()} onCancel={() => setDraft(null)} spendMicro={potatoSpend ? colonySpendMicro(CATALOG[draft.kind].credits) : undefined} paying={paying} />}
               <div className="colony-world-footer"><span><Box size={13} />{state.modules.length}/{COLONY_MODULE_LIMIT} {c.pads}</span><span><Leaf size={13} />{c.harvest}: <b>{number(state.harvestedKg)} {c.kg}</b></span><button type="button" onClick={reset}><RotateCcw size={12} />{c.reset}</button></div>
               <div className={`colony-status ${constrained ? 'colony-status--warning' : ''}`} role="status">{constrained ? <CircleHelp size={16} /> : <Check size={16} />}<span>{warning}</span></div>
               <div className="colony-module-selector" aria-label={c.moduleList}>
@@ -151,7 +177,7 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
                   </div>
                 })}</div>
                 <p className="colony-fineprint colony-build-note">{c.constructionNote}</p>
-              </> : panel === 'networks' ? <NetworkPanel state={state} language={lang} selectedId={selectedId} onChange={setState} onPreview={setNetworkPreview} /> : panel === 'deep' ? <DeepPanels world={state.world ?? null} language={lang} onChange={() => setState(prev => ({ ...prev }))} /> : <Logistics state={state} onChange={setState} language={lang} />}
+              </> : panel === 'networks' ? <NetworkPanel state={state} language={lang} selectedId={selectedId} onChange={setState} onPreview={setNetworkPreview} /> : panel === 'deep' ? <DeepPanels world={state.world ?? null} language={lang} onChange={() => setState(prev => ({ ...prev }))} /> : <Logistics state={state} onChange={setState} onRepair={() => void repair()} repairPaying={paying} language={lang} />}
               <div className="colony-inspector">
                 <p className="colony-eyebrow">{c.selected}</p>
                 {selected ? <>
@@ -187,7 +213,7 @@ export default function ColonyScreen({ embedded = false }: { embedded?: boolean 
         {view === 'economy' && <Economy state={state} budget={budget} scenario={scenario} onScenario={setScenario} language={lang} />}
         {view === 'assets' && <AssetLibrary language={lang} />}
 
-        <footer className="colony-footer"><span className="colony-footer-mark">ARES / FIELD NOTES — 001</span><p>{c.disclaimer}</p><button type="button" onClick={() => setView(view === 'assets' ? 'economy' : 'assets')}>{c.sources}<ArrowRight size={13} /></button></footer>
+        <footer className="colony-footer"><span className="colony-footer-mark">ARES / FIELD NOTES — 001</span><p>{c.disclaimer}{potatoSpend && <> {c.potatoSpend}</>}</p><button type="button" onClick={() => setView(view === 'assets' ? 'economy' : 'assets')}>{c.sources}<ArrowRight size={13} /></button></footer>
       </Main>
     </div>
   )
@@ -222,13 +248,13 @@ function Resource({ art, label, value, unit, detail, progress, tone }: {
   return <div className={`colony-resource ${tone ? `colony-resource--${tone}` : ''}`}><div className="colony-resource-label"><ResourceIcon kind={art} size={22} /><span>{label}</span></div><div className="colony-resource-value">{value}<small>{unit}</small></div><p>{detail}</p>{progress !== undefined && <div className="colony-resource-progress"><span style={{ width: `${Math.max(0, Math.min(100, progress * 100))}%` }} /></div>}</div>
 }
 
-function Logistics({ state, onChange, language }: { state: ColonyState; onChange: (action: (s: ColonyState) => ColonyState) => void; language: string }): JSX.Element {
+function Logistics({ state, onChange, onRepair, repairPaying, language }: { state: ColonyState; onChange: (action: (s: ColonyState) => ColonyState) => void; onRepair: () => void; repairPaying: boolean; language: string }): JSX.Element {
   const c = colonyCopy(language)
   const delivery = sellableKg(state)
   return <div className="colony-logistics">
     <div className="colony-stock-row"><FlaskConical size={15} /><span>{c.nutrients}</span><b>{number(state.nutrientsKg, 2)} {c.kg}</b></div>
     <div className="colony-stock-row"><Hammer size={15} /><span>{c.spares}</span><b>{number(state.sparesKg, 1)} {c.kg}</b></div>
-    <button type="button" className="colony-button colony-button--wide" disabled={!canRepair(state)} onClick={() => onChange(repairColony)}><Wrench size={14} />{c.repair}<small>20 CR</small></button>
+    <button type="button" className="colony-button colony-button--wide" disabled={!canRepair(state) || repairPaying} onClick={onRepair}><Wrench size={14} />{c.repair}<small>{PARAMETERS.repairCredits} CR</small></button>
     <p className="colony-fineprint">{c.repairNote} · −2 {c.kg}</p>
     <button type="button" className="colony-button colony-button--wide" disabled={state.credits < PARAMETERS.supplyCredits} onClick={() => onChange(buySupplies)}><Package size={14} />{c.resupply}<small>80 CR</small></button>
     <p className="colony-fineprint">{c.resupplyNote}</p>

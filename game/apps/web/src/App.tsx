@@ -31,7 +31,7 @@ const ColonyStatusScreen = lazy(() => import('./components/ColonyStatusScreen'))
 // Колония возвращена в игровой shell: 3D-раскладка базы, стройка, сети,
 // логистика и общий с /lab запас ресурсов — вместо страницы «строительство не
 // активно». On-chain операции колоний по-прежнему закрыты серверными гейтами.
-const ColonyScreen = lazy(() => import('./colony/ColonyScreen'))
+const ColonyBaseRoute = lazy(() => import('./colony/ColonyBaseRoute'))
 
 type Screen = 'farm' | 'lab' | 'colony' | 'market' | 'stats' | 'profile' | 'operation'
 
@@ -127,7 +127,7 @@ function AppRoutes() {
          не пишет в цепь и не минтит POTATO; on-chain колонии по-прежнему закрыты
          серверными гейтами, а не спрятанным экраном.
        */}
-       <Route path="/base" element={<ColonyScreen embedded />} />
+       <Route path="/base" element={<ColonyBaseRoute />} />
        {/* Статус протокола остаётся доступен отдельным адресом: он рассказывает,
            что именно ещё не включено на сервере. */}
        <Route path="/base/status" element={<ColonyStatusScreen />} />

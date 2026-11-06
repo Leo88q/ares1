@@ -29,6 +29,8 @@ export const env = {
   mainnetPresaleApproved: configuredBoolean('PRESALE_MAINNET_LIVE_APPROVED'),
   devnetPresaleTestEnabled: configuredBoolean('PRESALE_DEVNET_TEST_ENABLED'),
   coloniesEnabled: configuredBoolean('COLONIES_ENABLED'),
+  // Колонийные траты POTATO (вариант B): выключено по умолчанию; mainnet блокируется в index.ts.
+  colonyPotatoSpendEnabled: configuredBoolean('COLONY_POTATO_SPEND_ENABLED'),
   colonyFreeStarterEnabled: process.env.COLONY_FREE_STARTER_ENABLED === undefined
     ? configuredCluster() === 'devnet' && process.env.NODE_ENV !== 'production'
     : configuredBoolean('COLONY_FREE_STARTER_ENABLED'),

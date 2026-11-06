@@ -241,6 +241,21 @@ pub const REFERRAL_REGISTRATION_FEE_MICRO: Option<u64> = None;
 pub const REFERRAL_PROGRAM_ENABLED: bool = false;
 pub const BASE_TAX_MICRO: u64 = 6_000_000; // 6 $POTATO / week
 pub const BASE_REPAIR_MICRO: u64 = 15_000_000; // 15 $POTATO
+
+// Колонийные траты POTATO: сжигаются как и прочие траты, эмиссии нет.
+// Лимит за один вызов — защита от случайной траты всего кошелька.
+pub const COLONY_SPEND_MAX_MICRO: u64 = 10_000_000_000; // 10 000 $POTATO
+pub const COLONY_PURPOSE_BUILD: u8 = 1;
+pub const COLONY_PURPOSE_REPAIR: u8 = 2;
+pub const COLONY_PURPOSE_UPGRADE: u8 = 3;
+
+/// Допустимы только известные категории трат колонии.
+pub fn colony_purpose_valid(purpose: u8) -> bool {
+    matches!(
+        purpose,
+        COLONY_PURPOSE_BUILD | COLONY_PURPOSE_REPAIR | COLONY_PURPOSE_UPGRADE
+    )
+}
 /// 2 POTATO per 24 h. At the old 10 the perk was strictly unprofitable: +50 %
 /// of a level-1 meadow is 3 POTATO, i.e. the fertilizer cost three times what
 /// it added, so nobody ever bought it. At 2 it pays for itself on a meadow
@@ -1162,6 +1177,39 @@ pub mod solana_potato {
             field: field.key(),
             paid_until: new_until,
             cost_micro: cost
+        });
+        Ok(())
+    }
+
+    // Колонийная трата: сжигает POTATO с кошелька владельца (как pay_tax).
+    // Программа не хранит состояние колонии: purpose — метка для аудита и
+    // индексатора, а не разрешение на изменения on-chain.
+    pub fn colony_spend(ctx: Context<ColonySpend>, amount_micro: u64, purpose: u8) -> Result<()> {
+        require!(!ctx.accounts.config.paused, GameError::Paused);
+        require!(
+            amount_micro > 0 && amount_micro <= COLONY_SPEND_MAX_MICRO,
+            GameError::InvalidAmount
+        );
+        require!(
+            colony_purpose_valid(purpose),
+            GameError::InvalidColonyPurpose
+        );
+        burn_from_user(
+            &ctx.accounts.token_program,
+            &ctx.accounts.potato_mint,
+            &ctx.accounts.user_potato,
+            &ctx.accounts.owner,
+            amount_micro,
+        )?;
+        ctx.accounts.config.total_burned_micro = ctx
+            .accounts
+            .config
+            .total_burned_micro
+            .saturating_add(amount_micro);
+        emit!(ColonySpent {
+            owner: ctx.accounts.owner.key(),
+            amount_micro,
+            purpose,
         });
         Ok(())
     }
@@ -3830,6 +3878,19 @@ pub struct RepairField<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+/// ColonySpend: сжигает POTATO под колонийную трату (без поля и эмиссии).
+#[derive(Accounts)]
+pub struct ColonySpend<'info> {
+    #[account(mut)]
+    pub potato_mint: Account<'info, Mint>,
+    #[account(mut, token::mint = potato_mint, token::authority = owner)]
+    pub user_potato: Account<'info, TokenAccount>,
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = potato_mint)]
+    pub config: Account<'info, GameConfig>,
+    pub owner: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
 /// PayTax: продлевает tax_paid_until за POTATO.
 #[derive(Accounts)]
 pub struct PayTax<'info> {
@@ -5224,6 +5285,13 @@ pub struct TaxPaid {
 }
 
 #[event]
+pub struct ColonySpent {
+    pub owner: Pubkey,
+    pub amount_micro: u64,
+    pub purpose: u8,
+}
+
+#[event]
 pub struct FertilizerApplied {
     pub field: Pubkey,
     pub active_until: i64,
@@ -5507,6 +5575,8 @@ pub enum GameError {
     LegacyMarketClosed, // 6058
     #[msg("Referral registration is retired: rewards were paid by the closed legacy market only")]
     ReferralProgramRetired, // 6059
+    #[msg("Colony purpose is not a known spend category")]
+    InvalidColonyPurpose, // 6060
 }
 
 // ──────────────────────────── Tests ──────────────────────────────
@@ -5514,6 +5584,16 @@ pub enum GameError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn colony_purpose_accepts_only_known_categories() {
+        assert!(colony_purpose_valid(COLONY_PURPOSE_BUILD));
+        assert!(colony_purpose_valid(COLONY_PURPOSE_REPAIR));
+        assert!(colony_purpose_valid(COLONY_PURPOSE_UPGRADE));
+        assert!(!colony_purpose_valid(0));
+        assert!(!colony_purpose_valid(COLONY_PURPOSE_UPGRADE + 1));
+        assert!(!colony_purpose_valid(u8::MAX));
+    }
 
     fn field(level: u8, durability: u8, field_type: u8) -> Field {
         Field {
