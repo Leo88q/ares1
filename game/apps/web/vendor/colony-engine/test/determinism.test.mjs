@@ -10,6 +10,7 @@ const sim = await import('../lib/esm/colony/simulation.js')
 const layout = await import('../lib/esm/colony/layout.js')
 const { initialColony, advanceDays, buildModuleAt, repairColony, buySupplies, deliverFood, canBuild } = sim
 const { findPlacement } = layout
+const { placementHitsNetwork } = await import('../lib/esm/colony/networks.js')
 
 const hash = (s) => createHash('sha256').update(JSON.stringify(s)).digest('hex')
 
@@ -18,7 +19,7 @@ function scriptedRun() {
   s = advanceDays(s, 30)
   for (const kind of ['solar', 'greenhouse', 'habitat', 'recycler']) {
     if (!canBuild(s, kind)) continue
-    const at = findPlacement(s.modules, kind, () => true)
+    const at = findPlacement(s.modules, kind, at => placementHitsNetwork(s, kind, at))
     if (at) s = buildModuleAt(s, kind, at)
   }
   s = advanceDays(s, 45)
@@ -30,7 +31,7 @@ function scriptedRun() {
 
 // Версия правил движка. Менять вместе с золотым хешем.
 const ENGINE_VERSION = 1
-const GOLDEN_SHA256 = '8be061031036d7235425398b58578a4ccace2b4bb85f77d039e681979e05f516'
+const GOLDEN_SHA256 = '2471e49400f220d43ea8232f402361a048457eea794ebb2610429f81333ce034'
 
 test('один журнал дважды даёт одинаковое состояние', () => {
   assert.equal(hash(scriptedRun()), hash(scriptedRun()))

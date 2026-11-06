@@ -1,6 +1,6 @@
 # Колония: серверная симуляция и оплата POTATO (план)
 
-Статус: **план и проверка осуществимости**. Реализация не начата. Текущие гейты не меняются:
+Статус: **F1 и F2 выполнены** (см. «Выполнено»). F3–F5 в работе. Текущие гейты не меняются:
 `VITE_COLONY_POTATO_SPEND=false`, `COLONY_POTATO_SPEND_ENABLED=false`, mainnet закрыт до отдельного GO.
 
 ## Решения владельца
@@ -21,14 +21,15 @@
 
 ## Архитектура
 
-1. **Пакет движка.** Вынести замыкание в workspace-пакет (`packages/colony-engine`). Web и backend импортируют его.
+1. **Пакет движка.** Вынесено в vendor-пакет `game/apps/web/vendor/colony-engine` (`@ares/colony-engine`), а не в `packages/`: Cloudflare Pages видит только `game/apps/web`. Web и backend импортируют его.
    Web-файлы на время миграции реэкспортируют старые пути, чтобы не менять десятки импортов сразу.
 2. **Действия.** Каждая мутация UI становится типизированным действием: `build`, `move`, `repair`, `supplies`,
    `deliver`, `harvestBed`, `advanceDays(n)` (n ≤ 7 за запрос), сетевые действия, действия deep-панелей, `reset`.
    Сервер применяет `applyAction(state, action)` и возвращает новое состояние.
 3. **Хранение.** Журнал + периодические снимки, а не один большой JSON на каждый шаг:
-   - `colony_sim_sessions(wallet PK, sequence, snapshot jsonb, state_hash, engine_version, updated_at)`;
-   - `colony_sim_actions(wallet, sequence, request_id UNIQUE, action jsonb, state_hash, created_at)` — append-only
+   - `colony_sim_sessions(owner_wallet PK, sequence, snapshot_sequence, snapshot text, state_hash, engine_version, updated_at)`;
+     снимок — `text`, а не `jsonb`: jsonb переупорядочивает ключи, а хеш и воспроизведение зависят от порядка;
+   - `colony_sim_actions(owner_wallet, sequence, request_id UNIQUE, action jsonb, state_hash, engine_version, created_at)` — append-only
      (триггеры `deny_mutation`, как в миграции 0017).
    Версия движка записывается в каждую строку, чтобы изменение правил не ломало воспроизведение журнала.
 4. **API.**
@@ -60,3 +61,22 @@
 - Изменение правил движка меняет результат старого журнала: нужна версия движка и миграция журнала.
 - Пока F4 не закрыт, 3D-колония остаётся в браузере, и POTATO-оплата не защищает состояние. Поэтому
   флаги `VITE_COLONY_POTATO_SPEND` и `COLONY_POTATO_SPEND_ENABLED` остаются выключенными до F4.
+
+## Выполнено
+
+- **F1** (`f07e6cc`): пакет движка, `lib/` в git, тест детерминизма и золотой хеш, подключено в `test:engine` и CI.
+- **F2**: `colony/actions.ts` в движке (`parseSimAction`, `applyAction`, `spendFor`, `serializeSession`),
+  миграция `0018_colony_sim.sql` (сессии, журнал, потребление квитанций, append-only триггеры),
+  сервис `apps/backend/src/colonySim/service.ts` (`get`, `act`: идемпотентность, `STALE_SEQUENCE`,
+  `NO_EFFECT` без записи, квитанция в той же транзакции, снимок каждые 20 действий, проверка хеша при загрузке).
+  Тесты: движок 15/15, сервис на PGlite 12/12, миграции (pin 18 файлов, 22 таблицы, 40 триггеров),
+  `GAME_OPS_EXPECTED_SCHEMA_VERSION` = 18.
+- Золотой хеш обновлён: сценарий детерминизма теперь реально строит модули (раньше стройка молча не
+  проходила, потому что предикат `findPlacement` был неверным). Правила движка не менялись, `ENGINE_VERSION` = 1.
+
+## Ограничения, которые остаются открытыми
+
+- Стройка и ремонт — единственные действия, которые оплачиваются POTATO (как в клиенте до этого).
+- Ответ `act` возвращает полное состояние (до ~370 КБ при полном годе). Дельта — отдельная оптимизация.
+- Если версия движка в журнале не совпадает с текущей, загрузка отказывает (`ENGINE_VERSION_MISMATCH`).
+  Миграция журнала под новые правила — отдельное решение; автоматической нет.
