@@ -33,6 +33,8 @@ import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { colonyPackageCatalogResponse } from "./colonies/catalog.js";
 import { colonyAuthRouter } from "./colonies/routes.js";
 import { colonyPotatoSpendRouter } from "./colonies/potatoSpendRouter.js";
+import { colonySimRouter } from "./colonySim/routes.js";
+import { ColonySimService, poolDatabase } from "./colonySim/service.js";
 import { ColonyPotatoSpendService } from "./colonies/potatoSpendService.js";
 import { parseTransactionForSpend } from "./colonies/potatoSpendChain.js";
 import { ColonyService } from "./colonies/service.js";
@@ -262,6 +264,25 @@ async function main() {
       programId: () => programId.toBase58(),
       potatoMint: async () => (await fetchConfig()).potatoMint.toBase58(),
     })));
+  }
+
+  // Серверная симуляция колонии (вариант 2): состояние и действия колонии считаются на сервере.
+  // Выключена по умолчанию; стройка и ремонт требуют квитанцию colony_spend только при
+  // COLONY_POTATO_SPEND_ENABLED. Без флага маршрута нет (404).
+  if (env.colonySimEnabled) {
+    if (!env.coloniesEnabled) throw new Error("COLONY_SIM_ENABLED requires COLONIES_ENABLED (wallet session)");
+    if (!gameOpsPool) throw new Error("COLONY_SIM_ENABLED requires GAME_OPS_DATABASE_URL");
+    if (env.cluster !== "devnet" && env.cluster !== "mainnet-beta") throw new Error("COLONY_SIM_ENABLED supports devnet and mainnet-beta only");
+    app.use("/api/colony-sim", colonySimRouter({
+      allowedOrigins: env.corsOrigin.split(",").map(origin => origin.trim()).filter(Boolean),
+      allowLocalhostForDevelopment: process.env.NODE_ENV !== "production",
+      sessionSecret: env.colonySessionSecret,
+      service: new ColonySimService(poolDatabase(gameOpsPool), {
+        cluster: env.cluster,
+        spendRequired: env.colonyPotatoSpendEnabled,
+      }),
+      onInternalError: err => console.error("colony-sim internal error", err),
+    }));
   }
 
   // Product transparency endpoint only; this static proposal cannot create

@@ -45,7 +45,9 @@ function equalHash(actual: string, expected: string): boolean {
   return timingSafeEqual(Buffer.from(actual, 'hex'), Buffer.from(expected, 'hex'));
 }
 
-function requestOrigin(req: Request, options: ColonyAuthRouterOptions): string | null {
+export type ColonySessionGuardOptions = Pick<ColonyAuthRouterOptions, 'allowedOrigins' | 'allowLocalhostForDevelopment' | 'sessionSecret'>;
+
+function requestOrigin(req: Request, options: ColonySessionGuardOptions): string | null {
   const origin = req.get('origin');
   if (!origin) return null;
   if (options.allowedOrigins.includes(origin)) return origin;
@@ -65,7 +67,8 @@ const BEARER_TOKEN = /^Bearer ([A-Za-z0-9_.-]{20,2048})$/;
  * Побочный эффект (исправление): `/rules` больше не отвечает SESSION_REQUIRED на
  * битый токен — код стал честным.
  */
-function requireSession(options: ColonyAuthRouterOptions) {
+/** Экспорт для других маршрутов с кошельковой сессией (серверная симуляция колонии). */
+export function requireSession(options: ColonySessionGuardOptions) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const origin = requestOrigin(req, options);
     const match = BEARER_TOKEN.exec(req.get('authorization') ?? '');
@@ -84,7 +87,7 @@ function requireSession(options: ColonyAuthRouterOptions) {
 }
 
 /** Сессия, положенная `requireSession`. Бросать нельзя — middleware уже отсеял. */
-function sessionOf(res: Response): WalletSession {
+export function sessionOf(res: Response): WalletSession {
   return res.locals.colonySession as WalletSession;
 }
 
