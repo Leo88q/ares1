@@ -30,7 +30,7 @@ const world = (() => {
 
 const allMarkup = (DEEP_TABS as readonly string[])
   .map(tab => renderToStaticMarkup(createElement(DeepPanels, {
-    world, language: 'en', onChange: () => {}, initialTab: tab as never,
+    world, language: 'en', perform: () => {}, initialTab: tab as never,
   }))).join('\n')
 
 test('every table lives in a horizontally scrollable container', () => {

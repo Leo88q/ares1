@@ -29,7 +29,7 @@ const markup = (
   world: ReturnType<typeof worldAfterOneSol> | null,
   language: string,
   initialTab: DeepTab = 'crew',
-) => renderToStaticMarkup(createElement(DeepPanels, { world, language, onChange: () => {}, initialTab }))
+) => renderToStaticMarkup(createElement(DeepPanels, { world, language, perform: () => {}, initialTab }))
 
 test('the panel renders every tab in both languages', () => {
   for (const language of ['ru', 'en']) {
