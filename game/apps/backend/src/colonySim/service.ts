@@ -22,6 +22,9 @@ import {
 
 /** 1 POTATO = 1 CR (вариант B), в микро-единицах токена (как COLONY_POTATO_PER_CR_MICRO в web). */
 const MICRO_PER_CR = 1_000_000n;
+// Действия, которые сервер не принимает от клиента. Только для новых записей:
+// проигрывание старого журнала (parseSimAction в replay) их не трогает, иначе история перестанет сходиться.
+const SERVER_DISABLED_ACTIONS: ReadonlySet<string> = new Set(["reset", "scenario", "labDraw"]);
 
 export const SNAPSHOT_EVERY = 20;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -140,7 +143,8 @@ export class ColonySimService {
     if (!action) return { ok: false, status: 400, code: "INVALID_ACTION" };
     // Решение владельца (2026-11-06): колония одна, стартовый бюджет выдаётся один раз,
     // «что если»-рычаги не влияют на серверную экономику. Старые записи журнала проигрываются как раньше.
-    if (action.type === "reset" || action.type === "scenario") {
+    // labDraw (аудит A1): списывает сток без приёмника. Вернуть только вместе с приёмником стенда.
+    if (SERVER_DISABLED_ACTIONS.has(action.type)) {
       return { ok: false, status: 400, code: "ACTION_DISABLED" };
     }
     if (input.spendSignature !== undefined && !SIGNATURE.test(input.spendSignature)) {

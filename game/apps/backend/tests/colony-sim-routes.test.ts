@@ -95,6 +95,9 @@ test("коды ошибок: 400 на мусор, 409 на устаревший 
   assert.deepEqual([reset.status, reset.json.code], [400, "ACTION_DISABLED"]);
   const scenario = await call("POST", "/actions", W1, { requestId: UUIDS[4], expectedSequence: 1, action: { type: "scenario", scenario: { sunHours: 24, waterRecovery: 0.98 } } });
   assert.deepEqual([scenario.status, scenario.json.code], [400, "ACTION_DISABLED"]);
+  // Аудит A1: labDraw списывает сток без приёмника, сервер его не принимает.
+  const labDraw = await call("POST", "/actions", W1, { requestId: UUIDS[5], expectedSequence: 1, action: { type: "labDraw", resource: "water", kg: 5 } });
+  assert.deepEqual([labDraw.status, labDraw.json.code], [400, "ACTION_DISABLED"]);
   const notObject = await call("POST", "/actions", W1, [1, 2, 3]);
   assert.deepEqual([notObject.status, notObject.json.code], [400, "INVALID_REQUEST"]);
 
