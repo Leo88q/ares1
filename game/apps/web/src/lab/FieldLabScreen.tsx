@@ -132,6 +132,12 @@ export default function FieldLabScreen(): JSX.Element {
  * умеет забрать воду/питание/запчасти одним нажатием, а собранная на стенде еда
  * уходит в хранилище базы. Ничего on-chain: POTATO не тратится, транзакций нет.
  */
+/**
+ * Перенос «колония → лаборатория» временно отключён: лабораторный стенд не подключён,
+ * и `labDraw` списывал бы сток без приёмника. Включать только вместе с приёмником (см. docs/GAME_AUDIT_2026-11-06.md, A1).
+ */
+const LAB_TRANSFER_ENABLED = false
+
 function LabSupplyLink({ colony, paused, ready, perform }: {
   colony: ReturnType<typeof useColony>['state']
   paused: boolean
@@ -166,14 +172,16 @@ function LabSupplyLink({ colony, paused, ready, perform }: {
         type="button"
         className="lab-key lab-key--small"
         data-testid={`lab-draw-${item.key}`}
-        disabled={!paused || colonyStock(colony, item.key) < SUPPLY_STEP[item.key]}
+        disabled={!LAB_TRANSFER_ENABLED || !paused || colonyStock(colony, item.key) < SUPPLY_STEP[item.key]}
         aria-label={`${t('ВЗЯТЬ ИЗ КОЛОНИИ')}: ${item.label} ${SUPPLY_STEP[item.key]} ${SUPPLY_UNIT[item.key]}`}
         onClick={() => void perform({ type: 'labDraw', resource: item.key, kg: SUPPLY_STEP[item.key] })}
       >
         {t('ВЗЯТЬ')} {SUPPLY_STEP[item.key]} {SUPPLY_UNIT[item.key]} {item.label}
       </button>)}
     </div>
-    <p className="lab-fineprint">{paused
+    <p className="lab-fineprint">{!LAB_TRANSFER_ENABLED
+      ? t('Перенос на стенд лаборатории временно отключён: приёмник ещё не подключён, поэтому ресурсы не списываются.')
+      : paused
       ? t('Вода, питание и запчасти списываются из общего стока базы — там их становится ровно столько же меньше. POTATO не тратится, транзакция не подписывается.')
       : t('Часы колонии идут: останови экспедицию в разделе КОЛОНИЯ, чтобы забрать ресурсы без гонки с дневным тиком.')}</p>
   </section>

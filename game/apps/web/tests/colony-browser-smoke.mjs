@@ -74,18 +74,18 @@ try {
     await page.getByRole('button', { name: '+1 day', exact: true }).first().click()
     await page.waitForFunction(prev => document.querySelector('[data-testid="colony-day"]')?.textContent?.trim() !== prev, dayBefore)
     assert.equal(Number(await dayText()), Number(dayBefore) + 1, `+1 day must advance the clock at ${width}px`)
-    // Страница статуса протокола осталась доступной отдельным адресом.
+    // Старая страница статуса колонии (/base/status) удалена: её тестовый маркер не должен появляться.
     const statusPage = await context.newPage()
     await statusPage.goto(`${base}/base/status`, { waitUntil: 'networkidle' })
     await dismissConsent(statusPage)
-    assert.match(await statusPage.getByTestId('colony-status').innerText(), /CONSTRUCTION INACTIVE/)
+    assert.equal(await statusPage.getByTestId('colony-status').count(), 0, 'old /base/status page must be removed')
     await statusPage.close()
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `horizontal overflow at ${width}px`)
 
     if (width === 1440 && screenshots) await page.screenshot({ path: join(screenshots, 'colony-desktop.png'), fullPage: true })
     if (width === 390 && screenshots) await page.screenshot({ path: join(screenshots, 'colony-mobile.png'), fullPage: true })
     await context.close()
-    console.log(`PASS ${width}px: /colony → /base mounts the working colony (3D scene, clocks, build catalog), status page stays at /base/status, no overflow`)
+    console.log(`PASS ${width}px: /colony → /base mounts the working colony (3D scene, clocks, build catalog), old /base/status page is removed, no overflow`)
   }
   assert.deepEqual(external, [], `unexpected external requests: ${external.join(', ')}`)
   assert.ok(rpcRequests.every(url => url === allowedRpcEndpoint), `only the configured devnet RPC is permitted: ${rpcRequests.join(', ')}`)

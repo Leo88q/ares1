@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { ArrowLeft, ArrowRight, BatteryMedium, Box, Check, ChevronRight, CircleHelp, Droplets, ExternalLink, Filter, FlaskConical, Hammer, House, Leaf, Orbit, Package, Pickaxe, Pause, Play, Plus, RotateCcw, Sun, Truck, Wrench } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BatteryMedium, Box, Check, ChevronRight, CircleHelp, Droplets, ExternalLink, Filter, FlaskConical, Hammer, House, Leaf, Orbit, Package, Pickaxe, Pause, Play, Plus, Sun, Truck, Wrench } from 'lucide-react'
 import { useI18n } from '../i18n'
 import { colonyCopy, moduleCopy } from './copy'
 import { COLONY_MANUAL_HARVEST_ENABLED } from '../utils/colonyFeature'
@@ -11,7 +11,7 @@ import { batteryCapacity, bedCycleKg, bedSummary, canHarvestBed, CATALOG, canBui
 import { spendFor, type SimAction } from '@ares/colony-engine/colony/actions'
 import { simErrorMessage } from './simClient'
 import type { PerformResult } from './serverLink'
-import type { BedState, ColonyModule, ColonyState, DayBudget, ModuleKind, Scenario } from '@ares/colony-engine/colony/simulation'
+import type { BedState, ColonyModule, ColonyState, DayBudget, ModuleKind } from '@ares/colony-engine/colony/simulation'
 import provenance from '../../public/models/colony/manifest.json'
 import ResourceIcon from '../fields/ResourceIcon'
 import type { ResourceArt } from '../fields/visualAssets'
@@ -63,10 +63,6 @@ export default function ColonyScreen({ embedded = false, potatoSpend }: { embedd
   }, [c.base, embedded])
   useEffect(() => { if (view !== 'base') setRunning(false) }, [view, setRunning])
 
-  const reset = (): void => {
-    colony.reset()
-    setSelectedId('greenhouse-5'); setMessage(''); setDraft(null); setNetworkPreview(null)
-  }
   const build = (kind: ModuleKind): void => {
     if (!canBuild(state, kind)) return
     const at = findPlacement(state.modules, kind, at => placementHitsNetwork(state, kind, at))
@@ -159,7 +155,6 @@ export default function ColonyScreen({ embedded = false, potatoSpend }: { embedd
 
           <div className="colony-command-bar">
             <div className="colony-day"><span>{c.day}</span><b data-testid="colony-day">{String(state.day).padStart(3, '0')}</b><small>/ 365</small></div>
-            <label className="colony-sun-control"><Sun size={16} /><span>{c.sun} <b>{scenario.sunHours} h</b></span><input type="range" aria-label={c.sun} min={0} max={24} step={1} value={scenario.sunHours} onChange={event => colony.setScenario({ ...scenario, sunHours: Number(event.target.value) })} /></label>
             <div className="colony-time-buttons">
               <button className="colony-button colony-button--primary" type="button" disabled={end || !!draft || !ready} onClick={() => setRunning(value => !value)}>{running ? <Pause size={14} /> : <Play size={14} />}{running ? c.pause : c.play}</button>
               <button className="colony-button" type="button" disabled={running || end || !!draft || pending || !ready} onClick={() => colony.advance(1)}>{c.next}</button>
@@ -173,7 +168,7 @@ export default function ColonyScreen({ embedded = false, potatoSpend }: { embedd
                 <ColonyViewport state={state} selectedId={selectedId} sunHours={scenario.sunHours} language={lang} onSelect={setSelectedId} networkPreview={networkPreview} draft={draft} onSite={at => setDraft(current => current ? { ...current, at: { ...current.at, ...at } } : null)} />
               </Suspense>
               {draft && <ConstructionPlan state={state} draft={draft} language={lang} onDraft={setDraft} onConfirm={() => void confirmPlacement()} onCancel={() => setDraft(null)} spendMicro={potatoSpend ? colonySpendMicro(CATALOG[draft.kind].credits) : undefined} paying={paying || pending} />}
-              <div className="colony-world-footer"><span><Box size={13} />{state.modules.length}/{COLONY_MODULE_LIMIT} {c.pads}</span><span><Leaf size={13} />{c.harvest}: <b>{number(state.harvestedKg)} {c.kg}</b></span><button type="button" onClick={reset}><RotateCcw size={12} />{c.reset}</button></div>
+              <div className="colony-world-footer"><span><Box size={13} />{state.modules.length}/{COLONY_MODULE_LIMIT} {c.pads}</span><span><Leaf size={13} />{c.harvest}: <b>{number(state.harvestedKg)} {c.kg}</b></span></div>
               <div className={`colony-status ${constrained ? 'colony-status--warning' : ''}`} role="status">{constrained ? <CircleHelp size={16} /> : <Check size={16} />}<span>{warning}</span></div>
               <div className="colony-module-selector" aria-label={c.moduleList}>
                 {state.modules.map((m, index) => {
@@ -228,7 +223,7 @@ export default function ColonyScreen({ embedded = false, potatoSpend }: { embedd
           <div className="colony-live-message" aria-live="polite">{message}</div>
         </>}
 
-        {view === 'economy' && <Economy state={state} budget={budget} scenario={scenario} onScenario={colony.setScenario} language={lang} />}
+        {view === 'economy' && <Economy state={state} budget={budget} language={lang} />}
         {view === 'assets' && <AssetLibrary language={lang} />}
 
         <footer className="colony-footer"><span className="colony-footer-mark">ARES / FIELD NOTES — 001</span><p>{c.disclaimer}{potatoSpend && <> {c.potatoSpend}</>}</p><button type="button" onClick={() => setView(view === 'assets' ? 'economy' : 'assets')}>{c.sources}<ArrowRight size={13} /></button></footer>
@@ -292,7 +287,7 @@ function BudgetDetails({ budget, language }: { budget: DayBudget; language: stri
   </dl>
 }
 
-function Economy({ state, budget, scenario, onScenario, language }: { state: ColonyState; budget: DayBudget; scenario: Scenario; onScenario: (s: Scenario) => void; language: string }): JSX.Element {
+function Economy({ state, budget, language }: { state: ColonyState; budget: DayBudget; language: string }): JSX.Element {
   const c = colonyCopy(language)
   const p = PARAMETERS
   const rows: Array<[string, string, boolean]> = [
@@ -305,9 +300,7 @@ function Economy({ state, budget, scenario, onScenario, language }: { state: Col
     <div className="colony-flow"><span><Sun size={20} />{c.flow}</span><span><Droplets size={20} />{c.waterFlow}</span></div>
     <div className="colony-economy-grid">
       <section className="colony-study-card"><p className="colony-eyebrow">{c.physics}</p><div className="colony-table-scroll"><table><thead><tr><th>{c.parameter}</th><th>{c.value}</th><th>{c.status}</th></tr></thead><tbody>{rows.map(([label, value, reference]) => <tr key={label}><td>{label}</td><td>{value}</td><td><span className={reference ? 'colony-reference-tag' : 'colony-assumption-tag'}>{reference ? c.measured : c.assumption}</span></td></tr>)}</tbody></table></div><p className="colony-fineprint">{c.referenceOnly}</p></section>
-      <section className="colony-study-card colony-scenario"><p className="colony-eyebrow">SCENARIO / WHAT IF</p>
-        <label><span>{c.sun}<b>{scenario.sunHours} h</b></span><input aria-label={c.sun} type="range" min={0} max={24} step={1} value={scenario.sunHours} onChange={event => onScenario({ ...scenario, sunHours: Number(event.target.value) })} /></label><p className="colony-fineprint">{c.sunNote}</p>
-        <label><span>{c.recovery}<b>{number(scenario.waterRecovery * 100)}%</b></span><input aria-label={c.recovery} type="range" min={0} max={98} step={1} value={Math.round(scenario.waterRecovery * 100)} onChange={event => onScenario({ ...scenario, waterRecovery: Number(event.target.value) / 100 })} /></label><p className="colony-fineprint">{c.recoveryNote}</p>
+      <section className="colony-study-card">
         <BudgetDetails budget={budget} language={language} />
       </section>
       <section className="colony-study-card"><p className="colony-eyebrow">{c.accounting}</p><dl className="colony-budget-details">

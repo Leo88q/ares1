@@ -76,11 +76,9 @@ test('the field selector has no demo source, local resource ledger, or SIM contr
 })
 
 test('the colony tab connects only to the persistent backend and never simulates authoritative state', () => {
-  const status = source('components/ColonyStatusScreen.tsx')
   const panel = source('components/PersistentColonyPanel.tsx')
   // Вход по кошельку вынесен в общий хук useColonySession (challenge → подпись → verify).
   const session = source('colony/useColonySession.ts')
-  assert.match(status, /PersistentColonyPanel/)
   assert.match(panel, /useColonySession\(\)/)
   assert.match(session, /\/auth\/challenge/)
   assert.match(panel, /\/initialize/)

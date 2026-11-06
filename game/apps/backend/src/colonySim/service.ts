@@ -138,6 +138,11 @@ export class ColonySimService {
     }
     const action = parseSimAction(input.action);
     if (!action) return { ok: false, status: 400, code: "INVALID_ACTION" };
+    // Решение владельца (2026-11-06): колония одна, стартовый бюджет выдаётся один раз,
+    // «что если»-рычаги не влияют на серверную экономику. Старые записи журнала проигрываются как раньше.
+    if (action.type === "reset" || action.type === "scenario") {
+      return { ok: false, status: 400, code: "ACTION_DISABLED" };
+    }
     if (input.spendSignature !== undefined && !SIGNATURE.test(input.spendSignature)) {
       return { ok: false, status: 400, code: "INVALID_SIGNATURE" };
     }

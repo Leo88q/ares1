@@ -90,6 +90,11 @@ test("коды ошибок: 400 на мусор, 409 на устаревший 
   assert.deepEqual([junk.status, junk.json.code], [400, "INVALID_REQUEST_ID"]);
   const badAction = await call("POST", "/actions", W1, { requestId: UUIDS[2], expectedSequence: 1, action: { type: "nuke" } });
   assert.deepEqual([badAction.status, badAction.json.code], [400, "INVALID_ACTION"]);
+  // Решение владельца: серверный сброс и «что если» отключены (новые действия отклоняются до транзакции).
+  const reset = await call("POST", "/actions", W1, { requestId: UUIDS[3], expectedSequence: 1, action: { type: "reset" } });
+  assert.deepEqual([reset.status, reset.json.code], [400, "ACTION_DISABLED"]);
+  const scenario = await call("POST", "/actions", W1, { requestId: UUIDS[4], expectedSequence: 1, action: { type: "scenario", scenario: { sunHours: 24, waterRecovery: 0.98 } } });
+  assert.deepEqual([scenario.status, scenario.json.code], [400, "ACTION_DISABLED"]);
   const notObject = await call("POST", "/actions", W1, [1, 2, 3]);
   assert.deepEqual([notObject.status, notObject.json.code], [400, "INVALID_REQUEST"]);
 
