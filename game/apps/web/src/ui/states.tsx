@@ -5,29 +5,6 @@ import { AlertTriangle, RefreshCw, type LucideIcon } from 'lucide-react'
 import { t } from '../theme/tokens'
 import { Tuber9 } from '../components/ares/mascot'
 
-/**
- * Единые состояния данных (Stage 4): загрузка / ошибка / пусто.
- * Правило: экран не остаётся «слепым» — любое асинхронное состояние
- * одно из трёх. Моки/пустой div без текста — запрещены.
- */
-
-export function Spinner({ size = 24 }: { size?: number }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        display: 'inline-block',
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        border: `2px solid ${t.color.borderSoft}`,
-        borderTopColor: t.color.accent,
-        animation: 'pf-spin 0.8s linear infinite',
-      }}
-    />
-  )
-}
-
 interface LoadingStateProps {
   label?: string
   rows?: number

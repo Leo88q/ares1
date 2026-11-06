@@ -64,39 +64,3 @@ export function Key({ variant = 'default', engaged, className, children, ...rest
   )
 }
 
-/** Шильдик-метка (трафарет, капс). */
-export function Tag({ className, children, ...rest }: HTMLAttributes<HTMLSpanElement>) {
-  return (
-   <span className={`k-tag${className ? ` ${className}` : ''}`} {...rest}>
-    {children}
-   </span>
-  )
-}
-
-export type LampTone = 'ok' | 'warn' | 'danger' | 'off'
-
-const LAMP_CLASS: Record<LampTone, string> = {
-  ok: 'k-lamp',
-  warn: 'k-lamp k-lamp--warn',
-  danger: 'k-lamp k-lamp--danger',
-  off: 'k-lamp k-lamp--off',
-}
-
-/** Лампа-индикатор состояния. */
-export function Lamp({ tone = 'ok', blink, ...rest }: { tone?: LampTone; blink?: boolean } & HTMLAttributes<HTMLSpanElement>) {
-  return <span aria-hidden="true" className={`${LAMP_CLASS[tone]}${blink ? ' k-lamp--blink' : ''}`} {...rest} />
-}
-
-/** LCD-показание (моно, табличные цифры). */
-export function Lcd({ className, children, ...rest }: HTMLAttributes<HTMLSpanElement>) {
-  return (
-   <span className={`k-lcd${className ? ` ${className}` : ''}`} {...rest}>
-    {children}
-   </span>
-  )
-}
-
-/** Скелетон загрузки. */
-export function Skel({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
-  return <div aria-hidden="true" className={`k-skel${className ? ` ${className}` : ''}`} {...rest} />
-}

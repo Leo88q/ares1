@@ -90,11 +90,6 @@ const OPTIONAL: Exclude<ConsentCategory, 'necessary'>[] = ['functional', 'analyt
  */
 const OPEN_EVENT = 'ares1:open-cookie-settings'
 
-export function openCookieSettings(): void {
-  if (typeof window === 'undefined') return
-  window.dispatchEvent(new Event(OPEN_EVENT))
-}
-
 export function CookieConsent(): JSX.Element | null {
   const [open, setOpen] = useState(false)
   const [showDetail, setShowDetail] = useState(false)

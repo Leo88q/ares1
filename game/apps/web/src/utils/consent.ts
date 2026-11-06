@@ -286,22 +286,3 @@ export function removeItem(category: ConsentCategory, key: string): void {
   if (isGranted(category)) safeRemove(key)
 }
 
-/**
- * Run `fn` only when `category` has been granted, and re-run it if consent is
- * granted later in the same session. This is the only supported way to load a
- * third-party script (§3.8.4, §4.3).
- */
-export function onGranted(category: ConsentCategory, fn: () => void): () => void {
-  let done = false
-  const run = () => {
-    if (done) return
-    if (!isGranted(category)) return
-    done = true
-    fn()
-  }
-  run()
-  const unsubscribe = subscribeConsent(run)
-  return () => {
-    unsubscribe()
-  }
-}
