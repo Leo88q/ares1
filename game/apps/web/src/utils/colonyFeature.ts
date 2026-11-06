@@ -1,2 +1,2 @@
-/** The local colony study is not part of the product route; manual harvest is permanently off. */
+/** Ручной сбор грядки выключен в интерфейсе: грядка собирается автоматически при 100 % цикла. */
 export const COLONY_MANUAL_HARVEST_ENABLED = false

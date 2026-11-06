@@ -118,7 +118,8 @@ async function main() {
       + ` Gate state: ${LAUNCH_GATES.colonyV1Release.reason}`,
     );
   }
-  if (env.colonyFreeStarterEnabled && !COLONY_V1_RELEASE_READY) {
+  // Стартер действует только вместе с колониями; при выключенных колониях не валит запуск игры.
+  if (env.coloniesEnabled && env.colonyFreeStarterEnabled && !COLONY_V1_RELEASE_READY) {
     throw new Error(
       "COLONY_FREE_STARTER_ENABLED is blocked until the Colony V1 release gate is approved"
       + ` (${LAUNCH_GATES.colonyV1Release.reason})`,
