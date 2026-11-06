@@ -138,6 +138,8 @@
 - Движок `vendor/colony-engine`: `node --test test/*.test.mjs` 25/25. Golden-хеш детерминизма не изменился (колонейный путь `LAB` использует только для `processingYield`, он не менялся).
 - Организм, web: `tests/organism-*.test.mjs` 18/18. Тесты переписаны: ожидания выводятся из `LAB`, а не зашиты (18, 148, 240). Калибровка T4 идёт с подпиткой воды.
 - Web: `node --test tests/*.test.mjs` 110/110.
+- Offchain (`tests/offchain/fieldEngineering.test.ts`): три теста были привязаны к старому циклу 148 ч. Переписаны: стадии роста заданы долями номинального цикла, блокировка склада проверяется на созревшем урожае, переработка проверяется за 10 + 40 ч (раньше 12 ч при старой скорости 17,3 кг/сол; сырьё портится через 72 ч). `test:offchain` 453/453.
+- `yarn build` и landing (`npm test`, `npm run build`): exit 0.
 - Backend: typecheck 0, `yarn test` 351/351. Backend подключает тот же пакет через `file:` и тоже получил пересборку.
 
 **Ловушка установки, найденная при проверке.** Пакет `@ares/colony-engine` подключён как `file:vendor/colony-engine`. Потребители читают не `src/`, а скомпилированный `lib/esm/` (`exports` в `package.json`). `yarn install` копирует пакет в `node_modules`, и при неизменном lockfile копия не обновляется. Поэтому правка `src/` без пересборки `lib/` и переустановки молча не действует: тесты показывали старые значения 18 кг и 148 ч. Порядок после любой правки `src/`: `yarn build` в `vendor/colony-engine` (tsc и `stamp-build`), затем обновить копию в `game/node_modules/@ares/colony-engine`.
