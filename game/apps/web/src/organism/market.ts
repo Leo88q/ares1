@@ -2,6 +2,9 @@
  * Market as entry and whale growth (docs/ORGANISM_INTEGRATION.md §14.6, WP13/WP14). Pure functions, no chain, no wallet.
  * Units: micro-POTATO (1 POTATO = 1_000_000) and POTATO per day in the same micro units.
  * Every price here is a game rule of the off-chain design; on-chain prices and tiers are not changed by this module.
+ *
+ * СТАТУС: не смонтирован в продукте. Решение владельца (2026-11-06): оставить до пересмотра 2026-12;
+ * тест tests/offchain/marketEntry.test.ts покрывает логику. Удаление — только вместе с тестом и решением по экономике полей.
  */
 import { ECONOMY, MARKET } from '@ares/colony-engine/organism/parameters'
 

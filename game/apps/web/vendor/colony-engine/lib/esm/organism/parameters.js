@@ -14,6 +14,8 @@ export const LAB = Object.freeze({
     solarPeakKw: 3.2, lampKw: 0.7, pumpKw: 0.08, coolerKw: 0.12, processorKw: 0.35,
     tankCapacityL: 120, tankInitialL: 100, supplyInitialL: 240,
     // T5 (approved, H): line buffer 6 → 2 L, so a pump outage bites within hours, not a day.
+    // Насос 3 л/ч — номинальная мощность, не порог (решение владельца 2026-11-06, docs/LAB_BENCH_PARAMS_MAPPING.md §8.7).
+    // Потеря урожая начинается ниже 0,5 л/ч; в диапазоне 0,5–5 л/ч результат одинаковый.
     lineCapacityL: 2, lineInitialL: 2, pumpRateLph: 3,
     // Этап 1b (docs/LAB_BENCH_PARAMS_MAPPING.md, scripts/lab-bench-sim.mjs): цикл 20 сол и площадь 4 м²
     // по колониальной норме 0,12 кг/м²/сол. Партия 9,6 кг: без потерь сырья (срок 3 сол, переработка 4,2 кг/сол),
@@ -21,6 +23,7 @@ export const LAB = Object.freeze({
     // Harvest after this loses yield linearly, reaching 0 at 2 × nominalCycleHours.
     nominalCycleHours: 20 * 24.66,
     nutrientsInitialKg: 0.65, nutrientsPerCycleKg: 0.096, // 0,01 кг/кг урожая (cropNutrientKgPerKg)
+    // Склад стенда (45 кг) отдельно от склада колонии (120 кг, COLONY_STORAGE_KG в colony/simulation.ts) — §8.7.
     seedsInitial: 3, sparesInitial: 3, harvestKg: 9.6, storageCapacityKg: 45, // 4 м² × 0,12 × 20 сол
     // Colony link (FIELD LAB product, 2026-10-17): ceilings for what the base may
     // hand to one greenhouse bench. They bound the transfers; nothing here creates
@@ -28,7 +31,9 @@ export const LAB = Object.freeze({
     supplyCapacityL: 480, nutrientCapacityKg: 2, sparesCapacity: 9,
     rawShelfHours: 72, processedShelfHours: 336, coldAgeFactor: 0.12,
     // T1/T3 (approved to proceed, H): heat stress above 22 °C and slower stress from pump/water loss
-    heatStressAboveC: 22, heatStressPerCHour: 0.0004, // порог 22 °C — стендовый, без аналога в колонии (вопрос открыт)
+    // Порог 22 °C оставлен (решение владельца, §8.7). Влияет только при уставке выше 21 °C.
+    // Ограничение уставки 23 °C — требование этапа 4, экран стенда ещё не смонтирован.
+    heatStressAboveC: 22, heatStressPerCHour: 0.0004,
     irrigationStressPerHour: 0.014, // was 0.028 in ARES-LAB/2; halved (T3)
     // Окно закрывается при ratio 1,2, то есть через 0,2 × overripeHours после зрелости. Колония: harvestGraceSols = 6 сол = 144 ч → 144 / 0,2 = 720.
     // Прежние 240 (окно 48 ч) — H (WP11), не validated; раньше 144 ошибочно принималось за срок окна.
