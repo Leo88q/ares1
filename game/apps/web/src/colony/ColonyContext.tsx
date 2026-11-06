@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
-import { DEFAULT_SCENARIO, PARAMETERS, advanceDays, initialColony } from './simulation'
-import type { ColonyState, Scenario } from './simulation'
+import { DEFAULT_SCENARIO, PARAMETERS, advanceDays, initialColony } from '@ares/colony-engine/colony/simulation'
+import type { ColonyState, Scenario } from '@ares/colony-engine/colony/simulation'
 
 /**
  * Одна экспедиция на всю игровую сессию (2026-10-17, продакт-версия FIELD LAB).

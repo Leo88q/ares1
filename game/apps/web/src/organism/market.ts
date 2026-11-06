@@ -3,7 +3,7 @@
  * Units: micro-POTATO (1 POTATO = 1_000_000) and POTATO per day in the same micro units.
  * Every price here is a game rule of the off-chain design; on-chain prices and tiers are not changed by this module.
  */
-import { ECONOMY, MARKET } from './parameters'
+import { ECONOMY, MARKET } from '@ares/colony-engine/organism/parameters'
 
 export type TierIndex = 0 | 1 | 2
 

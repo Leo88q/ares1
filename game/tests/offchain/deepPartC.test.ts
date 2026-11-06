@@ -1,19 +1,19 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, buildModule, type ColonyState } from '../../apps/web/src/colony/simulation'
+import { advanceDay, buildModule, type ColonyState } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 import { buildStartColony, SCENARIOS } from '../../scripts/deepScenario'
 import {
   applyStorageCapacity, createWorld, deliverContract, deliverSamples, isolateSection, prepareEva,
   cancelTask, importResource, pricePerUnit, requestAnalysis, setRisky, setSafeMode, setStandby, takeSample,
-} from '../../apps/web/src/colony/deep/world'
-import { createDevice, deviceUsable, syncStandby } from '../../apps/web/src/colony/deep/devices'
-import { repairDevice } from '../../apps/web/src/colony/deep/reliability'
-import { emptyStepOf } from '../../apps/web/src/colony/deep/bridge'
-import { TASK_META } from '../../apps/web/src/colony/deep/tasks'
-import { colonyWorldConfig } from '../../apps/web/src/colony/deep/bridge'
-import { DEEP_P } from '../../apps/web/src/colony/deep/params'
-import type { Vehicle } from '../../apps/web/src/colony/deep/machines'
-import { validateParams } from '../../apps/web/src/colony/deep/params'
+} from '../../apps/web/vendor/colony-engine/src/colony/deep/world'
+import { createDevice, deviceUsable, syncStandby } from '../../apps/web/vendor/colony-engine/src/colony/deep/devices'
+import { repairDevice } from '../../apps/web/vendor/colony-engine/src/colony/deep/reliability'
+import { emptyStepOf } from '../../apps/web/vendor/colony-engine/src/colony/deep/bridge'
+import { TASK_META } from '../../apps/web/vendor/colony-engine/src/colony/deep/tasks'
+import { colonyWorldConfig } from '../../apps/web/vendor/colony-engine/src/colony/deep/bridge'
+import { DEEP_P } from '../../apps/web/vendor/colony-engine/src/colony/deep/params'
+import type { Vehicle } from '../../apps/web/vendor/colony-engine/src/colony/deep/machines'
+import { validateParams } from '../../apps/web/vendor/colony-engine/src/colony/deep/params'
 
 /**
  * Хранилище следует за построенными складами.

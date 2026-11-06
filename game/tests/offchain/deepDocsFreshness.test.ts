@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { RESOURCE_IDS } from '../../apps/web/src/colony/deep/resources'
-import { DEEP_PARAM_TABLE, DEEP_P } from '../../apps/web/src/colony/deep/params'
+import { RESOURCE_IDS } from '../../apps/web/vendor/colony-engine/src/colony/deep/resources'
+import { DEEP_PARAM_TABLE, DEEP_P } from '../../apps/web/vendor/colony-engine/src/colony/deep/params'
 
 /**
  * Документ не должен устаревать молча. Таблицы ресурсов и параметров

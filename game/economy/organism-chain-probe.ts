@@ -5,7 +5,7 @@
  * Read-only: imports the engines, changes no source files.
  */
 import { initialEngineering, engineeringAction, advanceEngineering, LAB } from '../apps/web/src/fields/engineering/engine.ts'
-import * as C from '../apps/web/src/colony/simulation.ts'
+import * as C from '../apps/web/vendor/colony-engine/src/colony/simulation.ts'
 
 // ---- FARM (LAB/2), tier 0, hourly. Water tank refilled from supply; seeds not limiting.
 {

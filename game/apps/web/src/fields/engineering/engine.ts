@@ -3,8 +3,8 @@
  * ARES-LAB/2 parameters are game assumptions, NOT validated Mars agriculture.
  * No token balances, accounts, RPC, storage, randomness or wall-clock ticks.
  */
-import { BEDS, LAB } from '../../organism/parameters'
-import { harvestFactor } from '../../organism/beds'
+import { BEDS, LAB } from '@ares/colony-engine/organism/parameters'
+import { harvestFactor } from '@ares/colony-engine/organism/beds'
 export { LAB }
 
 export type CropStage = 'empty' | 'seedling' | 'vegetative' | 'tuber' | 'mature' | 'dead'

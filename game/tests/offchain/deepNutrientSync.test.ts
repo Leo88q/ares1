@@ -2,10 +2,10 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   advanceDay, buySupplies, DEFAULT_SCENARIO, initialColony,
-} from '../../apps/web/src/colony/simulation'
-import { syncWorldFromState } from '../../apps/web/src/colony/deep/bridge'
-import { splitNutrients } from '../../apps/web/src/colony/deep/world'
-import type { ColonyWorld } from '../../apps/web/src/colony/deep/world'
+} from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import { syncWorldFromState } from '../../apps/web/vendor/colony-engine/src/colony/deep/bridge'
+import { splitNutrients } from '../../apps/web/vendor/colony-engine/src/colony/deep/world'
+import type { ColonyWorld } from '../../apps/web/vendor/colony-engine/src/colony/deep/world'
 
 /**
  * Удобрения — единственный склад, который колония пополняет покупкой, а не

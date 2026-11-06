@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Focus, Minus, Plus, RotateCcw, RotateCw } from 'lucide-react'
 import { colonyCopy, moduleCopy } from './copy'
-import type { ColonyState } from './simulation'
-import { CATALOG } from './simulation'
+import type { ColonyState } from '@ares/colony-engine/colony/simulation'
+import { CATALOG } from '@ares/colony-engine/colony/simulation'
 import { createColonyScene } from './scene'
 import type { ColonyScene } from './scene'
-import type { ColonyNetwork } from './networks'
+import type { ColonyNetwork } from '@ares/colony-engine/colony/networks'
 import type { ConstructionDraft } from './ConstructionPlan'
 
 export default function ColonyViewport({ state, selectedId, sunHours, language, onSelect, draft, onSite, networkPreview }: {

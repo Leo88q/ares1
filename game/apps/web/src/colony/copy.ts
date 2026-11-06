@@ -1,4 +1,4 @@
-import type { ModuleKind } from './simulation'
+import type { ModuleKind } from '@ares/colony-engine/colony/simulation'
 
 const en = {
   program: 'LUNAR AGRICULTURE / DESIGN SANDBOX',

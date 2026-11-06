@@ -1,9 +1,9 @@
 // Visual-only read model: turns the colony simulation snapshot into values the 3D scene can show.
 // Pure and framework-free so it can be tested offline. It never writes to ColonyState and has
 // no effect on credits, rewards, tokens or any on-chain value.
-import { batteryCapacity, PARAMETERS, sellableKg } from './simulation'
-import type { ColonyState } from './simulation'
-import type { ModuleServices } from './networks'
+import { batteryCapacity, PARAMETERS, sellableKg } from '@ares/colony-engine/colony/simulation'
+import type { ColonyState } from '@ares/colony-engine/colony/simulation'
+import type { ModuleServices } from '@ares/colony-engine/colony/networks'
 
 export interface PowerVisual {
   /** Share of the last day's demand covered by solar generation, 0–1. 0 when there was no data. */

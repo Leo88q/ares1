@@ -16,11 +16,11 @@ import { fileURLToPath } from 'node:url'
 import {
   advanceDay, buildModule, buySupplies, deliverFood, foodReserve, initialColony,
   type ColonyModule, type ColonyState, type ModuleKind, type Scenario,
-} from '../apps/web/src/colony/simulation'
-import type { ColonyWorld, DeepScenario } from '../apps/web/src/colony/deep/world'
-import type { DeviceKind } from '../apps/web/src/colony/deep/devices'
+} from '../apps/web/vendor/colony-engine/src/colony/simulation'
+import type { ColonyWorld, DeepScenario } from '../apps/web/vendor/colony-engine/src/colony/deep/world'
+import type { DeviceKind } from '../apps/web/vendor/colony-engine/src/colony/deep/devices'
 import type { DailyRow, ScenarioReport } from './deepScenario.types'
-import { PARAMETERS } from '../apps/web/src/organism/parameters'
+import { PARAMETERS } from '../apps/web/vendor/colony-engine/src/organism/parameters'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPORT_DIR = join(HERE, '..', 'reports')

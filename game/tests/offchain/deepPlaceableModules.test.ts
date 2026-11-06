@@ -1,12 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { CATALOG, MODULE_KINDS, type ModuleKind } from '../../apps/web/src/colony/simulation'
-import { FOOTPRINTS } from '../../apps/web/src/colony/layout'
+import { CATALOG, MODULE_KINDS, type ModuleKind } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import { FOOTPRINTS } from '../../apps/web/vendor/colony-engine/src/colony/layout'
 import { moduleCopy } from '../../apps/web/src/colony/copy'
-import { DEVICE_FOR_MODULE } from '../../apps/web/src/colony/deep/bridge'
-import { colonyWorldConfig, createWorldForColony } from '../../apps/web/src/colony/deep/bridge'
+import { DEVICE_FOR_MODULE } from '../../apps/web/vendor/colony-engine/src/colony/deep/bridge'
+import { colonyWorldConfig, createWorldForColony } from '../../apps/web/vendor/colony-engine/src/colony/deep/bridge'
 import { buildStartColony } from '../../scripts/deepScenario'
-import type { ColonyState } from '../../apps/web/src/colony/simulation'
+import type { ColonyState } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 
 /**
  * Размещаемые модули добычи, склада, очистки и лаборатории.

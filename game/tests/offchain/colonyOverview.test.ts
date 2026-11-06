@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import { createOverviewTemplates } from '../../apps/web/src/colony/moduleOverview'
-import { MODULE_KINDS } from '../../apps/web/src/colony/simulation'
+import { MODULE_KINDS } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 
 test('all seven overview archetypes are small, bounded meshes without texture uploads', () => {
   const templates = createOverviewTemplates()

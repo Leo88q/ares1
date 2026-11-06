@@ -1,10 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { initialColony } from '../../apps/web/src/colony/simulation'
-import { linkCapacityKw, modulePowerCapacityKw, starterNetworks } from '../../apps/web/src/colony/networks'
-import { dispatchPower } from '../../apps/web/src/colony/deep/power'
-import { DEEP_P } from '../../apps/web/src/colony/deep/params'
-import type { Device } from '../../apps/web/src/colony/deep/devices'
+import { initialColony } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import { linkCapacityKw, modulePowerCapacityKw, starterNetworks } from '../../apps/web/vendor/colony-engine/src/colony/networks'
+import { dispatchPower } from '../../apps/web/vendor/colony-engine/src/colony/deep/power'
+import { DEEP_P } from '../../apps/web/vendor/colony-engine/src/colony/deep/params'
+import type { Device } from '../../apps/web/vendor/colony-engine/src/colony/deep/devices'
 
 /**
  * Пропускная способность сети (§7).

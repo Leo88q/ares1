@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { initialColony, buildModuleAt, moveModule } from '../../apps/web/src/colony/simulation'
-import { COLONY_GRID_SIZE, footprint, modulePlacement, placementError, placementWorld, worldCell, findPlacement } from '../../apps/web/src/colony/layout'
+import { initialColony, buildModuleAt, moveModule } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import { COLONY_GRID_SIZE, footprint, modulePlacement, placementError, placementWorld, worldCell, findPlacement } from '../../apps/web/vendor/colony-engine/src/colony/layout'
 
 test('starter colony has explicit, non-overlapping plots with service gaps', () => {
   const state = initialColony()

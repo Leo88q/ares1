@@ -11,12 +11,12 @@ const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const tsx = resolve(webRoot, '../../node_modules/.bin/tsx')
 function runTs(body) {
   const file = join(mkdtempSync(join(tmpdir(), 'delay-')), 'probe.ts')
-  writeFileSync(file, body.replaceAll('__WEB__', join(webRoot, 'src').replaceAll('\\', '/')))
+  writeFileSync(file, body.replaceAll('__ENGINE__', join(webRoot, 'vendor/colony-engine/src').replaceAll('\\', '/')).replaceAll('__WEB__', join(webRoot, 'src').replaceAll('\\', '/')))
   const r = spawnSync(tsx, [file], { encoding: 'utf8' })
   assert.equal(r.status, 0, r.stderr)
   return JSON.parse(r.stdout)
 }
-const head = `import { initialEngineering, advanceEngineering, delayFactor, harvestMass } from '__WEB__/fields/engineering/engine.ts';\nimport { LAB } from '__WEB__/organism/parameters.ts';\nconst at = (hour, plantedHour = 0) => ({ ...initialEngineering('t', 0), hour, crop: { planted: true, progress: 1, health: 1, matureHour: plantedHour + LAB.nominalCycleHours, plantedHour } });\n`
+const head = `import { initialEngineering, advanceEngineering, delayFactor, harvestMass } from '__WEB__/fields/engineering/engine.ts';\nimport { LAB } from '__ENGINE__/organism/parameters.ts';\nconst at = (hour, plantedHour = 0) => ({ ...initialEngineering('t', 0), hour, crop: { planted: true, progress: 1, health: 1, matureHour: plantedHour + LAB.nominalCycleHours, plantedHour } });\n`
 
 test('T4: no penalty up to the nominal cycle, linear to 0 at 2× nominal', () => {
   const r = runTs(head + `console.log(JSON.stringify({ at0: delayFactor(at(0)), at148: delayFactor(at(148)), at222: delayFactor(at(222)), at296: delayFactor(at(296)), at400: delayFactor(at(400)), noPlant: delayFactor({ ...at(300), crop: { planted: true, progress: 0, health: 1 } }) }))`)
@@ -38,12 +38,12 @@ console.log(JSON.stringify({ m148: harvestMass(at(148)), late: harvestMass(late)
 })
 
 test('T4 calibration: the ideal crop matures within 1 h of the nominal cycle', () => {
-  const r = runTs(`import { initialEngineering, advanceEngineering } from '__WEB__/fields/engineering/engine.ts';\nimport { LAB } from '__WEB__/organism/parameters.ts';\nlet s = initialEngineering('t', 0); for (let i = 0; i < 200; i++) s = advanceEngineering(s, 1);\nconsole.log(JSON.stringify({ mature: s.crop.matureHour, nominal: LAB.nominalCycleHours }))`)
+  const r = runTs(`import { initialEngineering, advanceEngineering } from '__WEB__/fields/engineering/engine.ts';\nimport { LAB } from '__ENGINE__/organism/parameters.ts';\nlet s = initialEngineering('t', 0); for (let i = 0; i < 200; i++) s = advanceEngineering(s, 1);\nconsole.log(JSON.stringify({ mature: s.crop.matureHour, nominal: LAB.nominalCycleHours }))`)
   assert.ok(Math.abs(r.mature - r.nominal) <= 1, `matureHour ${r.mature} vs nominal ${r.nominal}`)
 })
 
 test('T5: line buffer is 2 L at tier 0 and scales with tier like the other lab reserves', () => {
-  const r = runTs(`import { LAB } from '__WEB__/organism/parameters.ts';\nimport { initialEngineering } from '__WEB__/fields/engineering/engine.ts';\nconsole.log(JSON.stringify({ cap: LAB.lineCapacityL, init: LAB.lineInitialL, t0: initialEngineering('t', 0).lineL, t2: initialEngineering('t', 2).lineL }))`)
+  const r = runTs(`import { LAB } from '__ENGINE__/organism/parameters.ts';\nimport { initialEngineering } from '__WEB__/fields/engineering/engine.ts';\nconsole.log(JSON.stringify({ cap: LAB.lineCapacityL, init: LAB.lineInitialL, t0: initialEngineering('t', 0).lineL, t2: initialEngineering('t', 2).lineL }))`)
   assert.equal(r.cap, 2); assert.equal(r.init, 2)
   assert.equal(r.t0, 2)
   assert.ok(Math.abs(r.t2 - 2 * 1.7) < 1e-9)

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import {
   createBatch, rootTemperatureFactor, relaxRootTemperatureC, rootZoneTargetC,
   stepBatch, temperatureFactor, NEUTRAL_FACTORS, type GrowthEnvironment,
-} from '../../apps/web/src/colony/deep/growth'
-import { DEEP_P } from '../../apps/web/src/colony/deep/params'
+} from '../../apps/web/vendor/colony-engine/src/colony/deep/growth'
+import { DEEP_P } from '../../apps/web/vendor/colony-engine/src/colony/deep/params'
 
 /**
  * Факторы роста: корневая зона и раздельное N/P/K.
@@ -116,7 +116,7 @@ test('a cold root zone costs real yield even when the air is perfect', () => {
 
 test('every growth factor is labelled, so the interface can name a cause', () => {
   // Факторов стало больше; тот, что останется без подписи, не объяснить игроку.
-  const { FACTOR_LABEL } = require('../../apps/web/src/colony/deep/growth')
+  const { FACTOR_LABEL } = require('../../apps/web/vendor/colony-engine/src/colony/deep/growth')
   for (const key of Object.keys(NEUTRAL_FACTORS)) {
     assert.ok(FACTOR_LABEL[key], `factor ${key} has no label`)
     assert.ok(FACTOR_LABEL[key].ru && FACTOR_LABEL[key].en, `factor ${key} is missing a translation`)

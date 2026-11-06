@@ -12,7 +12,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const webRoot = resolve(here, '..')
 const tsx = resolve(webRoot, '../../node_modules/.bin/tsx')
 const libRs = readFileSync(resolve(webRoot, '../../programs/solana_potato/src/lib.rs'), 'utf8')
-const paramsSrc = readFileSync(resolve(webRoot, 'src/organism/parameters.ts'), 'utf8')
+const paramsSrc = readFileSync(resolve(webRoot, 'vendor/colony-engine/vendor/colony-engine/src/organism/parameters.ts'), 'utf8')
 
 function rustConst(name) {
   const m = libRs.match(new RegExp(`pub const ${name}: [a-z0-9]+ = ([0-9_]+);`))
@@ -24,7 +24,7 @@ function rustConst(name) {
 function runTs(body) {
   const dir = mkdtempSync(join(tmpdir(), 'organism-'))
   const file = join(dir, 'probe.ts')
-  writeFileSync(file, body.replaceAll('__WEB__', join(webRoot, 'src').replaceAll('\\', '/')))
+  writeFileSync(file, body.replaceAll('__ENGINE__', join(webRoot, 'vendor/colony-engine/src').replaceAll('\\', '/')).replaceAll('__WEB__', join(webRoot, 'src').replaceAll('\\', '/')))
   const r = spawnSync(tsx, [file], { encoding: 'utf8' })
   assert.equal(r.status, 0, r.stderr)
   return JSON.parse(r.stdout)
@@ -33,12 +33,12 @@ function runTs(body) {
 test('WP1: LAB and colony parameter blocks live in organism/parameters.ts', () => {
   assert.match(paramsSrc, /export const LAB = Object\.freeze\(\{/)
   assert.match(paramsSrc, /export const PARAMETERS = \{/)
-  assert.match(readFileSync(resolve(webRoot, 'src/fields/engineering/engine.ts'), 'utf8'), /from '\.\.\/\.\.\/organism\/parameters'/)
-  assert.match(readFileSync(resolve(webRoot, 'src/colony/simulation.ts'), 'utf8'), /from '\.\.\/organism\/parameters'/)
+  assert.match(readFileSync(resolve(webRoot, 'src/fields/engineering/engine.ts'), 'utf8'), /from '@ares\/colony-engine\/organism\/parameters'/)
+  assert.match(readFileSync(resolve(webRoot, 'vendor/colony-engine/vendor/colony-engine/src/colony/simulation.ts'), 'utf8'), /from '\.\.\/organism\/parameters\.js'/)
 })
 
 test('economy mirror matches the Rust program constants', () => {
-  const e = runTs(`import { ECONOMY, SLOTS } from '__WEB__/organism/parameters.ts';
+  const e = runTs(`import { ECONOMY, SLOTS } from '__ENGINE__/organism/parameters.ts';
 console.log(JSON.stringify({ field: ECONOMY.baseFieldPriceMicro, tax: ECONOMY.baseTaxMicro, repair: ECONOMY.baseRepairMicro, fert: ECONOMY.baseFertilizerMicro, upgrade: ECONOMY.baseUpgradeMicro, base: ECONOMY.baseYieldMicroPerDay, lic: String(ECONOMY.exportLicenseSkrAtoms), presale: String(ECONOMY.presaleSkrAtoms), burn: ECONOMY.feeBurnPercent, tiers: ECONOMY.tiers.map(t => [t.yieldBps, t.costBps]), slotSkr: String(SLOTS.priceSkrAtoms) }))`)
   assert.equal(BigInt(e.field), rustConst('BASE_FIELD_PRICE_MICRO'))
   assert.equal(BigInt(e.tax), rustConst('BASE_TAX_MICRO'))
@@ -55,7 +55,7 @@ console.log(JSON.stringify({ field: ECONOMY.baseFieldPriceMicro, tax: ECONOMY.ba
 })
 
 test('slots: 6 free, 6 paid at 500 SKR, cap 12', () => {
-  const r = runTs(`import { slotPriceSkrAtoms, totalSlotCostSkrAtoms } from '__WEB__/organism/beds.ts';
+  const r = runTs(`import { slotPriceSkrAtoms, totalSlotCostSkrAtoms } from '__ENGINE__/organism/beds.ts';
 console.log(JSON.stringify({ first: String(slotPriceSkrAtoms(0)), sixth: String(slotPriceSkrAtoms(5)), seventh: String(slotPriceSkrAtoms(6)), last: String(slotPriceSkrAtoms(11)), total6: String(totalSlotCostSkrAtoms(6)), total12: String(totalSlotCostSkrAtoms(12)) }))`)
   assert.equal(r.first, '0'); assert.equal(r.sixth, '0')
   assert.equal(r.seventh, '500000000'); assert.equal(r.last, '500000000')
@@ -64,21 +64,21 @@ console.log(JSON.stringify({ first: String(slotPriceSkrAtoms(0)), sixth: String(
 })
 
 test('slot index and occupancy are bounded', () => {
-  const r = runTs(`import { slotPriceSkrAtoms, totalSlotCostSkrAtoms } from '__WEB__/organism/beds.ts';
+  const r = runTs(`import { slotPriceSkrAtoms, totalSlotCostSkrAtoms } from '__ENGINE__/organism/beds.ts';
 const errs = []; for (const f of [() => slotPriceSkrAtoms(12), () => slotPriceSkrAtoms(-1), () => slotPriceSkrAtoms(1.5), () => totalSlotCostSkrAtoms(13)]) { try { f(); errs.push('ok') } catch (e) { errs.push(e.name) } }
 console.log(JSON.stringify(errs))`)
   assert.deepEqual(r, ['RangeError', 'RangeError', 'RangeError', 'RangeError'])
 })
 
 test('bed price equals field price per tier (§18): 100 / 250 / 500 POTATO', () => {
-  const r = runTs(`import { bedPriceMicro } from '__WEB__/organism/beds.ts';
+  const r = runTs(`import { bedPriceMicro } from '__ENGINE__/organism/beds.ts';
 console.log(JSON.stringify([0,1,2].map(t => bedPriceMicro(t))))`)
   assert.deepEqual(r, [100_000_000, 250_000_000, 500_000_000])
 })
 
 test('beds: staggered offsets and equal cycle shares sum to the field', () => {
-  const r = runTs(`import { bedOffsetDays, bedCycleKg } from '__WEB__/organism/beds.ts';
-import { BEDS } from '__WEB__/organism/parameters.ts';
+  const r = runTs(`import { bedOffsetDays, bedCycleKg } from '__ENGINE__/organism/beds.ts';
+import { BEDS } from '__ENGINE__/organism/parameters.ts';
 const offs = [0,1,2,3,4,5].map(i => bedOffsetDays(i, 90))
 console.log(JSON.stringify({ offs, kg: bedCycleKg(216), k: BEDS.perField, sum: [0,1,2,3,4,5].reduce((a) => a + bedCycleKg(216), 0) }))`)
   assert.deepEqual(r.offs, [0, 15, 30, 45, 60, 75])
@@ -88,7 +88,7 @@ console.log(JSON.stringify({ offs, kg: bedCycleKg(216), k: BEDS.perField, sum: [
 })
 
 test('harvest window 80–120 % of maturity (M2) with bounded factor; early 30–80 % (T2)', () => {
-  const r = runTs(`import { harvestFactor } from '__WEB__/organism/beds.ts';
+  const r = runTs(`import { harvestFactor } from '__ENGINE__/organism/beds.ts';
 console.log(JSON.stringify({ below: harvestFactor(0.29), early30: harvestFactor(0.3), early: harvestFactor(0.79), lo: harvestFactor(0.8), mid: harvestFactor(0.9), full: harvestFactor(1), late: harvestFactor(1.1), hi: harvestFactor(1.2), closed: harvestFactor(1.21) }))`)
   assert.equal(r.below, 0)
   assert.ok(Math.abs(r.early30 - 0.1875) < 1e-12)

@@ -1,11 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, initialColony, type ColonyState } from '../../apps/web/src/colony/simulation'
+import { advanceDay, initialColony, type ColonyState } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 import {
   applyRecipe, deliverSamples, requestAnalysis, saveRecipe, startExperiment, takeSample,
-} from '../../apps/web/src/colony/deep/world'
-import { DEFAULT_REGIME, finishExperiment, type Regime } from '../../apps/web/src/colony/deep/lab'
-import type { ColonyWorld } from '../../apps/web/src/colony/deep/world'
+} from '../../apps/web/vendor/colony-engine/src/colony/deep/world'
+import { DEFAULT_REGIME, finishExperiment, type Regime } from '../../apps/web/vendor/colony-engine/src/colony/deep/lab'
+import type { ColonyWorld } from '../../apps/web/vendor/colony-engine/src/colony/deep/world'
 
 /**
  * Лаборатория: пробы, анализы, A/B-опыты, режимы. Главное требование здесь —

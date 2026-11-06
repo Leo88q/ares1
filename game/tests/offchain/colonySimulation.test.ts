@@ -1,12 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { harvestFactor } from '../../apps/web/src/organism/beds'
-import { advanceDay, advanceDays, batteryCapacity, bedCycleKg, canHarvestBed, harvestBed, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, greenhouseBeds, INITIAL_FOOD_KG, initialColony, PARAMETERS as P, repairColony, sellableKg, stepBeds, bedSummary } from '../../apps/web/src/colony/simulation'
-import { starterNetworks } from '../../apps/web/src/colony/networks'
-import { COLONY_MODULE_LIMIT } from '../../apps/web/src/colony/layout'
-import type { ColonyState } from '../../apps/web/src/colony/simulation'
-import { syncView } from '../../apps/web/src/colony/simulation'
-import { unifiedBalance } from '../../apps/web/src/organism/unified'
+import { harvestFactor } from '../../apps/web/vendor/colony-engine/src/organism/beds'
+import { advanceDay, advanceDays, batteryCapacity, bedCycleKg, canHarvestBed, harvestBed, buildModule, buySupplies, canBuild, dailyBudget, DEFAULT_SCENARIO, deliverFood, foodDemand, foodReserve, greenhouseBeds, INITIAL_FOOD_KG, initialColony, PARAMETERS as P, repairColony, sellableKg, stepBeds, bedSummary } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import { starterNetworks } from '../../apps/web/vendor/colony-engine/src/colony/networks'
+import { COLONY_MODULE_LIMIT } from '../../apps/web/vendor/colony-engine/src/colony/layout'
+import type { ColonyState } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import { syncView } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import { unifiedBalance } from '../../apps/web/vendor/colony-engine/src/organism/unified'
 
 const close = (actual: number, expected: number, tolerance = 1e-7): void => assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`)
 /** Ledger identity (P1b): start + harvested = raw + processed + eaten + exported + crafted + processing loss. */

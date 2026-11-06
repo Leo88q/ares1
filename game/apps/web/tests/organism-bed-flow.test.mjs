@@ -11,12 +11,12 @@ const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const tsx = resolve(webRoot, '../../node_modules/.bin/tsx')
 function runTs(body) {
   const file = join(mkdtempSync(join(tmpdir(), 'bedflow-')), 'probe.ts')
-  writeFileSync(file, body.replaceAll('__WEB__', join(webRoot, 'src').replaceAll('\\', '/')))
+  writeFileSync(file, body.replaceAll('__ENGINE__', join(webRoot, 'vendor/colony-engine/src').replaceAll('\\', '/')).replaceAll('__WEB__', join(webRoot, 'src').replaceAll('\\', '/')))
   const r = spawnSync(tsx, [file], { encoding: 'utf8' })
   assert.equal(r.status, 0, r.stderr)
   return JSON.parse(r.stdout)
 }
-const head = `import { bedHarvestSchedule, kgInInterval } from '__WEB__/organism/beds.ts';\nimport { BEDS } from '__WEB__/organism/parameters.ts';\n`
+const head = `import { bedHarvestSchedule, kgInInterval } from '__ENGINE__/organism/beds.ts';\nimport { BEDS } from '__ENGINE__/organism/parameters.ts';\n`
 
 test('colony example (§14.3): 216 kg / 90 days / 6 beds → 6 events of 36 kg every 15 days', () => {
   const r = runTs(head + `console.log(JSON.stringify(bedHarvestSchedule(216, 90, BEDS.perField).map(e => [e.day, e.kg])))`)

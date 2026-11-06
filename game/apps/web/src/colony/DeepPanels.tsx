@@ -1,23 +1,23 @@
 import { useRef, useState, type KeyboardEvent } from 'react'
 import { deepCopy } from './deepCopy'
-import type { ColonyWorld } from './deep/world'
-import { RESOURCES, RESOURCE_IDS } from './deep/resources'
-import { SPECIALTY_LABEL } from './deep/crew'
-import { TASK_META } from './deep/tasks'
-import { ANALYSIS_KINDS, ANALYSIS_META } from './deep/lab'
+import type { ColonyWorld } from '@ares/colony-engine/colony/deep/world'
+import { RESOURCES, RESOURCE_IDS } from '@ares/colony-engine/colony/deep/resources'
+import { SPECIALTY_LABEL } from '@ares/colony-engine/colony/deep/crew'
+import { TASK_META } from '@ares/colony-engine/colony/deep/tasks'
+import { ANALYSIS_KINDS, ANALYSIS_META } from '@ares/colony-engine/colony/deep/lab'
 import {
   applyRecipe, cancelTask, deliverContract, importResource, isolateSection, pricePerUnit,
   requestAnalysis,
   reserveSolsOf, saveRecipe,
   setRisky, setSafeMode, setStandby, setTaskPaused, setTaskPriority, startExperiment, takeSample,
-} from './deep/world'
-import { finishExperiment } from './deep/lab'
-import { batchStage, batchSummary, projectedYieldKg, STAGE_LABEL, FACTOR_LABEL } from './deep/growth'
-import { totalPressureKpa, o2PartialKpa, co2PartialKpa } from './deep/sections'
-import { attentionList } from './deep/reliability'
-import { depositBlockReason, depositWorkable, extractionEnergyKwh } from './deep/extraction'
-import { nutrientClosureRatio } from './deep/waste'
-import type { Device } from './deep/devices'
+} from '@ares/colony-engine/colony/deep/world'
+import { finishExperiment } from '@ares/colony-engine/colony/deep/lab'
+import { batchStage, batchSummary, projectedYieldKg, STAGE_LABEL, FACTOR_LABEL } from '@ares/colony-engine/colony/deep/growth'
+import { totalPressureKpa, o2PartialKpa, co2PartialKpa } from '@ares/colony-engine/colony/deep/sections'
+import { attentionList } from '@ares/colony-engine/colony/deep/reliability'
+import { depositBlockReason, depositWorkable, extractionEnergyKwh } from '@ares/colony-engine/colony/deep/extraction'
+import { nutrientClosureRatio } from '@ares/colony-engine/colony/deep/waste'
+import type { Device } from '@ares/colony-engine/colony/deep/devices'
 
 export const DEEP_TABS = ['crew', 'tasks', 'stores', 'extraction', 'life', 'greenhouse', 'lab', 'repair', 'contracts', 'journal'] as const
 export type DeepTab = typeof DEEP_TABS[number]

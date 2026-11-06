@@ -1,10 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, initialColony, type ColonyState } from '../../apps/web/src/colony/simulation'
-import { RESOURCE_IDS } from '../../apps/web/src/colony/deep/resources'
-import type { ColonyWorld } from '../../apps/web/src/colony/deep/world'
+import { advanceDay, initialColony, type ColonyState } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import { RESOURCE_IDS } from '../../apps/web/vendor/colony-engine/src/colony/deep/resources'
+import type { ColonyWorld } from '../../apps/web/vendor/colony-engine/src/colony/deep/world'
 import { buildStartColony, SCENARIOS } from '../../scripts/deepScenario'
-import { outsideTemperatureC } from '../../apps/web/src/colony/deep/sections'
+import { outsideTemperatureC } from '../../apps/web/vendor/colony-engine/src/colony/deep/sections'
 
 /**
  * Инварианты цепочек. Это не проверки конкретных чисел, а проверки того, что

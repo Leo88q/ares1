@@ -5,13 +5,13 @@ import {
   supplyGrant, SUPPLY_STEP, SUPPLY_UNIT,
 } from '../../apps/web/src/lab/bridge'
 import type { LabSupplyResource } from '../../apps/web/src/lab/bridge'
-import { advanceDays, DEFAULT_SCENARIO, initialColony, syncView } from '../../apps/web/src/colony/simulation'
-import type { ColonyState } from '../../apps/web/src/colony/simulation'
+import { advanceDays, DEFAULT_SCENARIO, initialColony, syncView } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import type { ColonyState } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 import {
   advanceEngineering, canHarvest, engineeringAction, harvestMass, initialEngineering, LAB, storageKg, supplyRoom,
 } from '../../apps/web/src/fields/engineering/engine'
 import type { EngineeringState } from '../../apps/web/src/fields/engineering/engine'
-import { storedKg, unifiedBalance } from '../../apps/web/src/organism/unified'
+import { storedKg, unifiedBalance } from '../../apps/web/vendor/colony-engine/src/organism/unified'
 
 /**
  * Мост «полевая лаборатория ↔ колония» (продакт-версия FIELD LAB, 2026-10-17).

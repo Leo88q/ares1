@@ -36,6 +36,8 @@ yarn test:deploy-mainnet
 # Local backport for GHSA-3gc7-fjrx-p6mg: integer conversion vectors, endianness,
 # width boundaries and malformed/negative input (47 tests, no addon).
 yarn test:vendor-layout
+# Колонийный движок: детерминизм, золотой хеш и актуальность закоммиченного lib/.
+yarn test:engine
 # Калькулятор стоимости деплоя: векторы V1–V5 и инварианты модели (reports/rent-audit/).
 yarn test:deploy-budget
 # Инструменты Этапа 2: CU-профиль логов localnet и слоистое покрытие инструкций.

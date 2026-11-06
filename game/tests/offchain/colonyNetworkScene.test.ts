@@ -1,9 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
-import { initialColony } from '../../apps/web/src/colony/simulation'
+import { initialColony } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 import { createNetworkScene } from '../../apps/web/src/colony/networkScene'
-import { planNetwork } from '../../apps/web/src/colony/networks'
+import { planNetwork } from '../../apps/web/vendor/colony-engine/src/colony/networks'
 
 test('network scene batches segments by utility type, not per pipe; unchanged input reuses GPU instances', () => {
   const state = initialColony(), view = createNetworkScene()

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import type { ColonyState } from './simulation'
+import type { ColonyState } from '@ares/colony-engine/colony/simulation'
 import { moduleCopy } from './copy'
-import { footprint, modulePlacement } from './layout'
+import { footprint, modulePlacement } from '@ares/colony-engine/colony/layout'
 import { addNetwork, removeNetwork, planNetwork, networkCost, networkServices, networksOf, supportsNetwork,
-  NETWORK_TYPES, NETWORK_COLORS, NETWORK_CREDITS_PER_CELL, type ColonyNetwork, type NetworkType } from './networks'
+  NETWORK_TYPES, NETWORK_COLORS, NETWORK_CREDITS_PER_CELL, type ColonyNetwork, type NetworkType } from '@ares/colony-engine/colony/networks'
 import './construction.css'
 
 export function networkName(type: NetworkType, ru: boolean): string {

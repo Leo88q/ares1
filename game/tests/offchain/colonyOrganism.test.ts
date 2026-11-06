@@ -1,10 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, DEFAULT_SCENARIO, initialColony, syncView } from '../../apps/web/src/colony/simulation'
+import { advanceDay, DEFAULT_SCENARIO, initialColony, syncView } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 
 /** Food is set in the ledger (single source of truth), then the view is re-derived. */
 const withFood = (s: ColonyState, kg: number): ColonyState => syncView({ ...s, ledger: { ...s.ledger, rawKg: 0, processedKg: kg } })
-import type { ColonyState } from '../../apps/web/src/colony/simulation'
+import type { ColonyState } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 import { LOW_BATTERY, powerVisualState } from '../../apps/web/src/colony/organism'
 
 const inUnit = (value: number): void => assert.ok(value >= 0 && value <= 1, `${value} outside 0..1`)

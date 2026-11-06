@@ -10,8 +10,8 @@ import * as ReactNS from 'react'
 ;(globalThis as unknown as { React: unknown }).React = ReactNS
 
 import { DeepPanels, DEEP_TABS, nextTab, type DeepTab } from '../../apps/web/src/colony/DeepPanels'
-import { createWorldForColony } from '../../apps/web/src/colony/deep/bridge'
-import { advanceDay, initialColony } from '../../apps/web/src/colony/simulation'
+import { createWorldForColony } from '../../apps/web/vendor/colony-engine/src/colony/deep/bridge'
+import { advanceDay, initialColony } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 
 /**
  * Панели глубокого слоя должны собираться из настоящего мира, а не из заглушек:

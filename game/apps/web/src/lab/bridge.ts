@@ -18,9 +18,9 @@
  */
 import { supplyRoom } from '../fields/engineering/engine'
 import type { EngineeringState } from '../fields/engineering/engine'
-import { syncView } from '../colony/simulation'
-import type { ColonyState } from '../colony/simulation'
-import { storedKg } from '../organism/unified'
+import { syncView } from '@ares/colony-engine/colony/simulation'
+import type { ColonyState } from '@ares/colony-engine/colony/simulation'
+import { storedKg } from '@ares/colony-engine/organism/unified'
 
 export type LabSupplyResource = 'water' | 'nutrients' | 'spares'
 
