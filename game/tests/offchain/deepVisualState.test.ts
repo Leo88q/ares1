@@ -1,12 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, initialColony, type ColonyState } from '../../apps/web/src/colony/simulation'
+import { advanceDay, initialColony, type ColonyState } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 import {
   basePosition, cellWorld, deepVisualState, nodePosition, type Vec2,
 } from '../../apps/web/src/colony/deepVisual'
-import { COLONY_DEPOSITS } from '../../apps/web/src/colony/deep/bridge'
-import { DEEP_P } from '../../apps/web/src/colony/deep/params'
-import type { ColonyWorld } from '../../apps/web/src/colony/deep/world'
+import { COLONY_DEPOSITS } from '../../apps/web/vendor/colony-engine/src/colony/deep/bridge'
+import { DEEP_P } from '../../apps/web/vendor/colony-engine/src/colony/deep/params'
+import type { ColonyWorld } from '../../apps/web/vendor/colony-engine/src/colony/deep/world'
 
 /**
  * Визуальный слой глубокого мира. Сцена здесь не проверяется — WebGL в тестах

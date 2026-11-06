@@ -1,11 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, initialColony, type ColonyState } from '../../apps/web/src/colony/simulation'
-import { atmosphereQuality } from '../../apps/web/src/colony/deep/sections'
-import { modulePowerCapacityKw } from '../../apps/web/src/colony/networks'
-import { DEEP_P } from '../../apps/web/src/colony/deep/params'
-import { linkCapacityKw } from '../../apps/web/src/colony/networks'
-import type { ColonyWorld } from '../../apps/web/src/colony/deep/world'
+import { advanceDay, initialColony, type ColonyState } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import { atmosphereQuality } from '../../apps/web/vendor/colony-engine/src/colony/deep/sections'
+import { modulePowerCapacityKw } from '../../apps/web/vendor/colony-engine/src/colony/networks'
+import { DEEP_P } from '../../apps/web/vendor/colony-engine/src/colony/deep/params'
+import { linkCapacityKw } from '../../apps/web/vendor/colony-engine/src/colony/networks'
+import type { ColonyWorld } from '../../apps/web/vendor/colony-engine/src/colony/deep/world'
 
 /**
  * Блок B: механизм обязан СРАБАТЫВАТЬ, а не просто существовать.

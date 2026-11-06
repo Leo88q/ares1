@@ -1,7 +1,7 @@
 import * as THREE from 'three'
-import type { ColonyModule } from './simulation'
-import { COLONY_CELL_METRES, COLONY_GRID_SIZE, footprint, modulePlacement } from './layout'
-import { NETWORK_COLORS, NETWORK_TYPES, validNetwork, type ColonyNetwork } from './networks'
+import type { ColonyModule } from '@ares/colony-engine/colony/simulation'
+import { COLONY_CELL_METRES, COLONY_GRID_SIZE, footprint, modulePlacement } from '@ares/colony-engine/colony/layout'
+import { NETWORK_COLORS, NETWORK_TYPES, validNetwork, type ColonyNetwork } from '@ares/colony-engine/colony/networks'
 
 /** Utility geometry is instanced per layer, including endpoint stubs into actual
  * module walls. A crossing has different vertical layers and is not a junction.

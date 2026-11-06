@@ -1,13 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, type ColonyState, type Scenario } from '../../apps/web/src/colony/simulation'
+import { advanceDay, type ColonyState, type Scenario } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 import { buildStartColony } from '../../scripts/deepScenario'
-import { DEEP_P } from '../../apps/web/src/colony/deep/params'
+import { DEEP_P } from '../../apps/web/vendor/colony-engine/src/colony/deep/params'
 import {
   atmosphereQuality, createSection, outsideTemperatureC, stepSectionCirculation,
   stepSectionThermal, type Section,
-} from '../../apps/web/src/colony/deep/sections'
-import type { ColonyWorld } from '../../apps/web/src/colony/deep/world'
+} from '../../apps/web/vendor/colony-engine/src/colony/deep/sections'
+import type { ColonyWorld } from '../../apps/web/vendor/colony-engine/src/colony/deep/world'
 
 /**
  * Тепловая модель секций.

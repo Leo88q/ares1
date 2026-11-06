@@ -1,7 +1,7 @@
 /** Reproducible resource study. Shares the exact engine used by /colony. */
 import { writeFileSync } from 'node:fs'
-import { advanceDay, buildModule, buySupplies, canBuild, canRepair, dailyBudget, DEFAULT_SCENARIO, deliverFood, initialColony, PARAMETERS, repairColony } from '../apps/web/src/colony/simulation'
-import type { ColonyState, Scenario } from '../apps/web/src/colony/simulation'
+import { advanceDay, buildModule, buySupplies, canBuild, canRepair, dailyBudget, DEFAULT_SCENARIO, deliverFood, initialColony, PARAMETERS, repairColony } from '../apps/web/vendor/colony-engine/src/colony/simulation'
+import type { ColonyState, Scenario } from '../apps/web/vendor/colony-engine/src/colony/simulation'
 
 interface Experiment {
   name: string

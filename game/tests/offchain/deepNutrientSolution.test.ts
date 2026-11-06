@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, initialColony, DEFAULT_SCENARIO } from '../../apps/web/src/colony/simulation'
-import type { ColonyState } from '../../apps/web/src/colony/simulation'
-import type { ColonyWorld } from '../../apps/web/src/colony/deep/world'
+import { advanceDay, initialColony, DEFAULT_SCENARIO } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import type { ColonyState } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import type { ColonyWorld } from '../../apps/web/vendor/colony-engine/src/colony/deep/world'
 
 /**
  * Питательный раствор: питание доставляется водой.

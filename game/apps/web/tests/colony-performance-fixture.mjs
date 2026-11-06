@@ -9,15 +9,17 @@ export async function performanceFixture() {
   const { build } = require('esbuild')
   const repo = fileURLToPath(new URL('../../../../', import.meta.url))
   const src = fileURLToPath(new URL('../src/', import.meta.url))
+  // Модули движка лежат в vendor/colony-engine/src (esbuild переводит .js-импорты на .ts).
+  const engine = fileURLToPath(new URL('../vendor/colony-engine/src/', import.meta.url))
   mkdirSync(join(repo, '.cache'), { recursive: true })
   const dir = mkdtempSync(join(repo, '.cache/colony-performance-')), prefix = '/__colony-performance/'
   const entry = join(dir, 'main.ts')
   writeFileSync(entry, `
 import { createColonyScene } from '${src}/colony/scene';
-import { initialColony, syncView, MODULE_KINDS, greenhouseBeds, dailyBudget } from '${src}/colony/simulation';
-import { starterNetworks } from '${src}/colony/networks';
-import { initialUnifiedBase } from '${src}/organism/unified';
-import { placementWorld, modulePlacement } from '${src}/colony/layout';
+import { initialColony, syncView, MODULE_KINDS, greenhouseBeds, dailyBudget } from '${engine}/colony/simulation';
+import { starterNetworks } from '${engine}/colony/networks';
+import { initialUnifiedBase } from '${engine}/organism/unified';
+import { placementWorld, modulePlacement } from '${engine}/colony/layout';
 let active = null, state = null, selected = null;
 window.__picked = null;
 const frames = async () => { await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); };

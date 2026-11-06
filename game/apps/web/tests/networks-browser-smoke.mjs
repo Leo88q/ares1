@@ -1,7 +1,6 @@
 // Regression: редактор сетей живёт внутри рабочей колонии (/base) и работает
 // только локально — без транзакций, без списания POTATO и без внешних запросов.
-// Страница статуса протокола (/base/status) при этом по-прежнему не показывает
-// ни редактора, ни симулированных ресурсов.
+// Старая страница статуса (/base/status) удалена.
 import assert from 'node:assert/strict'
 import { readFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -58,22 +57,6 @@ try {
     const crBefore = await page.locator('.colony-resource-value').first().innerText()
     assert.ok(crBefore.length > 0)
 
-    // Страница статуса протокола остаётся честной и без редактора.
-    const statusPage = await context.newPage()
-    await statusPage.goto(`${base}/base/status`, { waitUntil: 'networkidle' })
-    await dismissConsent(statusPage)
-    const status = statusPage.getByTestId('colony-status')
-    await status.waitFor({ state: 'visible' })
-    await statusPage.getByTestId('persistent-colony').waitFor({ state: 'visible' })
-    const copy = await status.innerText()
-    assert.match(copy, /CONSTRUCTION INACTIVE/)
-    assert.match(copy, /A field module is one on-chain account/i)
-    assert.match(copy, /does not create a ready-made colony or unlock separate construction resources/i)
-    for (const selector of ['[data-testid="network-panel"]', '.colony-resource-value']) {
-      assert.equal(await statusPage.locator(selector).count(), 0, `status route must not mount the simulator at ${width}px: ${selector}`)
-    }
-    if (screenshots) await statusPage.screenshot({ path: join(screenshots, `colony-status-${width}.png`), fullPage: true })
-    await statusPage.close()
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `horizontal overflow at ${width}px`)
     await context.close()
     console.log(`PASS ${width}px: network editor inside the colony, status route stays truthful`)

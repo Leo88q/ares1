@@ -11,7 +11,7 @@ import ResourceIcon from '../fields/ResourceIcon'
 import type { ResourceArt } from '../fields/visualAssets'
 import { useMarketplace } from '../hooks/useMarketplace'
 import { useColony } from '../colony/ColonyContext'
-import { colonyStock, colonyFreeStorageKg, drawFromColony, SUPPLY_STEP, SUPPLY_UNIT } from './bridge'
+import { colonyStock, colonyFreeStorageKg, SUPPLY_STEP, SUPPLY_UNIT } from './bridge'
 import type { LabSupplyResource } from './bridge'
 import { dailyYieldMicro, fmtPotato, fmtSol, HARVEST_THRESHOLD_MICRO } from '../utils/constants'
 import './lab.css'
@@ -110,7 +110,7 @@ export default function FieldLabScreen(): JSX.Element {
                 того же стока, что виден в разделе КОЛОНИЯ. Это локальная
                 бухгалтерия сессии: POTATO не тратится, транзакций нет. Передачи
                 разрешены только на остановленных часах колонии. */}
-            <LabSupplyLink colony={colony.state} paused={!colony.running} onChange={colony.setState} />
+            <LabSupplyLink colony={colony.state} paused={!colony.running} ready={colony.ready} perform={colony.perform} />
             {connected && <MarketBook />}
           </aside>
         </div>
@@ -132,10 +132,18 @@ export default function FieldLabScreen(): JSX.Element {
  * умеет забрать воду/питание/запчасти одним нажатием, а собранная на стенде еда
  * уходит в хранилище базы. Ничего on-chain: POTATO не тратится, транзакций нет.
  */
-function LabSupplyLink({ colony, paused, onChange }: {
+/**
+ * Перенос «колония → лаборатория» временно отключён: лабораторный стенд не подключён,
+ * и `labDraw` списывал бы сток без приёмника. Включать только вместе с приёмником (см. docs/GAME_AUDIT_2026-11-06.md, A1).
+ */
+const LAB_TRANSFER_ENABLED = false
+
+function LabSupplyLink({ colony, paused, ready, perform }: {
   colony: ReturnType<typeof useColony>['state']
   paused: boolean
-  onChange: ReturnType<typeof useColony>['setState']
+  /** Серверный режим: пока состояние не загружено, сток не показываем. */
+  ready: boolean
+  perform: ReturnType<typeof useColony>['perform']
 }): JSX.Element {
   const { t } = useI18n()
   const resources: Array<{ key: LabSupplyResource; label: string }> = [
@@ -144,6 +152,10 @@ function LabSupplyLink({ colony, paused, onChange }: {
     { key: 'spares', label: t('ЗАПЧАСТИ') },
   ]
   const free = colonyFreeStorageKg(colony)
+  if (!ready) return <section className="lab-card" data-testid="lab-colony-link" aria-label={t('СВЯЗЬ С КОЛОНИЕЙ')}>
+    <p className="lab-eyebrow">{t('СВЯЗЬ С КОЛОНИЕЙ')}</p>
+    <p className="lab-fineprint">{t('Колония ещё не загружена с сервера. Войдите через кошелёк в разделе КОЛОНИЯ.')}</p>
+  </section>
   return <section className="lab-card" data-testid="lab-colony-link" aria-label={t('СВЯЗЬ С КОЛОНИЕЙ')}>
     <p className="lab-eyebrow">{t('СВЯЗЬ С КОЛОНИЕЙ')}</p>
     <h2 className="lab-card-title">{t('ОДИН СТОК НА ДВЕ СЕКЦИИ')}</h2>
@@ -160,14 +172,16 @@ function LabSupplyLink({ colony, paused, onChange }: {
         type="button"
         className="lab-key lab-key--small"
         data-testid={`lab-draw-${item.key}`}
-        disabled={!paused || colonyStock(colony, item.key) < SUPPLY_STEP[item.key]}
+        disabled={!LAB_TRANSFER_ENABLED || !paused || colonyStock(colony, item.key) < SUPPLY_STEP[item.key]}
         aria-label={`${t('ВЗЯТЬ ИЗ КОЛОНИИ')}: ${item.label} ${SUPPLY_STEP[item.key]} ${SUPPLY_UNIT[item.key]}`}
-        onClick={() => onChange(current => drawFromColony(current, item.key, SUPPLY_STEP[item.key]).state)}
+        onClick={() => void perform({ type: 'labDraw', resource: item.key, kg: SUPPLY_STEP[item.key] })}
       >
         {t('ВЗЯТЬ')} {SUPPLY_STEP[item.key]} {SUPPLY_UNIT[item.key]} {item.label}
       </button>)}
     </div>
-    <p className="lab-fineprint">{paused
+    <p className="lab-fineprint">{!LAB_TRANSFER_ENABLED
+      ? t('Перенос на стенд лаборатории временно отключён: приёмник ещё не подключён, поэтому ресурсы не списываются.')
+      : paused
       ? t('Вода, питание и запчасти списываются из общего стока базы — там их становится ровно столько же меньше. POTATO не тратится, транзакция не подписывается.')
       : t('Часы колонии идут: останови экспедицию в разделе КОЛОНИЯ, чтобы забрать ресурсы без гонки с дневным тиком.')}</p>
   </section>

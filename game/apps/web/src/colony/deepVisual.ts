@@ -1,9 +1,9 @@
-import type { ColonyWorld } from './deep/world'
-import type { CropStage } from './deep/growth'
-import { batchStage } from './deep/growth'
-import { o2PartialKpa, co2PartialKpa, totalPressureKpa } from './deep/sections'
-import { DEEP_P } from './deep/params'
-import { COLONY_CELL_METRES, COLONY_GRID_SIZE } from './layout'
+import type { ColonyWorld } from '@ares/colony-engine/colony/deep/world'
+import type { CropStage } from '@ares/colony-engine/colony/deep/growth'
+import { batchStage } from '@ares/colony-engine/colony/deep/growth'
+import { o2PartialKpa, co2PartialKpa, totalPressureKpa } from '@ares/colony-engine/colony/deep/sections'
+import { DEEP_P } from '@ares/colony-engine/colony/deep/params'
+import { COLONY_CELL_METRES, COLONY_GRID_SIZE } from '@ares/colony-engine/colony/layout'
 
 /**
  * Перевод состояния глубокого мира в то, что можно нарисовать. Здесь нет ni

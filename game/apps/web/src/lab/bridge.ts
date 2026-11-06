@@ -18,11 +18,15 @@
  */
 import { supplyRoom } from '../fields/engineering/engine'
 import type { EngineeringState } from '../fields/engineering/engine'
-import { syncView } from '../colony/simulation'
-import type { ColonyState } from '../colony/simulation'
-import { storedKg } from '../organism/unified'
+import { syncView } from '@ares/colony-engine/colony/simulation'
+import type { ColonyState } from '@ares/colony-engine/colony/simulation'
+import { storedKg } from '@ares/colony-engine/organism/unified'
 
-export type LabSupplyResource = 'water' | 'nutrients' | 'spares'
+// Сам перенос (colonyStock, drawFromColony) живёт в движке: сервер применяет его тем же кодом.
+import { colonyStock, drawFromColony } from '@ares/colony-engine/colony/supply'
+import type { LabSupplyResource } from '@ares/colony-engine/colony/supply'
+export { colonyStock, drawFromColony }
+export type { LabSupplyResource }
 
 /** Сколько переносит одно нажатие клавиши. Запчасти — целые детали.
  *  Вода — 40 л за раз: этого хватает на несколько поливов стенда, а сток базы
@@ -32,30 +36,11 @@ export const SUPPLY_STEP: Record<LabSupplyResource, number> = { water: 40, nutri
 /** Единицы для подписей (строки остаются за i18n экрана). */
 export const SUPPLY_UNIT: Record<LabSupplyResource, 'L' | 'kg' | 'pcs'> = { water: 'L', nutrients: 'kg', spares: 'pcs' }
 
-/** Текущий сток колонии по ресурсу. */
-export function colonyStock(state: ColonyState, resource: LabSupplyResource): number {
-  return resource === 'water' ? state.waterLitres
-    : resource === 'nutrients' ? state.nutrientsKg
-      : state.sparesKg
-}
-
 /** Сколько реально можно перенести сейчас: шаг, ограниченный стоком базы и свободным местом стенда. */
 export function supplyGrant(state: ColonyState, sim: EngineeringState, resource: LabSupplyResource): number {
   const raw = Math.min(SUPPLY_STEP[resource], colonyStock(state, resource), supplyRoom(sim, resource))
   if (!Number.isFinite(raw) || raw <= 0) return 0
   return resource === 'spares' ? Math.floor(raw) : raw
-}
-
-/** Списать со стока колонии. `granted === 0` означает отказ: объект возвращается тем же. */
-export function drawFromColony(state: ColonyState, resource: LabSupplyResource, amount: number): { state: ColonyState; granted: number } {
-  if (!Number.isFinite(amount) || amount <= 0) return { state, granted: 0 }
-  const stock = colonyStock(state, resource)
-  const granted = resource === 'spares' ? Math.min(Math.floor(amount), Math.floor(stock)) : Math.min(amount, stock)
-  if (!(granted > 0)) return { state, granted: 0 }
-  const next = resource === 'water' ? { ...state, waterLitres: state.waterLitres - granted }
-    : resource === 'nutrients' ? { ...state, nutrientsKg: state.nutrientsKg - granted }
-      : { ...state, sparesKg: state.sparesKg - granted }
-  return { state: next, granted }
 }
 
 /** Свободное место хранилища базы (raw + processed против лимита). */

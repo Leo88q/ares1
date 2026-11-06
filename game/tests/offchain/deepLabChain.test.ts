@@ -1,9 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, type ColonyState } from '../../apps/web/src/colony/simulation'
+import { advanceDay, type ColonyState } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 import { buildStartColony } from '../../scripts/deepScenario'
-import { ANALYSIS_META } from '../../apps/web/src/colony/deep/lab'
-import { DEEP_P } from '../../apps/web/src/colony/deep/params'
+import { ANALYSIS_META } from '../../apps/web/vendor/colony-engine/src/colony/deep/lab'
+import { DEEP_P } from '../../apps/web/vendor/colony-engine/src/colony/deep/params'
 
 /**
  * Цепочка лаборатории в общей очереди задач.

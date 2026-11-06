@@ -14,8 +14,7 @@ test('engineering SIM is not imported into the real game, field Lab, or colony s
   const main = source('components/MainScreen.tsx')
   const lab = source('lab/FieldLabScreen.tsx')
   const fields = source('fields/FieldsPanel.tsx')
-  const colony = source('components/ColonyStatusScreen.tsx')
-  for (const [name, code] of [['App', app], ['MainScreen', main], ['FieldLabScreen', lab], ['FieldsPanel', fields], ['ColonyStatusScreen', colony]]) {
+  for (const [name, code] of [['App', app], ['MainScreen', main], ['FieldLabScreen', lab], ['FieldsPanel', fields]]) {
     assert.doesNotMatch(code, /EngineeringConsole|engineering\/|EngineeringState/, `${name} must not mount the training simulator`)
   }
   // Учебный стенд по-прежнему не монтируется. `pause` больше не запрещён: ЛАБ

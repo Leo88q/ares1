@@ -2,8 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   advanceDay, buildModule, initialColony, type ColonyState, type ModuleKind,
-} from '../../apps/web/src/colony/simulation'
-import { COLONY_MODULE_LIMIT } from '../../apps/web/src/colony/layout'
+} from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import { COLONY_MODULE_LIMIT } from '../../apps/web/vendor/colony-engine/src/colony/layout'
 
 /**
  * Перф-ограничение на большую колонию. Абсолютные миллисекунды зависят от

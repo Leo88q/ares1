@@ -1,0 +1,158 @@
+/**
+ * Single source of organism parameters (docs/ORGANISM_INTEGRATION.md, WP1).
+ * Values are moved verbatim from the engines: no behaviour change in this step.
+ * Off-chain game assumptions are NOT validated agriculture or lunar engineering data.
+ */
+export declare const LAB: Readonly<{
+    version: "ARES-LAB/2";
+    solHours: 24.66;
+    tickHours: 0.25;
+    maxAdvanceHours: number;
+    maxHours: number;
+    growthLightHours: number;
+    lightHoursPerSol: 16;
+    batteryCapacityKwh: 12;
+    batteryInitialKwh: 8;
+    chargeEfficiency: 0.9;
+    dischargeEfficiency: 0.9;
+    solarPeakKw: 3.2;
+    lampKw: 0.7;
+    pumpKw: 0.08;
+    coolerKw: 0.12;
+    processorKw: 0.35;
+    tankCapacityL: 120;
+    tankInitialL: 100;
+    supplyInitialL: 240;
+    lineCapacityL: 2;
+    lineInitialL: 2;
+    pumpRateLph: 3;
+    nominalCycleHours: number;
+    nutrientsInitialKg: 0.65;
+    nutrientsPerCycleKg: 0.096;
+    seedsInitial: 3;
+    sparesInitial: 3;
+    harvestKg: 9.6;
+    storageCapacityKg: 45;
+    supplyCapacityL: 480;
+    nutrientCapacityKg: 2;
+    sparesCapacity: 9;
+    rawShelfHours: 72;
+    processedShelfHours: 336;
+    coldAgeFactor: 0.12;
+    heatStressAboveC: 22;
+    heatStressPerCHour: 0.0004;
+    irrigationStressPerHour: 0.014;
+    overripeHours: 720;
+    processorRateKgph: number;
+    processingYield: 0.85;
+    processBatchKg: 5;
+    maxLots: 12;
+    maxHistory: 192;
+    maxEvents: 40;
+    initialTemperatureC: 20;
+    targetTemperatureC: 20;
+    minTargetC: 12;
+    maxTargetC: 26;
+    thermalCapacityKwhPerC: 0.9;
+    envelopeKwPerC: 0.006;
+    heaterKw: 0.9;
+    climateCoolerKw: 3.2;
+    climateCoolingCop: 2.4;
+    thermostatResponseHours: 2;
+    lampHeatFraction: 0.65;
+    evapFraction: 0.55;
+    latentKwhPerL: 0.68;
+    outsideMinC: -52;
+    outsideDayAmplitudeC: 28;
+    coldEventDropC: 26;
+}>;
+export declare const PARAMETERS: {
+    readonly solarFluxKwM2: 1.361;
+    readonly panelAreaM2: 40;
+    readonly panelEfficiency: 0.28;
+    readonly panelDerating: 0.8;
+    readonly cropAreaM2: 20;
+    readonly cropCycleDays: 90;
+    readonly cropKgM2Day: 0.12;
+    readonly cropEvapLitresM2Day: 4.3;
+    readonly cropWaterBoundLitresKg: 0.8;
+    readonly cropNutrientKgPerKg: 0.01;
+    readonly ledKwM2: 0.2;
+    readonly photoperiodHours: 16;
+    readonly cropUtilitiesKwM2: 0.04;
+    readonly habitatKwhDay: 24;
+    readonly crewPerHabitat: 4;
+    readonly crewWaterLitresDay: 3.8;
+    readonly freshFoodKgCrewDay: 0.5;
+    readonly crewO2KgDay: 0.84;
+    readonly cropO2KgPerKgFresh: 0.25;
+    readonly recyclerO2KgDay: 1.6;
+    readonly electrolysisKwhKgO2: 15;
+    readonly electrolysisWaterKgPerKgO2: 1.125;
+    readonly oxygenStartKg: 30;
+    readonly oxygenTankKg: 60;
+    readonly leakLitresDay: 1;
+    readonly recyclerLitresDay: 120;
+    readonly recyclerKwhLitre: 0.03;
+    readonly roverKwhDay: 4;
+    readonly workshopKwhDay: 2;
+    readonly batteryKwh: 100;
+    readonly batteryChargeEfficiency: 0.9;
+    readonly batteryDischargeEfficiency: 0.9;
+    readonly workHoursCrewDay: 6;
+    readonly cropWorkHoursM2Day: 0.08;
+    readonly reserveDays: 14;
+    readonly initialCredits: 1400;
+    readonly contractKg: 60;
+    readonly contractCreditsKg: 4;
+    readonly repairCredits: 20;
+    readonly repairSparesKg: 2;
+    readonly supplyCredits: 80;
+    readonly supplyWaterLitres: 100;
+    readonly supplyNutrientKg: 1;
+    readonly supplySparesKg: 2;
+    readonly maxDays: 365;
+};
+export declare const ECONOMY: Readonly<{
+    baseFieldPriceMicro: 250000000;
+    baseTaxMicro: 6000000;
+    baseRepairMicro: 15000000;
+    baseFertilizerMicro: 2000000;
+    baseUpgradeMicro: 30000000;
+    baseYieldMicroPerDay: 10000000;
+    exportLicenseSkrAtoms: 500000000n;
+    presaleSkrAtoms: 1053000000n;
+    feeBurnPercent: 60;
+    tiers: readonly [{
+        readonly name: "Common";
+        readonly yieldBps: 3500;
+        readonly costBps: 4000;
+    }, {
+        readonly name: "Rare";
+        readonly yieldBps: 10000;
+        readonly costBps: 10000;
+    }, {
+        readonly name: "Epic";
+        readonly yieldBps: 21000;
+        readonly costBps: 20000;
+    }];
+}>;
+export declare const SLOTS: Readonly<{
+    freePerField: 6;
+    maxPerField: 12;
+    priceSkrAtoms: 500000000n;
+    ownershipAuthority: "server-signed-record";
+}>;
+export declare const BEDS: Readonly<{
+    perField: 6;
+    harvestWindowMinRatio: 0.8;
+    harvestWindowMaxRatio: 1.2;
+    earlyHarvestMinRatio: 0.3;
+    earlyHarvestFactorAt80: 0.5;
+}>;
+export declare const MARKET: Readonly<{
+    microFieldPriceMicro: 25000000;
+    microFieldScale: 0.25;
+    priceGrowthPerField: 0.05;
+    colonyLinkedFieldCap: 24;
+}>;

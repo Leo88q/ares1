@@ -1,27 +1,6 @@
 import { useEffect, useState } from 'react';
-import { t } from '../i18n';
 
 export type SolPhase = 'dawn' | 'day' | 'blueset' | 'night';
-
-export const ARES_COLORS = {
- rust: '#C1440E',
- rustDark: '#8A2E08',
- dust: '#E0A183',
- sky: '#D9A06B',
- blueset: '#6B93D6',
- space: '#050308',
- growPink: '#E86A3C',
- growViolet: '#C97A42',
- bioGreen: '#7CFF6B',
- bioCyan: '#12E7C4',
- hudAmber: '#FFB347',
- hudOrange: '#FF7A1A',
- metalDark: '#2A2D34',
- metalLight: '#4A4F5A',
- glass: 'rgba(180, 220, 255, 0.10)',
-} as const;
-
-export type AresColorKey = keyof typeof ARES_COLORS;
 
 const PHASE_CHECK_INTERVAL_MS = 60_000;
 
@@ -56,7 +35,3 @@ export const SEEKER_PHASE_LABELS_RU: Record<SolPhase, string> = {
  night: 'Ночь',
 };
 
-/** Локализованные подписи фаз сола (перевод берётся на момент вызова). */
-export function seekerPhaseLabel(phase: SolPhase): string {
- return t(SEEKER_PHASE_LABELS_RU[phase]);
-}

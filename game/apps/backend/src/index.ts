@@ -33,9 +33,10 @@ import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { colonyPackageCatalogResponse } from "./colonies/catalog.js";
 import { colonyAuthRouter } from "./colonies/routes.js";
 import { colonyPotatoSpendRouter } from "./colonies/potatoSpendRouter.js";
+import { colonySimRouter } from "./colonySim/routes.js";
+import { ColonySimService, poolDatabase } from "./colonySim/service.js";
 import { ColonyPotatoSpendService } from "./colonies/potatoSpendService.js";
 import { parseTransactionForSpend } from "./colonies/potatoSpendChain.js";
-import { ColonyService } from "./colonies/service.js";
 import { checkColonyDatabaseRole } from "./colonies/dbReadiness.js";
 import { loadGameOpsConfig } from "./gameops/env.js";
 import { closePool, createPool } from "./gameops/pool.js";
@@ -114,12 +115,6 @@ async function main() {
       "COLONIES_ENABLED is blocked until the Colony V1 release gate is approved"
       + ` (set COLONY_V1_RELEASE_READY=true and COLONY_V1_RELEASE_APPROVED=YES after the acceptance suite and release review).`
       + ` Gate state: ${LAUNCH_GATES.colonyV1Release.reason}`,
-    );
-  }
-  if (env.colonyFreeStarterEnabled && !COLONY_V1_RELEASE_READY) {
-    throw new Error(
-      "COLONY_FREE_STARTER_ENABLED is blocked until the Colony V1 release gate is approved"
-      + ` (${LAUNCH_GATES.colonyV1Release.reason})`,
     );
   }
   if (process.env.NODE_ENV === "production" && env.cluster === "mainnet-beta") {
@@ -244,11 +239,6 @@ async function main() {
       sessionSecret: env.colonySessionSecret,
       allowedOrigins: env.corsOrigin.split(",").map(origin => origin.trim()).filter(Boolean),
       allowLocalhostForDevelopment: process.env.NODE_ENV !== "production",
-      fieldRpc: connection,
-      secondaryFieldRpc: secondaryConnection,
-      requireSecondaryFieldRpc: env.requireSecondaryRpc,
-      programId,
-      colonyService: new ColonyService(gameOpsPool, env.cluster, env.colonyFreeStarterEnabled),
     }));
   }
 
@@ -262,6 +252,25 @@ async function main() {
       programId: () => programId.toBase58(),
       potatoMint: async () => (await fetchConfig()).potatoMint.toBase58(),
     })));
+  }
+
+  // Серверная симуляция колонии (вариант 2): состояние и действия колонии считаются на сервере.
+  // Выключена по умолчанию; стройка и ремонт требуют квитанцию colony_spend только при
+  // COLONY_POTATO_SPEND_ENABLED. Без флага маршрута нет (404).
+  if (env.colonySimEnabled) {
+    if (!env.coloniesEnabled) throw new Error("COLONY_SIM_ENABLED requires COLONIES_ENABLED (wallet session)");
+    if (!gameOpsPool) throw new Error("COLONY_SIM_ENABLED requires GAME_OPS_DATABASE_URL");
+    if (env.cluster !== "devnet" && env.cluster !== "mainnet-beta") throw new Error("COLONY_SIM_ENABLED supports devnet and mainnet-beta only");
+    app.use("/api/colony-sim", colonySimRouter({
+      allowedOrigins: env.corsOrigin.split(",").map(origin => origin.trim()).filter(Boolean),
+      allowLocalhostForDevelopment: process.env.NODE_ENV !== "production",
+      sessionSecret: env.colonySessionSecret,
+      service: new ColonySimService(poolDatabase(gameOpsPool), {
+        cluster: env.cluster,
+        spendRequired: env.colonyPotatoSpendEnabled,
+      }),
+      onInternalError: err => console.error("colony-sim internal error", err),
+    }));
   }
 
   // Product transparency endpoint only; this static proposal cannot create

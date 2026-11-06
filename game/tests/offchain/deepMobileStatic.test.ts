@@ -16,8 +16,8 @@ import * as ReactNS from 'react'
 ;(globalThis as unknown as { React: unknown }).React = ReactNS
 
 import { DeepPanels, DEEP_TABS } from '../../apps/web/src/colony/DeepPanels'
-import { createWorldForColony } from '../../apps/web/src/colony/deep/bridge'
-import { advanceDay, initialColony } from '../../apps/web/src/colony/simulation'
+import { createWorldForColony } from '../../apps/web/vendor/colony-engine/src/colony/deep/bridge'
+import { advanceDay, initialColony } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 
 const srcDir = join(dirname(fileURLToPath(import.meta.url)), '../../apps/web/src/colony')
 const css = readFileSync(join(srcDir, 'colony.css'), 'utf8')
@@ -30,7 +30,7 @@ const world = (() => {
 
 const allMarkup = (DEEP_TABS as readonly string[])
   .map(tab => renderToStaticMarkup(createElement(DeepPanels, {
-    world, language: 'en', onChange: () => {}, initialTab: tab as never,
+    world, language: 'en', perform: () => {}, initialTab: tab as never,
   }))).join('\n')
 
 test('every table lives in a horizontally scrollable container', () => {

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createNetworkServiceReader, networkServices } from '../../apps/web/src/colony/networks'
-import { initialColony } from '../../apps/web/src/colony/simulation'
+import { createNetworkServiceReader, networkServices } from '../../apps/web/vendor/colony-engine/src/colony/networks'
+import { initialColony } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 
 test('service reader reuses graph across new crop/wear/day snapshots, not just identical state references', () => {
   const reader = createNetworkServiceReader(), state = initialColony(), original = reader.read(state)

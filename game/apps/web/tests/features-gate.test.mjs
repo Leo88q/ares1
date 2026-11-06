@@ -31,8 +31,8 @@ test('фиче-флаг не прячет рабочий раздел колон
   assert.match(app, /<Route path="\/colony" element=\{<Navigate to="\/base" replace \/>} \/>/)
   assert.match(app, /const hiddenTabs: readonly AresTab\[\] = \[\]/)
   assert.match(app, /hidden=\{hiddenTabs\}/)
-  // Статус протокола остаётся доступен отдельным адресом.
-  assert.match(app, /<Route path="\/base\/status" element=\{<ColonyStatusScreen \/>} \/>/)
+  // Старая страница статуса колонии (/base/status) удалена: адрес не должен рендерить её.
+  assert.doesNotMatch(app, /ColonyStatusScreen|\/base\/status/)
   // Флаг продолжает приходить с бэкенда (и используется сервером), но не
   // решает, существует ли раздел.
   assert.match(hook, /\/api\/features/)

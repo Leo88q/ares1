@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import type { ColonyState, ModuleKind } from './simulation'
-import { CATALOG } from './simulation'
-import { COLONY_GRID_SIZE, COLONY_MODULE_LIMIT, footprint, modulePlacement, placementError, type Placement } from './layout'
+import type { ColonyState, ModuleKind } from '@ares/colony-engine/colony/simulation'
+import { CATALOG } from '@ares/colony-engine/colony/simulation'
+import { COLONY_GRID_SIZE, COLONY_MODULE_LIMIT, footprint, modulePlacement, placementError, type Placement } from '@ares/colony-engine/colony/layout'
 import { moduleCopy } from './copy'
-import { placementHitsNetwork, networksOf, NETWORK_COLORS } from './networks'
+import { placementHitsNetwork, networksOf, NETWORK_COLORS } from '@ares/colony-engine/colony/networks'
 import './construction.css'
 
 export interface ConstructionDraft { kind: ModuleKind; at: Placement; moveId?: string }

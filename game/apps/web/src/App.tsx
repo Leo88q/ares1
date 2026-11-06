@@ -8,6 +8,8 @@ import { ToastProvider } from './components/Toast'
 import { WalletErrorReporter } from './components/WalletErrorReporter'
 import { GameProvider } from './contexts/GameContext'
 import { ColonyProvider } from './colony/ColonyContext'
+import { ServerColonyProvider } from './colony/ColonySimProvider'
+import { COLONY_SIM_ENABLED } from './colony/simFlag'
 import { t, useI18n } from './i18n'
 import { NETWORK_LABEL } from './utils/network'
 import { ambientMusic } from './utils/ambientMusic'
@@ -27,7 +29,6 @@ const StatsScreen = lazy(() => import('./components/StatsScreen'))
 const ProfileScreen = lazy(() => import('./components/ProfileScreen'))
 const OperationScreen = lazy(() => import('./components/OperationScreen'))
 const FieldLabScreen = lazy(() => import('./lab/FieldLabScreen'))
-const ColonyStatusScreen = lazy(() => import('./components/ColonyStatusScreen'))
 // Колония возвращена в игровой shell: 3D-раскладка базы, стройка, сети,
 // логистика и общий с /lab запас ресурсов — вместо страницы «строительство не
 // активно». On-chain операции колоний по-прежнему закрыты серверными гейтами.
@@ -71,9 +72,9 @@ export default function App() {
             ПОЛЕВАЯ ЛАБОРАТОРИЯ (/lab), поэтому вода, питание и запчасти — одни
             и те же числа в обеих секциях. Без общего провайдера каждый экран
             завёл бы свой сток, и передача ресурсов стала бы фикцией. */}
-        <ColonyProvider>
-         <AppRoutes />
-        </ColonyProvider>
+        {COLONY_SIM_ENABLED
+          ? <ServerColonyProvider><AppRoutes /></ServerColonyProvider>
+          : <ColonyProvider><AppRoutes /></ColonyProvider>}
        </GameProvider>
       </ToastProvider>
      </ErrorBoundary>
@@ -130,7 +131,6 @@ function AppRoutes() {
        <Route path="/base" element={<ColonyBaseRoute />} />
        {/* Статус протокола остаётся доступен отдельным адресом: он рассказывает,
            что именно ещё не включено на сервере. */}
-       <Route path="/base/status" element={<ColonyStatusScreen />} />
        <Route path="/colony" element={<Navigate to="/base" replace />} />
        <Route path="/market" element={<MarketScreen />} />
        <Route path="/stats" element={<StatsScreen />} />

@@ -145,27 +145,6 @@ export const fertilizerCostMicro = (level: number, fieldType: number, durability
  return Math.max(1, Math.floor((leveled * durabilityMultBps(durability)) / BPS))
 }
 
-/**
- * Срок окупаемости ремонта в сутках (P2-4): сколько дней поле должно отдавать
- * прирост урожая, чтобы цена ремонта вернулась. Нужен для честной подписи у
- * кнопки: при пропорциональной цене он почти не зависит от прочности.
- */
-export function repairPaybackDays(dailyYieldMicro: number, costMicro: number, durability: number): number {
- const perDayGain = dailyYieldMicro * (DURABILITY_SLOPE_BPS_PER_POINT / BPS) * (MAX_DURABILITY - durability)
- if (perDayGain <= 0) return 0
- return costMicro / perDayGain
-}
-
-/**
- * Срок окупаемости удобрения в сутках (P2-4): за 24 ч оно добавляет
- * `FERTILIZER_YIELD_BPS/BPS − 1` суточного урожая поля.
- */
-export function fertilizerPaybackDays(dailyYieldMicro: number, costMicro: number): number {
- const perDayGain = dailyYieldMicro * ((FERTILIZER_YIELD_BPS - BPS) / BPS)
- if (perDayGain <= 0) return 0
- return costMicro / perDayGain
-}
-
 /** Cost of upgrading from `level` to `level + 1`. */
 export function upgradeCostMicro(level: number, fieldType: number): number {
  return scaledCostMicro(BASE_COST_MICRO.upgrade * level, fieldType)
@@ -293,4 +272,3 @@ export function fmtPotatoExact(micro: number | bigint): string {
 
 export const fmtSol = (lamports: number | bigint, decimals = 3) => (Number(lamports) / 1e9).toFixed(decimals)
 
-export const fmtSkr = (atoms: number | bigint, decimals = 2) => (Number(atoms) / 1e6).toFixed(decimals)

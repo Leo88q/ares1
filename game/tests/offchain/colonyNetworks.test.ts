@@ -1,9 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { initialColony, dailyBudget, advanceDay, buildModule, buildModuleAt, moveModule, canRepair, sellableKg, batteryStocks } from '../../apps/web/src/colony/simulation'
-import type { ColonyState } from '../../apps/web/src/colony/simulation'
-import { planNetwork, validNetwork, networkCost, addNetwork, removeNetwork, networkServices, ports, placementHitsNetwork, NETWORK_TYPES } from '../../apps/web/src/colony/networks'
-import { modulePlacement, placementError } from '../../apps/web/src/colony/layout'
+import { initialColony, dailyBudget, advanceDay, buildModule, buildModuleAt, moveModule, canRepair, sellableKg, batteryStocks } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import type { ColonyState } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import { planNetwork, validNetwork, networkCost, addNetwork, removeNetwork, networkServices, ports, placementHitsNetwork, NETWORK_TYPES } from '../../apps/web/vendor/colony-engine/src/colony/networks'
+import { modulePlacement, placementError } from '../../apps/web/vendor/colony-engine/src/colony/layout'
 
 const idOf = (s: ColonyState, kind: string): string => s.modules.find(m => m.kind === kind)!.id
 const close = (a: number, b: number): void => assert.ok(Math.abs(a - b) < 1e-7, `${a} != ${b}`)

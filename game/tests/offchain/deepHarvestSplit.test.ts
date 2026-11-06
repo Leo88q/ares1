@@ -1,12 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceDay, type ColonyState } from '../../apps/web/src/colony/simulation'
-import { advanceDay as advanceUnified } from '../../apps/web/src/organism/unified'
-import { unifiedBalance } from '../../apps/web/src/organism/unified'
+import { advanceDay, type ColonyState } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import { advanceDay as advanceUnified } from '../../apps/web/vendor/colony-engine/src/organism/unified'
+import { unifiedBalance } from '../../apps/web/vendor/colony-engine/src/organism/unified'
 import { buildStartColony, SCENARIOS } from '../../scripts/deepScenario'
-import { applySort, createWorld } from '../../apps/web/src/colony/deep/world'
-import { colonyWorldConfig } from '../../apps/web/src/colony/deep/bridge'
-import { DEEP_P } from '../../apps/web/src/colony/deep/params'
+import { applySort, createWorld } from '../../apps/web/vendor/colony-engine/src/colony/deep/world'
+import { colonyWorldConfig } from '../../apps/web/vendor/colony-engine/src/colony/deep/bridge'
+import { DEEP_P } from '../../apps/web/vendor/colony-engine/src/colony/deep/params'
 
 /**
  * Разделка урожая и затвор уборки.

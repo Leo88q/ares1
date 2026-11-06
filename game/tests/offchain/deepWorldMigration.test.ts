@@ -2,9 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   advanceDay, initialColony, type ColonyState,
-} from '../../apps/web/src/colony/simulation'
-import { ensureWorld } from '../../apps/web/src/colony/deep/bridge'
-import { WORLD_VERSION, type ColonyWorld } from '../../apps/web/src/colony/deep/world'
+} from '../../apps/web/vendor/colony-engine/src/colony/simulation'
+import { ensureWorld } from '../../apps/web/vendor/colony-engine/src/colony/deep/bridge'
+import { WORLD_VERSION, type ColonyWorld } from '../../apps/web/vendor/colony-engine/src/colony/deep/world'
 
 /**
  * Миграция состояния. Глубокий мир живёт внутри `state.world`, и версия у него

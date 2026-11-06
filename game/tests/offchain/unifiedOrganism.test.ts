@@ -4,8 +4,8 @@ import assert from 'node:assert/strict'
 import {
   advanceDay, bedFullKg, canHarvestBed, craftPotato, exportKg, fieldCycleKg, harvestBed, initialUnifiedBase,
   unifiedBalance, UNIFIED_CYCLE_DAYS, type UnifiedBase, type UnifiedPlot,
-} from '../../apps/web/src/organism/unified'
-import { BEDS, PARAMETERS } from '../../apps/web/src/organism/parameters'
+} from '../../apps/web/vendor/colony-engine/src/organism/unified'
+import { BEDS, PARAMETERS } from '../../apps/web/vendor/colony-engine/src/organism/parameters'
 
 const close = (actual: number, expected: number, tolerance = 1e-7): void =>
   assert.ok(Math.abs(actual - expected) < tolerance, `${actual} != ${expected}`)

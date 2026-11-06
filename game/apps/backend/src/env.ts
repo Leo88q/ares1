@@ -31,9 +31,9 @@ export const env = {
   coloniesEnabled: configuredBoolean('COLONIES_ENABLED'),
   // Колонийные траты POTATO (вариант B): выключено по умолчанию; mainnet блокируется в index.ts.
   colonyPotatoSpendEnabled: configuredBoolean('COLONY_POTATO_SPEND_ENABLED'),
-  colonyFreeStarterEnabled: process.env.COLONY_FREE_STARTER_ENABLED === undefined
-    ? configuredCluster() === 'devnet' && process.env.NODE_ENV !== 'production'
-    : configuredBoolean('COLONY_FREE_STARTER_ENABLED'),
+  // Серверная симуляция колонии (docs/COLONY_SERVER_SIM_PLAN.md). Выключена по умолчанию.
+  colonySimEnabled: configuredBoolean('COLONY_SIM_ENABLED'),
+  // Бесплатный стартер: выключен по умолчанию на всех сетях (гейты default-closed, без тихого включения).
   colonySessionSecret: process.env.COLONY_SESSION_SECRET || '',
   rpcUrl: required("RPC_URL"),
   programId: required("PROGRAM_ID"),

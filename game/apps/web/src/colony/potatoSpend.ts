@@ -18,8 +18,8 @@ export const COLONY_PURPOSE = { build: 1, repair: 2, upgrade: 3 } as const
 /** Совпадает с COLONY_SPEND_MAX_MICRO в программе: 10 000 POTATO за одну трату. */
 export const COLONY_SPEND_MAX_MICRO = 10_000_000_000
 
-/** Функция оплаты, которую получает ColonyScreen: purpose и сумма в микро-POTATO. */
-export type PotatoSpend = (purpose: number, amountMicro: number) => Promise<unknown>
+/** Функция оплаты, которую получает ColonyScreen: purpose и сумма в микро-POTATO. Возвращает подпись квитанции. */
+export type PotatoSpend = (purpose: number, amountMicro: number) => Promise<{ signature: string }>
 
 /** Сколько раз и как часто ждать финализации транзакции на бэкенде (409 NOT_FINALIZED). */
 export const RECEIPT_ATTEMPTS = 30

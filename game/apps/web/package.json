@@ -20,6 +20,7 @@
     "test:tap-audit": "node tests/tap-target-audit.mjs"
   },
   "dependencies": {
+    "@ares/colony-engine": "file:vendor/colony-engine",
     "@solana-mobile/wallet-adapter-mobile": "2.2.0",
     "@solana-mobile/wallet-standard-mobile": "0.5.1",
     "@solana/buffer-layout-utils": "file:vendor/solana-buffer-layout-utils",

@@ -31,7 +31,7 @@ test('colony models: small, pinned, CC0 or NASA 3D Resources assets and unmodifi
 })
 
 test('colony catalog model references all resolve to bundled, provenance-pinned assets', () => {
-  const simulation = readFileSync(new URL('../src/colony/simulation.ts', import.meta.url), 'utf8')
+  const simulation = readFileSync(new URL('../vendor/colony-engine/src/colony/simulation.ts', import.meta.url), 'utf8')
   const catalog = simulation.match(/export const CATALOG:[\s\S]*?\n}/)?.[0]
   assert.ok(catalog, 'catalog source found')
   const files = [...catalog.matchAll(/file: '([^']+\.glb)'/g)].map((match) => match[1])

@@ -104,13 +104,15 @@ test('платные SKR-слоты закрыты даже при полной 
   assert.deepEqual(slots, { enabled: false, reason: 'flag-off' })
 })
 
-test('в колониях нет маршрута покупки: только аутентификация, поля и действия', async () => {
+test('в колониях нет маршрута покупки: живые маршруты только аутентификация, закрытые пути отвечают 410', async () => {
   const { readFileSync } = await import('node:fs')
   const { fileURLToPath } = await import('node:url')
   const source = readFileSync(fileURLToPath(new URL('../src/colonies/routes.ts', import.meta.url)), 'utf8')
-  const routes = [...source.matchAll(/router\.(get|post)\('([^']+)'/g)].map(match => match[2])
-  assert.deepEqual(routes.sort(), [
-    '/actions', '/auth/challenge', '/auth/session', '/auth/verify',
-    '/field/verify', '/fields/link', '/fields/unlink', '/initialize', '/rules', '/state',
-  ].sort(), 'новый маршрут колоний требует отдельного решения о продаже и выдачи')
+  const live = [...source.matchAll(/router\.(get|post)\('([^']+)'/g)].map(match => match[2])
+  assert.deepEqual(live.sort(), ['/auth/challenge', '/auth/session', '/auth/verify'], 'новый живой маршрут колоний требует отдельного решения о продаже и выдачи')
+  const retiredMatch = /const RETIRED_COLONY_PATHS = \[([^\]]*)\]/.exec(source)
+  assert.ok(retiredMatch, 'список закрытых путей колонии должен быть явным')
+  const retired = [...retiredMatch[1]!.matchAll(/'([^']+)'/g)].map(match => match[1]).sort()
+  assert.deepEqual(retired, ['/actions', '/field/verify', '/fields/link', '/fields/unlink', '/initialize', '/rules', '/state'])
+  assert.equal([...source.matchAll(/router\.all\(/g)].length, 1, 'кроме закрытых путей других router.all быть не должно')
 })

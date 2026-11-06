@@ -21,16 +21,7 @@ import {
   Connection,
   PublicKey,
   TransactionInstruction,
-  TransactionMessage,
-  VersionedTransaction,
 } from '@solana/web3.js'
-
-export const LUT_SEED = 'ares-lut-v1'
-
-/** Деривация PDA для LUT authority (игрок + seed) — не on-chain, только для кэша */
-export function lutAuthorityPda(owner: PublicKey, programId: PublicKey): PublicKey {
-  return PublicKey.findProgramAddressSync([Buffer.from(LUT_SEED), owner.toBuffer()], programId)[0]
-}
 
 /**
  * Создаёт новую ALT для игрока. Вызывается 1 раз, затем extend.
@@ -86,25 +77,6 @@ export async function getLookupTable(
 }
 
 /**
- * Строит VersionedTransaction с LUT.
- * Если LUT не передан — фолбэк на legacy (для совместимости).
- */
-export async function buildVersionedTransaction(
-  connection: Connection,
-  payer: PublicKey,
-  instructions: TransactionInstruction[],
-  lookupTables: AddressLookupTableAccount[] = [],
-): Promise<VersionedTransaction> {
-  const { blockhash } = await connection.getLatestBlockhash('confirmed')
-  const messageV0 = new TransactionMessage({
-    payerKey: payer,
-    recentBlockhash: blockhash,
-    instructions,
-  }).compileToV0Message(lookupTables)
-  return new VersionedTransaction(messageV0)
-}
-
-/**
  * Деактивирует и закрывает LUT (возврат rent). Вызывать при выходе из игры.
  */
 export function closeLookupTable(
@@ -119,24 +91,3 @@ export function closeLookupTable(
   })
 }
 
-/**
- * Хелпер: определяет, какие адреса можно вынести в LUT.
- * Для ARES-1: field PDAs, order PDAs, escrow PDAs — идеальны для LUT.
- */
-export function addressesForBatchHarvest(
-  fieldPks: PublicKey[],
-  extra: PublicKey[] = [],
-): PublicKey[] {
-  // Дедуп + лимит 256
-  const set = new Set<string>()
-  const out: PublicKey[] = []
-  for (const pk of [...fieldPks, ...extra]) {
-    const s = pk.toBase58()
-    if (!set.has(s)) {
-      set.add(s)
-      out.push(pk)
-      if (out.length >= 256) break
-    }
-  }
-  return out
-}

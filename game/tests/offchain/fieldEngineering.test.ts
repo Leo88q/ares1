@@ -9,6 +9,13 @@ const close = (a: number, b: number, epsilon = 1e-7): void => assert.ok(Math.abs
 const initial = (): EngineeringState => initialEngineering('account-a', 0)
 const grown = (): EngineeringState => advanceEngineering(initial(), 7 * LAB.solHours)
 const harvested = (): EngineeringState => engineeringAction(grown(), { type: 'harvest' })
+// Ideal crop with water supplied. The bench tank holds 120 L and a 20-sol cycle uses ~200 L, so refill each day.
+function advanceWatered(state: EngineeringState, hours: number): EngineeringState {
+  let t = state
+  for (let left = hours; left > 0; left -= 24) { t = engineeringAction(t, { type: 'refill' }); t = advanceEngineering(t, Math.min(24, left)) }
+  return t
+}
+const matured = (): EngineeringState => advanceWatered(initial(), LAB.nominalCycleHours + 24)
 function accounting(s: EngineeringState): void {
   const scale = labScale(s.tier)
   close(s.batteryKwh, LAB.batteryInitialKwh * scale + s.totals.chargeInputKwh * LAB.chargeEfficiency - s.totals.dischargeOutputKwh / LAB.dischargeEfficiency)
@@ -61,11 +68,12 @@ test('growth passes staged development and cannot harvest an immature crop', () 
   let s = initial()
   assert.equal(cropStage(s.crop), 'seedling')
   assert.equal(engineeringAction(s, { type: 'harvest' }), s)
-  s = advanceEngineering(s, 2 * LAB.solHours)
+  // Stage bounds are progress shares (0.2, 0.55, 1). Growth is ~linear in hours, so steps are shares of the nominal cycle.
+  s = advanceWatered(s, 0.35 * LAB.nominalCycleHours)
   assert.equal(cropStage(s.crop), 'vegetative')
-  s = advanceEngineering(s, 3 * LAB.solHours)
+  s = advanceWatered(s, 0.5 * LAB.nominalCycleHours)
   assert.equal(cropStage(s.crop), 'tuber')
-  s = advanceEngineering(s, 2 * LAB.solHours)
+  s = advanceWatered(s, 0.25 * LAB.nominalCycleHours)
   assert.equal(cropStage(s.crop), 'mature'); assert.equal(canHarvest(s), true)
   accounting(s)
 })
@@ -208,12 +216,7 @@ test('seeding consumes finite packets; clearing cannot refund them', () => {
   assert.equal(engineeringAction(s, { type: 'plant' }), s)
 })
 test('storage capacity blocks a whole harvest rather than discarding or overfilling food', () => {
-  let s = initial()
-  for (let cycle = 0; cycle < 2; cycle++) {
-    s = engineeringAction(s, { type: 'refill' }); s = advanceEngineering(s, 7 * LAB.solHours)
-    s = engineeringAction(s, { type: 'harvest' }); s = engineeringAction(s, { type: 'plant' })
-  }
-  s = engineeringAction(s, { type: 'refill' }); s = advanceEngineering(s, 7 * LAB.solHours)
+  const s = matured()
   assert.equal(cropStage(s.crop), 'mature')
   // Fill storage explicitly so the next harvest would overflow (the yield itself is not tuned by this test).
   const cap = LAB.storageCapacityKg * labScale(s.tier)
@@ -226,13 +229,16 @@ test('storage capacity blocks a whole harvest rather than discarding or overfill
   accounting(s)
 })
 test('processing is time/energy bounded and conserves input mass plus declared loss', () => {
-  const start = harvested()
+  const start = engineeringAction(matured(), { type: 'harvest' })
   let s = engineeringAction(start, { type: 'process', lotId: start.lots[0].id })
   assert.ok(s.processing); assert.equal(s.lots.find(lot => lot.kind === 'processed')?.kg, 0)
   close(storageKg(s), storageKg(start))
   const active = s
   assert.equal(engineeringAction(s, { type: 'process', lotId: start.lots[0].id }), s)
-  s = advanceEngineering(s, 12)
+  // Rate is 4.2 kg/sol: a 5 kg batch needs ≈ 29 h at full power. Raw food spoils after 72 h, so it must finish inside that.
+  s = advanceEngineering(s, 10)
+  assert.ok(s.processing, 'batch should still run after 10 h')
+  s = advanceEngineering(s, 40)
   assert.equal(s.processing, null)
   close(s.lots.find(lot => lot.kind === 'processed')!.kg, LAB.processBatchKg * LAB.processingYield)
   close(s.totals.processingLossKg, LAB.processBatchKg * (1 - LAB.processingYield))

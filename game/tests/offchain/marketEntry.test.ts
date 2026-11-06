@@ -5,8 +5,8 @@ import {
   buyFieldsCostMicro, canLinkFieldToColony, fieldPriceMicro, fieldTaxPerDayMicro, fieldYieldPerDayMicro,
   microFieldPriceMicro, microFieldTaxPerDayMicro, microFieldYieldPerDayMicro, paybackDays,
 } from '../../apps/web/src/organism/market'
-import { MARKET } from '../../apps/web/src/organism/parameters'
-import { SLOTS } from '../../apps/web/src/colony/simulation'
+import { MARKET } from '../../apps/web/vendor/colony-engine/src/organism/parameters'
+import { SLOTS } from '../../apps/web/vendor/colony-engine/src/colony/simulation'
 
 const POTATO = 1_000_000
 const close = (actual: number, expected: number, tolerance = 1e-9): void =>

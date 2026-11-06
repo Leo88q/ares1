@@ -395,30 +395,6 @@ export const ScanRing = memo(function ScanRing({
  );
 });
 
-export function useLongPress(onLongPress: () => void, delayMs = 600): {
- onPointerDown: () => void;
- onPointerUp: () => void;
- onPointerLeave: () => void;
-} {
- const timerRef = useRef<number | null>(null);
-
- const clear = (): void => {
-  if (timerRef.current !== null) {
-   window.clearTimeout(timerRef.current);
-   timerRef.current = null;
-  }
- };
-
- const onPointerDown = (): void => {
-  clear();
-  timerRef.current = window.setTimeout(onLongPress, delayMs);
- };
-
- useEffect(() => clear, []);
-
- return { onPointerDown, onPointerUp: clear, onPointerLeave: clear };
-}
-
 export function useDoubleTap(onDoubleTap: () => void, maxDelayMs = 300): () => void {
  const lastTapRef = useRef(0);
  return (): void => {
