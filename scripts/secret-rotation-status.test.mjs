@@ -39,12 +39,18 @@ test('реестр ротаций описывает S-01 и не содержи
   assert.doesNotMatch(raw, /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
 });
 
-test('ключ НЕ в allowlist: утечка остаётся утечкой до отзыва', () => {
+test('ключ НЕ в allowlist: allowlist глушит находку, поэтому путь туда не добавляется', () => {
+  // Сканер (isAllowed) пропускает любой путь из allowlist. Запись с пометкой
+  // NOT ALLOWLISTED внутри allowlist делала бы ровно то, что запрещено: тихо
+  // снимала бы находку. Причина и статус живут в реестре ротаций.
   const allowlist = json('.secret-scan-allowlist.json');
-  const entry = allowlist['helius-key-in-url']?.['game/apps/web/.env.production'];
-  assert.ok(entry, 'the historical path must stay listed with an explicit reason');
-  assert.match(entry, /NOT ALLOWLISTED/);
-  assert.match(entry, /Revoke\/rotate/i);
+  assert.equal(
+    allowlist['helius-key-in-url']?.['game/apps/web/.env.production'],
+    undefined,
+    'the historical key path must NOT be in the allowlist; it silences the scanner',
+  );
+  const registry = json('.secret-rotation-status.json');
+  assert.match(registry['S-01'].note, /Не добавлять в allowlist/);
 });
 
 test('сканер читает реестр: revoked=false — находка, revoked-at=… — пропуск', () => {
@@ -58,6 +64,12 @@ test('сканер читает реестр: revoked=false — находка, 
   assert.match(scanner, /status === 'no-longer-valid'/);
   // Известная обязанность: запись ротации обязана быть в выводе, а не только в коде.
   assert.match(scanner, /rotation \$\{id\}/);
+});
+
+test('сканер: незакрытая ротация даёт красный код выхода, даже без шаблона в истории', () => {
+  const scanner = read('scripts/secret-scan-history.mjs');
+  assert.match(scanner, /const pendingRotations = /);
+  assert.match(scanner, /process\.exit\(deduped\.length > 0 \|\| pendingRotations\.length > 0 \? 1 : 0\)/);
 });
 
 test('процедура описана и workflow на неё ссылается', () => {

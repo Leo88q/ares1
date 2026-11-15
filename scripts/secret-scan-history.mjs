@@ -228,8 +228,16 @@ function main() {
   const counts = { critical: 0, high: 0, medium: 0 };
   for (const f of deduped) counts[f.severity] = (counts[f.severity] || 0) + 1;
 
+  // Незакрытая ротация (revoked=false в реестре) — сама по себе находка: ключ
+  // жив у провайдера, даже если текст в истории уже заменён маркером. Поэтому
+  // гейт красный до записи `revoked-at=<дата>`, а не до исчезновения шаблона.
+  const pendingRotations = Object.entries(rotation)
+    .filter(([id, entry]) => !id.startsWith('$') && entry && entry.rule)
+    .filter(([, entry]) => !(/^revoked-at=\d{4}-\d{2}-\d{2}/.test(String(entry.status)) || entry.status === 'no-longer-valid'))
+    .map(([id]) => id);
+
   if (AS_JSON) {
-    console.log(JSON.stringify({ commits: sh('git rev-list --all --count').trim(), blobs, findings: deduped, counts }, null, 2));
+    console.log(JSON.stringify({ commits: sh('git rev-list --all --count').trim(), blobs, findings: deduped, counts, pendingRotations }, null, 2));
   } else {
     console.log(`secret-scan-history: commits=${sh('git rev-list --all --count').trim()} blobs scanned=${blobs}`);
     console.log('');
@@ -252,7 +260,10 @@ function main() {
     }
   }
 
-  process.exit(deduped.length > 0 ? 1 : 0);
+  if (pendingRotations.length > 0) {
+    console.log(`  gate: RED — незакрытых ротаций: ${pendingRotations.join(', ')} (docs/SECRET_ROTATION.md)`);
+  }
+  process.exit(deduped.length > 0 || pendingRotations.length > 0 ? 1 : 0);
 }
 
 main();
